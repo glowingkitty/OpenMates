@@ -8053,7 +8053,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Include the inspiration embed data + keys so other devices can
                 // store and decrypt the embed immediately without a Directus round-trip.
                 if (encryptedChatKey) {
-                    chatSyncService.sendSyncInspirationChat(
+                    await chatSyncService.sendSyncInspirationChat(
                         chatId,
                         messageId,
                         messageContent,

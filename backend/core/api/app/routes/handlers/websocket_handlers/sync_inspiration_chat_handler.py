@@ -45,6 +45,7 @@ import logging
 from typing import Any
 
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.persistence_tasks import _async_persist_encrypted_chat_metadata
 from backend.core.api.app.schemas.chat import MessageInCache
 
 logger = logging.getLogger(__name__)
@@ -161,6 +162,59 @@ async def handle_sync_inspiration_chat(
                     chat_id,
                     user_id[:8],
                 )
+
+                # Persist chat metadata inline before returning to the WebSocket
+                # loop or broadcasting to other devices. Follow-up sends use the
+                # durable Directus preflight transaction, which cannot accept a
+                # chat with messages_v=1 until this row exists.
+                chat_metadata_fields: dict = {
+                    "encrypted_title": encrypted_title,
+                    "encrypted_category": encrypted_category,
+                    "encrypted_chat_key": encrypted_chat_key,
+                    "title_v": title_v,
+                    "messages_v": messages_v,
+                    "last_edited_overall_timestamp": now_ts,
+                    "last_message_timestamp": now_ts,
+                    "updated_at": now_ts,
+                    "created_at": created_at,
+                }
+
+                if encrypted_follow_up_suggestions:
+                    chat_metadata_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
+                    logger.debug(
+                        "[SyncInspirationChat] Including encrypted follow-up suggestions in metadata for chat %s",
+                        chat_id,
+                    )
+
+                try:
+                    await _async_persist_encrypted_chat_metadata(
+                        chat_id,
+                        chat_metadata_fields,
+                        f"sync_inspiration_chat:{chat_id}",
+                        user_id_hash,
+                        user_id,
+                    )
+                    logger.info(
+                        "[SyncInspirationChat] Persisted chat metadata inline for chat %s before follow-up sends",
+                        chat_id,
+                    )
+                except Exception as inline_metadata_error:
+                    logger.error(
+                        "[SyncInspirationChat] Inline metadata persistence failed for chat %s; "
+                        "falling back to Celery persistence: %s",
+                        chat_id,
+                        inline_metadata_error,
+                        exc_info=True,
+                    )
+                    celery_app.send_task(
+                        "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
+                        args=[chat_id, chat_metadata_fields, user_id_hash, user_id],
+                        queue="persistence",
+                    )
+                    logger.info(
+                        "[SyncInspirationChat] Queued persist_encrypted_chat_metadata fallback for chat %s",
+                        chat_id,
+                    )
 
             # ── 1b. Add the assistant message to the AI inference cache ───────────
             # The AI inference cache (vault-encrypted, 72h TTL) is what the LLM uses
@@ -293,44 +347,10 @@ async def handle_sync_inspiration_chat(
                 user_id[:8],
             )
 
-            # ── 3. Persist to Directus via Celery tasks ──────────────────────────
-            # Queue chat metadata creation/update.  This ensures the chat record
-            # exists in Directus (with encrypted title, category, chat key) so it
-            # survives beyond the Redis cache TTL.
-            #
-            # Pattern matches encrypted_chat_metadata_handler.py:
-            #   persist_encrypted_chat_metadata → creates or updates the chat row
-            #   persist_new_chat_message → creates the assistant message row
-            if not workflow_existing_chat:
-                chat_metadata_fields: dict = {
-                    "encrypted_title": encrypted_title,
-                    "encrypted_category": encrypted_category,
-                    "encrypted_chat_key": encrypted_chat_key,
-                    "title_v": title_v,
-                    "messages_v": messages_v,
-                    "last_edited_overall_timestamp": now_ts,
-                    "last_message_timestamp": now_ts,
-                    "updated_at": now_ts,
-                }
-
-                # Persist LLM-generated follow-up suggestions if the client included them.
-                if encrypted_follow_up_suggestions:
-                    chat_metadata_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
-                    logger.debug(
-                        "[SyncInspirationChat] Including encrypted follow-up suggestions in metadata for chat %s",
-                        chat_id,
-                    )
-
-                celery_app.send_task(
-                    "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-                    args=[chat_id, chat_metadata_fields, user_id_hash, user_id],
-                    queue="persistence",
-                )
-                logger.info(
-                    "[SyncInspirationChat] Queued persist_encrypted_chat_metadata for chat %s",
-                    chat_id,
-                )
-
+            # ── 3. Persist the assistant message via Celery ───────────────────────
+            # The chat metadata row was already written inline above so the durable
+            # follow-up preflight can see messages_v=1. The assistant message remains
+            # on the existing idempotent persistence queue.
             # Persist the assistant message (the pre-built response shown in the chat).
             # Only queue if we have encrypted content — without it, nothing to store.
             if encrypted_content:
