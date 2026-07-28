@@ -80,7 +80,7 @@ const {
 const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const START_CHAT_CTA_PATTERN = /start chat/i;
+const CHAT_CTA_PATTERN = /(?:start chat|open chat)/i;
 const PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS = 30000;
 const CAROUSEL_STEP_WAIT_MS = 300;
 
@@ -101,7 +101,7 @@ async function waitForStartChatInspiration(page: any, log: (message: string, dat
 		const state = `${cta || '(empty CTA)'} :: ${phrase.slice(0, 100) || '(empty phrase)'}`;
 		if (seenStates[seenStates.length - 1] !== state) seenStates.push(state);
 
-		if (START_CHAT_CTA_PATTERN.test(cta)) {
+		if (CHAT_CTA_PATTERN.test(cta)) {
 			log('Found a fresh daily inspiration chat CTA.', { attempts: seenStates.length, cta });
 			return ctaText;
 		}
@@ -113,7 +113,7 @@ async function waitForStartChatInspiration(page: any, log: (message: string, dat
 	}
 
 	throw new Error(
-		`Timed out waiting for a daily inspiration with a start-chat CTA. Seen states:\n${seenStates
+		`Timed out waiting for a daily inspiration with a chat CTA. Seen states:\n${seenStates
 			.slice(-20)
 			.map((state, index) => `${index + 1}. ${state}`)
 			.join('\n')}`
