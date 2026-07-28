@@ -427,6 +427,37 @@
         return found;
     }
 
+    function editorHasInFlightEmbed(editor: Editor | null | undefined): boolean {
+        if (!editor || editor.isDestroyed) return false;
+        let found = false;
+        editor.state.doc.descendants((node) => {
+            if (node.type.name !== 'embed') return true;
+            const attrs = node.attrs as Record<string, unknown>;
+            const status = typeof attrs.status === 'string' ? attrs.status : '';
+            if (status === 'uploading' || status === 'transcribing') {
+                found = true;
+                return false;
+            }
+            return true;
+        });
+        return found;
+    }
+
+    function draftContentHasMeaningfulContent(content: unknown): boolean {
+        if (typeof content === 'string') return content.trim().length > 0;
+        if (Array.isArray(content)) return content.some(draftContentHasMeaningfulContent);
+        if (!content || typeof content !== 'object') return false;
+
+        const node = content as Record<string, unknown>;
+        if (node.type === 'embed') return true;
+        if (typeof node.text === 'string' && node.text.trim().length > 0) return true;
+        return draftContentHasMeaningfulContent(node.content);
+    }
+
+    function isEmptyDraftContent(draftContent: Content | null): boolean {
+        return !draftContentHasMeaningfulContent(draftContent);
+    }
+
     function editorHasSendableText(editor: Editor | null | undefined): boolean {
         if (!editor || editor.isDestroyed || editor.isEmpty) return false;
         return editor.getText().trim().length > 0 && !isContentEmptyExceptMention(editor);
@@ -5140,15 +5171,40 @@
         appendMessageInputDiagnostic('setDraftContent-before', {
             textLength: editor && !editor.isDestroyed ? editor.getText().length : 0,
         });
+
+        const draftStateChatId = get(draftEditorUIState).currentChatId;
+        const isSameOrPendingDraftContext = !draftStateChatId || draftStateChatId === chatId;
+        const isActiveComposerContext = !chatId || !currentChatId || currentChatId === chatId;
+        const shouldPreserveInFlightEmbed = !!editor && !editor.isDestroyed &&
+            draftContent !== null &&
+            isEmptyDraftContent(draftContent) &&
+            editorHasInFlightEmbed(editor) &&
+            isSameOrPendingDraftContext &&
+            isActiveComposerContext;
+
+        if (shouldPreserveInFlightEmbed) {
+            appendMessageInputDiagnostic('setDraftContent-preserve-in-flight-embed', {
+                draftStateChatId,
+                currentChatId,
+            });
+            console.debug('[MessageInput] Preserving in-flight embed during delayed empty draft restore', {
+                chatId,
+                currentChatId,
+                draftStateChatId,
+            });
+        }
+
+        const draftContentForContext = shouldPreserveInFlightEmbed ? null : draftContent;
+
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
-        setDraftServiceCurrentChatContext(chatId, draftContent, version);
+        setDraftServiceCurrentChatContext(chatId, draftContentForContext, version);
 
         // Cold-boot chat restore can run while the draft service still points at a
         // stale editor instance. Apply non-empty restored content to this bound
         // MessageInput immediately so the visible editor reflects the active chat.
-        if (editor && !editor.isDestroyed && draftContent !== null) {
+        if (editor && !editor.isDestroyed && draftContent !== null && !shouldPreserveInFlightEmbed) {
             editor.commands.setContent(draftContent, { emitUpdate: false });
         }
         appendMessageInputDiagnostic('setDraftContent-after-local-apply', {
@@ -5166,7 +5222,7 @@
             
             // Only update originalMarkdown if there's actual content
             // For demo chats with no draft, we don't want to set originalMarkdown
-            if (draftContent !== null) {
+            if (draftContentForContext !== null) {
                 updateOriginalMarkdown(editor); // Update markdown tracking
             } else {
                 originalMarkdown = ''; // Clear markdown tracking for chats with no draft
