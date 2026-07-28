@@ -337,6 +337,20 @@ class TestImageUploadEmbedDetection:
 
         assert _request_has_image_upload_embed(request) is True
 
+    def test_detects_raw_current_turn_image_embed_reference(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("Evaluate this design.")],
+            "current_user_content": """Evaluate this design.
+
+```json
+{"type":"image","embed_id":"client-upload-image-1"}
+```""",
+            "embed_file_path_index": None,
+            "has_image_upload_embed": False,
+        })()
+
+        assert _request_has_image_upload_embed(request) is True
+
     def test_ignores_non_image_file_path_index(self):
         request = type("Request", (), {
             "message_history": [_user_msg("Summarize this document.")],

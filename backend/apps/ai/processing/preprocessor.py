@@ -6,6 +6,7 @@
 # that bypass prompt injection detection but are processed by LLMs.
 # See: docs/architecture/prompt_injection_protection.md
 
+import json
 import logging
 import re
 import time
@@ -126,7 +127,26 @@ FOLLOW_UP_CONTINUITY_TOPIC_AREAS = {"education_learning"}
 
 
 def _content_has_image_upload_embed(content: Any) -> bool:
-    return isinstance(content, str) and "app_id: images" in content and "skill_id: upload" in content
+    if not isinstance(content, str):
+        return False
+    if "app_id: images" in content and "skill_id: upload" in content:
+        return True
+    if '"embed_id"' not in content or '"type"' not in content or '"image"' not in content:
+        return False
+
+    for match in re.finditer(r"```(?:json|json_embed)\s*\n([\s\S]*?)\n```", content):
+        try:
+            embed_ref = json.loads(match.group(1).strip())
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(embed_ref, dict)
+            and embed_ref.get("type") == "image"
+            and isinstance(embed_ref.get("embed_id"), str)
+            and embed_ref["embed_id"].strip()
+        ):
+            return True
+    return False
 
 
 def _embed_ref_is_image_upload(embed_ref: Any) -> bool:
