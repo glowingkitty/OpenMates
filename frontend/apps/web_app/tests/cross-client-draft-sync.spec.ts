@@ -488,6 +488,9 @@ async function activeMessageEditorEditable(page: any, chatId: string): Promise<a
 		await expect(messageEditorHost(page, chatId)).toBeVisible({ timeout: 10_000 });
 	}).toPass({ timeout: 120_000, intervals: [1_000, 2_000, 5_000] });
 	const scopedEditor = messageEditorEditable(page, chatId);
+	if (!(await scopedEditor.isVisible({ timeout: 1_000 }).catch(() => false))) {
+		await messageEditorHost(page, chatId).click();
+	}
 	await expect(scopedEditor).toBeVisible({ timeout: 10_000 });
 	return scopedEditor;
 }
