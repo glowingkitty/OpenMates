@@ -564,7 +564,7 @@
             $recordingState.showRecordAudioUI
         )
     );
-    let showEmptyInputAffordances = $derived(
+    let showBaseEmptyInputAffordances = $derived(
         !startNewChatOnClick && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
     );
 
@@ -728,6 +728,7 @@
     let sendClickInProgress = $state(false);
     let pendingNewChatDraftRestore = $state<{ chatId: string | null; text: string } | null>(null);
     let showStopProcessingButton = $derived(!!activeAITaskId || awaitingAITaskStart);
+    let showEmptyInputAffordances = $derived(showBaseEmptyInputAffordances && !showStopProcessingButton);
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
