@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
 	chatDB: {
 		getChat: vi.fn(),
 		getEncryptedFields: vi.fn(),
+		getMessageCountForChat: vi.fn(),
+		updateChatComponentVersion: vi.fn(),
 	},
 	chatKeyManager: {
 		getKeySync: vi.fn(),
@@ -114,5 +116,39 @@ describe("sendCompletedAIResponseImpl", () => {
 
 		expect(mocks.addPendingAIResponse).toHaveBeenCalledWith("assistant-1", "chat-1");
 		expect(service.unmarkMessageSyncing).toHaveBeenCalledWith("assistant-1");
+	});
+
+	it("does not optimistically persist messages_v before storage confirmation", async () => {
+		mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+
+		const service = {
+			webSocketConnected_FOR_SENDERS_ONLY: true,
+			isMessageSyncing: vi.fn(() => false),
+			markMessageSyncing: vi.fn(),
+			unmarkMessageSyncing: vi.fn(),
+			dispatchEvent: vi.fn(),
+		} as unknown as ChatSynchronizationService;
+		const aiMessage = {
+			message_id: "assistant-1",
+			chat_id: "chat-1",
+			role: "assistant",
+			created_at: 123,
+			status: "synced",
+			user_message_id: "user-1",
+		} as Message;
+
+		await sendCompletedAIResponseImpl(service, aiMessage);
+
+		expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+			"ai_response_completed",
+			expect.objectContaining({
+				versions: {
+					messages_v: 4,
+					last_edited_overall_timestamp: 123,
+				},
+			})
+		);
+		expect(mocks.chatDB.getMessageCountForChat).not.toHaveBeenCalled();
+		expect(mocks.chatDB.updateChatComponentVersion).not.toHaveBeenCalled();
 	});
 });

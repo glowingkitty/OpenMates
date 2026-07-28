@@ -1479,31 +1479,16 @@ export async function sendCompletedAIResponseImpl(
 			return;
 		}
 
-		// MESSAGES_V HANDLING: The server's `_update_chat_versions_if_needed`
-		// uses the client-provided `versions.messages_v` to set Directus values
-		// (optimistic locking: only updates if client value > current Directus value).
-		// We MUST increment the local version so the server advances past the previous
-		// value. Without this increment, every AI response sends the same stale
-		// messages_v (e.g. 1) and the server's optimistic lock skips the update,
-		// causing permanent client/server version drift.
-		// Store the local version optimistically using a component-only update. The
-		// server does not broadcast chat_message_added for assistant responses, and
-		// ai_response_storage_confirmed can arrive after UI/tests read IndexedDB.
-		// Do not rewrite the full chat record here; that can clobber encrypted
-		// metadata updates that arrive while the response is completing.
+		// MESSAGES_V HANDLING: send the next durable server version, but do not
+		// advance local chat metadata until `ai_response_storage_confirmed`. Recovery
+		// completions can be visible locally without a terminal Directus row; an
+		// optimistic local bump would make the next durable preflight reject with a
+		// false version_conflict.
 		const newMessagesV = (chat.messages_v || 0) + 1;
 		const newLastEdited = aiMessage.created_at;
-		const localMessageCount = await chatDB.getMessageCountForChat(aiMessage.chat_id);
-		const localMessagesV = Math.max(newMessagesV, localMessageCount);
-		await chatDB.updateChatComponentVersion(
-			aiMessage.chat_id,
-			"messages_v",
-			localMessagesV
-		);
-		chat.messages_v = Math.max(chat.messages_v || 0, localMessagesV);
 
 		console.debug(
-			`[ChatSyncService:Senders] Using current messages_v for chat ${chat.chat_id}: ${newMessagesV} (local persisted as ${localMessagesV})`
+			`[ChatSyncService:Senders] Sending AI response messages_v for chat ${chat.chat_id}: ${newMessagesV}`
 		);
 
 		const chatKey =
