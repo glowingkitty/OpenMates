@@ -86,8 +86,45 @@ function extractEmbedIdsFromText(content: unknown): string[] {
 	const text = String(content || '');
 	const ids = new Set<string>();
 	for (const match of text.matchAll(/"embed_id"\s*:\s*"([^"\s]+)"/gi)) ids.add(match[1]);
-	for (const match of text.matchAll(/\[!\]\(embed:([a-f0-9-]+)\)/gi)) ids.add(match[1]);
+	for (const ref of extractEmbedRefsFromText(text)) {
+		if (/^[a-f0-9-]{36}$/i.test(ref)) ids.add(ref);
+	}
 	return [...ids];
+}
+
+function extractEmbedRefsFromText(content: unknown): string[] {
+	const text = String(content || '');
+	const refs = new Set<string>();
+	for (const match of text.matchAll(/\]\(embed:([A-Za-z0-9._-]+)\)/g)) refs.add(match[1]);
+	for (const match of text.matchAll(/"embed_ref"\s*:\s*"([^"\s]+)"/gi)) refs.add(match[1]);
+	return [...refs];
+}
+
+function extractEmbedIdPrefixesFromRefs(embedRefs: Iterable<string>): string[] {
+	const prefixes = new Set<string>();
+	for (const embedRef of embedRefs) {
+		for (const match of embedRef.matchAll(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]+/gi)) {
+			prefixes.add(match[0].toLowerCase());
+		}
+	}
+	return [...prefixes];
+}
+
+function readCachedEmbedIds(embedRefs: Iterable<string>): string[] {
+	if (!fs.existsSync(CLI_SYNC_CACHE_FILE)) return [];
+
+	const prefixes = extractEmbedIdPrefixesFromRefs(embedRefs);
+	try {
+		const cache = JSON.parse(fs.readFileSync(CLI_SYNC_CACHE_FILE, 'utf8'));
+		const embeds = Array.isArray(cache?.embeds) ? cache.embeds : [];
+		return embeds
+			.map((embed: any) => String(embed?.embed_id || embed?.id || ''))
+			.filter((embedId: string) =>
+				embedId && (prefixes.length === 0 || prefixes.some((prefix) => embedId.startsWith(prefix)))
+			);
+	} catch {
+		return [];
+	}
 }
 
 function readEmbedContent(embedData: any): Record<string, unknown> {
@@ -285,14 +322,26 @@ async function waitForFinishedPdfEmbed(
 ): Promise<void> {
 	const startedAt = Date.now();
 	let lastSummary = 'no embeds checked';
+	const knownEmbedIds = new Set<string>();
+	const knownEmbedRefs = new Set<string>();
 
 	while (Date.now() - startedAt < timeoutMs) {
-		const showData = await waitForChatShow(apiUrl, chatId, 45_000);
-		const embedIds = new Set<string>();
-		for (const message of showData.messages || []) {
-			for (const id of message.embedIds || message.embed_ids || []) embedIds.add(id);
-			for (const id of extractEmbedIdsFromText(message.content || message.text || '')) embedIds.add(id);
+		let cachedEmbedIds = readCachedEmbedIds(knownEmbedRefs);
+		if (knownEmbedIds.size === 0 && (knownEmbedRefs.size === 0 || cachedEmbedIds.length === 0)) {
+			const showData = await waitForChatShow(apiUrl, chatId, 45_000);
+			for (const message of showData.messages || []) {
+				for (const id of message.embedIds || message.embed_ids || []) knownEmbedIds.add(id);
+				for (const id of extractEmbedIdsFromText(message.content || message.text || '')) {
+					knownEmbedIds.add(id);
+				}
+				for (const ref of extractEmbedRefsFromText(message.content || message.text || '')) {
+					knownEmbedRefs.add(ref);
+				}
+			}
+			cachedEmbedIds = readCachedEmbedIds(knownEmbedRefs);
 		}
+
+		const embedIds = new Set([...knownEmbedIds, ...cachedEmbedIds]);
 
 		const summaries: string[] = [];
 		for (const embedId of embedIds) {
@@ -311,6 +360,11 @@ async function waitForFinishedPdfEmbed(
 			}
 
 			const content = readEmbedContent(embedData);
+			const embedRef = typeof content.embed_ref === 'string' ? content.embed_ref : '';
+			if (knownEmbedRefs.size > 0 && !knownEmbedRefs.has(embedRef)) {
+				summaries.push(`${embedId}:unmatched_ref`);
+				continue;
+			}
 			summaries.push(
 				`${embedId}:${String(content.app_id || 'unknown')}/${String(content.skill_id || 'unknown')}/${String(content.status || 'unknown')}`
 			);
@@ -320,7 +374,8 @@ async function waitForFinishedPdfEmbed(
 			}
 		}
 
-		lastSummary = summaries.join(', ') || 'no embed ids found';
+		lastSummary = summaries.slice(0, 10).join(', ') || 'no embed ids found';
+		if (summaries.length > 10) lastSummary += `, +${summaries.length - 10} more`;
 		await new Promise((resolve) => setTimeout(resolve, 5_000));
 	}
 
