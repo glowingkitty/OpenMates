@@ -12,8 +12,8 @@ import { PdfRenderer } from "./PdfRenderer";
 import { RecordingRenderer } from "./RecordingRenderer";
 import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
 import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
-import { SubChatBatchRenderer } from "./SubChatBatchRenderer";
 import { EmbedsMapViewRenderer } from "./EmbedsMapViewRenderer";
+import { SubChatBatchRenderer } from "./SubChatBatchRenderer";
 import { MapLocationRenderer } from "./MapLocationRenderer";
 import { MathPlotRenderer } from "./MathPlotRenderer";
 import type { EmbedRenderer, EmbedRendererRegistry } from "./types";
@@ -27,8 +27,8 @@ const rendererInstances: Record<string, EmbedRenderer> = {
   GroupRenderer: new GroupRenderer(),
   AppSkillUseRenderer: new AppSkillUseRenderer(),
   FocusModeActivationRenderer: new FocusModeActivationRenderer(),
-  SubChatBatchRenderer: new SubChatBatchRenderer(),
   EmbedsMapViewRenderer: new EmbedsMapViewRenderer(),
+  SubChatBatchRenderer: new SubChatBatchRenderer(),
   ImageRenderer: new ImageRenderer(),
   PdfRenderer: new PdfRenderer(),
   RecordingRenderer: new RecordingRenderer(),
@@ -57,8 +57,8 @@ export const embedRenderers: EmbedRendererRegistry = Object.fromEntries(
 
 // Virtual message-level renderers are intentionally not generated from app.yml
 // because they do not represent persisted backend embed types.
-embedRenderers["sub-chat-batch"] = rendererInstances.SubChatBatchRenderer;
 embedRenderers["embeds-map-view"] = rendererInstances.EmbedsMapViewRenderer;
+embedRenderers["sub-chat-batch"] = rendererInstances.SubChatBatchRenderer;
 
 /**
  * Get renderer for a specific embed type

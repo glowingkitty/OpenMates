@@ -45,6 +45,13 @@ def test_stream_consumer_strips_raw_application_source_after_parent_embed() -> N
     assert "_strip_generated_application_source_text(" in source
 
 
+def test_stream_consumer_application_parent_finalizer_noops_without_code_files() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+
+    assert "no generated code file embeds available for application parent" not in source
+    assert "if generated_code_file_embeds and not application_parent_embed_created:" in source
+
+
 def test_mermaid_instruction_is_inactive_and_prefers_source_only() -> None:
     instruction = MERMAID_INSTRUCTION_PATH.read_text(encoding="utf-8")
 

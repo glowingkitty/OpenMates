@@ -48,6 +48,12 @@ function firstContinueChatCard(page: any) {
 	return page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
 }
 
+async function expectFirstCardIsExampleChat(page: any): Promise<void> {
+	const firstCard = firstContinueChatCard(page);
+	await expect(firstCard).toHaveAttribute('data-chat-id', /^example-/, { timeout: 15000 });
+	await expect(firstCard).not.toHaveAttribute('data-chat-id', 'demo-for-everyone');
+}
+
 async function clickInterestTag(page: any, tagId: string): Promise<void> {
 	await page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement, id: string) => {
 		const tag = rail.querySelector<HTMLElement>(`[data-testid="interest-tag-${id}"]`);
@@ -304,7 +310,7 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByText('What are your interests?')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
-		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
+		await expectFirstCardIsExampleChat(page);
 
 		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 5000 });
@@ -396,7 +402,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(storageStateAfterContinue.sessionValue).toContain('software_development');
 		expect(storageStateAfterContinue.sessionValue).toContain('privacy');
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
-		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
+		await expectFirstCardIsExampleChat(page);
 		await expect(page.getByTestId('example-chat-badge').first()).toContainText('Example chat', { timeout: 15000 });
 		await page.getByTestId('message-editor').click();
 		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
@@ -418,7 +424,7 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 15000 });
-		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
+		await expectFirstCardIsExampleChat(page);
 		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(

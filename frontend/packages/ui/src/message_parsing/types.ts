@@ -113,6 +113,12 @@ export interface EmbedNodeAttributes {
   // resolution assets without changing the standard inline card layout.
   previewVariant?: "small" | "large";
 
+  // Virtual message-level map/list views over existing embeds. These refs are
+  // intentionally lightweight and do not create a persisted embed record.
+  mapEmbedRefs?: string[];
+  mapSourceRefs?: string[];
+  mapHighlightRefs?: string[];
+
   // Virtual message-level sub-chat batch preview over existing child chats.
   // This is anchored in assistant content where start_sub_chats executed.
   batchId?: string;
@@ -121,11 +127,6 @@ export interface EmbedNodeAttributes {
   taskId?: string;
   subChatIds?: string[];
   executionMode?: "parallel" | "sequential" | string;
-  // Virtual message-level map/list views over existing embeds. These refs are
-  // intentionally lightweight and do not create a persisted embed record.
-  mapEmbedRefs?: string[];
-  mapSourceRefs?: string[];
-  mapHighlightRefs?: string[];
 }
 
 export interface ParseMessageOptions {

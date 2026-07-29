@@ -3283,60 +3283,6 @@
           </div>
         {/if}
 
-        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant'}
-          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
-            {#each subChatsOfThisMessage as sc (sc.chat_id)}
-              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
-              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
-              <button
-                type="button"
-                class="sub-chat-card sub-chat-large-card"
-                data-testid="sub-chat-card"
-                data-chat-id={sc.chat_id}
-                style={getSubChatPreviewStyle(subChatCategory)}
-                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
-                onclick={async () => {
-                  if (onChatNavigate) {
-                    await onChatNavigate(sc.chat_id);
-                    return;
-                  }
-                  const { activeChatStore } = await import('../stores/activeChatStore');
-                  activeChatStore.setActiveChat(sc.chat_id);
-                }}
-              >
-                <div
-                  class="sub-chat-status-pill"
-                  data-testid={sc.updated_at > sc.created_at ? 'sub-chat-status-done' : 'sub-chat-status-active'}
-                >
-                  {sc.updated_at > sc.created_at ? 'Done' : 'Active'}
-                </div>
-                <div class="sub-chat-large-orbs" aria-hidden="true">
-                  <div class="sub-chat-orb sub-chat-orb-1"></div>
-                  <div class="sub-chat-orb sub-chat-orb-2"></div>
-                  <div class="sub-chat-orb sub-chat-orb-3"></div>
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-content">
-                  <div class="sub-chat-large-icon" aria-hidden="true">
-                    <SubChatIcon size={32} color="white" />
-                  </div>
-                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
-                    {sc.title || "Autonomous Task"}
-                  </span>
-                  {#if sc.previewSummary}
-                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
-                  {/if}
-                </div>
-              </button>
-            {/each}
-          </div>
-        {/if}
-
         {#if subChatContextMenuVisible && subChatContextMenuChat}
           <ChatContextMenu
             x={subChatContextMenuX}
@@ -3426,6 +3372,60 @@
           {/if}
 
         </div>
+
+        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant'}
+          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
+            {#each subChatsOfThisMessage as sc (sc.chat_id)}
+              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
+              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
+              <button
+                type="button"
+                class="sub-chat-card sub-chat-large-card"
+                data-testid="sub-chat-card"
+                data-chat-id={sc.chat_id}
+                style={getSubChatPreviewStyle(subChatCategory)}
+                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
+                onclick={async () => {
+                  if (onChatNavigate) {
+                    await onChatNavigate(sc.chat_id);
+                    return;
+                  }
+                  const { activeChatStore } = await import('../stores/activeChatStore');
+                  activeChatStore.setActiveChat(sc.chat_id);
+                }}
+              >
+                <div
+                  class="sub-chat-status-pill"
+                  data-testid={sc.updated_at > sc.created_at ? 'sub-chat-status-done' : 'sub-chat-status-active'}
+                >
+                  {sc.updated_at > sc.created_at ? 'Done' : 'Active'}
+                </div>
+                <div class="sub-chat-large-orbs" aria-hidden="true">
+                  <div class="sub-chat-orb sub-chat-orb-1"></div>
+                  <div class="sub-chat-orb sub-chat-orb-2"></div>
+                  <div class="sub-chat-orb sub-chat-orb-3"></div>
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-content">
+                  <div class="sub-chat-large-icon" aria-hidden="true">
+                    <SubChatIcon size={32} color="white" />
+                  </div>
+                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
+                    {sc.title || "Autonomous Task"}
+                  </span>
+                  {#if sc.previewSummary}
+                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+        {/if}
         
         {#if is_truncated && role === 'user'}
           <div class="message-truncation-controls">
