@@ -89,7 +89,7 @@ def test_phase1_partial_cache_metadata_is_filled_from_directus(doc_assert) -> No
     assert _phase1_metadata_invariant_violations(merged) == []
 
 
-def test_phase1_partial_cache_keeps_cached_versions_when_present() -> None:
+def test_phase1_partial_cache_keeps_cached_message_version_when_present() -> None:
     cached_details = {
         "id": "chat-1",
         "encrypted_title": None,
@@ -110,7 +110,72 @@ def test_phase1_partial_cache_keeps_cached_versions_when_present() -> None:
     assert merged["encrypted_title"] == "directus-title"
     assert merged["encrypted_chat_key"] == "cached-key"
     assert merged["messages_v"] == 4
-    assert merged["title_v"] == 1
+    assert merged["title_v"] == 2
+
+
+def test_phase1_merge_prefers_current_directus_metadata_fields() -> None:
+    cached_details = {
+        "id": "chat-1",
+        "encrypted_title": "stale-title",
+        "encrypted_chat_key": "cached-key",
+        "encrypted_icon": "stale-icon",
+        "encrypted_category": "stale-category",
+        "encrypted_chat_summary": "stale-summary",
+        "messages_v": 10,
+        "title_v": 5,
+        "metadata_v": 7,
+        "unread_count": 3,
+    }
+    directus_details = {
+        "id": "chat-1",
+        "encrypted_title": "fresh-title",
+        "encrypted_chat_key": "directus-key",
+        "encrypted_icon": "fresh-icon",
+        "encrypted_category": "fresh-category",
+        "encrypted_chat_summary": "fresh-summary",
+        "messages_v": 9,
+        "title_v": 5,
+        "metadata_v": 7,
+        "unread_count": 0,
+    }
+
+    merged = _merge_partial_cache_chat_details(cached_details, directus_details)
+
+    assert merged["encrypted_title"] == "fresh-title"
+    assert merged["encrypted_icon"] == "fresh-icon"
+    assert merged["encrypted_category"] == "fresh-category"
+    assert merged["encrypted_chat_summary"] == "fresh-summary"
+    assert merged["encrypted_chat_key"] == "cached-key"
+    assert merged["messages_v"] == 10
+    assert merged["unread_count"] == 3
+    assert merged["metadata_v"] == 7
+
+
+def test_phase1_merge_rejects_older_directus_metadata_fields() -> None:
+    cached_details = {
+        "id": "chat-1",
+        "encrypted_title": "cached-current-title",
+        "encrypted_chat_key": "cached-key",
+        "encrypted_chat_summary": "cached-current-summary",
+        "messages_v": 10,
+        "title_v": 5,
+        "metadata_v": 8,
+    }
+    directus_details = {
+        "id": "chat-1",
+        "encrypted_title": "directus-old-title",
+        "encrypted_chat_summary": "directus-old-summary",
+        "messages_v": 9,
+        "title_v": 5,
+        "metadata_v": 7,
+    }
+
+    merged = _merge_partial_cache_chat_details(cached_details, directus_details)
+
+    assert merged["encrypted_title"] == "cached-current-title"
+    assert merged["encrypted_chat_summary"] == "cached-current-summary"
+    assert merged["messages_v"] == 10
+    assert merged["metadata_v"] == 8
 
 
 def test_phase2_metadata_current_handles_missing_cached_message_version() -> None:

@@ -34,6 +34,35 @@ PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
     "encrypted_category",
 )
 
+PHASE1_VERSIONED_METADATA_FIELDS = (
+    "encrypted_title",
+    "encrypted_icon",
+    "encrypted_category",
+    "encrypted_chat_summary",
+    "encrypted_share_cta_text",
+    "encrypted_chat_tags",
+    "encrypted_follow_up_request_suggestions",
+    "encrypted_top_recommended_apps_for_chat",
+    "encrypted_quick_tip_slugs",
+    "encrypted_shared_short_url",
+    "encrypted_active_focus_id",
+)
+
+
+def _version_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _effective_metadata_v(chat_details: Dict[str, Any]) -> int:
+    title_v = _version_int(chat_details.get("title_v"))
+    metadata_v = _version_int(chat_details.get("metadata_v"))
+    if not metadata_v and title_v > 0:
+        return title_v
+    return metadata_v
+
 
 def _phase2_metadata_is_current(
     client_versions: Dict[str, int],
@@ -611,6 +640,25 @@ def _merge_partial_cache_chat_details(
     for field, directus_value in directus_details.items():
         if merged.get(field) is None and directus_value is not None:
             merged[field] = directus_value
+
+    cached_metadata_v = _effective_metadata_v(cached_details)
+    directus_metadata_v = _effective_metadata_v(directus_details)
+    if directus_metadata_v > 0 and directus_metadata_v >= cached_metadata_v:
+        for field in PHASE1_VERSIONED_METADATA_FIELDS:
+            directus_value = directus_details.get(field)
+            if directus_value is not None:
+                merged[field] = directus_value
+
+        for field in ("title_v", "metadata_v"):
+            merged[field] = max(
+                _version_int(merged.get(field)),
+                _version_int(directus_details.get(field)),
+            )
+
+        for field in ("updated_at", "last_edited_overall_timestamp", "last_message_timestamp"):
+            directus_value = directus_details.get(field)
+            if directus_value is not None:
+                merged[field] = directus_value
 
     if prefer_directus_versions:
         for field in ("messages_v", "title_v", "metadata_v"):
