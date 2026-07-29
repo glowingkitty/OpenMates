@@ -1,0 +1,69 @@
+{
+  "fingerprint": "4b2e9a8d29f71f6a",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_search_web",
+  "recorded_at": "2026-07-29T10:51:51.311895+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 2,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[2]{title,url,description,page_age,profile_name,thumbnail_src,extra_snippets,embed_ref}:\n  OpenMates E2E Web Fixture,\"https://app.dev.openmates.org/web/fixtures/ai-assistant\",A deterministic we..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the search results for `openmates_e2e_web_fixture_ai`:\n\n* [OpenMates E2E Web Fixture](embed:app.dev.openmates.org-cm9)\n* [OpenMates Search Fixture Result](embed:app.dev.openmates.org-9rA)\n\n> [A deterministic web result used by the OpenMates E2E web search flow.](embed:app.dev.openmates.org-cm9)\n\nWhat would you like to explore next? You can check out more features in the [web search settings](/#settings/apps/web) or learn how to [manage your apps](/#settings/apps/openmates).",
+    "chunk_count": 9,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " the search results for `openmates_e2e_web_fixture_ai`:"
+      },
+      {
+        "kind": "text",
+        "value": "\n\n* [OpenMates E2E Web Fixture](embed:app.dev.openmates.org-"
+      },
+      {
+        "kind": "text",
+        "value": "cm9)\n* [OpenMates Search Fixture Result](embed:app.dev.openmates.org-9rA"
+      },
+      {
+        "kind": "text",
+        "value": ")\n\n> [A deterministic web result used by the OpenMates E2E web search flow.](embed:app.dev"
+      },
+      {
+        "kind": "text",
+        "value": ".openmates.org-cm9)\n\nWhat would you like to explore next? You can check out more features"
+      },
+      {
+        "kind": "text",
+        "value": " in the [web search settings](/#settings/apps/web) or learn how to [manage your apps](/#settings/apps/"
+      },
+      {
+        "kind": "text",
+        "value": "openmates)."
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 11967,
+          "candidates_token_count": 154,
+          "total_token_count": 12121,
+          "user_input_tokens": 232,
+          "system_prompt_tokens": 10803
+        }
+      }
+    ]
+  }
+}

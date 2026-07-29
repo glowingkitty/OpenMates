@@ -1,0 +1,39 @@
+{
+  "fingerprint": "61dfb9ea2c727f51",
+  "category": "wikipedia",
+  "group_id": "web_search_zero_results",
+  "recorded_at": "2026-07-29T10:51:17.782686+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=Mosquitto%7CHome_Assistant&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Wed, 29 Jul 2026 10:51:17 GMT",
+      "server": "mw-api-ext.eqiad.main-5ccdf4f4d9-d2q7f",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "set-cookie": "<PLACEHOLDER_COOKIE>",
+      "x-client-ip": "<PLACEHOLDER_IP>",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "291",
+      "x-request-id": "28489a6b-b5af-4ed7-9f63-10ee830d1d02",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"2915176671\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"Home_Assistant\",\"to\":\"Home Assistant\"}],\"redirects\":[{\"from\":\"Mosquitto\",\"to\":\"MQTT\"}],\"pages\":[{\"pageid\":32695816,\"ns\":0,\"title\":\"MQTT\",\"pageprops\":{\"wikibase_item\":\"Q10322548\"},\"description\":\"Publish-subscribe based messaging protocol\",\"descriptionsource\":\"local\"},{\"pageid\":64087649,\"ns\":0,\"title\":\"Home Assistant\",\"pageprops\":{\"wikibase_item\":\"Q28957018\"},\"description\":\"Home automation software\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

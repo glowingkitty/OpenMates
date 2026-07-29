@@ -961,6 +961,11 @@ class SearchSkill(BaseSkill):
         - Simple architecture (direct execution)
         - Immediate results (no polling required)
         """
+        requests = [
+            {"query": req} if isinstance(req, str) else req
+            for req in requests
+        ]
+
         # Get or create SecretsManager using BaseSkill helper
         secrets_manager, error_response = await self._get_or_create_secrets_manager(
             secrets_manager=secrets_manager,

@@ -1,0 +1,65 @@
+{
+  "fingerprint": "f71e2bf3e25fb573",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_search_cli",
+  "recorded_at": "2026-07-29T10:50:50.365063+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 2,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[2]{title,url,description,page_age,profile_name,thumbnail_src,extra_snippets,embed_ref}:\n  OpenMates E2E Web Fixture,\"https://app.dev.openmates.org/web/fixtures/ai-assistant\",A deterministic we..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "> [OpenMates E2E Web Fixture: A deterministic web result used by the OpenMates E2E web search flow.](embed:app.dev.openmates.org-nHZ)\n\n> [OpenMates Search Fixture Result: A second deterministic result card for testing grouped web search results.](embed:app.dev.openmates.org-5PL)\n\n[OpenMates E2E Web Fixture](embed:app.dev.openmates.org-nHZ)  \n[OpenMates Search Fixture Result](embed:app.dev.openmates.org-5PL)\n\n***\n\nWould you like to perform another search or explore a different topic?",
+    "chunk_count": 8,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": ">"
+      },
+      {
+        "kind": "text",
+        "value": " [OpenMates E2E Web Fixture: A deterministic web result used by the OpenMates E2E web search flow.](embed:app.dev.openmates.org-nHZ)\n\n>"
+      },
+      {
+        "kind": "text",
+        "value": " [OpenMates Search Fixture Result: A second deterministic result card for testing grouped web search results.](embed:app"
+      },
+      {
+        "kind": "text",
+        "value": ".dev.openmates.org-5PL)\n\n[OpenMates E2E Web Fixture](embed"
+      },
+      {
+        "kind": "text",
+        "value": ":app.dev.openmates.org-nHZ)  \n[OpenMates Search Fixture Result](embed:"
+      },
+      {
+        "kind": "text",
+        "value": "app.dev.openmates.org-5PL)\n\n***\n\nWould you like to perform another search or explore"
+      },
+      {
+        "kind": "text",
+        "value": " a different topic?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 12329,
+          "candidates_token_count": 133,
+          "total_token_count": 12462,
+          "user_input_tokens": 230,
+          "system_prompt_tokens": 11123
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "fingerprint": "584e1cf983dfc3cf",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_search_zero_results",
+  "recorded_at": "2026-07-29T10:51:17.545382+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 2,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[0]:\ncount: 0"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "As expected, searching for `\"xyznonexistentproduct123456\" lokale API MQTT` returned no results because that product identifier is entirely fictitious. \n\nIf you are looking to integrate a local device via MQTT or set up a local API, let me know what specific hardware or software you are working with (such as [Home Assistant](wiki:Home_Assistant) or an ESP32 microcontroller), and I would be happy to help you find relevant documentation or guides.\n\n1. Would you like assistance setting up an MQTT broker like [Eclipse Mosquitto](wiki:Mosquitto) for local automation?\n2. Are you trying to control a specific smart home device locally using its API?",
+    "chunk_count": 9,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "As"
+      },
+      {
+        "kind": "text",
+        "value": " expected, searching for `\"xyznonexistentproduct123456\" lokale"
+      },
+      {
+        "kind": "text",
+        "value": " API MQTT` returned no results because that product identifier is entirely fictitious. \n\nIf you are looking to integrate a local device"
+      },
+      {
+        "kind": "text",
+        "value": " via MQTT or set up a local API, let me know what specific hardware or software you are working with (such as"
+      },
+      {
+        "kind": "text",
+        "value": " [Home Assistant](wiki:Home_Assistant) or an ESP32 microcontroller), and I would be happy to help you find relevant documentation"
+      },
+      {
+        "kind": "text",
+        "value": " or guides.\n\n1. Would you like assistance setting up an MQTT broker like [Eclipse Mosquitto](wiki:Mos"
+      },
+      {
+        "kind": "text",
+        "value": "quitto) for local automation?\n2. Are you trying to control a specific smart home device locally using its API"
+      },
+      {
+        "kind": "text",
+        "value": "?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 11289,
+          "candidates_token_count": 145,
+          "total_token_count": 11434,
+          "user_input_tokens": 31,
+          "system_prompt_tokens": 10392
+        }
+      }
+    ]
+  }
+}
