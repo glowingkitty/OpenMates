@@ -6036,13 +6036,16 @@ class TestOrchestrator:
         )
         account = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0]
         preflight_reason: Optional[str] = None
+        preflight_duration = 0.0
         preflight = self._run_account_preflight(client, accounts=[account])
+        preflight_duration += preflight.duration_seconds
         if preflight.status == "failed":
             fallback_accounts = [
                 slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
                 if slot != account
             ]
             fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
+            preflight_duration += fallback_preflight.duration_seconds
             fallback_slots = _passed_normal_preflight_slots([
                 self._dict_to_spec_result(test)
                 for test in fallback_preflight.tests
@@ -6105,6 +6108,14 @@ class TestOrchestrator:
         has_failures = any(_is_problem_status(test.get("status", "")) for test in tests)
         overall_status = "failed" if conclusion != "success" or has_failures else "passed"
         shutil.rmtree(artifact_dir, ignore_errors=True)
+
+        if overall_status == "passed":
+            tests = [{
+                "name": ACCOUNT_PREFLIGHT_SPEC,
+                "file": ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "duration_seconds": round(preflight_duration, 1),
+            }, *tests]
 
         passed = sum(1 for test in tests if test.get("status") == "passed")
         _log(f"  CLI integration: {passed}/{len(tests)} passed")

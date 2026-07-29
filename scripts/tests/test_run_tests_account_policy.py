@@ -255,6 +255,12 @@ def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_p
     assert preflight_calls == [[1], list(range(2, 14))]
     assert dispatch_accounts == [2]
     assert captured_git_sha == {"git_sha": "full-abc123"}
+    assert result.tests[0] == {
+        "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+        "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+        "status": "passed",
+        "duration_seconds": 3.0,
+    }
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for CLI integration"
 
 
