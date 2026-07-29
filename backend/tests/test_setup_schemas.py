@@ -293,6 +293,53 @@ def test_usage_overview_migration_executes_and_verifies_all_indexes(
     assert executed[1][1] == (list(setup_schemas.USAGE_OVERVIEW_INDEXES),)
 
 
+def test_usage_summary_unique_indexes_are_required() -> None:
+    setup_schemas = load_setup_schemas_module()
+
+    required_indexes = {
+        "usage_monthly_chat_user_chat_month_uq",
+        "usage_monthly_app_user_app_month_uq",
+        "usage_monthly_api_key_user_api_key_month_uq",
+        "usage_daily_chat_user_chat_date_uq",
+        "usage_daily_app_user_app_date_uq",
+        "usage_daily_api_key_user_api_key_date_uq",
+    }
+
+    assert required_indexes.issubset(set(setup_schemas.USAGE_OVERVIEW_INDEXES))
+
+
+def test_usage_overview_migration_repairs_duplicates_before_unique_indexes() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[1]
+        / "core/directus/setup/migrate_usage_overview_indexes.sql"
+    )
+    sql = migration_path.read_text(encoding="utf-8")
+
+    requirements = [
+        ("usage_monthly_chat_summaries", "chat_id", "year_month", "usage_monthly_chat_user_chat_month_uq"),
+        ("usage_monthly_app_summaries", "app_id", "year_month", "usage_monthly_app_user_app_month_uq"),
+        ("usage_monthly_api_key_summaries", "api_key_hash", "year_month", "usage_monthly_api_key_user_api_key_month_uq"),
+        ("usage_daily_chat_summaries", "chat_id", "date", "usage_daily_chat_user_chat_date_uq"),
+        ("usage_daily_app_summaries", "app_id", "date", "usage_daily_app_user_app_date_uq"),
+        ("usage_daily_api_key_summaries", "api_key_hash", "date", "usage_daily_api_key_user_api_key_date_uq"),
+    ]
+
+    assert "usage_summary_duplicate_groups" in sql
+    assert "ROW_NUMBER() OVER" in sql
+    assert "DELETE FROM" in sql
+
+    first_unique_index_position = len(sql)
+    for table, identifier, period, index_name in requirements:
+        create_statement = f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name}"
+        index_position = sql.index(create_statement)
+        first_unique_index_position = min(first_unique_index_position, index_position)
+        assert f"ON {table} (user_id_hash, {identifier}, {period})" in sql
+        assert f"{identifier} IS NOT NULL" in sql
+        assert f"{identifier} <> ''" in sql
+
+    assert sql.index("usage_summary_duplicate_groups") < first_unique_index_position
+
+
 def test_chat_recovery_endpoint_health_uses_internal_token(monkeypatch) -> None:
     setup_schemas = load_setup_schemas_module()
     requests_seen: list[dict[str, Any]] = []

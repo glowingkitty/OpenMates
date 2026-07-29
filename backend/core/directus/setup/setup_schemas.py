@@ -90,6 +90,12 @@ USAGE_OVERVIEW_INDEXES = (
     'usage_daily_chat_user_date_idx',
     'usage_daily_app_user_date_idx',
     'usage_daily_api_key_user_date_idx',
+    'usage_monthly_chat_user_chat_month_uq',
+    'usage_monthly_app_user_app_month_uq',
+    'usage_monthly_api_key_user_api_key_month_uq',
+    'usage_daily_chat_user_chat_date_uq',
+    'usage_daily_app_user_app_date_uq',
+    'usage_daily_api_key_user_api_key_date_uq',
 )
 EMBED_HASH_INDEXES = ('embeds_hashed_embed_id_idx',)
 EMBED_HASH_BACKFILL_BATCH_SIZE = 500
