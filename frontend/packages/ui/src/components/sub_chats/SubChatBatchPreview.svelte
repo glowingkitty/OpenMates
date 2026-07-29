@@ -22,6 +22,7 @@
     loadSubChatPreviews,
     type SubChatPreview,
   } from '../../services/subChatPreviewService';
+  import { getExampleChat } from '../../demo_chats';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
   interface Props {
@@ -86,6 +87,14 @@
 
   async function openSubChat(subChat: SubChatPreview): Promise<void> {
     activeChatStore.setActiveChat(subChat.chat_id);
+    const exampleChat = getExampleChat(subChat.chat_id);
+    if (exampleChat) {
+      window.dispatchEvent(new CustomEvent('demoChatSelected', {
+        detail: { chat: exampleChat },
+        bubbles: true,
+        composed: true,
+      }));
+    }
   }
 
   async function handleMenuAction(event: CustomEvent<string>): Promise<void> {
