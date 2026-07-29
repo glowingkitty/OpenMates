@@ -395,8 +395,6 @@ test.describe('CLI PDF Skills', () => {
 			return;
 		}
 		await expect(sendBtn).toBeEnabled({ timeout: 5000 });
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(200);
 		await sendBtn.click();
 		logCheckpoint('Message sent. Waiting for AI response...');
 
