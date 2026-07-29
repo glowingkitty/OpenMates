@@ -9,10 +9,24 @@ import json
 import sys
 import types
 
+import pytest
+
 toon_stub = types.ModuleType("toon_format")
 toon_stub.encode = lambda value: json.dumps(value)
 toon_stub.decode = lambda value: json.loads(value)
 sys.modules.setdefault("toon_format", toon_stub)
+
+cache_stub = types.ModuleType("backend.core.api.app.services.cache")
+cache_stub.CacheService = object
+sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
+
+directus_stub = types.ModuleType("backend.core.api.app.services.directus")
+directus_stub.DirectusService = object
+sys.modules.setdefault("backend.core.api.app.services.directus", directus_stub)
+
+encryption_stub = types.ModuleType("backend.core.api.app.utils.encryption")
+encryption_stub.EncryptionService = object
+sys.modules.setdefault("backend.core.api.app.utils.encryption", encryption_stub)
 
 youtube_stub = types.ModuleType("backend.shared.providers.youtube.youtube_metadata")
 youtube_stub.extract_youtube_id_from_url = lambda url: None
@@ -33,10 +47,15 @@ sys.modules.setdefault("backend.shared.providers.e2b_application_preview", e2b_p
 decode = toon_stub.decode
 encode = toon_stub.encode
 
-from backend.core.api.app.services.embed_service import EmbedService  # noqa: E402
 
+def test_audio_recording_filter_uses_original_transcript_when_correction_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "toon_format", toon_stub)
+    monkeypatch.delitem(sys.modules, "backend.core.api.app.services.embed_service", raising=False)
 
-def test_audio_recording_filter_uses_original_transcript_when_correction_disabled() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
     service = EmbedService(cache_service=None, directus_service=None, encryption_service=None)  # type: ignore[arg-type]
     toon_content = encode(
         {
