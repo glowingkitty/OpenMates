@@ -1749,6 +1749,31 @@ def _fix_backticked_inline_embed_references(aggregated_response: str, log_prefix
     return modified
 
 
+def _build_sub_chat_batch_marker(
+    *,
+    parent_chat_id: str,
+    parent_task_id: str,
+    sub_chats: list[dict[str, Any]],
+    execution_mode: str,
+    status: str = "processing",
+) -> str:
+    sub_chat_ids = [str(sub_chat.get("id")) for sub_chat in sub_chats if sub_chat.get("id")]
+    if not sub_chat_ids:
+        return ""
+
+    marker = {
+        "type": "sub_chat_batch",
+        "batch_id": f"{parent_task_id}:sub-chat-batch",
+        "chat_id": parent_chat_id,
+        "parent_message_id": parent_task_id,
+        "task_id": parent_task_id,
+        "execution_mode": execution_mode,
+        "status": status,
+        "sub_chat_ids": sub_chat_ids,
+    }
+    return f"\n\n```json\n{json.dumps(marker, separators=(',', ':'))}\n```\n\n"
+
+
 async def _persist_sealed_recovery_job(
     *,
     directus_service: DirectusService,
@@ -4564,6 +4589,33 @@ async def _consume_main_processing_stream(
 
             if isinstance(chunk, dict) and "__spawn_sub_chats__" in chunk:
                 sub_chats = chunk.get("sub_chats")
+                normalized_sub_chats = sub_chats if isinstance(sub_chats, list) else []
+                sub_chat_batch_marker = _build_sub_chat_batch_marker(
+                    parent_chat_id=request_data.chat_id,
+                    parent_task_id=task_id,
+                    sub_chats=normalized_sub_chats,
+                    execution_mode=chunk.get("execution_mode", "parallel"),
+                )
+                if sub_chat_batch_marker:
+                    final_response_chunks.append(sub_chat_batch_marker)
+                    stream_chunk_count += 1
+                    current_full_content = "".join(final_response_chunks)
+                    if cache_service:
+                        marker_payload = _create_redis_payload(
+                            task_id,
+                            request_data,
+                            current_full_content,
+                            stream_chunk_count,
+                            is_final=False,
+                            model_name=stream_model_name,
+                        )
+                        await _publish_to_redis(
+                            cache_service,
+                            redis_channel_name,
+                            marker_payload,
+                            log_prefix,
+                            f"Published sub_chat_batch marker chunk to '{redis_channel_name}'",
+                        )
                 payload = {
                     "type": "spawn_sub_chats",
                     "task_id": task_id,
@@ -4581,7 +4633,7 @@ async def _consume_main_processing_stream(
                             cache_service=cache_service,
                             parent_request_data=request_data,
                             parent_task_id=task_id,
-                            sub_chats=sub_chats if isinstance(sub_chats, list) else [],
+                            sub_chats=normalized_sub_chats,
                             report_trigger=chunk.get("report_trigger", "all"),
                             skill_config_dict=skill_config_dict,
                             log_prefix=log_prefix,

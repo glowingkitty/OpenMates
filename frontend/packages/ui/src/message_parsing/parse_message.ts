@@ -1009,7 +1009,16 @@ export function parse_message(
   }
 
   // Parse normal embed nodes
-  const embedNodes = parseEmbedNodes(markdown, mode);
+  const embedNodes = parseEmbedNodes(markdown, mode).map((node) => {
+    if (node.type !== "sub-chat-batch") return node;
+    const currentChatId = typeof opts.chatId === "string" ? opts.chatId : "";
+    if (!currentChatId) return node;
+    return {
+      ...node,
+      parentChatId: currentChatId,
+      subChatIds: node.parentChatId && node.parentChatId !== currentChatId ? [] : node.subChatIds,
+    };
+  });
 
   // Handle streaming semantics for partial/unclosed blocks
   const streamingData = handleStreamingSemantics(markdown, mode);

@@ -82,6 +82,24 @@ function focusActivationContent(embed: ExampleChatEmbed): string | null {
   })}\n\`\`\``;
 }
 
+function subChatBatchContent(example: ExampleChatRecord): string | null {
+  if (isExampleSubChatRecord(example) || !example.sub_chats || example.sub_chats.length === 0) {
+    return null;
+  }
+
+  const subChatIds = example.sub_chats.map((subChat) => subChat.chat_id).filter(Boolean);
+  if (subChatIds.length === 0) return null;
+
+  return `\`\`\`json\n${JSON.stringify({
+    type: "sub_chat_batch",
+    batch_id: `${example.chat_id}-sub-chat-batch-1`,
+    chat_id: example.chat_id,
+    status: "finished",
+    execution_mode: "parallel",
+    sub_chat_ids: subChatIds,
+  })}\n\`\`\``;
+}
+
 // ============================================================================
 // CONVERSION — ExampleChat → Chat/Message format used by the app
 // ============================================================================
@@ -98,9 +116,13 @@ function exampleChatToChat(example: ExampleChatRecord, rootOrder = 0): Chat {
   const messageTimestamps = example.messages
     .map((message) => message.created_at)
     .filter((value) => Number.isFinite(value));
-  const timestamp = isExampleSubChatRecord(example)
-    ? (messageTimestamps.length > 0 ? Math.max(...messageTimestamps) * 1000 : sevenDaysAgo - rootOrder * 1000)
+  const fallbackTimestamp = sevenDaysAgo - rootOrder * 1000;
+  const firstMessageTimestamp = messageTimestamps.length > 0 ? Math.min(...messageTimestamps) * 1000 : fallbackTimestamp;
+  const lastMessageTimestamp = messageTimestamps.length > 0 ? Math.max(...messageTimestamps) * 1000 : fallbackTimestamp;
+  const createdAt = isExampleSubChatRecord(example)
+    ? firstMessageTimestamp
     : sevenDaysAgo - example.metadata.order * 1000;
+  const updatedAt = isExampleSubChatRecord(example) ? lastMessageTimestamp : createdAt;
 
   return {
     chat_id: example.chat_id,
@@ -116,10 +138,10 @@ function exampleChatToChat(example: ExampleChatRecord, rootOrder = 0): Chat {
     demo_chat_category: "for_everyone",
     messages_v: example.messages.length,
     title_v: 1,
-    last_edited_overall_timestamp: timestamp,
+    last_edited_overall_timestamp: updatedAt,
     unread_count: 0,
-    created_at: timestamp,
-    updated_at: timestamp,
+    created_at: createdAt,
+    updated_at: updatedAt,
     parent_id: isExampleSubChatRecord(example) ? example.parent_id : null,
     is_sub_chat: isExampleSubChatRecord(example) ? true : false,
     budget_limit: isExampleSubChatRecord(example) ? example.budget_limit ?? null : null,
@@ -143,26 +165,45 @@ function exampleMessagesToMessages(example: ExampleChatRecord): Message[] {
   }));
 
   const focusEmbed = getFocusActivationEmbed(example);
-  const content = focusEmbed ? focusActivationContent(focusEmbed) : null;
-  if (!focusEmbed || !content) return messages;
+  const activationContent = focusEmbed ? focusActivationContent(focusEmbed) : null;
+  const batchContent = subChatBatchContent(example);
+  if (!activationContent && !batchContent) return messages;
 
   // Keep checked-in public transcripts free of raw embed JSON while still
-  // rendering the historical focus activation card in the interactive chat.
+  // rendering historical activation/sub-chat affordances in the interactive chat.
   const firstAssistantIndex = messages.findIndex((message) => message.role === "assistant");
-  const insertAt = firstAssistantIndex >= 0 ? firstAssistantIndex : messages.length;
-  const priorTimestamp = messages[Math.max(0, insertAt - 1)]?.created_at ?? Date.now() / 1000;
+  const firstAssistantContent = firstAssistantIndex >= 0 && typeof messages[firstAssistantIndex].content === "string"
+    ? messages[firstAssistantIndex].content
+    : "";
+  const synthesizedBlocks = [
+    activationContent && !/"type"\s*:\s*"focus_mode_activation"/.test(firstAssistantContent) ? activationContent : null,
+    batchContent && !/"type"\s*:\s*"sub_chat_batch"/.test(firstAssistantContent) ? batchContent : null,
+  ].filter((block): block is string => Boolean(block));
+  if (synthesizedBlocks.length === 0) return messages;
+
+  if (firstAssistantIndex >= 0) {
+    return messages.map((message, index) => {
+      if (index !== firstAssistantIndex) return message;
+      return {
+        ...message,
+        content: `${synthesizedBlocks.join("\n\n")}\n\n${String(message.content || "")}`,
+      };
+    });
+  }
+
+  const priorTimestamp = messages[messages.length - 1]?.created_at ?? Date.now() / 1000;
   const activationMessage: Message = {
     message_id: `${example.chat_id}-focus-mode-activation`,
     chat_id: example.chat_id,
     role: "assistant",
-    content,
+    content: synthesizedBlocks.join("\n\n"),
     category: example.category,
     model_name: "OpenMates",
     created_at: priorTimestamp + 1,
     status: "synced",
   };
 
-  return [...messages.slice(0, insertAt), activationMessage, ...messages.slice(insertAt)];
+  return [...messages, activationMessage];
 }
 
 // ============================================================================

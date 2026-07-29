@@ -11,6 +11,7 @@ import os
 import importlib
 import inspect
 import asyncio
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -45,6 +46,8 @@ from toon_format import decode, encode
 logger = logging.getLogger(__name__)
 
 NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
+FRONTEND_RENDER_ONLY_JSON_TYPES = {"sub_chat_batch"}
+FRONTEND_RENDER_ONLY_JSON_FENCE_RE = re.compile(r"```json\s*\n(?P<body>\s*\{.*?\}\s*)\n```", re.DOTALL)
 
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
@@ -323,6 +326,33 @@ def _extract_text_from_tiptap(tiptap_content: Any) -> str:
             text_parts.append(_extract_text_from_tiptap(sub_content))
     
     return "".join(text_parts)
+
+
+def _strip_frontend_render_only_markers(content: str) -> str:
+    """Remove assistant-content markers that only anchor frontend UI components."""
+    if not content or "sub_chat_batch" not in content:
+        return content
+
+    def replace_marker(match: re.Match[str]) -> str:
+        try:
+            payload = json.loads(match.group("body"))
+        except json.JSONDecodeError:
+            return match.group(0)
+        marker_type = payload.get("type") if isinstance(payload, dict) else None
+        if marker_type in FRONTEND_RENDER_ONLY_JSON_TYPES:
+            return ""
+        return match.group(0)
+
+    stripped = FRONTEND_RENDER_ONLY_JSON_FENCE_RE.sub(replace_marker, content)
+    return re.sub(r"\n{3,}", "\n\n", stripped).strip()
+
+
+def _sanitize_assistant_history_content(content: str, log_prefix: str) -> str:
+    return sanitize_text_simple(
+        _strip_frontend_render_only_markers(content),
+        log_prefix=log_prefix,
+    )
+
 
 def resolve_default_server_from_provider_config(model_id: str) -> tuple:
     """
@@ -819,7 +849,7 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                 "tool_calls": msg["tool_calls"]  # Preserve tool_calls structure
             }
             if plain_text_content:
-                assistant_msg["content"] = sanitize_text_simple(
+                assistant_msg["content"] = _sanitize_assistant_history_content(
                     plain_text_content,
                     log_prefix=f"[LLM transform assistant tool msg {idx}] ",
                 )
@@ -829,10 +859,16 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
         # Handle regular user/assistant messages
         content_input = msg.get("content", "")
         plain_text_content = _extract_text_from_tiptap(content_input)
-        plain_text_content = sanitize_text_simple(
-            plain_text_content,
-            log_prefix=f"[LLM transform {role} msg {idx}] ",
-        )
+        if role == "assistant":
+            plain_text_content = _sanitize_assistant_history_content(
+                plain_text_content,
+                log_prefix=f"[LLM transform {role} msg {idx}] ",
+            )
+        else:
+            plain_text_content = sanitize_text_simple(
+                plain_text_content,
+                log_prefix=f"[LLM transform {role} msg {idx}] ",
+            )
         sender_name = msg.get("sender_name")
         if role == "user" and sender_name:
             safe_sender_name = sanitize_text_simple(str(sender_name), log_prefix=f"[LLM transform sender {idx}] ")

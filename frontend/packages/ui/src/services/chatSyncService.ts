@@ -707,6 +707,19 @@ export class ChatSynchronizationService extends EventTarget {
         },
       ),
     );
+    webSocketService.on("sub_chat_completed", (payload) =>
+      aiHandlers.handleSubChatCompletedImpl(
+        this,
+        payload as {
+          type: "sub_chat_completed";
+          chat_id: string;
+          parent_id?: string;
+          message_id?: string;
+          task_id?: string;
+          summary?: string;
+        },
+      ),
+    );
     webSocketService.on("awaiting_user_input", (payload) =>
       aiHandlers.handleAwaitingUserInputImpl(
         this,

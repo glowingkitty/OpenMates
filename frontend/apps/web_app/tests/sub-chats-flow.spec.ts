@@ -185,7 +185,15 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 			role: 'assistant',
 			created_at: now,
 			status: 'synced',
-			content: 'I have started the sub-chat Apple research.'
+			content: '```json\n' + JSON.stringify({
+				type: 'sub_chat_batch',
+				batch_id: 'e2e-parent-chat-uuid-sub-chat-batch',
+				chat_id: parentId,
+				parent_message_id: 'parent-msg-1',
+				status: 'finished',
+				execution_mode: 'parallel',
+				sub_chat_ids: [childId]
+			}) + '\n```\n\nI have started the sub-chat Apple research.'
 		};
 
 		const childMsg = {
@@ -265,7 +273,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	const cardBox = await card.boundingBox();
 	expect(cardBox?.height, 'Sub-chat previews should use the large resume-card layout.').toBeGreaterThan(150);
 	const assistantTextBox = await page.getByText('I have started the sub-chat Apple research.').boundingBox();
-	expect(cardBox?.y, 'Sub-chat previews should stay at the top of the assistant response.').toBeLessThan(assistantTextBox?.y ?? 0);
+	expect(cardBox?.y, 'Sub-chat previews should render at the inline marker before following text.').toBeLessThan(assistantTextBox?.y ?? 0);
 
 	// 4. Click Card to Navigate to Sub-chat
 	log('Navigating to child sub-chat via card click...');

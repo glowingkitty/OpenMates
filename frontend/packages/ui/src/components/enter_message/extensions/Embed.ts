@@ -529,6 +529,12 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-group-count": attributes.groupCount.toString() };
         },
       },
+      batchId: { default: null, rendered: false },
+      parentChatId: { default: null, rendered: false },
+      parentMessageId: { default: null, rendered: false },
+      taskId: { default: null, rendered: false },
+      subChatIds: { default: null, rendered: false },
+      executionMode: { default: null, rendered: false },
       // -----------------------------------------------------------------------
       // Image upload ephemeral attributes — in-memory only, NOT persisted to DOM.
       // These are set by insertImage() and _performUpload() in embedHandlers.ts.
@@ -660,6 +666,7 @@ export const Embed = Node.create<EmbedOptions>({
         "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
         "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
         "maps", // MapLocationEmbedPreview renders Leaflet map inline
+        "sub-chat-batch", // Virtual inline sub-chat card batch anchored in message content
         "pdf", // PDFEmbedPreview renders the PDF upload status card
         "recording", // RecordingEmbedPreview uses UnifiedEmbedPreview — must be here so
         // renderer.update() is called on status transitions (uploading→transcribing→finished).

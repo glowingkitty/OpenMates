@@ -420,6 +420,7 @@ function findMatchingEmbedForCodeBlock(
   | null {
   // Extract text content from the code block
   const codeText = codeBlockNode.content?.[0]?.text || "";
+  const codeBlockLanguage = codeBlockNode.attrs?.language;
 
   console.debug("[findMatchingEmbedForCodeBlock] Checking code block:", {
     codeText: codeText.substring(0, 100),
@@ -436,6 +437,21 @@ function findMatchingEmbedForCodeBlock(
     const parsed = JSON.parse(codeText.trim());
 
     console.debug("[findMatchingEmbedForCodeBlock] Parsed JSON:", parsed);
+
+    if (parsed.type === "sub_chat_batch" && parsed.batch_id) {
+      const renderedBatchKey = `sub-chat-batch:${parsed.batch_id}`;
+      if (renderedEmbedIds.has(renderedBatchKey)) {
+        return DUPLICATE_EMBED_MARKER;
+      }
+      const matchingBatch = embedNodes.find(
+        (node) => node.contentRef === renderedBatchKey,
+      );
+      if (matchingBatch) {
+        renderedEmbedIds.add(renderedBatchKey);
+        return matchingBatch;
+      }
+      if (mode === "read") return PROTOCOL_EMBED_MARKER;
+    }
 
     // Check if this is an embed reference with type and embed_id
     if (parsed.type && parsed.embed_id) {
@@ -519,8 +535,6 @@ function findMatchingEmbedForCodeBlock(
   // Match by checking if there's a code-code embed with similar content
   const codeEmbeds = embedNodes.filter((node) => node.type === "code-code");
   if (codeEmbeds.length > 0) {
-    const codeBlockLanguage = codeBlockNode.attrs?.language;
-
     // For preview embeds (contentRef starts with 'preview:'), match by language AND code content
     // For real embeds, match by language only (content is in EmbedStore)
     const matchingCodeEmbed = codeEmbeds.find((embed) => {

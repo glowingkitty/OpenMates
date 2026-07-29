@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
-import type { ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
+import type { Chat, ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
@@ -5508,6 +5508,71 @@ export function handleSubChatProgressImpl(
   window.dispatchEvent(
     new CustomEvent("subChatProgress", { detail: payload }),
   );
+}
+
+export async function handleSubChatCompletedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    type: "sub_chat_completed";
+    chat_id: string;
+    parent_id?: string;
+    message_id?: string;
+    task_id?: string;
+    summary?: string;
+  },
+): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const subChatId = payload.chat_id;
+  if (!subChatId) {
+    console.error("[ChatSyncService:AI] sub_chat_completed payload missing chat_id", payload);
+    return;
+  }
+
+  try {
+    const chat = await chatDB.getChat(subChatId);
+    const now = Math.floor(Date.now() / 1000);
+    if (chat) {
+      let key = chatKeyManager.getKeySync(subChatId) || await chatKeyManager.getKey(subChatId);
+      if (!key && payload.parent_id) {
+        key = chatKeyManager.getKeySync(payload.parent_id) || await chatKeyManager.getKey(payload.parent_id);
+      }
+      const summary = typeof payload.summary === "string" && payload.summary.trim()
+        ? payload.summary.trim()
+        : null;
+      const updatedChat: Chat = {
+        ...chat,
+        is_sub_chat: true,
+        parent_id: chat.parent_id || payload.parent_id || null,
+        updated_at: Math.max(chat.updated_at || 0, now),
+        last_edited_overall_timestamp: Math.max(chat.last_edited_overall_timestamp || 0, now),
+      };
+
+      if (summary && key) {
+        updatedChat.encrypted_chat_summary = await encryptWithChatKey(summary, key);
+      }
+
+      await chatDB.updateChat(updatedChat);
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: {
+            chat_id: subChatId,
+            chat: updatedChat,
+            type: "sub_chat_completed",
+          },
+        }),
+      );
+    }
+
+    window.dispatchEvent(new CustomEvent("subChatCompleted", { detail: payload }));
+    window.dispatchEvent(
+      new CustomEvent("localChatListChanged", {
+        detail: { chat_id: payload.parent_id || subChatId, parent_id: payload.parent_id },
+      }),
+    );
+  } catch (error) {
+    console.error("[ChatSyncService:AI] Error handling sub_chat_completed payload:", error);
+  }
 }
 
 export async function handleAwaitingUserInputImpl(

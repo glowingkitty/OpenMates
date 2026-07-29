@@ -112,6 +112,15 @@ export interface EmbedNodeAttributes {
   // Rendering context for embed references. Large previews can request higher
   // resolution assets without changing the standard inline card layout.
   previewVariant?: "small" | "large";
+
+  // Virtual message-level sub-chat batch preview over existing child chats.
+  // This is anchored in assistant content where start_sub_chats executed.
+  batchId?: string;
+  parentChatId?: string;
+  parentMessageId?: string;
+  taskId?: string;
+  subChatIds?: string[];
+  executionMode?: "parallel" | "sequential" | string;
 }
 
 export interface ParseMessageOptions {

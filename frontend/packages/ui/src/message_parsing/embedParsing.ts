@@ -10,6 +10,56 @@ import {
 } from "./utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[|,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function parseSubChatBatchReference(embedRef: Record<string, unknown>): EmbedNodeAttributes | null {
+  if (embedRef.type !== "sub_chat_batch") return null;
+
+  const batchId = typeof embedRef.batch_id === "string" && embedRef.batch_id.trim()
+    ? embedRef.batch_id.trim()
+    : null;
+  if (!batchId) return null;
+
+  const rawStatus = typeof embedRef.status === "string" ? embedRef.status : "processing";
+  const status = ["processing", "finished", "error", "cancelled"].includes(rawStatus)
+    ? rawStatus as EmbedNodeAttributes["status"]
+    : "processing";
+
+  return {
+    id: batchId,
+    type: "sub-chat-batch",
+    status,
+    contentRef: `sub-chat-batch:${batchId}`,
+    batchId,
+    parentChatId: typeof embedRef.chat_id === "string"
+      ? embedRef.chat_id
+      : typeof embedRef.parent_chat_id === "string"
+        ? embedRef.parent_chat_id
+        : undefined,
+    parentMessageId: typeof embedRef.parent_message_id === "string"
+      ? embedRef.parent_message_id
+      : typeof embedRef.message_id === "string"
+        ? embedRef.message_id
+        : undefined,
+    taskId: typeof embedRef.task_id === "string" ? embedRef.task_id : undefined,
+    subChatIds: normalizeStringArray(embedRef.sub_chat_ids),
+    executionMode: typeof embedRef.execution_mode === "string" ? embedRef.execution_mode : undefined,
+  };
+}
+
 /**
  * Map embed reference type from server to EmbedNodeType.
  *
@@ -217,6 +267,12 @@ export function parseEmbedNodes(
           const content = event.content || pendingJsonContent;
           try {
             const embedRef = JSON.parse(content.trim());
+            const subChatBatchRef = parseSubChatBatchReference(embedRef);
+            if (subChatBatchRef) {
+              embedNodes.push(subChatBatchRef);
+              continue;
+            }
+
             if (embedRef.type && embedRef.embed_id) {
               // STABLE ID: Use server's embed_id directly instead of generateUUID().
               // This is critical for incremental streaming updates — when the same

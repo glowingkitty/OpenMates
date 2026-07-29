@@ -299,6 +299,10 @@
 
   async function loadSubChats() {
     if (role !== 'assistant' || !currentChatId) return;
+    if (hasInlineSubChatBatch) {
+      subChatsOfThisMessage = [];
+      return;
+    }
     try {
       const all = await getSubChatsForParentChat(currentChatId);
       const msgTime = original_message?.created_at || 0;
@@ -344,6 +348,7 @@
           }
         }
 
+        preview.previewSummary ||= chat.chat_summary || null;
         preview.previewCategory ||= chat.category || 'general_knowledge';
         preview.previewIcon = getValidIconName(preview.previewIcon || '', preview.previewCategory || 'general_knowledge');
         previews.push(preview);
@@ -897,6 +902,11 @@
   
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
   let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
+  let hasInlineSubChatBatch = $derived.by(() => {
+    const rawContents = [original_message?.content, content]
+      .filter((value): value is string => typeof value === 'string');
+    return rawContents.some((rawContent) => /"type"\s*:\s*"sub_chat_batch"/.test(rawContent));
+  });
   let isInteractiveResponseMessage = $derived.by(() => {
     const rawContent = typeof original_message?.content === 'string'
       ? original_message.content
@@ -3182,8 +3192,7 @@
           onExplainInNewChat={handleExplainInNewChatFromSelection}
         />
 
-        <!-- Keep sub-chat delegation previews pinned at the top of this assistant turn,
-             even after the parent continuation summary arrives below. -->
+        <!-- Keep approval/progress controls visible while the assistant turn is pending. -->
         {#if subChatConfirmationRequest && subChatsOfThisMessage.length === 0 && role === 'assistant'}
           <div class="sub-chat-confirmation-card" data-testid="sub-chat-confirmation-card">
             <div class="sub-chat-confirmation-header">
@@ -3274,7 +3283,7 @@
           </div>
         {/if}
 
-        {#if subChatsOfThisMessage.length > 0 && role === 'assistant'}
+        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant'}
           <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
             {#each subChatsOfThisMessage as sc (sc.chat_id)}
               {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
@@ -3283,6 +3292,7 @@
                 type="button"
                 class="sub-chat-card sub-chat-large-card"
                 data-testid="sub-chat-card"
+                data-chat-id={sc.chat_id}
                 style={getSubChatPreviewStyle(subChatCategory)}
                 oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
                 onclick={async () => {
