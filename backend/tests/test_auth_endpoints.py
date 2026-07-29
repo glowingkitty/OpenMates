@@ -28,7 +28,7 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from fastapi import HTTPException, Response
+from fastapi import BackgroundTasks, HTTPException, Response
 from starlette.requests import Request
 from starlette.datastructures import Headers
 
@@ -551,6 +551,87 @@ class TestAuthClientVerification:
         assert 'provided_user_id = user_data.get("id") if exists_result and user_data else None' in source
         assert "provided_user_id != user_id" in source
 
+
+class TestLookupUserCacheWarmup:
+    """Regression coverage for login lookup latency under Directus pressure."""
+
+    @pytest.mark.anyio
+    async def test_lookup_returns_salt_before_profile_cache_warmup(self):
+        from backend.core.api.app.routes.auth_routes.auth_login import (
+            _cache_lookup_user_profile,
+            lookup_user,
+        )
+        from backend.core.api.app.schemas.auth import UserLookupRequest
+
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(
+            True,
+            {
+                "id": "user-lookup-latency",
+                "account_id": "account-lookup-latency",
+                "user_email_salt": "real-email-salt",
+            },
+            "User found",
+        ))
+        directus_service.get_user_profile = AsyncMock(
+            side_effect=AssertionError("lookup must not await profile warmup before returning salt")
+        )
+        metrics_service = MagicMock()
+        metrics_service.track_login_attempt = MagicMock()
+        cache_service = AsyncMock()
+        background_tasks = BackgroundTasks()
+
+        response = await lookup_user(
+            request=MagicMock(),
+            lookup_data=UserLookupRequest(hashed_email="hashed-email", stay_logged_in=True),
+            background_tasks=background_tasks,
+            directus_service=directus_service,
+            metrics_service=metrics_service,
+            cache_service=cache_service,
+            compliance_service=MagicMock(),
+        )
+
+        assert response.user_email_salt == "real-email-salt"
+        assert response.stay_logged_in is True
+        directus_service.get_user_profile.assert_not_called()
+        assert len(background_tasks.tasks) == 1
+        assert background_tasks.tasks[0].func is _cache_lookup_user_profile
+
+    @pytest.mark.anyio
+    async def test_lookup_cache_helper_writes_complete_profile(self):
+        from backend.core.api.app.routes.auth_routes.auth_login import _cache_lookup_user_profile
+
+        directus_service = AsyncMock()
+        directus_service.get_user_profile = AsyncMock(return_value=(
+            True,
+            {
+                "id": "user-cache-helper",
+                "user_id": "user-cache-helper",
+                "username": "testuser",
+                "vault_key_id": "vault-key",
+                "tfa_enabled": False,
+                "last_opened": "/chat/new",
+            },
+            "Profile found",
+        ))
+        cache_service = AsyncMock()
+        cache_service.is_user_cache_primed = AsyncMock(return_value=True)
+
+        payload = await _cache_lookup_user_profile(
+            user_id="user-cache-helper",
+            user_email_salt="real-email-salt",
+            user_data={"account_id": "account-cache-helper"},
+            directus_service=directus_service,
+            cache_service=cache_service,
+            source="test",
+        )
+
+        assert payload is not None
+        assert payload["username"] == "testuser"
+        assert payload["vault_key_id"] == "vault-key"
+        assert payload["account_id"] == "account-cache-helper"
+        assert payload["user_email_salt"] == "real-email-salt"
+        cache_service.set_user.assert_awaited_once_with(payload)
 
 class TestSignupGiftCardFreeTestingEligibility:
     @pytest.mark.anyio

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 import logging
 import time
 import hashlib
@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 GENERIC_LOOKUP_METHOD = "password"
 GENERIC_LOOKUP_METHODS = ["password", "recovery_key"]
 FAKE_SALT_SECRET_ENV = "AUTH_LOOKUP_FAKE_SALT_SECRET"
+LOOKUP_CACHE_TTL_SECONDS = 300
 _FALLBACK_FAKE_SALT_SECRET = base64.b64encode(os.urandom(32)).decode("utf-8")
 
 
@@ -98,6 +99,162 @@ async def _has_free_testing_credits_grant(
     except Exception as exc:
         logger.error("Failed to load Free testing grant marker for user %s: %s", user_id[:8], exc, exc_info=True)
         return False
+
+
+def _build_lookup_user_cache_payload(
+    *,
+    user_id: str,
+    user_profile: dict,
+    user_data: dict,
+    user_email_salt: str,
+) -> dict:
+    user_data_to_cache = {
+        "user_id": user_id,
+        "username": user_profile.get("username"),
+        "is_admin": user_profile.get("is_admin", False),
+        "credits": user_profile.get("credits", 0),
+        "profile_image_url": user_profile.get("profile_image_url"),
+        "tfa_app_name": user_profile.get("tfa_app_name"),
+        "tfa_enabled": user_profile.get("tfa_enabled", False),
+        "last_opened": user_profile.get("last_opened"),
+        "vault_key_id": user_profile.get("vault_key_id"),
+        "consent_privacy_and_apps_default_settings": user_profile.get("consent_privacy_and_apps_default_settings"),
+        "consent_mates_default_settings": user_profile.get("consent_mates_default_settings"),
+        "language": user_profile.get("language", "en"),
+        "darkmode": user_profile.get("darkmode", False),
+        "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
+        "encrypted_email_address": user_profile.get("encrypted_email_address"),
+        "invoice_counter": user_profile.get("invoice_counter"),
+        "lookup_hashes": user_profile.get("lookup_hashes", []),
+        "account_id": user_profile.get("account_id") or user_data.get("account_id"),
+        "user_email_salt": user_email_salt,
+        # Monthly subscription fields (cleartext fields, not sensitive)
+        "stripe_customer_id": user_profile.get("stripe_customer_id"),
+        "stripe_subscription_id": user_profile.get("stripe_subscription_id"),
+        "subscription_status": user_profile.get("subscription_status"),
+        "subscription_credits": user_profile.get("subscription_credits"),
+        "subscription_currency": user_profile.get("subscription_currency"),
+        "next_billing_date": user_profile.get("next_billing_date"),
+        # Keep encrypted payment method ID encrypted
+        "encrypted_payment_method_id": user_profile.get("encrypted_payment_method_id"),
+        # Low balance auto top-up fields (cleartext configuration fields)
+        "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
+        "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
+        "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
+        "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency"),
+        # Email notification fields (encrypted_notification_email is vault-encrypted)
+        "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
+        "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
+        "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
+        # Push notification fields
+        "push_notification_enabled": user_profile.get("push_notification_enabled", False),
+        "push_notification_subscription": user_profile.get("push_notification_subscription"),
+        "push_notification_preferences": user_profile.get("push_notification_preferences", {}),
+        "push_notification_banner_shown": user_profile.get("push_notification_banner_shown", False),
+    }
+
+    if not user_data_to_cache.get("gifted_credits_for_signup"):
+        user_data_to_cache.pop("gifted_credits_for_signup", None)
+
+    return user_data_to_cache
+
+
+async def _cache_lookup_user_profile(
+    *,
+    user_id: str,
+    user_email_salt: str,
+    user_data: dict,
+    directus_service: DirectusService,
+    cache_service: CacheService,
+    source: str,
+) -> Optional[dict]:
+    try:
+        profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+        if not profile_success or not user_profile:
+            logger.error(
+                "Failed to fetch user profile during %s for user %s: %s",
+                source,
+                user_id[:8],
+                profile_message,
+            )
+            return None
+
+        user_profile["user_email_salt"] = user_email_salt
+        user_data_to_cache = _build_lookup_user_cache_payload(
+            user_id=user_id,
+            user_profile=user_profile,
+            user_data=user_data,
+            user_email_salt=user_email_salt,
+        )
+
+        if user_profile.get("tfa_enabled", False):
+            try:
+                tfa_fields = await directus_service.get_user_fields_direct(
+                    user_id, ["encrypted_tfa_secret", "vault_key_id"]
+                )
+                if tfa_fields and tfa_fields.get("encrypted_tfa_secret") and tfa_fields.get("vault_key_id"):
+                    tfa_cache_key = f"user_tfa_data:{user_id}"
+                    tfa_data = {
+                        "encrypted_tfa_secret": tfa_fields.get("encrypted_tfa_secret"),
+                        "vault_key_id": tfa_fields.get("vault_key_id"),
+                    }
+                    await cache_service.set(tfa_cache_key, tfa_data, ttl=LOOKUP_CACHE_TTL_SECONDS)
+                    logger.info("Cached TFA data during %s for user %s", source, user_id[:8])
+            except Exception as exc:
+                logger.warning(
+                    "Failed to cache TFA data during %s for user %s: %s",
+                    source,
+                    user_id[:8],
+                    exc,
+                )
+
+        if not user_data_to_cache.get("username"):
+            logger.error(
+                "CRITICAL: Cannot cache user profile for user %s during %s - username is missing. "
+                "This indicates a data integrity issue.",
+                user_id,
+                source,
+            )
+            return None
+        if not user_data_to_cache.get("vault_key_id"):
+            logger.error(
+                "CRITICAL: Cannot cache user profile for user %s during %s - vault_key_id is missing.",
+                user_id,
+                source,
+            )
+            return None
+
+        await cache_service.set_user(user_data_to_cache)
+        logger.info("Cached complete user profile for user %s during %s", user_id[:8], source)
+
+        cache_primed = await cache_service.is_user_cache_primed(user_id)
+        if not cache_primed:
+            warming_flag = f"cache_warming_in_progress:{user_id}"
+            is_warming = await cache_service.get(warming_flag)
+            if not is_warming:
+                await cache_service.set(warming_flag, "warming", ttl=LOOKUP_CACHE_TTL_SECONDS)
+                last_opened_path = user_profile.get("last_opened")
+                logger.info("[PREDICTIVE] Pre-warming cache for user %s from %s", user_id[:6], source)
+                app.send_task(
+                    name='app.tasks.user_cache_tasks.warm_user_cache',
+                    kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
+                    queue='user_init'
+                )
+            else:
+                logger.info("Cache warming already in progress for user %s", user_id[:8])
+        else:
+            logger.info("User cache already primed for %s during %s", user_id[:8], source)
+
+        return user_data_to_cache
+    except Exception as exc:
+        logger.error(
+            "Failed to cache lookup user profile during %s for user %s: %s",
+            source,
+            user_id[:8] if user_id else "unknown",
+            exc,
+            exc_info=True,
+        )
+        return None
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("120/minute")
@@ -246,11 +403,30 @@ async def login(
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
-        # User profile should already be cached from /lookup endpoint
+        # Lookup now returns the email salt before nonessential profile warmup.
+        # If the user submits the password before the background cache write
+        # completes, fetch the profile here instead of failing the login.
         user_profile = await cache_service.get_user_by_id(user_id)
         if not user_profile:
-            logger.error(f"User profile not found in cache for user {user_id}. This should have been cached during /lookup.")
-            return LoginResponse(success=False, message="User profile not found. Please try logging in again.")
+            logger.warning(
+                "User profile not found in cache for user %s during login; fetching synchronously.",
+                user_id[:8],
+            )
+            user_email_salt = user.get("user_email_salt")
+            if not user_email_salt:
+                logger.error("Cannot fetch login profile fallback for user %s: user_email_salt is missing.", user_id)
+                return LoginResponse(success=False, message="User profile not found. Please try logging in again.")
+
+            user_profile = await _cache_lookup_user_profile(
+                user_id=user_id,
+                user_email_salt=user_email_salt,
+                user_data=user,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                source="login fallback",
+            )
+            if not user_profile:
+                return LoginResponse(success=False, message="User profile not found. Please try logging in again.")
         
         logger.info(f"Using cached user profile for login: {user_id}")
         
@@ -1482,6 +1658,7 @@ async def finalize_login_session(
 async def lookup_user(
     request: Request,
     lookup_data: UserLookupRequest,
+    background_tasks: BackgroundTasks,
     directus_service: DirectusService = Depends(get_directus_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -1537,126 +1714,15 @@ async def lookup_user(
                 
                 if user_email_salt:
                     logger.info(f"Found user_email_salt in user data for user {user_id}")
-                    
-                    # Since we don't have cached profile, fetch and cache the complete user profile
-                    # This is what finalize_login_session does - we're moving it here for efficiency
-                    profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
-                    if profile_success and user_profile:
-                        # Add user_email_salt to the profile since get_user_profile doesn't include it
-                        user_profile["user_email_salt"] = user_email_salt
-                        
-                        # Cache the user using the same logic as finalize_login_session
-                        user_data_to_cache = {
-                            "user_id": user_id,
-                            "username": user_profile.get("username"),
-                            "is_admin": user_profile.get("is_admin", False),
-                            "credits": user_profile.get("credits", 0),
-                            "profile_image_url": user_profile.get("profile_image_url"),
-                            "tfa_app_name": user_profile.get("tfa_app_name"),
-                            "tfa_enabled": user_profile.get("tfa_enabled", False),
-                            "last_opened": user_profile.get("last_opened"),
-                            "vault_key_id": user_profile.get("vault_key_id"),
-                            "consent_privacy_and_apps_default_settings": user_profile.get("consent_privacy_and_apps_default_settings"),
-                            "consent_mates_default_settings": user_profile.get("consent_mates_default_settings"),
-                            "language": user_profile.get("language", "en"),
-                            "darkmode": user_profile.get("darkmode", False),
-                            "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
-                            "encrypted_email_address": user_profile.get("encrypted_email_address"),
-                            "invoice_counter": user_profile.get("invoice_counter"),
-                            "lookup_hashes": user_profile.get("lookup_hashes", []),
-                            "account_id": user_data.get("account_id"),  # From the original user_data
-                            "user_email_salt": user_email_salt,  # Include the salt we just fetched
-                            # Monthly subscription fields (cleartext fields, not sensitive)
-                            "stripe_customer_id": user_profile.get("stripe_customer_id"),
-                            "stripe_subscription_id": user_profile.get("stripe_subscription_id"),
-                            "subscription_status": user_profile.get("subscription_status"),
-                            "subscription_credits": user_profile.get("subscription_credits"),
-                            "subscription_currency": user_profile.get("subscription_currency"),
-                            "next_billing_date": user_profile.get("next_billing_date"),
-                            # Keep encrypted payment method ID encrypted
-                            "encrypted_payment_method_id": user_profile.get("encrypted_payment_method_id"),
-                            # Low balance auto top-up fields (cleartext configuration fields)
-                            "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
-                            "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
-                            "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
-                            "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency"),
-                             # Email notification fields (encrypted_notification_email is vault-encrypted)
-                             "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
-                             "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
-                             "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
-                             # Push notification fields
-                             "push_notification_enabled": user_profile.get("push_notification_enabled", False),
-                             "push_notification_subscription": user_profile.get("push_notification_subscription"),
-                             "push_notification_preferences": user_profile.get("push_notification_preferences", {}),
-                             "push_notification_banner_shown": user_profile.get("push_notification_banner_shown", False),
-                         }
-                        
-                        # CACHE TFA DATA: Cache encrypted TFA secret for faster login
-                        if user_profile.get("tfa_enabled", False):
-                            try:
-                                # Fetch TFA data directly from Directus
-                                tfa_fields = await directus_service.get_user_fields_direct(
-                                    user_id, ["encrypted_tfa_secret", "vault_key_id"]
-                                )
-                                if tfa_fields and tfa_fields.get("encrypted_tfa_secret") and tfa_fields.get("vault_key_id"):
-                                    tfa_cache_key = f"user_tfa_data:{user_id}"
-                                    tfa_data = {
-                                        "encrypted_tfa_secret": tfa_fields.get("encrypted_tfa_secret"),
-                                        "vault_key_id": tfa_fields.get("vault_key_id")
-                                    }
-                                    await cache_service.set(tfa_cache_key, tfa_data, ttl=300)  # 5 minutes TTL
-                                    logger.info(f"Cached TFA data during lookup for user {user_id}")
-                            except Exception as e:
-                                logger.warning(f"Failed to cache TFA data during lookup for user {user_id}: {e}")
-                                # Don't fail the lookup if TFA caching fails
-                        
-                        # Remove gifted_credits_for_signup if it's None or 0 before caching
-                        if not user_data_to_cache.get("gifted_credits_for_signup"):
-                            user_data_to_cache.pop("gifted_credits_for_signup", None)
-                        
-                        # CRITICAL: Validate required fields before caching to prevent broken login state
-                        # If username is missing, don't cache incomplete data - let get_current_user handle it
-                        if not user_data_to_cache.get("username"):
-                            logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} during lookup - username is missing. This indicates a data integrity issue (encrypted_username may not have decrypted correctly).")
-                            # Don't cache incomplete data
-                        elif not user_data_to_cache.get("vault_key_id"):
-                            logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} during lookup - vault_key_id is missing.")
-                            # Don't cache incomplete data
-                        else:
-                            # Cache the user data (without refresh_token since this is just lookup)
-                            await cache_service.set_user(user_data_to_cache)
-                            logger.info(f"Cached complete user profile for user {user_id} during lookup")
-                        
-                        # Predictively warm user cache for instant login UX
-                        # This loads phases 1-3 (last opened chat, recent chats, full sync) from Directus to Redis
-                        # All data remains encrypted - server cannot decrypt without user's master key
-                        cache_primed = await cache_service.is_user_cache_primed(user_id)
-                        
-                        if not cache_primed:
-                            # Check if warming already in progress to avoid duplicate work
-                            warming_flag = f"cache_warming_in_progress:{user_id}"
-                            is_warming = await cache_service.get(warming_flag)
-                            
-                            if not is_warming:
-                                # Set flag to prevent duplicate warming attempts (5 min TTL)
-                                await cache_service.set(warming_flag, "warming", ttl=300)
-                                
-                                # Get last_opened for cache warming task
-                                last_opened_path = user_profile.get("last_opened") if user_profile else None
-                                
-                                logger.info(f"[PREDICTIVE] Pre-warming cache for user {user_id[:6]}... from /lookup endpoint")
-                                
-                                # Dispatch async - doesn't block /lookup response
-                                # By the time user enters password and clicks login, cache should be ready
-                                app.send_task(
-                                    name='app.tasks.user_cache_tasks.warm_user_cache',
-                                    kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
-                                    queue='user_init'
-                                )
-                            else:
-                                logger.info(f"Cache warming already in progress for user {user_id[:6]}...")
-                        else:
-                            logger.info(f"User cache already primed for {user_id[:6]}... (skipping predictive warming)")
+                    background_tasks.add_task(
+                        _cache_lookup_user_profile,
+                        user_id=user_id,
+                        user_email_salt=user_email_salt,
+                        user_data=user_data,
+                        directus_service=directus_service,
+                        cache_service=cache_service,
+                        source="lookup background",
+                    )
         
         # If we still couldn't get the salt, this indicates a data integrity issue
         if not user_email_salt:
