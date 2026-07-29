@@ -96,7 +96,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6ca9c0771ae2507f8920cc39f9d3877635140d72+local-worktree
+  subject_commit: 6537009ac87e7e3fee7312585ddbd03f6fb67cb9
 
 approvals:
   product_contract:
@@ -456,10 +456,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        command: "not run before implementation in resumed session; deployed green Playwright gate was required to verify the already-implemented web rendering"
+        run_id: local-red-skip-travel-playwright-20260729
+        timestamp: "2026-07-29T16:28:38Z"
     green_phase:
       required: true
       expected: pass
@@ -680,11 +680,12 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts --gate-deploy --expected-commit 6537009
+        run_id: 2026-07-29T16:19:35Z-gh-30470672895
+        subject_commit: 6537009ac87e7e3fee7312585ddbd03f6fb67cb9
+        timestamp: "2026-07-29T16:28:19Z"
+        summary: Vercel deploy dpl_63owRtFnTyBaeTApdFJzCVcaGGvE reached READY for commit 6537009ac, then skill-travel-train-connections.spec.ts passed via GitHub Actions run 30470672895 using fallback account slot 2 after slot 1 preflight was unavailable. E2E deploy gate passed for dev endpoints.
   - id: T-APPLE-BUILD
     type: build
     file: apple/OpenMates.xcodeproj
@@ -1069,14 +1070,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-29T13:45:36Z"
     notes: Initial SDK attempts correctly hit the API-key device approval guard and a direct-SDK input shape mismatch; the passing proof uses the generated SDK methods with the app-skill {requests:[...]} contract and records sanitized output in /tmp/opencode/travel-sdk-dev-proof.json.
+  - id: ATTEMPT-8
+    task_id: TASK-5
+    approach: Deploy the approved root changes to dev and run the travel train Playwright spec against the exact Vercel-ready commit.
+    outcome: succeeded
+    recorded_at: "2026-07-29T16:28:38Z"
+    notes: sessions.py deploy produced commit 6537009ac with the travel backend, CLI/SDK, and web renderer changes plus user-approved root changes. Playwright green evidence passed for skill-travel-train-connections.spec.ts on GitHub Actions run 30470672895.
 
 handoff:
   current_task_id: TASK-5
-  next_action: Verify the web travel embed rendering gate for structured fare states after the SDK gates passed.
-  command: Run the scoped web lint/build or deploy-and-Playwright path required by T-WEB-LINT and T-PLAYWRIGHT-TRAVEL.
-  expected_outcome: Web evidence confirms partial, pass-only, and timetable-only fare states render without cheapest or booking claims for timetable-only Transitous results.
+  next_action: Ask the user to confirm the deployed dev web travel fare rendering looks correct, then proceed to Apple parity if confirmed.
+  command: User confirmation for https://app.dev.openmates.org after deployed commit 6537009ac and Playwright run 30470672895.
+  expected_outcome: V-USER-CONFIRMATION records whether partial, pass-only, and timetable-only fare states look correct in the deployed web UI.
   blocker: null
-  last_verified_commit: 6ca9c0771ae2507f8920cc39f9d3877635140d72+local-worktree
+  last_verified_commit: 6537009ac87e7e3fee7312585ddbd03f6fb67cb9
 
 open_questions:
   - Before production-scale Transitous usage, decide whether to contact Transitous maintainers or self-host MOTIS; low-volume dev smoke testing remains scoped to app-specific User-Agent usage.
