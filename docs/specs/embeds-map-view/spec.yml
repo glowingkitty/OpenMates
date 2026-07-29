@@ -184,12 +184,17 @@ attempts:
       `embeds_map_view` block referencing generated event refs.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Add or wire deployed web Playwright coverage for the map-view renderer, then deploy to dev and run the spec through the unified test control plane.
-  command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts
-  expected_outcome: Parser, renderer, backend guard, and real CLI inference evidence is green; remaining gates are deployed web Playwright, example-chat/user confirmation, and Apple parity.
-  blocker: null
-  last_verified_commit: working-tree:a243e070b9acae0674a9fae0489f1fdb67321237
+  current_task_id: TASK-4
+  next_action: Ask the user whether to proceed with creating real CLI-backed map-view example chats and the missing embeds-map-view-examples.spec.ts coverage.
+  command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts
+  expected_outcome: The example-chat Playwright gate is still unavailable until TASK-4 creates the example data and spec.
+  blocker:
+    task_id: TASK-4
+    requires_user_input: true
+    reason: TASK-4 is explicitly in awaiting_approval and creates durable public example-chat content from real CLI chats.
+    question: Should we proceed with real example-chat creation and the embeds-map-view-examples.spec.ts gate now?
+    next_action: If approved, use the add-example-chat workflow to create sanitized examples, add the missing Playwright spec, deploy, and run it.
+  last_verified_commit: 558612acb
 
 scenarios:
   - id: S-1
@@ -826,7 +831,7 @@ tasks:
 
   - id: TASK-3
     title: Build bounded responsive map-view renderer
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
