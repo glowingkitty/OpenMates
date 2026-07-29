@@ -110,6 +110,7 @@ export async function sendUpdateSummaryImpl(
 		chat_id,
 		encrypted_chat_summary: encryptedSummary,
 		encrypted_chat_key: chat.encrypted_chat_key,
+		manual_update: true,
 		versions
 	});
 
@@ -119,7 +120,7 @@ export async function sendUpdateSummaryImpl(
 	await chatDB.updateChat(chat);
 	serviceInstance.dispatchEvent(
 		new CustomEvent("chatUpdated", {
-			detail: { chat_id, type: "post_processing_metadata", chat }
+			detail: { chat_id, type: "post_processing_metadata", chat, manualMetadataUpdate: true }
 		})
 	);
 }

@@ -81,6 +81,7 @@ async def handle_post_processing_metadata(
         "encrypted_quick_tip_slugs": "...",  // Optional: Encrypted array of selected quick tip slugs
         "encrypted_title": "...",  // Optional (OPE-265): Updated title from post-processing when conversation drifted
         "encrypted_chat_key": "...",  // Optional (OPE-314): For server-side key validation to prevent stale-key metadata
+        "manual_update": true,  // Optional: user-edited title/summary, not generated post-processing
     }
 
     All fields are encrypted CLIENT-SIDE (not server-encrypted) for zero-knowledge storage.
@@ -107,6 +108,7 @@ async def handle_post_processing_metadata(
             # was encrypted with the correct key (prevents stale-key metadata from persisting)
             encrypted_chat_key = payload.get("encrypted_chat_key")
             client_versions = payload.get("versions", {})
+            is_manual_update = payload.get("manual_update") is True
 
             if not chat_id:
                 logger.error(f"Missing chat_id in post-processing metadata from {user_id}")
@@ -164,7 +166,7 @@ async def handle_post_processing_metadata(
 
             logger.info(f"Processing post-processing metadata for chat {chat_id} from {user_id}")
 
-            if encrypted_title or encrypted_chat_summary:
+            if not is_manual_update and (encrypted_title or encrypted_chat_summary):
                 client_metadata_v = 0
                 if isinstance(client_versions, dict):
                     client_metadata_v = _version_int(client_versions.get("metadata_v"))

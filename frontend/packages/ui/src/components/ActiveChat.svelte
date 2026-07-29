@@ -715,6 +715,7 @@
         newMessage?: ChatMessageModel;
         type?: string;
         messagesUpdated?: boolean;
+        manualMetadataUpdate?: boolean;
     };
 
     type SkillPreviewData = WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData;
@@ -8449,7 +8450,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // updates live without needing to close and reopen the chat.
         const incomingMetadataVersion = Number(incomingChatMetadata?.metadata_v ?? incomingChatMetadata?.title_v ?? 0);
         const currentMetadataVersion = Number(currentChat?.metadata_v ?? currentChat?.title_v ?? 0);
-        const incomingMetadataIsStale = incomingMetadataVersion > 0 && currentMetadataVersion > 0 && incomingMetadataVersion < currentMetadataVersion;
+        const incomingMetadataIsStale = !detail.manualMetadataUpdate && incomingMetadataVersion > 0 && currentMetadataVersion > 0 && incomingMetadataVersion < currentMetadataVersion;
         const isHeaderMetadataUpdate =
             detail.type === 'post_processing_metadata' ||
             detail.type === 'metadata_updated' ||
