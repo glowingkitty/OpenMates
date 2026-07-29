@@ -3361,6 +3361,28 @@ export class EmbedStore {
     if (indexedEmbedId) return indexedEmbedId;
 
     const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
+    const checkedCandidates = new Set<string>();
+
+    const tryCandidates = async (candidateEmbedIds: string[]) => {
+      for (const candidateEmbedId of candidateEmbedIds) {
+        if (checkedCandidates.has(candidateEmbedId)) continue;
+        checkedCandidates.add(candidateEmbedId);
+
+        const resolvedEmbed = await this.get(`embed:${candidateEmbedId}`);
+
+        const registeredEmbedId = this.resolveByRef(embedRef);
+        if (registeredEmbedId) return registeredEmbedId;
+
+        const { embedRefs: verifiedRefs, appId } =
+          await this.extractRefsFromResolvedEmbed(resolvedEmbed);
+        if (verifiedRefs.includes(embedRef)) {
+          this.registerEmbedRef(embedRef, candidateEmbedId, appId);
+          return candidateEmbedId;
+        }
+      }
+
+      return null;
+    };
 
     const candidates = new Set<string>(
       embedIdPrefix
@@ -3374,18 +3396,24 @@ export class EmbedStore {
       candidates.add(embedId);
     }
 
-    for (const candidateEmbedId of Array.from(candidates)) {
-      const resolvedEmbed = await this.get(`embed:${candidateEmbedId}`);
+    const directResult = await tryCandidates(Array.from(candidates));
+    if (directResult) return directResult;
 
-      const registeredEmbedId = this.resolveByRef(embedRef);
-      if (registeredEmbedId) return registeredEmbedId;
-
-      const { embedRefs: verifiedRefs, appId } =
-        await this.extractRefsFromResolvedEmbed(resolvedEmbed);
-      if (verifiedRefs.includes(embedRef)) {
-        this.registerEmbedRef(embedRef, candidateEmbedId, appId);
-        return candidateEmbedId;
+    if (embedIdPrefix) {
+      // Some refs end with a six-hex content hash, not an embed ID prefix
+      // (for example CLI-uploaded files). If the direct-prefix optimization
+      // fails to verify a match, fall back to the broad verified scan.
+      const fallbackCandidates = new Set<string>(
+        this.collectAllRefRepairCandidatesFromCache(),
+      );
+      const fallbackIdbCandidates =
+        await this.collectAllRefRepairCandidatesFromIndexedDb();
+      for (const embedId of fallbackIdbCandidates) {
+        fallbackCandidates.add(embedId);
       }
+
+      const fallbackResult = await tryCandidates(Array.from(fallbackCandidates));
+      if (fallbackResult) return fallbackResult;
     }
 
     return null;

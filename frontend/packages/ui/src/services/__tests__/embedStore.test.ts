@@ -184,6 +184,21 @@ describe('EmbedStore.resolveByRefDeep', () => {
     );
   });
 
+  it('falls back to broad repair when a file ref ends with a six-hex content hash', async () => {
+    const store = new EmbedStore();
+
+    store.registerStaticEmbed({
+      embedId: 'pdf-embed-id',
+      type: 'pdf',
+      content: 'type: pdf\nembed_ref: sample-pdf-a1b2c3\nfilename: sample.pdf',
+    });
+
+    await expect(store.resolveByRefDeep('sample-pdf-a1b2c3')).resolves.toBe(
+      'pdf-embed-id',
+    );
+    expect(store.resolveByRef('sample-pdf-a1b2c3')).toBe('pdf-embed-id');
+  });
+
   it('ignores non-TOON plaintext ref repair candidates without logging parse errors', async () => {
     const store = new EmbedStore();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
