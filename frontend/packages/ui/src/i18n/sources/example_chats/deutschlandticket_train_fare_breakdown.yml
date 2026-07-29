@@ -1,0 +1,667 @@
+title:
+  context: "Title of example chat: Deutschlandticket train fare breakdown"
+  en: "Deutschlandticket train fare breakdown"
+  de: "Deutschlandticket train fare breakdown"
+  zh: "Deutschlandticket train fare breakdown"
+  es: "Deutschlandticket train fare breakdown"
+  fr: "Deutschlandticket train fare breakdown"
+  pt: "Deutschlandticket train fare breakdown"
+  ru: "Deutschlandticket train fare breakdown"
+  ja: "Deutschlandticket train fare breakdown"
+  ko: "Deutschlandticket train fare breakdown"
+  it: "Deutschlandticket train fare breakdown"
+  tr: "Deutschlandticket train fare breakdown"
+  vi: "Deutschlandticket train fare breakdown"
+  id: "Deutschlandticket train fare breakdown"
+  pl: "Deutschlandticket train fare breakdown"
+  nl: "Deutschlandticket train fare breakdown"
+  ar: "Deutschlandticket train fare breakdown"
+  hi: "Deutschlandticket train fare breakdown"
+  th: "Deutschlandticket train fare breakdown"
+  cs: "Deutschlandticket train fare breakdown"
+  sv: "Deutschlandticket train fare breakdown"
+  he: "Deutschlandticket train fare breakdown"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Deutschlandticket train fare breakdown"
+  en: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  de: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  zh: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  es: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  fr: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  pt: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  ru: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  ja: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  ko: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  it: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  tr: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  vi: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  id: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  pl: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  nl: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  ar: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  hi: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  th: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  cs: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  sv: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  he: "See how OpenMates separates a Deutsche Bahn route into pass-covered regional travel and a paid ICE segment."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Deutschlandticket train fare breakdown. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  de: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  zh: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  es: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  fr: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  pt: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  ru: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  ja: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  ko: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  it: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  tr: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  vi: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  id: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  pl: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  nl: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  ar: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  hi: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  th: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  cs: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  sv: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  he: "Please use the travel search to find Deutsche Bahn train connections from Bonn Hbf to München Hbf on 2026-08-12. I have a Deutschlandticket, so show the first result and explain the fare fields: covered_by_passes, which segment is pass_covered, which segment is paid, and the remaining partial fare amount."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Deutschlandticket train fare breakdown. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "84b123f2-4024-4dbd-bf45-cc05ab805827", "app_id": "travel", "skill_id": "search_connections", "provider": "Google Flights", "providers": [{"id": "google_flights", "name": "Google Flights", "icon_url": "[link removed]"}]}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "c44abc3c-3eee-4a93-9ae3-ec76e430c135", "app_id": "travel", "skill_id": "search_connections", "query": "Bonn \u2192 Munich, 2026-08-12", "provider": "Deutsche Bahn", "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn", "icon_url": "[link removed]"}]}
+    ```
+    
+    Here is the first Deutsche Bahn connection from Bonn Hbf to München Hbf on August 12, 2026:
+    
+    ### Fare Fields and Explanation
+    
+    * **`covered_by_passes`: `["deutschland_ticket"]`**
+      This field lists the travel passes you own and have applied to your search. In this case, it indicates that your [Deutschlandticket](wiki:Deutschlandticket) has been factored into the overall fare calculation.
+    
+    * **Pass-covered segment (`fare_coverage: "pass_covered"`):**
+      * **Route:** Bonn Hbf to Köln Messe/Deutz (Regional-Express train **RE5**).
+      * **Explanation:** Because the Deutschlandticket is valid nationwide on all regional public transport and regional trains (like RE, RB, and S-Bahn), this initial leg is completely covered by your existing pass at no extra cost.
+    
+    * **Paid segment (`fare_coverage: "paid"`):**
+      * **Route:** Köln Messe/Deutz to München Hbf (Intercity Express train **ICE 529**).
+      * **Explanation:** The Deutschlandticket **does not** cover long-distance high-speed trains like ICE or IC. Therefore, this long-distance segment requires a standard ticket purchase.
+    
+    * **Remaining partial fare amount (`total_price`: `49.99` EUR):**
+      * **Explanation:** Since your local regional leg from Bonn to Cologne is covered by your Deutschlandticket, you only need to pay for the long-distance ICE portion of the journey. The system calculates a partial fare totaling **€49.99** for the trip.
+    
+    What would you like to do next? Would you like to check return connections, or explore seat reservations for the ICE portion?
+  verified_by_human: []
+
