@@ -12298,6 +12298,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <div
                         class="top-buttons"
                         class:top-buttons-flow={showWelcome}
+                        class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
                         inert={showWelcome && hideWelcomeForKeyboard}
                     >
@@ -12358,6 +12359,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             {/if}
                         </div>
+
+                        {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
+                            <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
+                                <button
+                                    type="button"
+                                    class="guest-all-examples-action"
+                                    data-testid="guest-all-examples-back"
+                                    onclick={handleBackToRecentGuestExamples}
+                                >
+                                    <GuestAllExamplesBackIcon size={18} color="currentColor" />
+                                    <span>{$text('chat.welcome.back_to_recent')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="guest-all-examples-action"
+                                    data-testid="guest-all-examples-search"
+                                    onclick={handleSearchGuestExamples}
+                                >
+                                    <GuestAllExamplesSearchIcon size={18} color="currentColor" />
+                                    <span>{$text('common.search')}</span>
+                                </button>
+                            </div>
+                        {/if}
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
@@ -12429,26 +12453,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         >
                             {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                                 <div class="guest-all-examples-view" data-testid="guest-all-examples-view" transition:fade={fadeParams}>
-                                    <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
-                                        <button
-                                            type="button"
-                                            class="guest-all-examples-action"
-                                            data-testid="guest-all-examples-back"
-                                            onclick={handleBackToRecentGuestExamples}
-                                        >
-                                            <GuestAllExamplesBackIcon size={18} color="currentColor" />
-                                            <span>{$text('chat.welcome.back_to_recent')}</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="guest-all-examples-action"
-                                            data-testid="guest-all-examples-search"
-                                            onclick={handleSearchGuestExamples}
-                                        >
-                                            <GuestAllExamplesSearchIcon size={18} color="currentColor" />
-                                            <span>{$text('common.search')}</span>
-                                        </button>
-                                    </div>
                                     <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid">
                                         {#each guestAllExampleMetas as meta (meta.chat.chat_id)}
                                             {@const category = meta.category || 'general_knowledge'}
@@ -13149,7 +13153,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     data-testid="message-input-wrapper"
                     bind:clientHeight={messageInputWrapperHeight}
                 >
-                    {#if showWelcome && !$authStore.isAuthenticated && !messageInputFocused}
+                    {#if showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused}
                         <a
                             class="guest-input-context-link"
                             data-testid="guest-input-context-link"
@@ -14412,10 +14416,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .guest-all-examples-view {
         width: min(100% - 32px, 1120px);
-        max-height: min(58vh, 680px);
+        max-height: min(68vh, 760px);
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-5);
         pointer-events: auto;
     }
 
@@ -14453,13 +14456,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .guest-all-examples-grid {
+        --guest-all-examples-fade-size: 34px;
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 300px));
         justify-content: center;
         gap: var(--spacing-8);
         overflow-y: auto;
-        padding: var(--spacing-2) var(--spacing-4) var(--spacing-5);
+        padding: var(--guest-all-examples-fade-size) var(--spacing-4);
         scrollbar-width: thin;
+        -webkit-mask-image: linear-gradient(
+            to bottom,
+            transparent 0,
+            black var(--guest-all-examples-fade-size),
+            black calc(100% - var(--guest-all-examples-fade-size)),
+            transparent 100%
+        );
+        mask-image: linear-gradient(
+            to bottom,
+            transparent 0,
+            black var(--guest-all-examples-fade-size),
+            black calc(100% - var(--guest-all-examples-fade-size)),
+            transparent 100%
+        );
     }
 
     .guest-all-examples-grid .resume-chat-large-card {
@@ -14517,12 +14535,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         .guest-all-examples-view {
             width: min(100% - 24px, 520px);
-            max-height: 44vh;
-            gap: var(--spacing-5);
+            max-height: 54vh;
         }
 
         .guest-all-examples-toolbar {
-            gap: var(--spacing-5);
+            gap: var(--spacing-4);
         }
 
         .guest-all-examples-action {
@@ -15628,6 +15645,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         /* Ensure full width to keep justify-content: space-between working */
         width: 100%;
         box-sizing: border-box;
+    }
+
+    .top-buttons.guest-all-examples-top-buttons {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        column-gap: var(--spacing-6);
+    }
+
+    .top-buttons.guest-all-examples-top-buttons .left-buttons {
+        justify-content: flex-start;
+    }
+
+    .top-buttons.guest-all-examples-top-buttons .right-buttons {
+        justify-content: flex-end;
     }
 
     .chat-wrapper.landing-intro-overlay-active .top-buttons,
