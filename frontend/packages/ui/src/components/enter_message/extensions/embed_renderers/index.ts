@@ -13,6 +13,7 @@ import { RecordingRenderer } from "./RecordingRenderer";
 import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
 import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
 import { SubChatBatchRenderer } from "./SubChatBatchRenderer";
+import { EmbedsMapViewRenderer } from "./EmbedsMapViewRenderer";
 import { MapLocationRenderer } from "./MapLocationRenderer";
 import { MathPlotRenderer } from "./MathPlotRenderer";
 import type { EmbedRenderer, EmbedRendererRegistry } from "./types";
@@ -27,6 +28,7 @@ const rendererInstances: Record<string, EmbedRenderer> = {
   AppSkillUseRenderer: new AppSkillUseRenderer(),
   FocusModeActivationRenderer: new FocusModeActivationRenderer(),
   SubChatBatchRenderer: new SubChatBatchRenderer(),
+  EmbedsMapViewRenderer: new EmbedsMapViewRenderer(),
   ImageRenderer: new ImageRenderer(),
   PdfRenderer: new PdfRenderer(),
   RecordingRenderer: new RecordingRenderer(),
@@ -56,6 +58,7 @@ export const embedRenderers: EmbedRendererRegistry = Object.fromEntries(
 // Virtual message-level renderers are intentionally not generated from app.yml
 // because they do not represent persisted backend embed types.
 embedRenderers["sub-chat-batch"] = rendererInstances.SubChatBatchRenderer;
+embedRenderers["embeds-map-view"] = rendererInstances.EmbedsMapViewRenderer;
 
 /**
  * Get renderer for a specific embed type

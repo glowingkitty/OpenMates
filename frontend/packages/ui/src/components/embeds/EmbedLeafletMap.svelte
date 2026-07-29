@@ -35,6 +35,13 @@
     lon: number;
   }
 
+  /** A route polyline rendered on the map */
+  export interface MapRoutePath {
+    points: MapPathPoint[];
+    color?: string;
+    weight?: number;
+  }
+
   interface Props {
     /** Map center latitude and longitude */
     center: { lat: number; lon: number };
@@ -44,6 +51,8 @@
     markers?: MapMarker[];
     /** Optional polyline path (e.g. for routes) */
     path?: MapPathPoint[];
+    /** Optional multiple route polylines */
+    paths?: MapRoutePath[];
     /** Path color (default: primary color) */
     pathColor?: string;
     /** Path weight in pixels (default: 3) */
@@ -69,6 +78,7 @@
     zoom = 15,
     markers = [],
     path = [],
+    paths = [],
     pathColor = '#6c63ff',
     pathWeight = 3,
     fitBounds: fitBoundsProp,
@@ -81,7 +91,13 @@
   }: Props = $props();
 
   let shouldFitBounds = $derived(
-    fitBoundsProp ?? (markers.length > 1 || path.length > 0)
+    fitBoundsProp ?? (markers.length > 1 || path.length > 0 || paths.length > 0)
+  );
+  let normalizedPaths = $derived(
+    [
+      ...(path.length > 1 ? [{ points: path, color: pathColor, weight: pathWeight }] : []),
+      ...paths,
+    ].filter((routePath) => routePath.points.length > 1)
   );
 
   let mapContainer = $state<HTMLDivElement | null>(null);
@@ -152,17 +168,17 @@
         }
       }
 
-      if (path.length > 1) {
+      for (const routePath of normalizedPaths) {
         L.polyline(
-          path.map(p => [p.lat, p.lon] as [number, number]),
-          { color: pathColor, weight: pathWeight, opacity: 0.8 }
+          routePath.points.map(p => [p.lat, p.lon] as [number, number]),
+          { color: routePath.color || pathColor, weight: routePath.weight || pathWeight, opacity: 0.8 }
         ).addTo(leafletMap);
       }
 
       if (shouldFitBounds) {
         const allPoints: [number, number][] = [
           ...markers.map(m => [m.lat, m.lon] as [number, number]),
-          ...path.map(p => [p.lat, p.lon] as [number, number]),
+          ...normalizedPaths.flatMap(routePath => routePath.points.map(p => [p.lat, p.lon] as [number, number])),
         ];
         if (allPoints.length > 1) {
           const bounds = L.latLngBounds(allPoints);

@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover - test environments may not install opti
         return json.dumps(value, ensure_ascii=False)
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.utils.embeds_map_view import EMBEDS_MAP_VIEW_INSTRUCTION
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
@@ -34,7 +35,8 @@ ASYNC_SKILL_COMPLETION_KEY_PREFIX = "async_skill_completion"
 ASYNC_EMBED_REFERENCE_INSTRUCTION = (
     "When referencing a specific completed result that has an embed_ref field, "
     "link it with Markdown like [human-readable title](embed:the_embed_ref). "
-    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text."
+    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text.\n\n"
+    f"{EMBEDS_MAP_VIEW_INSTRUCTION}"
 )
 celery_app = None
 

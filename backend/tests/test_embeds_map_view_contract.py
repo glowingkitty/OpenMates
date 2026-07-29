@@ -1,0 +1,161 @@
+"""Contract tests for the virtual embeds_map_view assistant block.
+
+The map view is a rendering instruction over existing embeds. These tests keep
+the AI instructions and deterministic guard aligned with the product contract in
+docs/specs/embeds-map-view/spec.yml.
+"""
+
+from backend.apps.ai.utils.embeds_map_view import (
+    ALLOWED_EMBEDS_MAP_VIEW_FIELDS,
+    EMBEDS_MAP_VIEW_INSTRUCTION,
+    append_missing_embeds_map_view_block,
+    content_has_map_capable_app_skill_use,
+    extract_inline_embed_refs,
+    is_embeds_map_view_fence_language,
+    is_map_view_request,
+    normalize_embeds_map_view_blocks,
+    should_include_embeds_map_view_hint,
+)
+
+
+def test_instruction_limits_fields_and_forbids_paid_enrichment() -> None:
+    assert ALLOWED_EMBEDS_MAP_VIEW_FIELDS == {"title", "embeds", "sources", "highlight"}
+    assert "```embeds_map_view" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "When the user asks to show results on a map" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "include exactly one compact map/list block" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "title" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "embeds" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "sources" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "highlight" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "Do not include filters" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "Do not call" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "travel.flight_details" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "Flightradar24" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "FlightAware" in EMBEDS_MAP_VIEW_INSTRUCTION
+
+
+def test_map_view_fence_language_is_reserved_for_client_renderer() -> None:
+    assert is_embeds_map_view_fence_language("embeds_map_view") is True
+    assert is_embeds_map_view_fence_language("embeds_map_view title=Berlin") is True
+    assert is_embeds_map_view_fence_language("json") is False
+    assert is_embeds_map_view_fence_language(None) is False
+
+
+def test_map_view_hint_is_limited_to_explicit_map_requests_and_capable_skills() -> None:
+    assert is_map_view_request(["Find Berlin AI events and show them on a map."]) is True
+    assert is_map_view_request(["Find Berlin AI events."]) is False
+    assert should_include_embeds_map_view_hint(
+        "events",
+        "search",
+        ["Find upcoming AI events in Berlin and show them on a map/list."],
+    ) is True
+    assert should_include_embeds_map_view_hint(
+        "events",
+        "search",
+        ["Find upcoming AI events in Berlin."],
+    ) is False
+    assert should_include_embeds_map_view_hint(
+        "web",
+        "search",
+        ["Find AI news and show it on a map."],
+    ) is False
+
+
+def test_content_detector_finds_map_capable_app_skill_json_fence() -> None:
+    content = '''```json
+{"type":"app_skill_use","embed_id":"abc","app_id":"events","skill_id":"search"}
+```
+
+* [One](embed:event-one-111111)
+'''
+
+    assert content_has_map_capable_app_skill_use(content) is True
+
+
+def test_content_detector_rejects_non_map_capable_app_skill_json_fence() -> None:
+    content = '''```json
+{"type":"app_skill_use","embed_id":"abc","app_id":"web","skill_id":"search"}
+```
+'''
+
+    assert content_has_map_capable_app_skill_use(content) is False
+
+
+def test_append_missing_map_view_uses_existing_inline_refs_only() -> None:
+    content = """Here are results:
+- [One](embed:event-one-111111)
+- [One again](embed:event-one-111111)
+- [Two](embed:event-two-222222)
+"""
+
+    repaired, changed = append_missing_embeds_map_view_block(content, title="Berlin AI events")
+
+    assert changed is True
+    assert extract_inline_embed_refs(content) == ["event-one-111111", "event-two-222222"]
+    assert "```embeds_map_view" in repaired
+    assert "title: Berlin AI events" in repaired
+    assert "embeds: event-one-111111, event-two-222222" in repaired
+
+
+def test_append_missing_map_view_is_noop_when_block_exists() -> None:
+    content = """[One](embed:event-one-111111)
+
+```embeds_map_view
+title: Existing
+embeds: event-one-111111
+```
+"""
+
+    repaired, changed = append_missing_embeds_map_view_block(content)
+
+    assert changed is False
+    assert repaired == content
+
+
+def test_normalizer_drops_extra_fields_and_deduplicates_refs() -> None:
+    content = """Results:
+
+```embeds_map_view
+title: Berlin AI events
+provider: paid-provider
+filters: type=event
+embeds: ai-night-111111, ai-night-111111, founders-breakfast-222222
+enrichment: travel.flight_details
+```
+"""
+
+    normalized, changed = normalize_embeds_map_view_blocks(content)
+
+    assert changed is True
+    assert "provider" not in normalized
+    assert "filters" not in normalized
+    assert "enrichment" not in normalized
+    assert "embeds: ai-night-111111, founders-breakfast-222222" in normalized
+
+
+def test_normalizer_accepts_source_and_highlight_fields_only() -> None:
+    content = """```embeds_map_view
+title: Munich to Zurich options
+sources: travel-search-connections-12ab34
+highlight: nightjet-7abc12, db-ice-9def34
+```
+"""
+
+    normalized, changed = normalize_embeds_map_view_blocks(content)
+
+    assert changed is False
+    assert normalized == content
+
+
+def test_normalizer_removes_json_like_map_blocks() -> None:
+    content = """```embeds_map_view
+{"title":"Bad block","provider":"paid","embeds":["one-111111"]}
+```
+"""
+
+    normalized, changed = normalize_embeds_map_view_blocks(content)
+
+    assert changed is True
+    assert "```embeds_map_view" not in normalized
+    assert "Bad block" in normalized
+    assert "provider" not in normalized

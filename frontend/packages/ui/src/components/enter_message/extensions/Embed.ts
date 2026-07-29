@@ -535,6 +535,51 @@ export const Embed = Node.create<EmbedOptions>({
       taskId: { default: null, rendered: false },
       subChatIds: { default: null, rendered: false },
       executionMode: { default: null, rendered: false },
+      mapEmbedRefs: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-map-embed-refs");
+          try {
+            return value ? JSON.parse(value) : null;
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.mapEmbedRefs) return {};
+          return { "data-map-embed-refs": JSON.stringify(attributes.mapEmbedRefs) };
+        },
+      },
+      mapSourceRefs: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-map-source-refs");
+          try {
+            return value ? JSON.parse(value) : null;
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.mapSourceRefs) return {};
+          return { "data-map-source-refs": JSON.stringify(attributes.mapSourceRefs) };
+        },
+      },
+      mapHighlightRefs: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-map-highlight-refs");
+          try {
+            return value ? JSON.parse(value) : null;
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.mapHighlightRefs) return {};
+          return { "data-map-highlight-refs": JSON.stringify(attributes.mapHighlightRefs) };
+        },
+      },
       // -----------------------------------------------------------------------
       // Image upload ephemeral attributes — in-memory only, NOT persisted to DOM.
       // These are set by insertImage() and _performUpload() in embedHandlers.ts.
@@ -667,6 +712,7 @@ export const Embed = Node.create<EmbedOptions>({
         "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
         "maps", // MapLocationEmbedPreview renders Leaflet map inline
         "sub-chat-batch", // Virtual inline sub-chat card batch anchored in message content
+        "embeds-map-view", // Virtual message-level map/list view over existing embeds
         "pdf", // PDFEmbedPreview renders the PDF upload status card
         "recording", // RecordingEmbedPreview uses UnifiedEmbedPreview — must be here so
         // renderer.update() is called on status transitions (uploading→transcribing→finished).

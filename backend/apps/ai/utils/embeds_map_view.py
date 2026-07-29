@@ -1,0 +1,225 @@
+"""Helpers for the virtual ``embeds_map_view`` assistant block.
+
+The block is a message-level rendering instruction over existing embeds. These
+helpers intentionally operate on text only; they never dispatch app skills,
+providers, or enrichment calls.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from collections.abc import Iterable
+
+
+ALLOWED_EMBEDS_MAP_VIEW_FIELDS = {"title", "embeds", "sources", "highlight"}
+EMBEDS_MAP_VIEW_FENCE_LANGUAGE = "embeds_map_view"
+MAP_VIEW_CAPABLE_SKILLS = {
+    ("events", "search"),
+    ("health", "search_appointments"),
+    ("maps", "search"),
+    ("travel", "search_connections"),
+    ("travel", "search_stays"),
+}
+_MAP_VIEW_REQUEST_RE = re.compile(r"\b(map|map/list|mapped|route|routes|locations?|nearby)\b", re.IGNORECASE)
+_INLINE_EMBED_REF_RE = re.compile(r"\]\(embed:([^\s)]+)\)")
+
+EMBEDS_MAP_VIEW_INSTRUCTION = """**Embeds Map View**
+
+When the user asks to show results on a map and location-capable or route-capable
+embed refs are available, include exactly one compact map/list block. Use direct
+child refs when those are the only refs available:
+
+```embeds_map_view
+title: Berlin AI events
+embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
+```
+
+For full app-skill source results, prefer referencing the parent source and
+optionally highlight selected child refs:
+
+```embeds_map_view
+title: Berlin AI events
+sources: events-search-12ab34
+highlight: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
+```
+
+Rules:
+- Only include these fields: title, embeds, sources, highlight.
+- Do not include filters, provider, enrichment, route geometry, prices, or JSON in the block.
+- Do not call or imply automatic paid enrichment such as travel.flight_details, booking details, Flightradar24, or FlightAware.
+- Only use embed_ref values that already appear in the conversation context.
+- If the user did not ask for a map/list overview, do not add this block just because embeds exist.
+"""
+
+_MAP_VIEW_FENCE_RE = re.compile(
+    r"```embeds_map_view\s*\n(?P<body>.*?)\n?```",
+    re.DOTALL,
+)
+_JSON_FENCE_RE = re.compile(
+    r"```json\s*\n(?P<body>.*?)\n?```",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _normalize_refs(value: str) -> list[str]:
+    seen: set[str] = set()
+    refs: list[str] = []
+    for raw_ref in value.split(","):
+        ref = raw_ref.strip()
+        if not ref or ref in seen:
+            continue
+        seen.add(ref)
+        refs.append(ref)
+    return refs
+
+
+def is_embeds_map_view_fence_language(language: str | None) -> bool:
+    """Return whether a markdown fence language targets the map-view renderer."""
+
+    if not isinstance(language, str):
+        return False
+    fence_language = language.strip().split(maxsplit=1)[0].lower()
+    return fence_language == EMBEDS_MAP_VIEW_FENCE_LANGUAGE
+
+
+def should_include_embeds_map_view_hint(app_id: str, skill_id: str, user_texts: Iterable[str]) -> bool:
+    """Return whether a tool result should remind the model to emit a map view."""
+
+    if (app_id, skill_id) not in MAP_VIEW_CAPABLE_SKILLS:
+        return False
+    return is_map_view_request(user_texts)
+
+
+def is_map_view_request(user_texts: Iterable[str]) -> bool:
+    """Return whether user text explicitly asks for mapped or route output."""
+
+    return any(_MAP_VIEW_REQUEST_RE.search(text) for text in user_texts if isinstance(text, str))
+
+
+def content_has_map_capable_app_skill_use(content: str) -> bool:
+    """Return whether assistant text contains a map-capable app-skill embed."""
+
+    if not content or "app_skill_use" not in content:
+        return False
+    for match in _JSON_FENCE_RE.finditer(content):
+        try:
+            payload = json.loads(match.group("body").strip())
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict) or payload.get("type") != "app_skill_use":
+            continue
+        app_id = payload.get("app_id")
+        skill_id = payload.get("skill_id")
+        if isinstance(app_id, str) and isinstance(skill_id, str) and (app_id, skill_id) in MAP_VIEW_CAPABLE_SKILLS:
+            return True
+    return False
+
+
+def extract_inline_embed_refs(content: str) -> list[str]:
+    """Return ordered unique embed refs already present in Markdown links."""
+
+    seen: set[str] = set()
+    refs: list[str] = []
+    for match in _INLINE_EMBED_REF_RE.finditer(content or ""):
+        ref = match.group(1).strip()
+        if not ref or ref in seen:
+            continue
+        seen.add(ref)
+        refs.append(ref)
+    return refs
+
+
+def append_missing_embeds_map_view_block(content: str, *, title: str = "Mapped results") -> tuple[str, bool]:
+    """Append a minimal map-view block from existing inline refs when absent."""
+
+    if not content or f"```{EMBEDS_MAP_VIEW_FENCE_LANGUAGE}" in content:
+        return content, False
+    refs = extract_inline_embed_refs(content)
+    if not refs:
+        return content, False
+    block = "\n".join([
+        f"```{EMBEDS_MAP_VIEW_FENCE_LANGUAGE}",
+        f"title: {title}",
+        f"embeds: {_join_refs(refs)}",
+        "```",
+    ])
+    return f"{content.rstrip()}\n\n{block}", True
+
+
+def _join_refs(refs: Iterable[str]) -> str:
+    return ", ".join(refs)
+
+
+def _plain_text_fallback_from_json(body: str) -> str:
+    try:
+        parsed = json.loads(body.strip())
+    except json.JSONDecodeError:
+        return ""
+    if not isinstance(parsed, dict):
+        return ""
+    title = parsed.get("title")
+    return str(title).strip() if isinstance(title, str) else ""
+
+
+def _normalize_single_map_view_block(match: re.Match[str]) -> tuple[str, bool]:
+    body = match.group("body")
+    json_fallback = _plain_text_fallback_from_json(body)
+    if json_fallback:
+        return json_fallback, True
+
+    fields: dict[str, str] = {}
+    changed = False
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if ":" not in line:
+            changed = True
+            continue
+        key, value = line.split(":", 1)
+        normalized_key = key.strip().lower()
+        if normalized_key not in ALLOWED_EMBEDS_MAP_VIEW_FIELDS:
+            changed = True
+            continue
+        value = value.strip()
+        if value:
+            fields[normalized_key] = value
+
+    embed_refs = _normalize_refs(fields.get("embeds", ""))
+    source_refs = _normalize_refs(fields.get("sources", ""))
+    highlight_refs = _normalize_refs(fields.get("highlight", ""))
+    if not embed_refs and not source_refs:
+        return fields.get("title", "").strip(), True
+
+    lines = ["```embeds_map_view", f"title: {fields.get('title', 'Map view').strip() or 'Map view'}"]
+    if embed_refs:
+        lines.append(f"embeds: {_join_refs(embed_refs)}")
+    if source_refs:
+        lines.append(f"sources: {_join_refs(source_refs)}")
+    if highlight_refs:
+        lines.append(f"highlight: {_join_refs(highlight_refs)}")
+    lines.append("```")
+    normalized = "\n".join(lines)
+    return normalized, changed or normalized != match.group(0)
+
+
+def normalize_embeds_map_view_blocks(content: str) -> tuple[str, bool]:
+    """Normalize all ``embeds_map_view`` fences in assistant-visible text.
+
+    Returns the normalized content and whether any block changed. Unsupported
+    fields are dropped, duplicate refs are removed, and JSON-like attempts are
+    downgraded to plain text so the frontend never receives provider/enrichment
+    instructions through this block.
+    """
+
+    changed = False
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal changed
+        replacement, block_changed = _normalize_single_map_view_block(match)
+        changed = changed or block_changed
+        return replacement
+
+    normalized = _MAP_VIEW_FENCE_RE.sub(replace, content)
+    return normalized, changed

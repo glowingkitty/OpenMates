@@ -57,6 +57,63 @@ function parseSubChatBatchReference(embedRef: Record<string, unknown>): EmbedNod
     taskId: typeof embedRef.task_id === "string" ? embedRef.task_id : undefined,
     subChatIds: normalizeStringArray(embedRef.sub_chat_ids),
     executionMode: typeof embedRef.execution_mode === "string" ? embedRef.execution_mode : undefined,
+const EMBEDS_MAP_VIEW_LANGUAGE = "embeds_map_view";
+const MAP_VIEW_ALLOWED_FIELDS = new Set(["title", "embeds", "sources", "highlight"]);
+
+function normalizeRefList(value: string | undefined): string[] {
+  if (!value) return [];
+  const seen = new Set<string>();
+  const refs: string[] = [];
+
+  for (const rawRef of value.split(",")) {
+    const ref = rawRef.trim();
+    if (!ref || seen.has(ref)) continue;
+    seen.add(ref);
+    refs.push(ref);
+  }
+
+  return refs;
+}
+
+function parseEmbedsMapViewBlock(content: string): EmbedNodeAttributes | null {
+  const fields = new Map<string, string>();
+
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex === -1) continue;
+
+    const key = line.slice(0, separatorIndex).trim().toLowerCase();
+    if (!MAP_VIEW_ALLOWED_FIELDS.has(key)) continue;
+    const value = line.slice(separatorIndex + 1).trim();
+    if (value) fields.set(key, value);
+  }
+
+  const title = fields.get("title") || "Map view";
+  const mapEmbedRefs = normalizeRefList(fields.get("embeds"));
+  const mapSourceRefs = normalizeRefList(fields.get("sources"));
+  const mapHighlightRefs = normalizeRefList(fields.get("highlight"));
+
+  if (mapEmbedRefs.length === 0 && mapSourceRefs.length === 0) {
+    return null;
+  }
+
+  const id = deterministicId(
+    `${title}:${mapEmbedRefs.join(",")}:${mapSourceRefs.join(",")}:${mapHighlightRefs.join(",")}`,
+    "mapview",
+  );
+
+  return {
+    id,
+    type: "embeds-map-view",
+    status: "finished",
+    contentRef: `map-view:${id}`,
+    title,
+    mapEmbedRefs,
+    mapSourceRefs,
+    mapHighlightRefs,
   };
 }
 
@@ -447,6 +504,17 @@ export function parseEmbedNodes(
           );
           const language = event.language || pendingCodeLanguage;
           const filename = event.filename || pendingCodeFilename;
+
+          if ((language || "").toLowerCase() === EMBEDS_MAP_VIEW_LANGUAGE) {
+            const embed = parseEmbedsMapViewBlock(content);
+            if (embed) {
+              embedNodes.push(embed);
+            }
+            pendingCodeContent = "";
+            pendingCodeLanguage = undefined;
+            pendingCodeFilename = undefined;
+            break;
+          }
 
           if (mode === "write") {
             const embed = createPreviewEmbed(content, language, filename);

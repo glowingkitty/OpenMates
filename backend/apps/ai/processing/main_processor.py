@@ -40,6 +40,10 @@ from backend.apps.ai.utils.llm_utils import (
     AllServersFailedError,
     STANDARDIZED_USER_ERROR_MESSAGE,
 )
+from backend.apps.ai.utils.embeds_map_view import (
+    EMBEDS_MAP_VIEW_INSTRUCTION,
+    should_include_embeds_map_view_hint,
+)
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
@@ -149,6 +153,22 @@ def _message_content(message: Any) -> Optional[str]:
         message.get("content") if isinstance(message, dict) else None
     )
     return content if isinstance(content, str) else None
+
+
+def _iter_user_request_texts(request_data: AskSkillRequest) -> List[str]:
+    texts: List[str] = []
+    current_user_content = getattr(request_data, "current_user_content", None)
+    if isinstance(current_user_content, str):
+        texts.append(current_user_content)
+
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        if role != "user":
+            continue
+        content = _message_content(message)
+        if content:
+            texts.append(content)
+    return texts
 
 
 def _llm_history_message(message: Any) -> Dict[str, Any]:
@@ -2374,6 +2394,7 @@ async def handle_main_processing(
     _include_embed_referencing = _has_any_embeds_in_history or _current_turn_produces_embeds
     if _include_embed_referencing:
         prompt_parts.append(base_instructions.get("base_embed_referencing_instruction", ""))
+        prompt_parts.append(EMBEDS_MAP_VIEW_INSTRUCTION)
         logger.debug(
             f"{log_prefix} [EMBED_PROMPT] Injected embed referencing instruction "
             f"(history_embeds={_has_any_embeds_in_history}, current_turn_produces={_current_turn_produces_embeds})"
@@ -5786,6 +5807,15 @@ async def handle_main_processing(
                             "description as 'text'. NEVER use the embed_ref itself, "
                             "its domain-suffix, or the random code as display text."
                         )
+                        _map_view_hint = (
+                            EMBEDS_MAP_VIEW_INSTRUCTION
+                            if should_include_embeds_map_view_hint(
+                                app_id,
+                                skill_id,
+                                _iter_user_request_texts(request_data),
+                            )
+                            else None
+                        )
 
                         if len(filtered_results_with_refs) == 1:
                             # Single result - flatten and encode filtered result as TOON for LLM inference
@@ -5793,6 +5823,8 @@ async def handle_main_processing(
                             if _sq_hint:
                                 flattened_result["source_quote_hint"] = _sq_hint
                             flattened_result["embed_ref_hint"] = _ref_hint
+                            if _map_view_hint:
+                                flattened_result["embeds_map_view_hint"] = _map_view_hint
                             tool_result_content_str = encode(flattened_result)
                         else:
                             # Multiple results - flatten each filtered result, then combine and encode as TOON
@@ -5802,6 +5834,8 @@ async def handle_main_processing(
                             if _sq_hint:
                                 toon_wrapper["source_quote_hint"] = _sq_hint
                             toon_wrapper["embed_ref_hint"] = _ref_hint
+                            if _map_view_hint:
+                                toon_wrapper["embeds_map_view_hint"] = _map_view_hint
                             tool_result_content_str = encode(toon_wrapper)
 
                         logger.debug(f"{log_prefix} TOON conversion (LLM inference) length={len(tool_result_content_str)} chars")

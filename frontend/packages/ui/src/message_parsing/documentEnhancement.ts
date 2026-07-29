@@ -432,6 +432,19 @@ function findMatchingEmbedForCodeBlock(
     return null;
   }
 
+  if (codeBlockLanguage === "embeds_map_view") {
+    const matchingMapView = embedNodes.find(
+      (node) => node.type === "embeds-map-view",
+    );
+    if (matchingMapView) {
+      embedNodes.splice(embedNodes.indexOf(matchingMapView), 1);
+      return matchingMapView;
+    }
+    if (mode === "read") {
+      return PROTOCOL_EMBED_MARKER;
+    }
+  }
+
   // Try to parse as JSON to check if it's an embed reference
   try {
     const parsed = JSON.parse(codeText.trim());

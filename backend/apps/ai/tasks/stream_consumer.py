@@ -49,6 +49,14 @@ from backend.apps.ai.utils.mermaid_fences import (
     _is_mermaid_fence,
 )
 from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
+from backend.apps.ai.utils.embeds_map_view import (
+    append_missing_embeds_map_view_block,
+    content_has_map_capable_app_skill_use,
+    is_embeds_map_view_fence_language,
+    is_map_view_request,
+    normalize_embeds_map_view_blocks,
+    should_include_embeds_map_view_hint,
+)
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
@@ -1772,6 +1780,21 @@ def _build_sub_chat_batch_marker(
         "sub_chat_ids": sub_chat_ids,
     }
     return f"\n\n```json\n{json.dumps(marker, separators=(',', ':'))}\n```\n\n"
+def _request_user_texts(request_data: AskSkillRequest) -> list[str]:
+    texts: list[str] = []
+    current_user_content = getattr(request_data, "current_user_content", None)
+    if isinstance(current_user_content, str) and current_user_content.strip():
+        texts.append(current_user_content)
+
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        role_value = getattr(role, "value", role)
+        if not isinstance(role_value, str) or role_value.lower() not in {"user", "human"}:
+            continue
+        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else None
+        if isinstance(content, str) and content.strip():
+            texts.append(content)
+    return texts
 
 
 async def _persist_sealed_recovery_job(
@@ -3310,13 +3333,18 @@ def _should_process_chunk_as_code_block(
     lines = chunk.split('\n')
     fence_line = lines[0].strip()
     fence_content = fence_line[3:].strip()  # Remove ```
+    fence_language = fence_content.split(maxsplit=1)[0].lower() if fence_content else ""
+
+    # SKIP: Message-level renderer fences (should remain inline for client rendering)
+    if is_embeds_map_view_fence_language(fence_content):
+        return False
 
     # SKIP: Interactive questions and responses (should remain inline for client rendering)
-    if fence_content.lower() in ('interactive_question', 'interactive_response'):
+    if fence_language in ('interactive_question', 'interactive_response'):
         return False
 
     # SKIP: JSON blocks that contain embed references (already processed by skills)
-    if fence_content.lower() in ('json', 'json_embed'):
+    if fence_language in ('json', 'json_embed'):
         remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
         stripped_content = remaining_content.strip()
         if (
@@ -8142,6 +8170,28 @@ async def _consume_main_processing_stream(
                     f"(length: {len(aggregated_response)})"
                 )
 
+    # --- Embeds Map View Guard ---
+    # Normalize virtual map/list blocks before persistence. This drops unsupported
+    # fields such as filters/provider/enrichment and cannot dispatch paid skills.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        map_view_fixed_response, map_view_changed = normalize_embeds_map_view_blocks(
+            aggregated_response,
+        )
+        if map_view_changed:
+            aggregated_response = map_view_fixed_response
+            final_response_chunks = [aggregated_response]
+
+            if cache_service:
+                map_view_fix_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                    is_final=False, model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, map_view_fix_payload, log_prefix,
+                    f"Published response with normalized embeds_map_view blocks "
+                    f"(length: {len(aggregated_response)})"
+                )
+
     # --- Mixed URL+Embed Reference Fix ---
     # Detect and rewrite patterns where the LLM wrote both an https:// markdown link
     # and a trailing (embed:ref) for the same anchor, e.g.:
@@ -8278,6 +8328,45 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} [EMBED_REF_VALIDATE] Error during inline embed ref validation: {e}",
                 exc_info=True
             )
+
+    # --- Missing Embeds Map View Repair ---
+    # If the user explicitly asked for a map/list and the final answer contains
+    # valid inline refs from a map-capable skill, add the lightweight renderer
+    # block deterministically instead of relying on model compliance.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        user_texts = _request_user_texts(request_data)
+        should_repair_map_view = any(
+            should_include_embeds_map_view_hint(
+                str(tool_call.get("app_id") or ""),
+                str(tool_call.get("skill_id") or ""),
+                user_texts,
+            )
+            for tool_call in tool_calls_info or []
+            if isinstance(tool_call, dict)
+        ) or (
+            is_map_view_request(user_texts)
+            and content_has_map_capable_app_skill_use(aggregated_response)
+        )
+        if should_repair_map_view:
+            map_view_repaired_response, map_view_repaired = append_missing_embeds_map_view_block(
+                aggregated_response,
+            )
+            if map_view_repaired:
+                aggregated_response = map_view_repaired_response
+                normalized_map_view_response, _ = normalize_embeds_map_view_blocks(aggregated_response)
+                aggregated_response = normalized_map_view_response
+                final_response_chunks = [aggregated_response]
+
+                if cache_service:
+                    map_view_repair_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 5,
+                        is_final=False, model_name=stream_model_name,
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, map_view_repair_payload, log_prefix,
+                        f"Published response with missing embeds_map_view block repaired "
+                        f"(length: {len(aggregated_response)})",
+                    )
 
     # Process assistant-visible URLs with a source allowlist plus the safeguard
     # model. URLs must already exist exactly in user/context/tool source data;
