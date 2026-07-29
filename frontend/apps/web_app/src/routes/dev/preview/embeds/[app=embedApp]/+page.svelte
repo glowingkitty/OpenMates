@@ -27,6 +27,7 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
+	import { EMBED_APP_SLUGS } from '$lib/devPreviewEmbedApps';
 	import { Icon, theme } from '@repo/ui';
 
 	// ─── App Registry ─────────────────────────────────────────────────
@@ -633,35 +634,7 @@
 		workflows: 'workflow'
 	};
 
-	const ALL_APPS = [
-		'code',
-		'docs',
-		'web',
-		'videos',
-		'images',
-		'news',
-		'travel',
-		'maps',
-		'math',
-		'music',
-		'events',
-		'reminder',
-		'sheets',
-		'audio',
-		'health',
-		'mail',
-		'pdf',
-		'shopping',
-		'fitness',
-		'electronics',
-		'home',
-		'nutrition',
-		'social_media',
-		'weather',
-		'tasks',
-		'finance',
-		'workflows'
-	];
+	const ALL_APPS = [...EMBED_APP_SLUGS];
 
 	// ─── Glob maps ────────────────────────────────────────────────────
 
