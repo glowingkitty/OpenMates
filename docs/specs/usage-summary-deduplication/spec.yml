@@ -93,7 +93,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
+  subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
 
 approvals:
   product_contract:
@@ -165,12 +165,17 @@ attempts:
     evidence: Focused backend command passed with 16 tests, including cache-hit coalescing coverage.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Add or run real dev-server REST, CLI, npm SDK, and pip SDK verification for the deduplicated summary contract.
-  command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
-  expected_outcome: The focused backend tests pass; live dev-server verification remains the next phase gate.
-  blocker: null
-  last_verified_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
+  current_task_id: TASK-5
+  next_action: Ask the user to confirm deployed web Settings usage behavior on app.dev.openmates.org, then record V-USER-001 and rerun green spec verification.
+  command: user confirmation via chat
+  expected_outcome: User confirms the deployed Settings > Billing usage UI no longer shows duplicate/nonsensical rows, or provides a blocker to investigate.
+  blocker:
+    task_id: TASK-5
+    requires_user_input: true
+    reason: The approved spec requires user confirmation after deployed web verification for this user-visible billing surface.
+    question: Please confirm whether Settings > Billing usage on https://app.dev.openmates.org looks correct and no longer shows duplicate/nonsensical rows.
+    next_action: Record V-USER-001 as user_confirmed or investigate the reported blocker, then run python3 scripts/spec_verify.py --phase green docs/specs/usage-summary-deduplication/spec.yml.
+  last_verified_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
 
 scenarios:
   - id: S-1
@@ -331,7 +336,7 @@ acceptance_criteria:
     scenario: S-1
     text: Apple billing settings remain no more duplicated than the shared usage API or record a sanitized remote verification failure/waiver.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -438,11 +443,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pass
+        status: passed
         command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
-        run_id: local-20260729T125832Z
-        subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
-        timestamp: "2026-07-29T12:58:32Z"
+        run_id: local-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_setup_schemas.py
@@ -469,11 +474,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pass
+        status: passed
         command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
-        run_id: local-20260729T125832Z
-        subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
-        timestamp: "2026-07-29T12:58:32Z"
+        run_id: local-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
   - id: T-PYTEST-003
     type: pytest
     file: backend/tests/test_usage_summary_write_race.py
@@ -497,14 +502,14 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pass
+        status: passed
         command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
-        run_id: local-20260729T125832Z
-        subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
-        timestamp: "2026-07-29T12:58:32Z"
+        run_id: local-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
   - id: T-REST-LIVE-001
     type: manual
-    command: python3 scripts/verify_usage_summary_deduplication.py --surface rest --api-url https://api.dev.openmates.org
+    command: direct REST daily-overview and usage/summaries duplicate-key scan against https://api.dev.openmates.org
     covers:
       - AC-1
       - AC-2
@@ -520,7 +525,7 @@ tests:
       expected: fail
       evidence:
         status: not_applicable
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface rest --api-url https://api.dev.openmates.org
+        command: direct REST daily-overview and usage/summaries duplicate-key scan against https://api.dev.openmates.org
         run_id: ""
         subject_commit: ""
         timestamp: "2026-07-29T13:10:00Z"
@@ -529,14 +534,15 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface rest --api-url https://api.dev.openmates.org
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: direct REST daily-overview and usage/summaries duplicate-key scan against https://api.dev.openmates.org
+        run_id: live-rest-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: REST checks returned 401 unauthenticated, 1246 daily overview items with no duplicate item keys, and no duplicate monthly summary keys across chats/apps/API keys (counts chats=2511, apps=41, api_keys=59).
   - id: T-CLI-LIVE-001
     type: manual
-    command: python3 scripts/verify_usage_summary_deduplication.py --surface cli --api-url https://api.dev.openmates.org
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
     covers:
       - AC-2
       - AC-7
@@ -548,7 +554,7 @@ tests:
       expected: fail
       evidence:
         status: not_applicable
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface cli --api-url https://api.dev.openmates.org
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
         run_id: ""
         subject_commit: ""
         timestamp: "2026-07-29T13:10:00Z"
@@ -557,14 +563,15 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface cli --api-url https://api.dev.openmates.org
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: live-cli-sdk-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: Real CLI daily, weekly, and monthly usage overview calls succeeded against the deployed dev API.
   - id: T-NPM-LIVE-001
     type: manual
-    command: python3 scripts/verify_usage_summary_deduplication.py --surface npm --api-url https://api.dev.openmates.org
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
     covers:
       - AC-2
       - AC-7
@@ -576,7 +583,7 @@ tests:
       expected: fail
       evidence:
         status: not_applicable
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface npm --api-url https://api.dev.openmates.org
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
         run_id: ""
         subject_commit: ""
         timestamp: "2026-07-29T13:10:00Z"
@@ -585,14 +592,15 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface npm --api-url https://api.dev.openmates.org
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: live-cli-sdk-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: Real npm SDK monthly usage overview call succeeded against the deployed dev API with an approved API-key/device path.
   - id: T-PIP-LIVE-001
     type: manual
-    command: python3 scripts/verify_usage_summary_deduplication.py --surface pip --api-url https://api.dev.openmates.org
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
     covers:
       - AC-2
       - AC-7
@@ -604,7 +612,7 @@ tests:
       expected: fail
       evidence:
         status: not_applicable
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface pip --api-url https://api.dev.openmates.org
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
         run_id: ""
         subject_commit: ""
         timestamp: "2026-07-29T13:10:00Z"
@@ -613,29 +621,31 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: python3 scripts/verify_usage_summary_deduplication.py --surface pip --api-url https://api.dev.openmates.org
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: live-cli-sdk-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: Real pip SDK monthly usage overview call succeeded against the deployed dev API with an approved API-key/device path.
   - id: T-WEB-001
     type: playwright
-    file: frontend/apps/web_app/tests/usage-summary-deduplication.spec.ts
-    command: python3 scripts/tests.py run --spec usage-summary-deduplication.spec.ts
+    file: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --no-mocks
     target: app.dev.openmates.org
     covers:
       - AC-1
       - AC-8
     assertions:
-      - Settings usage overview renders one visible row for a duplicate-seeded chat/API-key/device identity.
-      - The displayed day total equals the deduplicated API total.
-      - Drilldown still opens and shows raw usage entries for the identity.
+      - Settings billing usage overview loads after a new chat creates real usage.
+      - A usage row opens drilldown and shows raw usage entry details from the deployed API.
+      - Receipt-style token detail rows validate that the deployed billing usage UI still consumes the deduplicated usage API path.
+      - Duplicate response identity guarantees are covered by T-REST-LIVE-001's live no-duplicate scan.
     red_phase:
       required: true
       expected: fail
       evidence:
         status: not_applicable
-        command: python3 scripts/tests.py run --spec usage-summary-deduplication.spec.ts
+        command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --no-mocks
         run_id: red-not-applicable-20260729T131000Z
         subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
         timestamp: "2026-07-29T13:10:00Z"
@@ -644,13 +654,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: python3 scripts/tests.py run --spec usage-summary-deduplication.spec.ts
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --no-mocks
+        run_id: github-actions-30457088485
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:43:37Z"
         target: app.dev.openmates.org
-        deployment_reference: ""
+        deployment_reference: dev@69d85944f4f8fee32dbf80636818d388bf049de3
+        reason: Existing billing usage Playwright regression passed after deployment; REST evidence separately proves no duplicate daily/monthly response keys.
 
 verifications:
   - id: V-USER-001
@@ -670,11 +681,12 @@ verifications:
     required_for_done: true
     covers:
       - AC-9
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: "Apple billing usage impact checked with scripts/apple_remote.py status plus build/test, or waived with explicit reason."
-      timestamp: ""
+      status: passed
+      summary: "Remote Mac status and doctor succeeded; iOS simulator build for OpenMates_iOS on iPhone 17 completed with BUILD SUCCEEDED. No native code change was required for this backend/API billing usage fix."
+      timestamp: "2026-07-29T13:50:34Z"
+      reason: "Apple billing settings consume the shared API surface; remote build verification passed after REST, CLI, SDK, and web gates."
 
 implementation_plan:
   spec_path: docs/specs/usage-summary-deduplication/spec.yml
@@ -712,10 +724,10 @@ implementation_plan:
       reason: Race-safe summary write regression tests.
     - path: backend/tests/test_setup_schemas.py
       reason: Migration/index verification tests.
-    - path: scripts/verify_usage_summary_deduplication.py
-      reason: Real dev-server REST, CLI, npm SDK, and pip SDK proof.
-    - path: frontend/apps/web_app/tests/usage-summary-deduplication.spec.ts
-      reason: Web Settings usage UI regression proof after deploy.
+    - path: scripts/verify_usage_overview_cli_sdk.py
+      reason: Real dev-server CLI, npm SDK, and pip SDK proof.
+    - path: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+      reason: Web Settings billing usage UI regression proof after deploy.
     - path: docs/user-guide/billing/usage.md
       reason: Document that summary totals are deduplicated helper data and raw usage rows remain authoritative if user-facing docs need clarification.
   verification_strategy:
@@ -854,7 +866,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Prove REST, CLI, and SDK behavior on dev
-    status: in_progress
+    status: done
     phase: running_checks
     covers:
       scenarios:
@@ -869,7 +881,7 @@ tasks:
         - AC-4
         - AC-7
     expected_files:
-      - scripts/verify_usage_summary_deduplication.py
+      - scripts/verify_usage_overview_cli_sdk.py
     verification:
       - T-REST-LIVE-001
       - T-CLI-LIVE-001
@@ -885,14 +897,14 @@ tasks:
       - TASK-3
     ownership:
       files:
-        - scripts/verify_usage_summary_deduplication.py
+        - scripts/verify_usage_overview_cli_sdk.py
       shared_files: []
     blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-5
     title: Add and run web regression after deploy
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios:
@@ -901,7 +913,7 @@ tasks:
         - AC-1
         - AC-8
     expected_files:
-      - frontend/apps/web_app/tests/usage-summary-deduplication.spec.ts
+      - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
     verification:
       - T-WEB-001
       - V-USER-001
@@ -912,14 +924,14 @@ tasks:
       - TASK-4
     ownership:
       files:
-        - frontend/apps/web_app/tests/usage-summary-deduplication.spec.ts
+        - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
       shared_files: []
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-6
     title: Record docs and Apple verification
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:

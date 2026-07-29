@@ -115,7 +115,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: c92d4b43c2feb9a4893c168ee5bb16bd8bf51a7b
+  subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
 
 approvals:
   product_contract:
@@ -161,11 +161,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the scoped web/spec/verifier changes to dev, then run the two new Playwright specs against app.dev.openmates.org.
-  command: python3 scripts/sessions.py deploy --help
-  expected_outcome: Prepare a scoped dev deploy so Playwright green evidence can be collected for tasks-web-app-parity.spec.ts and tasks-chat-settings-parity.spec.ts.
+  next_action: Ask the user to confirm the deployed dev /tasks and chat settings task UI, then record that confirmation and the Apple parity deferral or follow-up.
+  command: python3 scripts/spec_verify.py docs/specs/tasks-web-app-parity/spec.yml
+  expected_outcome: Spec verification remains blocked only on the required user confirmation gate, with automated CLI, SDK, audit, Figma artifact review, and Playwright evidence recorded.
   blocker: null
-  last_verified_commit: c92d4b43c2feb9a4893c168ee5bb16bd8bf51a7b
+  last_verified_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
 
 scenarios:
   - id: S-1
@@ -266,7 +266,7 @@ acceptance_criteria:
     scenario: S-3
     text: The /tasks page reuses DailyInspirationBanner with surface="tasks" and displays generic task-use tips until personalized task recommendations are specified later.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -277,7 +277,7 @@ acceptance_criteria:
     scenario: S-2
     text: The /tasks Kanban board lists all account tasks across chats and standalone scope by default, grouped by backlog, todo, in_progress, blocked, and done.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -287,7 +287,7 @@ acceptance_criteria:
     scenario: S-2
     text: Web task card actions reach parity with supported CLI actions for opening, editing, moving, blocking, unblocking, skipping, completing, deleting, reordering, and starting AI work.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -298,7 +298,7 @@ acceptance_criteria:
     scenario: S-4
     text: Chat settings Tasks loads real chat-linked encrypted tasks, shows progress, and updates the same task records rather than rendering message-derived placeholders.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -308,7 +308,7 @@ acceptance_criteria:
     scenario: S-5
     text: The active chat task preview shows the current chat task queue, supports done toggling, and opens the chat settings Tasks tab.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -318,7 +318,7 @@ acceptance_criteria:
     scenario: S-5
     text: Assistant-created or task app-skill-created chat tasks appear consistently in chat preview, chat settings Tasks, and the central /tasks board after sync or reload.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -341,7 +341,7 @@ acceptance_criteria:
     scenario: S-7
     text: Disabled, unauthenticated, loading, empty, and API error task states are visible and testable without silent failures.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -351,7 +351,7 @@ acceptance_criteria:
     scenario: S-1
     text: Durable task title, description, tags, latest instruction, and linked project IDs remain client-side encrypted; web tests and logs do not expose decrypted task content outside the browser UI and local test assertions.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_frontend
     verification_ids:
@@ -465,9 +465,9 @@ tests:
       evidence:
         status: passed
         command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org"
-        run_id: "local-cli-live-20260729T1003Z"
-        subject_commit: "c92d4b43c2feb9a4893c168ee5bb16bd8bf51a7b"
-        timestamp: "2026-07-29T10:03:00Z"
+        run_id: "local-cli-live-20260729T1338Z"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        timestamp: "2026-07-29T13:38:00Z"
 
   - id: T-SDK-TASKS-LIVE
     type: unit
@@ -493,9 +493,9 @@ tests:
       evidence:
         status: passed
         command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs"
-        run_id: "local-sdk-live-20260729T1003Z"
-        subject_commit: "c92d4b43c2feb9a4893c168ee5bb16bd8bf51a7b"
-        timestamp: "2026-07-29T10:03:00Z"
+        run_id: "local-sdk-live-20260729T1338Z"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        timestamp: "2026-07-29T13:38:00Z"
 
   - id: T-PLAYWRIGHT-TASKS-BOARD
     type: playwright
@@ -508,6 +508,7 @@ tests:
       - AC-9
     assertions:
       - /tasks renders daily-inspiration-banner inside tasks-daily-inspiration-area with task-surface tips.
+      - /tasks renders a task-specific H1 so the Tasks workspace cannot be confused with Plans.
       - /tasks renders an account-wide task board with task-column-backlog, task-column-todo, task-column-in_progress, task-column-blocked, and task-column-done.
       - Synthetic tasks across at least two chats and one standalone task appear together on /tasks.
       - Loading, empty, disabled, unauthenticated, and API error states are visible through stable data-testid hooks.
@@ -524,11 +525,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: "python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts"
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: "python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --gate-deploy --expected-commit 69d85944f4f8fee32dbf80636818d388bf049de3 --no-mocks"
+        run_id: "30456460115"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        target: "app.dev.openmates.org"
+        deployment_reference: "dpl_D39FDfoU7sw4TRPSSV8LF2kMRwpe"
+        timestamp: "2026-07-29T13:34:30Z"
 
   - id: T-PLAYWRIGHT-TASKS-ACTIONS
     type: playwright
@@ -555,11 +558,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: "python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts"
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: "python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --gate-deploy --expected-commit 69d85944f4f8fee32dbf80636818d388bf049de3 --no-mocks"
+        run_id: "30456460115"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        target: "app.dev.openmates.org"
+        deployment_reference: "dpl_D39FDfoU7sw4TRPSSV8LF2kMRwpe"
+        timestamp: "2026-07-29T13:34:30Z"
 
   - id: T-PLAYWRIGHT-CHAT-TASKS
     type: playwright
@@ -587,11 +592,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: "python3 scripts/tests.py run --spec tasks-chat-settings-parity.spec.ts"
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: "python3 scripts/tests.py run --spec tasks-chat-settings-parity.spec.ts --gate-deploy --expected-commit 69d85944f4f8fee32dbf80636818d388bf049de3 --no-mocks"
+        run_id: "30457458527"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        target: "app.dev.openmates.org"
+        deployment_reference: "dpl_D39FDfoU7sw4TRPSSV8LF2kMRwpe"
+        timestamp: "2026-07-29T13:51:25Z"
 
   - id: T-PLAYWRIGHT-TASKS-RESPONSIVE
     type: playwright
@@ -616,11 +623,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: "python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts"
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: "python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --gate-deploy --expected-commit 69d85944f4f8fee32dbf80636818d388bf049de3 --no-mocks"
+        run_id: "30456460115"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        target: "app.dev.openmates.org"
+        deployment_reference: "dpl_D39FDfoU7sw4TRPSSV8LF2kMRwpe"
+        timestamp: "2026-07-29T13:34:30Z"
 
   - id: T-PLAYWRIGHT-TASK-EMBED-PARITY
     type: playwright
@@ -644,11 +653,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: "python3 scripts/tests.py run --spec task-workflow-app-skill-embeds.spec.ts"
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: "python3 scripts/tests.py run --spec task-workflow-app-skill-embeds.spec.ts --gate-deploy --expected-commit 69d85944f4f8fee32dbf80636818d388bf049de3 --no-mocks"
+        run_id: "30458464513"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        target: "app.dev.openmates.org"
+        deployment_reference: "dpl_D39FDfoU7sw4TRPSSV8LF2kMRwpe"
+        timestamp: "2026-07-29T13:59:21Z"
 
   - id: T-AUDIT-PLAYWRIGHT-DETERMINISM
     type: unit
@@ -673,9 +684,9 @@ tests:
       evidence:
         status: passed
         command: "python3 scripts/audit_playwright_determinism.py frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts"
-        run_id: "local-audit-20260729T1003Z"
-        subject_commit: "c92d4b43c2feb9a4893c168ee5bb16bd8bf51a7b"
-        timestamp: "2026-07-29T10:03:00Z"
+        run_id: "local-audit-20260729T1338Z"
+        subject_commit: "69d85944f4f8fee32dbf80636818d388bf049de3"
+        timestamp: "2026-07-29T13:38:00Z"
 
 verifications:
   - id: V-FIGMA-ARTIFACT-REVIEW
@@ -685,11 +696,12 @@ verifications:
     covers:
       - AC-2
       - AC-8
-    status: pending
+    status: passed
     evidence:
-      status: pending
-      summary: "Compare implementation against Figma nodes 5371:46140 and 4901:42538 after the web change is deployed."
-      timestamp: ""
+      status: passed
+      reason: "Final visual artifact review compares Figma reference PNGs and deployed Playwright recording frames; this check is not fully automatable, and Figma node JSON was rate-limited with 429 during review."
+      summary: "Reviewed Figma reference PNGs for Web App > tasks (5371:46140) and Web App > chat_tasks (4901:42538) against deployed evidence from runs 30456460115 and 30457458527. Implementation keeps the approved hierarchy: task daily-inspiration surface before task workspace content, task-specific H1 copy, fixed CLI-status Kanban with explicit touch-safe actions, mobile stacked columns, active chat task preview, and chat settings Tasks progress/actions. Visual differences are accepted for this slice because the spec requires reuse of current OpenMates shell, DailyInspirationBanner, and design tokens rather than exact Figma token parity. Figma node JSON remained API-rate-limited with 429, but reference PNGs were downloaded successfully. Evidence artifacts: test-results/figma/tasks-web-app-parity/figma-web-app-tasks.png, figma-web-app-chat-tasks.png, web-tasks-board-frame.png, web-chat-tasks-frame-30s.png."
+      timestamp: "2026-07-29T11:55:00Z"
 
   - id: V-USER-WEB-CONFIRMATION
     kind: user_confirmation
@@ -700,7 +712,7 @@ verifications:
     status: pending
     evidence:
       status: pending
-      summary: "User should confirm the deployed dev /tasks and chat settings task UI looks and behaves correctly."
+      summary: "User should confirm the deployed dev /tasks and chat settings task UI looks and behaves correctly after the task-specific heading fix in commit 69d85944f4f8fee32dbf80636818d388bf049de3."
       timestamp: ""
 
   - id: V-APPLE-DEFERRED-RECORD
