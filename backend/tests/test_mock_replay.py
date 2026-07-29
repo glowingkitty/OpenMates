@@ -66,6 +66,22 @@ def test_fixture_initial_delay_uses_fixture_value() -> None:
     assert get_fixture_initial_delay_seconds({"initial_delay_ms": 750}) == 0.75
 
 
+def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
+    fixture = mock_replay.load_fixture("travel_train_web")
+    embed = fixture["embeds"]["11111111-1111-4111-8111-111111111111"]
+    results = embed["results"]
+
+    assert embed["type"] == "app_skill_use"
+    assert embed["app_id"] == "travel"
+    assert embed["skill_id"] == "search_connections"
+    assert len(results) >= 1
+    assert results[0]["transport_method"] == "train"
+    assert results[0]["total_price"]
+    assert results[0]["booking_url"]
+    assert results[0]["booking_provider"] == "Deutsche Bahn"
+    assert results[0]["legs"][0]["segments"][0]["departure_station"]
+
+
 def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(monkeypatch) -> None:
     chat_id = "22222222-2222-4222-8222-222222222222"
     task_id = "66666666-6666-4666-8666-666666666666"

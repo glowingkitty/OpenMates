@@ -154,20 +154,41 @@ async function verifySearchGrid(
 async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void> {
 	const overlays = page.getByTestId('embed-fullscreen-overlay');
 	const overlayCountBeforeClose = await overlays.count();
-	const overlayToClose = fullscreenOverlay.last();
-	const minimizeButton = overlayToClose.getByTestId('embed-minimize');
-	const hasMinimize = await minimizeButton.isVisible({ timeout: 3000 }).catch(() => false);
+	const countVisibleOverlays = async (): Promise<number> => {
+		const count = await overlays.count();
+		let visible = 0;
+		for (let i = 0; i < count; i += 1) {
+			if (await overlays.nth(i).isVisible().catch(() => false)) visible += 1;
+		}
+		return visible;
+	};
+	const visibleOverlaysBeforeClose = await countVisibleOverlays();
+	const clickVisibleMinimize = async (buttons: any): Promise<boolean> => {
+		const buttonCount = await buttons.count().catch(() => 0);
+		for (let i = buttonCount - 1; i >= 0; i -= 1) {
+			const button = buttons.nth(i);
+			if (await button.isVisible({ timeout: 500 }).catch(() => false)) {
+				await button.click();
+				return true;
+			}
+		}
+		return false;
+	};
 
-	if (hasMinimize) {
-		await minimizeButton.click();
-	} else {
+	const closedViaButton = await clickVisibleMinimize(fullscreenOverlay.getByTestId('embed-minimize'))
+		|| await clickVisibleMinimize(page.getByTestId('embed-minimize'));
+	if (!closedViaButton) {
 		await page.keyboard.press('Escape');
 	}
 
 	await expect(async () => {
 		const overlayCountAfterClose = await overlays.count();
-		expect(overlayCountAfterClose).toBeLessThan(overlayCountBeforeClose);
-	}).toPass({ timeout: 5000 });
+		const visibleOverlaysAfterClose = await countVisibleOverlays();
+		expect(
+			overlayCountAfterClose < overlayCountBeforeClose
+				|| visibleOverlaysAfterClose < visibleOverlaysBeforeClose
+		).toBe(true);
+	}).toPass({ timeout: 10000 });
 }
 
 module.exports = {

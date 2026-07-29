@@ -239,7 +239,7 @@ test.describe('Demo chat embed rendering', () => {
 		).first();
 		await expect(appSkillEmbed).toBeVisible({ timeout: 30000 });
 		await expect(appSkillEmbed.getByTestId('generic-app-skill-thumbnail')).toBeVisible({ timeout: 10000 });
-		await expect(appSkillEmbed).toContainText('Image To HTML');
+		await expect(appSkillEmbed).toContainText('Screenshot to HTML');
 
 		const fullscreenOverlay = await openFullscreen(page, appSkillEmbed);
 		const appSkillFallback = page.locator('.embed-fullscreen-fallback').filter({ hasText: 'Fullscreen view not available for embed type: app-skill-use' }).first();
