@@ -447,3 +447,40 @@ def test_api_response_cache_loads_compatible_llm_response(tmp_path):
     assert cached is not None
     assert cached["fingerprint"] == "old-fingerprint"
     assert cached["response"] == response_data
+
+
+def test_api_response_cache_loads_compatible_llm_response_with_provider_prefix(tmp_path):
+    cache = ApiResponseCache(root=tmp_path)
+    response_data = {"type": "stream", "body": "cached", "chunk_count": 1}
+    cache.save(
+        group_id="models3d_search_web",
+        category="llm/gemini-3.5-flash-lite",
+        fingerprint="old-fingerprint",
+        request_summary={
+            "model": "gemini-3.5-flash-lite",
+            "messages_count": 2,
+            "tools_count": 3,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
+        },
+        response_data=response_data,
+    )
+
+    cached = cache.load_compatible_llm_response(
+        "models3d_search_web",
+        "llm/google/gemini-3.5-flash-lite",
+        {
+            "model": "google/gemini-3.5-flash-lite",
+            "messages_count": 3,
+            "tools_count": 3,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
+        },
+        excluded_fingerprint="new-fingerprint",
+    )
+
+    assert cached is not None
+    assert cached["fingerprint"] == "old-fingerprint"
+    assert cached["response"] == response_data
