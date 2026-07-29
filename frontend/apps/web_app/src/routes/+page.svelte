@@ -1538,6 +1538,8 @@
 		console.debug('[+page.svelte] onMount started');
 		await installE2ETestHooks();
 		window.addEventListener('hashchange', handleHashChange);
+		// Example cards can render before slower onMount setup completes, so register this early.
+		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 		document.documentElement.setAttribute('data-hash-router-ready', 'true');
 
 		// ?lang= has absolute priority over stored preferredLanguage.
@@ -2907,10 +2909,6 @@
 			console.debug('[+page.svelte] setTimeout for isInitialLoad finished');
 			isInitialLoad = false;
 		}, 100);
-
-		// Listen for demo chat selection from embed preview cards (ExampleChatsGroup)
-		// These cards are nested deep in message content and can't use Svelte events
-		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 
 		// Listen for ChatHeader arrow navigation events from chatNavigationStore.
 		// These fire when the user clicks prev/next arrows in the chat header banner.
