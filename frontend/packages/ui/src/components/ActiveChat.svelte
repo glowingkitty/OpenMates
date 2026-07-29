@@ -15664,6 +15664,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: flex-end;
     }
 
+    .top-buttons.guest-all-examples-top-buttons .guest-all-examples-toolbar,
+    .top-buttons.guest-all-examples-top-buttons .guest-all-examples-action {
+        pointer-events: auto;
+    }
+
     .chat-wrapper.landing-intro-overlay-active .top-buttons,
     .chat-wrapper.landing-intro-overlay-active .center-content,
     .chat-wrapper.landing-intro-overlay-active .guest-interest-tags-overlay,
