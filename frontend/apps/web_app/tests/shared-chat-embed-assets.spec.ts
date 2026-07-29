@@ -47,11 +47,6 @@ function deriveApiUrl(baseUrl: string): string {
 	return 'https://api.openmates.org';
 }
 
-function parseChatIdFromSendOutput(output: string): string | undefined {
-	const match = output.match(/openmates chats send --chat ([a-f0-9]{8})\b/i);
-	return match?.[1];
-}
-
 function writeTinyWav(filePath: string): void {
 	const sampleRate = 8000;
 	const durationSeconds = 1;
@@ -375,15 +370,23 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		const message =
 			`Create a short response confirming these uploaded files are attached. ` +
 			`@${SAMPLE_PDF} @${SAMPLE_IMAGE} @${audioPath}`;
-		const sendResult = await runCli(apiUrl, ['chats', 'new', message], 600_000);
+		const sendResult = await runCli(apiUrl, ['chats', 'new', message, '--json'], 600_000);
 		consoleLogs.push(`Create chat stdout: ${sendResult.stdout.slice(0, 2000)}`);
 		consoleLogs.push(`Create chat stderr: ${sendResult.stderr.slice(0, 2000)}`);
 		expect(sendResult.code).toBe(0);
 
-		const shortChatId = parseChatIdFromSendOutput(sendResult.stdout);
-		expect(shortChatId).toBeTruthy();
-		const showData = await waitForChatShow(apiUrl, shortChatId!);
-		fullChatId = showData.chat?.id;
+		let sendData: any;
+		try {
+			sendData = JSON.parse(sendResult.stdout);
+		} catch (_e) {
+			throw new Error(
+				`Expected JSON from chats new --json, got:\n${sendResult.stdout}\nstderr:\n${sendResult.stderr}`
+			);
+		}
+		const createdChatId = String(sendData.chatId || sendData.chat_id || '');
+		expect(createdChatId).toMatch(/^[a-f0-9-]{36}$/);
+		const showData = await waitForChatShow(apiUrl, createdChatId);
+		fullChatId = showData.chat?.id || createdChatId;
 		expect(fullChatId).toMatch(/^[a-f0-9-]{36}$/);
 		logCheckpoint(`Created chat ${fullChatId}.`);
 		await waitForFinishedPdfEmbed(apiUrl, fullChatId!, logCheckpoint);
