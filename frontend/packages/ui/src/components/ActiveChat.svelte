@@ -15631,6 +15631,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
         z-index: var(--z-index-raised);
+        pointer-events: none;
     }
 
     /*
@@ -15816,6 +15817,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: center;
         transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
         cursor: pointer;
+        pointer-events: auto;
     }
 
     .new-chat-button-wrapper:hover {
