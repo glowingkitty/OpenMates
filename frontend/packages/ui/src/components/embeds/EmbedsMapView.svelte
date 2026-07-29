@@ -420,6 +420,7 @@
 
 <style>
   .embeds-map-view {
+    container-type: inline-size;
     width: 100%;
     border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
     border-radius: 18px;
@@ -560,7 +561,7 @@
     mask-position: center;
   }
 
-  @media (max-width: 720px) {
+  @container (max-width: 720px) {
     .map-view-body {
       display: flex;
       flex-direction: column;
