@@ -56,6 +56,10 @@ function visibleMessageAnchors(message: string): string[] {
 		.filter((anchor) => anchor.length >= 20);
 }
 
+function normalizeEditorDraftText(text: string | null | undefined): string {
+	return (text ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 async function userMessagePersisted(
 	userMessages: any,
 	previousCount: number,
@@ -730,10 +734,46 @@ async function sendMessage(
 			.textContent({ timeout: 1000 })
 			.catch(() => '')) ?? '').trim()
 		: '';
+	const expectedEditorText = normalizeEditorDraftText(message);
+	const currentEditorText = async (): Promise<string> => normalizeEditorDraftText(
+		await messageEditor
+			.evaluate((editor: HTMLElement) => editor.innerText ?? '')
+			.catch(() => '')
+	);
+	const waitForEditorMessage = async (timeout = 2500): Promise<boolean> => expect
+		.poll(currentEditorText, { timeout, intervals: [100, 250, 500] })
+		.toBe(expectedEditorText)
+		.then(() => true)
+		.catch(() => false);
+	const retypeEditorMessage = async (reason: string): Promise<void> => {
+		await messageEditor.click();
+		await page.keyboard.press('Control+A');
+		await page.keyboard.press('Backspace');
+		await page.keyboard.insertText(message);
+		if (!(await waitForEditorMessage(5000))) {
+			logCheckpoint(`Editor did not retain message after retype; diagnostics=${JSON.stringify({
+				reason,
+				expectedEditorText,
+				actualEditorText: await currentEditorText()
+			})}`);
+			throw new Error(`Message editor did not retain typed message after ${reason}`);
+		}
+		logCheckpoint(reason);
+	};
+	const ensureEditorMessage = async (): Promise<void> => {
+		if (await waitForEditorMessage()) return;
+
+		logCheckpoint(`Editor did not retain initial typed message; retyping before send. diagnostics=${JSON.stringify({
+			expectedEditorText,
+			actualEditorText: await currentEditorText()
+		})}`);
+		await retypeEditorMessage('Retyped message after editor did not retain initial input.');
+	};
 
 	await messageEditor.click();
 	await page.keyboard.insertText(message);
 	logCheckpoint(`Typed message: "${message}"`);
+	await ensureEditorMessage();
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
 	const sendButton = messageField.locator('[data-action="send-message"]');
@@ -830,9 +870,7 @@ async function sendMessage(
 		if (await waitForSendAlreadyStarted()) {
 			logCheckpoint('Send appears to be in progress; skipping duplicate fallback dispatch.');
 		} else if ((diagnosticsBeforeFallback.editorText ?? '').trim() === '') {
-			await messageEditor.click();
-			await page.keyboard.insertText(message);
-			logCheckpoint('Retyped message after editor reset before send button was available.');
+			await retypeEditorMessage('Retyped message after editor reset before send button was available.');
 			await takeStepScreenshot(page, `${stepLabel}-message-retyped`);
 			await dispatchSyntheticSend('after retype');
 		} else {
@@ -881,9 +919,7 @@ async function sendMessage(
 				.toBeTruthy();
 		} else {
 			if ((diagnosticsBeforeSynthetic.editorText ?? '').trim() === '') {
-				await messageEditor.click();
-				await page.keyboard.insertText(message);
-				logCheckpoint('Retyped message before synthetic persistence fallback.');
+				await retypeEditorMessage('Retyped message before synthetic persistence fallback.');
 			}
 
 			await dispatchSyntheticSend('after persistence timeout');
