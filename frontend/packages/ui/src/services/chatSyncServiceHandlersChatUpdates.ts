@@ -28,6 +28,8 @@ import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 
 const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
+// Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
+const METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT = 30;
 
 /**
  * Pending message queue for cross-device sync.
@@ -100,6 +102,40 @@ function clearDraftOnlyShellForMessages(chat: Chat, messagesV: number): Chat {
     encrypted_draft_preview: null,
     draft_v: 0,
   };
+}
+
+async function requestMissingMetadataMessageContent(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+  messagesV: number | undefined,
+): Promise<void> {
+  if (messagesV === undefined || !Number.isFinite(messagesV) || messagesV <= 0) {
+    return;
+  }
+
+  const expectedLatestCount = Math.min(
+    Math.max(Math.floor(messagesV), 0),
+    METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT,
+  );
+  if (expectedLatestCount <= 0) return;
+
+  try {
+    const localWindow = await chatDB.getMessageWindowForChat(chatId, {
+      direction: "latest",
+    });
+    if (localWindow.messages.length >= expectedLatestCount) return;
+
+    console.info(
+      `[ChatSyncService:ChatUpdates] Local latest window for ${chatId} has ` +
+        `${localWindow.messages.length}/${expectedLatestCount} message(s); requesting chat content batch`,
+    );
+    await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
+  } catch (error) {
+    console.warn(
+      `[ChatSyncService:ChatUpdates] Could not verify local message window for metadata version on chat ${chatId}:`,
+      error,
+    );
+  }
 }
 
 async function notifyBackgroundAssistantBroadcast(
@@ -2032,6 +2068,12 @@ export async function handleEncryptedChatMetadataImpl(
         `[ChatSyncService:ChatUpdates] No changes needed for chat ${payload.chat_id} from broadcast`,
       );
     }
+
+    await requestMissingMetadataMessageContent(
+      serviceInstance,
+      payload.chat_id,
+      payload.versions?.messages_v,
+    );
 
     // SELF-HEAL: If we rejected corrupted fields from the broadcast, re-send our
     // correct local metadata to the server so it overwrites the corrupted version.
