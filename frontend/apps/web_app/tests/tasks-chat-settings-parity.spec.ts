@@ -36,8 +36,9 @@ test.describe('Chat settings Tasks parity', () => {
 
 		const log = createSignupLogger('TASKS_CHAT_SETTINGS_PARITY');
 		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'tasks-chat-settings-parity' });
-		const taskTitle = `Chat-linked task ${Date.now()}`;
-		const secondTaskTitle = `${taskTitle} follow-up`;
+		const suffix = Date.now();
+		const taskTitle = `Primary chat task ${suffix}`;
+		const secondTaskTitle = `Follow-up chat task ${suffix}`;
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, log, screenshot);
