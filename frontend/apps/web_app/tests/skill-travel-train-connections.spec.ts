@@ -25,6 +25,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	withMockMarker,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const {
@@ -157,7 +158,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker(`Find train connections from Berlin to Munich on ${date}`, 'travel_train_web'),
+			withMockMarker(`Find train connections from Berlin to Munich on ${date}`, 'travel_train_web'),
 			logCheckpoint, takeStepScreenshot, 'travel-train'
 		);
 
