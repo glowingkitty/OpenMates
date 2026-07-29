@@ -101,6 +101,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   de: |
     ```json
@@ -128,6 +129,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   zh: |
     ```json
@@ -155,6 +157,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   es: |
     ```json
@@ -182,6 +185,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   fr: |
     ```json
@@ -209,6 +213,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   pt: |
     ```json
@@ -236,6 +241,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   ru: |
     ```json
@@ -263,6 +269,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   ja: |
     ```json
@@ -290,6 +297,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   ko: |
     ```json
@@ -317,6 +325,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   it: |
     ```json
@@ -344,6 +353,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   tr: |
     ```json
@@ -371,6 +381,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   vi: |
     ```json
@@ -398,6 +409,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   id: |
     ```json
@@ -425,6 +437,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   pl: |
     ```json
@@ -452,6 +465,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   nl: |
     ```json
@@ -479,6 +493,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   ar: |
     ```json
@@ -506,6 +521,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   hi: |
     ```json
@@ -533,6 +549,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   th: |
     ```json
@@ -560,6 +577,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   cs: |
     ```json
@@ -587,6 +605,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   sv: |
     ```json
@@ -614,6 +633,7 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   he: |
     ```json
@@ -641,5 +661,6 @@ message_2:
     ```embeds_map_view
     title: Mapped results
     embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
     ```
   verified_by_human: []

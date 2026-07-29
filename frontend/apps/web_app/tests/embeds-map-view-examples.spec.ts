@@ -38,7 +38,7 @@ test.describe('Embeds map view public examples', () => {
 		expect(response.status(), 'public example page should be reachable').toBe(200);
 		const html = await response.text();
 		expect(html).toContain('Berlin AI founder meetups map');
-		expect(html).toContain('embeds_map_view');
+		expect(html).toContain('Build Fridays Berlin');
 		for (const marker of PRIVATE_MARKERS) {
 			expect(html, `public HTML should not expose ${marker}`).not.toContain(marker);
 		}
@@ -71,6 +71,7 @@ test.describe('Embeds map view public examples', () => {
 
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(4, { timeout: 15_000 });
+		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(mapView.getByTestId('embeds-map-view-filters')).toContainText('event');
 		await expect(mapView.getByTestId('embeds-map-view-map')).toBeVisible();
 
