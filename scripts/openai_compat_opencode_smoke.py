@@ -23,6 +23,7 @@ import httpx
 
 DEFAULT_BASE_URL = "https://api.dev.openmates.org/v1"
 DEFAULT_ORIGIN = "https://app.dev.openmates.org"
+OPENCODE_AUTOMATION_RISK_CLASSIFICATION = "isolated temp-dir OpenCode canary; no permission skipping or repo writes"
 
 
 def _require_env(name: str) -> str:

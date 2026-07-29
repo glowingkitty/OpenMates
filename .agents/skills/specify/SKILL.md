@@ -99,12 +99,17 @@ Every full spec must include:
 - Optional top-level `verifications` records for checks that need Plan-like
   status, evidence, blockers, waivers, or user-confirmation tracking beyond a
   simple test entry
-- For shared product surfaces, explicit phase gates in this order: CLI
-  implementation/testing against the dev server, npm SDK and pip SDK
-  parity/testing locally against the dev server, GitHub Actions CI/daily-test
-  reproduction only after local CLI and SDK success, web implementation/testing,
-  user confirmation of deployed dev web behavior and visual quality, then Apple
-  parity/testing
+- For shared product surfaces, explicit phase gates in this order: REST
+  API/WebSocket contract and dev-server proof first, CLI implementation/testing
+  against the dev server second, npm SDK and pip SDK parity/testing locally
+  against the dev server third, GitHub Actions CI/daily-test reproduction only
+  after local REST/API, CLI, and SDK success, web implementation/testing fourth,
+  user confirmation of deployed dev web behavior and visual quality fifth, then
+  Apple parity/testing last.
+- The REST/API gate must classify every changed endpoint as unauthenticated
+  public REST API, developer API-key REST API, first-party client surface only,
+  or internal-only, and must state auth, rate limits, credit/budget limits, and
+  whether client-side encrypted data or decrypted plaintext is handled.
 - The CLI and SDK gates must use real commands/SDK calls against the real dev
   API/WebSocket path with real auth/test-account state. Mocked OpenMates API
   calls, mocked SDK clients, stubbed servers, direct function calls, and fixture

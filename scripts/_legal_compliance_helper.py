@@ -332,6 +332,7 @@ def _run_scan(scan_type: str) -> None:
         context_summary=f"{scan_type} scan at HEAD {current_sha}",
         linear_task=False,
         kill_on_exit=True,
+        requires_human_approval=True,
     )
 
     # If the Claude session failed before writing its own nightly report,

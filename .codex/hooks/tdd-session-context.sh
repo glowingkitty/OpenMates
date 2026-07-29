@@ -98,7 +98,7 @@ This is a **${MODE}** session. Per .claude/rules/testing.md, follow this workflo
 "
 if [ "$MODE" = "bug" ]; then
   CONTEXT="${CONTEXT}1. Find or create a spec that **reproduces the bug (red)** before any fix code.
-2. Run the spec to confirm it fails: \`python3 scripts/run_tests.py --spec <name>.spec.ts\`
+2. Run the spec to confirm it fails: \`python3 scripts/tests.py run --spec <name>.spec.ts\`
 3. Fix the bug.
 4. Rerun the same spec — it must pass (green).
 "
@@ -120,7 +120,7 @@ if [ -n "$CANDIDATES" ]; then
 "
   while IFS= read -r spec; do
     [ -z "$spec" ] && continue
-    CONTEXT="${CONTEXT}- \`${spec}\` → \`python3 scripts/run_tests.py --spec ${spec}\`
+    CONTEXT="${CONTEXT}- \`${spec}\` → \`python3 scripts/tests.py run --spec ${spec}\`
 "
   done <<EOF
 $CANDIDATES

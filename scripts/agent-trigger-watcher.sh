@@ -28,6 +28,8 @@ TRIGGER_DIR="$SCRIPT_DIR/.agent-triggers"
 PROCESSED_DIR="$TRIGGER_DIR/.processed"
 LOG_FILE="$PROJECT_DIR/logs/agent-investigations.log"
 POLL_INTERVAL_SECONDS=30
+OPENCODE_TRIGGER_TIMEOUT_SECONDS="${OPENCODE_TRIGGER_TIMEOUT_SECONDS:-1800}"
+RISKY_TRIGGER_DOMAINS='auth payment billing encryption sync privacy legal migration websocket'
 
 # Ensure directories exist.
 # The trigger dir may be owned by root (created by Docker bind-mount).
@@ -53,16 +55,29 @@ process_trigger() {
     filename="$(basename "$trigger_file")"
 
     # Parse JSON fields using python3 (always available on the host)
-    local issue_id session_title prompt agent_action
+    local issue_id session_title prompt agent_action domain requires_human_approval
     issue_id="$(python3 -c "import json,sys; print(json.load(sys.stdin)['issue_id'])" < "$trigger_file")"
     session_title="$(python3 -c "import json,sys; print(json.load(sys.stdin)['session_title'])" < "$trigger_file")"
     prompt="$(python3 -c "import json,sys; print(json.load(sys.stdin)['prompt'])" < "$trigger_file")"
     agent_action="$(python3 -c "import json,sys; print(json.load(sys.stdin).get('agent_action', 'fix'))" < "$trigger_file")"
+    domain="$(python3 -c "import json,sys; print(json.load(sys.stdin).get('domain', ''))" < "$trigger_file")"
+    requires_human_approval="$(python3 -c "import json,sys; print(str(json.load(sys.stdin).get('requires_human_approval', False)).lower())" < "$trigger_file")"
 
     if [[ -z "$issue_id" || -z "$prompt" ]]; then
         log "ERROR: Trigger file $filename missing issue_id or prompt — skipping"
         mv "$trigger_file" "$PROCESSED_DIR/${filename}.invalid"
         return 1
+    fi
+
+    if [[ "$agent_action" != "research" ]]; then
+        local risk_text="${domain} ${prompt}"
+        for risky in $RISKY_TRIGGER_DOMAINS; do
+            if [[ "${risk_text,,}" == *"$risky"* && "$requires_human_approval" != "true" ]]; then
+                log "ERROR: Trigger $filename touches risky domain '$risky' but requires_human_approval is not true — skipping"
+                mv "$trigger_file" "$PROCESSED_DIR/${filename}.requires-human-approval"
+                return 1
+            fi
+        done
     fi
 
     log "Processing trigger: issue_id=$issue_id title='$session_title' action=$agent_action"
@@ -82,7 +97,7 @@ process_trigger() {
     else
         opencode_args+=(--dangerously-skip-permissions)
     fi
-    if (cd "$PROJECT_DIR" && "${opencode_args[@]}" "$message") 2>&1 | tee -a "$LOG_FILE"; then
+    if (cd "$PROJECT_DIR" && timeout "$OPENCODE_TRIGGER_TIMEOUT_SECONDS" "${opencode_args[@]}" "$message") 2>&1 | tee -a "$LOG_FILE"; then
         log "Started OpenCode chat '$session_name' for issue $issue_id"
     else
         log "ERROR: Failed to start OpenCode chat for issue $issue_id (exit code $?)"

@@ -1,5 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    ".claude/rules/planning.md",
+    ".claude/rules/testing.md",
+    "docs/contributing/guides/spec-driven-development.md"
+  ],
   "permission": {
     "external_directory": {
       "/home/superdev/projects/.openmates-agent-worktrees/**": "allow"

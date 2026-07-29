@@ -12,7 +12,17 @@ globs:
 
 ## Daily Test Results — Where to Find Them
 
-The daily cron job (`tests.py run --daily`) runs every night through the unified test control plane and saves results locally:
+Directus is the canonical test state and claim store. Use `scripts/tests.py`
+for current status, triage, claims, leases, history, and reruns:
+
+```bash
+python3 scripts/tests.py status --json
+python3 scripts/tests.py triage --json
+python3 scripts/tests.py next --lease --session <session-id> --json
+```
+
+The daily cron job (`tests.py run --daily`) also exports local artifacts for
+offline investigation and historical context:
 
 | File | Contents |
 |------|----------|
@@ -23,9 +33,9 @@ The daily cron job (`tests.py run --daily`) runs every night through the unified
 | `test-results/reports/success/*.md` | Per-test MD reports for each passed test |
 | `test-results/last-run.json` | Last individual run (may be a subset — check `run_id`) |
 
-**When asked to fix test failures:** Use `/fix-tests` skill, or start by reading `test-results/last-failed-tests.json` — it has the exact failure count, test names, and error messages. Then read the individual MD reports in `test-results/reports/failed/` for full error context.
+**When asked to fix test failures:** Use `/fix-tests` or `/fix-next-test`, then lease a failure group through `scripts/tests.py next --lease`. Use `test-results/reports/failed/` and screenshots only as supporting evidence for the leased group.
 
-**Do NOT** re-download results from GitHub Actions or re-run tests just to see what failed — the results are already local.
+**Do NOT** treat `test-results/*.json` as the source of truth and do not re-download results from GitHub Actions just to see what failed. The unified control plane already records current state.
 
 ## Investigating a Failing E2E Spec
 
@@ -82,7 +92,7 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
   - For elements with data attributes: `page.locator('[data-testid="embed-preview"][data-status="finished"]')`
   - When adding `data-testid` to components, use kebab-case matching the element's purpose
   - Acceptable non-class selectors: `#id`, `[data-action="..."]`, `[data-authenticated="..."]`, `getByRole()`, `getByText()`
-- **NEVER run vitest, pnpm test, or npx vitest locally.** It crashes the server. Always use `python3 scripts/tests.py run --suite vitest` which dispatches to GitHub Actions and records status/history.
+- **NEVER run vitest, pnpm test, or npx vitest locally.** It crashes the server. Always use `python3 scripts/tests.py run --suite vitest` which dispatches through the unified test control plane and records status/history.
 - **NEVER run Playwright specs locally or via docker compose.** Always use `python3 scripts/tests.py run --spec <name>.spec.ts` or `python3 scripts/tests.py run --suite playwright`. This dispatches specs to GitHub Actions where they run with proper test accounts and infrastructure, and records status/history through the unified control plane. The docker compose commands in the testing doc are reference only — they describe what the CI runner executes, not what you should run.
 - **New features require E2E test proposal:** After implementing any auth flow, payment flow, or user-facing feature, propose an E2E test plan (user flow, assertions, which spec to extend). Wait for user confirmation before writing test code.
 - **Sidebar-closed as default:** Always test chat features with sidebar closed (default <=1440px).

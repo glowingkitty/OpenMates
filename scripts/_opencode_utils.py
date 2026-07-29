@@ -23,6 +23,22 @@ from pathlib import Path
 
 _TMP_DIR_NAME = "scripts/.tmp"
 _INTERNAL_API_URL = os.environ.get("INTERNAL_API_URL", "http://localhost:8000")
+_RISKY_AUTOMATION_TERMS = (
+    "auth",
+    "payment",
+    "billing",
+    "encryption",
+    "sync",
+    "privacy",
+    "legal",
+    "migration",
+    "websocket",
+)
+
+
+def _prompt_needs_human_approval(prompt: str) -> bool:
+    lower = prompt.lower()
+    return any(term in lower for term in _RISKY_AUTOMATION_TERMS)
 
 
 def _extract_opencode_session_id(output: str) -> str | None:
@@ -131,6 +147,7 @@ def run_opencode_session(
     linear_mode: str = "feature",
     kill_on_exit: bool = False,
     model: str | None = None,
+    requires_human_approval: bool = False,
 ) -> tuple[int, str | None]:
     """Run a persisted OpenCode chat for a scheduled maintenance job."""
     del allowed_tools, use_zellij, kill_on_exit, model
@@ -163,6 +180,11 @@ def run_opencode_session(
             "json",
         ]
         if agent != "plan":
+            if _prompt_needs_human_approval(prompt) and not requires_human_approval:
+                raise RuntimeError(
+                    "requires_human_approval is mandatory for permission-skipping OpenCode automation "
+                    "that mentions auth, billing, encryption, sync, privacy, legal, migrations, or websockets."
+                )
             command.append("--dangerously-skip-permissions")
         command.append(message)
 

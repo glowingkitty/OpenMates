@@ -436,6 +436,7 @@ def process_alerts() -> None:
         context_summary=f"{len(to_dispatch)} alert(s) dispatched for fix",
         kill_on_exit=True,  # fully automated — no review needed
         linear_task=False,
+        requires_human_approval=True,
     )
 
     # End session if OpenCode didn't deploy (cleanup)

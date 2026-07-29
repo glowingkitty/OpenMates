@@ -28,6 +28,7 @@ def sessions_module(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     spec.loader.exec_module(module)
 
     monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(module, "SESSIONS_FILE", tmp_path / ".claude" / "sessions.json")
     monkeypatch.setattr(module, "OPENCODE_STALE_READ_STATE_FILE", tmp_path / ".opencode" / "stale-read-state.json")
     monkeypatch.setattr(module, "OPENCODE_STALE_READ_LOCK_FILE", tmp_path / ".opencode" / "stale-read-state.lock")
     return module
@@ -83,6 +84,34 @@ def test_paths_are_repository_relative_and_external_paths_are_ignored(sessions_m
     assert sessions_module.normalize_opencode_stale_read_path(target) == "src/example.py"
     assert sessions_module.normalize_opencode_stale_read_path("./src/example.py") == "src/example.py"
     assert sessions_module.normalize_opencode_stale_read_path(tmp_path.parent / "outside.py") is None
+
+
+def test_worktree_paths_are_stored_as_repository_relative(sessions_module, tmp_path: Path) -> None:
+    worktree = tmp_path.parent / "agent-worktree"
+    target = worktree / "src" / "example.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("before\n", encoding="utf-8")
+    sessions_module.SESSIONS_FILE.parent.mkdir(parents=True)
+    sessions_module.SESSIONS_FILE.write_text(
+        __import__("json").dumps(
+            {
+                "sessions": {
+                    "abcd": {
+                        "worktree": {"path": str(worktree), "status": "active"},
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    sessions_module.record_opencode_stale_read("ses-current", target)
+    target.write_text("after\n", encoding="utf-8")
+
+    assert sessions_module.normalize_opencode_stale_read_path(target) == "src/example.py"
+    assert sessions_module.opencode_stale_read_error("ses-current", target) == (
+        "BLOCKED: src/example.py changed since this OpenCode session read it. Re-read the file before editing."
+    )
 
 
 def test_expired_opencode_state_is_pruned(sessions_module, tmp_path: Path) -> None:

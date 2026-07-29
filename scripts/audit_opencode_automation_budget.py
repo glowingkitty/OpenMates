@@ -28,6 +28,25 @@ REQUIRED_PROMPT_RULES = (
 )
 
 
+def _has_human_approval_control(text: str) -> bool:
+    lower = text.lower()
+    compact = re.sub(r"\s+", "", lower)
+    if re.search(r"\$?requires_human_approval[^\n]{0,120}!=\s*['\"]?true", lower):
+        return True
+    return any(
+        marker in lower or marker in compact
+        for marker in (
+            "opencode_automation_risk_classification",
+            "notrequires_human_approval",
+            "requires_human_approval=true",
+            "requires_human_approval!=\"true\"",
+            "requires_human_approval!='true'",
+            '"scope_classification":"requires_human_approval"',
+            "'scope_classification':'requires_human_approval'",
+        )
+    )
+
+
 @dataclass(frozen=True)
 class AuditIssue:
     path: str
@@ -65,6 +84,7 @@ def audit_script(path: Path) -> list[AuditIssue]:
     lower = text.lower()
     direct_invocation = bool(DIRECT_OPENCODE_RE.search(text))
     helper_invocation = bool(RUN_SESSION_RE.search(text))
+    has_human_approval_control = _has_human_approval_control(text)
     if not direct_invocation and not helper_invocation:
         return []
 
@@ -72,11 +92,11 @@ def audit_script(path: Path) -> list[AuditIssue]:
         issues.append(AuditIssue(rel, "OpenCode automation must define or pass a timeout"))
     if "max_attempt" not in lower and "attempt" in lower and "auto_fix" in lower:
         issues.append(AuditIssue(rel, "retrying OpenCode automation must define a max attempts cap"))
-    if direct_invocation and "dangerously-skip-permissions" in text and "risky" not in lower and "requires_human_approval" not in lower:
+    if direct_invocation and "dangerously-skip-permissions" in text and not has_human_approval_control:
         issues.append(AuditIssue(rel, "permission-skipping OpenCode automation must include a risky-path/human-approval guard"))
     if direct_invocation and "XDG_DATA_HOME" not in text and "delete_opencode_session" not in text and "hidden" in lower:
         issues.append(AuditIssue(rel, "hidden OpenCode automation should isolate or delete session storage"))
-    if direct_invocation and any(term in lower for term in RISKY_TERMS) and "requires_human_approval" not in lower and "human approval" not in lower:
+    if direct_invocation and any(term in lower for term in RISKY_TERMS) and not has_human_approval_control:
         issues.append(AuditIssue(rel, "automation mentioning risky domains must include a human-approval block path"))
 
     return issues

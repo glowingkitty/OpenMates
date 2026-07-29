@@ -95,7 +95,6 @@ def _run_opencode_session(today: str) -> tuple[str, int, str]:
         title,
         "--format",
         "json",
-        "--dangerously-skip-permissions",
         message,
     ]
 
