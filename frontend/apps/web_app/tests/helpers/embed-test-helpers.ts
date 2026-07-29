@@ -153,6 +153,9 @@ async function verifySearchGrid(
  */
 async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void> {
 	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	if (!await fullscreenOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
+		return;
+	}
 	const overlayCountBeforeClose = await overlays.count();
 	const countVisibleOverlays = async (): Promise<number> => {
 		const count = await overlays.count();
