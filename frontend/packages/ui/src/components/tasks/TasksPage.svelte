@@ -6,21 +6,30 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import TaskBoard from './TaskBoard.svelte';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
+  import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
+  import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { notificationStore } from '../../stores/notificationStore';
   import {
+    blockUserTask,
+    completeUserTask,
     createUserTask,
+    deleteUserTask,
     cancelWorkflowRunTaskProjection,
     extractUserTaskProposals,
     isWorkflowRunTaskProjectionViewModel,
     listTaskBoardItems,
+    reorderUserTasks,
+    skipUserTask,
     startUserTaskWithAI,
-    updateUserTask,
+    unblockUserTask,
     type ListUserTasksFilters,
     type UserTaskProposal,
     type UserTaskStatus,
+    type UserTaskViewModel,
     type TasksBoardItem,
   } from '../../services/userTaskService';
   import {
@@ -59,6 +68,7 @@
   let correctedTranscriptText = $state('');
   let isExtracting = $state(false);
   let extractedProposals = $state<UserTaskProposal[]>([]);
+  let tasksPageWidth = $state(900);
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
@@ -156,6 +166,11 @@
     }
   }
 
+  function handleStartTaskInspiration(inspiration: DailyInspiration): void {
+    title = inspiration.phrase;
+    description = inspiration.assistant_response ?? '';
+  }
+
   async function handleExtractTasks(): Promise<void> {
     const correctedText = (correctedTranscriptText || transcriptText).trim();
     if (!correctedText || isExtracting) return;
@@ -236,13 +251,61 @@
     const previous = tasks;
     tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status } : candidate);
     try {
-      const updated = await updateUserTask(task, { status });
+      let updated: UserTaskViewModel;
+      if (status === 'done' && task.status !== 'done') {
+        updated = await completeUserTask(task);
+      } else if (status === 'blocked' && task.status !== 'blocked') {
+        updated = await blockUserTask(task);
+      } else if (task.status === 'blocked' && status !== 'blocked') {
+        updated = await unblockUserTask(task);
+        if (status !== 'todo') {
+          const [moved] = await reorderUserTasks([{ task: updated, status }]);
+          if (!moved) throw new Error('Task reorder returned no task');
+          updated = moved;
+        }
+      } else if (status === 'backlog' && task.status !== 'backlog') {
+        updated = await skipUserTask(task);
+      } else {
+        const [moved] = await reorderUserTasks([{ task, status }]);
+        if (!moved) throw new Error('Task reorder returned no task');
+        updated = moved;
+      }
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
     } catch (error) {
       tasks = previous;
       console.error('[TasksPage] Failed to update task:', error);
       notificationStore.error('Failed to update task');
+    }
+  }
+
+  async function handleSkip(task: TasksBoardItem): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    const previous = tasks;
+    tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status: 'backlog' } : candidate);
+    try {
+      const updated = await skipUserTask(task);
+      tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
+      broadcastTasksChanged();
+    } catch (error) {
+      tasks = previous;
+      console.error('[TasksPage] Failed to skip task:', error);
+      notificationStore.error('Failed to skip task');
+    }
+  }
+
+  async function handleDelete(task: TasksBoardItem): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    const previous = tasks;
+    tasks = tasks.filter((candidate) => candidate.task_id !== task.task_id);
+    try {
+      await deleteUserTask(task);
+      broadcastTasksChanged();
+      notificationStore.success('Task deleted');
+    } catch (error) {
+      tasks = previous;
+      console.error('[TasksPage] Failed to delete task:', error);
+      notificationStore.error('Failed to delete task');
     }
   }
 
@@ -305,6 +368,7 @@
 
   onMount(() => {
     void initializeFeatureAvailability();
+    void loadDefaultInspirations({ surface: 'tasks', allowIndexedDB: false });
   });
 
   $effect(() => {
@@ -326,9 +390,17 @@
     </div>
   </section>
 {:else}
-<section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'}>
+<section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
   {#if !compact}<div class="workspace-report-action"><WorkspaceReportIssueButton /></div>{/if}
   {#if !compact}
+    <div class="daily-inspiration-area tasks-daily-inspiration-area" data-testid="tasks-daily-inspiration-area">
+      <DailyInspirationBanner
+        surface="tasks"
+        onStartChat={handleStartTaskInspiration}
+        containerWidth={Math.min(tasksPageWidth || 900, 980)}
+      />
+    </div>
+
     <header class="tasks-hero">
       <div>
         <p class="eyebrow">{focus === 'plans' ? 'Plans' : 'Tasks'}</p>
@@ -490,7 +562,14 @@
       <p>Create your first task above to start planning work.</p>
     </div>
   {:else}
-    <TaskBoard {tasks} onMove={(task, status) => void handleMove(task, status)} onStartAI={(task) => void handleStartAI(task)} onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)} />
+    <TaskBoard
+      {tasks}
+      onMove={(task, status) => void handleMove(task, status)}
+      onStartAI={(task) => void handleStartAI(task)}
+      onSkip={(task) => void handleSkip(task)}
+      onDelete={(task) => void handleDelete(task)}
+      onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
+    />
   {/if}
 </section>
 {/if}
@@ -529,6 +608,10 @@
     align-items: flex-start;
     gap: 24px;
     padding: clamp(24px, 5vw, 54px);
+    margin-bottom: 18px;
+  }
+
+  .tasks-daily-inspiration-area {
     margin-bottom: 18px;
   }
 

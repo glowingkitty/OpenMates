@@ -155,6 +155,14 @@ export interface ExtractUserTaskProposalsInput {
   projectIds?: string[];
 }
 
+export interface ReorderUserTaskMoveInput {
+  task: UserTaskViewModel;
+  beforeTaskId?: string | null;
+  afterTaskId?: string | null;
+  status?: UserTaskStatus;
+  position?: number;
+}
+
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -407,6 +415,65 @@ export async function updateUserTask(task: UserTaskViewModel, patch: Partial<Cre
   const decrypted = await decryptTask(data.task);
   if (!decrypted) throw new Error("Updated task could not be decrypted");
   return decrypted;
+}
+
+async function decryptTaskActionResponse(data: { task: EncryptedUserTaskRecord }): Promise<UserTaskViewModel> {
+  const decrypted = await decryptTask(data.task);
+  if (!decrypted) throw new Error("Task action response could not be decrypted");
+  return decrypted;
+}
+
+export async function completeUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/complete`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version }),
+  }));
+}
+
+export async function blockUserTask(task: UserTaskViewModel, blockedReasonCode = "needs_user_input"): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/block`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version, blocked_reason_code: blockedReasonCode }),
+  }));
+}
+
+export async function unblockUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/unblock`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version }),
+  }));
+}
+
+export async function skipUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/skip`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version }),
+  }));
+}
+
+export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promise<UserTaskViewModel[]> {
+  const data = await requestJson<{ tasks: EncryptedUserTaskRecord[] }>("/v1/user-tasks/reorder", {
+    method: "POST",
+    body: JSON.stringify({
+      moves: moves.map((move) => ({
+        task_id: move.task.task_id,
+        before_task_id: move.beforeTaskId ?? undefined,
+        after_task_id: move.afterTaskId ?? undefined,
+        status: move.status,
+        position: move.position,
+        version: move.task.version,
+      })),
+    }),
+  });
+  const decrypted = await Promise.all(data.tasks.map((task) => decryptTask(task)));
+  return decrypted.filter((task): task is UserTaskViewModel => task !== null);
+}
+
+export async function deleteUserTask(task: UserTaskViewModel): Promise<void> {
+  const params = new URLSearchParams({ version: String(task.version) });
+  await requestJson(`/v1/user-tasks/${task.task_id}?${params.toString()}`, {
+    method: "DELETE",
+  });
 }
 
 export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<UserTaskViewModel> {

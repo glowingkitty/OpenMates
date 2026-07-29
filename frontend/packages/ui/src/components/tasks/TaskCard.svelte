@@ -16,11 +16,15 @@
     task,
     onMove,
     onStartAI,
+    onSkip,
+    onDelete,
     onCancelWorkflowRun,
   }: {
     task: TasksBoardItem;
     onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
     onStartAI: (task: TasksBoardItem) => void;
+    onSkip: (task: TasksBoardItem) => void;
+    onDelete: (task: TasksBoardItem) => void;
     onCancelWorkflowRun: (task: TasksBoardItem) => void;
   } = $props();
 
@@ -92,9 +96,18 @@
           <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
         {/if}
       {/each}
+      {#if task.status !== 'blocked'}
+        <button type="button" onclick={() => onMove(task, 'blocked')} data-testid="task-block-button">Block</button>
+      {:else}
+        <button type="button" onclick={() => onMove(task, 'todo')} data-testid="task-unblock-button">Unblock</button>
+      {/if}
+      {#if task.status !== 'backlog'}
+        <button type="button" onclick={() => onSkip(task)} data-testid="task-skip-button">Skip</button>
+      {/if}
       {#if task.assigneeType !== 'ai' || task.status !== 'in_progress'}
       <button class="ai-action" type="button" onclick={() => onStartAI(task)} data-testid="task-start-ai">Start with AI</button>
       {/if}
+      <button class="danger-action" type="button" onclick={() => onDelete(task)} data-testid="task-delete-button">Delete</button>
     {/if}
   </div>
 </article>
@@ -217,5 +230,10 @@
   .task-actions .ai-action {
     background: var(--color-button-primary);
     color: var(--color-font-button);
+  }
+
+  .task-actions .danger-action {
+    background: var(--color-error, #c83a32);
+    color: var(--color-grey-0);
   }
 </style>

@@ -12,11 +12,15 @@
     tasks,
     onMove,
     onStartAI,
+    onSkip,
+    onDelete,
     onCancelWorkflowRun,
   }: {
     tasks: TasksBoardItem[];
     onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
     onStartAI: (task: TasksBoardItem) => void;
+    onSkip: (task: TasksBoardItem) => void;
+    onDelete: (task: TasksBoardItem) => void;
     onCancelWorkflowRun: (task: TasksBoardItem) => void;
   } = $props();
 
@@ -60,7 +64,7 @@
 
       <div class="task-column-list">
         {#each tasksFor(column.status) as task (task.task_id)}
-          <TaskCard {task} {onMove} {onStartAI} {onCancelWorkflowRun} />
+          <TaskCard {task} {onMove} {onStartAI} {onSkip} {onDelete} {onCancelWorkflowRun} />
         {:else}
           <div class="task-column-empty" data-testid="task-column-empty">
             No tasks here.

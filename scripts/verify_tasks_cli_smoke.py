@@ -89,6 +89,9 @@ def main() -> int:
         status = run_cli_json(["tasks", "status", short_id])["task"]
         require(status["title"] == title, "tasks status did not resolve/decrypt task")
 
+        board_positioned = run_cli_json(["tasks", "reorder", short_id, "--position", "0"])["tasks"][0]
+        require(board_positioned["position"] == 0, "tasks reorder did not move task into visible board range")
+
         board_text = run_cli(["tasks", "board"])
         require("OpenMates Tasks Board" in board_text, "tasks board did not render board header")
         require(short_id in board_text, "tasks board did not include task short ID")

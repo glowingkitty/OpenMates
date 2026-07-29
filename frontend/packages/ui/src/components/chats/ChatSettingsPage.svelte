@@ -8,13 +8,13 @@
 <script lang="ts">
   import { chatSettingsRouteFor, chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
-  import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge } from '../settings/elements';
+  import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge, SettingsInput, SettingsTextarea } from '../settings/elements';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
   import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
   import { buildChatUsageRows, loadChatUsageRows, loadChatUsageTotal, totalKnownCredits, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { notificationStore } from '../../stores/notificationStore';
-  import { listUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
+  import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
 
@@ -36,6 +36,10 @@
   let tasks = $state<UserTaskViewModel[]>([]);
   let plans = $state<UserPlanViewModel[]>([]);
   let isLoadingPlanning = $state(false);
+  let isCreatingTask = $state(false);
+  let taskActionId = $state<string | null>(null);
+  let taskTitle = $state('');
+  let taskDescription = $state('');
   let usageRows = $state<ChatUsageRow[]>([]);
   let usageTotalCredits = $state<number | null>(null);
   let isLoadingUsage = $state(false);
@@ -184,6 +188,56 @@
     }
   }
 
+  function broadcastTasksChanged(chatId: string): void {
+    window.dispatchEvent(new CustomEvent('openmates-user-tasks-changed', { detail: { chatId } }));
+  }
+
+  async function createChatTask(): Promise<void> {
+    if (!chat?.chat_id || isSharedViewer) return;
+    const trimmedTitle = taskTitle.trim();
+    if (!trimmedTitle || isCreatingTask) return;
+    isCreatingTask = true;
+    try {
+      const task = await createUserTask({
+        title: trimmedTitle,
+        description: taskDescription.trim(),
+        primaryChatId: chat.chat_id,
+      });
+      tasks = [task, ...tasks];
+      taskTitle = '';
+      taskDescription = '';
+      broadcastTasksChanged(chat.chat_id);
+      notificationStore.success('Task linked to chat');
+    } catch (error) {
+      console.error('[ChatSettingsPage] Failed to create chat task:', error);
+      notificationStore.error('Could not create task.');
+    } finally {
+      isCreatingTask = false;
+    }
+  }
+
+  async function toggleTaskDone(task: UserTaskViewModel): Promise<void> {
+    if (!chat?.chat_id || isSharedViewer || taskActionId) return;
+    const nextStatus = task.status === 'done' ? 'todo' : 'done';
+    const previous = tasks;
+    taskActionId = task.task_id;
+    tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status: nextStatus } : candidate);
+    try {
+      const updated = nextStatus === 'done'
+        ? await completeUserTask(task)
+        : (await reorderUserTasks([{ task, status: nextStatus }]))[0];
+      if (!updated) throw new Error('Task update returned no task');
+      tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
+      broadcastTasksChanged(chat.chat_id);
+    } catch (error) {
+      tasks = previous;
+      console.error('[ChatSettingsPage] Failed to update chat task:', error);
+      notificationStore.error('Could not update task.');
+    } finally {
+      taskActionId = null;
+    }
+  }
+
   async function refreshUsageTotal(chatId: string): Promise<void> {
     try {
       const total = await loadChatUsageTotal(chatId);
@@ -306,30 +360,74 @@
       </div>
     {:else if activeTab === 'tasks'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-tasks" role="tabpanel" aria-labelledby="chat-settings-tab-tasks">
-        {#if isLoadingPlanning}
-          <SettingsInfoBox type="info">Loading chat tasks...</SettingsInfoBox>
-        {:else if tasks.length > 0}
+        {#if !isSharedViewer}
           <SettingsCard>
-            <h2>Tasks</h2>
-            <SettingsProgressBar value={taskProgressPercent} label={`${taskProgressPercent}% complete`} />
-            <div class="task-list" data-testid="chat-settings-task-list">
-              {#each tasks as task (task.task_id)}
-                <article class="planning-row" data-testid="chat-settings-task-row">
-                  <div>
-                    <div class="row-heading">
-                      <strong>{task.title || 'Untitled task'}</strong>
-                      <SettingsBadge variant={statusBadgeVariant(task.status)} text={formatStatus(task.status)} />
-                    </div>
-                    {#if task.description || task.latestInstruction}
-                      <p>{task.description || task.latestInstruction}</p>
-                    {/if}
-                  </div>
-                </article>
-              {/each}
+            <h2>Create task</h2>
+            <div class="task-create-grid" data-testid="chat-settings-task-create-form">
+              <SettingsInput
+                bind:value={taskTitle}
+                placeholder="What should happen next?"
+                ariaLabel="Task title"
+                dataTestid="chat-settings-task-title-input"
+                disabled={isCreatingTask}
+              />
+              <SettingsTextarea
+                bind:value={taskDescription}
+                placeholder="Optional task context"
+                ariaLabel="Task description"
+                rows={3}
+                dataTestid="chat-settings-task-description-input"
+                disabled={isCreatingTask}
+              />
+              <div class="section-action">
+                <SettingsButton dataTestid="chat-settings-task-create-button" onClick={() => void createChatTask()} disabled={isCreatingTask || !taskTitle.trim()}>
+                  {isCreatingTask ? 'Creating...' : 'Create task'}
+                </SettingsButton>
+              </div>
             </div>
           </SettingsCard>
+        {/if}
+        {#if isLoadingPlanning}
+          <SettingsInfoBox type="info">Loading chat tasks...</SettingsInfoBox>
         {:else}
-          <SettingsInfoBox type="info">{isSharedViewer ? 'No shared tasks are available for this chat.' : 'No tasks are linked to this chat yet.'}</SettingsInfoBox>
+          <SettingsCard>
+            <h2>Tasks</h2>
+            <div data-testid="chat-settings-task-progress">
+              <SettingsProgressBar value={taskProgressPercent} label={`${taskProgressPercent}% complete`} />
+            </div>
+            {#if tasks.length > 0}
+              <div class="task-list" data-testid="chat-settings-task-list">
+                {#each tasks as task (task.task_id)}
+                  <article class="planning-row" data-testid="chat-settings-task-row">
+                    <div>
+                      <div class="row-heading">
+                        <strong>{task.title || 'Untitled task'}</strong>
+                        <SettingsBadge variant={statusBadgeVariant(task.status)} text={formatStatus(task.status)} />
+                      </div>
+                      {#if task.description || task.latestInstruction}
+                        <p>{task.description || task.latestInstruction}</p>
+                      {/if}
+                    </div>
+                    {#if !isSharedViewer}
+                      <label class="task-complete-toggle">
+                        <input
+                          type="checkbox"
+                          checked={task.status === 'done'}
+                          disabled={taskActionId === task.task_id}
+                          onchange={() => void toggleTaskDone(task)}
+                          data-testid="chat-settings-task-done-toggle"
+                          aria-label={`Mark ${task.title || 'task'} done`}
+                        />
+                        <span>Done</span>
+                      </label>
+                    {/if}
+                  </article>
+                {/each}
+              </div>
+            {:else}
+              <SettingsInfoBox type="info">{isSharedViewer ? 'No shared tasks are available for this chat.' : 'No tasks are linked to this chat yet.'}</SettingsInfoBox>
+            {/if}
+          </SettingsCard>
         {/if}
       </div>
     {:else if activeTab === 'files'}
@@ -444,6 +542,12 @@
     padding: 0;
   }
 
+  .task-create-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
   .plan-list {
     display: flex;
     flex-direction: column;
@@ -454,6 +558,15 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
+  }
+
+  .task-complete-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    width: fit-content;
+    color: var(--color-grey-70);
+    font-weight: var(--font-weight-bold);
   }
 
   .row-heading {
