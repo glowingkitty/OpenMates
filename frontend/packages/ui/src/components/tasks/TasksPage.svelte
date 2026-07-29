@@ -404,7 +404,7 @@
     <header class="tasks-hero">
       <div>
         <p class="eyebrow">{focus === 'plans' ? 'Plans' : 'Tasks'}</p>
-        <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Plan work for you and your AI mates.'}</h1>
+        <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Manage tasks for you and your AI mates.'}</h1>
         <p>{focus === 'plans' ? 'Create private encrypted plans, keep active work aligned, and connect verification tasks when execution starts.' : 'Create private encrypted tasks, move them through a Kanban flow, and hand focused work to AI when it is ready.'}</p>
       </div>
       <div class="task-stats" aria-label="Task summary">
