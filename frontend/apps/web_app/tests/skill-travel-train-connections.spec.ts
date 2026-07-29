@@ -245,10 +245,6 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		await takeStepScreenshot(page, 'train-fullscreen-verified');
 
-		// Navigate back
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(500);
-
 		await closeFullscreen(page, fullscreenOverlay);
 		await verifySavedMemoryEntry(page, 'travel', 'saved_connections', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-train');
