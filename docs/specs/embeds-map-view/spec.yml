@@ -483,9 +483,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: 2026-07-29T12:00:35Z / GitHub Actions 30449807615
-        subject_commit: working-tree:a243e070b9acae0674a9fae0489f1fdb67321237
-        timestamp: "2026-07-29T12:01:49Z"
+        run_id: 2026-07-29T16:01:33Z / GitHub Actions 30468752088
+        subject_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T16:02:49Z"
 
   - id: T-VITEST-RENDER
     type: vitest
@@ -514,9 +514,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: 2026-07-29T12:00:35Z / GitHub Actions 30449807615
-        subject_commit: working-tree:a243e070b9acae0674a9fae0489f1fdb67321237
-        timestamp: "2026-07-29T12:01:49Z"
+        run_id: 2026-07-29T16:01:33Z / GitHub Actions 30468752088
+        subject_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T16:02:49Z"
 
   - id: T-PYTEST-AI-CONTRACT
     type: pytest
@@ -616,18 +616,20 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        reason: Playwright red-phase was not captured before implementation; later failed runs exposed route, fixture, and responsive bugs and were fixed before green evidence.
+        timestamp: "2026-07-29T16:41:47Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 5b32e4f2eef84625b663f8b3a8492360265f059e
+        run_id: 2026-07-29T16:28:47Z / GitHub Actions 30471766598
+        subject_commit: 558612acb
+        target: app.dev.openmates.org
+        deployment_reference: dpl_3dCBZwR2uMEgJmGbL257AeufYXsk
+        timestamp: "2026-07-29T16:41:47Z"
 
   - id: T-PLAYWRIGHT-EXAMPLES
     type: playwright
