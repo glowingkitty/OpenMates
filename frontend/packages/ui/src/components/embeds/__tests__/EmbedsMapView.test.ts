@@ -3,6 +3,7 @@
 // These use mocked local embed data only, proving the component derives list
 // filters and bounded source children without provider/app-skill calls.
 // Spec: docs/specs/embeds-map-view/spec.yml
+// @vitest-environment jsdom
 
 import { mount, tick, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";

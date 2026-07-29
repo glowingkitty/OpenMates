@@ -168,13 +168,21 @@ describe('EmbedStore.resolveByRefDeep', () => {
   it('repairs plaintext TOON refs without logging JSON parse errors', async () => {
     const store = new EmbedStore();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const content = 'type: image\nembed_ref: berlin-weather-image\nurl: https://example.com/image.png';
 
     store.registerStaticEmbed({
       embedId: 'image-embed-id',
       type: 'image',
-      content: 'type: image\nembed_ref: berlin-weather-image\nurl: https://example.com/image.png',
+      content,
     });
 
+    await expect(store.get('embed:image-embed-id')).resolves.toMatchObject({
+      embed_id: 'image-embed-id',
+      type: 'image',
+      embed_type: 'image',
+      status: 'finished',
+      content,
+    });
     await expect(store.resolveByRefDeep('berlin-weather-image')).resolves.toBe(
       'image-embed-id',
     );

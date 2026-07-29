@@ -3322,18 +3322,33 @@ export class EmbedStore {
   }): void {
     if (!entry.embedId) return;
     const embedId = this.normalizeEmbedId(entry.embedId);
-    embedCache.set(`embed:${embedId}`, {
-      contentRef: `embed:${embedId}`,
-      data: entry.content,
-      type: this.normalizeEmbedType(entry.type),
-      status: "finished",
+    const type = this.normalizeEmbedType(entry.type);
+    const createdAt = Date.now();
+    const staticEmbedData = {
       embed_id: embedId,
+      type,
+      embed_type: type,
+      status: "finished",
+      content: entry.content,
       parent_embed_id: entry.parentEmbedId ? this.normalizeEmbedId(entry.parentEmbedId) : null,
       embed_ids: entry.embedIds?.map((id) => this.normalizeEmbedId(id)) ?? null,
       app_id: entry.appId ?? null,
       skill_id: entry.skillId ?? null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt,
+      updatedAt: createdAt,
+    };
+    embedCache.set(`embed:${embedId}`, {
+      contentRef: `embed:${embedId}`,
+      data: staticEmbedData as unknown as string,
+      type,
+      status: "finished",
+      embed_id: embedId,
+      parent_embed_id: staticEmbedData.parent_embed_id,
+      embed_ids: staticEmbedData.embed_ids,
+      app_id: entry.appId ?? null,
+      skill_id: entry.skillId ?? null,
+      createdAt,
+      updatedAt: createdAt,
     } as EmbedStoreEntry);
   }
 
