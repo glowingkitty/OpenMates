@@ -40,6 +40,18 @@ export interface StreamEvent {
   modelName: string | null;
 }
 
+export type AiResponseTokenUsage = {
+  promptTokens?: number;
+  completionTokens?: number;
+  userInputTokens?: number;
+  systemPromptTokens?: number;
+  totalCredits?: number;
+};
+
+export type AiResponsePromptBudget = {
+  systemPromptTokens?: number;
+};
+
 export interface ChatCompressionCheckpointEvent {
   chatId: string;
   taskId: string | null;
@@ -201,6 +213,10 @@ function websocketProtocolError(envelope: WsEnvelope): Error | null {
     );
   }
   return null;
+}
+
+function numberMetric(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function errorFrameBelongsToAiResponse(
@@ -681,6 +697,8 @@ export class OpenMatesWsClient {
     subChatEvents: SubChatEvent[];
     recoveryJobId: string | null;
     compressionCheckpoints: ChatCompressionCheckpointEvent[];
+    tokenUsage: AiResponseTokenUsage | null;
+    promptBudget: AiResponsePromptBudget | null;
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
@@ -692,6 +710,8 @@ export class OpenMatesWsClient {
       let taskId: string | null = null;
       let category: string | null = null;
       let modelName: string | null = null;
+      let tokenUsage: AiResponseTokenUsage | null = null;
+      let promptBudget: AiResponsePromptBudget | null = null;
       let recoveryJobId: string | null = null;
       const compressionCheckpoints: ChatCompressionCheckpointEvent[] = [];
       let followUpSuggestions: string[] = [];
@@ -744,6 +764,28 @@ export class OpenMatesWsClient {
         if (typeof p.category === "string" && p.category) category = p.category;
         if (typeof p.model_name === "string" && p.model_name)
           modelName = p.model_name;
+        const promptTokens = numberMetric(p.prompt_tokens);
+        const completionTokens = numberMetric(p.completion_tokens);
+        const userInputTokens = numberMetric(p.user_input_tokens);
+        const systemPromptTokens = numberMetric(p.system_prompt_tokens);
+        const totalCredits = numberMetric(p.total_credits);
+        const hasTokenUsage = promptTokens !== null
+          || completionTokens !== null
+          || userInputTokens !== null
+          || systemPromptTokens !== null
+          || totalCredits !== null;
+        if (hasTokenUsage) {
+          tokenUsage = {
+            ...(promptTokens !== null ? { promptTokens } : {}),
+            ...(completionTokens !== null ? { completionTokens } : {}),
+            ...(userInputTokens !== null ? { userInputTokens } : {}),
+            ...(systemPromptTokens !== null ? { systemPromptTokens } : {}),
+            ...(totalCredits !== null ? { totalCredits } : {}),
+          };
+        }
+        if (systemPromptTokens !== null) {
+          promptBudget = { systemPromptTokens };
+        }
         if (
           typeof p.recovery_job_id === "string"
           && p.recovery_job_id
@@ -796,6 +838,8 @@ export class OpenMatesWsClient {
             subChatEvents,
             recoveryJobId,
             compressionCheckpoints,
+            tokenUsage,
+            promptBudget,
           });
           return;
         }
@@ -826,6 +870,8 @@ export class OpenMatesWsClient {
               subChatEvents,
               recoveryJobId,
               compressionCheckpoints,
+              tokenUsage,
+              promptBudget,
             });
           }, asyncEmbedWaitMs);
           return;
@@ -852,6 +898,8 @@ export class OpenMatesWsClient {
           subChatEvents,
           recoveryJobId,
           compressionCheckpoints,
+          tokenUsage,
+          promptBudget,
         });
       };
 
@@ -1197,6 +1245,8 @@ export class OpenMatesWsClient {
             subChatEvents,
             recoveryJobId,
             compressionCheckpoints,
+            tokenUsage,
+            promptBudget,
           });
           return;
         }

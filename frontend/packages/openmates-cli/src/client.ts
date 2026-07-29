@@ -62,6 +62,8 @@ import {
   WebSocketProtocolError,
   type AppSettingsMemoriesRequestEvent,
   type ChatCompressionCheckpointEvent,
+  type AiResponsePromptBudget,
+  type AiResponseTokenUsage,
   type SendEmbedDataFrame,
   type SubChatEvent,
   type TaskEventFrame,
@@ -3266,6 +3268,10 @@ export class OpenMatesClient {
       approvedKeys: string[];
       entryCount: number;
     }>;
+    /** Final-frame token usage surfaced by the backend when provider usage metadata is available. */
+    tokenUsage: AiResponseTokenUsage | null;
+    /** Prompt-budget metrics surfaced by the backend when available. */
+    promptBudget: AiResponsePromptBudget | null;
   }> {
     const availability = await this.getAnonymousFreeUsageStatus();
     if (!availability.active) {
@@ -3331,6 +3337,8 @@ export class OpenMatesClient {
       taskUpdateProposals: [],
       subChatEvents: [],
       appSettingsMemoryRequests: [],
+      tokenUsage: null,
+      promptBudget: null,
     };
   }
 
@@ -5780,6 +5788,10 @@ export class OpenMatesClient {
       approvedKeys: string[];
       entryCount: number;
     }>;
+    /** Final-frame token usage surfaced by the backend when provider usage metadata is available. */
+    tokenUsage: AiResponseTokenUsage | null;
+    /** Prompt-budget metrics surfaced by the backend when available. */
+    promptBudget: AiResponsePromptBudget | null;
   }> {
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
@@ -6150,6 +6162,8 @@ export class OpenMatesClient {
     let assistantMessageId: string | null = null;
     let category: string | null = null;
     let modelName: string | null = null;
+    let tokenUsage: AiResponseTokenUsage | null = null;
+    let promptBudget: AiResponsePromptBudget | null = null;
     let followUpSuggestions: string[] = [];
     let taskProposals: TaskProposalEvent[] = [];
     let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
@@ -6438,6 +6452,8 @@ export class OpenMatesClient {
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
+        tokenUsage = resp.tokenUsage;
+        promptBudget = resp.promptBudget;
         taskEvents = resp.taskEvents;
         pendingTaskUpdateJobs = taskUpdateJobsEnabled ? resp.pendingTaskUpdateJobs : [];
         subChatEvents = resp.subChatEvents;
@@ -6459,6 +6475,8 @@ export class OpenMatesClient {
             pendingTaskUpdateJobs,
             subChatEvents,
             appSettingsMemoryRequests,
+            tokenUsage,
+            promptBudget,
           };
         }
       } finally {
@@ -6475,6 +6493,8 @@ export class OpenMatesClient {
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
+        tokenUsage = resp.tokenUsage;
+        promptBudget = resp.promptBudget;
         followUpSuggestions = resp.followUpSuggestions;
         taskProposals = resp.taskProposals;
         taskUpdateProposals = resp.taskUpdateProposals;
@@ -6499,6 +6519,8 @@ export class OpenMatesClient {
             pendingTaskUpdateJobs,
             subChatEvents,
             appSettingsMemoryRequests,
+            tokenUsage,
+            promptBudget,
           };
         }
 
@@ -6565,6 +6587,8 @@ export class OpenMatesClient {
               pendingTaskUpdateJobs,
               subChatEvents,
               appSettingsMemoryRequests,
+              tokenUsage,
+              promptBudget,
             };
           }
           if (
@@ -6770,6 +6794,8 @@ export class OpenMatesClient {
       pendingTaskUpdateJobs,
       subChatEvents,
       appSettingsMemoryRequests,
+      tokenUsage,
+      promptBudget,
     };
   }
 

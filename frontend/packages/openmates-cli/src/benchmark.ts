@@ -8,7 +8,7 @@
  * Tests: covered by CLI command tests and backend usage-source tests.
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -135,6 +135,102 @@ type BenchmarkResult = {
   };
 };
 
+type PromptBudgetPhase = "baseline" | "postchange";
+
+export type PromptBudgetCase = {
+  id: string;
+  title: string;
+  category: "writing" | "coding" | "web" | "travel" | "events" | "openmates" | "safety" | "planning" | "business" | "debugging";
+  turns: string[];
+  qualityRubric: string;
+};
+
+type PromptBudgetTurnResult = {
+  turn: number;
+  prompt: string;
+  promptHash: string;
+  assistant: string;
+  durationMs: number;
+  chatId: string;
+  messageId: string | null;
+  modelName: string | null;
+  mateName: string | null;
+  category: string | null;
+  tokenUsage: Record<string, unknown> | null;
+  promptBudget: Record<string, unknown> | null;
+  judge?: {
+    model: string;
+    score: number | null;
+    reason: string | null;
+    raw: string;
+    durationMs: number;
+  };
+};
+
+type PromptBudgetCaseResult = {
+  id: string;
+  title: string;
+  category: string;
+  promptHashes: string[];
+  turns: PromptBudgetTurnResult[];
+  passed: boolean;
+  durationMs: number;
+  error?: string;
+  continuityJudge?: {
+    model: string;
+    score: number | null;
+    reason: string | null;
+    raw: string;
+    durationMs: number;
+  };
+};
+
+type PromptBudgetResult = {
+  command: "benchmark prompt-budget";
+  status: "planned" | "completed" | "partial";
+  phase: PromptBudgetPhase;
+  runId: string;
+  corpusHash: string;
+  targetModel: string;
+  judgeModel: string;
+  spendsCredits: boolean;
+  estimatedCredits: Estimate;
+  cases: PromptBudgetCaseResult[];
+  summary: {
+    totalCases: number;
+    completedCases: number;
+    totalTurns: number;
+    completedTurns: number;
+    passedCases: number;
+    failedCases: number;
+    averageTurnDurationMs: number | null;
+    averageJudgeScore: number | null;
+    averageContinuityScore: number | null;
+  };
+};
+
+type PromptBudgetComparison = {
+  command: "benchmark prompt-budget compare";
+  status: "passed" | "needs_fix";
+  corpusHash: string;
+  baseline: string;
+  postchange: string;
+  deltas: {
+    averageTurnDurationMs: MetricDelta;
+    averageJudgeScore: MetricDelta;
+    averageContinuityScore: MetricDelta;
+  };
+  regressions: string[];
+  recommendation: "keep" | "adjust_or_revert";
+};
+
+type MetricDelta = {
+  baseline: number | null;
+  postchange: number | null;
+  delta: number | null;
+  percent: number | null;
+};
+
 type CaseJob = {
   model: string;
   benchmarkCase: BenchmarkCase & { run: number };
@@ -146,8 +242,121 @@ type PreparedImageAttachment = {
 };
 
 const DEFAULT_JUDGE_MODEL = "google/gemini-3-flash-preview";
+const DEFAULT_PROMPT_BUDGET_MODEL = "google/gemini-3.5-flash";
 const DEFAULT_EXTENSIVE_SIZE = 10;
 const DEFAULT_PARALLEL = 4;
+const PROMPT_BUDGET_TARGET_INPUT_TOKENS_PER_TURN = 16_000;
+const PROMPT_BUDGET_TARGET_OUTPUT_TOKENS_PER_TURN = 800;
+const PROMPT_BUDGET_JUDGE_INPUT_TOKENS_PER_RESPONSE = 3_000;
+const PROMPT_BUDGET_JUDGE_OUTPUT_TOKENS_PER_RESPONSE = 300;
+
+export const PROMPT_BUDGET_CASES: PromptBudgetCase[] = [
+  {
+    id: "single-writing-concise-email",
+    title: "Concise email rewrite",
+    category: "writing",
+    qualityRubric: "Warm, concise, under 120 words, directly asks to move the Tuesday sync to Thursday afternoon.",
+    turns: [
+      "Write a concise but warm email to a colleague asking to move our Tuesday 10:00 project sync to Thursday afternoon. Keep it under 120 words.",
+    ],
+  },
+  {
+    id: "single-code-palindrome",
+    title: "TypeScript palindrome helper",
+    category: "coding",
+    qualityRubric: "Produces valid TypeScript, ignores spaces/punctuation/case, includes one short usage example, and avoids unrelated prose.",
+    turns: [
+      "Write a TypeScript function isPalindrome(input: string): boolean that ignores spaces, punctuation, and case. Include only the function and one short usage example.",
+    ],
+  },
+  {
+    id: "single-current-web-ai-news",
+    title: "Current AI release search",
+    category: "web",
+    qualityRubric: "Uses current web/search behavior, cites sources, and summarizes a major AI model release from the last 30 days without fabricating certainty.",
+    turns: [
+      "Search the web for the latest major AI model release from the last 30 days and summarize what changed, with sources.",
+    ],
+  },
+  {
+    id: "single-travel-filtered-flight",
+    title: "Filtered flight search",
+    category: "travel",
+    qualityRubric: "Attempts appropriate travel/tool routing, honors direct flight/date/budget constraints where possible, and explains tradeoffs or uncertainty.",
+    turns: [
+      "Find direct flights from Berlin to Barcelona on 2026-09-10 under 220 EUR if possible, and explain the best tradeoff.",
+    ],
+  },
+  {
+    id: "single-events-accessibility",
+    title: "Accessible family events",
+    category: "events",
+    qualityRubric: "Attempts event/tool routing, separates confirmed from unknown accessibility, and avoids claiming accessibility without evidence.",
+    turns: [
+      "Find wheelchair-accessible family events in Berlin this weekend. Separate confirmed accessibility from unknown accessibility.",
+    ],
+  },
+  {
+    id: "single-openmates-help",
+    title: "OpenMates skill selection",
+    category: "openmates",
+    qualityRubric: "Correctly explains a suitable OpenMates app/skill path for product comparison and suggests a useful next step.",
+    turns: [
+      "Explain which OpenMates app or skill I should use to compare products before buying a new laptop, and what you would do next.",
+    ],
+  },
+  {
+    id: "single-safety-privacy-review",
+    title: "Privacy review",
+    category: "safety",
+    qualityRubric: "Identifies privacy risks in benchmark logging and gives practical safer defaults without overclaiming compliance.",
+    turns: [
+      "Review this benchmark design for privacy risks: it logs prompts, outputs, model ids, usage costs, and debug metadata to a shared file. List risks and safer defaults.",
+    ],
+  },
+  {
+    id: "multiturn-model-evaluation-plan",
+    title: "Model evaluation follow-up plan",
+    category: "planning",
+    qualityRubric: "Maintains continuity across all six turns, refines prior outputs instead of restarting, and produces concrete evaluation criteria.",
+    turns: [
+      "Create a three-step plan for evaluating whether a new AI model is ready for production use.",
+      "Make step 2 more concrete with two measurable checks.",
+      "Add a risk register with severity and mitigation for the top three risks.",
+      "Turn the plan into a one-week execution schedule.",
+      "Identify which tasks could be automated with OpenMates skills.",
+      "Summarize the final plan in one sentence.",
+    ],
+  },
+  {
+    id: "multiturn-startup-launch",
+    title: "Freelancer AI assistant launch",
+    category: "business",
+    qualityRubric: "Builds on previous launch context, keeps the privacy-first freelancer positioning, and produces specific GTM artifacts.",
+    turns: [
+      "Help me plan the launch of a privacy-first personal AI assistant for freelancers.",
+      "Define the ideal first customer profile and their top pains.",
+      "Draft a landing page hero section for that customer.",
+      "Create a simple pricing experiment with three tiers.",
+      "Write five outbound messages for early customer interviews.",
+      "Summarize the riskiest assumption and how to test it this week.",
+    ],
+  },
+  {
+    id: "multiturn-debugging-workflow",
+    title: "SvelteKit stale chat debugging",
+    category: "debugging",
+    qualityRubric: "Maintains the stale-chat bug context, distinguishes frontend cache from backend sync, and uses data-testid selector guidance.",
+    turns: [
+      "A SvelteKit page sometimes shows stale chat messages after refresh. Give me a debugging plan.",
+      "Add likely root causes involving IndexedDB and WebSocket sync.",
+      "Suggest instrumentation I should add before fixing code.",
+      "Write a minimal regression test outline using data-testid selectors.",
+      "Explain how to tell if the bug is backend sync or frontend cache.",
+      "Condense this into a checklist I can hand to another engineer.",
+    ],
+  },
+];
 const FIXTURE_IMAGE_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
   <rect width="1200" height="800" fill="#d8ecff"/>
@@ -427,6 +636,11 @@ export async function handleBenchmark(
     return;
   }
 
+  if (subcommand === "prompt-budget") {
+    await handlePromptBudgetBenchmark(client, rest, flags);
+    return;
+  }
+
   if (subcommand !== "model") {
     throw new Error(`Unknown benchmark command '${subcommand}'. Run 'openmates benchmark --help'.`);
   }
@@ -513,6 +727,8 @@ export async function handleBenchmark(
 export function printBenchmarkHelp(): void {
   console.log(`Benchmark commands:
   openmates benchmark model <provider/model> [provider/model...] --confirm-spend-credits [--compare] [--suite quick|extensive|all] [--json]
+  openmates benchmark prompt-budget --phase baseline|postchange --confirm-spend-credits [--model provider/model] [--resume-from <path>] [--json]
+  openmates benchmark prompt-budget compare --baseline <path> --postchange <path> [--json]
 
 Runs real incognito chat requests through the OpenMates product path. Live runs
 spend the logged-in user's credits and usage entries are grouped as benchmark spend.
@@ -531,6 +747,89 @@ Options:
   --run-id <id>                 Reuse a benchmark run id for grouping
   --output <path>               Save JSON result to a file
   --json                        Print JSON result`);
+}
+
+async function handlePromptBudgetBenchmark(
+  client: OpenMatesClient,
+  rest: string[],
+  flags: BenchmarkFlags,
+): Promise<void> {
+  if (rest[0] === "compare") {
+    writePromptBudgetComparison(comparePromptBudgetArtifacts(flags), flags, stringFlag(flags.output));
+    return;
+  }
+
+  if (rest.length > 0) {
+    throw new Error(`Unknown prompt-budget benchmark argument '${rest[0]}'. Run 'openmates benchmark --help'.`);
+  }
+
+  const phase = parsePromptBudgetPhase(flags.phase);
+  const targetModel = stringFlag(flags.model) ?? DEFAULT_PROMPT_BUDGET_MODEL;
+  const judgeModel = stringFlag(flags["judge-model"]) ?? DEFAULT_JUDGE_MODEL;
+  const output = stringFlag(flags.output);
+  const resumeFrom = stringFlag(flags["resume-from"]);
+  const dryRun = flags["dry-run"] === true;
+  const responseTimeoutMs = parseResponseTimeoutMs(flags["response-timeout-seconds"]);
+
+  if (!dryRun && flags["confirm-spend-credits"] !== true) {
+    throw new Error(
+      "Prompt-budget benchmark runs spend real credits from the logged-in account. " +
+      "Rerun with --confirm-spend-credits, or use --dry-run to preview the plan.",
+    );
+  }
+
+  if (dryRun && resumeFrom) {
+    throw new Error("--resume-from is only supported for live prompt-budget runs");
+  }
+
+  const pricing = loadPricingForModels([targetModel, judgeModel]);
+  const estimate = estimatePromptBudgetCredits(PROMPT_BUDGET_CASES, targetModel, judgeModel, pricing);
+  const resumeArtifact = resumeFrom ? readPromptBudgetResult(resumeFrom) : null;
+  if (resumeArtifact) {
+    validatePromptBudgetResumeArtifact(resumeArtifact, { phase, targetModel, judgeModel });
+  }
+  const runId = stringFlag(flags["run-id"]) ?? resumeArtifact?.runId ?? randomUUID();
+  const result = makePromptBudgetBaseResult({
+    phase,
+    runId,
+    targetModel,
+    judgeModel,
+    dryRun,
+    estimate,
+  });
+  if (resumeArtifact) {
+    result.cases = resumeArtifact.cases.filter(isCompletePromptBudgetCase);
+    recomputePromptBudgetResult(result);
+  }
+
+  if (dryRun) {
+    writePromptBudgetResult(result, flags, output);
+    return;
+  }
+
+  if (!client.hasSession()) {
+    throw new Error("Prompt-budget benchmark runs require login. Run 'openmates login' first.");
+  }
+
+  const completedCaseIds = new Set(result.cases.map((benchmarkCase) => benchmarkCase.id));
+  for (const benchmarkCase of PROMPT_BUDGET_CASES) {
+    if (completedCaseIds.has(benchmarkCase.id)) continue;
+    const caseResult = await runPromptBudgetCase({
+      client,
+      benchmarkCase,
+      phase,
+      runId,
+      targetModel,
+      judgeModel,
+      responseTimeoutMs,
+    });
+    result.cases.push(caseResult);
+    recomputePromptBudgetResult(result);
+    if (caseResult.error) break;
+  }
+
+  recomputePromptBudgetResult(result);
+  writePromptBudgetResult(result, flags, output);
 }
 
 function parseSuites(value: string | boolean | undefined): SuiteName[] {
@@ -582,6 +881,27 @@ function parseCaseIds(value: string | boolean | undefined): string[] {
   const caseIds = value.split(",").map((caseId) => caseId.trim()).filter(Boolean);
   if (caseIds.length === 0) throw new Error("--case requires at least one case id");
   return [...new Set(caseIds)];
+}
+
+function parsePromptBudgetPhase(value: string | boolean | undefined): PromptBudgetPhase {
+  if (value === undefined || value === false) return "baseline";
+  if (value === true) throw new Error("--phase requires baseline or postchange");
+  if (value === "baseline" || value === "postchange") return value;
+  throw new Error("--phase must be baseline or postchange");
+}
+
+function parseResponseTimeoutMs(value: string | boolean | undefined): number | undefined {
+  if (value === undefined || value === false) return undefined;
+  if (value === true) throw new Error("--response-timeout-seconds requires a value");
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 30 || parsed > 1_200) {
+    throw new Error("--response-timeout-seconds must be an integer from 30 to 1200");
+  }
+  return parsed * 1_000;
+}
+
+function stringFlag(value: string | boolean | undefined): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function filterCases(
@@ -647,6 +967,109 @@ function dedupeCases(cases: BenchmarkCase[]): BenchmarkCase[] {
     result.push(benchmarkCase);
   }
   return result;
+}
+
+async function runPromptBudgetCase(params: {
+  client: OpenMatesClient;
+  benchmarkCase: PromptBudgetCase;
+  phase: PromptBudgetPhase;
+  runId: string;
+  targetModel: string;
+  judgeModel: string;
+  responseTimeoutMs?: number;
+}): Promise<PromptBudgetCaseResult> {
+  const { client, benchmarkCase, phase, runId, targetModel, judgeModel, responseTimeoutMs } = params;
+  const startedAt = Date.now();
+  const history: BenchmarkHistoryMessage[] = [];
+  const turns: PromptBudgetTurnResult[] = [];
+  let chatId: string | undefined;
+
+  try {
+    for (const [index, prompt] of benchmarkCase.turns.entries()) {
+      const turnNumber = index + 1;
+      const rawPrompt = `${modelMention(targetModel)} ${prompt}`;
+      const turnStartedAt = Date.now();
+      const response = await client.sendMessage({
+        message: rawPrompt,
+        chatId,
+        incognito: true,
+        autoApproveSubChats: true,
+        benchmarkMetadata: benchmarkMetadata({
+          runId,
+          suite: `prompt_budget_${phase}`,
+          caseId: `${benchmarkCase.id}:turn-${turnNumber}`,
+          targetModel,
+          judgeModel,
+        }),
+        messageHistory: history,
+        precollectResponse: true,
+        responseTimeoutMs,
+      });
+      chatId = response.chatId;
+      const turnResult: PromptBudgetTurnResult = {
+        turn: turnNumber,
+        prompt,
+        promptHash: stableHash(prompt),
+        assistant: response.assistant,
+        durationMs: Date.now() - turnStartedAt,
+        chatId: response.chatId,
+        messageId: response.messageId,
+        modelName: response.modelName,
+        mateName: response.mateName,
+        category: response.category,
+        tokenUsage: response.tokenUsage,
+        promptBudget: response.promptBudget,
+      };
+      turnResult.judge = await judgePromptBudgetTurn({
+        client,
+        benchmarkCase,
+        turn: turnResult,
+        turnNumber,
+        targetModel,
+        judgeModel,
+        runId,
+        phase,
+      });
+      turns.push(turnResult);
+      appendHistory(history, "user", rawPrompt);
+      appendHistory(history, "assistant", response.assistant);
+    }
+
+    const continuityJudge = benchmarkCase.turns.length > 1
+      ? await judgePromptBudgetContinuity({
+        client,
+        benchmarkCase,
+        turns,
+        targetModel,
+        judgeModel,
+        runId,
+        phase,
+      })
+      : undefined;
+    const passed = turns.every((turn) => (turn.judge?.score ?? 0) >= 4)
+      && (!continuityJudge || (continuityJudge.score ?? 0) >= 4);
+    return {
+      id: benchmarkCase.id,
+      title: benchmarkCase.title,
+      category: benchmarkCase.category,
+      promptHashes: benchmarkCase.turns.map(stableHash),
+      turns,
+      continuityJudge,
+      passed,
+      durationMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    return {
+      id: benchmarkCase.id,
+      title: benchmarkCase.title,
+      category: benchmarkCase.category,
+      promptHashes: benchmarkCase.turns.map(stableHash),
+      turns,
+      passed: false,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 async function runCaseJob(params: {
@@ -872,6 +1295,112 @@ async function judgeCase(params: {
     raw: judgeResponse.assistant,
     durationMs: Date.now() - startedAt,
   };
+}
+
+async function judgePromptBudgetTurn(params: {
+  client: OpenMatesClient;
+  benchmarkCase: PromptBudgetCase;
+  turn: PromptBudgetTurnResult;
+  turnNumber: number;
+  targetModel: string;
+  judgeModel: string;
+  runId: string;
+  phase: PromptBudgetPhase;
+}): Promise<NonNullable<PromptBudgetTurnResult["judge"]>> {
+  const startedAt = Date.now();
+  const judgeResponse = await params.client.sendMessage({
+    message: `${modelMention(params.judgeModel)} ${promptBudgetTurnJudgePrompt(params)}`,
+    incognito: true,
+    autoApproveSubChats: true,
+    benchmarkMetadata: benchmarkMetadata({
+      runId: params.runId,
+      suite: `prompt_budget_${params.phase}`,
+      caseId: `${params.benchmarkCase.id}:turn-${params.turnNumber}:judge`,
+      targetModel: params.targetModel,
+      judgeModel: params.judgeModel,
+    }),
+    precollectResponse: true,
+  });
+  const judgment = parseJudgment(judgeResponse.assistant);
+  return {
+    model: params.judgeModel,
+    score: judgment.score,
+    reason: judgment.reason,
+    raw: judgeResponse.assistant,
+    durationMs: Date.now() - startedAt,
+  };
+}
+
+async function judgePromptBudgetContinuity(params: {
+  client: OpenMatesClient;
+  benchmarkCase: PromptBudgetCase;
+  turns: PromptBudgetTurnResult[];
+  targetModel: string;
+  judgeModel: string;
+  runId: string;
+  phase: PromptBudgetPhase;
+}): Promise<NonNullable<PromptBudgetCaseResult["continuityJudge"]>> {
+  const startedAt = Date.now();
+  const judgeResponse = await params.client.sendMessage({
+    message: `${modelMention(params.judgeModel)} ${promptBudgetContinuityJudgePrompt(params)}`,
+    incognito: true,
+    autoApproveSubChats: true,
+    benchmarkMetadata: benchmarkMetadata({
+      runId: params.runId,
+      suite: `prompt_budget_${params.phase}`,
+      caseId: `${params.benchmarkCase.id}:continuity-judge`,
+      targetModel: params.targetModel,
+      judgeModel: params.judgeModel,
+    }),
+    precollectResponse: true,
+  });
+  const judgment = parseJudgment(judgeResponse.assistant);
+  return {
+    model: params.judgeModel,
+    score: judgment.score,
+    reason: judgment.reason,
+    raw: judgeResponse.assistant,
+    durationMs: Date.now() - startedAt,
+  };
+}
+
+function promptBudgetTurnJudgePrompt(params: {
+  benchmarkCase: PromptBudgetCase;
+  turn: PromptBudgetTurnResult;
+  turnNumber: number;
+  targetModel: string;
+}): string {
+  return [
+    "You are judging a real OpenMates prompt-budget benchmark response.",
+    "Return exactly two plain-text lines, with no markdown, no code block, and no tool use.",
+    "Line 1 format: BENCHMARK_SCORE=<integer from 1 to 5>",
+    "Line 2 format: BENCHMARK_REASON=<one short sentence>",
+    "Score for helpfulness, instruction following, factuality, safety, routing/tool appropriateness, concision, and whether the answer preserves needed context.",
+    `Target model: ${params.targetModel}`,
+    `Case: ${params.benchmarkCase.id}`,
+    `Turn: ${params.turnNumber} of ${params.benchmarkCase.turns.length}`,
+    `Rubric: ${params.benchmarkCase.qualityRubric}`,
+    `User prompt: ${JSON.stringify(params.turn.prompt)}`,
+    `Assistant response: ${JSON.stringify(params.turn.assistant)}`,
+  ].join("\n");
+}
+
+function promptBudgetContinuityJudgePrompt(params: {
+  benchmarkCase: PromptBudgetCase;
+  turns: PromptBudgetTurnResult[];
+  targetModel: string;
+}): string {
+  return [
+    "You are judging multi-turn continuity for a real OpenMates prompt-budget benchmark conversation.",
+    "Return exactly two plain-text lines, with no markdown, no code block, and no tool use.",
+    "Line 1 format: BENCHMARK_SCORE=<integer from 1 to 5>",
+    "Line 2 format: BENCHMARK_REASON=<one short sentence>",
+    "Score whether the assistant consistently builds on earlier turns, avoids restarting, and satisfies the final requested artifact.",
+    `Target model: ${params.targetModel}`,
+    `Case: ${params.benchmarkCase.id}`,
+    `Rubric: ${params.benchmarkCase.qualityRubric}`,
+    `Turns: ${JSON.stringify(params.turns.map((turn) => ({ prompt: turn.prompt, assistant: turn.assistant })))}`,
+  ].join("\n");
 }
 
 async function runPool<T>(items: T[], parallel: number, worker: (item: T) => Promise<void>): Promise<void> {
@@ -1140,6 +1669,33 @@ function estimateCredits(
   };
 }
 
+function estimatePromptBudgetCredits(
+  cases: PromptBudgetCase[],
+  targetModel: string,
+  judgeModel: string,
+  pricing: Map<string, ModelPricing>,
+): Estimate {
+  const targetPricing = pricing.get(targetModel);
+  const judgePricing = pricing.get(judgeModel);
+  if (!targetPricing || !judgePricing) {
+    throw new Error("Prompt-budget benchmark pricing preflight failed after model pricing lookup.");
+  }
+  const targetTurnCount = cases.reduce((sum, benchmarkCase) => sum + benchmarkCase.turns.length, 0);
+  const judgeTurnCount = targetTurnCount + cases.filter((benchmarkCase) => benchmarkCase.turns.length > 1).length;
+  const targetInputTokens = targetTurnCount * PROMPT_BUDGET_TARGET_INPUT_TOKENS_PER_TURN;
+  const targetOutputTokens = targetTurnCount * PROMPT_BUDGET_TARGET_OUTPUT_TOKENS_PER_TURN;
+  const judgeInputTokens = judgeTurnCount * PROMPT_BUDGET_JUDGE_INPUT_TOKENS_PER_RESPONSE;
+  const judgeOutputTokens = judgeTurnCount * PROMPT_BUDGET_JUDGE_OUTPUT_TOKENS_PER_RESPONSE;
+  const targetCredits = creditsFor(targetPricing, targetInputTokens, targetOutputTokens);
+  const judgeCredits = creditsFor(judgePricing, judgeInputTokens, judgeOutputTokens);
+  return {
+    targetCredits,
+    judgeCredits,
+    totalCredits: targetCredits + judgeCredits,
+    assumptions: { targetInputTokens, targetOutputTokens, judgeInputTokens, judgeOutputTokens },
+  };
+}
+
 function creditsFor(pricing: ModelPricing, inputTokens: number, outputTokens: number): number {
   return Math.ceil(inputTokens / pricing.inputTokensPerCredit) + Math.ceil(outputTokens / pricing.outputTokensPerCredit);
 }
@@ -1188,6 +1744,29 @@ function makeBaseResult(params: {
       skipped: params.dryRun ? params.totalJobs : 0,
       interrupted: false,
     },
+  };
+}
+
+function makePromptBudgetBaseResult(params: {
+  phase: PromptBudgetPhase;
+  runId: string;
+  targetModel: string;
+  judgeModel: string;
+  dryRun: boolean;
+  estimate: Estimate;
+}): PromptBudgetResult {
+  return {
+    command: "benchmark prompt-budget",
+    status: params.dryRun ? "planned" : "completed",
+    phase: params.phase,
+    runId: params.runId,
+    corpusHash: hashPromptBudgetCorpus(PROMPT_BUDGET_CASES),
+    targetModel: params.targetModel,
+    judgeModel: params.judgeModel,
+    spendsCredits: !params.dryRun,
+    estimatedCredits: params.estimate,
+    cases: [],
+    summary: promptBudgetSummary([]),
   };
 }
 
@@ -1243,6 +1822,72 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+function recomputePromptBudgetResult(result: PromptBudgetResult): void {
+  result.summary = promptBudgetSummary(result.cases);
+  result.status = result.summary.completedTurns < result.summary.totalTurns
+    || result.cases.some((benchmarkCase) => Boolean(benchmarkCase.error))
+    ? "partial"
+    : "completed";
+}
+
+function promptBudgetSummary(cases: PromptBudgetCaseResult[]): PromptBudgetResult["summary"] {
+  const completedTurns = cases.reduce((sum, benchmarkCase) => sum + benchmarkCase.turns.length, 0);
+  const durations = cases.flatMap((benchmarkCase) => benchmarkCase.turns.map((turn) => turn.durationMs)).filter((value) => value > 0);
+  const judgeScores = cases
+    .flatMap((benchmarkCase) => benchmarkCase.turns.map((turn) => turn.judge?.score))
+    .filter((score): score is number => typeof score === "number" && Number.isFinite(score));
+  const continuityScores = cases
+    .map((benchmarkCase) => benchmarkCase.continuityJudge?.score)
+    .filter((score): score is number => typeof score === "number" && Number.isFinite(score));
+  return {
+    totalCases: PROMPT_BUDGET_CASES.length,
+    completedCases: cases.length,
+    totalTurns: PROMPT_BUDGET_CASES.reduce((sum, benchmarkCase) => sum + benchmarkCase.turns.length, 0),
+    completedTurns,
+    passedCases: cases.filter((benchmarkCase) => benchmarkCase.passed).length,
+    failedCases: cases.filter((benchmarkCase) => !benchmarkCase.passed).length,
+    averageTurnDurationMs: durations.length > 0 ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : null,
+    averageJudgeScore: judgeScores.length > 0 ? round2(judgeScores.reduce((sum, score) => sum + score, 0) / judgeScores.length) : null,
+    averageContinuityScore: continuityScores.length > 0 ? round2(continuityScores.reduce((sum, score) => sum + score, 0) / continuityScores.length) : null,
+  };
+}
+
+function validatePromptBudgetResumeArtifact(
+  artifact: PromptBudgetResult,
+  expected: { phase: PromptBudgetPhase; targetModel: string; judgeModel: string },
+): void {
+  if (artifact.command !== "benchmark prompt-budget") {
+    throw new Error("--resume-from must point to a prompt-budget benchmark artifact");
+  }
+  if (artifact.corpusHash !== hashPromptBudgetCorpus(PROMPT_BUDGET_CASES)) {
+    throw new Error("--resume-from artifact uses a different prompt-budget corpus");
+  }
+  if (artifact.phase !== expected.phase) {
+    throw new Error(`--resume-from artifact phase is ${artifact.phase}, expected ${expected.phase}`);
+  }
+  if (artifact.targetModel !== expected.targetModel || artifact.judgeModel !== expected.judgeModel) {
+    throw new Error("--resume-from artifact target or judge model does not match this run");
+  }
+}
+
+function isCompletePromptBudgetCase(caseResult: PromptBudgetCaseResult): boolean {
+  if (caseResult.error) return false;
+  const definition = PROMPT_BUDGET_CASES.find((benchmarkCase) => benchmarkCase.id === caseResult.id);
+  if (!definition) return false;
+  if (caseResult.promptHashes.join("|") !== definition.turns.map(stableHash).join("|")) return false;
+  if (caseResult.turns.length !== definition.turns.length) return false;
+  if (caseResult.turns.some((turn) => !turn.judge)) return false;
+  return definition.turns.length === 1 || Boolean(caseResult.continuityJudge);
+}
+
+export function hashPromptBudgetCorpus(cases: PromptBudgetCase[]): string {
+  return stableHash(cases.map((benchmarkCase) => ({ id: benchmarkCase.id, turns: benchmarkCase.turns })));
+}
+
+function stableHash(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
 function defaultImageFixturePath(): string {
   const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
   const fixturePath = join(fixtureDir, "brandenburger-tor.png");
@@ -1276,4 +1921,149 @@ function writeBenchmarkResult(result: BenchmarkResult, flags: BenchmarkFlags, ou
       console.log(`${mark} ${benchmarkCase.model} ${benchmarkCase.suite}/${benchmarkCase.id} (${benchmarkCase.durationMs}ms)${judge}${error}`);
     }
   }
+}
+
+function writePromptBudgetResult(result: PromptBudgetResult, flags: BenchmarkFlags, output?: string): void {
+  const json = `${JSON.stringify(result, null, 2)}\n`;
+  if (output) writeFileSync(output, json, "utf-8");
+  if (flags.json === true || output) {
+    process.stdout.write(json);
+    return;
+  }
+
+  console.log(`Prompt-budget benchmark ${result.status}: ${result.phase}`);
+  console.log(`Run ID: ${result.runId}`);
+  console.log(`Corpus: ${result.corpusHash}`);
+  console.log(`Target model: ${result.targetModel}`);
+  console.log(`Judge: ${result.judgeModel}`);
+  console.log(`Estimated credits: ${result.estimatedCredits.totalCredits}`);
+  console.log(`Spend credits: ${result.spendsCredits ? "yes" : "no"}`);
+  if (result.status !== "planned") {
+    console.log(`Passed cases: ${result.summary.passedCases}/${result.summary.completedCases}`);
+    console.log(`Average turn duration: ${result.summary.averageTurnDurationMs ?? "n/a"}ms`);
+    console.log(`Average judge score: ${result.summary.averageJudgeScore ?? "n/a"}`);
+    for (const benchmarkCase of result.cases) {
+      const mark = benchmarkCase.passed ? "PASS" : "FAIL";
+      const error = benchmarkCase.error ? ` error=${benchmarkCase.error}` : "";
+      console.log(`${mark} ${benchmarkCase.id} (${benchmarkCase.durationMs}ms)${error}`);
+    }
+  }
+}
+
+function writePromptBudgetComparison(result: PromptBudgetComparison, flags: BenchmarkFlags, output?: string): void {
+  const json = `${JSON.stringify(result, null, 2)}\n`;
+  if (output) writeFileSync(output, json, "utf-8");
+  if (flags.json === true || output) {
+    process.stdout.write(json);
+    return;
+  }
+
+  console.log(`Prompt-budget comparison ${result.status}: ${result.recommendation}`);
+  console.log(`Corpus: ${result.corpusHash}`);
+  console.log(`Duration delta: ${formatMetricDelta(result.deltas.averageTurnDurationMs, "ms")}`);
+  console.log(`Quality delta: ${formatMetricDelta(result.deltas.averageJudgeScore, "")}`);
+  if (result.regressions.length > 0) {
+    console.log("Regressions:");
+    for (const regression of result.regressions) console.log(`- ${regression}`);
+  }
+}
+
+function comparePromptBudgetArtifacts(flags: BenchmarkFlags): PromptBudgetComparison {
+  const baselinePath = stringFlag(flags.baseline);
+  const postchangePath = stringFlag(flags.postchange);
+  if (!baselinePath || !postchangePath) {
+    throw new Error("prompt-budget compare requires --baseline <path> and --postchange <path>");
+  }
+  const baseline = readPromptBudgetResult(baselinePath);
+  const postchange = readPromptBudgetResult(postchangePath);
+  if (baseline.command !== "benchmark prompt-budget" || postchange.command !== "benchmark prompt-budget") {
+    throw new Error("prompt-budget compare expects prompt-budget benchmark artifacts");
+  }
+  if (baseline.corpusHash !== postchange.corpusHash) {
+    throw new Error("prompt-budget artifacts use different corpus hashes and cannot be compared");
+  }
+
+  const regressions = findPromptBudgetRegressions(baseline, postchange);
+  const durationDelta = metricDelta(baseline.summary.averageTurnDurationMs, postchange.summary.averageTurnDurationMs);
+  const qualityDelta = metricDelta(baseline.summary.averageJudgeScore, postchange.summary.averageJudgeScore);
+  const continuityDelta = metricDelta(baseline.summary.averageContinuityScore, postchange.summary.averageContinuityScore);
+  const latencyImproved = durationDelta.delta !== null && durationDelta.delta < 0;
+  const qualityRegressed = regressions.length > 0;
+  return {
+    command: "benchmark prompt-budget compare",
+    status: qualityRegressed ? "needs_fix" : "passed",
+    corpusHash: baseline.corpusHash,
+    baseline: baselinePath,
+    postchange: postchangePath,
+    deltas: {
+      averageTurnDurationMs: durationDelta,
+      averageJudgeScore: qualityDelta,
+      averageContinuityScore: continuityDelta,
+    },
+    regressions,
+    recommendation: !qualityRegressed && latencyImproved ? "keep" : "adjust_or_revert",
+  };
+}
+
+function readPromptBudgetResult(path: string): PromptBudgetResult {
+  const parsed = JSON.parse(readFileSync(path, "utf-8")) as PromptBudgetResult;
+  if (!parsed || typeof parsed !== "object") throw new Error(`Invalid prompt-budget artifact: ${path}`);
+  return parsed;
+}
+
+function findPromptBudgetRegressions(baseline: PromptBudgetResult, postchange: PromptBudgetResult): string[] {
+  const regressions: string[] = [];
+  const postCases = new Map(postchange.cases.map((benchmarkCase) => [benchmarkCase.id, benchmarkCase]));
+  for (const baselineCase of baseline.cases) {
+    const postCase = postCases.get(baselineCase.id);
+    if (!postCase) {
+      regressions.push(`${baselineCase.id}: missing post-change case`);
+      continue;
+    }
+    if (baselineCase.promptHashes.join("|") !== postCase.promptHashes.join("|")) {
+      regressions.push(`${baselineCase.id}: prompt hashes differ`);
+    }
+    for (const baselineTurn of baselineCase.turns) {
+      const postTurn = postCase.turns.find((turn) => turn.turn === baselineTurn.turn);
+      if (!postTurn) {
+        regressions.push(`${baselineCase.id} turn ${baselineTurn.turn}: missing post-change turn`);
+        continue;
+      }
+      const baselineScore = baselineTurn.judge?.score;
+      const postScore = postTurn.judge?.score;
+      if (typeof baselineScore === "number" && typeof postScore === "number") {
+        if (baselineScore >= 4 && postScore < 4) {
+          regressions.push(`${baselineCase.id} turn ${baselineTurn.turn}: score dropped below pass threshold (${baselineScore} -> ${postScore})`);
+        } else if (postScore < baselineScore - 1) {
+          regressions.push(`${baselineCase.id} turn ${baselineTurn.turn}: score dropped materially (${baselineScore} -> ${postScore})`);
+        }
+      }
+    }
+    const baselineContinuity = baselineCase.continuityJudge?.score;
+    const postContinuity = postCase.continuityJudge?.score;
+    if (typeof baselineContinuity === "number" && typeof postContinuity === "number") {
+      if (baselineContinuity >= 4 && postContinuity < 4) {
+        regressions.push(`${baselineCase.id}: continuity score dropped below pass threshold (${baselineContinuity} -> ${postContinuity})`);
+      } else if (postContinuity < baselineContinuity - 1) {
+        regressions.push(`${baselineCase.id}: continuity score dropped materially (${baselineContinuity} -> ${postContinuity})`);
+      }
+    }
+  }
+  return regressions;
+}
+
+function metricDelta(baseline: number | null, postchange: number | null): MetricDelta {
+  if (baseline === null || postchange === null) {
+    return { baseline, postchange, delta: null, percent: null };
+  }
+  const delta = round2(postchange - baseline);
+  const percent = baseline === 0 ? null : round2((delta / baseline) * 100);
+  return { baseline, postchange, delta, percent };
+}
+
+function formatMetricDelta(delta: MetricDelta, suffix: string): string {
+  if (delta.delta === null) return "n/a";
+  const unit = suffix ? suffix : "";
+  const percent = delta.percent === null ? "" : ` (${delta.percent}%)`;
+  return `${delta.baseline}${unit} -> ${delta.postchange}${unit} (${delta.delta}${unit})${percent}`;
 }

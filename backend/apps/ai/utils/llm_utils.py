@@ -353,7 +353,6 @@ def _sanitize_assistant_history_content(content: str, log_prefix: str) -> str:
         log_prefix=log_prefix,
     )
 
-
 def resolve_default_server_from_provider_config(model_id: str) -> tuple:
     """
     Resolves the default server and transformed model ID from provider configuration.
