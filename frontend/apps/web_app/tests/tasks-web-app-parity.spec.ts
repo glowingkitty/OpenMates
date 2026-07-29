@@ -40,6 +40,19 @@ test.describe('Tasks web app parity', () => {
 		await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText(/task|next action|todo|checklist|status/i, { timeout: 15_000 });
+		await expect(page.getByTestId('tasks-figma-workspace')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('task-greeting')).toContainText(/hey .*!/i, { timeout: 15_000 });
+		await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i);
+		await expect(page.getByTestId('linked-plans-section')).toHaveCount(0);
+
+		const dailyBox = await page.getByTestId('tasks-daily-inspiration-area').boundingBox();
+		const greetingBox = await page.getByTestId('task-greeting').boundingBox();
+		const boardBox = await page.getByTestId('task-board').boundingBox();
+		expect(dailyBox, 'daily inspiration area should be measurable').not.toBeNull();
+		expect(greetingBox, 'task greeting should be measurable').not.toBeNull();
+		expect(boardBox, 'task board should be measurable').not.toBeNull();
+		expect(dailyBox!.y + dailyBox!.height).toBeLessThanOrEqual(greetingBox!.y + 8);
+		expect(greetingBox!.y + greetingBox!.height).toBeLessThanOrEqual(boardBox!.y + 80);
 
 		for (const status of TASK_STATUSES) {
 			await expect(page.getByTestId(`task-column-${status}`)).toBeVisible({ timeout: 15_000 });
