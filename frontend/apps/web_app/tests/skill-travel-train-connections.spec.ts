@@ -245,6 +245,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		await takeStepScreenshot(page, 'train-fullscreen-verified');
 
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
 		await closeFullscreen(page, fullscreenOverlay);
 		await verifySavedMemoryEntry(page, 'travel', 'saved_connections', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-train');

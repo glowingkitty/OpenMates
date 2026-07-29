@@ -171,15 +171,16 @@ async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void>
 		for (let i = buttonCount - 1; i >= 0; i -= 1) {
 			const button = buttons.nth(i);
 			if (await button.isVisible({ timeout: 500 }).catch(() => false)) {
-				await button.click();
-				return true;
+				if (await button.click({ timeout: 1500 }).then(() => true).catch(() => false)) {
+					return true;
+				}
 			}
 		}
 		return false;
 	};
 
-	const closedViaButton = await clickVisibleMinimize(fullscreenOverlay.getByTestId('embed-minimize'))
-		|| await clickVisibleMinimize(page.getByTestId('embed-minimize'));
+	const closedViaButton = await clickVisibleMinimize(page.getByTestId('embed-minimize'))
+		|| await clickVisibleMinimize(fullscreenOverlay.getByTestId('embed-minimize'));
 	if (!closedViaButton) {
 		await page.keyboard.press('Escape');
 	}
