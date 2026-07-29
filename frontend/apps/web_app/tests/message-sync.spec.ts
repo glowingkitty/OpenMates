@@ -57,6 +57,13 @@ const {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+type MessageStats = {
+	messages_v: number;
+	messageCount: number;
+	roles: Record<string, number>;
+	messageDetails: Array<{ message_id: string; role: string; status: string; created_at: number }>;
+};
+
 /**
  * Helper function to run inspectChat in the browser and return the result
  * Uses the window.inspectChat debug utility
@@ -76,12 +83,7 @@ async function inspectChatInBrowser(page: any, chatId: string): Promise<any> {
  * Helper function to get messages_v and message count from IndexedDB
  * Includes detailed message info for debugging
  */
-async function getMessageStats(page: any, chatId: string): Promise<{ 
-	messages_v: number; 
-	messageCount: number; 
-	roles: Record<string, number>;
-	messageDetails: Array<{ message_id: string; role: string; status: string; created_at: number }>;
-}> {
+async function getMessageStats(page: any, chatId: string): Promise<MessageStats> {
 	return await page.evaluate(async (id: string) => {
 		const DB_NAME = 'chats_db';
 		const CHATS_STORE = 'chats';
@@ -96,25 +98,20 @@ async function getMessageStats(page: any, chatId: string): Promise<{
 		};
 
 		const db = await openDB();
-		
-		// Get chat metadata
-		const chatMeta = await new Promise<any>((resolve, reject) => {
-			const tx = db.transaction(CHATS_STORE, 'readonly');
-			const store = tx.objectStore(CHATS_STORE);
-			const request = store.get(id);
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result);
-		});
 
-		// Get messages
-		const messages = await new Promise<any[]>((resolve, reject) => {
-			const tx = db.transaction(MESSAGES_STORE, 'readonly');
-			const store = tx.objectStore(MESSAGES_STORE);
-			const index = store.index('chat_id');
-			const request = index.getAll(id);
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result || []);
-		});
+		const tx = db.transaction([CHATS_STORE, MESSAGES_STORE], 'readonly');
+		const chatRequest = tx.objectStore(CHATS_STORE).get(id);
+		const messagesRequest = tx.objectStore(MESSAGES_STORE).index('chat_id').getAll(id);
+		const [chatMeta, messages] = await Promise.all([
+			new Promise<any>((resolve, reject) => {
+				chatRequest.onerror = () => reject(chatRequest.error);
+				chatRequest.onsuccess = () => resolve(chatRequest.result);
+			}),
+			new Promise<any[]>((resolve, reject) => {
+				messagesRequest.onerror = () => reject(messagesRequest.error);
+				messagesRequest.onsuccess = () => resolve(messagesRequest.result || []);
+			})
+		]);
 
 		db.close();
 
@@ -151,7 +148,7 @@ async function waitForMessageCount(
 	chatId: string, 
 	expectedCount: number, 
 	timeoutMs: number = 10000
-): Promise<{ messages_v: number; messageCount: number; roles: Record<string, number>; messageDetails: any[] }> {
+): Promise<MessageStats> {
 	const startTime = Date.now();
 	let lastStats = await getMessageStats(page, chatId);
 	
@@ -165,53 +162,33 @@ async function waitForMessageCount(
 
 /**
  * Wait for messages_v to catch up with messageCount in IndexedDB.
- * Uses page.waitForFunction to poll inside the browser until the
- * version counter is at least equal to the stored message count,
- * or the timeout expires. This is condition-driven rather than
- * time-boxed, making it resilient to variable server propagation delays.
+ * Returns the same IndexedDB snapshot that satisfied the condition so a later
+ * assertion does not race with another local message write.
  */
 async function waitForMessagesVSettled(
 	page: any,
 	chatId: string,
-	timeoutMs: number = 15000
-): Promise<void> {
-	await page.waitForFunction(async (id: string) => {
-		const DB_NAME = 'chats_db';
-		const CHATS_STORE = 'chats';
-		const MESSAGES_STORE = 'messages';
+	timeoutMs: number = 15000,
+	minMessageCount: number = 1
+): Promise<MessageStats> {
+	let lastStats = await getMessageStats(page, chatId);
+	try {
+		await expect
+			.poll(
+				async () => {
+					lastStats = await getMessageStats(page, chatId);
+					return lastStats.messageCount >= minMessageCount &&
+						lastStats.messages_v >= lastStats.messageCount;
+				},
+				{ timeout: timeoutMs, intervals: [500] }
+			)
+			.toBe(true);
+	} catch (error) {
+		console.error('messages_v did not settle before timeout:', JSON.stringify(lastStats));
+		throw error;
+	}
 
-		const openDB = (): Promise<IDBDatabase> => {
-			return new Promise((resolve, reject) => {
-				const request = indexedDB.open(DB_NAME);
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve(request.result);
-			});
-		};
-
-		const db = await openDB();
-
-		const chatMeta = await new Promise<any>((resolve, reject) => {
-			const tx = db.transaction(CHATS_STORE, 'readonly');
-			const store = tx.objectStore(CHATS_STORE);
-			const request = store.get(id);
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result);
-		});
-
-		const messages = await new Promise<any[]>((resolve, reject) => {
-			const tx = db.transaction(MESSAGES_STORE, 'readonly');
-			const store = tx.objectStore(MESSAGES_STORE);
-			const index = store.index('chat_id');
-			const request = index.getAll(id);
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result || []);
-		});
-
-		db.close();
-
-		const messages_v = chatMeta?.messages_v || 0;
-		return messages_v >= messages.length;
-	}, chatId, { timeout: timeoutMs, polling: 500 });
+	return lastStats;
 }
 
 async function waitForSyncedAssistantMessages(
@@ -219,7 +196,7 @@ async function waitForSyncedAssistantMessages(
 	chatId: string,
 	expectedAssistantCount: number,
 	timeoutMs: number = 60000
-): Promise<{ messages_v: number; messageCount: number; roles: Record<string, number>; messageDetails: any[] }> {
+): Promise<MessageStats> {
 	const startTime = Date.now();
 	let lastStats = await getMessageStats(page, chatId);
 
@@ -391,8 +368,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// Wait for messages_v to catch up — the server broadcasts version increments
 	// asynchronously after messages are persisted. Uses condition-driven polling
 	// rather than a fixed settle window.
-	await waitForMessagesVSettled(page, chatId);
-	const settledStats = await getMessageStats(page, chatId);
+	const settledStats = await waitForMessagesVSettled(page, chatId, 15000, finalStats.messageCount);
 
 	// messages_v should match message count (or be higher for server-side versioning)
 	expect(settledStats.messages_v).toBeGreaterThanOrEqual(4);
@@ -521,8 +497,7 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	// Wait for messages_v to catch up — the server broadcasts version increments
 	// asynchronously after the AI response finishes. Uses condition-driven
 	// polling rather than a fixed settle window.
-	await waitForMessagesVSettled(page, chatId);
-	stats = await getMessageStats(page, chatId);
+	stats = await waitForMessagesVSettled(page, chatId, 15000, stats.messageCount);
 
 	// Verify messages_v tracks message count
 	console.log('📊 messages_v tracking over time:', versionsOverTime);
