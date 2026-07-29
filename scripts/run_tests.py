@@ -6031,10 +6031,40 @@ class TestOrchestrator:
             _log(f"Dry run — would dispatch {CLI_INTEGRATION_SPEC}")
             return SuiteResult(status="skipped", reason="dry run")
 
-        client = GitHubActionsClient()
+        client = GitHubActionsClient(
+            git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
+        )
+        account = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0]
+        preflight_reason: Optional[str] = None
+        preflight = self._run_account_preflight(client, accounts=[account])
+        if preflight.status == "failed":
+            fallback_accounts = [
+                slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+                if slot != account
+            ]
+            fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
+            fallback_slots = _passed_normal_preflight_slots([
+                self._dict_to_spec_result(test)
+                for test in fallback_preflight.tests
+            ])
+            if not fallback_slots:
+                return SuiteResult(
+                    status="failed",
+                    tests=[*preflight.tests, *fallback_preflight.tests],
+                    duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
+                    reason="No healthy normal Playwright account slots for CLI integration",
+                )
+
+            preflight_reason = (
+                f"Selected normal account slot {account} failed preflight; "
+                f"using fallback slot {fallback_slots[0]} for CLI integration"
+            )
+            _log(preflight_reason, "WARN")
+            account = fallback_slots[0]
+
         run_id = client.dispatch_spec(
             CLI_INTEGRATION_SPEC,
-            account=1,
+            account=account,
             use_mocks=self.use_mocks,
             record_live_fixtures=self.record_live_fixtures,
         )
@@ -6079,7 +6109,10 @@ class TestOrchestrator:
         passed = sum(1 for test in tests if test.get("status") == "passed")
         _log(f"  CLI integration: {passed}/{len(tests)} passed")
 
-        return SuiteResult(status=overall_status, tests=tests)
+        result = SuiteResult(status=overall_status, tests=tests)
+        if preflight_reason:
+            result.reason = preflight_reason
+        return result
 
     @staticmethod
     def _dict_to_spec_result(data: dict) -> SpecResult:

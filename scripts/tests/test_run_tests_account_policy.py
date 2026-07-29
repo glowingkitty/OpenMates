@@ -175,6 +175,89 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
 
 
+def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    preflight_calls: list[list[int] | None] = []
+    dispatch_accounts: list[int] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.dry_run = False
+    orchestrator.environment = "development"
+    orchestrator.git_sha = "abc123"
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    captured_git_sha = {}
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        if accounts == [1]:
+            return run_tests.SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "failed",
+                    "account": 1,
+                }],
+                duration_seconds=1.0,
+                reason="slot 1 failed",
+            )
+        return run_tests.SuiteResult(
+            status="passed",
+            tests=[{
+                "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "account": 2,
+            }],
+            duration_seconds=2.0,
+        )
+
+    class FakeClient:
+        last_dispatch_error = ""
+
+        def __init__(self, **kwargs):
+            captured_git_sha.update(kwargs)
+
+        def dispatch_spec(self, _spec, account, **_kwargs):
+            dispatch_accounts.append(account)
+            return 456
+
+        def wait_for_runs(self, run_ids, **_kwargs):
+            return {run_ids[0]: {"status": "completed", "conclusion": "success"}}
+
+        def download_artifact(self, _run_id, _artifact_name, artifact_dir):
+            results_dir = artifact_dir / "test-results"
+            results_dir.mkdir(parents=True)
+            (results_dir / "cli-integration.json").write_text(
+                json.dumps({
+                    "tests": [{
+                        "nodeid": "cli-integration/code-docs/preflight",
+                        "outcome": "passed",
+                        "duration": 0.1,
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            return artifact_dir
+
+        def get_failed_job_error(self, _run_id):
+            return None
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "_full_git_sha", lambda sha: f"full-{sha}")
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
+    monkeypatch.setattr(run_tests.tempfile, "mkdtemp", lambda prefix: str(tmp_path / prefix))
+
+    result = orchestrator._run_cli_integration()
+
+    assert result.status == "passed"
+    assert preflight_calls == [[1], list(range(2, 14))]
+    assert dispatch_accounts == [2]
+    assert captured_git_sha == {"git_sha": "full-abc123"}
+    assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for CLI integration"
+
+
 def test_discover_single_spec_blocks_missing_file(monkeypatch, tmp_path):
     run_tests = load_run_tests_module()
     monkeypatch.setattr(run_tests, "SPEC_DIR", tmp_path / "tests")
