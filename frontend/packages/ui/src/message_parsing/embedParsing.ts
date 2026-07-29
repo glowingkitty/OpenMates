@@ -10,53 +10,6 @@ import {
 } from "./utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 
-function normalizeStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => (typeof item === "string" ? item.trim() : ""))
-      .filter(Boolean);
-  }
-  if (typeof value === "string") {
-    return value
-      .split(/[|,\s]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function parseSubChatBatchReference(embedRef: Record<string, unknown>): EmbedNodeAttributes | null {
-  if (embedRef.type !== "sub_chat_batch") return null;
-
-  const batchId = typeof embedRef.batch_id === "string" && embedRef.batch_id.trim()
-    ? embedRef.batch_id.trim()
-    : null;
-  if (!batchId) return null;
-
-  const rawStatus = typeof embedRef.status === "string" ? embedRef.status : "processing";
-  const status = ["processing", "finished", "error", "cancelled"].includes(rawStatus)
-    ? rawStatus as EmbedNodeAttributes["status"]
-    : "processing";
-
-  return {
-    id: batchId,
-    type: "sub-chat-batch",
-    status,
-    contentRef: `sub-chat-batch:${batchId}`,
-    batchId,
-    parentChatId: typeof embedRef.chat_id === "string"
-      ? embedRef.chat_id
-      : typeof embedRef.parent_chat_id === "string"
-        ? embedRef.parent_chat_id
-        : undefined,
-    parentMessageId: typeof embedRef.parent_message_id === "string"
-      ? embedRef.parent_message_id
-      : typeof embedRef.message_id === "string"
-        ? embedRef.message_id
-        : undefined,
-    taskId: typeof embedRef.task_id === "string" ? embedRef.task_id : undefined,
-    subChatIds: normalizeStringArray(embedRef.sub_chat_ids),
-    executionMode: typeof embedRef.execution_mode === "string" ? embedRef.execution_mode : undefined,
 const EMBEDS_MAP_VIEW_LANGUAGE = "embeds_map_view";
 const MAP_VIEW_ALLOWED_FIELDS = new Set(["title", "embeds", "sources", "highlight"]);
 
@@ -114,6 +67,56 @@ function parseEmbedsMapViewBlock(content: string): EmbedNodeAttributes | null {
     mapEmbedRefs,
     mapSourceRefs,
     mapHighlightRefs,
+  };
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[|,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function parseSubChatBatchReference(embedRef: Record<string, unknown>): EmbedNodeAttributes | null {
+  if (embedRef.type !== "sub_chat_batch") return null;
+
+  const batchId = typeof embedRef.batch_id === "string" && embedRef.batch_id.trim()
+    ? embedRef.batch_id.trim()
+    : null;
+  if (!batchId) return null;
+
+  const rawStatus = typeof embedRef.status === "string" ? embedRef.status : "processing";
+  const status = ["processing", "finished", "error", "cancelled"].includes(rawStatus)
+    ? rawStatus as EmbedNodeAttributes["status"]
+    : "processing";
+
+  return {
+    id: batchId,
+    type: "sub-chat-batch",
+    status,
+    contentRef: `sub-chat-batch:${batchId}`,
+    batchId,
+    parentChatId: typeof embedRef.chat_id === "string"
+      ? embedRef.chat_id
+      : typeof embedRef.parent_chat_id === "string"
+        ? embedRef.parent_chat_id
+        : undefined,
+    parentMessageId: typeof embedRef.parent_message_id === "string"
+      ? embedRef.parent_message_id
+      : typeof embedRef.message_id === "string"
+        ? embedRef.message_id
+        : undefined,
+    taskId: typeof embedRef.task_id === "string" ? embedRef.task_id : undefined,
+    subChatIds: normalizeStringArray(embedRef.sub_chat_ids),
+    executionMode: typeof embedRef.execution_mode === "string" ? embedRef.execution_mode : undefined,
   };
 }
 
