@@ -51,12 +51,12 @@ encode = toon_stub.encode
 def test_audio_recording_filter_uses_original_transcript_when_correction_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setitem(sys.modules, "toon_format", toon_stub)
-    monkeypatch.delitem(sys.modules, "backend.core.api.app.services.embed_service", raising=False)
+    from backend.core.api.app.services import embed_service
 
-    from backend.core.api.app.services.embed_service import EmbedService
+    monkeypatch.setattr(embed_service, "decode", decode)
+    monkeypatch.setattr(embed_service, "encode", encode)
 
-    service = EmbedService(cache_service=None, directus_service=None, encryption_service=None)  # type: ignore[arg-type]
+    service = embed_service.EmbedService(cache_service=None, directus_service=None, encryption_service=None)  # type: ignore[arg-type]
     toon_content = encode(
         {
             "type": "audio-recording",
