@@ -36,12 +36,18 @@
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { extractTravelFare, formatFareCoverage, formatTravelFare, type TravelFare } from './fareDisplay';
 
   /** Segment data within a leg */
   interface SegmentData {
     carrier: string;
     carrier_code?: string;
     number?: string;
+    mode?: string;
+    line?: string;
+    operator?: string;
+    source_provider?: string;
+    fare_coverage?: string;
     departure_station: string;
     departure_time: string;
     scheduled_departure_time?: string;
@@ -112,7 +118,10 @@
     type?: string;
     transport_method?: string;
     trip_type?: string;
-    total_price?: string;
+    source_provider?: string;
+    total_price?: string | number;
+    fare?: TravelFare | null;
+    fare_is_partial?: boolean;
     currency?: string;
     bookable_seats?: number;
     last_ticketing_date?: string;
@@ -197,7 +206,12 @@
     type: typeof dc.type === 'string' ? dc.type : undefined,
     transport_method: typeof dc.transport_method === 'string' ? dc.transport_method : undefined,
     trip_type: typeof dc.trip_type === 'string' ? dc.trip_type : undefined,
-    total_price: typeof dc.total_price === 'string' ? dc.total_price : (typeof dc.price === 'string' ? dc.price : undefined),
+    source_provider: typeof dc.source_provider === 'string' ? dc.source_provider : undefined,
+    total_price: typeof dc.total_price === 'string' || typeof dc.total_price === 'number'
+      ? dc.total_price
+      : (typeof dc.price === 'string' || typeof dc.price === 'number' ? dc.price : undefined),
+    fare: extractTravelFare(dc as Record<string, unknown>) ?? null,
+    fare_is_partial: typeof dc.fare_is_partial === 'boolean' ? dc.fare_is_partial : undefined,
     currency: typeof dc.currency === 'string' ? dc.currency : undefined,
     bookable_seats: typeof dc.bookable_seats === 'number' ? dc.bookable_seats : undefined,
     last_ticketing_date: typeof dc.last_ticketing_date === 'string' ? dc.last_ticketing_date : undefined,
@@ -227,13 +241,18 @@
   // Defensive: connection may be undefined during async component loading in dev preview
   type MaybeConnection = ConnectionData | undefined;
   
-  // Format price
+  // Format price/fare state
   let formattedPrice = $derived.by(() => {
     const conn = connection as MaybeConnection;
-    if (!conn?.total_price) return '';
-    const num = parseFloat(conn.total_price);
-    if (isNaN(num)) return `${conn.currency || 'EUR'} ${conn.total_price}`;
-    return `${conn.currency || 'EUR'} ${num.toFixed(num % 1 === 0 ? 0 : 2)}`;
+    if (!conn) return '';
+    return formatTravelFare(conn);
+  });
+
+  let fareSummary = $derived.by(() => {
+    const fare = (connection as MaybeConnection)?.fare;
+    if (!fare?.summary) return '';
+    if (fare.confidence === 'confirmed') return '';
+    return fare.summary;
   });
   
   // Route summary
@@ -1572,6 +1591,15 @@
         <div class="travel-class-label">{travelClassLabel}</div>
       {/if}
 
+      {#if formattedPrice}
+        <div class="fare-summary" data-testid="connection-fare-summary">
+          <span class="fare-summary-label">{formattedPrice}</span>
+          {#if fareSummary}
+            <span class="fare-summary-detail">{fareSummary}</span>
+          {/if}
+        </div>
+      {/if}
+
       {#if startAirportName}
         <div class="start-airport">
           <span class="start-label">Start:</span>
@@ -1586,6 +1614,7 @@
             {@const arrChanged = hasRealtimeChange(segment.arrival_time, segment.actual_arrival_time)}
             {@const depDelayClass = delayClass(segment.departure_delay_minutes)}
             {@const arrDelayClass = delayClass(segment.arrival_delay_minutes)}
+            {@const fareCoverageLabel = formatFareCoverage(segment.fare_coverage)}
             <div class="segment-card" data-testid="segment-card">
               <div class="segment-left">
                 <div class="time-badge" class:daytime={segment.departure_is_daytime === true} class:nighttime={segment.departure_is_daytime !== true}>
@@ -1636,6 +1665,9 @@
                     {/if}
                     {#if segment.realtime_notes && segment.realtime_notes.length > 0}
                       <span class="carrier-aircraft">{segment.realtime_notes.slice(0, 2).join(' · ')}</span>
+                    {/if}
+                    {#if fareCoverageLabel}
+                      <span class="fare-coverage-pill" data-testid="segment-fare-coverage">{fareCoverageLabel}</span>
                     {/if}
                   </div>
                 </div>
@@ -1721,6 +1753,9 @@
   .flight-card { display: flex; flex-direction: column; gap: var(--spacing-6); }
   .route-header-pill { background: var(--color-grey-10); border-radius: 11px; padding: 8px 14px; font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
   .travel-class-label { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
+  .fare-summary { display: flex; flex-direction: column; gap: var(--spacing-1); padding: 10px 14px; border-radius: 11px; background: rgba(var(--color-primary-rgb), 0.08); color: var(--color-font-primary); text-align: center; }
+  .fare-summary-label { font-size: 0.938rem; font-weight: 800; color: var(--color-primary); }
+  .fare-summary-detail { font-size: 0.75rem; font-weight: 600; color: var(--color-grey-60); line-height: 1.35; }
   .start-airport { font-size: 0.875rem; font-weight: 700; color: var(--color-grey-50); text-align: center; }
 
   .segment-card { display: flex; gap: 12px; background: var(--color-grey-10); border-radius: 15px; padding: 14px; }
@@ -1749,6 +1784,7 @@
   .carrier-aircraft { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
   .status-pill { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; }
   .status-pill.cancelled { color: #991b1b; background: #fee2e2; }
+  .fare-coverage-pill { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 999px; background: var(--color-grey-20); color: var(--color-grey-70); font-size: 0.688rem; font-weight: 800; }
 
   .layover-section { display: flex; flex-direction: column; gap: var(--spacing-2); padding: 8px 14px; }
   .layover-overnight-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }

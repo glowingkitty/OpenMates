@@ -27,6 +27,11 @@ class SegmentResult(BaseModel):
     carrier: str = Field(description="Carrier/operator name (e.g., 'Lufthansa', 'Deutsche Bahn')")
     carrier_code: Optional[str] = Field(default=None, description="IATA carrier code (e.g., 'LH')")
     number: Optional[str] = Field(default=None, description="Flight/train number (e.g., 'LH2472', 'ICE 1234')")
+    mode: Optional[str] = Field(default=None, description="Transport mode for this segment, such as train, bus, tram, subway, ferry, walk, bike, or airplane")
+    line: Optional[str] = Field(default=None, description="Public transport line, route short name, or train/flight number")
+    operator: Optional[str] = Field(default=None, description="Operator name when available")
+    source_provider: Optional[str] = Field(default=None, description="Provider that supplied this segment")
+    fare_coverage: Optional[str] = Field(default=None, description="Fare coverage for this segment: paid, pass_covered, timetable_only, or unknown")
     departure_station: str = Field(description="Departure airport code or station name")
     departure_time: str = Field(description="Departure time in ISO 8601 format")
     scheduled_departure_time: Optional[str] = Field(default=None, description="Scheduled departure time in ISO 8601 format")
@@ -93,6 +98,19 @@ class LegResult(BaseModel):
     layovers: Optional[List[LayoverResult]] = Field(default=None, description="Layover details between segments")
 
 
+class FareResult(BaseModel):
+    """Structured fare metadata for a connection option."""
+
+    amount: Optional[float] = Field(default=None, description="Confirmed fare amount, or null when pass-only, unknown, or timetable-only")
+    currency: Optional[str] = Field(default=None, description="ISO 4217 currency code for amount")
+    is_partial: bool = Field(default=False, description="True when amount covers only the paid portion of an itinerary")
+    is_pass_only: bool = Field(default=False, description="True when the route is covered by owned passes with no additional fare returned")
+    covered_by_passes: List[str] = Field(default_factory=list, description="Owned pass IDs considered or covering the fare")
+    pricing_provider: Optional[str] = Field(default=None, description="Provider ID that confirmed the fare amount")
+    confidence: str = Field(default="unknown", description="Fare confidence: confirmed, partial, pass_only, timetable_only, or unknown")
+    summary: str = Field(default="", description="Short user-facing explanation of fare meaning")
+
+
 class ConnectionResult(BaseModel):
     """A single connection option returned by a transport provider."""
 
@@ -113,6 +131,15 @@ class ConnectionResult(BaseModel):
         description="Original SerpAPI search parameters needed for booking_token lookup "
         "(departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class)"
     )
+    fare_is_partial: Optional[bool] = Field(
+        default=None,
+        description="True when the quoted fare only covers the paid portion of the itinerary, such as pass-covered regional legs",
+    )
+    fare_passes_applied: Optional[List[str]] = Field(
+        default=None,
+        description="Owned fare pass IDs considered by the provider for this quote, such as deutschland_ticket",
+    )
+    fare: Optional[FareResult] = Field(default=None, description="Structured fare metadata for this connection")
     validating_airline_code: Optional[str] = Field(
         default=None, description="IATA code of the validating/ticketing airline (e.g., 'LH')"
     )
@@ -172,6 +199,9 @@ class BaseTransportProvider(ABC):
         max_stops: Optional[int] = None,
         include_airlines: Optional[List[str]] = None,
         exclude_airlines: Optional[List[str]] = None,
+        owned_passes: Optional[List[str]] = None,
+        pass_only: bool = False,
+        rail_products: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Search for transport connections matching the given criteria.
@@ -190,6 +220,9 @@ class BaseTransportProvider(ABC):
             max_stops: Maximum stops allowed (0/1/2). Overrides non_stop_only when set.
             include_airlines: Only show flights from these airlines (IATA codes).
             exclude_airlines: Exclude flights from these airlines (IATA codes).
+            owned_passes: Fare/pass IDs the traveller already owns.
+            pass_only: If True, return routes covered by owned passes when supported.
+            rail_products: Stable OpenMates rail product filters for providers that support them.
 
         Returns:
             List of ConnectionResult objects in the unified format.

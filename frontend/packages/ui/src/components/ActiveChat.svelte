@@ -92,7 +92,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -2655,7 +2655,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const legalChat = LEGAL_CHATS.find((chat) => chat.chat_id === chatId);
         if (legalChat) return convertDemoChatToChat(translateDemoChat(legalChat));
 
-        return getAllExampleChats().find((chat) => chat.chat_id === chatId) ?? null;
+        return getExampleChat(chatId) ?? getAllExampleChats().find((chat) => chat.chat_id === chatId) ?? null;
     }
 
     // Handler for the dislike/report-bad-answer retry prompt.

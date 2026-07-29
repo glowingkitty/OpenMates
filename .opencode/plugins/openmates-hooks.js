@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
+const READ_TOOLS = new Set(["read", "Read"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
@@ -245,31 +246,113 @@ function guardBash(command) {
 }
 
 function guardForbiddenLocalTests(command) {
-  const normalized = command.replace(/\\\s*\n/g, " ");
-  for (const segment of commandSegments(normalized)) {
-    if (/scripts\/tests\.py\s+run\b/.test(segment)) continue;
-    if (/\b(?:npx\s+)?vitest\b/.test(segment) || /\bpnpm\s+(?:test|vitest)\b/.test(segment)) {
+  for (const tokens of commandSegmentTokens(command.replace(/\\\s*\n/g, " "))) {
+    const invocation = normalizedInvocation(tokens);
+    if (!invocation.command) continue;
+    const { command: commandName, args } = invocation;
+    const firstArg = firstNonOption(args);
+    const secondArg = firstNonOption(args.slice(args.indexOf(firstArg) + 1));
+
+    if (commandName === "vitest") {
+      throw new Error("Use python3 scripts/tests.py run --suite vitest instead of local Vitest.");
+    }
+    if (commandName === "playwright" && firstArg === "test") {
+      throw new Error("Use python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright instead of local Playwright.");
+    }
+    if (commandName === "pnpm" && ["test", "vitest"].includes(firstArg)) {
       throw new Error("Use python3 scripts/tests.py run --suite vitest instead of local Vitest/pnpm test.");
     }
-    if (/\b(?:npx\s+)?playwright\s+test\b/.test(segment) || /\bpnpm\s+playwright\s+test\b/.test(segment)) {
+    if (commandName === "pnpm" && firstArg === "playwright" && secondArg === "test") {
+      throw new Error("Use python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright instead of local Playwright.");
+    }
+    if (commandName === "npx" && firstArg === "vitest") {
+      throw new Error("Use python3 scripts/tests.py run --suite vitest instead of local Vitest.");
+    }
+    if (commandName === "npx" && firstArg === "playwright" && secondArg === "test") {
       throw new Error("Use python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright instead of local Playwright.");
     }
   }
 }
 
-function commandSegments(command) {
+function commandSegmentTokens(command) {
   const segments = [];
   let current = [];
   for (const token of tokenizeCommand(command)) {
     if (isSeparator(token)) {
-      if (current.length) segments.push(current.join(" "));
+      if (current.length) segments.push(current);
       current = [];
       continue;
     }
     current.push(token);
   }
-  if (current.length) segments.push(current.join(" "));
+  if (current.length) segments.push(current);
   return segments;
+}
+
+function commandSegments(command) {
+  return commandSegmentTokens(command).map((segment) => segment.join(" "));
+}
+
+function isAssignment(token) {
+  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
+}
+
+function firstNonOption(args) {
+  for (const arg of args || []) {
+    if (arg === "--") continue;
+    if (!isOption(arg)) return basename(arg);
+  }
+  return "";
+}
+
+function normalizedInvocation(tokens) {
+  let index = 0;
+  while (index < tokens.length && isAssignment(tokens[index])) index += 1;
+  if (index >= tokens.length) return { command: "", args: [] };
+
+  let commandName = basename(tokens[index]);
+  let args = tokens.slice(index + 1);
+  if (["command", "builtin"].includes(commandName) && args.length) {
+    commandName = basename(args[0]);
+    args = args.slice(1);
+  }
+  if (commandName === "env") {
+    let envIndex = 0;
+    while (envIndex < args.length) {
+      if (args[envIndex] === "--") {
+        envIndex += 1;
+        break;
+      }
+      if (isAssignment(args[envIndex])) {
+        envIndex += 1;
+        continue;
+      }
+      if (isOption(args[envIndex])) {
+        envIndex = skipOption(args, envIndex, new Set(["-u", "--unset", "-C", "--chdir", "-S", "--split-string"]));
+        continue;
+      }
+      break;
+    }
+    if (envIndex < args.length) return { command: basename(args[envIndex]), args: args.slice(envIndex + 1) };
+  }
+  if (commandName === "timeout" && args.length) {
+    let timeoutIndex = 0;
+    while (timeoutIndex < args.length && isOption(args[timeoutIndex])) {
+      timeoutIndex = skipOption(args, timeoutIndex, new Set(["-k", "--kill-after", "-s", "--signal"]));
+    }
+    if (timeoutIndex < args.length) timeoutIndex += 1;
+    if (timeoutIndex < args.length) return { command: basename(args[timeoutIndex]), args: args.slice(timeoutIndex + 1) };
+  }
+  return { command: commandName, args };
+}
+
+function skipOption(args, index, optionsWithValues) {
+  const arg = args[index];
+  if (optionsWithValues.has(arg)) return Math.min(index + 2, args.length);
+  for (const option of optionsWithValues) {
+    if (option.startsWith("--") && arg.startsWith(`${option}=`)) return index + 1;
+  }
+  return index + 1;
 }
 
 function commandRunsOpenMatesCli(command) {
@@ -411,6 +494,27 @@ export function editedFilesForTest(args, cwd = activeCwd()) {
   return [...files].sort();
 }
 
+function explicitFilesForTest(args, cwd = activeCwd()) {
+  const input = toolInput(args);
+  const explicit = input.file_path || input.filePath || input.path;
+  return explicit ? [toAbsPath(explicit, cwd)] : [];
+}
+
+function runStaleRead(action, files, sessionID) {
+  if (!sessionID) return;
+  for (const file of files) {
+    const result = spawnSync("python3", ["scripts/sessions.py", "stale-read", action, "--opencode-session", sessionID, "--file", file], {
+      cwd: PROJECT_ROOT,
+      encoding: "utf8",
+    });
+    const stdout = (result.stdout || "").trim();
+    const stderr = (result.stderr || "").trim();
+    if (stdout) console.log(stdout);
+    if (stderr) console.error(stderr);
+    if (result.status === 2) throw new Error(stderr || stdout || "OpenCode stale-read guard blocked edit");
+  }
+}
+
 export const OpenMatesHooks = async () => ({
   "shell.env": async (input, output) => {
     if (!input?.sessionID) return;
@@ -419,14 +523,20 @@ export const OpenMatesHooks = async () => ({
   },
   "tool.execute.before": async (input, output) => {
     const tool = input.tool || "";
-    if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool)) return;
+    if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool)) return;
 
     if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args));
     bindSessionStart(input, output);
+    if (READ_TOOLS.has(tool)) {
+      const worktreePath = activeWorktreePath(input.sessionID);
+      if (worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, worktreePath);
+    }
     if (EDIT_TOOLS.has(tool)) {
       const worktreePath = activeWorktreePath(input.sessionID);
       if (worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, worktreePath);
-      guardRootEdit(editedFilesForTest(output?.args || input?.args), input.sessionID, worktreePath);
+      const files = editedFilesForTest(output?.args || input?.args);
+      runStaleRead("check", files, input.sessionID);
+      guardRootEdit(files, input.sessionID, worktreePath);
     }
     runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
   },
@@ -438,7 +548,10 @@ export const OpenMatesHooks = async () => ({
       appendCommandDoctorHint(command, output);
       appendFailedTestLeaseHint(command, output);
     }
+    if (READ_TOOLS.has(tool)) runStaleRead("record", explicitFilesForTest(toolArgs(input, output)), input.sessionID);
     if (!EDIT_TOOLS.has(tool)) return;
+    const files = editedFilesForTest(toolArgs(input, output));
     runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output)), input.sessionID);
+    runStaleRead("sync", files, input.sessionID);
   },
 });

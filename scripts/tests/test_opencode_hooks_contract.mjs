@@ -49,6 +49,7 @@ test("concurrent edit coordination is warning-only", () => {
 test("loaded hook preserves chat identity without blocking file leases", () => {
   assert.match(source, /env: sessionID \? \{ \.\.\.process\.env, OPENCODE_SESSION_ID: sessionID \}/);
   assert.doesNotMatch(source, /createSpecAutoContinue|session\.idle|opencode-spec-continuation|createFileLeaseCoordinator/);
+  assert.match(source, /stale-read/);
 });
 
 test("canonical pre-edit guard prefers exact OpenCode identity", () => {
@@ -112,6 +113,29 @@ test("bash guard blocks local Playwright and Vitest commands", async () => {
   await assert.rejects(
     () => runBeforeShell("pnpm test"),
     /Use python3 scripts\/tests\.py run --suite vitest/,
+  );
+});
+
+test("bash guard allows forbidden command examples inside quoted data", async () => {
+  await assert.doesNotReject(() => runBeforeShell("python3 -c 'print(\"git commit and npx playwright test are examples\")'"));
+});
+
+test("bash guard still blocks actual raw git commands", async () => {
+  await assert.rejects(
+    () => runBeforeShell("git commit -m test"),
+    /Use sessions\.py deploy instead of raw git commit/,
+  );
+  await assert.rejects(
+    () => runBeforeShell("git -C /home/superdev/projects/OpenMates commit -m test"),
+    /Use sessions\.py deploy instead of raw git commit/,
+  );
+  await assert.rejects(
+    () => runBeforeShell("env -u GIT_CONFIG git commit -m test"),
+    /Use sessions\.py deploy instead of raw git commit/,
+  );
+  await assert.rejects(
+    () => runBeforeShell("timeout -k 5 30 git commit -m test"),
+    /Use sessions\.py deploy instead of raw git commit/,
   );
 });
 

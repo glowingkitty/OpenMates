@@ -206,7 +206,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "image_to_html",
     "description_key": "app_skills.code.image_to_html.description",
-    "description": "Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; reference an uploaded image or pass image_base64.",
+    "description": "Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls.",
     "schema": {
       "type": "object",
       "properties": {
@@ -218,7 +218,11 @@ export const APP_SKILL_METADATA = [
             "properties": {
               "image_base64": {
                 "type": "string",
-                "description": "Base64-encoded PNG, JPEG, or WEBP image bytes."
+                "description": "Base64-encoded PNG, JPEG, or WEBP image bytes. Use this for REST/API calls."
+              },
+              "source_image": {
+                "type": "string",
+                "description": "Uploaded image filename/embed_ref from the conversation. Use this in chat/CLI when the user references an attached screenshot or mockup."
               },
               "mime_type": {
                 "type": "string",
@@ -227,7 +231,7 @@ export const APP_SKILL_METADATA = [
                   "image/jpeg",
                   "image/webp"
                 ],
-                "description": "MIME type for image_base64."
+                "description": "MIME type for image_base64. Optional when using source_image because the server resolves it from the uploaded image."
               },
               "filename": {
                 "type": "string",
@@ -240,11 +244,7 @@ export const APP_SKILL_METADATA = [
                 "default": 2,
                 "description": "Maximum E2B render-feedback correction passes."
               }
-            },
-            "required": [
-              "image_base64",
-              "mime_type"
-            ]
+            }
           }
         }
       },
@@ -1804,6 +1804,106 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "plans",
+    "skill_id": "create",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "create",
+    "app_namespace_py": "plans",
+    "skill_method_py": "create",
+    "description_key": "plans.skills.create.description",
+    "description": "Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short user-facing plan title."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Optional plan summary."
+        },
+        "goal": {
+          "type": "string",
+          "description": "Optional plan goal."
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "app_id": "plans",
+    "skill_id": "search",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "search",
+    "app_namespace_py": "plans",
+    "skill_method_py": "search",
+    "description_key": "plans.skills.search.description",
+    "description": "Search the user's encrypted plans through a connected capable client. Do not use server-visible metadata as a private plan-content fallback.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Private plan text to search for on a connected client."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "app_id": "projects",
+    "skill_id": "create",
+    "app_namespace_ts": "projects",
+    "skill_method_ts": "create",
+    "app_namespace_py": "projects",
+    "skill_method_py": "create",
+    "description_key": "projects.skills.create.description",
+    "description": "Request creation of a user-visible project. Durable project content is client-side encrypted, so a capable connected client must apply the change.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Short user-facing project name."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional project description."
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  },
+  {
+    "app_id": "projects",
+    "skill_id": "search",
+    "app_namespace_ts": "projects",
+    "skill_method_ts": "search",
+    "app_namespace_py": "projects",
+    "skill_method_py": "search",
+    "description_key": "projects.skills.search.description",
+    "description": "Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Private project text to search for on a connected client."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
     "app_id": "reminder",
     "skill_id": "set-reminder",
     "app_namespace_ts": "reminder",
@@ -2486,7 +2586,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "travel",
     "skill_method_py": "search_connections",
     "description_key": "app_skills.travel.search_connections.description",
-    "description": "Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to [\"airplane\"] for flights or [\"train\"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix. If no provider is specified, all providers for the selected transport method are searched. Add cou",
+    "description": "Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to [\"airplane\"] for flights or [\"train\"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous. If no provider is specified, all providers for the selected transport method are searc",
     "schema": {
       "type": "object",
       "properties": {
@@ -2540,13 +2640,14 @@ export const APP_SKILL_METADATA = [
               },
               "providers": {
                 "type": "array",
-                "description": "Optional provider IDs to search. Use \"google_flights\" for flights, \"deutsche_bahn\" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches, and \"flix\" for FlixBus / FlixTrain. If omitted, all providers for the selected transport method are used, then filtered by countries if provided.\n",
+                "description": "Optional provider IDs to search. Use \"google_flights\" for flights, \"deutsche_bahn\" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches, \"flix\" for FlixBus / FlixTrain, and \"transitous\" only for timetable-only public transport routing. If omitted, priced providers for the selected transport method are used, then filtered by countries if provided.\n",
                 "items": {
                   "type": "string",
                   "enum": [
                     "google_flights",
                     "deutsche_bahn",
-                    "flix"
+                    "flix",
+                    "transitous"
                   ]
                 }
               },
@@ -2603,6 +2704,36 @@ export const APP_SKILL_METADATA = [
                 "description": "Exclude flights from these airlines. Use IATA carrier codes when known. Do not combine with include_airlines.",
                 "items": {
                   "type": "string"
+                }
+              },
+              "owned_passes": {
+                "type": "array",
+                "description": "Fare or mobility pass IDs the traveller already owns, such as \"deutschland_ticket\". Use for pass-aware train pricing when the user says they have a Deutschlandticket.\n",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "pass_only": {
+                "type": "boolean",
+                "description": "If true, prefer routes covered by owned fare passes when supported. Use with owned_passes [\"deutschland_ticket\"] for Deutschlandticket-only routing.\n",
+                "default": false
+              },
+              "rail_products": {
+                "type": "array",
+                "description": "Stable rail product filters for train searches. Use high_speed for ICE/high-speed, intercity for IC/EC, regional_express for IRE/RE-like services, regional for RB/local, s_bahn for S-Bahn, subway, tram, bus, or ferry.\n",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "high_speed",
+                    "intercity",
+                    "regional_express",
+                    "regional",
+                    "s_bahn",
+                    "subway",
+                    "tram",
+                    "bus",
+                    "ferry"
+                  ]
                 }
               },
               "min_departure_time": {
@@ -3504,7 +3635,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "get_project_overview", input, options);
   }
   /**
-   * Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; reference an uploaded image or pass image_base64.
+   * Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls.
    * Description key: app_skills.code.image_to_html.description
    * Skill: code/image_to_html
    */
@@ -3817,6 +3948,52 @@ export class PdfAppSkills {
   }
 }
 
+export class PlansAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
+   * Description key: plans.skills.create.description
+   * Skill: plans/create
+   */
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "create", input, options);
+  }
+  /**
+   * Search the user's encrypted plans through a connected capable client. Do not use server-visible metadata as a private plan-content fallback.
+   * Description key: plans.skills.search.description
+   * Skill: plans/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "search", input, options);
+  }
+}
+
+export class ProjectsAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Request creation of a user-visible project. Durable project content is client-side encrypted, so a capable connected client must apply the change.
+   * Description key: projects.skills.create.description
+   * Skill: projects/create
+   */
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("projects", "create", input, options);
+  }
+  /**
+   * Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.
+   * Description key: projects.skills.search.description
+   * Skill: projects/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("projects", "search", input, options);
+  }
+}
+
 export class ReminderAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
@@ -3923,7 +4100,7 @@ export class TravelAppSkills {
     return this.runSkill<T>("travel", "get_flight", input, options);
   }
   /**
-   * Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix. If no provider is specified, all providers for the selected transport method are searched. Add cou
+   * Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous. If no provider is specified, all providers for the selected transport method are searc
    * Description key: app_skills.travel.search_connections.description
    * Skill: travel/search_connections
    */
@@ -4070,6 +4247,8 @@ export class GeneratedAppSkills {
     this.nutrition = new NutritionAppSkills(runSkill);
     this.openmates = new OpenmatesAppSkills(runSkill);
     this.pdf = new PdfAppSkills(runSkill);
+    this.plans = new PlansAppSkills(runSkill);
+    this.projects = new ProjectsAppSkills(runSkill);
     this.reminder = new ReminderAppSkills(runSkill);
     this.shopping = new ShoppingAppSkills(runSkill);
     this.socialMedia = new SocialMediaAppSkills(runSkill);
@@ -4100,6 +4279,8 @@ export class GeneratedAppSkills {
   readonly nutrition: NutritionAppSkills;
   readonly openmates: OpenmatesAppSkills;
   readonly pdf: PdfAppSkills;
+  readonly plans: PlansAppSkills;
+  readonly projects: ProjectsAppSkills;
   readonly reminder: ReminderAppSkills;
   readonly shopping: ShoppingAppSkills;
   readonly socialMedia: SocialMediaAppSkills;

@@ -174,7 +174,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Turn an uploaded screenshot into one standalone index.html code embed with '
                  'inline CSS and optional inline JavaScript. Use this when the user asks to '
                  'convert a screenshot, mockup, UI image, or app screen into HTML. Do not use '
-                 'remote image URLs; reference an uploaded image or pass image_base64.',
+                 'remote image URLs; pass source_image with the uploaded image embed_ref in chat, '
+                 'or image_base64 for REST/API calls.',
   'description_key': 'app_skills.code.image_to_html.description',
   'schema': {'properties': {'requests': {'description': 'Array of screenshot-to-HTML requests.',
                                          'items': {'properties': {'filename': {'description': 'Optional '
@@ -190,7 +191,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'or '
                                                                                                   'WEBP '
                                                                                                   'image '
-                                                                                                  'bytes.',
+                                                                                                  'bytes. '
+                                                                                                  'Use '
+                                                                                                  'this '
+                                                                                                  'for '
+                                                                                                  'REST/API '
+                                                                                                  'calls.',
                                                                                    'type': 'string'},
                                                                   'max_correction_passes': {'default': 2,
                                                                                             'description': 'Maximum '
@@ -204,12 +210,44 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                   'mime_type': {'description': 'MIME '
                                                                                                'type '
                                                                                                'for '
-                                                                                               'image_base64.',
+                                                                                               'image_base64. '
+                                                                                               'Optional '
+                                                                                               'when '
+                                                                                               'using '
+                                                                                               'source_image '
+                                                                                               'because '
+                                                                                               'the '
+                                                                                               'server '
+                                                                                               'resolves '
+                                                                                               'it '
+                                                                                               'from '
+                                                                                               'the '
+                                                                                               'uploaded '
+                                                                                               'image.',
                                                                                 'enum': ['image/png',
                                                                                          'image/jpeg',
                                                                                          'image/webp'],
-                                                                                'type': 'string'}},
-                                                   'required': ['image_base64', 'mime_type'],
+                                                                                'type': 'string'},
+                                                                  'source_image': {'description': 'Uploaded '
+                                                                                                  'image '
+                                                                                                  'filename/embed_ref '
+                                                                                                  'from '
+                                                                                                  'the '
+                                                                                                  'conversation. '
+                                                                                                  'Use '
+                                                                                                  'this '
+                                                                                                  'in '
+                                                                                                  'chat/CLI '
+                                                                                                  'when '
+                                                                                                  'the '
+                                                                                                  'user '
+                                                                                                  'references '
+                                                                                                  'an '
+                                                                                                  'attached '
+                                                                                                  'screenshot '
+                                                                                                  'or '
+                                                                                                  'mockup.',
+                                                                                   'type': 'string'}},
                                                    'type': 'object'},
                                          'type': 'array'}},
              'required': ['requests'],
@@ -2783,6 +2821,64 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'view',
   'skill_method_py': 'view',
   'skill_method_ts': 'view'},
+ {'app_id': 'plans',
+  'app_namespace_py': 'plans',
+  'app_namespace_ts': 'plans',
+  'description': 'Request creation of a user-visible plan. Durable plan content is client-side '
+                 'encrypted, so a capable connected client must apply the change.',
+  'description_key': 'plans.skills.create.description',
+  'schema': {'properties': {'goal': {'description': 'Optional plan goal.', 'type': 'string'},
+                            'summary': {'description': 'Optional plan summary.', 'type': 'string'},
+                            'title': {'description': 'Short user-facing plan title.',
+                                      'type': 'string'}},
+             'required': ['title'],
+             'type': 'object'},
+  'skill_id': 'create',
+  'skill_method_py': 'create',
+  'skill_method_ts': 'create'},
+ {'app_id': 'plans',
+  'app_namespace_py': 'plans',
+  'app_namespace_ts': 'plans',
+  'description': "Search the user's encrypted plans through a connected capable client. Do not use "
+                 'server-visible metadata as a private plan-content fallback.',
+  'description_key': 'plans.skills.search.description',
+  'schema': {'properties': {'query': {'description': 'Private plan text to search for on a '
+                                                     'connected client.',
+                                      'type': 'string'}},
+             'required': ['query'],
+             'type': 'object'},
+  'skill_id': 'search',
+  'skill_method_py': 'search',
+  'skill_method_ts': 'search'},
+ {'app_id': 'projects',
+  'app_namespace_py': 'projects',
+  'app_namespace_ts': 'projects',
+  'description': 'Request creation of a user-visible project. Durable project content is '
+                 'client-side encrypted, so a capable connected client must apply the change.',
+  'description_key': 'projects.skills.create.description',
+  'schema': {'properties': {'description': {'description': 'Optional project description.',
+                                            'type': 'string'},
+                            'name': {'description': 'Short user-facing project name.',
+                                     'type': 'string'}},
+             'required': ['name'],
+             'type': 'object'},
+  'skill_id': 'create',
+  'skill_method_py': 'create',
+  'skill_method_ts': 'create'},
+ {'app_id': 'projects',
+  'app_namespace_py': 'projects',
+  'app_namespace_ts': 'projects',
+  'description': "Search the user's encrypted projects through a connected capable client. Do not "
+                 'use server-visible metadata as a private project-content fallback.',
+  'description_key': 'projects.skills.search.description',
+  'schema': {'properties': {'query': {'description': 'Private project text to search for on a '
+                                                     'connected client.',
+                                      'type': 'string'}},
+             'required': ['query'],
+             'type': 'object'},
+  'skill_id': 'search',
+  'skill_method_py': 'search',
+  'skill_method_ts': 'search'},
  {'app_id': 'reminder',
   'app_namespace_py': 'reminder',
   'app_namespace_ts': 'reminder',
@@ -3668,8 +3764,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'flights, train connections, or travel between cities on a specific date. Set '
                  'transport_methods to ["airplane"] for flights or ["train"] for trains. If the '
                  'user names a provider, set providers to one or more of: google_flights, '
-                 'deutsche_bahn, flix. If no provider is specified, all providers for the selected '
-                 'transport method are searched. Add cou',
+                 'deutsche_bahn, flix, transitous. If no provider is specified, all providers for '
+                 'the selected transport method are searc',
   'description_key': 'app_skills.travel.search_connections.description',
   'schema': {'properties': {'requests': {'description': 'Array of connection search requests. Each '
                                                         'request searches for transport '
@@ -3963,6 +4059,53 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'direct/non-stop '
                                                                                                    'connections.',
                                                                                     'type': 'boolean'},
+                                                                  'owned_passes': {'description': 'Fare '
+                                                                                                  'or '
+                                                                                                  'mobility '
+                                                                                                  'pass '
+                                                                                                  'IDs '
+                                                                                                  'the '
+                                                                                                  'traveller '
+                                                                                                  'already '
+                                                                                                  'owns, '
+                                                                                                  'such '
+                                                                                                  'as '
+                                                                                                  '"deutschland_ticket". '
+                                                                                                  'Use '
+                                                                                                  'for '
+                                                                                                  'pass-aware '
+                                                                                                  'train '
+                                                                                                  'pricing '
+                                                                                                  'when '
+                                                                                                  'the '
+                                                                                                  'user '
+                                                                                                  'says '
+                                                                                                  'they '
+                                                                                                  'have '
+                                                                                                  'a '
+                                                                                                  'Deutschlandticket.\n',
+                                                                                   'items': {'type': 'string'},
+                                                                                   'type': 'array'},
+                                                                  'pass_only': {'default': False,
+                                                                                'description': 'If '
+                                                                                               'true, '
+                                                                                               'prefer '
+                                                                                               'routes '
+                                                                                               'covered '
+                                                                                               'by '
+                                                                                               'owned '
+                                                                                               'fare '
+                                                                                               'passes '
+                                                                                               'when '
+                                                                                               'supported. '
+                                                                                               'Use '
+                                                                                               'with '
+                                                                                               'owned_passes '
+                                                                                               '["deutschland_ticket"] '
+                                                                                               'for '
+                                                                                               'Deutschlandticket-only '
+                                                                                               'routing.\n',
+                                                                                'type': 'boolean'},
                                                                   'passengers': {'default': 1,
                                                                                  'description': 'Number '
                                                                                                 'of '
@@ -3990,15 +4133,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'Sparpreis '
                                                                                                'train '
                                                                                                'searches, '
-                                                                                               'and '
                                                                                                '"flix" '
                                                                                                'for '
                                                                                                'FlixBus '
                                                                                                '/ '
-                                                                                               'FlixTrain. '
+                                                                                               'FlixTrain, '
+                                                                                               'and '
+                                                                                               '"transitous" '
+                                                                                               'only '
+                                                                                               'for '
+                                                                                               'timetable-only '
+                                                                                               'public '
+                                                                                               'transport '
+                                                                                               'routing. '
                                                                                                'If '
                                                                                                'omitted, '
-                                                                                               'all '
+                                                                                               'priced '
                                                                                                'providers '
                                                                                                'for '
                                                                                                'the '
@@ -4015,9 +4165,50 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'provided.\n',
                                                                                 'items': {'enum': ['google_flights',
                                                                                                    'deutsche_bahn',
-                                                                                                   'flix'],
+                                                                                                   'flix',
+                                                                                                   'transitous'],
                                                                                           'type': 'string'},
                                                                                 'type': 'array'},
+                                                                  'rail_products': {'description': 'Stable '
+                                                                                                   'rail '
+                                                                                                   'product '
+                                                                                                   'filters '
+                                                                                                   'for '
+                                                                                                   'train '
+                                                                                                   'searches. '
+                                                                                                   'Use '
+                                                                                                   'high_speed '
+                                                                                                   'for '
+                                                                                                   'ICE/high-speed, '
+                                                                                                   'intercity '
+                                                                                                   'for '
+                                                                                                   'IC/EC, '
+                                                                                                   'regional_express '
+                                                                                                   'for '
+                                                                                                   'IRE/RE-like '
+                                                                                                   'services, '
+                                                                                                   'regional '
+                                                                                                   'for '
+                                                                                                   'RB/local, '
+                                                                                                   's_bahn '
+                                                                                                   'for '
+                                                                                                   'S-Bahn, '
+                                                                                                   'subway, '
+                                                                                                   'tram, '
+                                                                                                   'bus, '
+                                                                                                   'or '
+                                                                                                   'ferry.\n',
+                                                                                    'items': {'enum': ['high_speed',
+                                                                                                       'intercity',
+                                                                                                       'regional_express',
+                                                                                                       'regional',
+                                                                                                       's_bahn',
+                                                                                                       'subway',
+                                                                                                       'tram',
+                                                                                                       'bus',
+                                                                                                       'ferry'],
+                                                                                              'type': 'string'},
+                                                                                    'type': 'array'},
                                                                   'sort_by': {'default': 'price_asc',
                                                                               'description': 'How '
                                                                                              'to '
@@ -5136,7 +5327,7 @@ class CodeAppSkills:
         return self._run_skill("code", "get_project_overview", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def image_to_html(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; reference an uploaded image or pass image_base64.
+        """Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls.
 
         Description key: app_skills.code.image_to_html.description
         Skill: code/image_to_html
@@ -5399,6 +5590,46 @@ class PdfAppSkills:
         """
         return self._run_skill("pdf", "view", input_data, prompt_injection_protection=prompt_injection_protection)
 
+class PlansAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
+
+        Description key: plans.skills.create.description
+        Skill: plans/create
+        """
+        return self._run_skill("plans", "create", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Search the user's encrypted plans through a connected capable client. Do not use server-visible metadata as a private plan-content fallback.
+
+        Description key: plans.skills.search.description
+        Skill: plans/search
+        """
+        return self._run_skill("plans", "search", input_data, prompt_injection_protection=prompt_injection_protection)
+
+class ProjectsAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Request creation of a user-visible project. Durable project content is client-side encrypted, so a capable connected client must apply the change.
+
+        Description key: projects.skills.create.description
+        Skill: projects/create
+        """
+        return self._run_skill("projects", "create", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.
+
+        Description key: projects.skills.search.description
+        Skill: projects/search
+        """
+        return self._run_skill("projects", "search", input_data, prompt_injection_protection=prompt_injection_protection)
+
 class ReminderAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
@@ -5492,7 +5723,7 @@ class TravelAppSkills:
         return self._run_skill("travel", "get_flight", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_connections(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix. If no provider is specified, all providers for the selected transport method are searched. Add cou
+        """Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous. If no provider is specified, all providers for the selected transport method are searc
 
         Description key: app_skills.travel.search_connections.description
         Skill: travel/search_connections
@@ -5625,6 +5856,8 @@ class GeneratedAppSkills:
         self.nutrition = NutritionAppSkills(run_skill)
         self.openmates = OpenmatesAppSkills(run_skill)
         self.pdf = PdfAppSkills(run_skill)
+        self.plans = PlansAppSkills(run_skill)
+        self.projects = ProjectsAppSkills(run_skill)
         self.reminder = ReminderAppSkills(run_skill)
         self.shopping = ShoppingAppSkills(run_skill)
         self.social_media = SocialMediaAppSkills(run_skill)

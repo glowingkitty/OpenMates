@@ -132,6 +132,30 @@ function formatPrice(amount: unknown, currency: unknown): string {
   return cur ? `${cur} ${amount}` : String(amount);
 }
 
+function fareNumberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function fareRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function formatFare(value: Record<string, unknown>): string {
+  const fare = fareRecord(value.fare);
+  const confidence = str(fare?.confidence);
+  if (confidence === "timetable_only") return "Timetable only";
+  if (fare?.is_pass_only === true) return str(fare.summary) ?? "Covered by pass";
+  const amount = fare?.amount ?? value.total_price ?? value.price;
+  const currency = fare?.currency ?? value.currency;
+  const price = formatPrice(amount, currency);
+  if (!price) return confidence === "unknown" ? "Fare unknown" : "";
+  if (fare?.is_partial === true || value.fare_is_partial === true) return `${price} (partial fare)`;
+  return price;
+}
+
 /** Truncate string */
 function trunc(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) + "…" : s;
@@ -835,7 +859,12 @@ async function renderTravelConnectionsPreview(
   // Price range
   if (Array.isArray(results) && results.length > 0) {
     const prices = results
-      .map((r) => (typeof r.total_price === "number" ? r.total_price : null))
+      .map((r) => {
+        const fare = fareRecord(r.fare);
+        const confidence = str(fare?.confidence);
+        if (confidence && !["confirmed", "partial"].includes(confidence)) return null;
+        return fareNumberValue(fare?.amount ?? r.total_price);
+      })
       .filter((p): p is number => p !== null);
     if (prices.length > 0) {
       const min = Math.min(...prices);
@@ -861,7 +890,7 @@ async function renderTravelConnectionsFullscreen(
     const dep = str(r.departure)?.slice(11, 16) ?? "";
     const arr = str(r.arrival)?.slice(11, 16) ?? "";
     const duration = str(r.duration) ?? "";
-    const price = formatPrice(r.total_price ?? r.price, r.currency);
+    const price = formatFare(r);
     const stops =
       typeof r.stops === "number"
         ? r.stops === 0
@@ -1336,7 +1365,7 @@ function renderByDirectType(
     case "travel-connection": {
       const origin = str(c.origin) ?? "";
       const dest = str(c.destination) ?? "";
-      const price = formatPrice(c.total_price ?? c.price, c.currency);
+      const price = formatFare(c);
       const dep = str(c.departure)?.slice(11, 16) ?? "";
       const arr = str(c.arrival)?.slice(11, 16) ?? "";
       if (origin && dest) ln(`${origin} → ${dest}`);

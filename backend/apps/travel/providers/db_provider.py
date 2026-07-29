@@ -22,6 +22,7 @@ from urllib.parse import quote
 from backend.apps.travel.providers.base_provider import (
     BaseTransportProvider,
     ConnectionResult,
+    FareResult,
     LayoverResult,
     LegResult,
     SegmentResult,
@@ -53,6 +54,41 @@ DB_SUPPORTED_COUNTRIES = {
     "UA",
 }
 
+DEUTSCHLAND_TICKET_PASS_IDS = {
+    "49_euro_ticket",
+    "deutschland_ticket",
+    "deutschlandticket",
+    "d_ticket",
+    "dticket",
+}
+
+RAIL_PRODUCT_FILTERS = {
+    "high_speed": "HOCHGESCHWINDIGKEITSZUEGE",
+    "intercity": "INTERCITYUNDEUROCITYZUEGE",
+    "regional_express": "INTERREGIOUNDSCHNELLZUEGE",
+    "regional": "NAHVERKEHRSONSTIGEZUEGE",
+    "s_bahn": "SBAHNEN",
+    "subway": "UBAHN",
+    "tram": "STRASSENBAHN",
+    "bus": "BUSSE",
+    "ferry": "SCHIFFE",
+}
+
+PASS_COVERED_PRODUCT_HINTS = {
+    "BUS",
+    "Bus",
+    "Busse",
+    "IRE",
+    "RB",
+    "RE",
+    "S",
+    "SBAHN",
+    "S-Bahn",
+    "STR",
+    "TRAM",
+    "UBAHN",
+}
+
 # Travel class mapping: OpenMates → DB API
 _CLASS_MAP = {
     "economy": "KLASSE_2",
@@ -77,6 +113,122 @@ def _extract_eva_number(location_id: str) -> str:
     """Extract EVA number from HAFAS locationId (e.g., 'L=8011160' → '8011160')."""
     match = re.search(r"L=(\d+)", location_id)
     return match.group(1) if match else ""
+
+
+def _normalize_pass_id(value: str) -> str:
+    """Normalize user/provider pass IDs for stable matching."""
+    return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
+
+
+def _owns_deutschland_ticket(owned_passes: Optional[List[str]]) -> bool:
+    """Return whether owned_passes includes a Deutschlandticket alias."""
+    return any(
+        _normalize_pass_id(str(pass_id)) in DEUTSCHLAND_TICKET_PASS_IDS
+        for pass_id in owned_passes or []
+    )
+
+
+def _db_transport_filter(rail_products: Optional[List[str]]) -> Optional[List[str]]:
+    """Map stable OpenMates rail products to current DB Navigator filter values."""
+    if not rail_products:
+        return None
+    mapped: List[str] = []
+    invalid: List[str] = []
+    for product in rail_products:
+        normalized = _normalize_pass_id(str(product))
+        db_value = RAIL_PRODUCT_FILTERS.get(normalized)
+        if not db_value:
+            invalid.append(str(product))
+            continue
+        if db_value not in mapped:
+            mapped.append(db_value)
+    if invalid:
+        raise ValueError(f"Unsupported rail_products values: {', '.join(invalid)}")
+    return mapped or None
+
+
+def _segment_mode(product: Optional[str]) -> str:
+    """Map DB product hints to OpenMates segment modes."""
+    value = str(product or "").upper()
+    if "BUS" in value:
+        return "bus"
+    if "UBAHN" in value or value == "U":
+        return "subway"
+    if "STR" in value or "TRAM" in value:
+        return "tram"
+    if "SCHIFF" in value or "FERRY" in value:
+        return "ferry"
+    return "train"
+
+
+def _segment_fare_coverage(product: Optional[str], *, has_pass: bool, is_partial: bool, is_pass_only: bool) -> str:
+    """Infer segment-level fare coverage from DB product and pass context."""
+    if is_pass_only:
+        return "pass_covered"
+    if not has_pass:
+        return "paid"
+    if not is_partial:
+        return "paid"
+    product_value = str(product or "")
+    if product_value in PASS_COVERED_PRODUCT_HINTS or product_value.upper() in PASS_COVERED_PRODUCT_HINTS:
+        return "pass_covered"
+    return "paid"
+
+
+def _build_fare_result(
+    *,
+    amount: Optional[float],
+    currency: Optional[str],
+    fare_is_partial: Optional[bool],
+    fare_passes_applied: Optional[List[str]],
+    pass_only: bool,
+) -> FareResult:
+    """Build user-facing fare metadata from DB price fields."""
+    passes = fare_passes_applied or []
+    if amount is not None:
+        if fare_is_partial:
+            summary = f"{currency or 'EUR'} {amount:.2f} paid portion after Deutschlandticket coverage."
+            return FareResult(
+                amount=float(amount),
+                currency=currency or "EUR",
+                is_partial=True,
+                is_pass_only=False,
+                covered_by_passes=passes,
+                pricing_provider="deutsche_bahn",
+                confidence="partial",
+                summary=summary,
+            )
+        return FareResult(
+            amount=float(amount),
+            currency=currency or "EUR",
+            is_partial=False,
+            is_pass_only=False,
+            covered_by_passes=passes,
+            pricing_provider="deutsche_bahn",
+            confidence="confirmed",
+            summary=f"{currency or 'EUR'} {amount:.2f} confirmed by Deutsche Bahn.",
+        )
+    if pass_only:
+        return FareResult(
+            amount=None,
+            currency=None,
+            is_partial=False,
+            is_pass_only=True,
+            covered_by_passes=passes,
+            pricing_provider="deutsche_bahn",
+            confidence="pass_only",
+            summary="Covered by Deutschlandticket; no additional DB fare returned.",
+        )
+    return FareResult(
+        amount=None,
+        currency=None,
+        is_partial=False,
+        is_pass_only=False,
+        covered_by_passes=passes,
+        pricing_provider="deutsche_bahn",
+        confidence="unknown",
+        summary="No DB fare returned for this connection.",
+    )
 
 
 def _build_booking_url(
@@ -236,6 +388,8 @@ def _parse_connection(
     from_lid: str,
     to_lid: str,
     klasse: str,
+    fare_passes_applied: Optional[List[str]] = None,
+    pass_only: bool = False,
 ) -> Optional[ConnectionResult]:
     """
     Map a single DB API verbindung+angebote dict to a ConnectionResult.
@@ -353,6 +507,30 @@ def _parse_connection(
     ab_price = gesamt.get("ab", {})
     price_amount = ab_price.get("betrag")
     price_currency = ab_price.get("waehrung", "EUR")
+    fare_is_partial = preise.get("istTeilpreis")
+    fare_is_partial_value = fare_is_partial if isinstance(fare_is_partial, bool) else None
+    fare = _build_fare_result(
+        amount=price_amount,
+        currency=price_currency if price_amount is not None else None,
+        fare_is_partial=fare_is_partial_value,
+        fare_passes_applied=fare_passes_applied,
+        pass_only=pass_only,
+    )
+
+    # Add fare coverage after fare metadata is known.
+    for index, seg in enumerate(segments):
+        raw_segment = [raw for raw in segments_raw if raw.get("typ") == "FAHRZEUG"][index]
+        product = raw_segment.get("produktGattung") or raw_segment.get("kurztext")
+        seg.mode = _segment_mode(product)
+        seg.line = seg.number
+        seg.operator = seg.carrier
+        seg.source_provider = "deutsche_bahn"
+        seg.fare_coverage = _segment_fare_coverage(
+            product,
+            has_pass=bool(fare_passes_applied),
+            is_partial=fare.is_partial,
+            is_pass_only=fare.is_pass_only,
+        )
 
     # Build leg (DB returns one-way results per call, so always 1 leg)
     first_seg = segments[0]
@@ -377,20 +555,25 @@ def _parse_connection(
     )
 
     # Build booking URL for this specific connection's departure time
-    booking_url = _build_booking_url(
-        from_lid=from_lid,
-        to_lid=to_lid,
-        departure_time=first_seg.departure_time,
-        klasse=klasse,
-    )
+    booking_url = None
+    if not pass_only:
+        booking_url = _build_booking_url(
+            from_lid=from_lid,
+            to_lid=to_lid,
+            departure_time=first_seg.departure_time,
+            klasse=klasse,
+        )
 
     return ConnectionResult(
         transport_method="train",
         source_provider="deutsche_bahn",
         total_price=f"{price_amount:.2f}" if price_amount is not None else None,
-        currency=price_currency,
+        currency=price_currency if price_amount is not None else None,
+        fare_is_partial=fare_is_partial_value,
+        fare_passes_applied=fare_passes_applied if fare_is_partial_value else None,
+        fare=fare,
         booking_url=booking_url,
-        booking_provider="Deutsche Bahn",
+        booking_provider="Deutsche Bahn" if booking_url else None,
         legs=[leg],
     )
 
@@ -429,6 +612,9 @@ class DeutscheBahnProvider(BaseTransportProvider):
         max_stops: Optional[int] = None,
         include_airlines: Optional[List[str]] = None,
         exclude_airlines: Optional[List[str]] = None,
+        owned_passes: Optional[List[str]] = None,
+        pass_only: bool = False,
+        rail_products: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Search for train connections via the DB Navigator API.
@@ -458,6 +644,11 @@ class DeutscheBahnProvider(BaseTransportProvider):
             max_changes = 0
         elif max_stops is not None:
             max_changes = max_stops
+
+        has_deutschland_ticket = _owns_deutschland_ticket(owned_passes)
+        fare_passes_applied = ["deutschland_ticket"] if has_deutschland_ticket else None
+        deutschland_ticket_only = bool(pass_only and has_deutschland_ticket)
+        transport_filter = _db_transport_filter(rail_products)
 
         all_connections: List[ConnectionResult] = []
 
@@ -490,6 +681,9 @@ class DeutscheBahnProvider(BaseTransportProvider):
                     klasse=klasse,
                     travellers=travellers,
                     max_changes=max_changes,
+                    transport_filter=transport_filter,
+                    deutschland_ticket=has_deutschland_ticket,
+                    deutschland_ticket_only=deutschland_ticket_only,
                 )
             except Exception as e:
                 logger.error("DB journey search failed (%s → %s): %s", origin, destination, e)
@@ -498,7 +692,14 @@ class DeutscheBahnProvider(BaseTransportProvider):
             # Parse connections
             verbindungen = result.get("verbindungen", [])
             for conn in verbindungen[:max_results]:
-                parsed = _parse_connection(conn, from_lid, to_lid, klasse)
+                parsed = _parse_connection(
+                    conn,
+                    from_lid,
+                    to_lid,
+                    klasse,
+                    fare_passes_applied=fare_passes_applied,
+                    pass_only=deutschland_ticket_only,
+                )
                 if parsed:
                     all_connections.append(parsed)
 

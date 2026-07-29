@@ -45,6 +45,9 @@ def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
         "max_price",
         "include_airlines",
         "exclude_airlines",
+        "owned_passes",
+        "pass_only",
+        "rail_products",
         "min_departure_time",
         "max_departure_time",
         "max_duration_minutes",
@@ -52,6 +55,19 @@ def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
         "avoid_overnight_layovers",
     ]:
         assert field in request_props
+
+    assert "transitous" in request_props["providers"]["items"]["enum"]
+    assert request_props["rail_products"]["items"]["enum"] == [
+        "high_speed",
+        "intercity",
+        "regional_express",
+        "regional",
+        "s_bahn",
+        "subway",
+        "tram",
+        "bus",
+        "ferry",
+    ]
 
 
 def test_search_connections_empty_group_metadata_explains_filtered_out() -> None:

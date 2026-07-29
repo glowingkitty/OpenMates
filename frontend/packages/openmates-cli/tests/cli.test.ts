@@ -29,6 +29,7 @@ import {
   INTEREST_TAG_IDS,
   normalizeInterestTagIds,
 } from "../dist/index.js";
+import { buildTravelConnectionsRequest } from "../dist/cli.js";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -2644,6 +2645,30 @@ describe("apps code run command variants", () => {
         "--code", "print('hello')\n",
       ], { HOME: tempHome });
       assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });
+    });
+  });
+});
+
+describe("apps travel search_connections typed request", () => {
+  it("maps pass-aware train flags into the app-skill request", () => {
+    const request = buildTravelConnectionsRequest([], {
+      origin: "Potsdam Hbf",
+      destination: "Munich Hbf",
+      date: "2026-06-01",
+      transport: "train",
+      providers: "deutsche_bahn,transitous",
+      "owned-passes": "deutschland_ticket",
+      "pass-only": true,
+      "rail-products": "regional,s_bahn",
+    });
+
+    assert.deepEqual(request, {
+      legs: [{ origin: "Potsdam Hbf", destination: "Munich Hbf", date: "2026-06-01" }],
+      transport_methods: ["train"],
+      providers: ["deutsche_bahn", "transitous"],
+      owned_passes: ["deutschland_ticket"],
+      rail_products: ["regional", "s_bahn"],
+      pass_only: true,
     });
   });
 });

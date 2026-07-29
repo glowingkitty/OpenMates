@@ -5167,7 +5167,7 @@ function buildGeneratedAppSkillValue(
   return value;
 }
 
-function buildTravelConnectionsRequest(
+export function buildTravelConnectionsRequest(
   positionals: string[],
   flags: Record<string, string | boolean>,
 ): Record<string, unknown> {
@@ -5185,6 +5185,14 @@ function buildTravelConnectionsRequest(
   };
   const transport = stringFlag(flags, "transport") ?? stringFlag(flags, "transport-method");
   if (transport) request.transport_methods = [transport];
+  const providers = csvFlag(flags, "providers") ?? csvFlag(flags, "provider");
+  if (providers) request.providers = providers;
+  const ownedPasses = csvFlag(flags, "owned_passes") ?? csvFlag(flags, "owned-passes");
+  if (ownedPasses) request.owned_passes = ownedPasses;
+  const railProducts = csvFlag(flags, "rail_products") ?? csvFlag(flags, "rail-products");
+  if (railProducts) request.rail_products = railProducts;
+  const passOnly = booleanFlag(flags, "pass_only") ?? booleanFlag(flags, "pass-only");
+  if (passOnly !== undefined) request.pass_only = passOnly;
   return request;
 }
 
@@ -5264,6 +5272,24 @@ function stringFlag(flags: Record<string, string | boolean>, name: string): stri
   return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
 }
 
+function csvFlag(flags: Record<string, string | boolean>, name: string): string[] | undefined {
+  const raw = readFlag(flags, name);
+  if (typeof raw !== "string" || !raw.trim()) return undefined;
+  const values = raw.split(/[,\n]/).map((value) => value.trim()).filter(Boolean);
+  return values.length > 0 ? values : undefined;
+}
+
+function booleanFlag(flags: Record<string, string | boolean>, name: string): boolean | undefined {
+  const raw = readFlag(flags, name);
+  if (raw === undefined) return undefined;
+  if (raw === true) return true;
+  if (raw === false) return false;
+  const normalized = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return true;
+}
+
 function coerceAppSkillFlagValue(
   name: string,
   raw: string | boolean,
@@ -5309,6 +5335,10 @@ function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): v
     console.log("  --destination <place> Route destination for a typed connection search.");
     console.log("  --date <YYYY-MM-DD>  Departure date for a typed connection search.");
     console.log("  --transport <mode>   Optional transport mode, e.g. train or plane.");
+    console.log("  --providers <csv>    Optional providers, e.g. deutsche_bahn,transitous.");
+    console.log("  --owned-passes <csv> Optional owned passes, e.g. deutschland_ticket.");
+    console.log("  --pass-only          Prefer pass-covered routes when supported.");
+    console.log("  --rail-products <csv> Optional rail filters, e.g. high_speed,regional.");
   }
   if (command.app_id === "code" && command.skill_id === "image_to_html") {
     console.log("  --file <path>        Local PNG, JPEG, or WEBP screenshot to convert.");

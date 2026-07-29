@@ -499,6 +499,9 @@ class SerpApiProvider(BaseTransportProvider):
         max_stops: Optional[int] = None,
         include_airlines: Optional[List[str]] = None,
         exclude_airlines: Optional[List[str]] = None,
+        owned_passes: Optional[List[str]] = None,
+        pass_only: bool = False,
+        rail_products: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Search for flight connections via the SerpAPI Google Flights engine.

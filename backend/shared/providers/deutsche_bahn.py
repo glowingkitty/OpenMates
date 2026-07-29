@@ -11,6 +11,7 @@ Research: docs/architecture/apps/travel-train-api-research.md
 """
 
 import logging
+import ssl
 import uuid
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 # API constants
 # ---------------------------------------------------------------------------
 
-BASE_URL = "https://app.vendo.noncd.db.de/mob"
+BASE_URL = "https://app.services-bahn.de/mob"
 
 CT_JOURNEY = "application/x.db.vendo.mob.verbindungssuche.v9+json"
 CT_LOCATION = "application/x.db.vendo.mob.location.v3+json"
@@ -31,6 +32,20 @@ CT_LOCATION = "application/x.db.vendo.mob.location.v3+json"
 USER_AGENT = "DBNavigator/Android/25.18.2"
 REQUEST_TIMEOUT = 15.0
 LOCATION_MATCH_THRESHOLD = 0.72
+DB_NAVIGATOR_CIPHERS = ":".join([
+    "ECDHE-ECDSA-AES128-GCM-SHA256",
+    "ECDHE-RSA-AES128-GCM-SHA256",
+    "ECDHE-ECDSA-AES256-GCM-SHA384",
+    "ECDHE-RSA-AES256-GCM-SHA384",
+    "ECDHE-ECDSA-CHACHA20-POLY1305",
+    "ECDHE-RSA-CHACHA20-POLY1305",
+    "ECDHE-RSA-AES128-SHA",
+    "ECDHE-RSA-AES256-SHA",
+    "AES128-GCM-SHA256",
+    "AES256-GCM-SHA384",
+    "AES128-SHA",
+    "AES256-SHA",
+])
 
 # ---------------------------------------------------------------------------
 # Top German stations — avoids a location search API call for common cities.
@@ -115,6 +130,23 @@ def _base_headers(content_type: str) -> Dict[str, str]:
     }
 
 
+def _db_ssl_context() -> ssl.SSLContext:
+    """Return a DB Navigator-compatible TLS context for Akamai-backed DB APIs."""
+    context = ssl.create_default_context()
+    context.set_alpn_protocols(["http/1.1"])
+    context.set_ciphers(DB_NAVIGATOR_CIPHERS)
+    return context
+
+
+def _db_http_transport() -> httpx.AsyncHTTPTransport:
+    """Build the shared DB HTTP transport with a stable TLS fingerprint."""
+    return httpx.AsyncHTTPTransport(
+        verify=_db_ssl_context(),
+        http2=False,
+        trust_env=False,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Location search
 # ---------------------------------------------------------------------------
@@ -130,7 +162,7 @@ async def search_locations(query: str, max_results: int = 5) -> List[Dict[str, A
         "locationTypes": ["ALL"],
     }
 
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, transport=_db_http_transport()) as client:
         resp = await client.post(
             f"{BASE_URL}/location/search",
             json=body,
@@ -290,6 +322,7 @@ async def search_journeys(
     max_changes: Optional[int] = None,
     transport_filter: Optional[List[str]] = None,
     deutschland_ticket: bool = False,
+    deutschland_ticket_only: bool = False,
 ) -> Dict[str, Any]:
     """
     Search for train connections with prices.
@@ -305,6 +338,7 @@ async def search_journeys(
         max_changes: Maximum number of transfers (None = no limit).
         transport_filter: Transport types to include (default: ["ALL"]).
         deutschland_ticket: Whether the traveller has a Deutschland-Ticket.
+        deutschland_ticket_only: Whether to search only Deutschlandticket-eligible connections.
 
     Returns:
         Raw API response dict with 'verbindungen' array.
@@ -336,7 +370,7 @@ async def search_journeys(
         "einstiegsTypList": ["STANDARD"],
         "fahrverguenstigungen": {
             "deutschlandTicketVorhanden": deutschland_ticket,
-            "nurDeutschlandTicketVerbindungen": False,
+            "nurDeutschlandTicketVerbindungen": deutschland_ticket_only,
         },
         "klasse": klasse,
         "reiseHin": {"wunsch": wunsch},
@@ -344,7 +378,7 @@ async def search_journeys(
         "reservierungsKontingenteVorhanden": False,
     }
 
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, transport=_db_http_transport()) as client:
         resp = await client.post(
             f"{BASE_URL}/angebote/fahrplan",
             json=body,

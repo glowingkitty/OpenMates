@@ -24,6 +24,7 @@
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { getTravelFareAmount, getTravelFareFallbackLabel, type TravelFare } from './fareDisplay';
   
   /**
    * Connection result interface for preview display
@@ -33,7 +34,9 @@
     type?: string;
     transport_method?: string;
     trip_type?: string;
-    total_price?: string;
+    total_price?: string | number;
+    fare?: TravelFare | null;
+    fare_is_partial?: boolean;
     currency?: string;
     origin?: string;
     destination?: string;
@@ -276,16 +279,16 @@
   let priceInfo = $derived.by(() => {
     if (flatResults.length === 0) return '';
     
-    const prices = flatResults
-      .filter(r => r.total_price)
-      .map(r => parseFloat(r.total_price!));
+    const pricedResults = flatResults
+      .map(r => ({ amount: getTravelFareAmount(r), currency: r.fare?.currency || r.currency }))
+      .filter((r): r is { amount: number; currency?: string | null } => r.amount !== null);
     
-    if (prices.length === 0) return '';
+    if (pricedResults.length === 0) return getTravelFareFallbackLabel(flatResults);
     
-    const currency = flatResults[0]?.currency || 'EUR';
-    const minPrice = Math.min(...prices);
+    const currency = pricedResults[0]?.currency || 'EUR';
+    const minPrice = Math.min(...pricedResults.map(r => r.amount));
     
-    if (prices.length === 1) {
+    if (pricedResults.length === 1) {
       return `${currency} ${Math.round(minPrice)}`;
     }
     

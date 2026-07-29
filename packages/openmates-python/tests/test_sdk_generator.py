@@ -43,6 +43,11 @@ def test_generated_metadata_includes_web_search_images_generate_business_and_fit
         for skill in APP_SKILL_METADATA
         if skill["app_id"] == "fitness" and skill["skill_id"] == "search_classes"
     )
+    travel_connections = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "travel" and skill["skill_id"] == "search_connections"
+    )
 
     assert web_search["app_namespace_py"] == "web"
     assert web_search["skill_method_py"] == "search"
@@ -71,6 +76,22 @@ def test_generated_metadata_includes_web_search_images_generate_business_and_fit
     assert fitness_classes["app_namespace_py"] == "fitness"
     assert fitness_classes["skill_method_py"] == "search_classes"
     assert "requests" in fitness_classes["schema"]["properties"]
+
+    travel_request = travel_connections["schema"]["properties"]["requests"]["items"]["properties"]
+    assert "transitous" in travel_request["providers"]["items"]["enum"]
+    assert "owned_passes" in travel_request
+    assert "pass_only" in travel_request
+    assert travel_request["rail_products"]["items"]["enum"] == [
+        "high_speed",
+        "intercity",
+        "regional_express",
+        "regional",
+        "s_bahn",
+        "subway",
+        "tram",
+        "bus",
+        "ferry",
+    ]
 
 
 def test_generated_native_methods_delegate_to_runner():

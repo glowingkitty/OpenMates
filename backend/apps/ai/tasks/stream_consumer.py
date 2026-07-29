@@ -1757,6 +1757,23 @@ def _fix_backticked_inline_embed_references(aggregated_response: str, log_prefix
     return modified
 
 
+def _request_user_texts(request_data: AskSkillRequest) -> list[str]:
+    texts: list[str] = []
+    current_user_content = getattr(request_data, "current_user_content", None)
+    if isinstance(current_user_content, str) and current_user_content.strip():
+        texts.append(current_user_content)
+
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        role_value = getattr(role, "value", role)
+        if not isinstance(role_value, str) or role_value.lower() not in {"user", "human"}:
+            continue
+        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else None
+        if isinstance(content, str) and content.strip():
+            texts.append(content)
+    return texts
+
+
 def _build_sub_chat_batch_marker(
     *,
     parent_chat_id: str,
@@ -1780,21 +1797,6 @@ def _build_sub_chat_batch_marker(
         "sub_chat_ids": sub_chat_ids,
     }
     return f"\n\n```json\n{json.dumps(marker, separators=(',', ':'))}\n```\n\n"
-def _request_user_texts(request_data: AskSkillRequest) -> list[str]:
-    texts: list[str] = []
-    current_user_content = getattr(request_data, "current_user_content", None)
-    if isinstance(current_user_content, str) and current_user_content.strip():
-        texts.append(current_user_content)
-
-    for message in reversed(request_data.message_history or []):
-        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
-        role_value = getattr(role, "value", role)
-        if not isinstance(role_value, str) or role_value.lower() not in {"user", "human"}:
-            continue
-        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else None
-        if isinstance(content, str) and content.strip():
-            texts.append(content)
-    return texts
 
 
 async def _persist_sealed_recovery_job(
@@ -8444,13 +8446,8 @@ async def _consume_main_processing_stream(
                             f"{len(raw_application_files)} raw markdown file(s)"
                         )
 
-            if application_parent_embed_created:
-                generated_code_file_embeds = []
-            elif not generated_code_file_embeds:
-                raise ValueError("no generated code file embeds available for application parent")
-
             application_reference = None
-            if not application_parent_embed_created:
+            if generated_code_file_embeds and not application_parent_embed_created:
                 application_reference = await _create_application_parent_embed_reference(
                     generated_code_file_embeds=generated_code_file_embeds,
                     cache_service=cache_service,

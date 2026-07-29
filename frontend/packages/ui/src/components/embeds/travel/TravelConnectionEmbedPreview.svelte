@@ -15,6 +15,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
+  import { formatTravelFare, type TravelFare } from './fareDisplay';
 
   const PROVIDER_FAVICONS = [
     { match: 'deutsche bahn', url: 'https://www.bahn.de/favicon.ico' },
@@ -30,9 +31,13 @@
     /** Unique embed ID */
     id: string;
     /** Total price (e.g., '245.50') */
-    price?: string;
+    price?: string | number;
     /** Currency code (e.g., 'EUR') */
     currency?: string;
+    /** Structured fare state from pass-aware rail providers */
+    fare?: TravelFare | null;
+    /** Legacy partial fare flag */
+    fareIsPartial?: boolean;
     /** Transport method (e.g., 'airplane') */
     transportMethod?: string;
     /** Trip type (e.g., 'one_way', 'round_trip', 'multi_city') */
@@ -77,6 +82,8 @@
     id,
     price,
     currency = 'EUR',
+    fare,
+    fareIsPartial,
     transportMethod = 'airplane',
     tripType = 'one_way',
     origin,
@@ -113,13 +120,9 @@
   let _carriers = $derived(normalizeStringArray(carriersProp as string[] | string | undefined));
   let carrierCodes = $derived(normalizeStringArray(carrierCodesProp as string[] | string | undefined));
   
-  // Format price for display
+  // Format price/fare state for display.
   let formattedPrice = $derived.by(() => {
-    if (!price) return '';
-    const numPrice = parseFloat(price);
-    if (isNaN(numPrice)) return `${currency} ${price}`;
-    // Format with locale-aware number formatting
-    return `${currency} ${numPrice.toFixed(numPrice % 1 === 0 ? 0 : 2)}`;
+    return formatTravelFare({ fare, total_price: price, currency, fare_is_partial: fareIsPartial });
   });
   
   // BasicInfosBar shows the compact route title; the card itself shows travel times.

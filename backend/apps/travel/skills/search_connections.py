@@ -28,13 +28,25 @@ from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
 from backend.apps.travel.providers.flix_provider import FlixProvider
+from backend.apps.travel.providers.transitous_provider import TransitousProvider
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_RESULTS = 20
 MAX_RESULTS_LIMIT = 50
 FILTER_OVERFETCH_MULTIPLIER = 3
-VALID_PROVIDER_IDS = {"google_flights", "deutsche_bahn", "flix"}
+VALID_PROVIDER_IDS = {"google_flights", "deutsche_bahn", "flix", "transitous"}
+VALID_RAIL_PRODUCTS = {
+    "high_speed",
+    "intercity",
+    "regional_express",
+    "regional",
+    "s_bahn",
+    "subway",
+    "tram",
+    "bus",
+    "ferry",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +133,18 @@ class SearchConnectionsRequestItem(BaseModel):
         description="Exclude flights from these airlines (IATA codes, e.g. ['FR', 'W6']). "
         "Cannot be combined with include_airlines.",
     )
+    owned_passes: List[str] = Field(
+        default_factory=list,
+        description="Fare or mobility pass IDs the traveller already owns, such as 'deutschland_ticket'.",
+    )
+    pass_only: bool = Field(
+        default=False,
+        description="If true, prefer routes covered by owned fare passes when the selected provider supports them.",
+    )
+    rail_products: Optional[List[str]] = Field(
+        default=None,
+        description="Stable rail product filters: high_speed, intercity, regional_express, regional, s_bahn, subway, tram, bus, ferry.",
+    )
     currency: str = Field(
         default="EUR",
         description="Preferred currency for prices (ISO 4217 code).",
@@ -185,6 +209,10 @@ PROVIDER_REGISTRY: Dict[str, Dict[str, str]] = {
         "name": "FlixBus / FlixTrain",
         "icon_url": "https://www.flixbus.com/favicon.ico",
     },
+    "transitous": {
+        "name": "Transitous",
+        "icon_url": "https://transitous.org/favicon.ico",
+    },
     # Add new providers here as they are integrated:
     # "trainline": {
     #     "name": "Trainline",
@@ -244,6 +272,7 @@ def _create_providers(
             FlixProvider(supported_methods={"bus"}),
             FlixProvider(supported_methods={"train"}),
         ])
+    providers.append(TransitousProvider())
     return providers
 
 
@@ -271,6 +300,9 @@ def _get_providers_for_request(
     matched: List[BaseTransportProvider] = []
     for provider in all_providers:
         provider_id = getattr(provider, "provider_id", "")
+        if provider_id == "transitous" and not has_provider_filter:
+            logger.info("Skipping opt-in provider transitous because it was not requested")
+            continue
         if has_provider_filter and provider_id not in requested_provider_ids:
             logger.info("Skipping provider %s because it was not requested", provider_id or type(provider).__name__)
             continue
@@ -368,8 +400,14 @@ class SearchConnectionsSkill(BaseSkill):
                 selected_ids.append("google_flights")
             elif method == "train":
                 selected_ids.extend(["deutsche_bahn", "flix"])
+                if "transitous" in requested_ids:
+                    selected_ids.append("transitous")
             elif method == "bus":
                 selected_ids.append("flix")
+                if "transitous" in requested_ids:
+                    selected_ids.append("transitous")
+            elif method == "boat":
+                selected_ids.append("transitous")
 
         if requested_ids:
             selected_ids = [provider_id for provider_id in selected_ids if provider_id in requested_ids]
@@ -593,6 +631,9 @@ class SearchConnectionsSkill(BaseSkill):
         max_stops = req.get("max_stops")
         include_airlines = req.get("include_airlines")
         exclude_airlines = req.get("exclude_airlines")
+        owned_passes = req.get("owned_passes") if isinstance(req.get("owned_passes"), list) else []
+        pass_only = bool(req.get("pass_only"))
+        rail_products = self._valid_rail_products(req.get("rail_products"))
         currency = req.get("currency", "EUR")
         sort_by = req.get("sort_by", "price_asc")
         result_filters = self._extract_result_filters(req)
@@ -625,6 +666,14 @@ class SearchConnectionsSkill(BaseSkill):
         )
         if not matched_providers:
             return (request_id, [], f"No providers available for transport methods: {transport_methods}")
+        if pass_only:
+            matched_providers = [
+                provider
+                for provider in matched_providers
+                if getattr(provider, "provider_id", "") == "deutsche_bahn"
+            ]
+            if not matched_providers:
+                return (request_id, [], "No selected providers support pass-only routing")
 
         # Search across all matched providers and merge results
         all_connections = []
@@ -644,6 +693,9 @@ class SearchConnectionsSkill(BaseSkill):
                     max_stops=max_stops,
                     include_airlines=include_airlines,
                     exclude_airlines=exclude_airlines,
+                    owned_passes=owned_passes,
+                    pass_only=pass_only,
+                    rail_products=rail_products,
                     currency=currency,
                 )
                 all_connections.extend(connections)
@@ -689,6 +741,9 @@ class SearchConnectionsSkill(BaseSkill):
                 "legs": [leg.model_dump() for leg in connection.legs],
                 "hash": self._generate_connection_hash(connection),
             }
+            fare = self._fare_dict_for_connection(connection)
+            if fare:
+                result_dict["fare"] = fare
 
             # Add compact summary fields for easy LLM consumption
             if connection.legs:
@@ -724,6 +779,16 @@ class SearchConnectionsSkill(BaseSkill):
                 # so the frontend can send them back to the booking-link endpoint.
                 if connection.booking_context:
                     result_dict["booking_context"] = connection.booking_context
+
+                fare_is_partial = connection.fare_is_partial
+                if fare_is_partial is None and fare:
+                    fare_is_partial = bool(fare.get("is_partial"))
+                if fare_is_partial is not None:
+                    result_dict["fare_is_partial"] = fare_is_partial
+
+                fare_passes_applied = connection.fare_passes_applied or (fare.get("covered_by_passes") if fare else None)
+                if fare_passes_applied:
+                    result_dict["fare_passes_applied"] = fare_passes_applied
 
                 # Booking URL: populated if booking was already resolved
                 # (not used in the on-demand flow, kept for API compatibility)
@@ -795,6 +860,8 @@ class SearchConnectionsSkill(BaseSkill):
             "max_duration_minutes",
             "max_layover_minutes",
             "avoid_overnight_layovers",
+            "pass_only",
+            "rail_products",
         )
         return {
             key: req[key]
@@ -808,6 +875,53 @@ class SearchConnectionsSkill(BaseSkill):
         if not result_filters:
             return max_results
         return min(MAX_RESULTS_LIMIT, max_results * FILTER_OVERFETCH_MULTIPLIER)
+
+    @staticmethod
+    def _valid_rail_products(value: Any) -> Optional[List[str]]:
+        """Return valid stable rail product filters or None when unset."""
+        if not isinstance(value, list):
+            return None
+        products: List[str] = []
+        for item in value:
+            normalized = str(item).strip().lower()
+            if normalized not in VALID_RAIL_PRODUCTS:
+                continue
+            if normalized not in products:
+                products.append(normalized)
+        return products or None
+
+    @staticmethod
+    def _fare_dict_for_connection(connection: Any) -> Optional[Dict[str, Any]]:
+        """Return structured fare metadata, synthesizing it for legacy priced providers."""
+        if getattr(connection, "fare", None):
+            return connection.fare.model_dump()
+        price = getattr(connection, "total_price", None)
+        currency = getattr(connection, "currency", None)
+        if price is not None:
+            try:
+                amount = float(price)
+            except (TypeError, ValueError):
+                amount = None
+            return {
+                "amount": amount,
+                "currency": currency,
+                "is_partial": bool(getattr(connection, "fare_is_partial", False)),
+                "is_pass_only": False,
+                "covered_by_passes": getattr(connection, "fare_passes_applied", None) or [],
+                "pricing_provider": getattr(connection, "source_provider", None),
+                "confidence": "partial" if getattr(connection, "fare_is_partial", False) else "confirmed",
+                "summary": f"{currency or ''} {price} confirmed fare.".strip(),
+            }
+        return {
+            "amount": None,
+            "currency": None,
+            "is_partial": False,
+            "is_pass_only": False,
+            "covered_by_passes": [],
+            "pricing_provider": getattr(connection, "source_provider", None),
+            "confidence": "unknown",
+            "summary": "No fare returned for this connection.",
+        }
 
     def _filter_results(
         self,
@@ -989,7 +1103,10 @@ class SearchConnectionsSkill(BaseSkill):
         reverse = direction == "desc"
 
         if field == "price":
-            results.sort(key=lambda r: self._sort_key_price(r), reverse=reverse)
+            priced = [result for result in results if self._sort_key_price(result)[0] == 0]
+            unpriced = [result for result in results if self._sort_key_price(result)[0] != 0]
+            priced.sort(key=lambda r: self._sort_key_price(r)[1], reverse=reverse)
+            results[:] = priced + unpriced
         elif field == "duration":
             results.sort(key=lambda r: self._sort_key_duration(r), reverse=reverse)
         elif field == "departure":
@@ -1001,6 +1118,15 @@ class SearchConnectionsSkill(BaseSkill):
     def _sort_key_price(result: Dict[str, Any]) -> tuple:
         """Sort key: (has_value, price). Missing prices sort last."""
         price_str = result.get("total_price")
+        fare = result.get("fare") if isinstance(result.get("fare"), dict) else None
+        if fare:
+            confidence = fare.get("confidence")
+            amount = fare.get("amount")
+            if confidence in {"confirmed", "partial"} and amount is not None:
+                try:
+                    return (0, float(amount))
+                except (ValueError, TypeError):
+                    pass
         if price_str is not None:
             try:
                 return (0, float(price_str))

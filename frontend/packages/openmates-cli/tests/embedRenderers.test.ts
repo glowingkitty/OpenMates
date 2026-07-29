@@ -122,6 +122,71 @@ describe("Remotion videos.create CLI renderer", () => {
 });
 
 describe("Direct content embed CLI renderers", () => {
+  it("labels partial and timetable-only travel fares", async () => {
+    const partialOutput = await captureStdout(async () => {
+      await renderEmbedPreview(
+        {
+          id: "embed-travel-partial",
+          embedId: "62345678-1234-4234-9234-123456789abc",
+          type: "travel-connection",
+          textPreview: "Potsdam to Munich",
+          appId: "travel",
+          skillId: "search_connections",
+          createdAt: 1_700_000_000,
+          content: {
+            type: "travel-connection",
+            origin: "Potsdam Hbf",
+            destination: "Munich Hbf",
+            departure: "2026-06-01T08:00:00+02:00",
+            arrival: "2026-06-01T12:45:00+02:00",
+            total_price: "67.99",
+            currency: "EUR",
+            fare: {
+              amount: 67.99,
+              currency: "EUR",
+              is_partial: true,
+              covered_by_passes: ["deutschland_ticket"],
+              confidence: "partial",
+            },
+          },
+        },
+        mockClient() as never,
+      );
+    });
+
+    assert.match(partialOutput, /EUR 67\.99 \(partial fare\)/);
+
+    const timetableOutput = await captureStdout(async () => {
+      await renderEmbedPreview(
+        {
+          id: "embed-travel-timetable",
+          embedId: "72345678-1234-4234-9234-123456789abc",
+          type: "travel-connection",
+          textPreview: "Berlin to Paris",
+          appId: "travel",
+          skillId: "search_connections",
+          createdAt: 1_700_000_000,
+          content: {
+            type: "travel-connection",
+            origin: "Berlin Hbf",
+            destination: "Paris Est",
+            departure: "2026-06-01T08:00:00+02:00",
+            arrival: "2026-06-01T16:10:00+02:00",
+            fare: {
+              amount: null,
+              currency: null,
+              confidence: "timetable_only",
+              summary: "Timetable only; no fare available.",
+            },
+          },
+        },
+        mockClient() as never,
+      );
+    });
+
+    assert.match(timetableOutput, /Timetable only/);
+  });
+
   it("formats generated application embeds as compact TUI preview lines", () => {
     const lines = formatEmbedPreviewLines({
       id: "embed-application-compact",

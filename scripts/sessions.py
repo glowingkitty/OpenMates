@@ -292,19 +292,55 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
     )
 
 
+def _opencode_worktree_relative_path(resolved: Path) -> str | None:
+    """Return the repo-relative path for a file inside a sessions.py worktree."""
+    if not SESSIONS_FILE.is_file():
+        return None
+    try:
+        sessions = json.loads(SESSIONS_FILE.read_text(encoding="utf-8")).get("sessions", {})
+    except (json.JSONDecodeError, OSError):
+        return None
+    candidates: list[Path] = []
+    for session in sessions.values():
+        worktree_path = session.get("worktree", {}).get("path") if isinstance(session, dict) else None
+        if not worktree_path:
+            continue
+        try:
+            candidates.append(Path(worktree_path).resolve())
+        except OSError:
+            continue
+    for worktree in sorted(candidates, key=lambda path: len(path.as_posix()), reverse=True):
+        try:
+            return resolved.relative_to(worktree).as_posix()
+        except ValueError:
+            continue
+    return None
+
+
 def normalize_opencode_stale_read_path(raw_path: str | Path) -> str | None:
     """Return a repository-relative regular-file path or None when unsafe."""
     try:
         root = PROJECT_ROOT.resolve()
         candidate = Path(raw_path)
         resolved = (candidate if candidate.is_absolute() else root / candidate).resolve()
-        return resolved.relative_to(root).as_posix()
+        try:
+            return resolved.relative_to(root).as_posix()
+        except ValueError:
+            return _opencode_worktree_relative_path(resolved)
     except (OSError, ValueError):
         return None
 
 
-def _opencode_stale_read_file_hash(relative_path: str) -> str | None:
-    path = PROJECT_ROOT / relative_path
+def _opencode_stale_read_file_hash(relative_path: str, raw_path: str | Path | None = None) -> str | None:
+    if raw_path is not None:
+        try:
+            candidate = Path(raw_path)
+            path = candidate if candidate.is_absolute() else PROJECT_ROOT / candidate
+            path = path.resolve()
+        except OSError:
+            path = PROJECT_ROOT / relative_path
+    else:
+        path = PROJECT_ROOT / relative_path
     if not path.is_file():
         return None
     digest = hashlib.sha256()
@@ -362,7 +398,7 @@ def record_opencode_stale_read(session_id: str, raw_path: str | Path) -> None:
     relative_path = normalize_opencode_stale_read_path(raw_path)
     if not relative_path:
         return
-    digest = _opencode_stale_read_file_hash(relative_path)
+    digest = _opencode_stale_read_file_hash(relative_path, raw_path)
     if not digest:
         return
 
@@ -386,7 +422,7 @@ def opencode_stale_read_error(session_id: str, raw_path: str | Path) -> str | No
     expected = _load_opencode_stale_read_state().get("sessions", {}).get(session_id, {}).get("files", {}).get(relative_path, {}).get("sha256")
     if not expected:
         return None
-    current = _opencode_stale_read_file_hash(relative_path)
+    current = _opencode_stale_read_file_hash(relative_path, raw_path)
     if current and current != expected:
         return f"BLOCKED: {relative_path} changed since this OpenCode session read it. Re-read the file before editing."
     return None

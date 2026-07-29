@@ -262,8 +262,11 @@ skills:
       Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices).
       Use when user asks about flights, train connections, or travel between cities on a specific date.
       Set transport_methods to ["airplane"] for flights or ["train"] for trains.
-      If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix.
+      If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous.
       If no provider is specified, all providers for the selected transport method are searched.
+      Use provider transitous only when the user explicitly asks for timetable-only public transport or broad European transit routing.
+      Set owned_passes to ["deutschland_ticket"] when the user says they have a Deutschlandticket.
+      Set pass_only to true when the user asks for Deutschlandticket-only/regional pass-covered routes.
       Add countries with ISO 3166-1 alpha-2 route country codes when clear; country matching uses OR semantics.
       Costs 25 credits per search.
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
@@ -278,6 +281,9 @@ skills:
         no_api_key: true
       - name: Flix
         display_name: FlixBus / FlixTrain
+        no_api_key: true
+      - name: Transitous
+        display_name: Transitous
         no_api_key: true
     exclude_fields_for_llm:
       - type
@@ -347,14 +353,16 @@ skills:
                 description: >
                   Optional provider IDs to search. Use "google_flights" for flights,
                   "deutsche_bahn" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches,
-                  and "flix" for FlixBus / FlixTrain. If omitted, all providers for the
-                  selected transport method are used, then filtered by countries if provided.
+                  "flix" for FlixBus / FlixTrain, and "transitous" only for timetable-only
+                  public transport routing. If omitted, priced providers for the selected
+                  transport method are used, then filtered by countries if provided.
                 items:
                   type: string
                   enum:
                     - google_flights
                     - deutsche_bahn
                     - flix
+                    - transitous
               countries:
                 type: array
                 description: >
@@ -401,6 +409,38 @@ skills:
                 description: Exclude flights from these airlines. Use IATA carrier codes when known. Do not combine with include_airlines.
                 items:
                   type: string
+              owned_passes:
+                type: array
+                description: >
+                  Fare or mobility pass IDs the traveller already owns, such as
+                  "deutschland_ticket". Use for pass-aware train pricing when the
+                  user says they have a Deutschlandticket.
+                items:
+                  type: string
+              pass_only:
+                type: boolean
+                description: >
+                  If true, prefer routes covered by owned fare passes when supported.
+                  Use with owned_passes ["deutschland_ticket"] for Deutschlandticket-only routing.
+                default: false
+              rail_products:
+                type: array
+                description: >
+                  Stable rail product filters for train searches. Use high_speed for ICE/high-speed,
+                  intercity for IC/EC, regional_express for IRE/RE-like services, regional for RB/local,
+                  s_bahn for S-Bahn, subway, tram, bus, or ferry.
+                items:
+                  type: string
+                  enum:
+                    - high_speed
+                    - intercity
+                    - regional_express
+                    - regional
+                    - s_bahn
+                    - subway
+                    - tram
+                    - bus
+                    - ferry
               min_departure_time:
                 type: string
                 description: Earliest acceptable local departure time in HH:MM format.

@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
-import type { Chat, ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
+import type { ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
@@ -5546,6 +5546,7 @@ export async function handleSubChatCompletedImpl(
         parent_id: chat.parent_id || payload.parent_id || null,
         updated_at: Math.max(chat.updated_at || 0, now),
         last_edited_overall_timestamp: Math.max(chat.last_edited_overall_timestamp || 0, now),
+        chat_summary: summary || chat.chat_summary || null,
       };
 
       if (summary && key) {
