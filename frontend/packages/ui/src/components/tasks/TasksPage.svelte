@@ -13,6 +13,7 @@
   import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
   import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { notificationStore } from '../../stores/notificationStore';
+  import { userProfile } from '../../stores/userProfile';
   import {
     blockUserTask,
     completeUserTask,
@@ -69,15 +70,42 @@
   let isExtracting = $state(false);
   let extractedProposals = $state<UserTaskProposal[]>([]);
   let tasksPageWidth = $state(900);
+  let searchTerm = $state('');
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
+  let isCentralTasksWorkspace = $derived(!compact && focus === 'tasks');
 
   const totalCount = $derived(tasks.length);
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
   const doneCount = $derived(tasks.filter((task) => task.status === 'done').length);
   const activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
   const completedPlanCount = $derived(plans.filter((plan) => plan.status === 'completed').length);
+  const greetingName = $derived(formatGreetingName($userProfile.username));
+  const taskFilterChips = $derived(resolveTaskFilterChips(tasks));
+  const visibleTasks = $derived(filterTasks(tasks, searchTerm));
+
+  function formatGreetingName(username: string): string {
+    const trimmed = username.trim();
+    if (!trimmed) return 'there';
+    return trimmed.split(/\s+/)[0];
+  }
+
+  function resolveTaskFilterChips(items: TasksBoardItem[]): string[] {
+    const tags = Array.from(new Set(items.flatMap((task) => task.tags))).filter(Boolean).slice(0, 3);
+    return tags.length > 0 ? tags : ['my-tasks', 'software', 'hardware'];
+  }
+
+  function filterTasks(items: TasksBoardItem[], query: string): TasksBoardItem[] {
+    const normalized = query.trim().replace(/^#/, '').toLowerCase();
+    if (!normalized) return items;
+    return items.filter((task) => [
+      task.title,
+      task.description,
+      task.assigneeType,
+      ...task.tags,
+    ].some((value) => value.toLowerCase().includes(normalized)));
+  }
 
   function filters(): ListUserTasksFilters {
     return {
@@ -390,18 +418,18 @@
     </div>
   </section>
 {:else}
-<section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
-  {#if !compact}<div class="workspace-report-action"><WorkspaceReportIssueButton /></div>{/if}
+<section class="tasks-page" class:compact class:figma-layout={isCentralTasksWorkspace} data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
+  {#if !compact && !isCentralTasksWorkspace}<div class="workspace-report-action"><WorkspaceReportIssueButton /></div>{/if}
   {#if !compact}
     <div class="daily-inspiration-area tasks-daily-inspiration-area" data-testid="tasks-daily-inspiration-area">
       <DailyInspirationBanner
         surface="tasks"
         onStartChat={handleStartTaskInspiration}
-        containerWidth={Math.min(tasksPageWidth || 900, 980)}
+        containerWidth={Math.min(tasksPageWidth || 900, 1320)}
       />
     </div>
 
-    <header class="tasks-hero">
+    {#if !isCentralTasksWorkspace}<header class="tasks-hero">
       <div>
         <p class="eyebrow">{focus === 'plans' ? 'Plans' : 'Tasks'}</p>
         <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Manage tasks for you and your AI mates.'}</h1>
@@ -418,9 +446,80 @@
           <span><strong>{doneCount}</strong> done</span>
         {/if}
       </div>
-    </header>
+    </header>{/if}
   {/if}
 
+  {#if isCentralTasksWorkspace}
+    <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
+      <div class="task-workspace-toolbar">
+        <div class="task-report-slot"><WorkspaceReportIssueButton /></div>
+        <div class="task-search-cluster" aria-label="Task search and filters">
+          <label class="task-search-field" for="task-search">
+            <span class="search-icon" aria-hidden="true"></span>
+            <input id="task-search" bind:value={searchTerm} placeholder="Search" data-testid="task-search-input" />
+          </label>
+          <div class="task-filter-chips" aria-label="Task filters">
+            {#each taskFilterChips as chip}
+              <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+            {/each}
+          </div>
+        </div>
+      </div>
+
+      <header class="task-greeting" data-testid="task-greeting">
+        <span class="icon task task-greeting-icon" aria-hidden="true"></span>
+        <h1>Hey {greetingName}!</h1>
+        <p>What task is next?</p>
+      </header>
+
+      {#if isLoading}
+        <div class="tasks-state" data-testid="tasks-loading">Loading tasks...</div>
+      {:else if hasLoadError}
+        <div class="tasks-state" data-testid="tasks-load-error">
+          <p>Tasks could not be loaded.</p>
+          <button type="button" onclick={() => void refreshTasks()}>Retry</button>
+        </div>
+      {:else}
+        <div class="task-board-stage">
+          <TaskBoard
+            tasks={visibleTasks}
+            onMove={(task, status) => void handleMove(task, status)}
+            onStartAI={(task) => void handleStartAI(task)}
+            onSkip={(task) => void handleSkip(task)}
+            onDelete={(task) => void handleDelete(task)}
+            onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
+          />
+          {#if visibleTasks.length === 0 && searchTerm.trim()}
+            <div class="tasks-filter-empty" data-testid="tasks-filter-empty">No tasks match that filter.</div>
+          {/if}
+          <form class="task-create-card task-quick-create" onsubmit={(event) => { event.preventDefault(); void handleCreateTask(); }} data-testid="task-create-form">
+            <label for="task-title">New task</label>
+            <input
+              id="task-title"
+              bind:value={title}
+              placeholder="What should happen next?"
+              data-testid="task-title-input"
+            />
+            <label for="task-description">Details</label>
+            <textarea
+              id="task-description"
+              bind:value={description}
+              placeholder="Optional context"
+              rows={1}
+              data-testid="task-description-input"
+            ></textarea>
+            <label class="ai-toggle quick-ai-toggle">
+              <input type="checkbox" bind:checked={assignToAI} data-testid="task-assign-ai-toggle" />
+              <span>Assign to AI</span>
+            </label>
+            <button type="submit" disabled={isSaving || !title.trim()} data-testid="task-create-button">
+              {isSaving ? 'Creating...' : 'Create'}
+            </button>
+          </form>
+        </div>
+      {/if}
+    </section>
+  {:else}
   {#if plansEnabled}
   <section class="plans-strip" data-testid="linked-plans-section" aria-label="Linked plans">
     <div class="plans-strip-heading">
@@ -571,6 +670,7 @@
       onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
     />
   {/if}
+  {/if}
 </section>
 {/if}
 
@@ -589,6 +689,11 @@
   .tasks-page.compact {
     padding: 0;
     overflow: visible;
+  }
+
+  .tasks-page.figma-layout {
+    background: var(--color-grey-0);
+    padding: clamp(12px, 2.6vw, 30px);
   }
 
   .tasks-hero,
@@ -613,6 +718,204 @@
 
   .tasks-daily-inspiration-area {
     margin-bottom: 18px;
+  }
+
+  .tasks-page.figma-layout .tasks-daily-inspiration-area {
+    margin-bottom: clamp(18px, 3vw, 34px);
+  }
+
+  .tasks-figma-workspace {
+    position: relative;
+    overflow: hidden;
+    min-height: 620px;
+    border-radius: 28px;
+    border: 1px solid var(--color-grey-20);
+    background: var(--color-grey-0);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
+    padding: clamp(20px, 3.5vw, 46px) clamp(18px, 3vw, 36px) clamp(24px, 3vw, 42px);
+  }
+
+  .task-workspace-toolbar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 62px;
+  }
+
+  .task-report-slot {
+    width: 48px;
+    min-height: 48px;
+  }
+
+  .task-search-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    min-width: min(100%, 420px);
+  }
+
+  .task-search-field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-height: 44px;
+    color: var(--color-font-secondary);
+  }
+
+  .search-icon {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border: 3px solid currentColor;
+    border-radius: 999px;
+    opacity: 0.65;
+  }
+
+  .search-icon::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    bottom: -7px;
+    width: 9px;
+    height: 3px;
+    border-radius: 999px;
+    background: currentColor;
+    transform: rotate(45deg);
+  }
+
+  .task-search-field input {
+    width: min(100%, 190px);
+    border: 0;
+    background: transparent;
+    padding: 6px 0;
+    color: var(--color-font-primary);
+    font-size: 1.08rem;
+    font-weight: 700;
+  }
+
+  .task-search-field input::placeholder {
+    color: var(--color-font-secondary);
+    opacity: 0.9;
+  }
+
+  .task-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .task-filter-chips button {
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--color-font-button);
+    padding: 5px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    box-shadow: none;
+  }
+
+  .task-filter-chips button.active {
+    background: var(--color-button-primary);
+  }
+
+  .task-greeting {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    width: min(100%, 440px);
+    min-height: 156px;
+    margin: -12px auto 34px;
+    color: var(--color-font-primary);
+  }
+
+  .task-greeting-icon {
+    position: absolute;
+    z-index: -1;
+    width: 140px;
+    height: 140px;
+    border: 0;
+    border-radius: 24px;
+    opacity: 0.1;
+    animation: none;
+  }
+
+  .task-greeting h1 {
+    max-width: none;
+    font-size: clamp(1.25rem, 2.2vw, 1.8rem);
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+  }
+
+  .task-greeting p {
+    margin-top: 4px;
+    font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+    font-weight: 800;
+    line-height: 1.12;
+  }
+
+  .task-board-stage {
+    position: relative;
+    z-index: 1;
+  }
+
+  .task-board-stage :global(.task-board) {
+    min-width: 100%;
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+    gap: clamp(16px, 2vw, 28px);
+    padding-bottom: 118px;
+  }
+
+  .task-board-stage :global(.task-column) {
+    min-height: 410px;
+    border: 0;
+    border-radius: 26px;
+    background: transparent;
+    padding: 18px;
+  }
+
+  .task-board-stage :global([data-testid='task-column-backlog']) {
+    background: var(--color-grey-10);
+  }
+
+  .task-board-stage :global(.task-column header p),
+  .task-board-stage :global(.task-column header span) {
+    display: none;
+  }
+
+  .task-board-stage :global(.task-column h2) {
+    font-size: clamp(1.25rem, 1.6vw, 1.55rem);
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+  }
+
+  .task-board-stage :global(.task-card) {
+    border: 0;
+    border-radius: 16px;
+    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.16);
+  }
+
+  .task-board-stage :global(.task-actions) {
+    opacity: 0.78;
+  }
+
+  .tasks-filter-empty {
+    position: absolute;
+    right: clamp(18px, 3vw, 42px);
+    bottom: 30px;
+    border: 1px dashed var(--color-grey-30);
+    border-radius: 20px;
+    padding: 12px 16px;
+    color: var(--color-font-secondary);
+    background: var(--color-grey-0);
   }
 
   .plans-strip {
@@ -785,6 +1088,65 @@
     margin-bottom: 18px;
   }
 
+  .task-quick-create {
+    position: absolute;
+    z-index: 3;
+    right: 50%;
+    bottom: 28px;
+    width: min(calc(100% - 36px), 620px);
+    transform: translateX(50%);
+    grid-template-columns: minmax(170px, 1fr) minmax(150px, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    border-radius: 28px;
+    border: 1px solid var(--color-grey-20);
+    background: var(--color-grey-0);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    padding: 10px 12px;
+  }
+
+  .task-quick-create > label:not(.quick-ai-toggle) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .task-quick-create input,
+  .task-quick-create textarea {
+    min-height: 48px;
+    border: 0;
+    background: var(--color-grey-10);
+    font-weight: 700;
+  }
+
+  .task-quick-create textarea {
+    resize: none;
+  }
+
+  .quick-ai-toggle {
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--color-font-button);
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    font-weight: 800;
+  }
+
+  .quick-ai-toggle input {
+    min-height: auto;
+    width: auto;
+  }
+
+  .task-quick-create button {
+    min-height: 48px;
+    padding-inline: 26px;
+    font-weight: 800;
+  }
+
   .task-extract-card {
     display: flex;
     flex-direction: column;
@@ -901,6 +1263,46 @@
     .task-create-card {
       grid-template-columns: 1fr;
       flex-direction: column;
+    }
+
+    .tasks-figma-workspace {
+      min-height: 0;
+      padding: 18px;
+    }
+
+    .task-workspace-toolbar {
+      flex-direction: column;
+    }
+
+    .task-search-cluster {
+      align-items: stretch;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .task-filter-chips {
+      justify-content: flex-start;
+    }
+
+    .task-greeting {
+      margin: 8px auto 24px;
+    }
+
+    .task-board-stage :global(.task-board) {
+      grid-template-columns: minmax(260px, 1fr);
+      padding-bottom: 0;
+    }
+
+    .task-board-stage :global(.task-column) {
+      min-height: auto;
+    }
+
+    .task-quick-create {
+      position: static;
+      width: auto;
+      transform: none;
+      margin-top: 18px;
+      grid-template-columns: 1fr;
     }
 
     .task-stats {

@@ -36,11 +36,11 @@ test.describe('Tasks web app parity', () => {
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
-		await expect(page.getByRole('heading', { level: 1, name: /tasks/i })).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText(/task|next action|todo|checklist|status/i, { timeout: 15_000 });
 		await expect(page.getByTestId('tasks-figma-workspace')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByRole('heading', { level: 1, name: /hey .*!/i })).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-greeting')).toContainText(/hey .*!/i, { timeout: 15_000 });
 		await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i);
 		await expect(page.getByTestId('linked-plans-section')).toHaveCount(0);
