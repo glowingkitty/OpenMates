@@ -18,6 +18,42 @@ from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_meta
 logger = logging.getLogger(__name__)
 
 
+def _version_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _effective_metadata_v(metadata: Dict[str, Any]) -> int:
+    metadata_v = _version_int(metadata.get("metadata_v"))
+    title_v = _version_int(metadata.get("title_v"))
+    if not metadata_v and title_v > 0:
+        return title_v
+    return metadata_v
+
+
+async def _current_metadata_v(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_id: str,
+) -> int:
+    current = await directus_service.chat.get_chat_metadata(chat_id) or {}
+    current_metadata_v = _effective_metadata_v(current)
+
+    get_versions = getattr(cache_service, "get_chat_versions", None)
+    if callable(get_versions):
+        cached_versions = await get_versions(user_id, chat_id)
+        if cached_versions:
+            cached_metadata_v = _version_int(getattr(cached_versions, "metadata_v", None))
+            if not cached_metadata_v:
+                cached_metadata_v = _version_int(getattr(cached_versions, "title_v", None))
+            current_metadata_v = max(current_metadata_v, cached_metadata_v)
+
+    return current_metadata_v
+
+
 async def handle_post_processing_metadata(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -128,6 +164,31 @@ async def handle_post_processing_metadata(
 
             logger.info(f"Processing post-processing metadata for chat {chat_id} from {user_id}")
 
+            if encrypted_title or encrypted_chat_summary:
+                client_metadata_v = 0
+                if isinstance(client_versions, dict):
+                    client_metadata_v = _version_int(client_versions.get("metadata_v"))
+                    if not client_metadata_v:
+                        client_metadata_v = _version_int(client_versions.get("title_v"))
+
+                if client_metadata_v > 0:
+                    current_metadata_v = await _current_metadata_v(
+                        cache_service,
+                        directus_service,
+                        user_id,
+                        chat_id,
+                    )
+                    if client_metadata_v < current_metadata_v:
+                        logger.info(
+                            "Dropping stale post-processing title/summary for chat %s: "
+                            "client_metadata_v=%s current_metadata_v=%s",
+                            chat_id,
+                            client_metadata_v,
+                            current_metadata_v,
+                        )
+                        encrypted_title = None
+                        encrypted_chat_summary = None
+
             # Build update fields for Directus
             chat_update_fields = {}
 
@@ -170,7 +231,7 @@ async def handle_post_processing_metadata(
 
             # OPE-314: Forward encrypted_chat_key so persistence task can validate
             # metadata was encrypted with the correct key
-            if encrypted_chat_key:
+            if encrypted_chat_key and chat_update_fields:
                 chat_update_fields["encrypted_chat_key"] = encrypted_chat_key
 
             if not chat_update_fields:

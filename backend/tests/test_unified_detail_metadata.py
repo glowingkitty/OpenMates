@@ -108,17 +108,17 @@ class ChatMetadataManager:
 
 
 class ChatMetadataDirectus:
-    def __init__(self, *, is_owner: bool) -> None:
+    def __init__(self, *, is_owner: bool, metadata_v: int = 4, title_v: int = 7) -> None:
         self.chat = SimpleNamespace(
             check_chat_ownership=AsyncMock(return_value=is_owner),
             get_chat_metadata=AsyncMock(
                 return_value={
                     "hashed_user_id": "different-owner-hash",
                     "messages_v": 12,
-                    "title_v": 7,
-                    "metadata_v": 4,
-                    "encrypted_title": "cipher-title-v7",
-                    "encrypted_chat_summary": "cipher-summary-v4",
+                    "title_v": title_v,
+                    "metadata_v": metadata_v,
+                    "encrypted_title": f"cipher-title-v{title_v}",
+                    "encrypted_chat_summary": f"cipher-summary-v{metadata_v}",
                 }
             ),
         )
@@ -158,9 +158,9 @@ class TitleUpdateDirectus:
 
 
 class PostProcessingCache:
-    def __init__(self, events: list[tuple]) -> None:
+    def __init__(self, events: list[tuple], metadata_v: int = 4) -> None:
         self.events = events
-        self.metadata_v = 4
+        self.metadata_v = metadata_v
 
     async def get_chat_versions(self, _user_id: str, _chat_id: str) -> SimpleNamespace:
         return SimpleNamespace(messages_v=12, title_v=7, metadata_v=self.metadata_v)
@@ -476,6 +476,49 @@ def test_post_processing_summary_updates_sync_cache_before_version_broadcast(mon
     assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
     assert queue == "persistence"
     assert task_args[1]["metadata_v"] == 5
+
+
+def test_post_processing_drops_stale_summary_without_blocking_other_metadata(monkeypatch) -> None:
+    events: list[tuple] = []
+    queued_tasks: list[tuple[str, list, str | None]] = []
+
+    def queue_task(name: str, args=None, queue: str | None = None):
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="task-1")
+
+    monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+
+    manager = OrderedPostProcessingManager(events)
+    asyncio.run(
+        handle_post_processing_metadata(
+            websocket=None,
+            manager=manager,
+            cache_service=PostProcessingCache(events, metadata_v=8),
+            directus_service=ChatMetadataDirectus(is_owner=True, metadata_v=8),
+            encryption_service=None,
+            user_id="owner-1",
+            user_id_hash="owner-hash",
+            device_fingerprint_hash="device-1",
+            payload=chat_metadata_payload(
+                versions={"metadata_v": 4, "title_v": 7, "messages_v": 12},
+                encrypted_chat_summary="stale-generated-summary-v4",
+                encrypted_chat_tags="fresh-tags-from-post-processing",
+                encrypted_chat_key="cipher-key",
+            ),
+        )
+    )
+
+    assert events == [("personal", "post_processing_metadata_stored")]
+    assert manager.broadcasts == []
+    assert len(queued_tasks) == 1
+    task_name, task_args, queue = queued_tasks[0]
+    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
+    assert queue == "persistence"
+    persisted = task_args[1]
+    assert persisted["encrypted_chat_tags"] == "fresh-tags-from-post-processing"
+    assert persisted["encrypted_chat_key"] == "cipher-key"
+    assert "encrypted_chat_summary" not in persisted
+    assert "metadata_v" not in persisted
 
 
 def test_chat_title_update_broadcasts_server_versions(monkeypatch) -> None:
