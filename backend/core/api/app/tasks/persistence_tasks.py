@@ -24,6 +24,137 @@ logger = logging.getLogger(__name__)
 MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
 
 
+def _version_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _effective_metadata_v(chat_metadata: Dict[str, Any], title_v: int) -> int:
+    metadata_v = _version_int(chat_metadata.get("metadata_v"))
+    if not metadata_v and title_v > 0:
+        return title_v
+    return metadata_v
+
+
+def _chat_list_cache_data_from_metadata(
+    chat_metadata: Dict[str, Any],
+    existing_cache_data: Optional[CachedChatListItemData] = None,
+    cached_versions: Optional[CachedChatVersions] = None,
+) -> CachedChatListItemData:
+    fresh_title_v = _version_int(chat_metadata.get("title_v"))
+    cached_title_v = _version_int(getattr(cached_versions, "title_v", 0))
+    title = chat_metadata.get("encrypted_title")
+    if existing_cache_data and existing_cache_data.title and cached_title_v > fresh_title_v:
+        title = existing_cache_data.title
+
+    return CachedChatListItemData(
+        title=title,
+        unread_count=chat_metadata.get("unread_count", 0),
+        created_at=chat_metadata.get("created_at"),
+        updated_at=chat_metadata.get("updated_at"),
+        encrypted_chat_key=chat_metadata.get("encrypted_chat_key"),
+        encrypted_icon=chat_metadata.get("encrypted_icon"),
+        encrypted_category=chat_metadata.get("encrypted_category"),
+        encrypted_chat_summary=chat_metadata.get("encrypted_chat_summary"),
+        encrypted_share_cta_text=chat_metadata.get("encrypted_share_cta_text"),
+        encrypted_chat_tags=chat_metadata.get("encrypted_chat_tags"),
+        encrypted_follow_up_request_suggestions=chat_metadata.get("encrypted_follow_up_request_suggestions"),
+        encrypted_top_recommended_apps_for_chat=chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
+        encrypted_quick_tip_slugs=chat_metadata.get("encrypted_quick_tip_slugs"),
+        encrypted_shared_short_url=chat_metadata.get("encrypted_shared_short_url"),
+        encrypted_active_focus_id=chat_metadata.get("encrypted_active_focus_id"),
+        last_message_timestamp=chat_metadata.get("last_message_timestamp"),
+        parent_id=chat_metadata.get("parent_id"),
+        is_sub_chat=chat_metadata.get("is_sub_chat"),
+        budget_limit=chat_metadata.get("budget_limit"),
+        budget_spent=chat_metadata.get("budget_spent"),
+    )
+
+
+def _chat_versions_from_metadata(
+    chat_metadata: Dict[str, Any],
+    cached_versions: Optional[CachedChatVersions] = None,
+) -> CachedChatVersions:
+    fresh_messages_v = _version_int(chat_metadata.get("messages_v"))
+    fresh_title_v = _version_int(chat_metadata.get("title_v"))
+    fresh_metadata_v = _effective_metadata_v(chat_metadata, fresh_title_v)
+
+    if cached_versions:
+        fresh_messages_v = max(fresh_messages_v, _version_int(cached_versions.messages_v))
+        cached_title_v = _version_int(cached_versions.title_v)
+        fresh_title_v = max(fresh_title_v, cached_title_v)
+        cached_metadata_v = _version_int(getattr(cached_versions, "metadata_v", None))
+        if not cached_metadata_v and cached_title_v > 0:
+            cached_metadata_v = cached_title_v
+        fresh_metadata_v = max(
+            fresh_metadata_v,
+            cached_metadata_v,
+        )
+
+    return CachedChatVersions(
+        messages_v=fresh_messages_v,
+        title_v=fresh_title_v,
+        metadata_v=fresh_metadata_v,
+    )
+
+
+async def _refresh_chat_metadata_cache(
+    *,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_id: str,
+    task_id: str,
+    fields_updated: list[str],
+) -> None:
+    existing_cache_data = await cache_service.get_chat_list_item_data(user_id, chat_id)
+    cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
+
+    # Fetch fresh data from Directus to keep the cache complete, but preserve
+    # fields whose cached component version is newer than Directus. This avoids
+    # a summary-persistence task racing ahead of the queued title persistence.
+    fresh_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+    if not fresh_chat_metadata:
+        logger.warning(
+            f"⚠️ Could not fetch fresh chat metadata from Directus to update cache for chat {chat_id} (task_id: {task_id})"
+        )
+        return
+
+    cache_update_result = await cache_service.set_chat_list_item_data(
+        user_id,
+        chat_id,
+        _chat_list_cache_data_from_metadata(
+            fresh_chat_metadata,
+            existing_cache_data=existing_cache_data,
+            cached_versions=cached_versions,
+        ),
+    )
+    if not cache_update_result:
+        logger.error(
+            f"❌ Failed to update cache for chat {chat_id} - set_chat_list_item_data returned False (task_id: {task_id})"
+        )
+        return
+
+    logger.info(
+        f"✅ Updated cache for chat {chat_id} with ALL client-encrypted metadata from Directus "
+        f"(fields updated: {fields_updated}) (task_id: {task_id})"
+    )
+
+    versions = _chat_versions_from_metadata(fresh_chat_metadata, cached_versions=cached_versions)
+    versions_update_result = await cache_service.set_chat_versions(user_id, chat_id, versions)
+    if versions_update_result:
+        logger.info(
+            f"✅ Synced cache versions for chat {chat_id}: "
+            f"messages_v={versions.messages_v}, title_v={versions.title_v} (task_id: {task_id})"
+        )
+    else:
+        logger.error(
+            f"❌ Failed to sync cache versions for chat {chat_id} (task_id: {task_id})"
+        )
+
+
 async def _async_cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
     from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
         cleanup_expired_recovery_jobs,
@@ -73,7 +204,8 @@ def _validate_client_encrypted_chat_payload(message_id: str, encrypted_content: 
 
 async def _async_persist_chat_title_task(
     chat_id: str, encrypted_title: str, title_v: int, task_id: str,
-    encrypted_chat_key: Optional[str] = None, metadata_v: Optional[int] = None
+    encrypted_chat_key: Optional[str] = None, metadata_v: Optional[int] = None,
+    user_id: Optional[str] = None,
 ):
     """
     Async logic for persisting an updated chat title.
@@ -111,10 +243,30 @@ async def _async_persist_chat_title_task(
                 f"Proceeding with update as safety fallback. (task_id: {task_id})"
             )
 
+    current_chat_metadata: Dict[str, Any] = {}
+    try:
+        current_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id) or {}
+    except Exception as metadata_err:
+        logger.warning(
+            f"Failed to read chat metadata before title persistence for chat {chat_id}: {metadata_err}. "
+            f"Proceeding with incoming versions. (task_id: {task_id})",
+            exc_info=True,
+        )
+
+    current_title_v = _version_int(current_chat_metadata.get("title_v"))
+    current_metadata_v = _effective_metadata_v(current_chat_metadata, current_title_v)
+    if current_title_v > title_v:
+        logger.warning(
+            f"Skipping stale title persistence for chat {chat_id}: incoming_title_v={title_v}, "
+            f"current_title_v={current_title_v} (task_id: {task_id})"
+        )
+        return
+
+    incoming_metadata_v = metadata_v if metadata_v is not None else title_v
     fields_to_update = {
         "encrypted_title": encrypted_title,
-        "title_v": title_v,
-        "metadata_v": metadata_v if metadata_v is not None else title_v,
+        "title_v": max(title_v, current_title_v),
+        "metadata_v": max(_version_int(incoming_metadata_v), current_metadata_v),
         "updated_at": int(datetime.now(timezone.utc).timestamp())
     }
 
@@ -125,6 +277,27 @@ async def _async_persist_chat_title_task(
         )
         if updated:
             logger.info(f"Successfully persisted title for chat {chat_id} (task_id: {task_id}). New title_v: {title_v}")
+            if user_id:
+                cache_service = None
+                try:
+                    cache_service = CacheService()
+                    await _refresh_chat_metadata_cache(
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        user_id=user_id,
+                        chat_id=chat_id,
+                        task_id=task_id,
+                        fields_updated=list(fields_to_update.keys()),
+                    )
+                except Exception as cache_error:
+                    logger.error(
+                        f"⚠️ Failed to refresh cache after title persistence for chat {chat_id} "
+                        f"(task_id: {task_id}): {cache_error}",
+                        exc_info=True,
+                    )
+                finally:
+                    if cache_service:
+                        await cache_service.close()
         else:
             logger.error(f"Failed to persist title for chat {chat_id} (task_id: {task_id}). Update operation returned false.")
     except Exception as e:
@@ -138,6 +311,7 @@ def persist_chat_title_task(
     title_v: int,
     encrypted_chat_key: Optional[str] = None,
     metadata_v: Optional[int] = None,
+    user_id: Optional[str] = None,
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(f"SYNC_WRAPPER: persist_chat_title_task for chat {chat_id}, task_id: {task_id}")
@@ -153,6 +327,7 @@ def persist_chat_title_task(
                 task_id,
                 encrypted_chat_key,
                 metadata_v,
+                user_id,
             )
         )
     except Exception as e:
@@ -1963,88 +2138,22 @@ async def _async_persist_encrypted_chat_metadata(
                 )
                 
                 # CRITICAL: Update cache with encrypted metadata fields (especially follow-up suggestions)
-                # Cache must be updated AFTER Directus to ensure consistency
+                # Cache must be updated AFTER Directus to ensure consistency.
                 logger.info(
                     f"DEBUG: About to update cache for chat {chat_id}, user_id: {user_id[:8] + '...' if user_id else 'None'} (task_id: {task_id})"
                 )
                 if user_id:
+                    cache_service = None
                     try:
                         cache_service = CacheService()
-                        
-                        # Get existing cache data to preserve other fields
-                        existing_cache_data = await cache_service.get_chat_list_item_data(user_id, chat_id)
-                        logger.info(
-                            f"DEBUG: Existing cache data for chat {chat_id}: {bool(existing_cache_data)} (task_id: {task_id})"
+                        await _refresh_chat_metadata_cache(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            user_id=user_id,
+                            chat_id=chat_id,
+                            task_id=task_id,
+                            fields_updated=list(update_fields.keys()),
                         )
-                        
-                        # CRITICAL: Fetch fresh data from Directus to ensure we have ALL client-encrypted fields
-                        # This matches the cache warming approach and ensures consistency
-                        fresh_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                        if fresh_chat_metadata:
-                            # Build cache data using the same format as cache warming (from Directus)
-                            # This ensures all fields are client-encrypted and in the correct format
-                            cache_data = CachedChatListItemData(
-                                title=fresh_chat_metadata.get("encrypted_title"),  # Note: cache uses 'title' field for encrypted_title
-                                unread_count=fresh_chat_metadata.get("unread_count", 0),
-                                created_at=fresh_chat_metadata.get("created_at"),
-                                updated_at=fresh_chat_metadata.get("updated_at"),
-                                encrypted_chat_key=fresh_chat_metadata.get("encrypted_chat_key"),
-                                encrypted_icon=fresh_chat_metadata.get("encrypted_icon"),
-                                encrypted_category=fresh_chat_metadata.get("encrypted_category"),
-                                encrypted_chat_summary=fresh_chat_metadata.get("encrypted_chat_summary"),
-                                encrypted_share_cta_text=fresh_chat_metadata.get("encrypted_share_cta_text"),
-                                encrypted_chat_tags=fresh_chat_metadata.get("encrypted_chat_tags"),
-                                encrypted_follow_up_request_suggestions=fresh_chat_metadata.get("encrypted_follow_up_request_suggestions"),
-                                encrypted_top_recommended_apps_for_chat=fresh_chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
-                                encrypted_quick_tip_slugs=fresh_chat_metadata.get("encrypted_quick_tip_slugs"),
-                                encrypted_shared_short_url=fresh_chat_metadata.get("encrypted_shared_short_url"),
-                                encrypted_active_focus_id=fresh_chat_metadata.get("encrypted_active_focus_id"),
-                                last_message_timestamp=fresh_chat_metadata.get("last_message_timestamp"),
-                                parent_id=fresh_chat_metadata.get("parent_id"),
-                                is_sub_chat=fresh_chat_metadata.get("is_sub_chat"),
-                                budget_limit=fresh_chat_metadata.get("budget_limit"),
-                                budget_spent=fresh_chat_metadata.get("budget_spent"),
-                            )
-                            
-                            cache_update_result = await cache_service.set_chat_list_item_data(user_id, chat_id, cache_data)
-                            if cache_update_result:
-                                logger.info(
-                                    f"✅ Updated cache for chat {chat_id} with ALL client-encrypted metadata from Directus "
-                                    f"(fields updated: {list(update_fields.keys())}) (task_id: {task_id})"
-                                )
-
-                                fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
-                                fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
-                                fresh_metadata_v = fresh_chat_metadata.get("metadata_v")
-                                if not fresh_metadata_v and fresh_title_v > 0:
-                                    fresh_metadata_v = fresh_title_v
-                                versions_update_result = await cache_service.set_chat_versions(
-                                    user_id,
-                                    chat_id,
-                                    CachedChatVersions(
-                                        messages_v=fresh_messages_v,
-                                        title_v=fresh_title_v,
-                                        metadata_v=int(fresh_metadata_v or 0),
-                                    ),
-                                )
-                                if versions_update_result:
-                                    logger.info(
-                                        f"✅ Synced cache versions for chat {chat_id}: "
-                                        f"messages_v={fresh_messages_v}, title_v={fresh_title_v} (task_id: {task_id})"
-                                    )
-                                else:
-                                    logger.error(
-                                        f"❌ Failed to sync cache versions for chat {chat_id} "
-                                        f"(task_id: {task_id})"
-                                    )
-                            else:
-                                logger.error(
-                                    f"❌ Failed to update cache for chat {chat_id} - set_chat_list_item_data returned False (task_id: {task_id})"
-                                )
-                        else:
-                            logger.warning(
-                                f"⚠️ Could not fetch fresh chat metadata from Directus to update cache for chat {chat_id} (task_id: {task_id})"
-                            )
                     except Exception as cache_error:
                         logger.error(
                             f"⚠️ Failed to update cache for chat {chat_id} after Directus update (task_id: {task_id}): {cache_error}. "
@@ -2052,7 +2161,8 @@ async def _async_persist_encrypted_chat_metadata(
                             exc_info=True
                         )
                     finally:
-                        await cache_service.close()
+                        if cache_service:
+                            await cache_service.close()
                 else:
                     logger.warning(
                         f"⚠️ Cannot update cache for chat {chat_id} - user_id not provided (task_id: {task_id})"

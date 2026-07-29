@@ -516,6 +516,7 @@ def test_chat_title_update_broadcasts_server_versions(monkeypatch) -> None:
                 "title_v": 5,
                 "metadata_v": 5,
                 "encrypted_chat_key": "cipher-key",
+                "user_id": "owner-1",
             },
             "persistence",
         )
@@ -597,6 +598,80 @@ def test_metadata_persistence_writes_reserved_cache_version_to_directus(monkeypa
     assert updates
     assert updates[0]["metadata_v"] == 5
     assert updates[0]["encrypted_chat_summary"] == "cipher-summary-v5"
+
+
+def test_metadata_persistence_preserves_newer_cached_title_when_refreshing_cache(monkeypatch) -> None:
+    record = {
+        "id": "chat-1",
+        "messages_v": 12,
+        "title_v": 4,
+        "metadata_v": 4,
+        "encrypted_title": "cipher-title-v4",
+        "encrypted_chat_summary": "cipher-summary-v4",
+    }
+    cached_items: list[object] = []
+    cached_versions: list[object] = []
+
+    class DirectusDouble:
+        def __init__(self) -> None:
+            self.chat = SimpleNamespace(
+                get_chat_metadata=AsyncMock(side_effect=lambda _chat_id: dict(record)),
+                update_chat_fields_in_directus=AsyncMock(side_effect=self.update_chat),
+            )
+
+        async def ensure_auth_token(self) -> None:
+            return None
+
+        async def update_chat(self, chat_id: str, fields_to_update: dict[str, object]) -> dict[str, object]:
+            assert chat_id == "chat-1"
+            record.update(fields_to_update)
+            return dict(record)
+
+    class CacheDouble:
+        async def get_chat_versions(self, _user_id: str, _chat_id: str) -> SimpleNamespace:
+            return SimpleNamespace(messages_v=12, title_v=5, metadata_v=5)
+
+        async def get_chat_list_item_data(self, _user_id: str, _chat_id: str):
+            return persistence_tasks.CachedChatListItemData(
+                title="cipher-title-v5",
+                encrypted_chat_summary="cipher-summary-v4",
+            )
+
+        async def set_chat_list_item_data(self, _user_id: str, _chat_id: str, cache_data) -> bool:
+            cached_items.append(cache_data)
+            return True
+
+        async def set_chat_versions(self, _user_id: str, _chat_id: str, versions) -> bool:
+            cached_versions.append(versions)
+            return True
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(persistence_tasks, "DirectusService", DirectusDouble)
+    monkeypatch.setattr(persistence_tasks, "CacheService", CacheDouble)
+
+    asyncio.run(
+        persistence_tasks._async_persist_encrypted_chat_metadata(
+            "chat-1",
+            {
+                "encrypted_chat_summary": "cipher-summary-v5",
+                "messages_v": 12,
+                "title_v": 4,
+                "metadata_v": 5,
+                "updated_at": 1000,
+            },
+            "task-1",
+            hashed_user_id="owner-hash",
+            user_id="owner-1",
+        )
+    )
+
+    assert record["encrypted_chat_summary"] == "cipher-summary-v5"
+    assert cached_items[0].title == "cipher-title-v5"
+    assert cached_items[0].encrypted_chat_summary == "cipher-summary-v5"
+    assert cached_versions[0].title_v == 5
+    assert cached_versions[0].metadata_v == 5
 
 
 def test_workflow_metadata_version_is_owner_scoped_and_vault_backed() -> None:

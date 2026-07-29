@@ -103,6 +103,7 @@ async def handle_update_title(
             "encrypted_title": encrypted_new_title,
             "title_v": new_cache_title_v,
             "metadata_v": accepted_versions["metadata_v"],
+            "user_id": user_id,
         }
         if encrypted_chat_key:
             persist_kwargs["encrypted_chat_key"] = encrypted_chat_key
