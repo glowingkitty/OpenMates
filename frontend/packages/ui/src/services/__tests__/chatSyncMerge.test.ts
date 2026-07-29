@@ -376,6 +376,32 @@ describe("chat sync merge", () => {
     expect(merged.title_v).toBe(8);
   });
 
+  it("uses server metadata fields when metadata_v matches local stale cache", async () => {
+    const localChat = makeChat({
+      encrypted_title: "local-title-v7",
+      encrypted_chat_summary: "local-stale-summary-v7",
+      metadata_v: 7,
+      title_v: 3,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_title: "server-title-v7",
+      encrypted_chat_summary: "server-current-summary-v7",
+      metadata_v: 7,
+      messages_v: 6,
+      title_v: 3,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.metadata_v).toBe(7);
+    expect(merged.encrypted_title).toBe("server-title-v7");
+    expect(merged.encrypted_chat_summary).toBe("server-current-summary-v7");
+    expect(merged.title_v).toBe(3);
+  });
+
   it("falls back to title_v for title and summary when metadata_v is absent", async () => {
     const localChat = makeChat({
       encrypted_title: "local-legacy-title-v12",

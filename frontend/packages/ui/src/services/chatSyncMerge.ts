@@ -267,7 +267,30 @@ export async function mergeServerChatWithLocal(
     (localChat.metadata_v ?? 0) > 0 || (serverChat.metadata_v ?? 0) > 0;
   const localMetadataV = localChat.metadata_v || localTitleV;
   const serverMetadataV = serverChat.metadata_v || serverTitleV;
-  if (localMetadataV >= serverMetadataV) {
+  const serverHasEncryptedTitle = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_title",
+  );
+  const serverHasEncryptedSummary = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_chat_summary",
+  );
+  const serverCarriesMetadataRevision = (serverChat.metadata_v ?? 0) > 0;
+  if (
+    hasMetadataVersion &&
+    serverCarriesMetadataRevision &&
+    serverMetadataV >= localMetadataV &&
+    (serverHasEncryptedTitle || serverHasEncryptedSummary)
+  ) {
+    merged.encrypted_title = serverHasEncryptedTitle
+      ? serverChat.encrypted_title ?? null
+      : localChat.encrypted_title ?? null;
+    merged.encrypted_chat_summary = serverHasEncryptedSummary
+      ? serverChat.encrypted_chat_summary
+      : localChat.encrypted_chat_summary;
+    merged.title_v = serverChat.title_v ?? localChat.title_v;
+    merged.metadata_v = serverChat.metadata_v;
+  } else if (localMetadataV >= serverMetadataV) {
     merged.encrypted_title = localChat.encrypted_title ?? serverChat.encrypted_title;
     merged.encrypted_chat_summary =
       localChat.encrypted_chat_summary ?? serverChat.encrypted_chat_summary;
