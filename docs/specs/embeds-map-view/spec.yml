@@ -129,7 +129,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6ff65d9a47725dcd2c305dad36b0554e4ca7212a
+  subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
 
 approvals:
   product_contract:
@@ -204,11 +204,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: Ask the user to confirm the deployed dev Berlin map-view example works visually on mobile/dark mode, then run Apple status/build or record an accepted Apple blocker.
+  next_action: Ask the user to confirm the deployed dev Berlin map-view example works visually on mobile/dark mode; Apple parity is blocked by unreachable remote Mac SSH.
   command: "manual: ask user to confirm https://app.dev.openmates.org/example/berlin-ai-founder-meetups-map"
-  expected_outcome: User confirmation clears the final web-visual gate, after which Apple parity can be attempted with scripts/apple_remote.py status and build-ios.
+  expected_outcome: User confirmation clears the remaining final web-visual gate.
   blocker: null
-  last_verified_commit: 6ff65d9a47725dcd2c305dad36b0554e4ca7212a
+  last_verified_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
 
 scenarios:
   - id: S-1
@@ -525,9 +525,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: 2026-07-30T18:05:14Z / GitHub Actions 30568872945
-        subject_commit: working-tree:a0decf3cc
-        timestamp: "2026-07-30T18:06:26Z"
+        run_id: 2026-07-30T20:57:11Z / GitHub Actions 30581390137
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        timestamp: "2026-07-30T20:58:24Z"
 
   - id: T-VITEST-RENDER
     type: vitest
@@ -557,9 +557,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: 2026-07-30T18:05:14Z / GitHub Actions 30568872945
-        subject_commit: working-tree:a0decf3cc
-        timestamp: "2026-07-30T18:06:26Z"
+        run_id: 2026-07-30T20:57:11Z / GitHub Actions 30581390137
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        timestamp: "2026-07-30T20:58:24Z"
 
   - id: T-PYTEST-AI-CONTRACT
     type: pytest
@@ -592,9 +592,9 @@ tests:
       evidence:
         status: passed
         command: docker exec api python -m pytest /app/backend/tests/test_embeds_map_view_contract.py -q
-        run_id: docker-api-pytest-20260730T1805Z
-        subject_commit: working-tree:a0decf3cc
-        timestamp: "2026-07-30T18:05:14Z"
+        run_id: docker-api-pytest-20260730T2057Z
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        timestamp: "2026-07-30T20:57:11Z"
         supporting_evidence:
           - status: passed
             command: docker exec api python -m pytest /app/backend/tests/test_code_block_detection.py -k embeds_map_view -q
@@ -669,12 +669,12 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 5b32e4f2eef84625b663f8b3a8492360265f059e
-        run_id: 2026-07-29T16:28:47Z / GitHub Actions 30471766598
-        subject_commit: 558612acb
+        command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 7afd493b9 --no-mocks
+        run_id: 2026-07-30T20:58:57Z / GitHub Actions 30582024571
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
         target: app.dev.openmates.org
-        deployment_reference: dpl_3dCBZwR2uMEgJmGbL257AeufYXsk
-        timestamp: "2026-07-29T16:41:47Z"
+        deployment_reference: dpl_2tMB2d35HDfbZioLwKVK2yrCmTy9
+        timestamp: "2026-07-30T21:07:51Z"
 
   - id: T-PLAYWRIGHT-EXAMPLES
     type: playwright
@@ -705,14 +705,22 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 6ff65d9
-        run_id: 2026-07-30T19:07:20Z / GitHub Actions 30573444218
-        subject_commit: 6ff65d9a47725dcd2c305dad36b0554e4ca7212a
+        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 7afd493b9 --no-mocks
+        run_id: 2026-07-30T21:08:11Z / GitHub Actions 30582532870
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
         target: app.dev.openmates.org
-        deployment_reference: GitHub Actions headSha 6ff65d9a47725dcd2c305dad36b0554e4ca7212a; tests.py dispatched after the expected-commit gate.
-        timestamp: "2026-07-30T19:08:57Z"
+        deployment_reference: dpl_2tMB2d35HDfbZioLwKVK2yrCmTy9
+        timestamp: "2026-07-30T21:15:32Z"
         summary: Passed the deployed public example flow with mobile 390x844 dark-mode assertions for removed redundant headings, filter menu, card contrast/spacing, hover dimming, map visibility, and no forbidden provider/app-skill API calls.
         supporting_evidence:
+          - status: passed
+            command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit d39224a31 --no-mocks
+            run_id: 2026-07-30T21:17:01Z / GitHub Actions 30583151607
+            subject_commit: d39224a31abf2bbf5d526619ba10cd1286a051d4
+            target: app.dev.openmates.org
+            deployment_reference: dpl_GZP5Yp1CwFc12V514Asox6J57eyt
+            timestamp: "2026-07-30T21:26:13Z"
+            summary: Deutschlandticket example route-map assertion passed on current example-chat rendering, including grouped route count >= 5.
           - status: passed
             command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 9bb3b76
             run_id: 2026-07-30T10:21:59Z / GitHub Actions 30534728170
@@ -746,11 +754,15 @@ verifications:
     covers:
       - AC-3
       - AC-6
-    status: pending
+    status: blocked
     evidence:
-      status: pending
-      summary: Apple impact must be verified after earlier gates pass or recorded as unavailable with sanitized failure class.
-      timestamp: ""
+      status: blocked
+      command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+      reason: Remote Mac SSH is currently unreachable from this Linux session.
+      actor: OpenCode
+      summary: "ssh_failed: apple_remote.py status reported ssh_reachable=false; build-ios exited 255 with SSH connection timeout."
+      recheck_condition: Re-run apple_remote.py status and build-ios when macos-peer SSH is reachable.
+      timestamp: "2026-07-30T21:27:00Z"
 
 implementation_plan:
   spec_path: docs/specs/embeds-map-view/spec.yml
