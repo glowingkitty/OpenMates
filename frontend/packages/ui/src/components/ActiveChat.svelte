@@ -9513,24 +9513,52 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
                 if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)) {
-                    console.info(`[ActiveChat] No local messages for ${currentChat.chat_id} — requesting from server (on-demand loading)`);
+                    const onDemandChatId = currentChat.chat_id;
+                    const shouldAwaitOnDemandMessages =
+                        Number(currentChat.messages_v ?? 0) > 0 ||
+                        Number(chat.messages_v ?? 0) > 0 ||
+                        !!(
+                            currentChat.encrypted_title ||
+                            currentChat.encrypted_category ||
+                            currentChat.encrypted_chat_summary ||
+                            currentChat.title ||
+                            currentChat.category ||
+                            chat.encrypted_title ||
+                            chat.encrypted_category ||
+                            chat.encrypted_chat_summary ||
+                            chat.title ||
+                            chat.category
+                        );
+                    console.info(`[ActiveChat] No local messages for ${onDemandChatId} — requesting from server (on-demand loading)`);
                     try {
-                        await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([currentChat.chat_id]);
-                        if ((currentChat.messages_v ?? 0) > 0) {
+                        await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([onDemandChatId]);
+                        if (shouldAwaitOnDemandMessages) {
                             for (let attempt = 0; attempt < ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS; attempt++) {
-                                if (thisLoadGeneration !== loadChatGeneration) return;
+                                if (thisLoadGeneration !== loadChatGeneration || currentChat?.chat_id !== onDemandChatId) return;
                                 await new Promise((resolve) => setTimeout(resolve, ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS));
-                                const hydratedWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+                                const hydratedWindow = await chatDB.getMessageWindowForChat(onDemandChatId, { direction: 'latest' });
                                 if (hydratedWindow.messages.length > 0) {
                                     newMessages = hydratedWindow.messages;
                                     currentMessageWindowHasMoreBefore = hydratedWindow.hasMoreBefore;
-                                    console.info(`[ActiveChat] On-demand message load hydrated ${newMessages.length} message(s) for ${currentChat.chat_id}`);
+                                    const hydratedChat = await chatDB.getChat(onDemandChatId).catch(() => null);
+                                    if (currentChat?.chat_id === onDemandChatId) {
+                                        currentChat = {
+                                            ...currentChat,
+                                            ...(hydratedChat ?? {}),
+                                            messages_v: Math.max(
+                                                Number(currentChat.messages_v ?? 0),
+                                                Number(hydratedChat?.messages_v ?? 0),
+                                                hydratedWindow.messages.length,
+                                            ),
+                                        };
+                                    }
+                                    console.info(`[ActiveChat] On-demand message load hydrated ${newMessages.length} message(s) for ${onDemandChatId}`);
                                     break;
                                 }
                             }
                         }
                     } catch (err) {
-                        console.error(`[ActiveChat] Failed to request messages from server for ${currentChat.chat_id}:`, err);
+                        console.error(`[ActiveChat] Failed to request messages from server for ${onDemandChatId}:`, err);
                     }
                 }
             }
