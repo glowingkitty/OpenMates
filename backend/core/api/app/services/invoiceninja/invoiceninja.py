@@ -707,6 +707,14 @@ class InvoiceNinjaService:
 
         # --- Success ---
         logger.info(f"Process Completed for {processor_type.upper()} Order: {external_order_id}")
+        return {
+            "invoice_id": ninja_invoice_id,
+            "invoice_number": ninja_invoice_number,
+            "payment_id": ninja_payment_id,
+            "bank_transaction_id": ninja_bank_transaction_id,
+            "pdf_upload_success": pdf_upload_success,
+            "transaction_match_success": transaction_match_success,
+        }
 
     async def create_credit_note(
         self,

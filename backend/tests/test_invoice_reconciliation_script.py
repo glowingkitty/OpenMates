@@ -7,12 +7,14 @@ the pure matching/date helpers so the incident guardrails remain fast and safe
 to run without external services.
 """
 
+import base64
 import importlib.util
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "audit_backfill_missing_stripe_invoices.py"
@@ -57,6 +59,35 @@ def test_invoice_filename_helpers_preserve_invoice_number_with_original_date():
     assert audit_script._invoice_number_from_filename(filename) == "RDGV4VK-2"
 
 
+def test_stripe_amount_to_display_units_handles_zero_decimal_currencies():
+    assert audit_script._stripe_amount_to_display_units(1000, "eur") == 10.0
+    assert audit_script._stripe_amount_to_display_units(1000, "jpy") == 1000.0
+
+
+class FakeEncryption:
+    async def encrypt_with_user_key(self, plaintext, key_id):
+        return f"wrapped:{key_id}:{plaintext}", "v1"
+
+
+@pytest.mark.asyncio
+async def test_repair_pdf_encryption_uses_fresh_key_and_nonce(monkeypatch):
+    generated = iter([b"\x01" * 32, b"\x02" * 12])
+    monkeypatch.setattr(audit_script.os, "urandom", lambda size: next(generated))
+
+    encrypted_payload, wrapped_key, nonce_b64 = await audit_script._encrypt_repair_pdf_payload(
+        FakeEncryption(),
+        "vault-key",
+        b"pdf bytes",
+    )
+
+    aes_key = base64.b64decode(wrapped_key.split(":")[-1])
+    nonce = base64.b64decode(nonce_b64)
+
+    assert aes_key == b"\x01" * 32
+    assert nonce == b"\x02" * 12
+    assert AESGCM(aes_key).decrypt(nonce, encrypted_payload, None) == b"pdf bytes"
+
+
 def test_ninja_invoice_matches_custom_field_or_private_notes():
     assert audit_script._ninja_invoice_matches({"custom_value2": "pi_123"}, "pi_123")
     assert audit_script._ninja_invoice_matches({"private_notes": "stripe Order ID: pi_123"}, "pi_123")
@@ -93,6 +124,135 @@ class FailingNinja:
 @pytest.mark.asyncio
 async def test_ninja_invoice_exists_returns_unknown_on_lookup_errors():
     assert await audit_script._ninja_invoice_exists(FailingNinja(), "pi_123") is None
+
+
+class ReplacementNinja:
+    def __init__(self, replacement):
+        self.replacement = replacement
+        self.events = []
+
+    async def process_income_transaction(self, **kwargs):
+        self.events.append(("PROCESS", kwargs["external_order_id"]))
+        return self.replacement
+
+    async def make_api_request(self, method, endpoint, params=None, data=None):
+        self.events.append((method, endpoint))
+        return {}
+
+
+async def fake_payment_rows(ninja, external_order_id):
+    return [{"id": "pay-old"}]
+
+
+async def fake_bank_transaction_rows(ninja, external_order_id, invoice_number):
+    return [{"id": "bank-old"}]
+
+
+@pytest.mark.asyncio
+async def test_recreate_locked_ninja_surfaces_keeps_old_rows_when_replacement_fails(monkeypatch):
+    monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
+    monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
+    ninja = ReplacementNinja(replacement=None)
+
+    result = await audit_script._recreate_locked_invoice_ninja_surfaces(
+        ninja=ninja,
+        external_order_id="pi_123",
+        invoice_rows=[{"id": "inv-old"}],
+        invoice_number="ACCT-1",
+        invoice_date="2026-07-01",
+        pdf_bytes=b"pdf",
+        user_hash="user-hash",
+        user={"account_id": "acct"},
+        credits=1000,
+        amount_paid=1000,
+        currency_code="eur",
+        card_details={},
+        is_gift_card=False,
+        apply=True,
+    )
+
+    assert result["recreated"] is False
+    assert result["errors"] == ["failed to create complete replacement: replacement transaction"]
+    assert ninja.events == [("PROCESS", "pi_123")]
+
+
+@pytest.mark.asyncio
+async def test_recreate_locked_ninja_surfaces_cleans_incomplete_replacement(monkeypatch):
+    monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
+    monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
+    ninja = ReplacementNinja(
+        replacement={
+            "invoice_id": "inv-new",
+            "invoice_number": "ACCT-1",
+            "payment_id": None,
+            "bank_transaction_id": None,
+            "pdf_upload_success": True,
+            "transaction_match_success": False,
+        }
+    )
+
+    result = await audit_script._recreate_locked_invoice_ninja_surfaces(
+        ninja=ninja,
+        external_order_id="pi_123",
+        invoice_rows=[{"id": "inv-old"}],
+        invoice_number="ACCT-1",
+        invoice_date="2026-07-01",
+        pdf_bytes=b"pdf",
+        user_hash="user-hash",
+        user={"account_id": "acct"},
+        credits=1000,
+        amount_paid=1000,
+        currency_code="eur",
+        card_details={},
+        is_gift_card=False,
+        apply=True,
+    )
+
+    assert result["recreated"] is False
+    assert result["errors"] == ["failed to create complete replacement: replacement payment"]
+    assert ninja.events == [("PROCESS", "pi_123"), ("DELETE", "/invoices/inv-new")]
+
+
+@pytest.mark.asyncio
+async def test_recreate_locked_ninja_surfaces_deletes_old_rows_after_replacement_success(monkeypatch):
+    monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
+    monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
+    ninja = ReplacementNinja(
+        replacement={
+            "invoice_id": "inv-new",
+            "invoice_number": "ACCT-1",
+            "payment_id": "pay-new",
+            "bank_transaction_id": "bank-new",
+            "pdf_upload_success": True,
+            "transaction_match_success": True,
+        }
+    )
+
+    result = await audit_script._recreate_locked_invoice_ninja_surfaces(
+        ninja=ninja,
+        external_order_id="pi_123",
+        invoice_rows=[{"id": "inv-old"}],
+        invoice_number="ACCT-1",
+        invoice_date="2026-07-01",
+        pdf_bytes=b"pdf",
+        user_hash="user-hash",
+        user={"account_id": "acct"},
+        credits=1000,
+        amount_paid=1000,
+        currency_code="eur",
+        card_details={},
+        is_gift_card=False,
+        apply=True,
+    )
+
+    assert result["recreated"] is True
+    assert result["errors"] == []
+    assert ninja.events == [
+        ("PROCESS", "pi_123"),
+        ("DELETE", "/bank_transactions/bank-old"),
+        ("DELETE", "/payments/pay-old"),
+        ("DELETE", "/invoices/inv-old"),
+    ]
 
 
 @pytest.mark.parametrize(

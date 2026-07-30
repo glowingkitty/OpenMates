@@ -47,6 +47,7 @@ INVOICE_TASK = "app.tasks.email_tasks.purchase_confirmation_email_task.process_i
 STRIPE_SECRET_PATH = "kv/data/providers/stripe"
 INVOICE_SENDER_SECRET_PATH = "kv/data/providers/invoice_sender"
 BACKFILLED_INVOICE_FILENAME_RE = re.compile(r"^openmates_invoice_\d{4}_\d{2}_\d{2}_(?P<number>.+)\.pdf$")
+ZERO_DECIMAL_CURRENCIES = {"jpy", "krw", "vnd", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof"}
 
 
 def _is_production() -> bool:
@@ -99,6 +100,12 @@ def _invoice_filename_for_date(invoice_number: str, invoice_date: str) -> str:
 def _invoice_number_from_filename(filename: str) -> str | None:
     match = BACKFILLED_INVOICE_FILENAME_RE.match(filename)
     return match.group("number") if match else None
+
+
+def _stripe_amount_to_display_units(amount: int, currency_code: str) -> float:
+    if currency_code.lower() in ZERO_DECIMAL_CURRENCIES:
+        return float(amount)
+    return float(amount) / 100
 
 
 def _card_details_from_payment_intent(payment_intent: Any) -> dict[str, str | None]:
@@ -376,6 +383,21 @@ async def _ninja_payment_rows(ninja: InvoiceNinjaService, external_order_id: str
     return rows
 
 
+async def _encrypt_repair_pdf_payload(
+    encryption: EncryptionService,
+    vault_key_id: str,
+    pdf_bytes: bytes,
+) -> tuple[bytes, str, str]:
+    aes_key = os.urandom(32)
+    nonce = os.urandom(12)
+    encrypted_payload = AESGCM(aes_key).encrypt(nonce, pdf_bytes, None)
+    aes_key_b64 = base64.b64encode(aes_key).decode("utf-8")
+    encrypted_aes_key, _ = await encryption.encrypt_with_user_key(aes_key_b64, vault_key_id)
+    if not encrypted_aes_key:
+        raise RuntimeError("failed to wrap repaired invoice PDF AES key")
+    return encrypted_payload, encrypted_aes_key, base64.b64encode(nonce).decode("utf-8")
+
+
 def _build_repair_invoice_data(
     *,
     invoice_number: str,
@@ -383,6 +405,7 @@ def _build_repair_invoice_data(
     user: dict[str, Any],
     credits: int,
     amount_paid: int,
+    currency_code: str,
     card_details: dict[str, str | None],
     sender: dict[str, str],
     refund_link: str,
@@ -406,7 +429,7 @@ def _build_repair_invoice_data(
         "receiver_name": "",
         "receiver_account_id": user.get("account_id"),
         "credits": credits,
-        "actual_amount_paid": float(amount_paid) / 100,
+        "actual_amount_paid": _stripe_amount_to_display_units(amount_paid, currency_code),
         "card_name": formatted_card_brand,
         "card_last4": card_details.get("card_last_four"),
         "sender_addressline1": sender.get("addressline1") or "",
@@ -524,37 +547,16 @@ async def _recreate_locked_invoice_ninja_surfaces(
         "errors": [],
     }
 
+    async def delete_rows(endpoint: str, rows: list[dict[str, Any]], label: str) -> None:
+        for row in rows:
+            row_id = row.get("id")
+            if not row_id:
+                continue
+            response = await ninja.make_api_request("DELETE", f"/{endpoint}/{row_id}")
+            if response is None:
+                result["errors"].append(f"failed to delete {label} {row_id}")
+
     if not apply:
-        return result
-
-    for row in bank_transactions:
-        transaction_id = row.get("id")
-        if not transaction_id:
-            continue
-        response = await ninja.make_api_request("DELETE", f"/bank_transactions/{transaction_id}")
-        if response is None:
-            result["errors"].append(f"failed to delete old bank transaction {transaction_id}")
-    if result["errors"]:
-        return result
-
-    for payment in payments:
-        payment_id = payment.get("id")
-        if not payment_id:
-            continue
-        response = await ninja.make_api_request("DELETE", f"/payments/{payment_id}")
-        if response is None:
-            result["errors"].append(f"failed to delete old payment {payment_id}")
-    if result["errors"]:
-        return result
-
-    for row in invoice_rows:
-        invoice_id = row.get("id")
-        if not invoice_id:
-            continue
-        response = await ninja.make_api_request("DELETE", f"/invoices/{invoice_id}")
-        if response is None:
-            result["errors"].append(f"failed to delete old invoice {invoice_id}")
-    if result["errors"]:
         return result
 
     cardholder_name = card_details.get("cardholder_name") or ""
@@ -566,7 +568,7 @@ async def _recreate_locked_invoice_ninja_surfaces(
         else:
             customer_firstname = cardholder_name
 
-    await ninja.process_income_transaction(
+    replacement = await ninja.process_income_transaction(
         user_hash=user_hash,
         external_order_id=external_order_id,
         customer_firstname=customer_firstname,
@@ -575,7 +577,7 @@ async def _recreate_locked_invoice_ninja_surfaces(
         customer_country_code="",
         credits_value=credits,
         currency_code=currency_code,
-        purchase_price_value=float(amount_paid) / 100,
+        purchase_price_value=_stripe_amount_to_display_units(amount_paid, currency_code),
         invoice_date=invoice_date,
         due_date=invoice_date,
         payment_processor="stripe",
@@ -584,7 +586,37 @@ async def _recreate_locked_invoice_ninja_surfaces(
         custom_pdf_data=pdf_bytes,
         is_gift_card=is_gift_card,
     )
-    result["recreated"] = True
+    result["new_invoice_id"] = replacement.get("invoice_id") if replacement else None
+    result["new_payment_id"] = replacement.get("payment_id") if replacement else None
+    result["new_bank_transaction_id"] = replacement.get("bank_transaction_id") if replacement else None
+
+    missing_replacement_parts = []
+    if not replacement:
+        missing_replacement_parts.append("replacement transaction")
+    elif not replacement.get("invoice_id"):
+        missing_replacement_parts.append("replacement invoice")
+    elif not replacement.get("payment_id"):
+        missing_replacement_parts.append("replacement payment")
+    elif not replacement.get("bank_transaction_id"):
+        missing_replacement_parts.append("replacement bank transaction")
+    elif not replacement.get("pdf_upload_success"):
+        missing_replacement_parts.append("replacement PDF upload")
+    elif not replacement.get("transaction_match_success"):
+        missing_replacement_parts.append("replacement bank transaction match")
+
+    if missing_replacement_parts:
+        result["errors"].append(f"failed to create complete replacement: {', '.join(missing_replacement_parts)}")
+        if replacement:
+            await delete_rows("bank_transactions", [{"id": replacement.get("bank_transaction_id")}], "incomplete replacement bank transaction")
+            await delete_rows("payments", [{"id": replacement.get("payment_id")}], "incomplete replacement payment")
+            await delete_rows("invoices", [{"id": replacement.get("invoice_id")}], "incomplete replacement invoice")
+        return result
+
+    result["replacement_created"] = True
+    await delete_rows("bank_transactions", bank_transactions, "old bank transaction")
+    await delete_rows("payments", payments, "old payment")
+    await delete_rows("invoices", invoice_rows, "old invoice")
+    result["recreated"] = not result["errors"]
     return result
 
 
@@ -666,9 +698,7 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
             vault_key_id = user["vault_key_id"]
             encrypted_filename = invoice.get("encrypted_filename")
             encrypted_s3_object_key = invoice.get("encrypted_s3_object_key")
-            encrypted_aes_key = invoice.get("encrypted_aes_key")
-            aes_nonce_b64 = invoice.get("aes_nonce")
-            if not encrypted_filename or not encrypted_s3_object_key or not encrypted_aes_key or not aes_nonce_b64:
+            if not encrypted_filename or not encrypted_s3_object_key:
                 record["status"] = "blocked"
                 record["errors"].append("Directus invoice is missing encrypted PDF metadata")
                 findings.append(record)
@@ -677,11 +707,10 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
 
             current_filename = await encryption.decrypt_with_user_key(encrypted_filename, vault_key_id)
             s3_object_key = await encryption.decrypt_with_user_key(encrypted_s3_object_key, vault_key_id)
-            aes_key_b64 = await encryption.decrypt_with_user_key(encrypted_aes_key, vault_key_id)
             invoice_number = _invoice_number_from_filename(current_filename or "")
-            if not current_filename or not s3_object_key or not aes_key_b64 or not invoice_number:
+            if not current_filename or not s3_object_key or not invoice_number:
                 record["status"] = "blocked"
-                record["errors"].append("failed to decrypt current filename, S3 key, AES key, or invoice number")
+                record["errors"].append("failed to decrypt current filename, S3 key, or invoice number")
                 findings.append(record)
                 blocked += 1
                 continue
@@ -695,12 +724,14 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
                 continue
 
             refund_link = f"{os.getenv('WEBAPP_URL', 'https://openmates.org')}#settings/billing/invoices/{invoice['id']}/refund"
+            currency_code = str(getattr(payment_intent, "currency", "eur")).lower()
             invoice_data = _build_repair_invoice_data(
                 invoice_number=invoice_number,
                 invoice_date=original_date,
                 user=user,
                 credits=credits,
                 amount_paid=int(getattr(payment_intent, "amount", 0) or 0),
+                currency_code=currency_code,
                 card_details=_card_details_from_payment_intent(payment_intent),
                 sender=sender,
                 refund_link=refund_link,
@@ -709,7 +740,7 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
             pdf_buffer = invoice_template.generate_invoice(
                 invoice_data,
                 lang="en",
-                currency=str(getattr(payment_intent, "currency", "eur")).lower(),
+                currency=currency_code,
                 document_type="invoice",
             )
             pdf_bytes = pdf_buffer.getvalue()
@@ -729,32 +760,32 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
                 blocked += 1
                 continue
 
-            if args.recreate_locked_invoice_ninja:
-                record["invoice_ninja"] = await _recreate_locked_invoice_ninja_surfaces(
+            async def apply_invoice_ninja_repair(apply: bool) -> dict[str, Any]:
+                if args.recreate_locked_invoice_ninja:
+                    return await _recreate_locked_invoice_ninja_surfaces(
+                        ninja=ninja,
+                        external_order_id=external_order_id,
+                        invoice_rows=ninja_rows,
+                        invoice_number=invoice_number,
+                        invoice_date=original_date,
+                        pdf_bytes=pdf_bytes,
+                        user_hash=str(invoice.get("user_id_hash") or ""),
+                        user=user,
+                        credits=credits,
+                        amount_paid=int(getattr(payment_intent, "amount", 0) or 0),
+                        currency_code=currency_code,
+                        card_details=_card_details_from_payment_intent(payment_intent),
+                        is_gift_card=bool(invoice.get("is_gift_card")),
+                        apply=apply,
+                    )
+                return await _patch_invoice_ninja_date_surfaces(
                     ninja=ninja,
                     external_order_id=external_order_id,
                     invoice_rows=ninja_rows,
                     invoice_number=invoice_number,
                     invoice_date=original_date,
                     pdf_bytes=pdf_bytes,
-                    user_hash=str(invoice.get("user_id_hash") or ""),
-                    user=user,
-                    credits=credits,
-                    amount_paid=int(getattr(payment_intent, "amount", 0) or 0),
-                    currency_code=str(getattr(payment_intent, "currency", "eur")).lower(),
-                    card_details=_card_details_from_payment_intent(payment_intent),
-                    is_gift_card=bool(invoice.get("is_gift_card")),
-                    apply=bool(args.apply_date_repair),
-                )
-            else:
-                record["invoice_ninja"] = await _patch_invoice_ninja_date_surfaces(
-                    ninja=ninja,
-                    external_order_id=external_order_id,
-                    invoice_rows=ninja_rows,
-                    invoice_number=invoice_number,
-                    invoice_date=original_date,
-                    pdf_bytes=pdf_bytes,
-                    apply=bool(args.apply_date_repair),
+                    apply=apply,
                 )
 
             if args.apply_date_repair:
@@ -764,9 +795,18 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
                     findings.append(record)
                     blocked += 1
                     continue
-                aes_key = base64.b64decode(aes_key_b64)
-                nonce = base64.b64decode(aes_nonce_b64)
-                encrypted_pdf_payload = AESGCM(aes_key).encrypt(nonce, pdf_bytes, None)
+                try:
+                    encrypted_pdf_payload, encrypted_aes_key, aes_nonce_b64 = await _encrypt_repair_pdf_payload(
+                        encryption,
+                        vault_key_id,
+                        pdf_bytes,
+                    )
+                except RuntimeError as exc:
+                    record["status"] = "blocked"
+                    record["errors"].append(str(exc))
+                    findings.append(record)
+                    blocked += 1
+                    continue
                 upload_result = await s3.upload_file(
                     bucket_key="invoices",
                     file_key=s3_object_key,
@@ -784,7 +824,12 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
                 update_result = await directus.update_item(
                     "invoices",
                     str(invoice["id"]),
-                    {"date": original_datetime.isoformat(), "encrypted_filename": encrypted_corrected_filename},
+                    {
+                        "date": original_datetime.isoformat(),
+                        "encrypted_filename": encrypted_corrected_filename,
+                        "encrypted_aes_key": encrypted_aes_key,
+                        "aes_nonce": aes_nonce_b64,
+                    },
                     admin_required=True,
                 )
                 if not update_result:
@@ -793,6 +838,8 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
                     findings.append(record)
                     blocked += 1
                     continue
+                record["rotated_pdf_encryption"] = True
+                record["invoice_ninja"] = await apply_invoice_ninja_repair(apply=True)
                 if record["invoice_ninja"].get("errors"):
                     record["status"] = "partial"
                     blocked += 1
@@ -800,6 +847,7 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
                     record["status"] = "repaired"
                     repaired += 1
             else:
+                record["invoice_ninja"] = await apply_invoice_ninja_repair(apply=False)
                 record["status"] = "would_repair"
             findings.append(record)
 
