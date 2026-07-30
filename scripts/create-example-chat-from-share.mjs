@@ -38,6 +38,7 @@ const DATA_REGISTRY_PATH = path.join(
   'frontend/packages/ui/src/demo_chats/exampleChatData.ts',
 );
 const EXTRACT_SCRIPT = path.join(REPO_ROOT, 'scripts/extract-shared-chat.mjs');
+const EMBEDS_MAP_VIEW_LANGUAGE = 'embeds_map_view';
 
 const LANGUAGES = [
   'en',
@@ -566,6 +567,64 @@ function appSkillExamplesFromEmbeds(embeds) {
   ].sort();
 }
 
+function parseQuotedToonScalar(content, key) {
+  const value = parseToonScalar(content, key);
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value.replace(/^"|"$/g, '');
+  }
+}
+
+function embedsMapViewCodeContent(embed) {
+  if (!embed || embed.type !== 'code') return null;
+  const language = parseQuotedToonScalar(embed.content, 'language');
+  if (language !== EMBEDS_MAP_VIEW_LANGUAGE) return null;
+  const code = parseQuotedToonScalar(embed.content, 'code');
+  const decodedCode = typeof code === 'string' ? code.replace(/\\n/g, '\n') : '';
+  return decodedCode.trim() ? decodedCode.trim() : null;
+}
+
+function replaceEmbedsMapViewCodeRefs(content, mapViewCodeById) {
+  return String(content || '').replace(/```json\n([\s\S]*?)\n```/g, (block, jsonText) => {
+    try {
+      const embedRef = JSON.parse(jsonText.trim());
+      const mapViewCode = mapViewCodeById.get(embedRef?.embed_id);
+      if (embedRef?.type === 'code' && mapViewCode) {
+        return `\`\`\`${EMBEDS_MAP_VIEW_LANGUAGE}\n${mapViewCode}\n\`\`\``;
+      }
+    } catch {
+      return block;
+    }
+    return block;
+  });
+}
+
+export function inlineEmbedsMapViewCodeEmbeds(chat) {
+  const mapViewCodeById = new Map();
+  for (const embed of chat.embeds || []) {
+    const mapViewCode = embedsMapViewCodeContent(embed);
+    if (mapViewCode) mapViewCodeById.set(embed.embed_id, mapViewCode);
+  }
+  if (mapViewCodeById.size === 0) {
+    return {
+      ...chat,
+      sub_chats: (chat.sub_chats || []).map((subChat) => inlineEmbedsMapViewCodeEmbeds(subChat)),
+    };
+  }
+
+  return {
+    ...chat,
+    messages: (chat.messages || []).map((message) => ({
+      ...message,
+      content: replaceEmbedsMapViewCodeRefs(message.content, mapViewCodeById),
+    })),
+    embeds: (chat.embeds || []).filter((embed) => !mapViewCodeById.has(embed.embed_id)),
+    sub_chats: (chat.sub_chats || []).map((subChat) => inlineEmbedsMapViewCodeEmbeds(subChat)),
+  };
+}
+
 function validateExtractedChat(chat) {
   const required = ['chat_id', 'messages', 'embeds'];
   for (const key of required) {
@@ -1017,7 +1076,9 @@ function writeIfChanged(filePath, content, args) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const loadedChat = removeInternalTaskEventMessages(withPromotedAppSkillUseMessages(loadExtractedChat(args)));
+  const loadedChat = inlineEmbedsMapViewCodeEmbeds(
+    removeInternalTaskEventMessages(withPromotedAppSkillUseMessages(loadExtractedChat(args))),
+  );
   const usagePayload = await loadUsagePayload(args, loadedChat);
   const chat = annotateChatWithUsage(loadedChat, usagePayload);
   validateExtractedChat(chat);

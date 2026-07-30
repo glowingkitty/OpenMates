@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   annotateChatWithUsage,
+  inlineEmbedsMapViewCodeEmbeds,
   removeInternalTaskEventMessages,
   sanitizeEmbedContent,
   sanitizeExampleMessageContent,
@@ -76,6 +77,43 @@ test('removes internal task event system messages from public examples', () => {
 
   assert.deepEqual(chat.messages.map((message) => message.message_id), ['user-1', 'system-json-1', 'assistant-1']);
   assert.deepEqual(chat.sub_chats[0].messages.map((message) => message.message_id), ['sub-assistant-1']);
+});
+
+test('inlines embeds_map_view code embeds as message-level map-view fences', () => {
+  const chat = inlineEmbedsMapViewCodeEmbeds({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content: [
+          'Before',
+          '',
+          '```json',
+          '{"type":"code","embed_id":"map-code-1"}',
+          '```',
+          '',
+          'After',
+        ].join('\n'),
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'map-code-1',
+        type: 'code',
+        content: 'type: code\nlanguage: embeds_map_view\ncode: "title: Places\\nembeds: place-a, place-b\\n"\nembed_ref: code-map\nstatus: finished',
+      },
+      {
+        embed_id: 'place-a-id',
+        type: 'event',
+        content: 'embed_ref: place-a\ntitle: Place A',
+      },
+    ],
+  });
+
+  assert.match(chat.messages[0].content, /```embeds_map_view\ntitle: Places\nembeds: place-a, place-b\n```/);
+  assert.doesNotMatch(chat.messages[0].content, /"type":"code"|Code snippet/);
+  assert.deepEqual(chat.embeds.map((embed) => embed.embed_id), ['place-a-id']);
 });
 
 test('continues to strip private encrypted storage fields', () => {
