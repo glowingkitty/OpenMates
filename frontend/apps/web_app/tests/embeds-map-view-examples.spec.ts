@@ -63,6 +63,8 @@ test.describe('Embeds map view public examples', () => {
 		const assistantMessage = page.getByTestId('message-assistant').first();
 		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
 		await expect(assistantMessage).toContainText('Build Fridays Berlin', { timeout: 30_000 });
+		await expect(assistantMessage, 'map-view source must not render as a generic code embed').not.toContainText(/Code snippet/i);
+		await expect(assistantMessage, 'raw embeds_map_view fence must be consumed by the map-view renderer').not.toContainText(/embeds_map_view/i);
 
 		const mapView = page.getByTestId('embeds-map-view');
 		await expect(mapView).toBeVisible({ timeout: 30_000 });
