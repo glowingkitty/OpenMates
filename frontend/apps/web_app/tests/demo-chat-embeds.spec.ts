@@ -156,6 +156,28 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(fitnessResultFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
 	});
 
+	test('Deutschlandticket app skill preview stays compact in the public example chat', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-deutschlandticket-train-fare-breakdown'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+
+		const travelSearchPreview = page.locator(
+			'[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"][data-status="finished"]'
+		).first();
+		await expect(travelSearchPreview).toBeVisible({ timeout: 30000 });
+
+		const largeAppSkillNodes = page
+			.locator('[data-type="embed-preview-large"]')
+			.filter({
+				has: page.locator('[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"]'),
+			});
+		expect(await largeAppSkillNodes.count()).toBe(0);
+	});
+
 	test('public Habit Garden application example renders without starting a live preview', async ({ page }) => {
 		test.setTimeout(90000);
 

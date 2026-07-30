@@ -11,6 +11,10 @@ import { groupConsecutiveEmbedsInDocument } from "./embedGrouping";
 import { migrateEmbedNodes, needsMigration } from "./migration";
 import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
 import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
+import {
+  resolveEmbedRefIndexEntry,
+  type EmbedRefIndexEntry,
+} from "../services/embedRefIndex";
 
 // ─── Inline embed-link conversion ─────────────────────────────────────────────
 //
@@ -33,28 +37,31 @@ import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
 //   document to use as a fallback when the in-memory ref index is empty.
 //
 // Pass 2 — convert embed: link marks to embedInline nodes.
-//   Primary:  resolveAppIdByRef() — works during live streaming once the ref has
-//             been registered via chatSyncServiceHandlersAI.
+//   Primary:  embedRefIndex — works during live streaming once the ref has been
+//             registered via chatSyncServiceHandlersAI.
 //   Fallback: app_id collected from sibling embed nodes (Pass 1) — always available,
 //             gives instant correct colour/icon on page reload without any async wait.
 //
 // This means inline badges render with the correct gradient on the SAME render pass
 // as the embed preview card, with zero additional async work.
 
-// Lazy singleton reference to embedStore (populated on first call).
-// Used only for the secondary resolveAppIdByRef() lookup (live-streaming path).
-let _embedStoreRef: import("../services/embedStore").EmbedStore | null = null;
-async function _ensureEmbedStore(): Promise<void> {
-  if (!_embedStoreRef) {
-    const mod = await import("../services/embedStore");
-    _embedStoreRef = mod.embedStore;
-  }
-}
-function _getEmbedStore(): import("../services/embedStore").EmbedStore | null {
-  return _embedStoreRef;
-}
-
 const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
+
+function createCompactAppSkillEmbedNode(
+  refEntry: EmbedRefIndexEntry,
+  fallbackAppId: string | null,
+): any {
+  const attrs: any = {
+    id: refEntry.embedId,
+    type: "app-skill-use",
+    status: "finished",
+    contentRef: `embed:${refEntry.embedId}`,
+  };
+  const appId = refEntry.appId ?? fallbackAppId;
+  if (appId) attrs.app_id = appId;
+  if (refEntry.skillId) attrs.skill_id = refEntry.skillId;
+  return { type: "embed", attrs };
+}
 
 function stripWriteModeLinkMarks(node: any): any {
   if (!node || typeof node !== "object") return node;
@@ -140,8 +147,9 @@ function convertEmbedLinksInNode(
         const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
           parseEmbedLinkTarget(rawRef);
         const resolvedDisplayText = resolveEmbedDisplayText(displayText, cleanRef);
-        const resolvedEmbedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
-        const resolvedLiveAppId = _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+        const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+        const resolvedEmbedId = refEntry?.embedId ?? null;
+        const resolvedLiveAppId = refEntry?.appId ?? null;
         const appId = resolvedLiveAppId ?? fallbackAppId;
 
         return {
@@ -206,9 +214,13 @@ function convertEmbedLinksInNode(
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = parseEmbedLinkTarget(rawRef);
-        const resolvedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
-        const resolvedAppId =
-          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+        const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+        if (refEntry?.type && isAppSkillEmbedType(refEntry.type)) {
+          return createCompactAppSkillEmbedNode(refEntry, fallbackAppId);
+        }
+
+        const resolvedId = refEntry?.embedId ?? null;
+        const resolvedAppId = refEntry?.appId ?? null;
         return {
           type: "embedPreviewLarge",
           attrs: {
@@ -234,10 +246,9 @@ function convertEmbedLinksInNode(
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
       //   always available on first parse, even on page reload, with no async work.
-      const resolvedEmbedId =
-        _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
-      const resolvedLiveAppId =
-        _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+      const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+      const resolvedEmbedId = refEntry?.embedId ?? null;
+      const resolvedLiveAppId = refEntry?.appId ?? null;
       const appId = resolvedLiveAppId ?? fallbackAppId;
 
       return {
@@ -282,12 +293,6 @@ function convertEmbedLinksInNode(
  */
 function convertEmbedLinks(doc: any): any {
   if (!doc || !doc.content) return doc;
-  // Warm up the embedStore ref asynchronously so the live-streaming path works
-  // on subsequent renders. The result is intentionally not awaited — this function
-  // must remain synchronous. The ref will be ready for the next render cycle.
-  _ensureEmbedStore().catch(() => {
-    /* ignore — embedStore may not be loaded in SSR/test envs */
-  });
   // Pass 1: collect app_id from embed nodes already in the document.
   const fallbackAppId = collectEmbedAppIds(doc);
   // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
@@ -830,7 +835,11 @@ function getEmbedBaseType(type: string): string {
 }
 
 function isAppSkillEmbedType(type: string): boolean {
-  return type === "app-skill-use" || type === "app-skill-use-group";
+  return (
+    type === "app-skill-use" ||
+    type === "app-skill-use-group" ||
+    type === "app_skill_use"
+  );
 }
 
 function extractEmbedId(attrs: any): string | null {

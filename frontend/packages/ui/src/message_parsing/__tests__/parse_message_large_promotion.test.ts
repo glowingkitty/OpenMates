@@ -7,8 +7,9 @@
 // Architecture: docs/architecture/embeds.md
 // Related parser: frontend/packages/ui/src/message_parsing/parse_message.ts
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { parse_message } from "../parse_message";
+import { embedStore } from "../../services/embedStore";
 
 function parseAssistant(markdown: string): any {
   return parse_message(markdown, "read", {
@@ -27,6 +28,10 @@ function findInlineEmbeds(nodes: any[]): any[] {
 }
 
 describe("parse_message assistant large promotion", () => {
+  afterEach(() => {
+    embedStore.clearEmbedRefIndex();
+  });
+
   it("promotes a single sheet embed to embedPreviewLarge", () => {
     const doc = parseAssistant(
       '```json\n{"type":"sheet","embed_id":"sheet-1"}\n```',
@@ -198,6 +203,41 @@ describe("parse_message assistant large promotion", () => {
     expect(firstNode?.type).toBe("paragraph");
     expect(firstNode?.content?.[0]?.type).toBe("embed");
     expect(firstNode?.content?.[0]?.attrs?.type).toBe("app-skill-use");
+  });
+
+  it("keeps registered app-skill refs compact even when [!] large syntax is used", () => {
+    embedStore.registerStaticEmbed({
+      embedId: "skill-1",
+      type: "app_skill_use",
+      content: [
+        "app_id: travel",
+        "skill_id: search_connections",
+        "embed_ref: travel-search-parent",
+      ].join("\n"),
+      appId: "travel",
+      skillId: "search_connections",
+    });
+    embedStore.registerEmbedRef("travel-search-parent", "skill-1", "travel");
+
+    const doc = parseAssistant("[!](embed:travel-search-parent)");
+
+    expect(
+      (doc.content || []).some(
+        (node: any) => node.type === "embedPreviewLarge",
+      ),
+    ).toBe(false);
+
+    const firstNode = doc.content?.[0];
+    expect(firstNode?.type).toBe("paragraph");
+    expect(firstNode?.content?.[0]?.type).toBe("embed");
+    expect(firstNode?.content?.[0]?.attrs).toMatchObject({
+      id: "skill-1",
+      type: "app-skill-use",
+      status: "finished",
+      contentRef: "embed:skill-1",
+      app_id: "travel",
+      skill_id: "search_connections",
+    });
   });
 
   it("renders focus mode activation before app skill previews", () => {

@@ -216,6 +216,12 @@
     return embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null;
   });
 
+  let isResolvedAppSkillRef = $derived.by(() => {
+    void $embedRefIndexVersion;
+    const refType = embedStore.resolveTypeByRef(embedRef);
+    return refType === 'app-skill-use' || refType === 'app_skill_use';
+  });
+
   $effect(() => {
     if (!shouldHydrateSlide) return;
     void $embedRefIndexVersion;
@@ -278,7 +284,9 @@
 
 </script>
 
-{#if isFirstCard}
+{#if isFirstCard && isResolvedAppSkillRef}
+  <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="small" />
+{:else if isFirstCard}
   <!-- First card: always-visible carousel shell -->
   <div
     bind:this={wrapperEl}
