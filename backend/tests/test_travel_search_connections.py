@@ -644,6 +644,43 @@ async def test_execute_preserves_empty_search_metadata(monkeypatch: pytest.Monke
     assert response.results[0]["providers"] == response.providers
 
 
+@pytest.mark.anyio
+async def test_execute_normalizes_flat_llm_route_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.travel.skills import search_connections as search_module
+
+    provider = FakeTransportProvider(
+        [make_connection(0, "2026-08-12 09:00", "2026-08-12 15:00", source_provider="deutsche_bahn")],
+        provider_id="deutsche_bahn",
+        supported_methods={"train"},
+        supported_countries={"DE"},
+    )
+    monkeypatch.setattr(search_module, "_create_providers", lambda secrets_manager=None: [provider])
+
+    response = await make_skill().execute(
+        requests=[{
+            "origin": "Bonn",
+            "destination": "Munich",
+            "date": "2026-08-12",
+            "transport_method": "train",
+            "provider": "deutsche_bahn",
+            "owned_passes": ["deutschland_ticket"],
+        }],
+        secrets_manager=object(),
+    )
+
+    assert response.error is None
+    assert provider.calls == 1
+    assert provider.requested_owned_passes == ["deutschland_ticket"]
+    assert response.providers == [{
+        "id": "deutsche_bahn",
+        "name": "Deutsche Bahn",
+        "icon_url": "https://www.bahn.de/favicon.ico",
+    }]
+    assert response.results[0]["query"] == "Bonn → Munich, 2026-08-12"
+    assert response.results[0]["legs"] == [{"origin": "Bonn", "destination": "Munich", "date": "2026-08-12"}]
+    assert response.results[0]["transport_methods"] == ["train"]
+
+
 def test_search_connections_response_has_no_fake_provider_default() -> None:
     from backend.apps.travel.skills.search_connections import SearchConnectionsResponse
 

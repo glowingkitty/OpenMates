@@ -47,6 +47,9 @@ VALID_RAIL_PRODUCTS = {
     "bus",
     "ferry",
 }
+FLAT_ROUTE_ORIGIN_KEYS = ("origin", "from", "from_location")
+FLAT_ROUTE_DESTINATION_KEYS = ("destination", "to", "to_location")
+FLAT_ROUTE_DATE_KEYS = ("date", "departure_date", "travel_date")
 
 
 # ---------------------------------------------------------------------------
@@ -348,6 +351,45 @@ def _request_query_summary(req: Dict[str, Any]) -> str:
     return summary
 
 
+def _first_string_value(req: Dict[str, Any], keys: tuple[str, ...]) -> Optional[str]:
+    for key in keys:
+        value = req.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _normalize_connection_requests(requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Accept obvious flat LLM route args while keeping the canonical legs contract."""
+    normalized_requests: List[Dict[str, Any]] = []
+    for raw_request in requests:
+        req = raw_request.model_dump() if hasattr(raw_request, "model_dump") else raw_request
+        if not isinstance(req, dict):
+            normalized_requests.append(req)
+            continue
+
+        req = dict(req)
+        if not req.get("legs"):
+            origin = _first_string_value(req, FLAT_ROUTE_ORIGIN_KEYS)
+            destination = _first_string_value(req, FLAT_ROUTE_DESTINATION_KEYS)
+            date = _first_string_value(req, FLAT_ROUTE_DATE_KEYS)
+            if origin and destination and date:
+                req["legs"] = [{"origin": origin, "destination": destination, "date": date}]
+
+        if "transport_methods" not in req and isinstance(req.get("transport_method"), str):
+            transport_method = req["transport_method"].strip().lower()
+            if transport_method:
+                req["transport_methods"] = [transport_method]
+
+        if "providers" not in req and isinstance(req.get("provider"), str):
+            provider = req["provider"].strip().lower()
+            if provider:
+                req["providers"] = [provider]
+
+        normalized_requests.append(req)
+    return normalized_requests
+
+
 # ---------------------------------------------------------------------------
 # SearchConnectionsSkill
 # ---------------------------------------------------------------------------
@@ -451,6 +493,8 @@ class SearchConnectionsSkill(BaseSkill):
         )
         if error_response:
             return error_response
+
+        requests = _normalize_connection_requests(requests)
 
         validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
