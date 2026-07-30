@@ -102,6 +102,8 @@ describe("EmbedsMapView", () => {
           skill_id: "event",
           title: "AI Founders Meetup",
           date_start: "2026-08-01T18:00:00Z",
+          venue_lat: 52.530247,
+          venue_lon: 13.411047,
           venue: { address: "Berlin" },
         };
       }
@@ -138,6 +140,7 @@ describe("EmbedsMapView", () => {
     expect(cards).toHaveLength(2);
     expect(cards[0].textContent).toContain("Factory Berlin");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
+    expect(cards[1].getAttribute("data-has-point")).toBe("true");
     expect(target.querySelector('[data-testid="embeds-map-view-filters"]')?.textContent).toContain("event");
     expect(target.querySelector('[data-testid="embeds-map-view-filters"]')?.textContent).toContain("place");
     expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledTimes(3);

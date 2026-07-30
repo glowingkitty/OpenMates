@@ -67,13 +67,16 @@ test.describe('Embeds map view public examples', () => {
 		const mapView = page.getByTestId('embeds-map-view');
 		await expect(mapView).toBeVisible({ timeout: 30_000 });
 		await expect(mapView).toContainText('Mapped results');
-		await expect(mapView).toContainText('Build Fridays Berlin');
+		await expect(mapView).toContainText(/build fridays berlin/i);
 
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(4, { timeout: 15_000 });
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(mapView.getByTestId('embeds-map-view-filters')).toContainText('event');
 		await expect(mapView.getByTestId('embeds-map-view-map')).toBeVisible();
+		await expect(mapView.getByTestId('embeds-map-view-map')).not.toContainText(
+			'Referenced embeds do not expose coordinates yet.'
+		);
 
 		expect(forbiddenApiCalls).toEqual([]);
 	});
