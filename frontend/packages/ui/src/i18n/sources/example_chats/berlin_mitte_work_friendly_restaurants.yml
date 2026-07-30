@@ -1,0 +1,922 @@
+title:
+  context: "Title of example chat: Berlin Mitte Work-Friendly Restaurants Map"
+  en: "Berlin Mitte Work-Friendly Restaurants Map"
+  de: "Berlin Mitte: Karte arbeitsfreundlicher Restaurants"
+  zh: 柏林米特区适合办公的餐厅地图
+  es: Mapa de restaurantes para trabajar en Berlín Mitte
+  fr: Carte des restaurants adaptés au travail à Berlin Mitte
+  pt: Mapa de Restaurantes para Trabalhar em Berlin Mitte
+  ru: Карта ресторанов для работы в Берлин-Митте
+  ja: ベルリン・ミッテのワークフレンドリーなレストランマップ
+  ko: 베를린 미테 업무하기 좋은 레스토랑 지도
+  it: Mappa dei ristoranti di Berlino Mitte adatti al lavoro
+  tr: Berlin Mitte Çalışmaya Uygun Restoranlar Haritası
+  vi: Bản đồ nhà hàng làm việc lý tưởng tại Berlin Mitte
+  id: Peta Restoran Ramah Kerja di Berlin Mitte
+  pl: Mapa restauracji przyjaznych pracy w Berlin Mitte
+  nl: Kaart werkvriendelijke restaurants Berlin Mitte
+  ar: خريطة المطاعم المناسبة للعمل في برلين ميتي
+  hi: बर्लिन मिट्टे वर्क-फ्रेंडली रेस्टोरेंट्स मैप
+  th: แผนที่ร้านอาหารสำหรับนั่งทำงานใน Berlin Mitte
+  cs: Mapa restaurací vhodných pro práci v Berlin Mitte
+  sv: Karta över arbetsvänliga restauranger i Berlin Mitte
+  he: מפת מסעדות מתאימות לעבודה בברלין מיטה
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Berlin Mitte Work-Friendly Restaurants Map"
+  en: "A real OpenMates Maps chat comparing Berlin Mitte places for air conditioning and free Wi-Fi, with verified-versus-unknown amenity notes."
+  de: Ein echter OpenMates Maps Chat, der Orte in Berlin Mitte nach Klimaanlage und kostenlosem WLAN vergleicht, mit Hinweisen zu verifizierten vs. unbekannten Merkmalen.
+  zh: 一个真实的 OpenMates Maps 对话，对比了柏林米特区提供空调和免费 Wi-Fi 的场所，并注明了已验证与未知的设施信息。
+  es: Un chat real de OpenMates Maps que compara lugares en Berlín Mitte con aire acondicionado y Wi-Fi gratuito, con notas sobre servicios verificados frente a desconocidos.
+  fr: Une véritable discussion OpenMates Maps comparant des lieux à Berlin Mitte pour la climatisation et le Wi-Fi gratuit, avec des notes sur les équipements vérifiés ou inconnus.
+  pt: Uma conversa real do OpenMates Maps comparando locais em Berlin Mitte com ar condicionado e Wi-Fi gratuito, com notas sobre comodidades verificadas versus desconhecidas.
+  ru: "Реальный чат OpenMates Maps: сравнение заведений в Берлин-Митте по наличию кондиционера и бесплатного Wi-Fi с указанием проверенных и неизвестных удобств."
+  ja: ベルリン・ミッテの冷房と無料Wi-Fi完備の場所を比較したOpenMates Mapsの実際のチャット。アメニティの確認済み情報と不明な情報を明確に示しています。
+  ko: 에어컨과 무료 Wi-Fi를 기준으로 베를린 미테의 장소들을 비교하며, 확인된 정보와 확인되지 않은 편의 시설 정보를 구분해 보여주는 실제 OpenMates Maps 채팅입니다.
+  it: Una vera chat di OpenMates Maps che confronta i locali di Berlino Mitte per aria condizionata e Wi-Fi gratuito, con note sui servizi verificati rispetto a quelli sconosciuti.
+  tr: "Berlin Mitte'deki mekanları klima ve ücretsiz Wi-Fi açısından karşılaştıran, doğrulanmış ve bilinmeyen olanak notlarını içeren gerçek bir OpenMates Maps sohbeti."
+  vi: Một cuộc trò chuyện thực tế trên OpenMates Maps so sánh các địa điểm tại Berlin Mitte về điều hòa và Wi-Fi miễn phí, kèm theo ghi chú về các tiện nghi đã xác minh và chưa xác định.
+  id: Obrolan OpenMates Maps nyata yang membandingkan tempat-tempat di Berlin Mitte untuk fasilitas AC dan Wi-Fi gratis, lengkap dengan catatan fasilitas yang terverifikasi vs tidak diketahui.
+  pl: Autentyczny czat OpenMates Maps porównujący miejsca w Berlin Mitte pod kątem klimatyzacji i darmowego Wi-Fi, z uwagami o zweryfikowanych i nieznanych udogodnieniach.
+  nl: Een echte OpenMates Maps-chat waarin locaties in Berlin Mitte worden vergeleken op airconditioning en gratis wifi, met notities over geverifieerde versus onbekende voorzieningen.
+  ar: "دردشة حقيقية من خرائط OpenMates تقارن بين أماكن في \"برلين ميتي\" من حيث توفر تكييف الهواء والواي فاي المجاني، مع ملاحظات حول المرافق المؤكدة مقابل غير المعروفة."
+  hi: बर्लिन मिट्टे में एयर कंडीशनिंग और मुफ्त वाई-फाई वाली जगहों की तुलना करने वाला एक वास्तविक OpenMates Maps चैट, जिसमें सत्यापित बनाम अज्ञात सुविधाओं के नोट्स शामिल हैं।
+  th: แชทจริงจาก OpenMates Maps ที่เปรียบเทียบสถานที่ใน Berlin Mitte ที่มีเครื่องปรับอากาศและ Wi-Fi ฟรี พร้อมระบุข้อมูลสิ่งอำนวยความสะดวกที่ยืนยันแล้วและที่ยังไม่ทราบแน่ชัด
+  cs: Skutečný chat OpenMates Maps porovnávající místa v Berlin Mitte podle klimatizace a bezplatné Wi-Fi, s poznámkami o ověřeném versus neznámém vybavení.
+  sv: En riktig OpenMates Maps-chatt som jämför ställen i Berlin Mitte vad gäller luftkonditionering och gratis Wi-Fi, med information om vad som är verifierat respektive okänt.
+  he: "צ'אט אמיתי של OpenMates Maps המשווה בין מקומות בברלין מיטה מבחינת מיזוג אוויר ו-Wi-Fi חינם, עם הערות על שירותים מאומתים לעומת לא ידועים."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Berlin Mitte Work-Friendly Restaurants Map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I'm in Berlin Mitte tonight and need a restaurant where I can work for an hour. Can you find places nearby that actually have air conditioning and free Wi-Fi, and be clear about what is verified versus unknown?"
+  de: "Ich bin heute Abend in Berlin Mitte und brauche ein Restaurant, in dem ich eine Stunde lang arbeiten kann. Kannst du Orte in der Nähe finden, die tatsächlich eine Klimaanlage und kostenloses WLAN haben, und dabei deutlich machen, was verifiziert ist und was nicht?"
+  zh: 我今晚在柏林米特区，需要找一家可以工作一小时的餐厅。你能帮我找找附近确实有空调和免费 Wi-Fi 的地方吗？请明确说明哪些是已验证的，哪些是未知的。
+  es: "Estoy en Berlín Mitte esta noche y necesito un restaurante donde pueda trabajar durante una hora. ¿Puedes encontrar lugares cercanos que realmente tengan aire acondicionado y Wi-Fi gratuito, y dejar claro qué está verificado y qué es desconocido?"
+  fr: "Je suis à Berlin Mitte ce soir et j'ai besoin d'un restaurant où je peux travailler pendant une heure. Peux-tu trouver des endroits à proximité qui ont vraiment la climatisation et le Wi-Fi gratuit, en précisant clairement ce qui est vérifié ou inconnu ?"
+  pt: "Estou em Berlin Mitte esta noite e preciso de um restaurante onde possa trabalhar durante uma hora. Consegues encontrar locais por perto que tenham mesmo ar condicionado e Wi-Fi gratuito, e ser claro sobre o que está verificado versus o que é desconhecido?"
+  ru: "Я сегодня вечером в Берлин-Митте, и мне нужен ресторан, где я смогу поработать часок. Можешь найти места поблизости, где точно есть кондиционер и бесплатный Wi-Fi, и четко указать, что проверено, а что нет?"
+  ja: 今夜ベルリンのミッテにいるんだけど、1時間くらい仕事ができるレストランが必要なんだ。近くで冷房と無料Wi-Fiが本当にある場所を探してくれる？あと、どれが確認済みでどれが不明なのかもはっきり教えて。
+  ko: "오늘 밤 베를린 미테에 있는데, 한 시간 정도 업무를 볼 수 있는 레스토랑이 필요해요. 근처에 에어컨과 무료 Wi-Fi가 있는 곳을 찾아줄 수 있나요? 그리고 어떤 정보가 확인된 것이고 어떤 것이 불확실한지 명확하게 알려주세요."
+  it: "Stasera sono a Berlino Mitte e ho bisogno di un ristorante dove poter lavorare per un'ora. Puoi trovare dei posti nelle vicinanze che abbiano effettivamente l'aria condizionata e il Wi-Fi gratuito, specificando chiaramente cosa è verificato e cosa è sconosciuto?"
+  tr: "Bu akşam Berlin Mitte'deyim ve bir saat çalışabileceğim bir restorana ihtiyacım var. Yakınlarda gerçekten kliması ve ücretsiz Wi-Fi'si olan yerler bulabilir misin? Nelerin doğrulandığını, nelerin bilinmediğini açıkça belirtirsen sevinirim."
+  vi: "Tối nay mình đang ở Berlin Mitte và cần tìm một nhà hàng để làm việc trong khoảng một tiếng. Bạn có thể tìm các địa điểm gần đây thực sự có máy lạnh và Wi-Fi miễn phí, đồng thời nêu rõ thông tin nào đã được xác minh và thông tin nào chưa rõ không?"
+  id: "Aku sedang di Berlin Mitte malam ini dan butuh restoran tempat aku bisa bekerja selama satu jam. Bisa carikan tempat-tempat terdekat yang benar-benar punya AC dan Wi-Fi gratis, serta jelaskan mana yang sudah terverifikasi vs yang belum diketahui?"
+  pl: "Jestem dziś wieczorem w Berlin Mitte i potrzebuję restauracji, w której mogę popracować przez godzinę. Czy możesz znaleźć miejsca w pobliżu, które faktycznie mają klimatyzację i darmowe Wi-Fi, oraz wyraźnie zaznaczyć, co jest zweryfikowane, a co nieznane?"
+  nl: "Ik ben vanavond in Berlin Mitte en heb een restaurant nodig waar ik een uurtje kan werken. Kun je plekken in de buurt vinden die echt airconditioning en gratis wifi hebben, en duidelijk aangeven wat geverifieerd is en wat onbekend is?"
+  ar: "أنا في منطقة \"برلين ميتي\" الليلة وأحتاج إلى مطعم يمكنني العمل فيه لمدة ساعة. هل يمكنك العثور على أماكن قريبة تتوفر فيها بالفعل مكيفات هواء وخدمة واي فاي مجانية، مع توضيح ما هو مؤكد وما هو غير معروف؟"
+  hi: "मैं आज रात बर्लिन मिट्टे में हूँ और मुझे एक ऐसे रेस्टोरेंट की ज़रूरत है जहाँ मैं एक घंटे काम कर सकूँ। क्या तुम आस-पास ऐसी जगहें ढूँढ सकते हो जहाँ वास्तव में एयर कंडीशनिंग और मुफ्त वाई-फाई हो, और यह स्पष्ट कर सकते हो कि क्या सत्यापित है और क्या अज्ञात?"
+  th: "คืนนี้ฉันอยู่ใน Berlin Mitte และต้องการร้านอาหารที่สามารถนั่งทำงานได้สักชั่วโมง ช่วยหาสถานที่ใกล้ๆ ที่มีเครื่องปรับอากาศและ Wi-Fi ฟรีจริงๆ ให้หน่อยได้ไหม และช่วยระบุให้ชัดเจนด้วยว่าข้อมูลไหนยืนยันแล้วหรือยังไม่ทราบแน่ชัด?"
+  cs: "Dnes večer jsem v Berlin Mitte a potřebuju restauraci, kde můžu hodinu pracovat. Můžeš mi najít místa v okolí, která mají klimatizaci a bezplatnou Wi-Fi, a jasně uvést, co je ověřené a co neznámé?"
+  sv: "Jag är i Berlin Mitte ikväll och behöver en restaurang där jag kan jobba i en timme. Kan du hitta ställen i närheten som faktiskt har luftkonditionering och gratis Wi-Fi, och vara tydlig med vad som är verifierat respektive okänt?"
+  he: "אני בברלין מיטה הערב וצריך מסעדה שבה אוכל לעבוד במשך שעה. תוכל למצוא מקומות בקרבת מקום שיש בהם באמת מיזוג אוויר ו-Wi-Fi חינם, ולציין בבירור מה מאומת ומה לא ידוע?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Berlin Mitte Work-Friendly Restaurants Map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+
+    Finding a spot in Berlin Mitte that guarantees **both** air conditioning and free Wi-Fi can be tricky, as public datasets (like OpenStreetMap) and standard mapping platforms often list Wi-Fi and indoor climate control as **unknown** rather than officially verified. 
+
+    Here are some popular spots in Mitte where people frequently work or study. Let's break down what is verified versus what is unknown for these locations:
+
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Location:** Rosenthaler Str. 72A
+    * **Verified:** Open status, central location known as a landmark Berlin remote work/café hub, and open late (until 9:00 PM).
+    * **Unknown / Unverified:** Air conditioning status is not officially confirmed in map metadata, and while free Wi-Fi is traditionally expected here, individual network policies or stability can vary.
+
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Location:** Karl-Liebknecht-Str. 13
+    * **Verified:** High-quality specialty coffee roastery right near Alexanderplatz, operating until 5:00 PM / 6:00 PM.
+    * **Unknown / Unverified:** Air conditioning and Wi-Fi availability are unconfirmed by official venue tags.
+
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Location:** Rosa-Luxemburg-Straße 2
+    * **Verified:** Chain café format that often provides customer Wi-Fi and indoor seating; open until 8:30 PM.
+    * **Unknown / Unverified:** AC presence is unconfirmed, and chain Wi-Fi access policies can sometimes restrict laptop use or time limits.
+
+    ***
+
+    ### What you should consider next:
+    Since real-time AC status is rarely guaranteed in Berlin cafés (many older buildings rely on fans or open windows rather than central AC), would you like to check out dedicated coworking spaces nearby that guarantee air conditioning and reliable high-speed internet?
+
+    ```embeds_map_view
+    title: Mapped results
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  de: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Einen Ort in Berlin Mitte zu finden, der **sowohl** Klimaanlage als auch kostenloses WLAN garantiert, kann schwierig sein, da öffentliche Datensätze (wie OpenStreetMap) und Standard-Kartenplattformen WLAN und Klimatisierung oft als **unbekannt** statt offiziell verifiziert auflisten. 
+    
+    Hier sind einige beliebte Orte in Mitte, an denen häufig gearbeitet oder gelernt wird. Schauen wir uns an, was für diese Standorte verifiziert ist und was nicht:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Standort:** Rosenthaler Str. 72A
+    * **Verifiziert:** Geöffnet-Status, zentrale Lage, bekannt als Berliner Wahrzeichen für Remote-Arbeit/Café-Hub, und lange geöffnet (bis 21:00 Uhr).
+    * **Unbekannt / Nicht verifiziert:** Der Status der Klimaanlage ist in den Karten-Metadaten nicht offiziell bestätigt, und obwohl hier traditionell kostenloses WLAN erwartet wird, können individuelle Netzwerkrichtlinien oder die Stabilität variieren.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Standort:** Karl-Liebknecht-Str. 13
+    * **Verifiziert:** Hochwertige Specialty-Coffee-Rösterei direkt am Alexanderplatz, geöffnet bis 17:00 / 18:00 Uhr.
+    * **Unbekannt / Nicht verifiziert:** Verfügbarkeit von Klimaanlage und WLAN sind durch offizielle Standort-Tags nicht bestätigt.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Standort:** Rosa-Luxemburg-Straße 2
+    * **Verifiziert:** Café-Kettenformat, das oft Kunden-WLAN und Innenplätze bietet; geöffnet bis 20:30 Uhr.
+    * **Unbekannt / Nicht verifiziert:** Das Vorhandensein einer Klimaanlage ist unbestätigt, und die WLAN-Zugangsrichtlinien von Ketten können manchmal die Laptop-Nutzung einschränken oder Zeitlimits vorsehen.
+    
+    ***
+    
+    ### Was du als Nächstes beachten solltest:
+    Da der Echtzeit-Status der Klimaanlage in Berliner Cafés selten garantiert ist (viele ältere Gebäude setzen eher auf Ventilatoren oder offene Fenster als auf eine zentrale Klimaanlage), möchtest du dir stattdessen spezielle Coworking-Spaces in der Nähe ansehen, die Klimatisierung und zuverlässiges Highspeed-Internet garantieren?
+    
+    ```embeds_map_view
+    title: Kartenergebnisse
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  zh: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    在柏林米特区（Berlin Mitte）寻找一个既能保证有**空调**又有**免费 Wi-Fi** 的地方可能比较困难，因为公共数据集（如 OpenStreetMap）和标准地图平台通常将 Wi-Fi 和室内温控列为**未知**，而非官方验证。
+    
+    以下是米特区一些人们经常工作或学习的热门地点。让我们来看看这些地点的已验证信息与未知信息：
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **地点：** Rosenthaler Str. 72A
+    * **已验证：** 营业状态、作为柏林远程办公/咖啡馆地标的中心位置，且营业至深夜（晚上 9:00）。
+    * **未知 / 未验证：** 地图元数据中未正式确认空调状态；虽然传统上这里会有免费 Wi-Fi，但具体的网络政策或稳定性可能会有所不同。
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **地点：** Karl-Liebknecht-Str. 13
+    * **已验证：** 位于亚历山大广场（Alexanderplatz）附近的高品质精品咖啡烘焙店，营业至下午 5:00 / 6:00。
+    * **未知 / 未验证：** 官方场馆标签未确认是否提供空调和 Wi-Fi。
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **地点：** Rosa-Luxemburg-Straße 2
+    * **已验证：** 连锁咖啡馆模式，通常提供客户 Wi-Fi 和室内座位；营业至晚上 8:30。
+    * **未知 / 未验证：** 未确认是否有空调，且连锁店的 Wi-Fi 接入政策有时可能会限制笔记本电脑的使用或有时间限制。
+    
+    ***
+    
+    ### 接下来你可以考虑：
+    由于柏林咖啡馆的实时空调状态很少能得到保证（许多老建筑依靠风扇或开窗而不是中央空调），你是否想查看附近保证有空调和可靠高速网络的专门联合办公空间？
+    
+    ```embeds_map_view
+    title: 地图结果
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  es: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Encontrar un lugar en Berlin Mitte que garantice **tanto** aire acondicionado como Wi-Fi gratuito puede ser complicado, ya que las bases de datos públicas (como OpenStreetMap) y las plataformas de mapas estándar suelen clasificar el Wi-Fi y la climatización interior como **desconocidos** en lugar de verificados oficialmente. 
+    
+    Aquí tienes algunos lugares populares en Mitte donde la gente suele trabajar o estudiar. Veamos qué está verificado y qué es desconocido para estos sitios:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Ubicación:** Rosenthaler Str. 72A
+    * **Verificado:** Estado abierto, ubicación céntrica conocida como un punto de referencia para el trabajo remoto/cafetería en Berlín, y abierto hasta tarde (hasta las 21:00).
+    * **Desconocido / No verificado:** El estado del aire acondicionado no está confirmado oficialmente en los metadatos del mapa y, aunque tradicionalmente se espera Wi-Fi gratuito aquí, las políticas de red individuales o la estabilidad pueden variar.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Ubicación:** Karl-Liebknecht-Str. 13
+    * **Verificado:** Tostador de café de especialidad de alta calidad justo al lado de Alexanderplatz, abierto hasta las 17:00 / 18:00.
+    * **Desconocido / No verificado:** La disponibilidad de aire acondicionado y Wi-Fi no está confirmada por las etiquetas oficiales del local.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Ubicación:** Rosa-Luxemburg-Straße 2
+    * **Verificado:** Formato de cafetería de cadena que suele ofrecer Wi-Fi para clientes y asientos en el interior; abierto hasta las 20:30.
+    * **Desconocido / No verificado:** La presencia de aire acondicionado no está confirmada, y las políticas de acceso al Wi-Fi de la cadena a veces pueden restringir el uso de portátiles o tener límites de tiempo.
+    
+    ***
+    
+    ### Qué deberías tener en cuenta a continuación:
+    Dado que el estado del aire acondicionado en tiempo real rara vez está garantizado en las cafeterías de Berlín (muchos edificios antiguos dependen de ventiladores o ventanas abiertas en lugar de aire acondicionado central), ¿te gustaría echar un vistazo a espacios de coworking dedicados cercanos que garanticen aire acondicionado e internet de alta velocidad fiable?
+    
+    ```embeds_map_view
+    title: Resultados en el mapa
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  fr: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Trouver un endroit à Berlin Mitte qui garantit **à la fois** la climatisation et le Wi-Fi gratuit peut s'avérer difficile, car les bases de données publiques (comme OpenStreetMap) et les plateformes de cartographie standard répertorient souvent le Wi-Fi et la climatisation intérieure comme **inconnus** plutôt qu'officiellement vérifiés. 
+    
+    Voici quelques endroits populaires à Mitte où les gens travaillent ou étudient fréquemment. Voyons ce qui est vérifié par rapport à ce qui est inconnu pour ces lieux :
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Adresse :** Rosenthaler Str. 72A
+    * **Vérifié :** Statut ouvert, emplacement central connu comme un lieu emblématique du télétravail et des cafés à Berlin, et ouvert tard (jusqu'à 21h00).
+    * **Inconnu / Non vérifié :** Le statut de la climatisation n'est pas officiellement confirmé dans les métadonnées cartographiques, et bien que le Wi-Fi gratuit soit traditionnellement attendu ici, les politiques de réseau individuelles ou la stabilité peuvent varier.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Adresse :** Karl-Liebknecht-Str. 13
+    * **Vérifié :** Torréfacteur de café de spécialité de haute qualité juste à côté d'Alexanderplatz, ouvert jusqu'à 17h00 / 18h00.
+    * **Inconnu / Non vérifié :** La disponibilité de la climatisation et du Wi-Fi n'est pas confirmée par les balises officielles du lieu.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Adresse :** Rosa-Luxemburg-Straße 2
+    * **Vérifié :** Format de chaîne de cafés qui propose souvent le Wi-Fi aux clients et des places assises à l'intérieur ; ouvert jusqu'à 20h30.
+    * **Inconnu / Non vérifié :** La présence de la climatisation n'est pas confirmée, et les politiques d'accès au Wi-Fi des chaînes peuvent parfois restreindre l'utilisation des ordinateurs portables ou imposer des limites de temps.
+    
+    ***
+    
+    ### Ce que tu devrais envisager ensuite :
+    Comme le statut de la climatisation en temps réel est rarement garanti dans les cafés berlinois (de nombreux bâtiments anciens comptent sur des ventilateurs ou des fenêtres ouvertes plutôt que sur une climatisation centrale), aimerais-tu découvrir des espaces de coworking dédiés à proximité qui garantissent la climatisation et un accès Internet haut débit fiable ?
+    
+    ```embeds_map_view
+    title: Résultats sur la carte
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  pt: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Encontrar um lugar em Berlin Mitte que garanta **tanto** ar-condicionado quanto Wi-Fi gratuito pode ser difícil, pois conjuntos de dados públicos (como o OpenStreetMap) e plataformas de mapeamento padrão costumam listar o Wi-Fi e o controle de temperatura interna como **desconhecidos**, em vez de oficialmente verificados. 
+    
+    Aqui estão alguns locais populares em Mitte onde as pessoas costumam trabalhar ou estudar. Vamos analisar o que é verificado versus o que é desconhecido para esses locais:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Localização:** Rosenthaler Str. 72A
+    * **Verificado:** Status aberto, localização central conhecida como um ponto de referência de trabalho remoto/café em Berlim, e aberto até tarde (até às 21h).
+    * **Desconhecido / Não verificado:** O status do ar-condicionado não está oficialmente confirmado nos metadados do mapa e, embora o Wi-Fi gratuito seja tradicionalmente esperado aqui, as políticas de rede individuais ou a estabilidade podem variar.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Localização:** Karl-Liebknecht-Str. 13
+    * **Verificado:** Torrefação de café especial de alta qualidade bem próxima à Alexanderplatz, funcionando até as 17h / 18h.
+    * **Desconhecido / Não verificado:** A disponibilidade de ar-condicionado e Wi-Fi não está confirmada pelas etiquetas oficiais do local.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Localização:** Rosa-Luxemburg-Straße 2
+    * **Verificado:** Formato de rede de cafés que costuma oferecer Wi-Fi aos clientes e assentos internos; aberto até as 20h30.
+    * **Desconhecido / Não verificado:** A presença de ar-condicionado não está confirmada, e as políticas de acesso ao Wi-Fi da rede podem, às vezes, restringir o uso de laptops ou impor limites de tempo.
+    
+    ***
+    
+    ### O que deves considerar a seguir:
+    Como o status do ar-condicionado em tempo real raramente é garantido nos cafés de Berlim (muitos edifícios antigos dependem de ventiladores ou janelas abertas em vez de ar-condicionado central), gostarias de conferir espaços de coworking dedicados nas proximidades que garantem ar-condicionado e internet de alta velocidade confiável?
+    
+    ```embeds_map_view
+    title: Resultados no mapa
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  ru: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Найти в берлинском районе Митте место, где гарантированно есть **и** кондиционер, **и** бесплатный Wi-Fi, бывает непросто. В открытых базах данных (таких как OpenStreetMap) и на стандартных картографических платформах наличие Wi-Fi и климат-контроля часто отмечено как **неизвестно**, а не официально подтверждено. 
+    
+    Вот несколько популярных мест в Митте, где часто работают или учатся. Давайте разберем, что подтверждено, а что остается неизвестным для этих локаций:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Адрес:** Rosenthaler Str. 72A
+    * **Подтверждено:** статус «открыто», центральное расположение (известный берлинский хаб для удаленной работы и кафе), работает допоздна (до 21:00).
+    * **Неизвестно / Не подтверждено:** наличие кондиционера официально не указано в метаданных карт; хотя бесплатный Wi-Fi здесь обычно есть, правила доступа к сети или стабильность соединения могут меняться.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Адрес:** Karl-Liebknecht-Str. 13
+    * **Подтверждено:** высококлассная обжарочная кофейня прямо у Александерплац, работает до 17:00 / 18:00.
+    * **Неизвестно / Не подтверждено:** наличие кондиционера и Wi-Fi не подтверждено официальными тегами заведения.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Адрес:** Rosa-Luxemburg-Straße 2
+    * **Подтверждено:** сетевое кафе, где часто предоставляется Wi-Fi для клиентов и есть места внутри; работает до 20:30.
+    * **Неизвестно / Не подтверждено:** наличие кондиционера не подтверждено; правила доступа к Wi-Fi в сети могут иногда ограничивать использование ноутбуков или время сессии.
+    
+    ***
+    
+    ### Что стоит учесть:
+    Поскольку наличие кондиционера в берлинских кафе в реальном времени редко гарантируется (во многих старых зданиях используют вентиляторы или открытые окна вместо центрального кондиционирования), не хочешь ли ты посмотреть специализированные коворкинги поблизости, где точно есть кондиционер и надежный высокоскоростной интернет?
+    
+    ```embeds_map_view
+    title: Результаты на карте
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  ja: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    ベルリン・ミッテ地区で、エアコンと無料Wi-Fiの**両方**が確実に備わっている場所を見つけるのは少し難しいかもしれません。OpenStreetMapなどの公開データセットや標準的な地図プラットフォームでは、Wi-Fiや室内の空調設備が公式に確認済みではなく「**不明**」とされていることが多いためです。
+    
+    ミッテ地区で仕事や勉強によく利用される人気のスポットをいくつかご紹介します。これらの場所について、確認済みの情報と不明な情報を整理してみましょう：
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **所在地:** Rosenthaler Str. 72A
+    * **確認済み:** 営業中であること。ベルリンのリモートワーク/カフェの拠点として知られる中心的な立地。夜遅く（午後9時）まで営業。
+    * **不明 / 未確認:** 地図のメタデータではエアコンの有無が公式に確認されていません。また、伝統的に無料Wi-Fiが期待できる場所ですが、個別のネットワークポリシーや安定性は変動する可能性があります。
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **所在地:** Karl-Liebknecht-Str. 13
+    * **確認済み:** アレクサンダー広場のすぐ近くにある高品質なスペシャリティコーヒーの焙煎所。午後5時/6時まで営業。
+    * **不明 / 未確認:** 公式の施設タグでは、エアコンとWi-Fiの有無は確認されていません。
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **所在地:** Rosa-Luxemburg-Straße 2
+    * **確認済み:** 客用Wi-Fiと屋内席を提供していることが多いチェーン形式のカフェ。午後8時30分まで営業。
+    * **不明 / 未確認:** エアコンの有無は未確認です。また、チェーン店のWi-Fiアクセス・ポリシーによっては、ノートパソコンの使用制限や時間制限が設けられている場合があります。
+    
+    ***
+    
+    ### 次に検討すべきこと:
+    ベルリンのカフェではリアルタイムのエアコン状況が保証されていることは稀なため（古い建物の多くは中央空調ではなく、扇風機や窓を開けることに頼っています）、エアコンと信頼性の高い高速インターネットが保証されている近隣の専用コワーキングスペースをチェックしてみますか？
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  ko: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    베를린 미테(Mitte)에서 에어컨과 무료 와이파이를 **모두** 보장하는 장소를 찾기는 다소 까다로울 수 있습니다. 오픈스트리트맵(OpenStreetMap)과 같은 공공 데이터셋이나 표준 지도 플랫폼에서는 와이파이 및 실내 냉방 여부가 공식 확인된 정보가 아닌 **알 수 없음**으로 표시되는 경우가 많기 때문입니다.
+    
+    미테에서 사람들이 업무나 공부를 위해 자주 찾는 인기 장소들을 소개합니다. 각 장소에 대해 확인된 정보와 확인되지 않은 정보를 정리해 드립니다.
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **위치:** Rosenthaler Str. 72A
+    * **확인된 정보:** 영업 중. 베를린의 원격 근무/카페 허브로 잘 알려진 랜드마크이며, 늦은 시간(오후 9:00)까지 운영합니다.
+    * **알 수 없음 / 미확인:** 지도 메타데이터에 에어컨 설치 여부가 공식적으로 확인되지 않았습니다. 전통적으로 무료 와이파이를 제공하는 곳이지만, 개별 네트워크 정책이나 안정성은 변동될 수 있습니다.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **위치:** Karl-Liebknecht-Str. 13
+    * **확인된 정보:** 알렉산더 광장(Alexanderplatz) 바로 근처에 위치한 고품질 스페셜티 커피 로스터리로, 오후 5:00 / 6:00까지 운영합니다.
+    * **알 수 없음 / 미확인:** 공식 장소 태그에 에어컨 및 와이파이 제공 여부가 확인되지 않았습니다.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **위치:** Rosa-Luxemburg-Straße 2
+    * **확인된 정보:** 고객용 와이파이와 실내 좌석을 자주 제공하는 체인 카페 형식이며, 오후 8:30까지 운영합니다.
+    * **알 수 없음 / 미확인:** 에어컨 설치 여부가 확인되지 않았으며, 체인점의 와이파이 접속 정책에 따라 노트북 사용이나 이용 시간이 제한될 수 있습니다.
+    
+    ***
+    
+    ### 다음으로 고려할 사항:
+    베를린 카페의 실시간 에어컨 가동 상태는 보장되지 않는 경우가 많으므로(많은 오래된 건물이 중앙 냉방 대신 선풍기나 열린 창문에 의존함), 에어컨과 안정적인 초고속 인터넷이 보장되는 인근의 전문 코워킹 스페이스를 확인해 보시겠어요?
+    
+    ```embeds_map_view
+    title: 지도 결과
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  it: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Trovare un posto a Berlino Mitte che garantisca **sia** l'aria condizionata che il Wi-Fi gratuito può essere difficile, poiché i set di dati pubblici (come OpenStreetMap) e le piattaforme di mappatura standard spesso indicano il Wi-Fi e il controllo della temperatura interna come **sconosciuti** anziché verificati ufficialmente. 
+    
+    Ecco alcuni posti popolari a Mitte dove le persone lavorano o studiano spesso. Vediamo cosa è verificato rispetto a ciò che è sconosciuto per queste posizioni:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Posizione:** Rosenthaler Str. 72A
+    * **Verificato:** Stato di apertura, posizione centrale nota come punto di riferimento per il lavoro da remoto/café a Berlino, e aperto fino a tardi (fino alle 21:00).
+    * **Sconosciuto / Non verificato:** Lo stato dell'aria condizionata non è confermato ufficialmente nei metadati della mappa e, sebbene il Wi-Fi gratuito sia tradizionalmente previsto qui, le politiche della rete individuale o la stabilità possono variare.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Posizione:** Karl-Liebknecht-Str. 13
+    * **Verificato:** Torrefazione di caffè specialty di alta qualità proprio vicino ad Alexanderplatz, operativa fino alle 17:00 / 18:00.
+    * **Sconosciuto / Non verificato:** La disponibilità di aria condizionata e Wi-Fi non è confermata dai tag ufficiali del locale.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Posizione:** Rosa-Luxemburg-Straße 2
+    * **Verificato:** Format di catena di caffè che spesso offre Wi-Fi ai clienti e posti a sedere al coperto; aperto fino alle 20:30.
+    * **Sconosciuto / Non verificato:** La presenza di aria condizionata non è confermata e le politiche di accesso al Wi-Fi della catena possono talvolta limitare l'uso del laptop o prevedere limiti di tempo.
+    
+    ***
+    
+    ### Cosa dovresti considerare dopo:
+    Poiché lo stato dell'aria condizionata in tempo reale è raramente garantito nei caffè di Berlino (molti edifici storici si affidano a ventilatori o finestre aperte piuttosto che all'aria condizionata centralizzata), ti piacerebbe dare un'occhiata agli spazi di coworking dedicati nelle vicinanze che garantiscono aria condizionata e internet ad alta velocità affidabile?
+    
+    ```embeds_map_view
+    title: Risultati sulla mappa
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  tr: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Berlin Mitte'de **hem** klima **hem de** ücretsiz Wi-Fi garantisi veren bir yer bulmak zor olabilir; çünkü OpenStreetMap gibi kamuya açık veri setleri ve standart harita platformları, Wi-Fi ve iç mekan iklimlendirmesini resmi olarak doğrulanmış yerine genellikle **bilinmiyor** olarak listeler. 
+    
+    İşte Mitte'de insanların sıkça çalıştığı veya ders çalıştığı bazı popüler noktalar. Bu konumlar için nelerin doğrulandığını ve nelerin bilinmediğini inceleyelim:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Konum:** Rosenthaler Str. 72A
+    * **Doğrulanan:** Açık olma durumu, Berlin'in uzaktan çalışma/kafe merkezi olarak bilinen merkezi konumu ve geç saatlere kadar (21:00'e kadar) açık olması.
+    * **Bilinmeyen / Doğrulanmamış:** Klima durumu harita meta verilerinde resmi olarak onaylanmamıştır ve burada geleneksel olarak ücretsiz Wi-Fi beklense de, bireysel ağ politikaları veya stabilite değişebilir.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Konum:** Karl-Liebknecht-Str. 13
+    * **Doğrulanan:** Alexanderplatz'ın hemen yanında, saat 17:00 / 18:00'e kadar hizmet veren yüksek kaliteli nitelikli kahve kavurma evi.
+    * **Bilinmeyen / Doğrulanmamış:** Klima ve Wi-Fi mevcudiyeti resmi mekan etiketleri tarafından onaylanmamıştır.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Konum:** Rosa-Luxemburg-Straße 2
+    * **Doğrulanan:** Genellikle müşteri Wi-Fi'ı ve iç mekan oturma alanı sunan zincir kafe formatı; 20:30'a kadar açık.
+    * **Bilinmeyen / Doğrulanmamış:** Klima varlığı onaylanmamıştır ve zincir Wi-Fi erişim politikaları bazen dizüstü bilgisayar kullanımını veya süreyi kısıtlayabilir.
+    
+    ***
+    
+    ### Bir sonraki adımda şunları göz önünde bulundurabilirsin:
+    Berlin kafelerinde gerçek zamanlı klima durumu nadiren garanti edildiğinden (birçok eski bina merkezi klima yerine vantilatörlere veya açık pencerelere güvenir), klima ve güvenilir yüksek hızlı internet garantisi veren yakındaki özel ortak çalışma alanlarına göz atmak ister misin?
+    
+    ```embeds_map_view
+    title: Haritalanan sonuçlar
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  vi: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Tìm một địa điểm ở Berlin Mitte đảm bảo **cả** máy lạnh và Wi-Fi miễn phí có thể khá khó khăn, vì các bộ dữ liệu công cộng (như OpenStreetMap) và các nền tảng bản đồ tiêu chuẩn thường liệt kê Wi-Fi và kiểm soát khí hậu trong nhà là **không xác định** thay vì được xác minh chính thức. 
+    
+    Dưới đây là một số địa điểm phổ biến ở Mitte nơi mọi người thường xuyên làm việc hoặc học tập. Hãy cùng xem xét những gì đã được xác minh và những gì chưa xác định cho các địa điểm này:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Địa điểm:** Rosenthaler Str. 72A
+    * **Đã xác minh:** Trạng thái mở cửa, vị trí trung tâm được biết đến như một biểu tượng cho trung tâm làm việc từ xa/quán cà phê tại Berlin, và mở cửa muộn (đến 9:00 tối).
+    * **Chưa xác định / Chưa xác minh:** Trạng thái máy lạnh không được xác nhận chính thức trong siêu dữ liệu bản đồ, và mặc dù Wi-Fi miễn phí thường được mong đợi ở đây, các chính sách mạng cá nhân hoặc độ ổn định có thể thay đổi.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Địa điểm:** Karl-Liebknecht-Str. 13
+    * **Đã xác minh:** Xưởng rang cà phê đặc sản chất lượng cao ngay gần Alexanderplatz, hoạt động đến 5:00 chiều / 6:00 chiều.
+    * **Chưa xác định / Chưa xác minh:** Tình trạng máy lạnh và Wi-Fi chưa được xác nhận bởi các thẻ địa điểm chính thức.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Địa điểm:** Rosa-Luxemburg-Straße 2
+    * **Đã xác minh:** Mô hình quán cà phê chuỗi thường cung cấp Wi-Fi cho khách hàng và chỗ ngồi trong nhà; mở cửa đến 8:30 tối.
+    * **Chưa xác định / Chưa xác minh:** Sự hiện diện của máy lạnh chưa được xác nhận, và các chính sách truy cập Wi-Fi của chuỗi đôi khi có thể hạn chế việc sử dụng laptop hoặc giới hạn thời gian.
+    
+    ***
+    
+    ### Những gì bạn nên cân nhắc tiếp theo:
+    Vì trạng thái máy lạnh theo thời gian thực hiếm khi được đảm bảo tại các quán cà phê ở Berlin (nhiều tòa nhà cũ dựa vào quạt hoặc mở cửa sổ thay vì máy lạnh trung tâm), bạn có muốn xem qua các không gian làm việc chung (coworking space) chuyên dụng gần đó đảm bảo có máy lạnh và internet tốc độ cao đáng tin cậy không?
+    
+    ```embeds_map_view
+    title: Kết quả trên bản đồ
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  id: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Mencari tempat di Berlin Mitte yang menjamin **baik** AC maupun Wi-Fi gratis bisa jadi sulit, karena kumpulan data publik (seperti OpenStreetMap) dan platform pemetaan standar sering kali mencantumkan Wi-Fi dan kontrol iklim dalam ruangan sebagai **tidak diketahui** alih-alih terverifikasi secara resmi. 
+    
+    Berikut adalah beberapa tempat populer di Mitte di mana orang sering bekerja atau belajar. Mari kita uraikan apa yang terverifikasi versus apa yang tidak diketahui untuk lokasi-lokasi ini:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Lokasi:** Rosenthaler Str. 72A
+    * **Terverifikasi:** Status buka, lokasi pusat yang dikenal sebagai tengara pusat kerja jarak jauh/kafe di Berlin, dan buka hingga larut malam (sampai jam 21.00).
+    * **Tidak Diketahui / Tidak Terverifikasi:** Status AC tidak dikonfirmasi secara resmi dalam metadata peta, dan meskipun Wi-Fi gratis biasanya diharapkan di sini, kebijakan jaringan individu atau stabilitasnya dapat bervariasi.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Lokasi:** Karl-Liebknecht-Str. 13
+    * **Terverifikasi:** Pemanggangan kopi spesial berkualitas tinggi tepat di dekat Alexanderplatz, beroperasi hingga jam 17.00 / 18.00.
+    * **Tidak Diketahui / Tidak Terverifikasi:** Ketersediaan AC dan Wi-Fi tidak dikonfirmasi oleh tag tempat resmi.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Lokasi:** Rosa-Luxemburg-Straße 2
+    * **Terverifikasi:** Format kafe berantai yang sering menyediakan Wi-Fi pelanggan dan tempat duduk dalam ruangan; buka hingga jam 20.30.
+    * **Tidak Diketahui / Tidak Terverifikasi:** Keberadaan AC tidak dikonfirmasi, dan kebijakan akses Wi-Fi jaringan terkadang dapat membatasi penggunaan laptop atau batas waktu.
+    
+    ***
+    
+    ### Apa yang harus kamu pertimbangkan selanjutnya:
+    Karena status AC waktu nyata jarang dijamin di kafe-kafe Berlin (banyak gedung tua mengandalkan kipas angin atau jendela terbuka daripada AC sentral), apakah kamu ingin melihat ruang kerja bersama (coworking space) khusus di sekitar yang menjamin AC dan internet berkecepatan tinggi yang andal?
+    
+    ```embeds_map_view
+    title: Hasil yang dipetakan
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  pl: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Znalezienie w Berlin Mitte miejsca, które gwarantuje **zarówno** klimatyzację, jak i darmowe Wi-Fi, może być trudne, ponieważ publiczne bazy danych (takie jak OpenStreetMap) i standardowe platformy mapowe często oznaczają Wi-Fi i klimatyzację wewnątrz jako **nieznane**, a nie oficjalnie zweryfikowane. 
+    
+    Oto kilka popularnych miejsc w dzielnicy Mitte, w których ludzie często pracują lub się uczą. Sprawdźmy, co jest zweryfikowane, a co pozostaje nieznane dla tych lokalizacji:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Lokalizacja:** Rosenthaler Str. 72A
+    * **Zweryfikowane:** Status otwarcia, centralna lokalizacja znana jako kultowe berlińskie centrum pracy zdalnej i kawiarnia, otwarte do późna (do 21:00).
+    * **Nieznane / Niezweryfikowane:** Status klimatyzacji nie jest oficjalnie potwierdzony w metadanych mapy i choć tradycyjnie oczekuje się tu darmowego Wi-Fi, indywidualne zasady sieci lub jej stabilność mogą się różnić.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Lokalizacja:** Karl-Liebknecht-Str. 13
+    * **Zweryfikowane:** Wysokiej jakości palarnia kawy speciality tuż przy Alexanderplatz, czynna do 17:00 / 18:00.
+    * **Nieznane / Niezweryfikowane:** Dostępność klimatyzacji i Wi-Fi nie jest potwierdzona przez oficjalne tagi lokalu.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Lokalizacja:** Rosa-Luxemburg-Straße 2
+    * **Zweryfikowane:** Format kawiarni sieciowej, która często zapewnia Wi-Fi dla klientów i miejsca siedzące wewnątrz; otwarte do 20:30.
+    * **Nieznane / Niezweryfikowane:** Obecność klimatyzacji nie jest potwierdzona, a zasady dostępu do Wi-Fi w sieciówkach mogą czasem ograniczać korzystanie z laptopów lub wprowadzać limity czasowe.
+    
+    ***
+    
+    ### Co warto rozważyć w następnej kolejności:
+    Ponieważ dostępność klimatyzacji w czasie rzeczywistym rzadko jest gwarantowana w berlińskich kawiarniach (wiele starszych budynków opiera się na wentylatorach lub otwartych oknach zamiast centralnej klimatyzacji), czy chcesz sprawdzić pobliskie dedykowane przestrzenie coworkingowe, które gwarantują klimatyzację i niezawodny, szybki internet?
+    
+    ```embeds_map_view
+    title: Wyniki na mapie
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  nl: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Het vinden van een plek in Berlin Mitte die **zowel** airconditioning als gratis wifi garandeert kan lastig zijn, omdat openbare datasets (zoals OpenStreetMap) en standaard kaartplatforms wifi en klimaatbeheersing vaak als **onbekend** vermelden in plaats van officieel geverifieerd. 
+    
+    Hier zijn enkele populaire plekken in Mitte waar mensen vaak werken of studeren. Laten we kijken naar wat geverifieerd is en wat onbekend is voor deze locaties:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Locatie:** Rosenthaler Str. 72A
+    * **Geverifieerd:** Openingsstatus, centrale locatie die bekendstaat als een iconische hub voor werken op afstand/café-hub in Berlijn, en laat open (tot 21:00 uur).
+    * **Onbekend / Niet geverifieerd:** De status van de airconditioning is niet officieel bevestigd in de metadata van de kaart, en hoewel gratis wifi hier traditioneel wordt verwacht, kunnen individuele netwerkregels of stabiliteit variëren.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Locatie:** Karl-Liebknecht-Str. 13
+    * **Geverifieerd:** Hoogwaardige koffiebranderij vlakbij Alexanderplatz, geopend tot 17:00 / 18:00 uur.
+    * **Onbekend / Niet geverifieerd:** Beschikbaarheid van airconditioning en wifi is niet bevestigd door officiële tags van de locatie.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Locatie:** Rosa-Luxemburg-Straße 2
+    * **Geverifieerd:** Keten-caféconcept dat vaak wifi voor klanten en zitplaatsen binnen biedt; open tot 20:30 uur.
+    * **Onbekend / Niet geverifieerd:** Aanwezigheid van airco is onbevestigd, en het wifi-beleid van ketens kan soms het gebruik van laptops beperken of tijdslimieten hanteren.
+    
+    ***
+    
+    ### Waar je vervolgens rekening mee moet houden:
+    Aangezien de realtime status van de airco zelden gegarandeerd is in Berlijnse cafés (veel oudere gebouwen vertrouwen op ventilatoren of open ramen in plaats van centrale airco), wil je misschien kijken naar speciale coworkingruimtes in de buurt die airconditioning en betrouwbaar breedbandinternet garanderen?
+    
+    ```embeds_map_view
+    title: Resultaten op de kaart
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  ar: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    قد يكون العثور على مكان في منطقة "برلين ميتي" (Berlin Mitte) يضمن **كلاً من** تكييف الهواء وخدمة الواي فاي المجانية أمراً صعباً، حيث أن مجموعات البيانات العامة (مثل OpenStreetMap) ومنصات الخرائط القياسية غالباً ما تدرج خدمة الواي فاي والتحكم في المناخ الداخلي على أنها **غير معروفة** بدلاً من كونها موثقة رسمياً. 
+    
+    إليك بعض الأماكن الشهيرة في "ميتي" حيث يتردد الناس للعمل أو الدراسة. دعنا نوضح ما هو موثق مقابل ما هو غير معروف لهذه المواقع:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **الموقع:** Rosenthaler Str. 72A
+    * **موثق:** حالة العمل (مفتوح)، موقع مركزي معروف كمعلم بارز للعمل عن بعد والمقاهي في برلين، ويفتح حتى وقت متأخر (حتى الساعة 9:00 مساءً).
+    * **غير معروف / غير موثق:** حالة تكييف الهواء غير مؤكدة رسمياً في البيانات الوصفية للخريطة، وبينما يُتوقع تقليدياً وجود واي فاي مجاني هنا، إلا أن سياسات الشبكة الفردية أو استقرارها قد يختلف.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **الموقع:** Karl-Liebknecht-Str. 13
+    * **موثق:** محمصة قهوة مختصة عالية الجودة بالقرب من "ألكسندربلاتز" (Alexanderplatz)، تعمل حتى الساعة 5:00 مساءً / 6:00 مساءً.
+    * **غير معروف / غير موثق:** توفر تكييف الهواء والواي فاي غير مؤكد من خلال العلامات الرسمية للمكان.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **الموقع:** Rosa-Luxemburg-Straße 2
+    * **موثق:** نمط مقهى تابع لسلسلة غالباً ما يوفر خدمة الواي فاي للعملاء وجلسات داخلية؛ يفتح حتى الساعة 8:30 مساءً.
+    * **غير معروف / غير موثق:** وجود تكييف الهواء غير مؤكد، وقد تفرض سياسات الوصول إلى الواي فاي في السلاسل أحياناً قيوداً على استخدام الكمبيوتر المحمول أو حدوداً زمنية.
+    
+    ***
+    
+    ### ما يجب عليك مراعاته تالياً:
+    بما أن حالة تكييف الهواء في الوقت الفعلي نادراً ما تكون مضمونة في مقاهي برلين (تعتمد العديد من المباني القديمة على المراوح أو النوافذ المفتوحة بدلاً من التكييف المركزي)، هل تود استكشاف مساحات عمل مشتركة مخصصة قريبة تضمن تكييف الهواء وإنترنت عالي السرعة وموثوق؟
+    
+    ```embeds_map_view
+    title: النتائج على الخريطة
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  hi: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    बर्लिन मिट्टे (Berlin Mitte) में ऐसी जगह ढूँढना जहाँ एयर कंडीशनिंग और मुफ़्त वाई-फ़ाई **दोनों** की गारंटी हो, थोड़ा मुश्किल हो सकता है, क्योंकि सार्वजनिक डेटासेट (जैसे OpenStreetMap) और मानक मैपिंग प्लेटफ़ॉर्म अक्सर वाई-फ़ाई और इनडोर क्लाइमेट कंट्रोल को आधिकारिक तौर पर सत्यापित करने के बजाय **अज्ञात (unknown)** के रूप में सूचीबद्ध करते हैं। 
+    
+    यहाँ मिट्टे में कुछ लोकप्रिय जगहें दी गई हैं जहाँ लोग अक्सर काम करते हैं या पढ़ाई करते हैं। आइए इन स्थानों के लिए देखें कि क्या सत्यापित है और क्या अज्ञात है:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **स्थान:** Rosenthaler Str. 72A
+    * **सत्यापित:** ओपन स्टेटस, बर्लिन के रिमोट वर्क/कैफे हब के रूप में प्रसिद्ध केंद्रीय स्थान, और देर तक खुला रहता है (रात 9:00 बजे तक)।
+    * **अज्ञात / असत्यापित:** मैप मेटाडेटा में एयर कंडीशनिंग की स्थिति की आधिकारिक पुष्टि नहीं की गई है, और हालांकि यहाँ पारंपरिक रूप से मुफ़्त वाई-फ़ाई की उम्मीद की जाती है, व्यक्तिगत नेटवर्क नीतियां या स्थिरता अलग-अलग हो सकती हैं।
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **स्थान:** Karl-Liebknecht-Str. 13
+    * **सत्यापित:** अलेक्जेंडरप्लात्ज़ (Alexanderplatz) के ठीक पास उच्च गुणवत्ता वाली स्पेशलिटी कॉफी रोस्टरी, शाम 5:00 बजे / 6:00 बजे तक संचालित होती है।
+    * **अज्ञात / असत्यापित:** आधिकारिक वेन्यू टैग्स द्वारा एयर कंडीशनिंग और वाई-फ़ाई की उपलब्धता की पुष्टि नहीं की गई है।
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **स्थान:** Rosa-Luxemburg-Straße 2
+    * **सत्यापित:** चेन कैफे फॉर्मेट जो अक्सर ग्राहकों को वाई-फ़ाई और इनडोर बैठने की सुविधा प्रदान करता है; रात 8:30 बजे तक खुला रहता है।
+    * **अज्ञात / असत्यापित:** एसी (AC) की उपस्थिति की पुष्टि नहीं हुई है, और चेन वाई-फ़ाई एक्सेस नीतियां कभी-कभी लैपटॉप के उपयोग या समय सीमा को प्रतिबंधित कर सकती हैं।
+    
+    ***
+    
+    ### आपको आगे क्या विचार करना चाहिए:
+    चूंकि बर्लिन के कैफे में रीयल-टाइम एसी की स्थिति की गारंटी शायद ही कभी दी जाती है (कई पुरानी इमारतें सेंट्रल एसी के बजाय पंखों या खुली खिड़कियों पर निर्भर करती हैं), क्या आप पास के समर्पित कोवर्किंग स्पेस देखना चाहेंगे जो एयर कंडीशनिंग और विश्वसनीय हाई-स्पीड इंटरनेट की गारंटी देते हैं?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  th: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    การหาที่นั่งในย่าน Berlin Mitte ที่รับประกันว่ามี**ทั้ง**เครื่องปรับอากาศและ Wi-Fi ฟรีอาจเป็นเรื่องยาก เนื่องจากชุดข้อมูลสาธารณะ (เช่น OpenStreetMap) และแพลตฟอร์มแผนที่มาตรฐานมักระบุสถานะ Wi-Fi และระบบควบคุมอุณหภูมิภายในอาคารว่าเป็น **ไม่ทราบข้อมูล (unknown)** แทนที่จะเป็นการยืนยันอย่างเป็นทางการ 
+    
+    นี่คือสถานที่ยอดนิยมบางแห่งในย่าน Mitte ที่ผู้คนมักจะไปทำงานหรืออ่านหนังสือ มาดูกันว่าข้อมูลใดที่ได้รับการยืนยันแล้วและข้อมูลใดที่ยังไม่ทราบแน่ชัดสำหรับสถานที่เหล่านี้:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **สถานที่:** Rosenthaler Str. 72A
+    * **ยืนยันแล้ว:** สถานะเปิดให้บริการ, ทำเลใจกลางเมืองที่เป็นที่รู้จักในฐานะศูนย์กลางการทำงานทางไกล/คาเฟ่ที่เป็นแลนด์มาร์คของเบอร์ลิน และเปิดจนถึงช่วงดึก (21:00 น.)
+    * **ไม่ทราบข้อมูล / ยังไม่ยืนยัน:** สถานะเครื่องปรับอากาศไม่ได้รับการยืนยันอย่างเป็นทางการในข้อมูลเมตาของแผนที่ และแม้ว่าโดยปกติแล้วที่นี่จะมี Wi-Fi ฟรีให้บริการ แต่เสถียรภาพหรือนโยบายเครือข่ายอาจแตกต่างกันไป
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **สถานที่:** Karl-Liebknecht-Str. 13
+    * **ยืนยันแล้ว:** โรงคั่วกาแฟพิเศษคุณภาพสูงใกล้กับ Alexanderplatz เปิดให้บริการจนถึง 17:00 น. / 18:00 น.
+    * **ไม่ทราบข้อมูล / ยังไม่ยืนยัน:** การมีเครื่องปรับอากาศและ Wi-Fi ยังไม่ได้รับการยืนยันจากแท็กสถานที่อย่างเป็นทางการ
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **สถานที่:** Rosa-Luxemburg-Straße 2
+    * **ยืนยันแล้ว:** รูปแบบคาเฟ่แฟรนไชส์ที่มักจะมี Wi-Fi สำหรับลูกค้าและที่นั่งในร้าน เปิดให้บริการจนถึง 20:30 น.
+    * **ไม่ทราบข้อมูล / ยังไม่ยืนยัน:** ไม่มีการยืนยันเรื่องเครื่องปรับอากาศ และนโยบายการเข้าถึง Wi-Fi ของแฟรนไชส์บางครั้งอาจจำกัดการใช้แล็ปท็อปหรือจำกัดเวลา
+    
+    ***
+    
+    ### สิ่งที่คุณควรพิจารณาต่อไป:
+    เนื่องจากสถานะเครื่องปรับอากาศแบบเรียลไทม์แทบจะไม่ได้รับการรับประกันในคาเฟ่ที่เบอร์ลิน (อาคารเก่าหลายแห่งใช้พัดลมหรือการเปิดหน้าต่างแทนเครื่องปรับอากาศส่วนกลาง) คุณต้องการตรวจสอบพื้นที่โคเวิร์กกิ้งสเปซ (coworking spaces) โดยเฉพาะในบริเวณใกล้เคียงที่รับประกันว่ามีเครื่องปรับอากาศและอินเทอร์เน็ตความเร็วสูงที่เชื่อถือได้หรือไม่?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  cs: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Najít v berlínské čtvrti Mitte místo, které zaručuje **jak** klimatizaci, **tak** bezplatnou Wi-Fi, může být oříšek, protože veřejné datové sady (jako OpenStreetMap) a standardní mapové platformy často uvádějí Wi-Fi a vnitřní klimatizaci jako **neznámé** místo oficiálně ověřených. 
+    
+    Zde jsou některá oblíbená místa v Mitte, kde lidé často pracují nebo studují. Pojďme si rozebrat, co je u těchto míst ověřené a co neznámé:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Lokalita:** Rosenthaler Str. 72A
+    * **Ověřeno:** Stav otevřeno, centrální poloha známá jako kultovní berlínské centrum pro práci na dálku a kavárna, otevřeno dlouho (do 21:00).
+    * **Neznámé / Neověřené:** Stav klimatizace není v metadatech map oficiálně potvrzen, a přestože se zde tradičně očekává bezplatná Wi-Fi, zásady jednotlivých sítí nebo jejich stabilita se mohou lišit.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Lokalita:** Karl-Liebknecht-Str. 13
+    * **Ověřeno:** Vysoce kvalitní pražírna výběrové kávy přímo u Alexanderplatz, v provozu do 17:00 / 18:00.
+    * **Neznámé / Neověřené:** Dostupnost klimatizace a Wi-Fi není potvrzena oficiálními štítky podniku.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Lokalita:** Rosa-Luxemburg-Straße 2
+    * **Ověřeno:** Formát řetězce kaváren, který často poskytuje Wi-Fi pro zákazníky a vnitřní posezení; otevřeno do 20:30.
+    * **Neznámé / Neověřené:** Přítomnost klimatizace není potvrzena a zásady přístupu k Wi-Fi v řetězcích mohou někdy omezovat používání notebooků nebo časové limity.
+    
+    ***
+    
+    ### Co zvážit dál:
+    Vzhledem k tomu, že stav klimatizace v reálném čase je v berlínských kavárnách zaručen jen zřídka (mnoho starších budov spoléhá spíše na ventilátory nebo otevřená okna než na centrální klimatizaci), chceš se podívat na specializované coworkingové prostory v okolí, které zaručují klimatizaci a spolehlivý vysokorychlostní internet?
+    
+    ```embeds_map_view
+    title: Výsledky na mapě
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  sv: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    Att hitta ett ställe i Berlin Mitte som garanterar **både** luftkonditionering och gratis Wi-Fi kan vara knepigt, eftersom offentliga dataset (som OpenStreetMap) och vanliga kartplattformar ofta listar Wi-Fi och inomhusklimat som **okänt** snarare än officiellt verifierat. 
+    
+    Här är några populära ställen i Mitte där folk ofta arbetar eller studerar. Låt oss titta närmare på vad som är verifierat kontra vad som är okänt för dessa platser:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **Plats:** Rosenthaler Str. 72A
+    * **Verifierat:** Öppetstatus, centralt läge känt som ett landmärke för distansarbete/caféer i Berlin, och öppet sent (till kl. 21:00).
+    * **Okänt / Overifierat:** Status för luftkonditionering är inte officiellt bekräftad i kartmetadata, och även om gratis Wi-Fi traditionellt förväntas här, kan enskilda nätverkspolicyer eller stabilitet variera.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **Plats:** Karl-Liebknecht-Str. 13
+    * **Verifierat:** Specialkafferosteri av hög kvalitet precis vid Alexanderplatz, öppet till kl. 17:00 / 18:00.
+    * **Okänt / Overifierat:** Tillgång till luftkonditionering och Wi-Fi är obekräftat i officiella taggar för platsen.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **Plats:** Rosa-Luxemburg-Straße 2
+    * **Verifierat:** Kedjekafé som ofta erbjuder Wi-Fi till kunder och sittplatser inomhus; öppet till kl. 20:30.
+    * **Okänt / Overifierat:** Förekomst av luftkonditionering är obekräftad, och kedjans policyer för Wi-Fi-åtkomst kan ibland begränsa användning av bärbara datorer eller ha tidsbegränsningar.
+    
+    ***
+    
+    ### Vad du bör överväga härnäst:
+    Eftersom realtidsstatus för luftkonditionering sällan garanteras på kaféer i Berlin (många äldre byggnader förlitar sig på fläktar eller öppna fönster snarare än central luftkonditionering), vill du titta på dedikerade coworking-ställen i närheten som garanterar luftkonditionering och pålitligt höghastighetsinternet?
+    
+    ```embeds_map_view
+    title: Kartlagda resultat
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  he: |
+    [!](embed:3f0be98b-77d2-4616-9523-89d1a0277ceb)
+    
+    [!](embed:e92237bd-e2e8-445a-9adb-cb1a0d595e6a)
+    
+    למצוא מקום בברלין מיטה (Berlin Mitte) שמבטיח **גם** מיזוג אוויר וגם אינטרנט אלחוטי (Wi-Fi) בחינם יכול להיות מאתגר, מכיוון שמאגרי נתונים ציבוריים (כמו OpenStreetMap) ופלטפורמות מיפוי סטנדרטיות מציינים לעיתים קרובות את ה-Wi-Fi ואת בקרת האקלים הפנימית כ**לא ידועים** במקום כמאומתים רשמית. 
+    
+    הנה כמה מקומות פופולריים במיטה שבהם אנשים עובדים או לומדים לעיתים קרובות. בואו נפרט מה מאומת לעומת מה לא ידוע עבור המיקומים האלה:
+    
+    ### 1. [St. Oberholz](embed:st-oberholz-gBh)
+    * **מיקום:** Rosenthaler Str. 72A
+    * **מאומת:** סטטוס פתוח, מיקום מרכזי הידוע כנקודת ציון לעבודה מרחוק/בית קפה בברלין, ופתוח עד מאוחר (עד 21:00).
+    * **לא ידוע / לא מאומת:** סטטוס מיזוג האוויר אינו מאושר רשמית במטא-דאטה של המפה, ולמרות שבאופן מסורתי מצפים כאן ל-Wi-Fi בחינם, מדיניות הרשת האישית או היציבות עשויות להשתנות.
+    
+    ### 2. [19grams Alex – Coffee Roastery](embed:19grams-alex-coffee-DAf)
+    * **מיקום:** Karl-Liebknecht-Str. 13
+    * **מאומת:** בית קלייה לקפה ספשלטי איכותי ממש ליד אלכסנדרפלאץ, פועל עד 17:00 / 18:00.
+    * **לא ידוע / לא מאומת:** זמינות מיזוג אוויר ו-Wi-Fi אינה מאושרת על ידי תגיות המקום הרשמיות.
+    
+    ### 3. [Coffee Fellows (Rosa-Luxemburg-Straße)](embed:coffee-fellows-06g)
+    * **מיקום:** Rosa-Luxemburg-Straße 2
+    * **מאומת:** פורמט של רשת בתי קפה שלעיתים קרובות מספקת Wi-Fi ללקוחות וישיבה בפנים; פתוח עד 20:30.
+    * **לא ידוע / לא מאומת:** נוכחות מזגן אינה מאושרת, ומדיניות הגישה ל-Wi-Fi של הרשת עשויה לעיתים להגביל שימוש בלפטופים או להציב מגבלות זמן.
+    
+    ***
+    
+    ### מה כדאי לשקול בהמשך:
+    מכיוון שסטטוס מיזוג אוויר בזמן אמת מובטח לעיתים רחוקות בבתי קפה בברלין (בניינים ישנים רבים מסתמכים על מאווררים או חלונות פתוחים במקום על מיזוג מרכזי), האם תרצה לבדוק חללי עבודה משותפים (coworking) ייעודיים בקרבת מקום שמבטיחים מיזוג אוויר ואינטרנט מהיר ואמין?
+    
+    ```embeds_map_view
+    title: תוצאות ממופות
+    embeds: st-oberholz-gBh, 19grams-alex-coffee-DAf, coffee-fellows-06g
+    ```
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for coworking spaces nearby with verified air conditioning"
+  de: Suche nach Coworking-Spaces in der Nähe mit verifizierter Klimaanlage
+  zh: 搜索附近有空调认证的联合办公空间
+  es: Busca espacios de coworking cercanos con aire acondicionado verificado
+  fr: Cherche des espaces de coworking à proximité avec climatisation vérifiée
+  pt: Procura espaços de coworking próximos com ar condicionado verificado
+  ru: Найти коворкинги поблизости с проверенным кондиционером
+  ja: 近くのエアコン完備が確認済みのコワーキングスペースを検索
+  ko: 에어컨 시설이 확인된 주변 코워킹 스페이스 검색
+  it: Cerca spazi di coworking nelle vicinanze con aria condizionata verificata
+  tr: Yakınlarda klimalı olduğu doğrulanmış ortak çalışma alanları ara
+  vi: Tìm các không gian làm việc chung gần đây có điều hòa đã xác minh
+  id: Cari ruang kerja bersama (coworking space) terdekat dengan AC yang terverifikasi
+  pl: Szukaj pobliskich przestrzeni coworkingowych ze sprawdzoną klimatyzacją
+  nl: Zoek naar coworkingplekken in de buurt met geverifieerde airconditioning
+  ar: ابحث عن مساحات عمل مشتركة قريبة مع تكييف هواء موثق
+  hi: पास में सत्यापित एयर कंडीशनिंग वाले कोवर्किंग स्पेस खोजें
+  th: ค้นหาโคเวิร์กกิ้งสเปซใกล้เคียงที่มีเครื่องปรับอากาศที่ได้รับการยืนยันแล้ว
+  cs: Hledat coworkingy v okolí s ověřenou klimatizací
+  sv: Sök efter coworking-ställen i närheten med verifierad luftkonditionering
+  he: חיפוש חללי עבודה משותפים בקרבת מקום עם מיזוג אוויר מאומת
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "What are some good coworking spaces in Berlin Mitte"
+  de: "Was sind gute Coworking-Spaces in Berlin-Mitte?"
+  zh: 柏林米特区有哪些不错的联合办公空间？
+  es: "¿Cuáles son algunos buenos espacios de coworking en Berlin Mitte?"
+  fr: "Quels sont les bons espaces de coworking à Berlin Mitte ?"
+  pt: "Quais são alguns bons espaços de coworking em Berlin Mitte?"
+  ru: "Какие есть хорошие коворкинги в Берлин-Митте?"
+  ja: ベルリン・ミッテ地区のおすすめのコワーキングスペースは？
+  ko: "베를린 미테의 괜찮은 코워킹 스페이스는 어디야?"
+  it: "Quali sono dei buoni spazi di coworking a Berlino Mitte?"
+  tr: "Berlin Mitte'deki iyi ortak çalışma alanları hangileri?"
+  vi: "Một số không gian làm việc chung tốt ở Berlin Mitte là gì?"
+  id: "Apa saja ruang kerja bersama yang bagus di Berlin Mitte?"
+  pl: "Jakie są dobre przestrzenie coworkingowe w Berlin Mitte?"
+  nl: "Wat zijn goede coworkingplekken in Berlin Mitte?"
+  ar: ما هي أفضل مساحات العمل المشتركة في برلين ميتيه؟
+  hi: "बर्लिन मिट्टे में कुछ अच्छे कोवर्किंग स्पेस कौन से हैं?"
+  th: โคเวิร์กกิ้งสเปซดีๆ ใน Berlin Mitte มีที่ไหนบ้าง
+  cs: "Jaké jsou dobré coworkingy v Berlin Mitte?"
+  sv: "Vilka är några bra coworking-ställen i Berlin Mitte?"
+  he: מהם כמה חללי עבודה משותפים טובים בברלין מיטה (Berlin Mitte)
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find verified coworking spaces in Berlin Mitte"
+  de: Finde verifizierte Coworking-Spaces in Berlin-Mitte
+  zh: 查找柏林米特区经过认证的联合办公空间
+  es: Encuentra espacios de coworking verificados en Berlin Mitte
+  fr: Trouve des espaces de coworking vérifiés à Berlin Mitte
+  pt: Encontra espaços de coworking verificados em Berlin Mitte
+  ru: Найти проверенные коворкинги в Берлин-Митте
+  ja: ベルリン・ミッテ地区で確認済みのコワーキングスペースを探す
+  ko: 베를린 미테에서 검증된 코워킹 스페이스 찾기
+  it: Trova spazi di coworking verificati a Berlino Mitte
+  tr: "Berlin Mitte'de doğrulanmış ortak çalışma alanları bul"
+  vi: Tìm các không gian làm việc chung đã xác minh ở Berlin Mitte
+  id: Temukan ruang kerja bersama yang terverifikasi di Berlin Mitte
+  pl: Znajdź sprawdzone przestrzenie coworkingowe w Berlin Mitte
+  nl: Vind geverifieerde coworkingplekken in Berlin Mitte
+  ar: ابحث عن مساحات عمل مشتركة موثقة في برلين ميتيه
+  hi: बर्लिन मिट्टे में सत्यापित कोवर्किंग स्पेस खोजें
+  th: ค้นหาโคเวิร์กกิ้งสเปซที่ได้รับการยืนยันแล้วใน Berlin Mitte
+  cs: Najít ověřené coworkingy v Berlin Mitte
+  sv: Hitta verifierade coworking-ställen i Berlin Mitte
+  he: מציאת חללי עבודה משותפים מאומתים בברלין מיטה (Berlin Mitte)
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Do you know any coworking spaces in Berlin Mitte"
+  de: "Kennst du Coworking-Spaces in Berlin-Mitte?"
+  zh: 你知道柏林米特区有哪些联合办公空间吗？
+  es: "¿Conoces algún espacio de coworking en Berlin Mitte?"
+  fr: "Connais-tu des espaces de coworking à Berlin Mitte ?"
+  pt: "Conheces algum espaço de coworking em Berlin Mitte?"
+  ru: "Знаешь какие-нибудь коворкинги в Берлин-Митте?"
+  ja: ベルリン・ミッテ地区のコワーキングスペースを知ってる？
+  ko: "베를린 미테에 있는 코워킹 스페이스 알아?"
+  it: "Conosci degli spazi di coworking a Berlino Mitte?"
+  tr: "Berlin Mitte'de bildiğin ortak çalışma alanı var mı?"
+  vi: "Bạn có biết không gian làm việc chung nào ở Berlin Mitte không?"
+  id: "Apakah kamu tahu ruang kerja bersama di Berlin Mitte?"
+  pl: "Czy znasz jakieś przestrzenie coworkingowe w Berlin Mitte?"
+  nl: "Ken je coworkingplekken in Berlin Mitte?"
+  ar: هل تعرف أي مساحات عمل مشتركة في برلين ميتيه؟
+  hi: "क्या तुम बर्लिन मिट्टे में किसी कोवर्किंग स्पेस को जानते हो?"
+  th: มีโคเวิร์กกิ้งสเปซใน Berlin Mitte บ้างไหม
+  cs: "Znáš nějaké coworkingy v Berlin Mitte?"
+  sv: "Känner du till några coworking-ställen i Berlin Mitte?"
+  he: האם ידוע לך על חללי עבודה משותפים בברלין מיטה (Berlin Mitte)
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Show me verified coworking spaces in Berlin Mitte"
+  de: Zeig mir verifizierte Coworking-Spaces in Berlin-Mitte
+  zh: 向我展示柏林米特区经过认证的联合办公空间
+  es: Muéstrame espacios de coworking verificados en Berlin Mitte
+  fr: Montre-moi des espaces de coworking vérifiés à Berlin Mitte
+  pt: Mostra-me espaços de coworking verificados em Berlin Mitte
+  ru: Покажи проверенные коворкинги в Берлин-Митте
+  ja: ベルリン・ミッテ地区の確認済みコワーキングスペースを表示して
+  ko: 베를린 미테의 검증된 코워킹 스페이스 보여줘
+  it: Mostrami spazi di coworking verificati a Berlino Mitte
+  tr: "Bana Berlin Mitte'deki doğrulanmış ortak çalışma alanlarını göster"
+  vi: Cho tôi xem các không gian làm việc chung đã xác minh ở Berlin Mitte
+  id: Tunjukkan ruang kerja bersama yang terverifikasi di Berlin Mitte
+  pl: Pokaż mi sprawdzone przestrzenie coworkingowe w Berlin Mitte
+  nl: Toon me geverifieerde coworkingplekken in Berlin Mitte
+  ar: أرني مساحات عمل مشتركة موثقة في برلين ميتيه
+  hi: मुझे बर्लिन मिट्टे में सत्यापित कोवर्किंग स्पेस दिखाओ
+  th: แสดงโคเวิร์กกิ้งสเปซที่ได้รับการยืนยันแล้วใน Berlin Mitte
+  cs: Ukaž mi ověřené coworkingy v Berlin Mitte
+  sv: Visa mig verifierade coworking-ställen i Berlin Mitte
+  he: הצגת חללי עבודה משותפים מאומתים בברלין מיטה (Berlin Mitte)
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Can you recommend coworking spaces in Berlin Mitte"
+  de: "Kannst du Coworking-Spaces in Berlin-Mitte empfehlen?"
+  zh: 你能推荐一下柏林米特区的联合办公空间吗？
+  es: "¿Puedes recomendarme espacios de coworking en Berlin Mitte?"
+  fr: "Peux-tu recommander des espaces de coworking à Berlin Mitte ?"
+  pt: "Podes recomendar espaços de coworking em Berlin Mitte?"
+  ru: "Можешь порекомендовать коворкинги в Берлин-Митте?"
+  ja: ベルリン・ミッテ地区のコワーキングスペースをおすすめして
+  ko: 베를린 미테의 코워킹 스페이스 추천해 줘
+  it: "Puoi consigliarmi degli spazi di coworking a Berlino Mitte?"
+  tr: "Berlin Mitte'de ortak çalışma alanı önerebilir misin?"
+  vi: "Bạn có thể đề xuất các không gian làm việc chung ở Berlin Mitte không?"
+  id: "Bisakah kamu merekomendasikan ruang kerja bersama di Berlin Mitte?"
+  pl: "Czy możesz polecić przestrzenie coworkingowe w Berlin Mitte?"
+  nl: "Kun je coworkingplekken in Berlin Mitte aanbevelen?"
+  ar: هل يمكنك التوصية بمساحات عمل مشتركة في برلين ميتيه؟
+  hi: "क्या तुम बर्लिन मिट्टे में कोवर्किंग स्पेस की सिफारिश कर सकते हो?"
+  th: ช่วยแนะนำโคเวิร์กกิ้งสเปซใน Berlin Mitte หน่อย
+  cs: "Můžeš doporučit coworkingy v Berlin Mitte?"
+  sv: "Kan du rekommendera coworking-ställen i Berlin Mitte?"
+  he: אפשר המלצה על חללי עבודה משותפים בברלין מיטה (Berlin Mitte)
+  verified_by_human: []
+
