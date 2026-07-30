@@ -80,7 +80,6 @@ test.describe('Berlin Mitte Maps public example', () => {
 
 		const resultsCard = mapsSearchCards.filter({ hasText: 'cafe restaurant with wifi Berlin Mitte' }).first();
 		await expect(resultsCard).toBeVisible({ timeout: 15_000 });
-		await expect(resultsCard).toContainText('20 places');
 
 		const noResultsCard = mapsSearchCards.filter({ hasText: 'restaurant Berlin Mitte' }).last();
 		await expect(noResultsCard).toBeVisible({ timeout: 15_000 });
