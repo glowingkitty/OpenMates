@@ -6,24 +6,8 @@
  * instead of being silently inferred.
  */
 
-import type { Message } from '../../types/chat';
+import type { ChatUsageEntry, Message } from '../../types/chat';
 import { apiEndpoints, getApiEndpoint } from '../../config/api';
-
-interface BackendChatUsageEntry {
-  id: string;
-  type?: string | null;
-  app_id?: string | null;
-  skill_id?: string | null;
-  model_used?: string | null;
-  credits?: number | null;
-  input_tokens?: number | null;
-  output_tokens?: number | null;
-  server_provider?: string | null;
-  server_region?: string | null;
-  chat_id?: string | null;
-  message_id?: string | null;
-  created_at: number | string;
-}
 
 export interface ChatUsageRow {
   id: string;
@@ -71,7 +55,7 @@ export async function loadChatUsageRows(chatId: string, limit = 500): Promise<Ch
   if (!data || typeof data !== 'object' || !Array.isArray(data.entries)) {
     throw new Error('Invalid chat usage entries response');
   }
-  return usageEntriesToChatUsageRows(data.entries as BackendChatUsageEntry[]);
+  return usageEntriesToChatUsageRows(data.entries as ChatUsageEntry[]);
 }
 
 export async function loadChatUsageTotal(chatId: string): Promise<number> {
@@ -91,7 +75,7 @@ export async function loadChatUsageTotal(chatId: string): Promise<number> {
   return total;
 }
 
-export function usageEntriesToChatUsageRows(entries: BackendChatUsageEntry[]): ChatUsageRow[] {
+export function usageEntriesToChatUsageRows(entries: ChatUsageEntry[]): ChatUsageRow[] {
   return entries.map((entry) => ({
     id: entry.id || entry.message_id || `usage-${normalizeTimestamp(entry.created_at)}`,
     label: labelForUsageEntry(entry),
@@ -107,19 +91,19 @@ export function usageEntriesToChatUsageRows(entries: BackendChatUsageEntry[]): C
   }));
 }
 
-function labelForUsageEntry(entry: BackendChatUsageEntry): string {
+function labelForUsageEntry(entry: ChatUsageEntry): string {
   if (entry.app_id && entry.skill_id) return `${entry.app_id} | ${entry.skill_id}`;
   if (entry.app_id) return entry.app_id;
   return entry.type || 'Unknown activity';
 }
 
-function providerForUsageEntry(entry: BackendChatUsageEntry): string {
+function providerForUsageEntry(entry: ChatUsageEntry): string {
   const providerParts = [entry.server_provider, entry.server_region].filter(Boolean);
   if (providerParts.length > 0) return providerParts.join(' / ');
   return entry.model_used || 'Unknown provider';
 }
 
-function iconForUsageEntry(entry: BackendChatUsageEntry): string {
+function iconForUsageEntry(entry: ChatUsageEntry): string {
   const appIconMap: Record<string, string> = {
     web: 'web',
     ai: 'ai',

@@ -59,6 +59,41 @@ export const berlinMorningBikeForecastChat: ExampleChat = {
         "embed_ids": null
     }
 ],
+  usage_entries: [
+    {
+        "id": "example-berlin-morning-bike-forecast-usage-1",
+        "type": "skill_execution",
+        "source": "chat",
+        "app_id": "ai",
+        "skill_id": "ask",
+        "model_used": "google/gemini-3-flash-preview",
+        "credits": 24,
+        "input_tokens": 14550,
+        "output_tokens": 259,
+        "user_input_tokens": 273,
+        "system_prompt_tokens": 6572,
+        "server_provider": "Google AI Studio",
+        "server_region": "US",
+        "chat_id": "example-berlin-morning-bike-forecast",
+        "message_id": "40fe35ff-396a-40aa-ae7e-463067a91833",
+        "created_at": 1781772340,
+        "updated_at": 1781772340,
+        "tool_inference_iterations": 1
+    },
+    {
+        "id": "example-berlin-morning-bike-forecast-usage-2",
+        "type": "skill_execution",
+        "source": "chat",
+        "app_id": "weather",
+        "skill_id": "forecast",
+        "credits": 1,
+        "chat_id": "example-berlin-morning-bike-forecast",
+        "message_id": "40fe35ff-396a-40aa-ae7e-463067a91833",
+        "created_at": 1781772336,
+        "updated_at": 1781772336,
+        "tool_inference_iterations": 0
+    }
+],
   metadata: {
     featured: true,
     order: 104,

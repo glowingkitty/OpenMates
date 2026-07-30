@@ -211,6 +211,43 @@ export const berlinMitteWorkFriendlyRestaurantsChat: ExampleChat = {
         "embed_ids": []
     }
 ],
+  usage_entries: [
+    {
+        "id": "example-berlin-mitte-work-friendly-usage-1",
+        "type": "skill_execution",
+        "source": "chat",
+        "app_id": "ai",
+        "skill_id": "ask",
+        "model_used": "google/gemini-3.5-flash-lite",
+        "credits": 55,
+        "input_tokens": 56354,
+        "output_tokens": 578,
+        "user_input_tokens": 12264,
+        "system_prompt_tokens": 12959,
+        "server_provider": "Google AI Studio",
+        "server_region": "US",
+        "chat_id": "example-berlin-mitte-work-friendly",
+        "message_id": "51b7ded7-2cca-49e8-8cd6-5400e0cbbd30",
+        "created_at": 1785432521,
+        "updated_at": 1785432521,
+        "tool_inference_iterations": 2
+    },
+    {
+        "id": "example-berlin-mitte-work-friendly-usage-2",
+        "type": "skill_execution",
+        "source": "chat",
+        "app_id": "maps",
+        "skill_id": "search",
+        "credits": 40,
+        "server_provider": "Google Maps",
+        "server_region": "US",
+        "chat_id": "example-berlin-mitte-work-friendly",
+        "message_id": "51b7ded7-2cca-49e8-8cd6-5400e0cbbd30",
+        "created_at": 1785432516,
+        "updated_at": 1785432516,
+        "tool_inference_iterations": 0
+    }
+],
   metadata: {
     featured: true,
     order: 121,

@@ -11,13 +11,13 @@
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge, SettingsInput, SettingsTextarea } from '../settings/elements';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
   import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
-  import { buildChatUsageRows, loadChatUsageRows, loadChatUsageTotal, totalKnownCredits, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
+  import { buildChatUsageRows, loadChatUsageRows, loadChatUsageTotal, totalKnownCredits, usageEntriesToChatUsageRows, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { notificationStore } from '../../stores/notificationStore';
   import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
-  import { isExampleChat } from '../../demo_chats';
+  import { getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
@@ -60,8 +60,12 @@
   );
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
   let isExampleChatSettings = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id));
-  let localUsageRows = $derived(buildChatUsageRows(messages));
-  let hasStaticUsageData = $derived(localUsageRows.some((row) => typeof row.credits === 'number'));
+  let staticUsageEntries = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatUsageEntries(chat.chat_id) : []);
+  let localUsageRows = $derived.by(() => {
+    const staticRows = usageEntriesToChatUsageRows(staticUsageEntries);
+    return staticRows.length > 0 ? staticRows : buildChatUsageRows(messages);
+  });
+  let hasStaticUsageData = $derived(localUsageRows.length > 0 && localUsageRows.some((row) => typeof row.credits === 'number'));
   let totalCredits = $derived(usageTotalCredits ?? display?.credits ?? chat?.budget_spent ?? totalKnownCredits(isExampleChatSettings ? localUsageRows : usageRows));
   let visibleTabs = $derived(isExampleChatSettings
     ? tabs.filter((tab) => tab.id === 'share' || (tab.id === 'usage' && hasStaticUsageData))

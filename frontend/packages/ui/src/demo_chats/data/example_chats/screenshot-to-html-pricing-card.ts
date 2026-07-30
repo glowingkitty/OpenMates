@@ -58,6 +58,46 @@ export const screenshotToHtmlPricingCardChat: ExampleChat = {
         "embed_ids": null
     }
 ],
+  usage_entries: [
+    {
+        "id": "example-screenshot-to-html-pricing-usage-1",
+        "type": "skill_execution",
+        "source": "chat",
+        "app_id": "code",
+        "skill_id": "image_to_html",
+        "model_used": "gemini-3.6-flash",
+        "credits": 225,
+        "input_tokens": 19416,
+        "output_tokens": 5272,
+        "server_provider": "Google AI Studio + E2B",
+        "chat_id": "example-screenshot-to-html-pricing",
+        "message_id": "6eec58cb-3d75-4726-9ae7-70549f6e8bc5",
+        "created_at": 1784765520,
+        "updated_at": 1784765520,
+        "tool_inference_iterations": 0,
+        "code_run_duration_seconds": 100.38
+    },
+    {
+        "id": "example-screenshot-to-html-pricing-usage-2",
+        "type": "skill_execution",
+        "source": "chat",
+        "app_id": "ai",
+        "skill_id": "ask",
+        "model_used": "google/gemini-3.5-flash-lite",
+        "credits": 25,
+        "input_tokens": 27688,
+        "output_tokens": 72,
+        "user_input_tokens": 190,
+        "system_prompt_tokens": 12756,
+        "server_provider": "Google AI Studio",
+        "server_region": "US",
+        "chat_id": "example-screenshot-to-html-pricing",
+        "message_id": "6eec58cb-3d75-4726-9ae7-70549f6e8bc5",
+        "created_at": 1784765320,
+        "updated_at": 1784765320,
+        "tool_inference_iterations": 1
+    }
+],
   metadata: {
     featured: true,
     order: 118,

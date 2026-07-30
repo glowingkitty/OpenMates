@@ -130,6 +130,32 @@ export interface Message {
   highlights?: MessageHighlight[];
 }
 
+export interface ChatUsageEntry {
+  id: string;
+  type?: string | null;
+  source?: string | null;
+  app_id?: string | null;
+  skill_id?: string | null;
+  model_used?: string | null;
+  credits?: number | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  user_input_tokens?: number | null;
+  system_prompt_tokens?: number | null;
+  credits_system_prompt?: number | null;
+  credits_history?: number | null;
+  credits_response?: number | null;
+  server_provider?: string | null;
+  server_region?: string | null;
+  chat_id?: string | null;
+  message_id?: string | null;
+  created_at: number | string;
+  updated_at?: number | string | null;
+  tool_inference_iterations?: number | null;
+  code_run_filenames?: string[] | null;
+  code_run_duration_seconds?: number | null;
+}
+
 export interface ChatCompressionCheckpoint {
   id: string;
   chat_id: string;
@@ -281,6 +307,67 @@ export interface CodeRunOutputSyncedPayload {
   embed_id: string;
   id: string;
   author_user_id: string;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface NotebookCellRunOutput {
+  cell_index: number;
+  execution_count?: number | null;
+  outputs: unknown[];
+}
+
+export interface NotebookRunOutput {
+  id: string;
+  chat_id: string;
+  notebook_embed_id: string;
+  author_user_id?: string;
+  source_version?: string | null;
+  status?: string;
+  selected_cell_indices?: number[];
+  cell_outputs: NotebookCellRunOutput[];
+  error?: string;
+  saved_at: number;
+  created_at: number;
+  updated_at?: number;
+  key_version?: number | null;
+}
+
+export interface NotebookRunOutputPayload {
+  source_version?: string | null;
+  status?: string;
+  selected_cell_indices?: number[];
+  cell_outputs: NotebookCellRunOutput[];
+  error?: string;
+  saved_at: number;
+  created_at: number;
+  updated_at?: number;
+}
+
+export interface UpsertNotebookRunOutputPayload {
+  chat_id: string;
+  notebook_embed_id: string;
+  id?: string;
+  source_version?: string | null;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface RequestNotebookRunOutputPayload {
+  chat_id: string;
+  notebook_embed_id: string;
+}
+
+export interface NotebookRunOutputSyncedPayload {
+  chat_id: string;
+  notebook_embed_id: string;
+  id: string;
+  author_user_id: string;
+  source_version?: string | null;
   key_version?: number | null;
   encrypted_payload: string;
   created_at: number;
@@ -886,6 +973,18 @@ export interface SyncCodeRunOutput {
   updated_at: number;
 }
 
+export interface SyncNotebookRunOutput {
+  chat_id: string;
+  notebook_embed_id: string;
+  id: string;
+  author_user_id: string;
+  source_version?: string | null;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface Phase1LastChatPayload {
   chat_id: string;
   chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
@@ -914,6 +1013,7 @@ export interface Phase1bChatContentPayload {
   embeds?: SyncEmbed[];
   embed_keys?: EmbedKeyEntry[];
   code_run_outputs?: SyncCodeRunOutput[];
+  notebook_run_outputs?: SyncNotebookRunOutput[];
 }
 
 /**
@@ -937,6 +1037,8 @@ export interface BackgroundMessageSyncPayload {
   embed_keys?: EmbedKeyEntry[];
   /** Encrypted Code Run terminal-output sidecars for this batch's code embeds */
   code_run_outputs?: SyncCodeRunOutput[];
+  /** Encrypted notebook cell-output sidecars for this batch's notebook embeds */
+  notebook_run_outputs?: SyncNotebookRunOutput[];
 }
 
 export interface CachePrimedPayload {
@@ -986,6 +1088,7 @@ export interface ChatContentBatchResponsePayload {
   embeds?: SyncEmbed[]; // On-demand embeds for requested chats
   embed_keys?: EmbedKeyEntry[]; // Embed keys for decryption
   code_run_outputs?: SyncCodeRunOutput[];
+  notebook_run_outputs?: SyncNotebookRunOutput[];
 }
 
 export interface OfflineSyncCompletePayload {

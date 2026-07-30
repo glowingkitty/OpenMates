@@ -34,6 +34,7 @@ export {
   getExampleChat,
   getExampleChatBySlug,
   getExampleChatMessages,
+  getExampleChatUsageEntries,
   getExampleChatCompressionCheckpoints,
   getExampleChatEmbeds,
   getExampleChatEmbed,

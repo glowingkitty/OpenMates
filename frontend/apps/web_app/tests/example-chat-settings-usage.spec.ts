@@ -3,7 +3,7 @@
  * Example chat settings usage regression tests.
  *
  * Verifies that guest-accessible static example chats can show real historical
- * usage costs when the generated example data includes response_credits.
+ * usage costs when the generated example data includes static usage_entries.
  * The flow stays unauthenticated and must not depend on private usage APIs.
  */
 
@@ -37,8 +37,11 @@ test.describe('Example chat settings usage', () => {
 		});
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
 		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toHaveText('25 credits');
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(1);
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('Gemini 3 Flash');
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('25');
+		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(2);
+		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('ai | ask');
+		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('Google AI Studio / US');
+		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('24');
+		await expect(settingsMenu.getByTestId('chat-settings-usage-row').nth(1)).toContainText('weather | forecast');
+		await expect(settingsMenu.getByTestId('chat-settings-usage-row').nth(1)).toContainText('1');
 	});
 });

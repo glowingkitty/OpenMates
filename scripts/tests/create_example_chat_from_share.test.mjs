@@ -230,7 +230,7 @@ embed_ref: review-transcript`);
   assert.match(sanitized, /^status: todo$/m);
 });
 
-test('annotates assistant responses with summed source usage credits', () => {
+test('annotates example chats with full usage entries and summed response credits', () => {
   const chat = {
     chat_id: 'source-chat',
     messages: [
@@ -273,11 +273,15 @@ test('annotates assistant responses with summed source usage credits', () => {
   assert.equal(annotated.messages[1].response_credits, 27);
   assert.equal(annotated.messages[3].user_message_id, 'user-2');
   assert.equal(annotated.messages[3].response_credits, undefined);
+  assert.deepEqual(annotated.usage_entries.map((entry) => entry.id), ['source-chat-usage-1', 'source-chat-usage-2', 'source-chat-usage-3']);
+  assert.equal(annotated.usage_entries[0].app_id, 'ai');
+  assert.equal(annotated.usage_entries[0].credits, 17);
   assert.equal(annotated.sub_chats[0].messages[1].user_message_id, 'sub-user-1');
   assert.equal(annotated.sub_chats[0].messages[1].response_credits, 4);
+  assert.deepEqual(annotated.sub_chats[0].usage_entries.map((entry) => entry.id), ['source-sub-chat-usage-1']);
 });
 
-test('serializes annotated response credits into generated example chat data', () => {
+test('serializes full usage entries into generated example chat data', () => {
   const chat = annotateChatWithUsage({
     chat_id: 'source-chat',
     title: 'Priced example',
@@ -290,7 +294,22 @@ test('serializes annotated response credits into generated example chat data', (
     embeds: [],
   }, {
     entries: [
-      { message_id: 'user-1', credits: 25, app_id: 'weather', skill_id: 'forecast' },
+      {
+        id: 'directus-usage-id',
+        chat_id: 'source-chat',
+        message_id: 'user-1',
+        credits: 25,
+        app_id: 'weather',
+        skill_id: 'forecast',
+        model_used: 'weather-forecast-v1',
+        server_provider: 'DWD + Open-Meteo',
+        server_region: 'DE',
+        input_tokens: 10,
+        output_tokens: 20,
+        api_key_hash: 'private-api-key-hash',
+        device_hash: 'private-device-hash',
+        created_at: '2026-06-18T08:00:00Z',
+      },
     ],
   });
 
@@ -314,4 +333,11 @@ test('serializes annotated response credits into generated example chat data', (
 
   assert.match(source, /"user_message_id": "user-1"/);
   assert.match(source, /"response_credits": 25/);
+  assert.match(source, /usage_entries: \[/);
+  assert.match(source, /"id": "example-priced-example-usage-1"/);
+  assert.match(source, /"chat_id": "example-priced-example"/);
+  assert.match(source, /"message_id": "user-1"/);
+  assert.match(source, /"server_provider": "DWD \+ Open-Meteo"/);
+  assert.match(source, /"input_tokens": 10/);
+  assert.doesNotMatch(source, /private-api-key-hash|private-device-hash|directus-usage-id/);
 });

@@ -52,7 +52,7 @@ SOURCE_CHAT_ID_RE = re.compile(
     r"^// Extracted from shared chat (?P<chat_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
     re.MULTILINE,
 )
-RESPONSE_CREDITS_RE = re.compile(r'["\']?response_credits["\']?\s*:\s*\d+')
+USAGE_ENTRIES_RE = re.compile(r"\busage_entries\s*:\s*\[\s*\{", re.MULTILINE)
 PUBLIC_SAFETY_PATTERNS = [
     ("vault_wrapped_aes_key", "contains a vault-wrapped encryption key"),
     ("vault:v1:", "contains a vault key reference"),
@@ -93,8 +93,8 @@ class ExampleMessage:
 @dataclass(frozen=True)
 class ExampleUsageCoverage:
     source_backed_count: int
-    with_response_credits_count: int
-    missing_response_credits: list[str]
+    with_usage_entries_count: int
+    missing_usage_entries: list[str]
 
 
 def load_canonical_categories() -> set[str]:
@@ -182,29 +182,29 @@ def source_chat_id_from_header(source: str) -> str | None:
     return match.group("chat_id") if match else None
 
 
-def has_response_credits(source: str) -> bool:
-    return bool(RESPONSE_CREDITS_RE.search(source))
+def has_usage_entries(source: str) -> bool:
+    return bool(USAGE_ENTRIES_RE.search(source))
 
 
 def example_usage_coverage() -> ExampleUsageCoverage:
     source_backed_count = 0
-    with_response_credits_count = 0
-    missing_response_credits: list[str] = []
+    with_usage_entries_count = 0
+    missing_usage_entries: list[str] = []
 
     for path in sorted(EXAMPLE_DIR.glob("*.ts")):
         source = path.read_text(encoding="utf-8")
         if not source_chat_id_from_header(source):
             continue
         source_backed_count += 1
-        if has_response_credits(source):
-            with_response_credits_count += 1
+        if has_usage_entries(source):
+            with_usage_entries_count += 1
             continue
-        missing_response_credits.append(path.name)
+        missing_usage_entries.append(path.name)
 
     return ExampleUsageCoverage(
         source_backed_count=source_backed_count,
-        with_response_credits_count=with_response_credits_count,
-        missing_response_credits=missing_response_credits,
+        with_usage_entries_count=with_usage_entries_count,
+        missing_usage_entries=missing_usage_entries,
     )
 
 
@@ -882,8 +882,8 @@ def main() -> int:
     usage_coverage = example_usage_coverage()
     usage_summary = (
         "Example chat usage coverage: "
-        f"{usage_coverage.with_response_credits_count}/{usage_coverage.source_backed_count} "
-        "source-backed example files include response_credits."
+        f"{usage_coverage.with_usage_entries_count}/{usage_coverage.source_backed_count} "
+        "source-backed example files include usage_entries."
     )
     if issues:
         print("EXAMPLE CHAT AUDIT ISSUES")
@@ -895,7 +895,7 @@ def main() -> int:
 
     print("Example chat audit passed.")
     print(usage_summary)
-    if usage_coverage.missing_response_credits:
+    if usage_coverage.missing_usage_entries:
         print(
             "Backfill: fetch /v1/settings/usage/chat-entries for the source chat IDs "
             "recorded in generated file headers, then rerun create-example-chat-from-share.mjs "

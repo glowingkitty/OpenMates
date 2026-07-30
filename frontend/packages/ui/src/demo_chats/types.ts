@@ -1,4 +1,4 @@
-import type { ChatCompressionCheckpoint, PIIMapping } from "../types/chat";
+import type { ChatCompressionCheckpoint, ChatUsageEntry, PIIMapping } from "../types/chat";
 
 export interface DemoMessage {
   id: string;
@@ -83,6 +83,7 @@ export interface ExampleSubChat {
   follow_up_suggestions: string[];
   messages: ExampleChatMessage[];
   embeds: ExampleChatEmbed[];
+  usage_entries?: ChatUsageEntry[];
   parent_id: string;
   is_sub_chat: true;
   budget_limit?: number | null;
@@ -126,6 +127,7 @@ export interface ExampleChat {
   follow_up_suggestions: string[];
   messages: ExampleChatMessage[];
   embeds: ExampleChatEmbed[];
+  usage_entries?: ChatUsageEntry[];
   sub_chats?: ExampleSubChat[];
   compression_checkpoints?: ChatCompressionCheckpoint[];
   metadata: {

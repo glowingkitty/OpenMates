@@ -734,6 +734,21 @@ function toPositiveInteger(value) {
   return Math.round(number);
 }
 
+function toNonNegativeInteger(value) {
+  const number = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(number) || number < 0) return null;
+  return Math.round(number);
+}
+
+function toFiniteNumber(value) {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function optionalString(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 function usageEntriesFromPayload(payload, chatId = null) {
   if (!payload) return [];
   if (Array.isArray(payload)) {
@@ -766,6 +781,50 @@ function creditsByMessageId(entries) {
   return totals;
 }
 
+function withoutEmptyFields(entry) {
+  return Object.fromEntries(
+    Object.entries(entry).filter(([, value]) => value !== undefined && value !== null),
+  );
+}
+
+function normalizeUsageEntry(entry, chatId, index) {
+  const codeRunFilenames = Array.isArray(entry.code_run_filenames)
+    ? entry.code_run_filenames.filter((filename) => typeof filename === 'string' && filename.trim())
+    : null;
+
+  return withoutEmptyFields({
+    id: `${chatId}-usage-${index + 1}`,
+    type: optionalString(entry.type),
+    source: optionalString(entry.source),
+    app_id: optionalString(entry.app_id),
+    skill_id: optionalString(entry.skill_id),
+    model_used: optionalString(entry.model_used),
+    credits: toNonNegativeInteger(entry.credits ?? entry.credits_charged ?? entry.total_credits),
+    input_tokens: toNonNegativeInteger(entry.input_tokens),
+    output_tokens: toNonNegativeInteger(entry.output_tokens),
+    user_input_tokens: toNonNegativeInteger(entry.user_input_tokens),
+    system_prompt_tokens: toNonNegativeInteger(entry.system_prompt_tokens),
+    credits_system_prompt: toNonNegativeInteger(entry.credits_system_prompt),
+    credits_history: toNonNegativeInteger(entry.credits_history),
+    credits_response: toNonNegativeInteger(entry.credits_response),
+    server_provider: optionalString(entry.server_provider),
+    server_region: optionalString(entry.server_region),
+    chat_id: chatId,
+    message_id: optionalString(entry.message_id),
+    created_at: normalizeTimestamp(entry.created_at),
+    updated_at: entry.updated_at ? normalizeTimestamp(entry.updated_at) : null,
+    tool_inference_iterations: toNonNegativeInteger(entry.tool_inference_iterations),
+    code_run_filenames: codeRunFilenames && codeRunFilenames.length > 0 ? codeRunFilenames : null,
+    code_run_duration_seconds: toFiniteNumber(entry.code_run_duration_seconds),
+  });
+}
+
+function normalizeUsageEntries(entries, chatId) {
+  return (entries || [])
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry, index) => normalizeUsageEntry(entry, chatId, index));
+}
+
 function annotateMessagesWithUsage(messages, entries) {
   const creditsByTrigger = creditsByMessageId(entries);
   let previousUserMessageId = null;
@@ -791,14 +850,20 @@ function annotateMessagesWithUsage(messages, entries) {
 
 export function annotateChatWithUsage(chat, usagePayload) {
   if (!usagePayload) return chat;
+  const usageEntries = usageEntriesFromPayload(usagePayload, chat.chat_id);
   return {
     ...chat,
-    messages: annotateMessagesWithUsage(chat.messages || [], usageEntriesFromPayload(usagePayload, chat.chat_id)),
+    messages: annotateMessagesWithUsage(chat.messages || [], usageEntries),
+    usage_entries: normalizeUsageEntries(usageEntries, chat.chat_id),
     sub_chats: (chat.sub_chats || []).map((subChat) => ({
       ...subChat,
       messages: annotateMessagesWithUsage(
         subChat.messages || [],
         usageEntriesFromPayload(usagePayload, subChat.chat_id),
+      ),
+      usage_entries: normalizeUsageEntries(
+        usageEntriesFromPayload(usagePayload, subChat.chat_id),
+        subChat.chat_id,
       ),
     })),
   };
@@ -921,14 +986,25 @@ function formatCompressionCheckpoints(checkpoints, chatId) {
   }));
 }
 
+function formatUsageEntries(entries, chatId) {
+  return normalizeUsageEntries(entries, chatId);
+}
+
+function totalUsageEntryCount(chat) {
+  return (chat.usage_entries || []).length
+    + (chat.sub_chats || []).reduce((sum, subChat) => sum + (subChat.usage_entries || []).length, 0);
+}
+
 export function formatTs(chat, metadata) {
   const varName = `${toCamel(metadata.slug)}Chat`;
   const messages = formatMessages(chat.messages, metadata, 'message');
   const embeds = formatEmbeds(chat.embeds);
+  const usageEntries = formatUsageEntries(chat.usage_entries || [], metadata.chatId);
   const compressionCheckpoints = formatCompressionCheckpoints(chat.compression_checkpoints, metadata.chatId);
   const subChats = (chat.sub_chats || []).map((subChat, index) => {
     const keyPrefix = `sub_chat_${index + 1}`;
     const subChatId = `${metadata.chatId}-${keyPrefix.replace(/_/g, '-')}`;
+    const subChatUsageEntries = formatUsageEntries(subChat.usage_entries || [], subChatId);
     return {
       chat_id: subChatId,
       title: `example_chats.${metadata.snake}.${keyPrefix}_title`,
@@ -940,6 +1016,7 @@ export function formatTs(chat, metadata) {
       ),
       messages: formatMessages(subChat.messages || [], metadata, keyPrefix),
       embeds: formatEmbeds(subChat.embeds || []),
+      ...(subChatUsageEntries.length > 0 ? { usage_entries: subChatUsageEntries } : {}),
       parent_id: metadata.chatId,
       is_sub_chat: true,
       budget_limit: subChat.budget_limit ?? null,
@@ -948,6 +1025,7 @@ export function formatTs(chat, metadata) {
     };
   });
   const subChatsLine = subChats.length > 0 ? `\n  sub_chats: ${JSON.stringify(subChats, null, 4)},` : '';
+  const usageEntriesLine = usageEntries.length > 0 ? `\n  usage_entries: ${JSON.stringify(usageEntries, null, 4)},` : '';
   const compressionCheckpointsLine = compressionCheckpoints.length > 0
     ? `\n  compression_checkpoints: ${JSON.stringify(compressionCheckpoints, null, 4)},`
     : '';
@@ -986,7 +1064,7 @@ export const ${varName}: ExampleChat = {
   follow_up_suggestions: ${tsArray(metadata.followUps.map((_, i) => `example_chats.${metadata.snake}.follow_up_${i + 1}`))},
   ${compressionCheckpointsLine ? compressionCheckpointsLine.trimStart() : ''}
   messages: ${JSON.stringify(messages, null, 4)},
-  embeds: ${JSON.stringify(embeds, null, 4)},${subChatsLine}
+  embeds: ${JSON.stringify(embeds, null, 4)},${usageEntriesLine}${subChatsLine}
   metadata: {
     featured: ${metadata.featured},
     order: ${metadata.order},${appSkillLine}${appFocusLine}${appMemoryLine}${contentEmbedLine}${activeFocusLine}
@@ -1133,6 +1211,7 @@ async function main() {
   console.log(`  messages: ${chat.messages.length}`);
   console.log(`  embeds: ${chat.embeds.length}`);
   console.log(`  sub_chats: ${(chat.sub_chats || []).length}`);
+  console.log(`  usage_entries: ${totalUsageEntryCount(chat)}`);
   console.log(`  priced responses: ${chat.messages.filter((message) => message.response_credits).length + (chat.sub_chats || []).reduce((sum, subChat) => sum + (subChat.messages || []).filter((message) => message.response_credits).length, 0)}`);
   console.log(`  order: ${metadata.order}`);
   console.log(`  data: ${path.relative(REPO_ROOT, dataPath)}`);
