@@ -26,7 +26,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.post_processing_met
 from backend.core.api.app.routes.handlers.websocket_handlers.title_update_handler import (
     handle_update_title,
 )
-from backend.core.api.app.tasks import persistence_tasks
+from backend.core.api.app.tasks import persistence_tasks, user_cache_tasks
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id
 from backend.core.api.app.services.user_plan_service import UserPlanNotFoundError, UserPlanService
 from backend.core.api.app.services.user_task_service import UserTaskNotFoundError, UserTaskService
@@ -765,6 +765,75 @@ def test_metadata_persistence_preserves_newer_cached_title_when_refreshing_cache
     assert cached_items[0].encrypted_chat_summary == "cipher-summary-v5"
     assert cached_versions[0].title_v == 5
     assert cached_versions[0].metadata_v == 5
+
+
+def test_cache_refresh_preserves_newer_cached_title_and_summary_when_directus_lags() -> None:
+    cache_data = persistence_tasks.CachedChatListItemData(
+        title="cipher-title-v5",
+        encrypted_chat_summary="cipher-summary-v6",
+    )
+    cache_versions = persistence_tasks.CachedChatVersions(
+        messages_v=12,
+        title_v=5,
+        metadata_v=6,
+    )
+
+    merged = persistence_tasks._chat_list_cache_data_from_metadata(
+        {
+            "id": "chat-1",
+            "messages_v": 12,
+            "title_v": 5,
+            "metadata_v": 4,
+            "encrypted_title": "cipher-title-v4",
+            "encrypted_chat_summary": None,
+        },
+        existing_cache_data=cache_data,
+        cached_versions=cache_versions,
+    )
+
+    assert merged.title == "cipher-title-v5"
+    assert merged.encrypted_chat_summary == "cipher-summary-v6"
+
+
+def test_cache_warming_preserves_newer_cached_title_and_summary_when_directus_lags() -> None:
+    cache_data = user_cache_tasks.CachedChatListItemData(
+        title="cipher-title-v5",
+        encrypted_chat_summary="cipher-summary-v6",
+    )
+    cache_versions = user_cache_tasks.CachedChatVersions(
+        messages_v=12,
+        title_v=5,
+        metadata_v=6,
+    )
+    directus_chat = {
+        "id": "chat-1",
+        "messages_v": 12,
+        "title_v": 5,
+        "metadata_v": 4,
+        "encrypted_title": "cipher-title-v4",
+        "encrypted_chat_summary": None,
+        "created_at": 100,
+        "updated_at": 200,
+    }
+
+    merged = user_cache_tasks._cached_chat_list_item_from_details(
+        directus_chat,
+        "owner-1",
+        "chat-1",
+        existing_cache_data=cache_data,
+        existing_versions=cache_versions,
+    )
+    versions = user_cache_tasks._cached_chat_versions_from_details(
+        directus_chat,
+        "owner-1",
+        "chat-1",
+        existing_versions=cache_versions,
+    )
+
+    assert merged.title == "cipher-title-v5"
+    assert merged.encrypted_chat_summary == "cipher-summary-v6"
+    assert versions.title_v == 5
+    assert versions.metadata_v == 6
 
 
 def test_workflow_metadata_version_is_owner_scoped_and_vault_backed() -> None:

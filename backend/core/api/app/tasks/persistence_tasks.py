@@ -44,10 +44,26 @@ def _chat_list_cache_data_from_metadata(
     cached_versions: Optional[CachedChatVersions] = None,
 ) -> CachedChatListItemData:
     fresh_title_v = _version_int(chat_metadata.get("title_v"))
+    fresh_metadata_v = _effective_metadata_v(chat_metadata, fresh_title_v)
     cached_title_v = _version_int(getattr(cached_versions, "title_v", 0))
+    cached_metadata_v = _version_int(getattr(cached_versions, "metadata_v", None))
+    if not cached_metadata_v and cached_title_v > 0:
+        cached_metadata_v = cached_title_v
+
     title = chat_metadata.get("encrypted_title")
-    if existing_cache_data and existing_cache_data.title and cached_title_v > fresh_title_v:
+    cached_title_is_newer = cached_title_v > fresh_title_v or (
+        cached_title_v == fresh_title_v and cached_metadata_v > fresh_metadata_v
+    )
+    if existing_cache_data and existing_cache_data.title and cached_title_is_newer:
         title = existing_cache_data.title
+
+    encrypted_chat_summary = chat_metadata.get("encrypted_chat_summary")
+    if (
+        existing_cache_data
+        and existing_cache_data.encrypted_chat_summary
+        and cached_metadata_v > fresh_metadata_v
+    ):
+        encrypted_chat_summary = existing_cache_data.encrypted_chat_summary
 
     return CachedChatListItemData(
         title=title,
@@ -57,7 +73,7 @@ def _chat_list_cache_data_from_metadata(
         encrypted_chat_key=chat_metadata.get("encrypted_chat_key"),
         encrypted_icon=chat_metadata.get("encrypted_icon"),
         encrypted_category=chat_metadata.get("encrypted_category"),
-        encrypted_chat_summary=chat_metadata.get("encrypted_chat_summary"),
+        encrypted_chat_summary=encrypted_chat_summary,
         encrypted_share_cta_text=chat_metadata.get("encrypted_share_cta_text"),
         encrypted_chat_tags=chat_metadata.get("encrypted_chat_tags"),
         encrypted_follow_up_request_suggestions=chat_metadata.get("encrypted_follow_up_request_suggestions"),
