@@ -48,6 +48,11 @@ FOCUS_MENTION_RE = re.compile(r"(^|\s)@focus:[a-z0-9_-]+:[a-z0-9_-]+\b")
 FOCUS_ACTIVATION_MARKERS = ("focus_mode_activation", "focus-mode-activation")
 FOCUS_ACTIVATION_TYPE = "focus-mode-activation"
 RECIPE_EMBED_TYPES = {"recipe", "nutrition-recipe"}
+SOURCE_CHAT_ID_RE = re.compile(
+    r"^// Extracted from shared chat (?P<chat_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+    re.MULTILINE,
+)
+RESPONSE_CREDITS_RE = re.compile(r'["\']?response_credits["\']?\s*:\s*\d+')
 PUBLIC_SAFETY_PATTERNS = [
     ("vault_wrapped_aes_key", "contains a vault-wrapped encryption key"),
     ("vault:v1:", "contains a vault key reference"),
@@ -83,6 +88,13 @@ class MemoryCategoryContract:
 class ExampleMessage:
     role: str
     content: str
+
+
+@dataclass(frozen=True)
+class ExampleUsageCoverage:
+    source_backed_count: int
+    with_response_credits_count: int
+    missing_response_credits: list[str]
 
 
 def load_canonical_categories() -> set[str]:
@@ -163,6 +175,37 @@ def unescape_ts_string(value: str) -> str:
 def parse_ts_string_field(source: str, field: str) -> str | None:
     match = re.search(rf"[\"']?{re.escape(field)}[\"']?\s*:\s*\"((?:\\.|[^\"])*)\"", source)
     return unescape_ts_string(match.group(1)) if match else None
+
+
+def source_chat_id_from_header(source: str) -> str | None:
+    match = SOURCE_CHAT_ID_RE.search(source)
+    return match.group("chat_id") if match else None
+
+
+def has_response_credits(source: str) -> bool:
+    return bool(RESPONSE_CREDITS_RE.search(source))
+
+
+def example_usage_coverage() -> ExampleUsageCoverage:
+    source_backed_count = 0
+    with_response_credits_count = 0
+    missing_response_credits: list[str] = []
+
+    for path in sorted(EXAMPLE_DIR.glob("*.ts")):
+        source = path.read_text(encoding="utf-8")
+        if not source_chat_id_from_header(source):
+            continue
+        source_backed_count += 1
+        if has_response_credits(source):
+            with_response_credits_count += 1
+            continue
+        missing_response_credits.append(path.name)
+
+    return ExampleUsageCoverage(
+        source_backed_count=source_backed_count,
+        with_response_credits_count=with_response_credits_count,
+        missing_response_credits=missing_response_credits,
+    )
 
 
 def parse_ts_template_field(source: str, field: str) -> str | None:
@@ -836,14 +879,28 @@ def audit() -> list[str]:
 
 def main() -> int:
     issues = audit()
+    usage_coverage = example_usage_coverage()
+    usage_summary = (
+        "Example chat usage coverage: "
+        f"{usage_coverage.with_response_credits_count}/{usage_coverage.source_backed_count} "
+        "source-backed example files include response_credits."
+    )
     if issues:
         print("EXAMPLE CHAT AUDIT ISSUES")
         for issue in issues:
             print(f"- {issue}")
+        print(usage_summary)
         print(f"Summary: {len(issues)} issue(s).")
         return 1
 
     print("Example chat audit passed.")
+    print(usage_summary)
+    if usage_coverage.missing_response_credits:
+        print(
+            "Backfill: fetch /v1/settings/usage/chat-entries for the source chat IDs "
+            "recorded in generated file headers, then rerun create-example-chat-from-share.mjs "
+            "with --usage-json or OPENMATES_API_KEY."
+        )
     return 0
 
 

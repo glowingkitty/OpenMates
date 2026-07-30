@@ -921,7 +921,7 @@ function formatCompressionCheckpoints(checkpoints, chatId) {
   }));
 }
 
-function formatTs(chat, metadata) {
+export function formatTs(chat, metadata) {
   const varName = `${toCamel(metadata.slug)}Chat`;
   const messages = formatMessages(chat.messages, metadata, 'message');
   const embeds = formatEmbeds(chat.embeds);

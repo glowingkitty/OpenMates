@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   annotateChatWithUsage,
+  formatTs,
   inlineEmbedsMapViewCodeEmbeds,
   removeInternalTaskEventMessages,
   sanitizeEmbedContent,
@@ -274,4 +275,43 @@ test('annotates assistant responses with summed source usage credits', () => {
   assert.equal(annotated.messages[3].response_credits, undefined);
   assert.equal(annotated.sub_chats[0].messages[1].user_message_id, 'sub-user-1');
   assert.equal(annotated.sub_chats[0].messages[1].response_credits, 4);
+});
+
+test('serializes annotated response credits into generated example chat data', () => {
+  const chat = annotateChatWithUsage({
+    chat_id: 'source-chat',
+    title: 'Priced example',
+    summary: 'Shows usage costs.',
+    category: 'general_knowledge',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: 'Forecast please', created_at: 1 },
+      { message_id: 'assistant-1', role: 'assistant', content: 'Forecast ready', created_at: 2 },
+    ],
+    embeds: [],
+  }, {
+    entries: [
+      { message_id: 'user-1', credits: 25, app_id: 'weather', skill_id: 'forecast' },
+    ],
+  });
+
+  const source = formatTs(chat, {
+    slug: 'priced-example',
+    snake: 'priced_example',
+    chatId: 'example-priced-example',
+    title: 'Priced example',
+    icon: 'cloud-sun',
+    category: 'general_knowledge',
+    keywords: [],
+    followUps: [],
+    featured: true,
+    order: 1,
+    appSkillExamples: [],
+    appFocusModeExamples: [],
+    appSettingsMemoryExamples: [],
+    contentEmbedExamples: [],
+    activeFocusId: null,
+  });
+
+  assert.match(source, /"user_message_id": "user-1"/);
+  assert.match(source, /"response_credits": 25/);
 });
