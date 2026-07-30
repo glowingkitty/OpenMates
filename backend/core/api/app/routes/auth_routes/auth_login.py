@@ -59,6 +59,8 @@ GENERIC_LOOKUP_METHOD = "password"
 GENERIC_LOOKUP_METHODS = ["password", "recovery_key"]
 FAKE_SALT_SECRET_ENV = "AUTH_LOOKUP_FAKE_SALT_SECRET"
 LOOKUP_CACHE_TTL_SECONDS = 300
+LOOKUP_USER_NOT_FOUND_MESSAGE = "User not found"
+LOOKUP_TEMPORARILY_UNAVAILABLE_ERROR = "Login lookup temporarily unavailable. Please try again."
 _FALLBACK_FAKE_SALT_SECRET = base64.b64encode(os.urandom(32)).decode("utf-8")
 
 
@@ -1682,9 +1684,17 @@ async def lookup_user(
             )
         
         # Step 2: Look up user by hashed_email
-        exists_result, user_data, _ = await directus_service.get_user_by_hashed_email(lookup_data.hashed_email)
-        
-        # Log the lookup attempt for metrics
+        exists_result, user_data, lookup_message = await directus_service.get_user_by_hashed_email(lookup_data.hashed_email)
+
+        if not exists_result and not user_data and lookup_message != LOOKUP_USER_NOT_FOUND_MESSAGE:
+            logger.error("User lookup backend unavailable: %s", lookup_message)
+            return Response(
+                content=json.dumps({"error": LOOKUP_TEMPORARILY_UNAVAILABLE_ERROR}),
+                media_type="application/json",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # Log the lookup attempt for metrics after backend errors are excluded.
         metrics_service.track_login_attempt(exists_result)
         
         # Step 3: If user doesn't exist, return a stable decoy response. Random
@@ -1744,7 +1754,8 @@ async def lookup_user(
     
     except Exception as e:
         logger.error(f"Error during user lookup: {str(e)}", exc_info=True)
-        return _generic_lookup_response(
-            hashed_email=lookup_data.hashed_email or "lookup-error",
-            stay_logged_in=False,
+        return Response(
+            content=json.dumps({"error": LOOKUP_TEMPORARILY_UNAVAILABLE_ERROR}),
+            media_type="application/json",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )

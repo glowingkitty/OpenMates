@@ -598,6 +598,36 @@ class TestLookupUserCacheWarmup:
         assert background_tasks.tasks[0].func is _cache_lookup_user_profile
 
     @pytest.mark.anyio
+    async def test_lookup_returns_503_for_directus_lookup_error(self):
+        from backend.core.api.app.routes.auth_routes.auth_login import lookup_user
+        from backend.core.api.app.schemas.auth import UserLookupRequest
+
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(
+            False,
+            None,
+            "Failed to query user by hashed email: 503 - Service unavailable",
+        ))
+        metrics_service = MagicMock()
+        metrics_service.track_login_attempt = MagicMock()
+        background_tasks = BackgroundTasks()
+
+        response = await lookup_user(
+            request=MagicMock(),
+            lookup_data=UserLookupRequest(hashed_email="hashed-email", stay_logged_in=True),
+            background_tasks=background_tasks,
+            directus_service=directus_service,
+            metrics_service=metrics_service,
+            cache_service=AsyncMock(),
+            compliance_service=MagicMock(),
+        )
+
+        assert response.status_code == 503
+        assert b"temporarily unavailable" in response.body
+        metrics_service.track_login_attempt.assert_not_called()
+        assert background_tasks.tasks == []
+
+    @pytest.mark.anyio
     async def test_lookup_cache_helper_writes_complete_profile(self):
         from backend.core.api.app.routes.auth_routes.auth_login import _cache_lookup_user_profile
 
