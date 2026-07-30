@@ -106,7 +106,13 @@ async def test_workflow_strips_prompt_injection_opt_out_and_still_sanitizes_outp
         return result
 
     monkeypatch.setattr(workflow_app_skill_adapter, "sanitize_app_skill_output", fake_safety)
-    adapter = WorkflowAppSkillAdapter(registry=registry)
+    secrets_manager = object()
+    cache_service = object()
+    adapter = WorkflowAppSkillAdapter(
+        registry=registry,
+        secrets_manager=secrets_manager,
+        cache_service=cache_service,
+    )
 
     await adapter.execute(
         "news",
@@ -121,4 +127,6 @@ async def test_workflow_strips_prompt_injection_opt_out_and_still_sanitizes_outp
     assert "security" not in registry.calls[0][2]
     assert captured_contexts[0].surface == "workflow"
     assert captured_contexts[0].external_data is True
+    assert captured_contexts[0].secrets_manager is secrets_manager
+    assert captured_contexts[0].cache_service is cache_service
     assert captured_contexts[0].request_body["security"] == {"prompt_injection_protection": "disabled"}

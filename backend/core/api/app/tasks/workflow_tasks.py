@@ -15,6 +15,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
 from backend.core.api.app.services.workflow_event_dispatcher import WorkflowEventDispatcher
 from backend.core.api.app.services.workflow_runner import WorkflowRunner
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeService
@@ -47,6 +48,7 @@ async def run_workflow_now(
     *,
     workflow_service: WorkflowService | None = None,
     runtime_service: WorkflowRuntimeService | None = None,
+    app_skill_adapter: WorkflowAppSkillAdapter | None = None,
 ) -> dict[str, Any]:
     """Execute a run only after its API or scheduler acceptance pinned a version."""
     if trigger_type not in {"manual", "test"}:
@@ -77,7 +79,7 @@ async def run_workflow_now(
         return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id, "status": status}
     vault_key_id = service.resolve_user_vault_key_id(user_id)
     workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, user_id, version_id, vault_key_id)
-    run = await WorkflowRunner(service).run_workflow(
+    run = await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
         workflow,
         user_id,
         vault_key_id=vault_key_id,
@@ -95,6 +97,7 @@ async def run_scheduled_workflow_trigger_now(
     runtime_service: WorkflowRuntimeService,
     decrypt_and_schedule: Callable[[str, str], Awaitable[int]] | None = None,
     workflow_service: WorkflowService | None = None,
+    app_skill_adapter: WorkflowAppSkillAdapter | None = None,
 ) -> dict[str, Any]:
     """Execute a Directus-accepted schedule occurrence with its existing run id."""
     service = workflow_service or get_workflow_service()
@@ -108,7 +111,7 @@ async def run_scheduled_workflow_trigger_now(
     async def execute_accepted_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
         vault_key_id = await asyncio.to_thread(service.resolve_user_vault_key_id, owner_user_id)
         workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, owner_user_id, version_id, vault_key_id)
-        await WorkflowRunner(service).run_workflow(
+        await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
             workflow,
             owner_user_id,
             vault_key_id=vault_key_id,
@@ -276,6 +279,10 @@ def run_workflow_task(
                 trigger_type,
                 input_payload,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
+                app_skill_adapter=WorkflowAppSkillAdapter(
+                    secrets_manager=self.secrets_manager,
+                    cache_service=self.cache_service,
+                ),
             )
 
         return asyncio.run(run())
@@ -292,6 +299,10 @@ def run_scheduled_workflow_trigger_task(self: BaseServiceTask, trigger_id: str) 
             return await run_scheduled_workflow_trigger_now(
                 trigger_id,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
+                app_skill_adapter=WorkflowAppSkillAdapter(
+                    secrets_manager=self.secrets_manager,
+                    cache_service=self.cache_service,
+                ),
             )
 
         return asyncio.run(run())

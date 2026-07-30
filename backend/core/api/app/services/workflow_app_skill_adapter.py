@@ -28,9 +28,18 @@ OPENAI_USER_ROLE = "user"
 class WorkflowAppSkillAdapter:
     """Dispatch workflow app-skill nodes and normalize their workflow outputs."""
 
-    def __init__(self, registry: Any | None = None, binding_revalidator: Any | None = None) -> None:
+    def __init__(
+        self,
+        registry: Any | None = None,
+        binding_revalidator: Any | None = None,
+        *,
+        secrets_manager: Any | None = None,
+        cache_service: Any | None = None,
+    ) -> None:
         self.registry = registry
         self.binding_revalidator = binding_revalidator
+        self.secrets_manager = secrets_manager
+        self.cache_service = cache_service
 
     async def revalidate_binding(self, binding_ref: Any, user_id: str, app_id: str, skill_id: str) -> None:
         """Require a runtime resolver to re-check opaque provider bindings."""
@@ -64,6 +73,8 @@ class WorkflowAppSkillAdapter:
                 surface=APP_SKILL_SURFACE_WORKFLOW,
                 request_body=request if isinstance(request, dict) else {},
                 external_data=is_external_data_skill(metadata, app_id, skill_id),
+                secrets_manager=self.secrets_manager,
+                cache_service=self.cache_service,
                 log_prefix=f"[WorkflowAppSkill {app_id}.{skill_id}] ",
             ),
         )

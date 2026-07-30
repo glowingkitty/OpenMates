@@ -34,6 +34,27 @@ def manual_graph() -> dict[str, Any]:
     }
 
 
+def manual_app_skill_graph() -> dict[str, Any]:
+    return {
+        "version": 1,
+        "trigger_node_id": "trigger",
+        "nodes": [
+            {"id": "trigger", "type": "manual_trigger", "config": {}},
+            {
+                "id": "search",
+                "type": "app_skill_action",
+                "config": {
+                    "app_id": "web",
+                    "skill_id": "search",
+                    "input": {"requests": [{"query": "workflow safety dependencies"}]},
+                },
+            },
+            {"id": "end", "type": "end", "config": {}},
+        ],
+        "edges": [{"from": "trigger", "to": "search"}, {"from": "search", "to": "end"}],
+    }
+
+
 class FakeRuntime:
     def __init__(self, events: list[str]) -> None:
         self.events = events
@@ -163,6 +184,31 @@ class StartRejectedRuntime:
         return {"started": False, "run_id": "run-accepted", "workflow_id": "workflow-1", "version_id": "version-pinned", "status": "running"}
 
 
+class StartAcceptedRuntime:
+    def __init__(self, workflow_id: str, version_id: str) -> None:
+        self.workflow_id = workflow_id
+        self.version_id = version_id
+
+    async def execute(self, operation: str, data: dict[str, Any]) -> dict[str, Any]:
+        assert operation == "start_accepted_run"
+        return {
+            "started": True,
+            "run_id": data["run_id"],
+            "workflow_id": self.workflow_id,
+            "version_id": self.version_id,
+            "status": "running",
+        }
+
+
+class RecordingAppSkillAdapter:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, dict[str, Any], str | None]] = []
+
+    async def execute(self, app_id: str, skill_id: str, request: dict[str, Any], *, user_id: str | None = None) -> dict[str, Any]:
+        self.calls.append((app_id, skill_id, request, user_id))
+        return {"summary": "workflow app skill ok"}
+
+
 @pytest.mark.anyio
 async def test_worker_does_not_execute_side_effects_when_another_delivery_claimed_the_run() -> None:
     runtime = StartRejectedRuntime()
@@ -196,6 +242,35 @@ async def test_worker_does_not_execute_side_effects_when_another_delivery_claime
         (
             "start_accepted_run",
             {"workflow_id": "workflow-1", "run_id": "run-accepted", "hashed_user_id": "owner-hash"},
+        )
+    ]
+
+
+@pytest.mark.anyio
+async def test_worker_uses_supplied_app_skill_adapter_for_accepted_runs() -> None:
+    service = workflow_service(repository=InMemoryWorkflowRepository())
+    workflow = service.create_workflow("alice", "Manual app skill", manual_app_skill_graph(), enabled=True)
+    adapter = RecordingAppSkillAdapter()
+
+    result = await workflow_tasks.run_workflow_now(
+        workflow.id,
+        "alice",
+        "run-accepted",
+        workflow.current_version_id,
+        "manual",
+        {},
+        workflow_service=service,
+        runtime_service=StartAcceptedRuntime(workflow.id, workflow.current_version_id),
+        app_skill_adapter=adapter,
+    )
+
+    assert result["status"] == "completed"
+    assert adapter.calls == [
+        (
+            "web",
+            "search",
+            {"requests": [{"query": "workflow safety dependencies"}]},
+            "alice",
         )
     ]
 
