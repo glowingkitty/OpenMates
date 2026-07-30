@@ -662,11 +662,16 @@ export interface ProjectItemCreateInput {
 export interface UserTaskRecord {
   task_id: string;
   source?: string | null;
+  projection_kind?: "last_run" | "current_run" | "next_run" | null;
   title?: string | null;
   read_only?: boolean | null;
   workflow_id?: string | null;
   workflow_run_id?: string | null;
+  trigger_id?: string | null;
   run_status?: string | null;
+  can_cancel?: boolean | null;
+  can_delete?: boolean | null;
+  scheduled_at?: number | null;
   blocked_reason?: string | null;
   blocked_message?: string | null;
   short_id?: string | null;

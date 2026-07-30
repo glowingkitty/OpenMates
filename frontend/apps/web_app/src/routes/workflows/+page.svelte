@@ -105,6 +105,7 @@
   let routeWorkflowId = $derived(page.params.workflow_id ?? null);
   let isManageView = $derived(!!routeWorkflowId || page.url.searchParams.get('view') === 'manage');
   let isRunsView = $derived(page.url.pathname.endsWith('/runs'));
+  let selectedRunId = $derived(page.url.searchParams.get('run_id'));
   let requestedWorkflowId = $derived(routeWorkflowId ?? page.url.searchParams.get('workflow'));
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
@@ -770,6 +771,7 @@
               <WorkflowRunHistory
                 {runs}
                 editorHref={`/workflows/${encodeURIComponent(selectedWorkflow.id)}`}
+                {selectedRunId}
               />
             {:else}
               <WorkflowTemplateShare

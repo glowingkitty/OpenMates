@@ -19,9 +19,11 @@ class FakeRuntime:
         self.claim = claim
         self.start = start
         self.calls: list[tuple[str, dict[str, object]]] = []
+        self.events: list[str] = []
 
     async def execute(self, operation: str, data: dict[str, object]) -> dict[str, object]:
         self.calls.append((operation, data))
+        self.events.append(operation)
         if operation == "claim_due_trigger":
             return self.claim
         if operation == "start_claimed_run":
@@ -47,8 +49,8 @@ def scheduled_graph() -> dict[str, object]:
     }
 
 
-@pytest.mark.asyncio
-async def test_scheduler_fences_claim_before_side_effects_then_advances_recurrence() -> None:
+@pytest.mark.anyio
+async def test_scheduler_fences_claim_and_advances_recurrence_before_side_effects() -> None:
     runtime = FakeRuntime(
         {
             "accepted": True,
@@ -70,6 +72,7 @@ async def test_scheduler_fences_claim_before_side_effects_then_advances_recurren
         return 1_800_000_000
 
     async def execute_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
+        runtime.events.append("execute_run")
         effects.append((run_id, workflow_id, version_id, owner_user_id))
 
     result = await WorkflowSchedulerService(runtime).execute_due_trigger(
@@ -83,9 +86,15 @@ async def test_scheduler_fences_claim_before_side_effects_then_advances_recurren
         "start_claimed_run",
         "advance_claimed_trigger",
     ]
+    assert runtime.events == [
+        "claim_due_trigger",
+        "start_claimed_run",
+        "advance_claimed_trigger",
+        "execute_run",
+    ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_claim() -> None:
     runtime = FakeRuntime({"accepted": False, "run_id": "run-1", "version_id": "version-1"}, {})
 
@@ -100,7 +109,7 @@ async def test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_cl
     assert runtime.calls == [("claim_due_trigger", {"trigger_id": "trigger-1"})]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_scheduler_runs_a_reclaimed_queued_occurrence() -> None:
     runtime = FakeRuntime(
         {
@@ -132,7 +141,7 @@ async def test_scheduler_runs_a_reclaimed_queued_occurrence() -> None:
     assert effects == ["run-1"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes() -> None:
     runtime = FakeRuntime(
         {
@@ -166,7 +175,7 @@ async def test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes
     ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_scheduler_executes_the_claimed_run_id_without_creating_another_run() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Scheduled", scheduled_graph(), enabled=True)

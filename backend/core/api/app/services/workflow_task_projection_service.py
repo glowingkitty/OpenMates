@@ -17,14 +17,16 @@ from backend.core.api.app.services.workflow_models import WorkflowRunStatus
 
 
 WORKFLOW_TASK_PROJECTION_RETENTION_SECONDS = 7 * 24 * 60 * 60
-_ACTIVE_RUN_STATUSES = {
+_CURRENT_RUN_STATUSES = {
     WorkflowRunStatus.QUEUED,
     WorkflowRunStatus.RUNNING,
+    WorkflowRunStatus.WAITING,
     WorkflowRunStatus.CANCELLATION_REQUESTED,
 }
-_TERMINAL_RUN_STATUSES = {
+_PAST_RUN_STATUSES = {
     WorkflowRunStatus.COMPLETED,
     WorkflowRunStatus.CANCELLED,
+    WorkflowRunStatus.FAILED,
 }
 _BLOCKED_RUN_STATUSES = {
     WorkflowRunStatus.WAITING,
@@ -42,8 +44,9 @@ class WorkflowRunTaskProjection(BaseModel):
 
     task_id: str
     source: Literal["workflow_run"] = "workflow_run"
+    projection_kind: Literal["last_run", "current_run", "next_run"]
     workflow_id: str
-    workflow_run_id: str
+    workflow_run_id: str | None = None
     trigger_id: str | None = None
     label: Literal["Workflow run"] = "Workflow run"
     title: str | None = None
@@ -74,15 +77,19 @@ class WorkflowTaskProjectionService:
             workflow_id = workflow.get("id")
             if not isinstance(workflow_id, str) or not workflow_id:
                 continue
-            runs = self.workflow_repository.list_runs(workflow_id, user_id)
+            workflow_title = workflow.get("title") if isinstance(workflow.get("title"), str) else "Workflow"
+            runs = [self._run_with_workflow_title(run, workflow_title) for run in self.workflow_repository.list_runs(workflow_id, user_id)]
             future_projection = self._future_projection_from_workflow(workflow, user_id, runs, current_time)
             if future_projection is not None:
                 projections.append(future_projection)
-            for run in runs:
-                projection = self._projection_from_run(run, current_time)
-                if projection is not None:
-                    projections.append(projection)
+            projections.extend(self._run_projections_from_runs(runs, current_time))
         return sorted(projections, key=lambda projection: projection.updated_at, reverse=True)
+
+    @staticmethod
+    def _run_with_workflow_title(run: dict[str, Any], workflow_title: str) -> dict[str, Any]:
+        if isinstance(run.get("workflow_title"), str):
+            return run
+        return {**run, "workflow_title": workflow_title}
 
     def skip_scheduled_projection(self, user_id: str, task_id: str, *, now: int | None = None) -> dict[str, Any] | None:
         parsed = self._parse_schedule_task_id(task_id)
@@ -143,8 +150,9 @@ class WorkflowTaskProjectionService:
         workflow_title = workflow.get("title") if isinstance(workflow.get("title"), str) else "Workflow"
         return WorkflowRunTaskProjection(
             task_id=f"workflow-schedule:{trigger_id}:{next_run_at}",
+            projection_kind="next_run",
             workflow_id=workflow_id,
-            workflow_run_id=f"planned:{trigger_id}:{next_run_at}",
+            workflow_run_id=None,
             trigger_id=trigger_id,
             title=f"{workflow_title} - {self._format_task_time(next_run_at)}",
             status="todo",
@@ -173,8 +181,51 @@ class WorkflowTaskProjectionService:
             return None
         return trigger_id, scheduled_at
 
+    @classmethod
+    def _run_projections_from_runs(cls, runs: list[dict[str, Any]], now: int) -> list[WorkflowRunTaskProjection]:
+        current_run = cls._most_recent_run_with_status(runs, _CURRENT_RUN_STATUSES)
+        past_run = cls._most_recent_run_with_status(runs, _PAST_RUN_STATUSES)
+        projections: list[WorkflowRunTaskProjection] = []
+        if current_run is not None:
+            projection = cls._projection_from_run(current_run, now, projection_kind="current_run")
+            if projection is not None:
+                projections.append(projection)
+        if past_run is not None:
+            projection = cls._projection_from_run(past_run, now, projection_kind="last_run")
+            if projection is not None:
+                projections.append(projection)
+        return projections
+
     @staticmethod
-    def _projection_from_run(run: dict[str, Any], now: int) -> WorkflowRunTaskProjection | None:
+    def _most_recent_run_with_status(runs: list[dict[str, Any]], statuses: set[WorkflowRunStatus]) -> dict[str, Any] | None:
+        candidates: list[dict[str, Any]] = []
+        for run in runs:
+            try:
+                run_status = WorkflowRunStatus(run.get("status"))
+            except ValueError:
+                continue
+            if run_status in statuses:
+                candidates.append(run)
+        if not candidates:
+            return None
+        return max(
+            candidates,
+            key=lambda run: WorkflowTaskProjectionService._timestamp(
+                run,
+                "finished_at",
+                "cancellation_requested_at",
+                "started_at",
+                "accepted_at",
+            ),
+        )
+
+    @staticmethod
+    def _projection_from_run(
+        run: dict[str, Any],
+        now: int,
+        *,
+        projection_kind: Literal["last_run", "current_run"],
+    ) -> WorkflowRunTaskProjection | None:
         try:
             run_status = WorkflowRunStatus(run.get("status"))
         except ValueError:
@@ -185,18 +236,6 @@ class WorkflowTaskProjectionService:
         if not isinstance(run_id, str) or not run_id or not isinstance(workflow_id, str) or not workflow_id:
             return None
 
-        finished_at = run.get("finished_at")
-        if run_status in _TERMINAL_RUN_STATUSES:
-            if not isinstance(finished_at, int) or finished_at < now - WORKFLOW_TASK_PROJECTION_RETENTION_SECONDS:
-                return None
-            task_status = "done"
-        elif run_status in _BLOCKED_RUN_STATUSES:
-            task_status = "blocked"
-        elif run_status in _ACTIVE_RUN_STATUSES:
-            task_status = "in_progress"
-        else:
-            return None
-
         created_at = WorkflowTaskProjectionService._timestamp(run, "accepted_at", "started_at", "finished_at")
         updated_at = WorkflowTaskProjectionService._timestamp(
             run,
@@ -205,8 +244,18 @@ class WorkflowTaskProjectionService:
             "started_at",
             "accepted_at",
         )
+        if run_status in _PAST_RUN_STATUSES:
+            if updated_at < now - WORKFLOW_TASK_PROJECTION_RETENTION_SECONDS:
+                return None
+            task_status = "blocked" if run_status == WorkflowRunStatus.FAILED else "done"
+        elif run_status in _CURRENT_RUN_STATUSES:
+            task_status = "blocked" if run_status in _BLOCKED_RUN_STATUSES else "in_progress"
+        else:
+            return None
+
         return WorkflowRunTaskProjection(
             task_id=f"workflow-run:{run_id}",
+            projection_kind=projection_kind,
             workflow_id=workflow_id,
             workflow_run_id=run_id,
             trigger_id=run.get("trigger_id") if isinstance(run.get("trigger_id"), str) else None,

@@ -94,7 +94,6 @@ class WorkflowSchedulerService:
             )
             return {"accepted": True, "run_id": run_id, "status": status, "next_run_at": next_run_at}
 
-        await execute_run(run_id, workflow_id, version_id, owner_user_id)
         await self._runtime_service.execute(
             "advance_claimed_trigger",
             {
@@ -104,6 +103,7 @@ class WorkflowSchedulerService:
                 "next_run_at": next_run_at,
             },
         )
+        await execute_run(run_id, workflow_id, version_id, owner_user_id)
         return {"accepted": True, "run_id": run_id, "next_run_at": next_run_at}
 
     @staticmethod

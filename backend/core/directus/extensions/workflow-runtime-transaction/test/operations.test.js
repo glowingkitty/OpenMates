@@ -47,6 +47,7 @@ function fakeDatabase(seed) {
     };
     const query = {
       where(...args) { addWhere(args); return query; },
+      whereIn(field, values) { predicates.push((row) => Array.isArray(values) && values.includes(row[field])); return query; },
       forUpdate() { return query; },
       async first() { return match()[0]; },
       async insert(value) { (store[table] ??= []).push(structuredClone(value)); return 1; },
@@ -138,6 +139,27 @@ test('due trigger listing returns enabled due schedule trigger ids only', async 
   const result = await executeOperation(database, 'list_due_triggers', { protocol_version: 1, now: 1_783_843_200, limit: 10 }, NOW);
 
   assert.deepEqual(result, { trigger_ids: ['trigger-1', 'trigger-2'] });
+});
+
+test('due trigger listing and claim wait while an earlier scheduled run is active', async () => {
+  const trigger = { ...scheduleTrigger(), next_run_at: 1_783_843_150 };
+  const activeRun = {
+    run_id: 'run-active-previous', workflow_id: 'workflow-1', version_id: 'version-1',
+    hashed_user_id: OWNER, trigger_id: 'trigger-1', trigger_type: 'schedule',
+    acceptance_idempotency_key: 'sha256:previous-occurrence', status: 'running',
+  };
+  const database = fakeDatabase({ workflow_triggers: [trigger], workflow_runs: [activeRun], workflow_event_receipts: [] });
+
+  const due = await executeOperation(database, 'list_due_triggers', { protocol_version: 1, now: 1_783_843_200, limit: 10 }, NOW);
+  const claim = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
+
+  assert.deepEqual(due, { trigger_ids: [] });
+  assert.deepEqual(claim, {
+    accepted: false, run_id: 'run-active-previous', workflow_id: 'workflow-1',
+    version_id: 'version-1', hashed_user_id: OWNER, status: 'running',
+  });
+  assert.equal(database.rows.workflow_runs.length, 1);
+  assert.equal(database.rows.workflow_triggers[0].claim_status, undefined);
 });
 
 test('due claim fails closed when the scheduler-only raw owner reference is missing', async () => {

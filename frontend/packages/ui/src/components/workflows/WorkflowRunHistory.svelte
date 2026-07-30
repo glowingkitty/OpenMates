@@ -11,9 +11,11 @@
   let {
     runs,
     editorHref,
+    selectedRunId = null,
   }: {
     runs: WorkflowRun[];
     editorHref: string;
+    selectedRunId?: string | null;
   } = $props();
 
   function formatStatus(status: string): string {
@@ -43,7 +45,7 @@
   {:else}
     <ol class="run-list">
       {#each runs as run (run.id)}
-        <li class="run-card" data-testid="workflow-run-row" data-run-status={run.status}>
+        <li class="run-card" class:selected-run={selectedRunId === run.id} data-testid="workflow-run-row" data-run-status={run.status} data-selected-run={selectedRunId === run.id}>
           <div class="run-summary">
             <div>
               <strong>{formatStatus(run.status)}</strong>
@@ -139,6 +141,11 @@
     border: 1px solid var(--color-grey-20);
     border-radius: var(--radius-10);
     background: var(--color-grey-0);
+  }
+
+  .run-card.selected-run {
+    border-color: var(--color-button-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-button-primary) 20%, transparent);
   }
 
   .run-summary > div,

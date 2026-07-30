@@ -1793,6 +1793,10 @@ def _workflow_projection_task(record: dict[str, Any]) -> dict[str, Any]:
     return {
         "task_id": record.get("task_id"),
         "source": "workflow_run",
+        "projection_kind": record.get("projection_kind"),
+        "workflow_id": record.get("workflow_id"),
+        "workflow_run_id": record.get("workflow_run_id"),
+        "trigger_id": record.get("trigger_id"),
         "short_id": short_id,
         "title": record.get("title") or "Workflow run",
         "description": record.get("blocked_message") or "",
@@ -1806,6 +1810,7 @@ def _workflow_projection_task(record: dict[str, Any]) -> dict[str, Any]:
         "linked_project_ids": [],
         "plan_id": None,
         "due_at": record.get("due_at"),
+        "scheduled_at": record.get("scheduled_at"),
         "priority": int(record.get("priority") or 0),
         "priority_level": _task_priority_level(record.get("priority")),
         "position": int(record.get("position") or 0),
@@ -1813,6 +1818,8 @@ def _workflow_projection_task(record: dict[str, Any]) -> dict[str, Any]:
         "blocked_reason_code": record.get("blocked_reason_code") or record.get("blocked_reason"),
         "ai_execution_state": None,
         "read_only": True,
+        "can_cancel": bool(record.get("can_cancel")),
+        "can_delete": bool(record.get("can_delete")),
         "version": int(record.get("version") or 1),
         "encrypted": record,
     }
@@ -3524,12 +3531,17 @@ class OpenMatesTasks:
         raise OpenMatesConfigError("Task action retry failed unexpectedly")
 
     def _list_internal(self, **filters: Any) -> list[dict[str, Any]]:
-        master_key = self._client._get_master_key()
-        return [
-            _decrypt_task_record(task, master_key)
-            for task in self._list_raw(**filters)
-            if isinstance(task, dict)
-        ]
+        records = [task for task in self._list_raw(**filters) if isinstance(task, dict)]
+        decrypted: list[dict[str, Any]] = []
+        master_key: bytes | None = None
+        for task in records:
+            if task.get("source") == "workflow_run":
+                decrypted.append(_workflow_projection_task(task))
+                continue
+            if master_key is None:
+                master_key = self._client._get_master_key()
+            decrypted.append(_decrypt_task_record(task, master_key))
+        return decrypted
 
     def _resolve(self, task_id: str, filters: dict[str, Any]) -> dict[str, Any]:
         return _find_task(self._list_internal(**filters), task_id)

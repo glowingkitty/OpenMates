@@ -32,8 +32,11 @@ def _save_run(
     workflow_id: str,
     owner_id: str,
     status: WorkflowRunStatus,
+    accepted_at: int | None = None,
     started_at: int | None = None,
     finished_at: int | None = None,
+    trigger_id: str | None = None,
+    scheduled_at: int | None = None,
 ) -> None:
     repository.save_run(
         {
@@ -41,10 +44,12 @@ def _save_run(
             "workflow_id": workflow_id,
             "version_id": "version-1",
             "owner_hash": repository.workflow_owner_hash(owner_id),
+            "trigger_id": trigger_id,
             "status": status.value,
-            "accepted_at": NOW - 50,
+            "accepted_at": NOW - 50 if accepted_at is None else accepted_at,
             "started_at": started_at,
             "finished_at": finished_at,
+            "scheduled_at": scheduled_at,
             "cancellation_requested_at": None,
         }
     )
@@ -70,8 +75,9 @@ def test_active_schedule_projects_exactly_one_future_todo_task() -> None:
     assert len(future_tasks) == 1
     future = future_tasks[0]
     assert future.task_id == f"workflow-schedule:{trigger_id}:{NOW + 3_600}"
+    assert future.projection_kind == "next_run"
     assert future.workflow_id == workflow.id
-    assert future.workflow_run_id == f"planned:{trigger_id}:{NOW + 3_600}"
+    assert future.workflow_run_id is None
     assert future.run_status == WorkflowRunStatus.PLANNED
     assert future.due_at == NOW + 3_600
     assert future.scheduled_at == NOW + 3_600
@@ -114,14 +120,48 @@ def test_active_scheduled_run_suppresses_duplicate_future_projection_for_same_oc
         owner_id="alice",
         status=WorkflowRunStatus.RUNNING,
         started_at=NOW + 3_600,
+        trigger_id=trigger_id,
     )
-    repository.runs["scheduled-running"]["trigger_id"] = trigger_id
 
     projections = WorkflowTaskProjectionService(repository).list_projections("alice", now=NOW)
 
     assert [projection.status for projection in projections].count("todo") == 0
     running = next(projection for projection in projections if projection.workflow_run_id == "scheduled-running")
+    assert running.projection_kind == "current_run"
     assert running.status == "in_progress"
+
+
+def test_running_scheduled_workflow_projects_current_run_and_next_todo() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    workflow = service.create_workflow("alice", "Morning rain", rain_graph(), enabled=True)
+    trigger_id = _set_trigger_next_run(repository, workflow.id, next_run_at=NOW + 3_600)
+    _save_run(
+        repository,
+        run_id="scheduled-running",
+        workflow_id=workflow.id,
+        owner_id="alice",
+        status=WorkflowRunStatus.RUNNING,
+        started_at=NOW,
+        trigger_id=trigger_id,
+        scheduled_at=NOW,
+    )
+
+    projections = WorkflowTaskProjectionService(repository).list_projections("alice", now=NOW)
+
+    linked = [projection for projection in projections if projection.workflow_id == workflow.id]
+    assert {projection.projection_kind for projection in linked} == {"current_run", "next_run"}
+    assert {projection.status for projection in linked} == {"in_progress", "todo"}
+    assert len(linked) == 2
+    running = next(projection for projection in linked if projection.projection_kind == "current_run")
+    todo = next(projection for projection in linked if projection.projection_kind == "next_run")
+    assert running.task_id == "workflow-run:scheduled-running"
+    assert running.workflow_run_id == "scheduled-running"
+    assert running.trigger_id == trigger_id
+    assert todo.task_id == f"workflow-schedule:{trigger_id}:{NOW + 3_600}"
+    assert todo.workflow_run_id is None
+    assert todo.due_at == NOW + 3_600
+    assert todo.can_delete is True
 
 
 def test_task_projections_are_owner_scoped_redacted_and_do_not_persist_user_tasks() -> None:
@@ -141,33 +181,56 @@ def test_task_projections_are_owner_scoped_redacted_and_do_not_persist_user_task
     assert projection.status == "in_progress"
     assert projection.can_cancel is True
     assert projection.label == "Workflow run"
-    assert "Customer confidential workflow" not in str(projection.model_dump())
+    assert projection.title.startswith("Workflow - ")
+    dumped_projection = str(projection.model_dump())
+    assert "Customer confidential workflow" not in dumped_projection
+    assert "Bob private workflow" not in dumped_projection
     assert not hasattr(repository, "user_tasks")
 
 
-def test_task_projections_keep_recent_terminal_runs_done_and_exclude_expired_history() -> None:
+def test_task_projections_limit_workflow_to_current_last_and_next_entries() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
-    workflow = service.create_workflow("alice", "Private workflow", rain_graph())
-    _save_run(repository, run_id="completed", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.COMPLETED, finished_at=NOW - 1)
-    _save_run(repository, run_id="cancelled", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.CANCELLED, finished_at=NOW - 2)
-    _save_run(repository, run_id="failed", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.FAILED, finished_at=NOW - 3)
+    workflow = service.create_workflow("alice", "Private workflow", rain_graph(), enabled=True)
+    trigger_id = _set_trigger_next_run(repository, workflow.id, next_run_at=NOW + 3_600)
+    _save_run(repository, run_id="completed-newest", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.COMPLETED, finished_at=NOW - 1)
+    _save_run(repository, run_id="cancelled-older", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.CANCELLED, finished_at=NOW - 2)
+    _save_run(repository, run_id="failed-older", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.FAILED, finished_at=NOW - 3)
     _save_run(repository, run_id="expired", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.COMPLETED, finished_at=NOW - 604_801)
     _save_run(repository, run_id="waiting", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.WAITING, started_at=NOW - 4)
 
     projections = WorkflowTaskProjectionService(repository).list_projections("alice", now=NOW)
-    by_run_id = {projection.workflow_run_id: projection for projection in projections}
+    by_kind = {projection.projection_kind: projection for projection in projections}
 
-    assert {"completed", "cancelled", "failed", "waiting"} == set(by_run_id)
-    assert all(by_run_id[run_id].status == "done" for run_id in {"completed", "cancelled"})
-    assert all(by_run_id[run_id].can_cancel is False for run_id in {"completed", "cancelled", "failed"})
-    assert by_run_id["waiting"].status == "blocked"
-    assert by_run_id["waiting"].blocked_reason == "needs_user_input"
-    assert by_run_id["waiting"].blocked_message == "Workflow is waiting for user input."
-    assert by_run_id["failed"].blocked_reason == "workflow_failed"
-    assert by_run_id["failed"].blocked_message == "Workflow run failed."
-    assert by_run_id["failed"].status == "blocked"
-    assert by_run_id["waiting"].can_cancel is True
+    assert set(by_kind) == {"last_run", "current_run", "next_run"}
+    assert len(projections) == 3
+    assert by_kind["last_run"].workflow_run_id == "completed-newest"
+    assert by_kind["last_run"].status == "done"
+    assert by_kind["last_run"].can_cancel is False
+    assert by_kind["current_run"].workflow_run_id == "waiting"
+    assert by_kind["current_run"].status == "blocked"
+    assert by_kind["current_run"].blocked_reason == "needs_user_input"
+    assert by_kind["current_run"].blocked_message == "Workflow is waiting for user input."
+    assert by_kind["current_run"].can_cancel is True
+    assert by_kind["next_run"].task_id == f"workflow-schedule:{trigger_id}:{NOW + 3_600}"
+    assert by_kind["next_run"].workflow_run_id is None
+
+
+def test_failed_recent_past_run_projects_as_last_run_blocked() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    workflow = service.create_workflow("alice", "Private workflow", rain_graph(), enabled=False)
+    _save_run(repository, run_id="failed", workflow_id=workflow.id, owner_id="alice", status=WorkflowRunStatus.FAILED, finished_at=NOW - 3)
+
+    projections = WorkflowTaskProjectionService(repository).list_projections("alice", now=NOW)
+
+    assert len(projections) == 1
+    projection = projections[0]
+    assert projection.projection_kind == "last_run"
+    assert projection.workflow_run_id == "failed"
+    assert projection.status == "blocked"
+    assert projection.blocked_reason == "workflow_failed"
+    assert projection.blocked_message == "Workflow run failed."
 
 
 @pytest.mark.anyio

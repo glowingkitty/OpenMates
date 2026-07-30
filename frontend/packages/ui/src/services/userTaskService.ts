@@ -19,6 +19,7 @@ import { listProjects } from "./projectService";
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "ai" | "user";
 export type UserTaskKeyWrapperType = "master" | "chat" | "project";
+export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
 
 export interface UserTaskKeyWrapperRecord {
   key_type: UserTaskKeyWrapperType;
@@ -77,12 +78,19 @@ export interface EncryptedUserTaskRecord {
 export interface WorkflowRunTaskProjectionRecord {
   task_id: string;
   source: "workflow_run";
+  projection_kind: WorkflowRunProjectionKind;
   workflow_id: string;
-  workflow_run_id: string;
+  workflow_run_id?: string | null;
+  trigger_id?: string | null;
   label: "Workflow run";
-  status: "in_progress" | "blocked" | "done";
+  title?: string | null;
+  status: "todo" | "in_progress" | "blocked" | "done";
   run_status: string;
   can_cancel: boolean;
+  can_delete?: boolean;
+  due_at?: number | null;
+  scheduled_at?: number | null;
+  blocked_message?: string | null;
   read_only: true;
   created_at: number;
   updated_at: number;
@@ -109,8 +117,10 @@ export interface UserTaskViewModel {
 export interface WorkflowRunTaskProjectionViewModel {
   task_id: string;
   source: "workflow_run";
+  projectionKind: WorkflowRunProjectionKind;
   workflowId: string;
-  workflowRunId: string;
+  workflowRunId: string | null;
+  triggerId: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -119,11 +129,12 @@ export interface WorkflowRunTaskProjectionViewModel {
   assigneeType: UserTaskAssigneeType;
   primaryChatId: null;
   linkedProjectIds: string[];
-  dueAt: null;
+  dueAt: number | null;
   priority: number;
   position: number;
   version: 0;
   canCancel: boolean;
+  canDelete: boolean;
   readOnly: true;
 }
 
@@ -242,21 +253,24 @@ function workflowRunTaskProjection(record: WorkflowRunTaskProjectionRecord): Wor
   return {
     task_id: record.task_id,
     source: record.source,
+    projectionKind: record.projection_kind,
     workflowId: record.workflow_id,
-    workflowRunId: record.workflow_run_id,
-    title: record.label,
-    description: "",
+    workflowRunId: record.workflow_run_id ?? null,
+    triggerId: record.trigger_id ?? null,
+    title: record.title || record.label,
+    description: record.blocked_message ?? "",
     tags: [],
     latestInstruction: "",
     status: record.status,
     assigneeType: "ai",
     primaryChatId: null,
     linkedProjectIds: [],
-    dueAt: null,
+    dueAt: record.due_at ?? null,
     priority: 0,
     position: record.position,
     version: 0,
     canCancel: record.can_cancel,
+    canDelete: Boolean(record.can_delete),
     readOnly: true,
   };
 }
@@ -319,6 +333,7 @@ export function isWorkflowRunTaskProjectionViewModel(task: TasksBoardItem): task
 }
 
 export async function cancelWorkflowRunTaskProjection(task: WorkflowRunTaskProjectionViewModel): Promise<void> {
+  if (!task.workflowRunId) throw new Error("Workflow run projection has no run id to cancel");
   await requestJson(`/v1/workflows/${encodeURIComponent(task.workflowId)}/runs/${encodeURIComponent(task.workflowRunId)}/cancel`, {
     method: "POST",
   });
@@ -469,7 +484,7 @@ export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promi
   return decrypted.filter((task): task is UserTaskViewModel => task !== null);
 }
 
-export async function deleteUserTask(task: UserTaskViewModel): Promise<void> {
+export async function deleteUserTask(task: UserTaskViewModel | WorkflowRunTaskProjectionViewModel): Promise<void> {
   const params = new URLSearchParams({ version: String(task.version) });
   await requestJson(`/v1/user-tasks/${task.task_id}?${params.toString()}`, {
     method: "DELETE",

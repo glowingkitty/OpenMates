@@ -35,6 +35,12 @@ export type TaskPriorityLevel = typeof PRIORITY_LEVELS[number];
 export interface DecryptedUserTask {
   taskId: string;
   source?: string;
+  projectionKind?: string | null;
+  workflowId?: string | null;
+  workflowRunId?: string | null;
+  triggerId?: string | null;
+  canCancel?: boolean;
+  canDelete?: boolean;
   shortId: string;
   title: string;
   description: string;
@@ -255,6 +261,12 @@ function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
   return {
     taskId: record.task_id,
     source: "workflow_run",
+    projectionKind: record.projection_kind ?? null,
+    workflowId: record.workflow_id ?? null,
+    workflowRunId: record.workflow_run_id ?? null,
+    triggerId: record.trigger_id ?? null,
+    canCancel: Boolean(record.can_cancel),
+    canDelete: Boolean(record.can_delete),
     shortId: record.short_id || workflowProjectionShortId(record),
     title: record.title || "Workflow run",
     description: record.blocked_message ?? "",

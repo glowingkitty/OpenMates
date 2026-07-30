@@ -323,13 +323,13 @@
   }
 
   async function handleDelete(task: TasksBoardItem): Promise<void> {
-    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    if (isWorkflowRunTaskProjectionViewModel(task) && !task.canDelete) return;
     const previous = tasks;
     tasks = tasks.filter((candidate) => candidate.task_id !== task.task_id);
     try {
       await deleteUserTask(task);
       broadcastTasksChanged();
-      notificationStore.success('Task deleted');
+      notificationStore.success(isWorkflowRunTaskProjectionViewModel(task) ? 'Next workflow run skipped' : 'Task deleted');
     } catch (error) {
       tasks = previous;
       console.error('[TasksPage] Failed to delete task:', error);

@@ -8,6 +8,7 @@ const WORKFLOWS = 'workflows';
 const VERSIONS = 'workflow_versions';
 const PROTOCOL_VERSION = 1;
 const CLAIM_LEASE_SECONDS = 120;
+const ACTIVE_RUN_STATUSES = ['queued', 'running', 'waiting', 'cancellation_requested'];
 const OPERATIONS = Object.freeze({
   health_check: new Set(['protocol_version']),
   list_due_triggers: new Set(['protocol_version', 'now', 'limit']),
@@ -50,6 +51,13 @@ async function lockedTrigger(trx, triggerId) {
   return trigger;
 }
 
+async function activeScheduledRun(trx, trigger) {
+  return trx(RUNS)
+    .where({ workflow_id: trigger.workflow_id, trigger_id: trigger.trigger_id })
+    .whereIn('status', ACTIVE_RUN_STATUSES)
+    .first();
+}
+
 function activeClaim(trigger, now) {
   return trigger.claim_status === 'claimed' && Number(trigger.claim_expires_at || 0) > nowSeconds(now);
 }
@@ -59,18 +67,20 @@ async function listDueTriggers(database, raw, now) {
   const current = integer(body.now ?? nowSeconds(now), 'invalid_now');
   const limit = integer(body.limit, 'invalid_limit');
   if (limit <= 0 || limit > 500) fail(400, 'invalid_limit');
-  const rows = await database.transaction(async (trx) => trx(TRIGGERS)
-    .where({ trigger_type: 'schedule', enabled: true })
-    .where('next_run_at', '<=', current)
-    .orderBy('next_run_at', 'asc')
-    .orderBy('trigger_id', 'asc')
-    .limit(limit));
-  return {
-    trigger_ids: rows
-      .filter((trigger) => !dueClaimIsActive(trigger, current))
-      .map((trigger) => trigger.trigger_id)
-      .filter((triggerId) => typeof triggerId === 'string' && triggerId),
-  };
+  return database.transaction(async (trx) => {
+    const rows = await trx(TRIGGERS)
+      .where({ trigger_type: 'schedule', enabled: true })
+      .where('next_run_at', '<=', current)
+      .orderBy('next_run_at', 'asc')
+      .orderBy('trigger_id', 'asc')
+      .limit(limit);
+    const triggerIds = [];
+    for (const trigger of rows) {
+      if (dueClaimIsActive(trigger, current) || await activeScheduledRun(trx, trigger)) continue;
+      if (typeof trigger.trigger_id === 'string' && trigger.trigger_id) triggerIds.push(trigger.trigger_id);
+    }
+    return { trigger_ids: triggerIds };
+  });
 }
 
 function acceptanceKey(trigger, occurrence) {
@@ -102,6 +112,10 @@ async function claimDueTrigger(database, raw, now) {
     const ownerUserId = string(trigger.owner_user_id, 'owner_reference_required');
     const idempotencyKey = acceptanceKey(trigger, trigger.next_run_at);
     const existing = await trx(RUNS).where({ acceptance_idempotency_key: idempotencyKey }).first();
+    const activeRun = await activeScheduledRun(trx, trigger);
+    if (activeRun && activeRun.acceptance_idempotency_key !== idempotencyKey) {
+      return { accepted: false, run_id: activeRun.run_id, workflow_id: activeRun.workflow_id, version_id: activeRun.version_id, hashed_user_id: activeRun.hashed_user_id, status: activeRun.status };
+    }
     if (activeClaim(trigger, now)) {
       if (existing) return { accepted: false, run_id: existing.run_id, workflow_id: existing.workflow_id, version_id: existing.version_id, hashed_user_id: existing.hashed_user_id };
       fail(409, 'trigger_claimed');

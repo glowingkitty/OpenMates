@@ -126,23 +126,33 @@ describe("OpenMatesClient user tasks", () => {
     const task = await decryptUserTask({
       task_id: "workflow-schedule:trigger-1:1000",
       source: "workflow_run",
+      projection_kind: "next_run",
       workflow_id: "workflow-1",
-      workflow_run_id: "planned:trigger-1:1000",
+      workflow_run_id: null,
+      trigger_id: "trigger-1",
       title: "Morning rain - 1970-01-01 00:16 UTC",
       status: "todo",
       run_status: "planned",
       due_at: 1000,
       position: 1000,
+      can_cancel: false,
+      can_delete: true,
       read_only: true,
       encrypted_title: "",
       assignee_type: "user",
     }, Buffer.alloc(32));
 
     assert.equal(task.source, "workflow_run");
+    assert.equal(task.projectionKind, "next_run");
+    assert.equal(task.workflowId, "workflow-1");
+    assert.equal(task.workflowRunId, null);
+    assert.equal(task.triggerId, "trigger-1");
     assert.equal(task.title, "Morning rain - 1970-01-01 00:16 UTC");
     assert.equal(task.status, "todo");
     assert.equal(task.queueState, "planned");
     assert.equal(task.readOnly, true);
+    assert.equal(task.canCancel, false);
+    assert.equal(task.canDelete, true);
     assert.match(task.shortId, /^WF-/);
   });
 

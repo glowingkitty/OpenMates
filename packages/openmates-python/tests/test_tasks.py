@@ -119,3 +119,54 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     assert client.tasks.delete_by_id("TASK-1", confirmed=True)["deleted"] is True
     assert any(request["url"].endswith("/v1/sdk/session") for request in requests_seen)
     assert any("priority=3" in request["url"] and request["url"].count("label_hash=") == 2 for request in requests_seen if request["method"] == "GET")
+
+
+def test_pip_sdk_keeps_workflow_projection_metadata(monkeypatch):
+    api_key, _material = _create_api_key_material("sdk workflow task parity", bytes([9]) * 32)
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "tasks": [
+                    {
+                        "task_id": "workflow-schedule:trigger-1:1000",
+                        "source": "workflow_run",
+                        "projection_kind": "next_run",
+                        "workflow_id": "workflow-1",
+                        "workflow_run_id": None,
+                        "trigger_id": "trigger-1",
+                        "title": "Morning rain - 1970-01-01 00:16 UTC",
+                        "status": "todo",
+                        "run_status": "planned",
+                        "due_at": 1000,
+                        "scheduled_at": 1000,
+                        "can_cancel": False,
+                        "can_delete": True,
+                        "position": 1000,
+                        "read_only": True,
+                    }
+                ]
+            }
+
+    def fake_get(url, *, headers, timeout):
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert url.endswith("/v1/user-tasks")
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
+    [task] = OpenMates(api_key=api_key).tasks.list()
+
+    assert task["source"] == "workflow_run"
+    assert task["projection_kind"] == "next_run"
+    assert task["workflow_id"] == "workflow-1"
+    assert task["workflow_run_id"] is None
+    assert task["trigger_id"] == "trigger-1"
+    assert task["title"] == "Morning rain - 1970-01-01 00:16 UTC"
+    assert task["due_at"] == 1000
+    assert task["scheduled_at"] == 1000
+    assert task["can_cancel"] is False
+    assert task["can_delete"] is True
+    assert task["read_only"] is True
