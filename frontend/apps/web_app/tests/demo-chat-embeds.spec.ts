@@ -194,10 +194,10 @@ test.describe('Demo chat embed rendering', () => {
 		expect(await mapsSearchPreviews.count()).toBe(2);
 
 		await expect(assistantMessage.getByText('2 app skills used:')).toBeVisible();
-		const appCardsGroup = assistantMessage.getByTestId('chat-app-cards-container');
-		await expect(appCardsGroup).toHaveCount(1);
-		expect(await appCardsGroup.locator('[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="search"]').count()).toBe(2);
-		await expect(appCardsGroup).toHaveCSS('overflow-x', /auto|scroll/);
+		const appSkillGroup = assistantMessage.getByTestId('app-skill-embed-group');
+		await expect(appSkillGroup).toHaveCount(1);
+		expect(await appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="search"]').count()).toBe(2);
+		await expect(appSkillGroup.getByTestId('app-skill-embed-group-scroll')).toHaveCSS('overflow-x', /auto|scroll/);
 	});
 
 	test('public Habit Garden application example renders without starting a live preview', async ({ page }) => {

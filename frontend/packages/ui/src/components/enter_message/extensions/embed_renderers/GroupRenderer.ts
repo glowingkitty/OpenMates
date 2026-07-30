@@ -1477,6 +1477,7 @@ export class GroupRenderer implements EmbedRenderer {
     const groupWrapper = document.createElement("div");
     groupWrapper.className = `${baseType}-preview-group`;
     groupWrapper.dataset.embedGroupBaseType = baseType;
+    groupWrapper.dataset.testid = "app-skill-embed-group";
 
     const header = document.createElement("div");
     header.className = "group-header";
@@ -1484,6 +1485,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     const scrollContainer = document.createElement("div");
     scrollContainer.className = "group-scroll-container";
+    scrollContainer.dataset.testid = "app-skill-embed-group-scroll";
 
     groupWrapper.appendChild(header);
     groupWrapper.appendChild(scrollContainer);
