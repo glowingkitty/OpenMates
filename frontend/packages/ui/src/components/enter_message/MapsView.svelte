@@ -10,6 +10,7 @@
     import { get } from 'svelte/store';
     import { tooltip } from '../../actions/tooltip';
     import { getApiUrl } from '../../config/api';
+    import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
     const dispatch = createEventDispatcher();
 
@@ -42,6 +43,7 @@
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let tileLayer: any = null; // Leaflet TileLayer — dynamically imported, no static type
+    let stopWatchingMapTheme: (() => void) | null = null;
 
     // Add at the top of the script
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,18 +125,16 @@
         ).join(' ');
     }
 
+    function applyTileTheme(nextIsDarkMode: boolean) {
+        isDarkMode = nextIsDarkMode;
+        mapStyle = isDarkMode ? 'dark' : 'light';
+        const container = tileLayer?.getContainer?.();
+        container?.classList.toggle('dark-tiles', isDarkMode);
+    }
+
     // Function to check if dark mode is active
     function checkDarkMode() {
-        // Check if system is in dark mode
-        const systemDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        // Get website dark mode setting - assuming it's stored in CSS variable
-        const websiteDarkMode = getComputedStyle(document.documentElement)
-            .getPropertyValue('--is-dark-mode')
-            .trim() === 'true';
-            
-        isDarkMode = systemDarkMode || websiteDarkMode;
-        mapStyle = isDarkMode ? 'dark' : 'light';
-        
+        applyTileTheme(isDarkThemeActive());
         logger.debug('Dark mode status:', { isDarkMode, mapStyle });
     }
 
@@ -218,6 +218,7 @@
                 keepBuffer: 4
             }
         ).addTo(map);
+        stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
 
         if (currentLocation && map) {
             const mapRef = map;
@@ -306,6 +307,9 @@
 
     function cleanupMap() {
         logger.debug('Cleaning up map...');
+
+        stopWatchingMapTheme?.();
+        stopWatchingMapTheme = null;
         
         // Remove marker if it exists
         if (marker) {
@@ -1431,7 +1435,7 @@
         bottom: 60px;
         left: 50%;
         transform: translateX(-50%);
-        background: var(--color-grey-1, #f5f5f5);
+        background: var(--color-grey-10, #f5f5f5);
         color: var(--color-font-primary);
         border: 1px solid var(--color-error, #e53e3e);
         padding: var(--spacing-4) var(--spacing-8);

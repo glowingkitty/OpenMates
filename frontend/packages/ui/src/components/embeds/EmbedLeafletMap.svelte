@@ -13,11 +13,15 @@
   - Configurable center, zoom, markers, and optional polyline path
   - Exposes the Leaflet map instance via onMapReady callback for advanced use
 
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+
   See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
   /** A single marker on the map */
   export interface MapMarker {
@@ -104,8 +108,16 @@
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let leafletMap: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let tileLayer: any = null;
   let mapResizeObserver: ResizeObserver | null = null;
+  let stopWatchingMapTheme: (() => void) | null = null;
   let appliedCenterPanX = 0;
+
+  function applyTileTheme(isDarkMode: boolean) {
+    const container = tileLayer?.getContainer?.();
+    container?.classList.toggle('dark-tiles', isDarkMode);
+  }
 
   function getEffectiveCenterOffsetX(): number {
     if (!mapContainer) return 0;
@@ -131,11 +143,7 @@
       const L = (await import('leaflet')).default;
       await import('leaflet/dist/leaflet.css');
 
-      const isDarkMode =
-        window.matchMedia('(prefers-color-scheme: dark)').matches ||
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--is-dark-mode')
-          .trim() === 'true';
+      const isDarkMode = isDarkThemeActive();
 
       leafletMap = L.map(mapContainer, {
         center: [center.lat, center.lon],
@@ -148,10 +156,12 @@
       // Add zoom control on the right side
       L.control.zoom({ position: 'topright' }).addTo(leafletMap);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         className: isDarkMode ? 'dark-tiles' : '',
-      }).addTo(leafletMap);
+      });
+      tileLayer.addTo(leafletMap);
+      stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
 
       for (const marker of markers) {
         const iconClass = marker.iconClass || 'default-map-marker';
@@ -221,6 +231,9 @@
       leafletMap = null;
       appliedCenterPanX = 0;
     }
+    stopWatchingMapTheme?.();
+    stopWatchingMapTheme = null;
+    tileLayer = null;
   });
 </script>
 

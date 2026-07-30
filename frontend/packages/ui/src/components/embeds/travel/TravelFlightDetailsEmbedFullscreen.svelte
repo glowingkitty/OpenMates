@@ -11,6 +11,9 @@
 
   Architecture: Uses UnifiedEmbedFullscreen as base.
   See docs/architecture/app-skills.md for the skill execution model.
+
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelFlightDetailsEmbedRenderer.swift
 -->
 
 <script lang="ts">
@@ -19,6 +22,7 @@
   import { onDestroy } from 'svelte';
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap } from 'leaflet';
+  import { isDarkThemeActive, watchDarkThemeActive } from '../../../utils/themeDetection';
 
   // ---------------------------------------------------------------------------
   // Interfaces
@@ -143,15 +147,17 @@
   let mapContainer: HTMLDivElement | undefined = $state(undefined);
   let L: typeof import('leaflet') | null = null;
   let map: LeafletMap | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let routeTileLayer: any = null;
   let mapInitialized = $state(false);
+  let isDarkMode = $state(false);
+  let stopWatchingMapTheme: (() => void) | null = null;
 
-  /** Detect dark mode from CSS custom property or media query */
-  let isDarkMode = $derived.by(() => {
-    if (typeof window === 'undefined') return false;
-    const cssVar = getComputedStyle(document.documentElement).getPropertyValue('--is-dark-mode').trim();
-    if (cssVar === '1' || cssVar === 'true') return true;
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-  });
+  function applyTileTheme(nextIsDarkMode: boolean) {
+    isDarkMode = nextIsDarkMode;
+    const container = routeTileLayer?.getContainer?.();
+    container?.classList.toggle('dark-tiles', isDarkMode);
+  }
 
   /** Whether we have enough track data to show the map */
   let hasTrackData = $derived(tracks.length >= 2);
@@ -174,15 +180,17 @@
         scrollWheelZoom: false,
         attributionControl: true,
       });
+      isDarkMode = isDarkThemeActive();
 
       // OSM tile layer
-      const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      routeTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
           '| Track: <a href="https://www.flightradar24.com" target="_blank" rel="noopener">Flightradar24</a>',
         className: isDarkMode ? 'dark-tiles' : '',
-      }).addTo(map);
+      });
+      routeTileLayer.addTo(map);
 
       // Airport marker icon
       const airportIcon = L.divIcon({
@@ -219,18 +227,7 @@
       const bounds = L.latLngBounds(latLngs);
       map.fitBounds(bounds, { padding: [40, 40] });
 
-      // Update tiles on dark mode change
-      const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      darkModeQuery.addEventListener('change', () => {
-        const container = tileLayer.getContainer();
-        if (container) {
-          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            container.classList.add('dark-tiles');
-          } else {
-            container.classList.remove('dark-tiles');
-          }
-        }
-      });
+      stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
 
       mapInitialized = true;
     } catch (err) {
@@ -247,6 +244,9 @@
 
   // Cleanup on destroy
   onDestroy(() => {
+    stopWatchingMapTheme?.();
+    stopWatchingMapTheme = null;
+    routeTileLayer = null;
     if (map) {
       map.remove();
       map = null;

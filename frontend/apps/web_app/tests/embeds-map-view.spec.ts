@@ -17,6 +17,19 @@ const PREVIEW_SERVER_STATUS = {
 	anonymous_free_usage: null
 };
 
+async function getMapTileThemeState(map: any): Promise<'dark' | 'light' | 'missing'> {
+	return map.evaluate((element: HTMLElement) => {
+		const classedElements = Array.from(element.querySelectorAll('[class]')) as HTMLElement[];
+		const hasLeafletMap = classedElements.some((node) => node.classList.contains('leaflet-container'));
+		if (!hasLeafletMap) return 'missing';
+
+		const hasDarkTiles = classedElements.some((node) =>
+			node.classList.contains('dark-tiles')
+		);
+		return hasDarkTiles ? 'dark' : 'light';
+	});
+}
+
 test.describe('Embeds map view preview', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.route('**/v1/settings/server-status', async (route) => {
@@ -83,5 +96,25 @@ test.describe('Embeds map view preview', () => {
 		expect(mobileListBox!.width).toBeLessThanOrEqual(390);
 
 		expect(forbiddenApiCalls).toEqual([]);
+	});
+
+	test('uses manual light theme for OpenStreetMap tiles when OS is dark', async ({ page }) => {
+		test.setTimeout(90_000);
+
+		await page.emulateMedia({ colorScheme: 'dark' });
+		await page.addInitScript(() => {
+			localStorage.setItem('theme_mode', 'light');
+			localStorage.setItem('theme', 'light');
+		});
+
+		await page.goto('/dev/preview/embeds/EmbedsMapView', { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('breadcrumb-name')).toHaveText('EmbedsMapView');
+		await expect
+			.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+			.toBe('light');
+
+		const map = page.getByTestId('embeds-map-view-map');
+		await expect(map).toBeVisible({ timeout: 30_000 });
+		await expect.poll(async () => getMapTileThemeState(map)).toBe('light');
 	});
 });
