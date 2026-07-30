@@ -611,6 +611,15 @@ provider_groups:
           - Place search queries (the text you type to find a place)
           - Approximate location for localized results
           - Note: Shared without user identifiers
+      geoapify:
+        privacy_policy: https://www.geoapify.com/privacy-policy/  # verified 2026-07-30
+        location: EU
+        used_for:
+          - OpenStreetMap-backed amenity enrichment for the Maps search skill
+        data_shared:
+          - Place search or matching queries needed for Maps enrichment
+          - Approximate coordinates, location bias, category/filter parameters, and Geoapify place IDs when needed for Place Details
+          - Note: Shared server-side without OpenMates user identifiers, chat IDs, or API keys
       youtube:
         privacy_policy: https://www.youtube.com/howyoutubeworks/privacy/
         location: US

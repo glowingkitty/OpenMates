@@ -7695,6 +7695,67 @@ providers.web_and_search.google_maps.description:
   ko: Google Maps는 장소 검색 스킬을 구동합니다. Google은 장소 쿼리 텍스트와 지역화된 결과를 위한 대략적인 위치를 볼 수 있지만, 사용자 식별자는 볼 수 없습니다.
   ar: تدعم خرائط جوجل مهارة البحث عن الأماكن. ترى جوجل نص استعلامات الأماكن الخاصة بك وموقعاً تقريبياً للنتائج المحلية، ولكن بدون معرف مستخدم.
   verified_by_human: []
+providers.web_and_search.geoapify.heading:
+  context: Heading for Geoapify provider entry
+  en: Geoapify (OpenStreetMap place enrichment)
+  de: Geoapify (OpenStreetMap-Ortsanreicherung)
+  zh: Geoapify (OpenStreetMap place enrichment)
+  fr: Geoapify (OpenStreetMap place enrichment)
+  pt: Geoapify (OpenStreetMap place enrichment)
+  ru: Geoapify (OpenStreetMap place enrichment)
+  ja: Geoapify (OpenStreetMap place enrichment)
+  ko: Geoapify (OpenStreetMap place enrichment)
+  it: Geoapify (OpenStreetMap place enrichment)
+  tr: Geoapify (OpenStreetMap place enrichment)
+  vi: Geoapify (OpenStreetMap place enrichment)
+  id: Geoapify (OpenStreetMap place enrichment)
+  pl: Geoapify (OpenStreetMap place enrichment)
+  nl: Geoapify (OpenStreetMap place enrichment)
+  hi: Geoapify (OpenStreetMap place enrichment)
+  th: Geoapify (OpenStreetMap place enrichment)
+  cs: Geoapify (OpenStreetMap place enrichment)
+  sv: Geoapify (OpenStreetMap place enrichment)
+  he: Geoapify (OpenStreetMap place enrichment)
+  es: Geoapify (OpenStreetMap place enrichment)
+  ar: Geoapify (OpenStreetMap place enrichment)
+  verified_by_human: []
+providers.web_and_search.geoapify.description:
+  context: Geoapify description
+  en: >-
+    Geoapify is used by the Maps search skill to enrich Google Places results
+    with OpenStreetMap-backed amenity details such as air conditioning, internet
+    access, wheelchair access, toilets, outdoor seating, diet, and payment hints
+    when available. Geoapify receives only the place query or matching data
+    needed for enrichment, such as approximate coordinates, category/filter
+    parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  de: >-
+    Geoapify wird vom Maps-Such-Skill verwendet, um Google-Places-Ergebnisse
+    mit OpenStreetMap-basierten Ausstattungsdetails wie Klimaanlage,
+    Internetzugang, Rollstuhlzugang, Toiletten, Außenplätzen, Ernährungshinweisen
+    und Zahlungsoptionen anzureichern, sofern verfügbar. Geoapify erhält nur die
+    für die Anreicherung notwendigen Orts- oder Abgleichsdaten, etwa ungefähre
+    Koordinaten, Kategorie-/Filterparameter und Geoapify-Orts-IDs, ohne
+    OpenMates-Nutzerkennungen.
+  zh: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  fr: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  pt: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  ru: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  ja: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  ko: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  it: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  tr: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  vi: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  id: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  pl: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  nl: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  hi: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  th: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  cs: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  sv: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  he: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  es: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  ar: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
+  verified_by_human: []
 providers.web_and_search.youtube.heading:
   context: Heading for YouTube provider entry
   en: YouTube (video transcripts)

@@ -6,6 +6,7 @@
 # This skill supports multiple search queries in a single request,
 # processing them in parallel (up to 5 parallel requests).
 
+import asyncio
 import logging
 import os
 import yaml
@@ -15,6 +16,11 @@ from celery import Celery  # For Celery type hinting
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.google_maps.google_places import search_places
+from backend.shared.providers.geoapify.places import (
+    GEOAPIFY_SOURCE_LABEL,
+    GeoapifyPlacesProvider,
+    build_status_enrichment,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.app_skill_helpers import (
     check_rate_limit,
@@ -25,6 +31,13 @@ from backend.shared.python_utils.app_skill_helpers import (
 from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
+
+OSM_ENRICHMENT_MODES = {"auto", "disabled", "required"}
+DEFAULT_OSM_ENRICHMENT_MODE = "auto"
+GEOAPIFY_PROVIDER_NAME = "Geoapify"
+GEOAPIFY_COMBINED_PROVIDER_NAME = "Google Maps + Geoapify"
+GEOAPIFY_DETAIL_LIMIT = 5
+GEOAPIFY_TIMEOUT_SECONDS = 1.2
 
 
 class MapSearchRequestItem(BaseModel):
@@ -66,6 +79,14 @@ class MapSearchRequestItem(BaseModel):
         description="Filter by price level. Array of: 'PRICE_LEVEL_FREE', "
         "'PRICE_LEVEL_INEXPENSIVE', 'PRICE_LEVEL_MODERATE', "
         "'PRICE_LEVEL_EXPENSIVE', 'PRICE_LEVEL_VERY_EXPENSIVE'.",
+    )
+    osmEnrichment: Optional[str] = Field(
+        default=DEFAULT_OSM_ENRICHMENT_MODE,
+        description="OSM/Geoapify enrichment mode: 'auto', 'disabled', or 'required'.",
+    )
+    amenityFilters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Optional required amenity filters for OSM-backed fields such as airConditioning, internetAccess, wheelchair, toilets, outdoorSeating, diet, or payment.",
     )
 
 
@@ -286,6 +307,276 @@ class SearchSkill(BaseSkill):
         except Exception as e:
             logger.error(f"Error loading follow-up suggestions from app.yml: {e}", exc_info=True)
             self.suggestions_follow_up_requests = []
+
+    def _group_maps_results_by_request_id(
+        self,
+        results: List[Any],
+        requests: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], List[str]]:
+        """Group maps results and preserve per-request warning metadata."""
+
+        grouped_results: List[Dict[str, Any]] = []
+        errors: List[str] = []
+
+        for result in results:
+            if isinstance(result, Exception):
+                error_msg = f"Unexpected error processing request: {str(result)}"
+                logger.error(error_msg, exc_info=True)
+                errors.append(error_msg)
+                continue
+
+            request_id = result[0]
+            items = result[1]
+            error = result[2]
+            metadata = result[3] if len(result) > 3 and isinstance(result[3], dict) else {}
+
+            group: Dict[str, Any] = {"id": request_id, "results": [] if error else items}
+            if error:
+                errors.append(error)
+                group["error"] = error
+            warnings = metadata.get("warnings")
+            if warnings:
+                group["warnings"] = warnings
+            filter_summary = metadata.get("filter_summary")
+            if filter_summary:
+                group["filter_summary"] = filter_summary
+            grouped_results.append(group)
+
+        request_order = {req.get("id"): i for i, req in enumerate(requests)}
+        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
+        return grouped_results, errors
+
+    async def _apply_geoapify_enrichment(
+        self,
+        *,
+        previews: List[Dict[str, Any]],
+        req: Dict[str, Any],
+        secrets_manager: SecretsManager,
+        cache_service: CacheService,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        mode = self._normalize_osm_enrichment_mode(req.get("osmEnrichment"))
+        if mode == "disabled" or not previews:
+            return previews, {"geoapify_requested": False}
+
+        required_amenities = self._required_amenities_from_filters(req.get("amenityFilters"))
+        if mode == "required" and not required_amenities:
+            required_amenities = self._required_amenities_from_query(str(req.get("query") or ""))
+
+        try:
+            enrichments = await asyncio.wait_for(
+                self._enrich_with_geoapify(
+                    places=previews,
+                    req=req,
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service,
+                    required_amenities=required_amenities,
+                ),
+                timeout=GEOAPIFY_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            enrichments = [build_status_enrichment("timed_out") for _ in previews]
+        except Exception as exc:
+            logger.warning("Geoapify enrichment failed for maps search: %s", exc, exc_info=True)
+            enrichments = [build_status_enrichment("unavailable") for _ in previews]
+
+        completed_enrichments = self._complete_enrichment_records(enrichments, len(previews))
+        enriched_previews: List[Dict[str, Any]] = []
+        for preview, enrichment in zip(previews, completed_enrichments):
+            enriched_preview = dict(preview)
+            enriched_preview["osm_enrichment"] = enrichment
+            enriched_previews.append(enriched_preview)
+
+        warnings = self._geoapify_warnings(completed_enrichments)
+        metadata: Dict[str, Any] = {"geoapify_requested": True}
+
+        if required_amenities:
+            filtered = [
+                preview
+                for preview in enriched_previews
+                if self._enrichment_satisfies_required(
+                    preview.get("osm_enrichment", {}),
+                    required_amenities,
+                )
+            ]
+            filter_summary = {
+                "required": required_amenities,
+                "candidate_count": len(previews),
+                "verified_count": len(filtered),
+                "status": "verified_results" if filtered else "no_verified_results",
+            }
+            metadata["filter_summary"] = filter_summary
+            if not filtered:
+                warnings.append(
+                    "No Geoapify/OSM-verified matches were found within the enrichment budget; try relaxing the amenity filter."
+                )
+            enriched_previews = filtered
+
+        if warnings:
+            metadata["warnings"] = warnings
+        return enriched_previews, metadata
+
+    async def _enrich_with_geoapify(
+        self,
+        *,
+        places: List[Dict[str, Any]],
+        req: Dict[str, Any],
+        secrets_manager: SecretsManager,
+        cache_service: CacheService,
+        required_amenities: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Fetch bounded Geoapify enrichment records for Google Places candidates."""
+
+        provider = GeoapifyPlacesProvider(
+            secrets_manager=secrets_manager,
+            cache_service=cache_service,
+            timeout_seconds=GEOAPIFY_TIMEOUT_SECONDS,
+        )
+        search_result = await provider.search_places(
+            query=str(req.get("query") or ""),
+            limit=min(len(places), 20),
+            conditions=self._geoapify_conditions_for_required(required_amenities),
+        )
+        if search_result.status != "ok":
+            return [build_status_enrichment(search_result.status) for _ in places]
+
+        if not search_result.places:
+            return [build_status_enrichment("no_match") for _ in places]
+
+        detail_limit = min(len(places), len(search_result.places), GEOAPIFY_DETAIL_LIMIT)
+        enrichments: List[Dict[str, Any]] = []
+        for index in range(detail_limit):
+            place_id = self._geoapify_place_id(search_result.places[index])
+            if not place_id:
+                enrichments.append(build_status_enrichment("no_match"))
+                continue
+            detail = await provider.get_place_details(place_id=place_id)
+            enrichments.append(detail.enrichment)
+
+        while len(enrichments) < len(places):
+            enrichments.append(build_status_enrichment("no_match"))
+        return enrichments
+
+    def _normalize_osm_enrichment_mode(self, value: Any) -> str:
+        mode = str(value or DEFAULT_OSM_ENRICHMENT_MODE).strip().lower()
+        return mode if mode in OSM_ENRICHMENT_MODES else DEFAULT_OSM_ENRICHMENT_MODE
+
+    def _required_amenities_from_filters(self, filters: Any) -> List[str]:
+        if not isinstance(filters, dict):
+            return []
+        required: List[str] = []
+        for raw_key, raw_value in filters.items():
+            value = str(raw_value).strip().lower() if raw_value is not None else ""
+            if raw_value is True or value in {"required", "yes", "true"} or value.endswith("_required"):
+                required.append(self._canonical_amenity_name(str(raw_key)))
+        return list(dict.fromkeys(required))
+
+    def _required_amenities_from_query(self, query: str) -> List[str]:
+        lowered = query.lower()
+        required: List[str] = []
+        if "air conditioning" in lowered or "air-conditioned" in lowered or " ac" in lowered:
+            required.append("air_conditioning")
+        if "wifi" in lowered or "wi-fi" in lowered or "internet" in lowered:
+            required.append("internet_access")
+        if "wheelchair" in lowered:
+            required.append("wheelchair")
+        return required
+
+    def _canonical_amenity_name(self, value: str) -> str:
+        aliases = {
+            "airConditioning": "air_conditioning",
+            "air_conditioning": "air_conditioning",
+            "internetAccess": "internet_access",
+            "internet_access": "internet_access",
+            "wifi": "internet_access",
+            "wheelchairAccess": "wheelchair",
+            "wheelchair": "wheelchair",
+            "outdoorSeating": "outdoor_seating",
+            "outdoor_seating": "outdoor_seating",
+        }
+        if value in aliases:
+            return aliases[value]
+        normalized = []
+        for char in value:
+            if char.isupper():
+                normalized.append("_")
+                normalized.append(char.lower())
+            elif char in {"-", " "}:
+                normalized.append("_")
+            else:
+                normalized.append(char)
+        return "".join(normalized).strip("_")
+
+    def _geoapify_conditions_for_required(self, required_amenities: List[str]) -> List[str]:
+        conditions: List[str] = []
+        if "internet_access" in required_amenities:
+            conditions.append("internet_access.free")
+        if "wheelchair" in required_amenities:
+            conditions.append("wheelchair")
+        return conditions
+
+    def _geoapify_place_id(self, feature: Dict[str, Any]) -> Optional[str]:
+        properties = feature.get("properties") if isinstance(feature, dict) else None
+        if isinstance(properties, dict):
+            place_id = properties.get("place_id") or properties.get("id")
+            if place_id:
+                return str(place_id)
+        feature_id = feature.get("id") if isinstance(feature, dict) else None
+        return str(feature_id) if feature_id else None
+
+    def _complete_enrichment_records(
+        self,
+        enrichments: List[Dict[str, Any]],
+        expected_count: int,
+    ) -> List[Dict[str, Any]]:
+        completed: List[Dict[str, Any]] = []
+        for enrichment in enrichments[:expected_count]:
+            record = dict(enrichment) if isinstance(enrichment, dict) else {}
+            status = record.get("status") or "no_match"
+            record.setdefault("provider", GEOAPIFY_PROVIDER_NAME)
+            record.setdefault("data_source", GEOAPIFY_SOURCE_LABEL)
+            record["status"] = status
+            record.setdefault("match", {"cache_hit": False})
+            record.setdefault("fields", {})
+            completed.append(record)
+        while len(completed) < expected_count:
+            completed.append(build_status_enrichment("no_match"))
+        return completed
+
+    def _geoapify_warnings(self, enrichments: List[Dict[str, Any]]) -> List[str]:
+        statuses = {str(enrichment.get("status")) for enrichment in enrichments}
+        if statuses == {"timed_out"}:
+            return ["Geoapify OSM enrichment timed out; showing Google Places results."]
+        if statuses == {"not_configured"}:
+            return ["Geoapify OSM enrichment is not configured; showing Google Places results."]
+        if "rate_limited" in statuses:
+            return ["Geoapify OSM enrichment is rate limited; showing available Google Places results."]
+        if "unavailable" in statuses:
+            return ["Geoapify OSM enrichment is unavailable; showing Google Places results."]
+        return []
+
+    def _enrichment_satisfies_required(
+        self,
+        enrichment: Dict[str, Any],
+        required_amenities: List[str],
+    ) -> bool:
+        fields = enrichment.get("fields") if isinstance(enrichment, dict) else None
+        if not isinstance(fields, dict):
+            return False
+        for amenity in required_amenities:
+            field_record = fields.get(amenity)
+            if not self._field_value_is_verified(field_record):
+                return False
+        return True
+
+    def _field_value_is_verified(self, field_record: Any) -> bool:
+        if not isinstance(field_record, dict):
+            return False
+        value = field_record.get("value")
+        if value in (None, False, "", "unknown", "no"):
+            return False
+        if isinstance(value, dict):
+            return any(item not in (None, False, "", "unknown", "no") for item in value.values())
+        return True
     
     async def _process_single_search_request(
         self,
@@ -336,6 +627,7 @@ class SearchSkill(BaseSkill):
         _raw_include_reviews = req.get("includeReviews")
         req_include_reviews = _raw_include_reviews if _raw_include_reviews is not None else False
         req_price_levels = req.get("priceLevels")
+        req_osm_enrichment = self._normalize_osm_enrichment_mode(req.get("osmEnrichment"))
         
         logger.debug(f"Executing place search (id: {request_id}): query='{search_query}', page_size={req_page_size}")
         
@@ -459,9 +751,16 @@ class SearchSkill(BaseSkill):
                     exc_info=True,
                 )
                 return (request_id, [], f"Query '{search_query}': Content sanitization failed")
+
+            previews, metadata = await self._apply_geoapify_enrichment(
+                previews=previews,
+                req={**req, "osmEnrichment": req_osm_enrichment},
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+            )
             
             logger.info(f"Place search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
-            return (request_id, previews, None)
+            return (request_id, previews, None, metadata)
             
         except Exception as e:
             error_msg = f"Query '{search_query}' (id: {request_id}): {str(e)}"
@@ -534,8 +833,7 @@ class SearchSkill(BaseSkill):
                 logger=logger
             )
         
-        # Initialize cache service for rate limiting (shared across all requests)
-        from backend.core.api.app.services.cache import CacheService
+        # Initialize cache service for rate limiting and demand-cached enrichment.
         cache_service = CacheService()
         
         # Process all search requests in parallel using BaseSkill helper
@@ -547,11 +845,10 @@ class SearchSkill(BaseSkill):
             cache_service=cache_service
         )
         
-        # Group results by request ID using BaseSkill helper
-        grouped_results, errors = self._group_results_by_request_id(
+        # Group results by request ID while preserving maps-specific metadata.
+        grouped_results, errors = self._group_maps_results_by_request_id(
             results=results,
             requests=requests,
-            logger=logger
         )
         grouped_results = self._merge_grouped_results_preserving_request_order(
             grouped_results,
@@ -560,11 +857,16 @@ class SearchSkill(BaseSkill):
         )
         
         # Build response with errors using BaseSkill helper
+        response_provider = (
+            GEOAPIFY_COMBINED_PROVIDER_NAME
+            if any(self._normalize_osm_enrichment_mode(req.get("osmEnrichment")) != "disabled" for req in validated_requests)
+            else "Google Maps"
+        )
         response = self._build_response_with_errors(
             response_class=SearchResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="Google Maps",
+            provider=response_provider,
             suggestions=self.suggestions_follow_up_requests,
             logger=logger
         )

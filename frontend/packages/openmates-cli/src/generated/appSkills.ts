@@ -1199,6 +1199,62 @@ export const APP_SKILL_METADATA = [
                 "type": "boolean",
                 "description": "If true, include user reviews in the response. Defaults to false to keep response size manageable. Reviews significantly increase response size.",
                 "default": false
+              },
+              "osmEnrichment": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "disabled",
+                  "required"
+                ],
+                "description": "Optional OSM/Geoapify enrichment mode. Use auto for source-labelled amenity details, disabled to avoid Geoapify calls, or required when amenity filters must be provider-verified.",
+                "default": "auto"
+              },
+              "amenityFilters": {
+                "type": "object",
+                "description": "Optional OSM-backed amenity filters. Mark a value as required to keep only Geoapify/OSM-verified matches; unknown OSM fields are not treated as matches.",
+                "properties": {
+                  "airConditioning": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "internetAccess": {
+                    "type": "string",
+                    "enum": [
+                      "free_required",
+                      "required"
+                    ]
+                  },
+                  "wheelchair": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "outdoorSeating": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "toilets": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "smoking": {
+                    "type": "string"
+                  },
+                  "diet": {
+                    "type": "string"
+                  },
+                  "payment": {
+                    "type": "string"
+                  }
+                }
               }
             },
             "required": [

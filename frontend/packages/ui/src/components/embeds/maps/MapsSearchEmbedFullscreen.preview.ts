@@ -66,4 +66,21 @@ export const variants = {
     results: [],
     onClose: () => {},
   },
+
+  /** Strict amenity filters returned no provider-verified matches */
+  noVerifiedAmenityMatches: {
+    query: "restaurants in Berlin with air conditioning and free wifi",
+    provider: "Google Maps + Geoapify",
+    results: [],
+    warnings: [
+      "No Geoapify/OSM-verified matches were found within the enrichment budget; try relaxing the amenity filter.",
+    ],
+    filter_summary: {
+      required: ["air_conditioning", "internet_access"],
+      candidate_count: 10,
+      verified_count: 0,
+      status: "no_verified_results",
+    },
+    onClose: () => {},
+  },
 };

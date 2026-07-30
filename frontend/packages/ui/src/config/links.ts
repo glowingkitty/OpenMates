@@ -191,8 +191,10 @@ export const privacyPolicyLinks = {
   // Group F — Web, search, content retrieval
   brave: "https://brave.com/privacy/",
   firecrawl: "https://www.firecrawl.dev/privacy-policy",
+  iconify: "https://iconify.design/privacy/", // verified 2026-07-18
   webshare: "https://www.webshare.io/privacy-policy",
   googleMaps: "https://privacy.google.com/",
+  geoapify: "https://www.geoapify.com/privacy-policy/", // verified 2026-07-30
   youtube: "https://www.youtube.com/howyoutubeworks/privacy/",
 
   // Group G — Travel

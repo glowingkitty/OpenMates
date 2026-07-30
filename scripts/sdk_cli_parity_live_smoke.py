@@ -428,6 +428,108 @@ print(json.dumps({
     return json.loads(result.stdout.strip())
 
 
+def _maps_geoapify_payload() -> dict[str, Any]:
+    return {
+        "requests": [
+            {
+                "id": "maps-geoapify-sdk-cli-smoke",
+                "query": "restaurants in Berlin with air conditioning and free wifi",
+                "pageSize": 10,
+                "osmEnrichment": "required",
+                "amenityFilters": {
+                    "airConditioning": "required",
+                    "internetAccess": "free_required",
+                },
+            }
+        ]
+    }
+
+
+def _maps_geoapify_summary(response: dict[str, Any]) -> dict[str, Any]:
+    data = response.get("data") if isinstance(response.get("data"), dict) else response
+    groups = data.get("results") if isinstance(data, dict) else None
+    group = groups[0] if isinstance(groups, list) and groups and isinstance(groups[0], dict) else {}
+    items = group.get("results") if isinstance(group.get("results"), list) else []
+    first = items[0] if items and isinstance(items[0], dict) else {}
+    enrichment = first.get("osm_enrichment") if isinstance(first.get("osm_enrichment"), dict) else {}
+    fields = enrichment.get("fields") if isinstance(enrichment.get("fields"), dict) else {}
+    return {
+        "provider": data.get("provider") if isinstance(data, dict) else None,
+        "groupId": group.get("id"),
+        "resultCount": len(items),
+        "warnings": group.get("warnings") or [],
+        "filterSummary": group.get("filter_summary"),
+        "firstResult": first.get("name"),
+        "enrichmentStatus": enrichment.get("status"),
+        "enrichmentProvider": enrichment.get("provider"),
+        "airConditioning": fields.get("air_conditioning"),
+        "internetAccess": fields.get("internet_access"),
+    }
+
+
+def _run_cli_maps_geoapify(env: dict[str, str]) -> dict[str, Any]:
+    payload = json.dumps(_maps_geoapify_payload(), separators=(",", ":"))
+    result = _run(
+        [
+            "node",
+            os.fspath(CLI_DIST),
+            "--api-url",
+            env["OPENMATES_API_URL"],
+            "--api-key",
+            env["OPENMATES_SMOKE_API_KEY"],
+            "apps",
+            "maps",
+            "search",
+            "--input",
+            payload,
+            "--json",
+        ],
+        env=env,
+        description="CLI maps Geoapify smoke",
+    )
+    return _parse_json_output(result.stdout)
+
+
+def _run_npm_maps_geoapify_sdk(env: dict[str, str]) -> dict[str, Any]:
+    script = f"""
+      import {{ OpenMates }} from '{NPM_SDK_ENTRY}';
+      const client = new OpenMates({{
+        apiKey: process.env.OPENMATES_SMOKE_API_KEY,
+        apiUrl: process.env.OPENMATES_API_URL,
+        deviceId: process.env.OPENMATES_SMOKE_DEVICE_ID,
+      }});
+      const response = await client.apps.maps.search({_json_for_js(_maps_geoapify_payload())});
+      console.log(JSON.stringify(response));
+    """
+    result = _run(["node", "--input-type=module", "-e", script], env=env, description="npm maps Geoapify SDK smoke")
+    return json.loads(result.stdout.strip())
+
+
+def _run_python_maps_geoapify_sdk(env: dict[str, str]) -> dict[str, Any]:
+    script = """
+import json
+import os
+import sys
+
+sys.path.insert(0, os.fspath(%r))
+from openmates import OpenMates
+
+client = OpenMates(
+    api_key=os.environ["OPENMATES_SMOKE_API_KEY"],
+    api_url=os.environ["OPENMATES_API_URL"],
+    device_id=os.environ["OPENMATES_SMOKE_DEVICE_ID"],
+)
+payload = %s
+print(json.dumps(client.apps.maps.search(payload)))
+""" % (os.fspath(PYTHON_SDK_PATH), repr(_maps_geoapify_payload()))
+    result = _run(["python3", "-c", script], env=env, description="Python maps Geoapify SDK smoke")
+    return json.loads(result.stdout.strip())
+
+
+def _json_for_js(value: dict[str, Any]) -> str:
+    return json.dumps(value, separators=(",", ":"))
+
+
 def _assert_ideabucket_live(result: dict[str, Any], *, sdk_name: str) -> None:
     settings = result.get("settings")
     if not isinstance(settings, dict) or settings.get("hasPrompt") is not True:
@@ -494,6 +596,25 @@ def _assert_design_icon_search(result: dict[str, Any], *, sdk_name: str) -> None
         raise RuntimeError(f"{sdk_name} SDK design icon PNG export is empty: {export!r}")
 
 
+def _assert_maps_geoapify(result: dict[str, Any], *, client_name: str) -> None:
+    summary = _maps_geoapify_summary(result)
+    if summary.get("provider") not in {"Google Maps + Geoapify", "Google Maps"}:
+        raise RuntimeError(f"{client_name} Maps response returned unexpected provider: {summary!r}")
+    filter_summary = summary.get("filterSummary")
+    if summary.get("resultCount") == 0:
+        if not isinstance(filter_summary, dict) or filter_summary.get("status") != "no_verified_results":
+            raise RuntimeError(f"{client_name} Maps strict response did not explain no verified results: {summary!r}")
+        if not summary.get("warnings"):
+            raise RuntimeError(f"{client_name} Maps no-verified-results response had no warning: {summary!r}")
+        return
+    if summary.get("enrichmentProvider") != "Geoapify":
+        raise RuntimeError(f"{client_name} Maps result missed Geoapify enrichment: {summary!r}")
+    for field_name in ("airConditioning", "internetAccess"):
+        field = summary.get(field_name)
+        if not isinstance(field, dict) or field.get("value") in {None, "", "unknown", "no", False}:
+            raise RuntimeError(f"{client_name} Maps result did not verify {field_name}: {summary!r}")
+
+
 def _assert_account_export(result: dict[str, Any], *, sdk_name: str) -> None:
     account_export = result.get("accountExport")
     if not isinstance(account_export, dict):
@@ -522,6 +643,7 @@ def main() -> int:
     parser.add_argument("--skip-revoke", action="store_true")
     parser.add_argument("--models3d-only", action="store_true", help="Run only the real models3d.search npm/pip SDK calls.")
     parser.add_argument("--ideabucket-only", action="store_true", help="Run only live IdeaBucket settings/add/status npm/pip SDK calls.")
+    parser.add_argument("--maps-geoapify-only", action="store_true", help="Run only live Maps Geoapify CLI/npm/pip app-skill calls.")
     args = parser.parse_args()
 
     if os.getenv("OPENMATES_LIVE_SMOKE") != "1":
@@ -553,6 +675,40 @@ def main() -> int:
         env["OPENMATES_SMOKE_API_KEY"] = api_key
 
         approved_devices: dict[str, list[str]] = {"npm": [], "pip": []}
+        if args.maps_geoapify_only:
+            cli_result = _run_cli_maps_geoapify(env)
+            _assert_maps_geoapify(cli_result, client_name="cli")
+
+            try:
+                npm_result = _run_npm_maps_geoapify_sdk(env)
+            except RuntimeError as exc:
+                if not key_id or not _is_device_approval_error(exc):
+                    raise
+                approved_devices["npm"] = _approve_pending_key_devices(args.api_url, key_id, {"npm"})
+                npm_result = _run_npm_maps_geoapify_sdk(env)
+            _assert_maps_geoapify(npm_result, client_name="npm")
+
+            python_result = None
+            if not args.skip_python:
+                try:
+                    python_result = _run_python_maps_geoapify_sdk(env)
+                except RuntimeError as exc:
+                    if not key_id or not _is_device_approval_error(exc):
+                        raise
+                    approved_devices["pip"] = _approve_pending_key_devices(args.api_url, key_id, {"pip"})
+                    python_result = _run_python_maps_geoapify_sdk(env)
+                _assert_maps_geoapify(python_result, client_name="pip")
+
+            print(json.dumps({
+                "apiUrl": args.api_url,
+                "keyId": key_id,
+                "approvedDevices": approved_devices,
+                "cli": _maps_geoapify_summary(cli_result),
+                "npm": _maps_geoapify_summary(npm_result),
+                "python": _maps_geoapify_summary(python_result) if python_result else None,
+            }, indent=2))
+            return 0
+
         if args.ideabucket_only:
             try:
                 npm_result = _run_npm_ideabucket_sdk(env)

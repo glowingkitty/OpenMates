@@ -1859,7 +1859,44 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         "Note: The 'id' field is auto-generated if "
                                                         "not provided - you don't need to include "
                                                         'it.\n',
-                                         'items': {'properties': {'includeReviews': {'default': False,
+                                         'items': {'properties': {'amenityFilters': {'description': 'Optional '
+                                                                                                    'OSM-backed '
+                                                                                                    'amenity '
+                                                                                                    'filters. '
+                                                                                                    'Mark '
+                                                                                                    'a '
+                                                                                                    'value '
+                                                                                                    'as '
+                                                                                                    'required '
+                                                                                                    'to '
+                                                                                                    'keep '
+                                                                                                    'only '
+                                                                                                    'Geoapify/OSM-verified '
+                                                                                                    'matches; '
+                                                                                                    'unknown '
+                                                                                                    'OSM '
+                                                                                                    'fields '
+                                                                                                    'are '
+                                                                                                    'not '
+                                                                                                    'treated '
+                                                                                                    'as '
+                                                                                                    'matches.',
+                                                                                     'properties': {'airConditioning': {'enum': ['required'],
+                                                                                                                        'type': 'string'},
+                                                                                                    'diet': {'type': 'string'},
+                                                                                                    'internetAccess': {'enum': ['free_required',
+                                                                                                                                'required'],
+                                                                                                                       'type': 'string'},
+                                                                                                    'outdoorSeating': {'enum': ['required'],
+                                                                                                                       'type': 'string'},
+                                                                                                    'payment': {'type': 'string'},
+                                                                                                    'smoking': {'type': 'string'},
+                                                                                                    'toilets': {'enum': ['required'],
+                                                                                                                'type': 'string'},
+                                                                                                    'wheelchair': {'enum': ['required'],
+                                                                                                                   'type': 'string'}},
+                                                                                     'type': 'object'},
+                                                                  'includeReviews': {'default': False,
                                                                                      'description': 'If '
                                                                                                     'true, '
                                                                                                     'include '
@@ -1994,6 +2031,34 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'to '
                                                                                              'false.',
                                                                               'type': 'boolean'},
+                                                                  'osmEnrichment': {'default': 'auto',
+                                                                                    'description': 'Optional '
+                                                                                                   'OSM/Geoapify '
+                                                                                                   'enrichment '
+                                                                                                   'mode. '
+                                                                                                   'Use '
+                                                                                                   'auto '
+                                                                                                   'for '
+                                                                                                   'source-labelled '
+                                                                                                   'amenity '
+                                                                                                   'details, '
+                                                                                                   'disabled '
+                                                                                                   'to '
+                                                                                                   'avoid '
+                                                                                                   'Geoapify '
+                                                                                                   'calls, '
+                                                                                                   'or '
+                                                                                                   'required '
+                                                                                                   'when '
+                                                                                                   'amenity '
+                                                                                                   'filters '
+                                                                                                   'must '
+                                                                                                   'be '
+                                                                                                   'provider-verified.',
+                                                                                    'enum': ['auto',
+                                                                                             'disabled',
+                                                                                             'required'],
+                                                                                    'type': 'string'},
                                                                   'pageSize': {'default': 10,
                                                                                'description': 'Number '
                                                                                               'of '

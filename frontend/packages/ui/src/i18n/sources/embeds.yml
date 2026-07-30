@@ -238,6 +238,102 @@ search:
   sv: Sök
   he: חיפוש
   verified_by_human: []
+maps.search.no_verified_amenities:
+  context: Heading shown in Maps fullscreen when strict amenity filters found no provider-verified matches
+  en: No verified amenity matches
+  de: No verified amenity matches
+  zh: No verified amenity matches
+  es: No verified amenity matches
+  fr: No verified amenity matches
+  pt: No verified amenity matches
+  ru: No verified amenity matches
+  ja: No verified amenity matches
+  ko: No verified amenity matches
+  it: No verified amenity matches
+  tr: No verified amenity matches
+  vi: No verified amenity matches
+  id: No verified amenity matches
+  pl: No verified amenity matches
+  nl: No verified amenity matches
+  ar: No verified amenity matches
+  hi: No verified amenity matches
+  th: No verified amenity matches
+  cs: No verified amenity matches
+  sv: No verified amenity matches
+  he: No verified amenity matches
+  verified_by_human: [en]
+maps.search.verified_matches:
+  context: Label after the number of Maps results verified by OSM/Geoapify amenity data
+  en: verified matches
+  de: verified matches
+  zh: verified matches
+  es: verified matches
+  fr: verified matches
+  pt: verified matches
+  ru: verified matches
+  ja: verified matches
+  ko: verified matches
+  it: verified matches
+  tr: verified matches
+  vi: verified matches
+  id: verified matches
+  pl: verified matches
+  nl: verified matches
+  ar: verified matches
+  hi: verified matches
+  th: verified matches
+  cs: verified matches
+  sv: verified matches
+  he: verified matches
+  verified_by_human: [en]
+maps.search.out_of_candidates:
+  context: Suffix after verified match count in Maps fullscreen; {count} is the number of checked candidates
+  en: out of {count} checked places
+  de: out of {count} checked places
+  zh: out of {count} checked places
+  es: out of {count} checked places
+  fr: out of {count} checked places
+  pt: out of {count} checked places
+  ru: out of {count} checked places
+  ja: out of {count} checked places
+  ko: out of {count} checked places
+  it: out of {count} checked places
+  tr: out of {count} checked places
+  vi: out of {count} checked places
+  id: out of {count} checked places
+  pl: out of {count} checked places
+  nl: out of {count} checked places
+  ar: out of {count} checked places
+  hi: out of {count} checked places
+  th: out of {count} checked places
+  cs: out of {count} checked places
+  sv: out of {count} checked places
+  he: out of {count} checked places
+  verified_by_human: [en]
+maps.search.required_amenities:
+  context: Label before the list of required amenity filters in Maps fullscreen
+  en: Required amenities
+  de: Required amenities
+  zh: Required amenities
+  es: Required amenities
+  fr: Required amenities
+  pt: Required amenities
+  ru: Required amenities
+  ja: Required amenities
+  ko: Required amenities
+  it: Required amenities
+  tr: Required amenities
+  vi: Required amenities
+  id: Required amenities
+  pl: Required amenities
+  nl: Required amenities
+  ar: Required amenities
+  hi: Required amenities
+  th: Required amenities
+  cs: Required amenities
+  sv: Required amenities
+  he: Required amenities
+  verified_by_human: [en]
 transcript:
   context: Transcript skill label
   en: Transcript

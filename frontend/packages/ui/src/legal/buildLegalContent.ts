@@ -323,8 +323,10 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.web_and_search.brave", privacyPolicyLinks.brave);
   renderProvider("legal.privacy.providers.web_and_search.firecrawl", privacyPolicyLinks.firecrawl);
+  renderProvider("legal.privacy.providers.web_and_search.iconify", privacyPolicyLinks.iconify);
   renderProvider("legal.privacy.providers.web_and_search.webshare", privacyPolicyLinks.webshare);
   renderProvider("legal.privacy.providers.web_and_search.google_maps", privacyPolicyLinks.googleMaps);
+  renderProvider("legal.privacy.providers.web_and_search.geoapify", privacyPolicyLinks.geoapify);
   renderProvider("legal.privacy.providers.web_and_search.youtube", privacyPolicyLinks.youtube);
 
   // Group F — Travel
