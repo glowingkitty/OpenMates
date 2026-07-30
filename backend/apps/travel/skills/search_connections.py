@@ -76,9 +76,22 @@ class SearchConnectionsRequestItem(BaseModel):
             "Auto-generated as a sequential integer if not provided.",
     )
 
-    legs: List[LegItem] = Field(
+    legs: Optional[List[LegItem]] = Field(
+        default=None,
         description="Ordered list of trip legs. One-way trip = 1 leg. "
         "Round trip = 2 legs (outbound + return). Multi-stop = N legs."
+    )
+    origin: Optional[str] = Field(
+        default=None,
+        description="Flat route origin accepted from LLM/CLI callers. Normalized into legs before execution.",
+    )
+    destination: Optional[str] = Field(
+        default=None,
+        description="Flat route destination accepted from LLM/CLI callers. Normalized into legs before execution.",
+    )
+    date: Optional[str] = Field(
+        default=None,
+        description="Flat route departure date in YYYY-MM-DD format. Normalized into legs before execution.",
     )
     transport_methods: List[str] = Field(
         default=["airplane"],
@@ -86,10 +99,18 @@ class SearchConnectionsRequestItem(BaseModel):
         "'train' (Germany + select European routes via Deutsche Bahn and FlixTrain), "
         "'bus' (FlixBus / Greyhound network where available).",
     )
+    transport_method: Optional[str] = Field(
+        default=None,
+        description="Singular transport method alias accepted from LLM/CLI callers. Normalized into transport_methods.",
+    )
     providers: Optional[List[str]] = Field(
         default=None,
         description="Optional provider IDs to search. Supported: google_flights, deutsche_bahn, flix. "
         "If omitted, all providers for the selected transport method are used, then filtered by countries if provided.",
+    )
+    provider: Optional[str] = Field(
+        default=None,
+        description="Singular provider alias accepted from LLM/CLI callers. Normalized into providers.",
     )
     countries: Optional[List[str]] = Field(
         default=None,
@@ -376,7 +397,12 @@ def _normalize_connection_requests(requests: List[Dict[str, Any]]) -> List[Dict[
             if origin and destination and date:
                 req["legs"] = [{"origin": origin, "destination": destination, "date": date}]
 
-        if "transport_methods" not in req and isinstance(req.get("transport_method"), str):
+        transport_methods = req.get("transport_methods")
+        has_default_transport_methods = transport_methods == ["airplane"]
+        if (
+            ("transport_methods" not in req or has_default_transport_methods)
+            and isinstance(req.get("transport_method"), str)
+        ):
             transport_method = req["transport_method"].strip().lower()
             if transport_method:
                 req["transport_methods"] = [transport_method]

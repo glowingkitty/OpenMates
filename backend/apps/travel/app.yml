@@ -308,6 +308,24 @@ skills:
           items:
             type: object
             properties:
+              origin:
+                type: string
+                description: >
+                  Flat route origin accepted from LLM or CLI callers. Prefer legs for
+                  round trips and multi-stop trips; single-leg flat requests are
+                  normalized into legs before execution.
+              destination:
+                type: string
+                description: >
+                  Flat route destination accepted from LLM or CLI callers. Prefer legs for
+                  round trips and multi-stop trips; single-leg flat requests are
+                  normalized into legs before execution.
+              date:
+                type: string
+                description: >
+                  Flat route departure date in YYYY-MM-DD format. Prefer legs for
+                  round trips and multi-stop trips; single-leg flat requests are
+                  normalized into legs before execution.
               legs:
                 type: array
                 description: >
@@ -348,6 +366,16 @@ skills:
                     - boat
                 default:
                   - airplane
+              transport_method:
+                type: string
+                description: >
+                  Singular transport method alias accepted from LLM or CLI callers.
+                  Normalized into transport_methods before execution.
+                enum:
+                  - airplane
+                  - train
+                  - bus
+                  - boat
               providers:
                 type: array
                 description: >
@@ -363,6 +391,16 @@ skills:
                     - deutsche_bahn
                     - flix
                     - transitous
+              provider:
+                type: string
+                description: >
+                  Singular provider alias accepted from LLM or CLI callers.
+                  Normalized into providers before execution.
+                enum:
+                  - google_flights
+                  - deutsche_bahn
+                  - flix
+                  - transitous
               countries:
                 type: array
                 description: >
@@ -486,8 +524,6 @@ skills:
                   - stops_asc
                   - stops_desc
                 default: price_asc
-            required:
-              - legs
       required:
         - requests
 

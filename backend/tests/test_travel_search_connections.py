@@ -647,6 +647,7 @@ async def test_execute_preserves_empty_search_metadata(monkeypatch: pytest.Monke
 @pytest.mark.anyio
 async def test_execute_normalizes_flat_llm_route_request(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.apps.travel.skills import search_connections as search_module
+    from backend.apps.travel.skills.search_connections import SearchConnectionsRequest
 
     provider = FakeTransportProvider(
         [make_connection(0, "2026-08-12 09:00", "2026-08-12 15:00", source_provider="deutsche_bahn")],
@@ -656,8 +657,8 @@ async def test_execute_normalizes_flat_llm_route_request(monkeypatch: pytest.Mon
     )
     monkeypatch.setattr(search_module, "_create_providers", lambda secrets_manager=None: [provider])
 
-    response = await make_skill().execute(
-        requests=[{
+    parsed_request = SearchConnectionsRequest.model_validate({
+        "requests": [{
             "origin": "Bonn",
             "destination": "Munich",
             "date": "2026-08-12",
@@ -665,6 +666,10 @@ async def test_execute_normalizes_flat_llm_route_request(monkeypatch: pytest.Mon
             "provider": "deutsche_bahn",
             "owned_passes": ["deutschland_ticket"],
         }],
+    })
+
+    response = await make_skill().execute(
+        requests=parsed_request.model_dump()["requests"],
         secrets_manager=object(),
     )
 

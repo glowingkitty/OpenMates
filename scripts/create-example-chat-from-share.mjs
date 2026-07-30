@@ -530,14 +530,43 @@ function appSkillUseJsonBlock(embed) {
   return `\`\`\`json\n${JSON.stringify(publicPayload)}\n\`\`\``;
 }
 
+function appSkillUseChildEmbedIds(embed) {
+  if (Array.isArray(embed.embed_ids)) {
+    return embed.embed_ids.filter((embedId) => typeof embedId === 'string' && embedId.trim());
+  }
+
+  const embedIds = parseToonScalar(embed.content, 'embed_ids');
+  if (!embedIds) return [];
+  return embedIds.split('|').map((embedId) => embedId.trim()).filter(Boolean);
+}
+
+function appSkillUseChildrenAreVisible(embed, embedsById, messageEmbedRefs) {
+  const childEmbedIds = appSkillUseChildEmbedIds(embed);
+  if (childEmbedIds.length === 0) return false;
+
+  return childEmbedIds.every((childEmbedId) => {
+    if (messageEmbedRefs.has(childEmbedId)) return true;
+
+    const childEmbed = embedsById.get(childEmbedId);
+    const childEmbedRef = childEmbed ? parseToonScalar(childEmbed.content, 'embed_ref') : null;
+    return Boolean(childEmbedRef && messageEmbedRefs.has(childEmbedRef));
+  });
+}
+
 function appSkillUsesNeedingMessageRefs(chat) {
   const messageText = (chat.messages || []).map((message) => String(message.content || '')).join('\n');
+  const messageEmbedRefs = extractEmbedRefsFromMessages(chat.messages || []);
+  const embedsById = new Map((chat.embeds || []).map((embed) => [embed.embed_id, embed]));
+
   return (chat.embeds || []).filter(
-    (embed) => embed.type === 'app_skill_use' && !embed.parent_embed_id && !messageText.includes(embed.embed_id),
+    (embed) => embed.type === 'app_skill_use'
+      && !embed.parent_embed_id
+      && !messageText.includes(embed.embed_id)
+      && !appSkillUseChildrenAreVisible(embed, embedsById, messageEmbedRefs),
   );
 }
 
-function withPromotedAppSkillUseMessages(chat) {
+export function withPromotedAppSkillUseMessages(chat) {
   const missingAppSkillUses = appSkillUsesNeedingMessageRefs(chat);
   if (missingAppSkillUses.length === 0) return chat;
 

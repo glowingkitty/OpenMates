@@ -3838,6 +3838,57 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               '4217 '
                                                                                               'code).',
                                                                                'type': 'string'},
+                                                                  'date': {'description': 'Flat '
+                                                                                          'route '
+                                                                                          'departure '
+                                                                                          'date in '
+                                                                                          'YYYY-MM-DD '
+                                                                                          'format. '
+                                                                                          'Prefer '
+                                                                                          'legs '
+                                                                                          'for '
+                                                                                          'round '
+                                                                                          'trips '
+                                                                                          'and '
+                                                                                          'multi-stop '
+                                                                                          'trips; '
+                                                                                          'single-leg '
+                                                                                          'flat '
+                                                                                          'requests '
+                                                                                          'are '
+                                                                                          'normalized '
+                                                                                          'into '
+                                                                                          'legs '
+                                                                                          'before '
+                                                                                          'execution.\n',
+                                                                           'type': 'string'},
+                                                                  'destination': {'description': 'Flat '
+                                                                                                 'route '
+                                                                                                 'destination '
+                                                                                                 'accepted '
+                                                                                                 'from '
+                                                                                                 'LLM '
+                                                                                                 'or '
+                                                                                                 'CLI '
+                                                                                                 'callers. '
+                                                                                                 'Prefer '
+                                                                                                 'legs '
+                                                                                                 'for '
+                                                                                                 'round '
+                                                                                                 'trips '
+                                                                                                 'and '
+                                                                                                 'multi-stop '
+                                                                                                 'trips; '
+                                                                                                 'single-leg '
+                                                                                                 'flat '
+                                                                                                 'requests '
+                                                                                                 'are '
+                                                                                                 'normalized '
+                                                                                                 'into '
+                                                                                                 'legs '
+                                                                                                 'before '
+                                                                                                 'execution.\n',
+                                                                                  'type': 'string'},
                                                                   'exclude_airlines': {'description': 'Exclude '
                                                                                                       'flights '
                                                                                                       'from '
@@ -4059,6 +4110,33 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'direct/non-stop '
                                                                                                    'connections.',
                                                                                     'type': 'boolean'},
+                                                                  'origin': {'description': 'Flat '
+                                                                                            'route '
+                                                                                            'origin '
+                                                                                            'accepted '
+                                                                                            'from '
+                                                                                            'LLM '
+                                                                                            'or '
+                                                                                            'CLI '
+                                                                                            'callers. '
+                                                                                            'Prefer '
+                                                                                            'legs '
+                                                                                            'for '
+                                                                                            'round '
+                                                                                            'trips '
+                                                                                            'and '
+                                                                                            'multi-stop '
+                                                                                            'trips; '
+                                                                                            'single-leg '
+                                                                                            'flat '
+                                                                                            'requests '
+                                                                                            'are '
+                                                                                            'normalized '
+                                                                                            'into '
+                                                                                            'legs '
+                                                                                            'before '
+                                                                                            'execution.\n',
+                                                                             'type': 'string'},
                                                                   'owned_passes': {'description': 'Fare '
                                                                                                   'or '
                                                                                                   'mobility '
@@ -4112,6 +4190,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 'adult '
                                                                                                 'passengers.',
                                                                                  'type': 'integer'},
+                                                                  'provider': {'description': 'Singular '
+                                                                                              'provider '
+                                                                                              'alias '
+                                                                                              'accepted '
+                                                                                              'from '
+                                                                                              'LLM '
+                                                                                              'or '
+                                                                                              'CLI '
+                                                                                              'callers. '
+                                                                                              'Normalized '
+                                                                                              'into '
+                                                                                              'providers '
+                                                                                              'before '
+                                                                                              'execution.\n',
+                                                                               'enum': ['google_flights',
+                                                                                        'deutsche_bahn',
+                                                                                        'flix',
+                                                                                        'transitous'],
+                                                                               'type': 'string'},
                                                                   'providers': {'description': 'Optional '
                                                                                                'provider '
                                                                                                'IDs '
@@ -4255,6 +4352,26 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                        'stops_asc',
                                                                                        'stops_desc'],
                                                                               'type': 'string'},
+                                                                  'transport_method': {'description': 'Singular '
+                                                                                                      'transport '
+                                                                                                      'method '
+                                                                                                      'alias '
+                                                                                                      'accepted '
+                                                                                                      'from '
+                                                                                                      'LLM '
+                                                                                                      'or '
+                                                                                                      'CLI '
+                                                                                                      'callers. '
+                                                                                                      'Normalized '
+                                                                                                      'into '
+                                                                                                      'transport_methods '
+                                                                                                      'before '
+                                                                                                      'execution.\n',
+                                                                                       'enum': ['airplane',
+                                                                                                'train',
+                                                                                                'bus',
+                                                                                                'boat'],
+                                                                                       'type': 'string'},
                                                                   'transport_methods': {'default': ['airplane'],
                                                                                         'description': 'Transport '
                                                                                                        'types '
@@ -4306,7 +4423,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'business',
                                                                                             'first'],
                                                                                    'type': 'string'}},
-                                                   'required': ['legs'],
                                                    'type': 'object'},
                                          'type': 'array'}},
              'required': ['requests'],

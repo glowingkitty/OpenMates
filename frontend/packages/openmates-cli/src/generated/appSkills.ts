@@ -2596,6 +2596,18 @@ export const APP_SKILL_METADATA = [
           "items": {
             "type": "object",
             "properties": {
+              "origin": {
+                "type": "string",
+                "description": "Flat route origin accepted from LLM or CLI callers. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
+              },
+              "destination": {
+                "type": "string",
+                "description": "Flat route destination accepted from LLM or CLI callers. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
+              },
+              "date": {
+                "type": "string",
+                "description": "Flat route departure date in YYYY-MM-DD format. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
+              },
               "legs": {
                 "type": "array",
                 "description": "Ordered list of trip legs. One-way trip = 1 leg. Round trip = 2 legs (outbound + return). Multi-stop = N legs. Each leg specifies an origin, destination, and departure date.\n",
@@ -2638,6 +2650,16 @@ export const APP_SKILL_METADATA = [
                   "airplane"
                 ]
               },
+              "transport_method": {
+                "type": "string",
+                "description": "Singular transport method alias accepted from LLM or CLI callers. Normalized into transport_methods before execution.\n",
+                "enum": [
+                  "airplane",
+                  "train",
+                  "bus",
+                  "boat"
+                ]
+              },
               "providers": {
                 "type": "array",
                 "description": "Optional provider IDs to search. Use \"google_flights\" for flights, \"deutsche_bahn\" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches, \"flix\" for FlixBus / FlixTrain, and \"transitous\" only for timetable-only public transport routing. If omitted, priced providers for the selected transport method are used, then filtered by countries if provided.\n",
@@ -2650,6 +2672,16 @@ export const APP_SKILL_METADATA = [
                     "transitous"
                   ]
                 }
+              },
+              "provider": {
+                "type": "string",
+                "description": "Singular provider alias accepted from LLM or CLI callers. Normalized into providers before execution.\n",
+                "enum": [
+                  "google_flights",
+                  "deutsche_bahn",
+                  "flix",
+                  "transitous"
+                ]
               },
               "countries": {
                 "type": "array",
@@ -2785,10 +2817,7 @@ export const APP_SKILL_METADATA = [
                 ],
                 "default": "price_asc"
               }
-            },
-            "required": [
-              "legs"
-            ]
+            }
           }
         }
       },

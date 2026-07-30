@@ -7,6 +7,7 @@ import {
   removeInternalTaskEventMessages,
   sanitizeEmbedContent,
   sanitizeExampleMessageContent,
+  withPromotedAppSkillUseMessages,
 } from '../create-example-chat-from-share.mjs';
 
 test('normalizes compact weather rain radar embeds for public example rendering', () => {
@@ -114,6 +115,64 @@ test('inlines embeds_map_view code embeds as message-level map-view fences', () 
   assert.match(chat.messages[0].content, /```embeds_map_view\ntitle: Places\nembeds: place-a, place-b\n```/);
   assert.doesNotMatch(chat.messages[0].content, /"type":"code"|Code snippet/);
   assert.deepEqual(chat.embeds.map((embed) => embed.embed_id), ['place-a-id']);
+});
+
+test('does not promote parent app-skill JSON when all child embeds are already visible', () => {
+  const content = 'Routes: [08:27](embed:route-a) and [08:56](embed:route-b)';
+  const chat = withPromotedAppSkillUseMessages({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content,
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'parent-skill-use',
+        type: 'app_skill_use',
+        content: 'app_id: travel\nskill_id: search_connections\nstatus: finished\nembed_ids: child-a|child-b',
+        embed_ids: ['child-a', 'child-b'],
+      },
+      {
+        embed_id: 'child-a',
+        type: 'connection',
+        content: 'type: connection\nembed_ref: route-a',
+        parent_embed_id: 'parent-skill-use',
+      },
+      {
+        embed_id: 'child-b',
+        type: 'connection',
+        content: 'type: connection\nembed_ref: route-b',
+        parent_embed_id: 'parent-skill-use',
+      },
+    ],
+  });
+
+  assert.equal(chat.messages[0].content, content);
+});
+
+test('promotes unreferenced parent app-skill embeds into example messages', () => {
+  const chat = withPromotedAppSkillUseMessages({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content: 'No visible result embeds yet.',
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'parent-skill-use',
+        type: 'app_skill_use',
+        content: 'app_id: travel\nskill_id: search_connections\nstatus: finished',
+      },
+    ],
+  });
+
+  assert.match(chat.messages[0].content, /^```json\n\{"type":"app_skill_use","embed_id":"parent-skill-use"/);
 });
 
 test('continues to strip private encrypted storage fields', () => {
