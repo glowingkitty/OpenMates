@@ -126,6 +126,7 @@
   let appliedCenterPanX = 0;
   let leafletReady = $state(false);
   let lastFitGeometrySignature = '';
+  let lastLayerSignature = '';
 
   function applyTileTheme(isDarkMode: boolean) {
     const container = tileLayer?.getContainer?.();
@@ -139,6 +140,20 @@
       paths: normalizedPaths.map((routePath) => routePath.points.map((point) => [point.lat, point.lon])),
       shouldFitBounds,
       fitBoundsPadding,
+    });
+  }
+
+  function layerSignature(): string {
+    return JSON.stringify({
+      markers: markers.map((marker) => [marker.lat, marker.lon, marker.iconClass, marker.opacity, marker.label]),
+      paths: normalizedPaths.map((routePath) => [
+        routePath.color,
+        routePath.weight,
+        routePath.opacity,
+        routePath.points.map((point) => [point.lat, point.lon]),
+      ]),
+      pathColor,
+      pathWeight,
     });
   }
 
@@ -196,6 +211,7 @@
       }
     }
     applyCenterOffset();
+    lastLayerSignature = layerSignature();
   }
 
   function getEffectiveCenterOffsetX(): number {
@@ -285,15 +301,15 @@
     tileLayer = null;
     leafletModule = null;
     leafletReady = false;
+    lastFitGeometrySignature = '';
+    lastLayerSignature = '';
   });
 
   $effect(() => {
-    const markerState = markers.map((marker) => [marker.lat, marker.lon, marker.iconClass, marker.opacity, marker.label].join(':')).join('|');
-    const pathState = normalizedPaths.map((routePath) => [routePath.color, routePath.weight, routePath.opacity, routePath.points.map((point) => `${point.lat},${point.lon}`).join(';')].join(':')).join('|');
+    const nextLayerSignature = layerSignature();
     const nextGeometrySignature = geometrySignature();
     if (!leafletReady) return;
-    void markerState;
-    void pathState;
+    if (nextLayerSignature === lastLayerSignature && nextGeometrySignature === lastFitGeometrySignature) return;
     const shouldRefit = nextGeometrySignature !== lastFitGeometrySignature;
     renderLeafletLayers({ fitBoundsToGeometry: shouldRefit });
     if (shouldRefit) lastFitGeometrySignature = nextGeometrySignature;

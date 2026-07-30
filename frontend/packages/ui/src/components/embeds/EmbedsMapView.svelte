@@ -632,8 +632,13 @@
   }
 
   .filter-menu button[aria-checked='true']::after {
-    content: '✓';
+    content: '';
     float: right;
+    width: 6px;
+    height: 6px;
+    margin-top: 5px;
+    border-radius: 999px;
+    background: currentColor;
   }
 
   .map-view-body {
