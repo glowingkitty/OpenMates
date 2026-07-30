@@ -101,7 +101,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 8a513ec08-working-tree
+  subject_commit: 96c4dc90c-working-tree
 
 approvals:
   product_contract:
@@ -201,14 +201,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-30T15:20:00Z"
     reason: Local Svelte, TypeScript, locale validation, and targeted Maps backend checks passed before deploy.
+  - id: ATTEMPT-11
+    task_id: TASK-5
+    approach: Deploy the web Maps changes and run the deployed `skill-maps-search.spec.ts` gate.
+    outcome: rejected
+    recorded_at: "2026-07-30T16:59:41Z"
+    reason: Playwright run 30563531257 failed in Phase 4 because `maps_search_web` used LiveMock without recorded API cassettes, so the chat returned a generic AI-service error and never produced a Maps embed; Phase 1 preview assertions passed.
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the scoped Geoapify/Maps changes to dev, wait for the matching Vercel commit, then run the Maps Playwright spec as the green web gate.
+  next_action: Deploy the deterministic Maps web fixture follow-up, wait for the matching Vercel commit, then rerun the Maps Playwright spec as the green web gate.
   command: python3 scripts/tests.py run --spec skill-maps-search.spec.ts --gate-deploy --expected-commit <deployed-commit>
   expected_outcome: The deployed web spec passes and proves the preview no-verified-results status panel plus existing Maps CLI/chat coverage.
   blocker: null
-  last_verified_commit: 8a513ec08-working-tree
+  last_verified_commit: 96c4dc90c-working-tree
 
 scenarios:
   - id: S-1
@@ -1054,7 +1060,7 @@ tasks:
 
   - id: TASK-5
     title: Render Maps enrichment in web and verify deployed E2E
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios:
@@ -1067,6 +1073,7 @@ tasks:
       - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
       - frontend/packages/ui/src/components/embeds/maps/MapLocationEmbedFullscreen.svelte
       - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+      - backend/apps/ai/testing/fixtures/maps_search_web.json
     verification_ids:
       - T-E2E-MAPS
     dependencies:
@@ -1077,6 +1084,7 @@ tasks:
         - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
         - frontend/packages/ui/src/components/embeds/maps/MapLocationEmbedFullscreen.svelte
         - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+        - backend/apps/ai/testing/fixtures/maps_search_web.json
       shared_files: []
     blockers: []
     follow_up_tasks:

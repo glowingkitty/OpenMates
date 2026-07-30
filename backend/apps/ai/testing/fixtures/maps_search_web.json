@@ -1,0 +1,94 @@
+{
+  "fixture_id": "maps_search_web",
+  "recorded_at": "2026-07-30T17:05:00Z",
+  "speed_profile": "instant",
+  "initial_delay_ms": 0,
+  "user_message_snippet": "Find cafes near me in Berlin Mitte",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "maps",
+    "title": "Cafes in Berlin Mitte",
+    "icon_names": ["map", "coffee"],
+    "selected_model_id": "google/gemini-3-flash-preview",
+    "selected_model_name": "Gemini 3 Flash",
+    "mate_id": "travel",
+    "chat_summary": "User requested cafes near Berlin Mitte.",
+    "chat_tags": ["Maps", "Cafe", "Berlin"],
+    "relevant_app_skills": ["maps.search"],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "maps",
+    "model_name": "Gemini 3 Flash",
+    "provider_name": "Google AI Studio",
+    "server_region": "US",
+    "icon_names": ["map", "coffee"]
+  },
+  "response": "I found cafes near Berlin Mitte.\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"22222222-2222-4222-8222-222222222222\", \"app_id\": \"maps\", \"skill_id\": \"search\"}\n```",
+  "embeds": {
+    "22222222-2222-4222-8222-222222222222": {
+      "type": "app_skill_use",
+      "app_id": "maps",
+      "skill_id": "search",
+      "metadata": {
+        "query": "cafes in Berlin Mitte",
+        "provider": "Google Maps + Geoapify",
+        "providers": [
+          {
+            "id": "google_maps",
+            "name": "Google Maps"
+          },
+          {
+            "id": "geoapify",
+            "name": "Geoapify / OpenStreetMap"
+          }
+        ]
+      },
+      "results": [
+        {
+          "type": "place",
+          "displayName": "OpenMates Fixture Cafe",
+          "formattedAddress": "Friedrichstrasse 123, 10117 Berlin",
+          "rating": 4.6,
+          "userRatingCount": 128,
+          "location": {
+            "latitude": 52.5208,
+            "longitude": 13.3889
+          },
+          "websiteUri": "https://example.com/openmates-fixture-cafe",
+          "placeType": "cafe",
+          "osm_enrichment": {
+            "provider": "Geoapify",
+            "data_source": "OpenStreetMap",
+            "match_status": "matched",
+            "cache_status": "hit",
+            "fields": {
+              "internet_access": {
+                "value": "wlan",
+                "source": "geoapify_osm"
+              },
+              "wheelchair": {
+                "value": "yes",
+                "source": "geoapify_osm"
+              },
+              "air_conditioning": {
+                "value": "unknown",
+                "source": "geoapify_osm"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Gemini 3 Flash"
+  }
+}

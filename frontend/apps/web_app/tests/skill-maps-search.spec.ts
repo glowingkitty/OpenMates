@@ -17,6 +17,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	withMockMarker,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const {
@@ -109,7 +110,7 @@ test.describe('App: Maps / Skill: search', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Find cafes near me in Berlin Mitte', 'maps_search_web'),
+			withMockMarker('Find cafes near me in Berlin Mitte', 'maps_search_web'),
 			logCheckpoint, takeStepScreenshot, 'maps-search'
 		);
 
