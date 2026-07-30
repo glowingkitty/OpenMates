@@ -106,9 +106,14 @@
             {#each messageParts as part}
               {#if part.type === 'text'}
                 <!-- SECURITY: Sanitize with DOMPurify before rendering as HTML to prevent XSS -->
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <div class="text-content">{@html DOMPurify.sanitize(part.content)}</div>
               {:else if part.type === 'app-cards'}
-                <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
+                <div
+                  class="chat-app-cards-container"
+                  class:scrollable={showScrollableContainer}
+                  data-testid="chat-app-cards-container"
+                >
                   {#each part.content as card}
                     {@const Component = card.component}
                     <Component {...card.props} />
@@ -122,7 +127,11 @@
             </div>
   
             {#if appCards && appCards.length > 0}
-              <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
+              <div
+                class="chat-app-cards-container"
+                class:scrollable={showScrollableContainer}
+                data-testid="chat-app-cards-container"
+              >
                 {#each appCards as card}
                   {@const Component = card.component}
                   <Component {...card.props} />
