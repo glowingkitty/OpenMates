@@ -117,6 +117,7 @@
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
 	const PAIR_LOGIN_HASH_PATTERN = /^#pair=[A-Za-z0-9]{6}$/i;
+	const EXAMPLE_CHAT_ID_PREFIX = 'example-';
 	const ANONYMOUS_RELOAD_CATEGORY = 'general_knowledge';
 	const ANONYMOUS_RELOAD_ICON = 'sparkles';
 
@@ -2660,10 +2661,12 @@
 		}
 
 		// Fetch most used apps on app load (non-blocking, cached for 1 hour)
-		// This ensures data is available when Apps opens
-		mostUsedAppsStore.fetchMostUsedApps(0).catch((error) => {
-			console.error('[+page.svelte] Error fetching most used apps:', error);
-		});
+		// Static example chats must not make app API requests before the user opens Apps.
+		if (!originalHashChatId?.startsWith(EXAMPLE_CHAT_ID_PREFIX)) {
+			mostUsedAppsStore.fetchMostUsedApps(0).catch((error) => {
+				console.error('[+page.svelte] Error fetching most used apps:', error);
+			});
+		}
 
 		// Initialize app health status to filter apps based on health (non-blocking)
 		// This ensures only healthy apps are shown in Apps
