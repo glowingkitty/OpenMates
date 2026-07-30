@@ -31,6 +31,8 @@
     label?: string;
     /** Optional custom CSS class for the marker icon */
     iconClass?: string;
+    /** Visual opacity, used for list-hover focus without refitting the map */
+    opacity?: number;
   }
 
   /** A point in a polyline path */
@@ -44,6 +46,9 @@
     points: MapPathPoint[];
     color?: string;
     weight?: number;
+    opacity?: number;
+    ref?: string;
+    testId?: string;
   }
 
   interface Props {
@@ -109,14 +114,88 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let leafletMap: any = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let leafletModule: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tileLayer: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let markerLayerGroup: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pathLayerGroup: any = null;
   let mapResizeObserver: ResizeObserver | null = null;
   let stopWatchingMapTheme: (() => void) | null = null;
   let appliedCenterPanX = 0;
+  let leafletReady = $state(false);
+  let lastFitGeometrySignature = '';
 
   function applyTileTheme(isDarkMode: boolean) {
     const container = tileLayer?.getContainer?.();
     container?.classList.toggle('dark-tiles', isDarkMode);
+  }
+
+  function geometrySignature(): string {
+    return JSON.stringify({
+      center,
+      markers: markers.map((marker) => [marker.lat, marker.lon]),
+      paths: normalizedPaths.map((routePath) => routePath.points.map((point) => [point.lat, point.lon])),
+      shouldFitBounds,
+      fitBoundsPadding,
+    });
+  }
+
+  function renderLeafletLayers({ fitBoundsToGeometry = false } = {}) {
+    if (!leafletMap || !leafletModule) return;
+    const L = leafletModule;
+
+    markerLayerGroup?.remove?.();
+    pathLayerGroup?.remove?.();
+    markerLayerGroup = L.layerGroup().addTo(leafletMap);
+    pathLayerGroup = L.layerGroup().addTo(leafletMap);
+
+    for (const marker of markers) {
+      const customIcon = L.divIcon({
+        className: marker.iconClass || 'default-map-marker',
+        html: '<div class="marker-icon"></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+      });
+
+      const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
+      m.setOpacity(marker.opacity ?? 1);
+      if (marker.label) {
+        m.bindTooltip(marker.label, { permanent: false });
+      }
+    }
+
+    for (const routePath of normalizedPaths) {
+      const line = L.polyline(
+        routePath.points.map(p => [p.lat, p.lon] as [number, number]),
+        {
+          color: routePath.color || pathColor,
+          weight: routePath.weight || pathWeight,
+          opacity: routePath.opacity ?? 0.8,
+        }
+      ).addTo(pathLayerGroup);
+      const element = line.getElement();
+      if (routePath.testId) element?.setAttribute('data-testid', routePath.testId);
+      if (routePath.ref) element?.setAttribute('data-route-ref', routePath.ref);
+    }
+
+    if (fitBoundsToGeometry) {
+      if (shouldFitBounds) {
+        const allPoints: [number, number][] = [
+          ...markers.map(m => [m.lat, m.lon] as [number, number]),
+          ...normalizedPaths.flatMap(routePath => routePath.points.map(p => [p.lat, p.lon] as [number, number])),
+        ];
+        if (allPoints.length > 1) {
+          leafletMap.fitBounds(L.latLngBounds(allPoints), { padding: [fitBoundsPadding, fitBoundsPadding] });
+        } else {
+          leafletMap.setView([center.lat, center.lon], zoom, { animate: false });
+        }
+      } else {
+        leafletMap.setView([center.lat, center.lon], zoom, { animate: false });
+      }
+    }
+    applyCenterOffset();
   }
 
   function getEffectiveCenterOffsetX(): number {
@@ -142,6 +221,7 @@
     try {
       const L = (await import('leaflet')).default;
       await import('leaflet/dist/leaflet.css');
+      leafletModule = L;
 
       const isDarkMode = isDarkThemeActive();
 
@@ -162,42 +242,9 @@
       });
       tileLayer.addTo(leafletMap);
       stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
-
-      for (const marker of markers) {
-        const iconClass = marker.iconClass || 'default-map-marker';
-        const customIcon = L.divIcon({
-          className: iconClass,
-          html: '<div class="marker-icon"></div>',
-          iconSize: [40, 40],
-          iconAnchor: [20, 40],
-        });
-
-        const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(leafletMap);
-        if (marker.label) {
-          m.bindTooltip(marker.label, { permanent: false });
-        }
-      }
-
-      for (const routePath of normalizedPaths) {
-        L.polyline(
-          routePath.points.map(p => [p.lat, p.lon] as [number, number]),
-          { color: routePath.color || pathColor, weight: routePath.weight || pathWeight, opacity: 0.8 }
-        ).addTo(leafletMap);
-      }
-
-      if (shouldFitBounds) {
-        const allPoints: [number, number][] = [
-          ...markers.map(m => [m.lat, m.lon] as [number, number]),
-          ...normalizedPaths.flatMap(routePath => routePath.points.map(p => [p.lat, p.lon] as [number, number])),
-        ];
-        if (allPoints.length > 1) {
-          const bounds = L.latLngBounds(allPoints);
-          leafletMap.fitBounds(bounds, { padding: [fitBoundsPadding, fitBoundsPadding] });
-          applyCenterOffset();
-        }
-      } else {
-        applyCenterOffset();
-      }
+      renderLeafletLayers({ fitBoundsToGeometry: true });
+      lastFitGeometrySignature = geometrySignature();
+      leafletReady = true;
 
       if (typeof ResizeObserver !== 'undefined') {
         mapResizeObserver = new ResizeObserver(() => {
@@ -231,9 +278,25 @@
       leafletMap = null;
       appliedCenterPanX = 0;
     }
+    markerLayerGroup = null;
+    pathLayerGroup = null;
     stopWatchingMapTheme?.();
     stopWatchingMapTheme = null;
     tileLayer = null;
+    leafletModule = null;
+    leafletReady = false;
+  });
+
+  $effect(() => {
+    const markerState = markers.map((marker) => [marker.lat, marker.lon, marker.iconClass, marker.opacity, marker.label].join(':')).join('|');
+    const pathState = normalizedPaths.map((routePath) => [routePath.color, routePath.weight, routePath.opacity, routePath.points.map((point) => `${point.lat},${point.lon}`).join(';')].join(':')).join('|');
+    const nextGeometrySignature = geometrySignature();
+    if (!leafletReady) return;
+    void markerState;
+    void pathState;
+    const shouldRefit = nextGeometrySignature !== lastFitGeometrySignature;
+    renderLeafletLayers({ fitBoundsToGeometry: shouldRefit });
+    if (shouldRefit) lastFitGeometrySignature = nextGeometrySignature;
   });
 </script>
 
@@ -266,6 +329,12 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+    transition: opacity var(--duration-fast, 0.15s) ease;
+  }
+
+  :global(.embed-leaflet-map .embeds-map-view-marker-active) {
+    background: none;
+    border: none;
   }
 
   :global(.embed-leaflet-map .dark-tiles) {

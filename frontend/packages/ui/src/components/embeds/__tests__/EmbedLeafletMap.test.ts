@@ -10,25 +10,55 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import EmbedLeafletMap from "../EmbedLeafletMap.svelte";
 
 const leafletMocks = vi.hoisted(() => {
+  const markerInstances: Array<{
+    addTo: ReturnType<typeof vi.fn>;
+    setOpacity: ReturnType<typeof vi.fn>;
+    bindTooltip: ReturnType<typeof vi.fn>;
+  }> = [];
   const mapInstance = {
     fitBounds: vi.fn(),
     invalidateSize: vi.fn(),
     panBy: vi.fn(),
     remove: vi.fn(),
+    setView: vi.fn(),
   };
-  const markerInstance = {
-    bindTooltip: vi.fn(),
-  };
+  const tileClassToggle = vi.fn();
   return {
     mapInstance,
-    tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
+    markerInstances,
+    tileClassToggle,
+    tileLayer: vi.fn(() => ({
+      addTo: vi.fn(),
+      getContainer: vi.fn(() => ({ classList: { toggle: tileClassToggle } })),
+    })),
     map: vi.fn(() => mapInstance),
     control: {
       zoom: vi.fn(() => ({ addTo: vi.fn() })),
     },
     divIcon: vi.fn(() => ({})),
-    marker: vi.fn(() => ({ addTo: vi.fn(() => markerInstance) })),
-    polyline: vi.fn(() => ({ addTo: vi.fn() })),
+    layerGroup: vi.fn(() => {
+      const layerGroup = {
+        addTo: vi.fn(() => layerGroup),
+        remove: vi.fn(),
+      };
+      return layerGroup;
+    }),
+    marker: vi.fn(() => {
+      const markerInstance = {
+        addTo: vi.fn(() => markerInstance),
+        setOpacity: vi.fn(),
+        bindTooltip: vi.fn(),
+      };
+      markerInstances.push(markerInstance);
+      return markerInstance;
+    }),
+    polyline: vi.fn(() => {
+      const line = {
+        addTo: vi.fn(() => line),
+        getElement: vi.fn(() => ({ setAttribute: vi.fn() })),
+      };
+      return line;
+    }),
     latLngBounds: vi.fn(() => ({})),
   };
 });
@@ -61,6 +91,7 @@ describe("EmbedLeafletMap theme selection", () => {
   beforeEach(() => {
     document.documentElement.removeAttribute("data-theme");
     document.documentElement.removeAttribute("style");
+    leafletMocks.markerInstances.length = 0;
     vi.clearAllMocks();
   });
 
@@ -83,6 +114,51 @@ describe("EmbedLeafletMap theme selection", () => {
     expect(leafletMocks.tileLayer).toHaveBeenCalledWith(
       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       expect.objectContaining({ className: "" }),
+    );
+
+    unmount(component);
+    target.remove();
+  });
+
+  it("passes marker and path opacity to Leaflet while fitting geometry once on mount", async () => {
+    mockOsDarkMode(false);
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedLeafletMap, {
+      target,
+      props: {
+        center: { lat: 52.52, lon: 13.405 },
+        fitBounds: true,
+        markers: [
+          { lat: 52.52, lon: 13.405, label: "Dimmed marker", opacity: 0.5 },
+          { lat: 52.53, lon: 13.41, label: "Active marker", opacity: 1 },
+        ],
+        paths: [
+          {
+            opacity: 0.5,
+            points: [
+              { lat: 52.52, lon: 13.405 },
+              { lat: 52.53, lon: 13.41 },
+            ],
+          },
+        ],
+      },
+    });
+
+    await flushLeafletImport();
+
+    expect(leafletMocks.mapInstance.fitBounds).toHaveBeenCalledTimes(1);
+    expect(leafletMocks.markerInstances.map((marker) => marker.setOpacity.mock.calls[0]?.[0])).toEqual([
+      0.5,
+      1,
+    ]);
+    expect(leafletMocks.polyline).toHaveBeenCalledWith(
+      [
+        [52.52, 13.405],
+        [52.53, 13.41],
+      ],
+      expect.objectContaining({ opacity: 0.5 }),
     );
 
     unmount(component);

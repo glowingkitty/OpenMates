@@ -520,6 +520,14 @@ test.describe('Example chats loading for new users', () => {
 		const firstTravelSearch = travelSearchCards.first();
 		await expect(firstTravelSearch, 'parent preview should use result_count/embed_ids instead of showing 0').toContainText('5 connections');
 
+		const mapView = assistantMessage.getByTestId('embeds-map-view');
+		await expect(mapView, 'Deutschlandticket example should include a grouped route map view').toBeVisible({ timeout: 15000 });
+		await expect(mapView).toContainText('Bonn');
+		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
+			message: 'grouped Deutschlandticket map should render all route polylines',
+			timeout: 15000
+		}).toBeGreaterThanOrEqual(5);
+
 		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);
 		const resultCards = await verifySearchGrid(fullscreenOverlay, 5, 30000);
 		const cardsToCheck = Math.min(3, await resultCards.count());

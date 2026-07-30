@@ -6,7 +6,9 @@ status: implementing
 goal: >
   Let the assistant render a compact in-chat map/list view that groups existing
   location-capable or route-capable embeds without creating a new persisted embed
-  type, duplicating embed content, or triggering extra paid provider calls.
+  type, duplicating embed content, or triggering extra paid provider calls. When
+  a map-capable app skill returns geo data, map view generation is recommended by
+  default unless the user request explicitly makes a map inappropriate.
 
 scope:
   in:
@@ -17,6 +19,8 @@ scope:
     - Frontend-derived filters based on resolved embed content, not assistant-authored filter fields.
     - Desktop and mobile in-chat rendering with list/map coordination and partial loading states.
     - Reuse of existing events, health appointments, maps places, travel stays, travel connections, and other embeds that already contain coordinates or routes.
+    - Default-recommended map-view instructions and deterministic repair for map-capable app-skill outputs such as travel connections, health appointments, maps search, events search, and travel stays.
+    - Rendering multiple travel connection child routes on one grouped map by deriving route polylines from existing connection segment coordinates.
     - Real OpenMates CLI inference tests that prove the assistant generates valid blocks from natural prompts.
     - Real CLI-generated example chats for inspection and future regression coverage.
     - Deterministic cost and privacy safeguards that forbid automatic paid provider enrichment.
@@ -109,16 +113,23 @@ clarification:
         No. The map view may use existing embed data, local decrypt/IndexedDB work,
         and normal OpenStreetMap tile requests, but it must not automatically spend
         extra app-skill/provider credits or call enrichment endpoints.
+    - question: Should map-view generation remain opt-in only?
+      answer: >
+        No. When an app skill returns geo-capable results, include the map-specific
+        instruction and recommend a map-view block by default. Omit it only when a
+        map clearly does not fit the request, such as explicit no-map, text-only,
+        or list-only wording, or when resolved content exposes no usable spatial data.
   vision_summary: >
-    Users should be able to ask natural questions like "show me Berlin AI events
-    on a map" and receive a compact map/list block inside the assistant response.
-    The block references existing embeds by ref, can point at full app-skill
-    result sources with highlighted children, derives filters client-side, and
+    Users should receive a compact map/list block for geo-capable app-skill
+    results by default, even when they did not explicitly say "map", unless their
+    request makes the spatial overview inappropriate. The block references
+    existing embeds by ref, can point at full app-skill result sources with
+    highlighted children, derives filters and travel route lines client-side, and
     remains bounded and cost-safe even when a source contains many child embeds.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree:a243e070b9acae0674a9fae0489f1fdb67321237
+  subject_commit: working-tree:a0decf3cc
 
 approvals:
   product_contract:
@@ -158,6 +169,14 @@ decisions:
       event. Exact flight tracks and richer booking details are allowed only when
       already present in the referenced embed content.
     decided_at: "2026-07-29T11:32:34Z"
+  - id: D-5
+    status: active
+    decision: Map-capable app-skill outputs should get map-view instructions and repair by default.
+    reason: >
+      Spatial results such as routes, places, appointments, events, and stays are
+      easier to compare on a map. The default should recommend a map view while
+      preserving explicit user opt-outs and the no-enrichment cost/privacy boundary.
+    decided_at: "2026-07-30T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -184,17 +203,12 @@ attempts:
       `embeds_map_view` block referencing generated event refs.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Ask the user whether to proceed with creating real CLI-backed map-view example chats and the missing embeds-map-view-examples.spec.ts coverage.
-  command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts
-  expected_outcome: The example-chat Playwright gate is still unavailable until TASK-4 creates the example data and spec.
-  blocker:
-    task_id: TASK-4
-    requires_user_input: true
-    reason: TASK-4 is explicitly in awaiting_approval and creates durable public example-chat content from real CLI chats.
-    question: Should we proceed with real example-chat creation and the embeds-map-view-examples.spec.ts gate now?
-    next_action: If approved, use the add-example-chat workflow to create sanitized examples, add the missing Playwright spec, deploy, and run it.
-  last_verified_commit: 558612acb
+  current_task_id: TASK-5
+  next_action: Deploy the scoped map-view changes when the worktree can be safely staged, then run the deployed Playwright map/example gates and Apple/user-confirmation checks.
+  command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
+  expected_outcome: Deployed web verifies the Deutschlandticket example renders the grouped route map view, then final user confirmation and Apple parity can proceed.
+  blocker: null
+  last_verified_commit: working-tree:a0decf3cc
 
 scenarios:
   - id: S-1
@@ -224,6 +238,18 @@ scenarios:
       - Non-highlighted child refs from the same source remain accessible in the grouped list/map.
       - The assistant does not copy route geometry, fares, schedules, or provider details into the block.
 
+  - id: S-9
+    title: Geo-capable app-skill results recommend a map view by default
+    given:
+      - Alice asks for events, appointments, places, stays, or travel connections without explicitly saying "map".
+      - The selected app skill returns parent or child embeds with coordinates or route segment coordinates.
+    when:
+      - The assistant receives the app-skill result and writes the response.
+    then:
+      - The map-view instruction is present for the model by default.
+      - A missing map-view block is deterministically repaired from source or inline refs when possible.
+      - The block is omitted when Alice explicitly asks for no map, text-only output, list-only output, or the resolved content has no usable spatial data.
+
   - id: S-3
     title: Frontend renders a responsive list and map using existing embed content
     given:
@@ -235,6 +261,7 @@ scenarios:
       - Desktop uses a list-left and map-right layout with the list around 30% and the map around 70% of the content width.
       - Mobile uses a horizontal scrollable list inside the message container and a full-width map below or above it.
       - Hovering, focusing, or selecting a list item highlights the corresponding marker or route.
+      - Multiple travel connection child embeds render as separate route polylines on the same map using existing segment coordinates.
       - Unresolved refs show a recoverable loading state and do not break rendering for resolved refs.
 
   - id: S-4
@@ -320,9 +347,19 @@ acceptance_criteria:
       - T-VITEST-PARSE
       - T-PLAYWRIGHT-MAP
 
+  - id: AC-9
+    scenario: S-9
+    text: 'Map-capable app-skill outputs receive map-view guidance and deterministic source-backed repair by default, unless the user explicitly opts out or no usable spatial data exists.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-AI-CONTRACT
+
   - id: AC-3
     scenario: S-3
-    text: 'The in-chat renderer coordinates list selection, marker or route highlighting, unresolved-ref loading states, and responsive desktop/mobile layouts.'
+    text: 'The in-chat renderer coordinates list selection, marker or route highlighting, grouped travel connection route polylines, unresolved-ref loading states, and responsive desktop/mobile layouts.'
     required: true
     status: pending
     coverage_status: covered
@@ -488,9 +525,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: 2026-07-29T16:01:33Z / GitHub Actions 30468752088
-        subject_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
-        timestamp: "2026-07-29T16:02:49Z"
+        run_id: 2026-07-30T18:05:14Z / GitHub Actions 30568872945
+        subject_commit: working-tree:a0decf3cc
+        timestamp: "2026-07-30T18:06:26Z"
 
   - id: T-VITEST-RENDER
     type: vitest
@@ -503,6 +540,7 @@ tests:
     assertions:
       - Resolves direct child refs and source child refs through mocked local embed-store data without network/provider calls.
       - Derives filters from resolved event, place, appointment, stay, and route fields.
+      - Derives multiple grouped travel connection route polylines from structured and flat segment coordinates.
       - Renders unresolved refs as recoverable loading states while resolved entries remain visible.
       - Applies highlighted ordering and marker/route selected state.
       - Enforces bounded visible-entry rendering for large source result sets.
@@ -519,9 +557,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: 2026-07-29T16:01:33Z / GitHub Actions 30468752088
-        subject_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
-        timestamp: "2026-07-29T16:02:49Z"
+        run_id: 2026-07-30T18:05:14Z / GitHub Actions 30568872945
+        subject_commit: working-tree:a0decf3cc
+        timestamp: "2026-07-30T18:06:26Z"
 
   - id: T-PYTEST-AI-CONTRACT
     type: pytest
@@ -531,10 +569,12 @@ tests:
       - AC-4
       - AC-6
       - AC-7
+      - AC-9
     assertions:
       - AI prompt or continuation instructions document the allowed `embeds_map_view` fields and examples.
       - Stream/output guards reject or repair extra fields, malformed separators, duplicate refs, and JSON-like structures.
-      - Missing-block repair recognizes map-capable `app_skill_use` JSON fences in final assistant text.
+      - Map-capable app-skill outputs receive the map-view hint by default unless user text explicitly suppresses maps.
+      - Missing-block repair recognizes map-capable `app_skill_use` JSON fences in final assistant text and prefers source-backed refs.
       - Guarded map-view handling does not enqueue paid app skills or provider enrichment from render-only refs.
       - Cost-sensitive skills remain explicit user/app-skill actions, not automatic map-view render effects.
     red_phase:
@@ -552,9 +592,9 @@ tests:
       evidence:
         status: passed
         command: docker exec api python -m pytest /app/backend/tests/test_embeds_map_view_contract.py -q
-        run_id: docker-api-pytest-20260729T1300Z
-        subject_commit: working-tree:a243e070b9acae0674a9fae0489f1fdb67321237
-        timestamp: "2026-07-29T13:00:00Z"
+        run_id: docker-api-pytest-20260730T1805Z
+        subject_commit: working-tree:a0decf3cc
+        timestamp: "2026-07-30T18:05:14Z"
         supporting_evidence:
           - status: passed
             command: docker exec api python -m pytest /app/backend/tests/test_code_block_detection.py -k embeds_map_view -q
@@ -652,18 +692,32 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 51fc156
+        run_id: 2026-07-30T10:01:09Z / GitHub Actions 30533411458
+        subject_commit: 51fc15609
+        target: app.dev.openmates.org
+        deployment_reference: dpl_BudCkC3xQtcQdc7HGQKjSsXU4WQp
+        timestamp: "2026-07-30T10:08:28Z"
+        reason: Failed for the expected visible code-snippet fallback assertion before the static example data fix.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 9bb3b76
+        run_id: 2026-07-30T10:21:59Z / GitHub Actions 30534728170
+        subject_commit: 9bb3b760f
+        target: app.dev.openmates.org
+        deployment_reference: dpl_9vYjFkXdRTvcu1ZjrJTUDAnAYZgy
+        timestamp: "2026-07-30T10:28:45Z"
+        summary: Passed after removing the stale persisted code embed/reference and adding assertions that visible Code snippet / raw embeds_map_view text are absent.
+        supporting_evidence:
+          - status: passed
+            command: Firecrawl mobile rendered extraction for https://app.dev.openmates.org/example/berlin-ai-founder-meetups-map
+            run_id: firecrawl-scrape-019fb292-df74-7009-87bb-d9292cb6a229
+            timestamp: "2026-07-30T10:31:00Z"
+            summary: containsCodeSnippetCard=false; containsRawEmbedsMapViewText=false; containsMappedResults=true.
 
 verifications:
   - id: V-USER-CONFIRMATION
@@ -879,8 +933,8 @@ tasks:
 
   - id: TASK-4
     title: Create and verify real example chats
-    status: pending
-    phase: awaiting_approval
+    status: done
+    phase: complete
     covers:
       scenarios:
         - S-8
@@ -910,7 +964,52 @@ tasks:
         - scripts/create-example-chat-from-share.mjs
         - scripts/audit_example_chats.py
     blockers: []
-    follow_up_tasks: []
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Default geo map views and grouped travel routes
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-9
+      acceptance_criteria:
+        - AC-3
+        - AC-9
+    expected_files:
+      - backend/apps/ai/utils/embeds_map_view.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/tests/test_embeds_map_view_contract.py
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - docs/specs/embeds-map-view/spec.yml
+    verification:
+      - T-PYTEST-AI-CONTRACT
+      - T-VITEST-RENDER
+    verification_ids:
+      - T-PYTEST-AI-CONTRACT
+      - T-VITEST-RENDER
+    dependencies:
+      - TASK-1
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - backend/apps/ai/utils/embeds_map_view.py
+        - backend/apps/ai/tasks/stream_consumer.py
+        - backend/tests/test_embeds_map_view_contract.py
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - docs/specs/embeds-map-view/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
     independently_deployable: false
 
   - id: TASK-5
@@ -939,6 +1038,7 @@ tasks:
       - TASK-2
       - TASK-3
       - TASK-4
+      - TASK-6
     ownership:
       files:
         - docs/specs/embeds-map-view/spec.yml

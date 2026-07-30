@@ -86,6 +86,11 @@ message_2:
     * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
     * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
 
+    ```embeds_map_view
+    title: Bonn -> Munich regional route options
+    sources: 699e7331-5148-486a-947b-0d7b7f480aab
+    ```
+
     Would you like to check connections for a different departure time, or see details on any specific transfer station?
   de: |
     [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
@@ -97,6 +102,11 @@ message_2:
     * [08:56 – 17:56 (9h 00m, 7 Umstiege über Koblenz & Mainz)](embed:rb-0856-nAn)
     * [08:56 – 18:19 (9h 23m, 5 Umstiege über Koblenz & Mainz)](embed:rb-0856-tEP)
     * [09:56 – 18:55 (8h 59m, 4 Umstiege über Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    ```embeds_map_view
+    title: Bonn -> Muenchen regionale Verbindungen
+    sources: 699e7331-5148-486a-947b-0d7b7f480aab
+    ```
 
     Möchtest du Verbindungen zu einer anderen Abfahrtszeit prüfen oder Details zu einem bestimmten Umstiegsbahnhof sehen?
   zh: |

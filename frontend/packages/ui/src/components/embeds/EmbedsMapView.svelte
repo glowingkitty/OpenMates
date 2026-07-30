@@ -15,6 +15,8 @@
   import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
 
   const MAX_VISIBLE_ENTRIES = 40;
+  const MAX_TRAVEL_LEGS = 8;
+  const MAX_TRAVEL_SEGMENTS_PER_LEG = 32;
   const DEFAULT_ROUTE_COLOR = '#8a92a6';
   const ACTIVE_ROUTE_COLOR = '#6c63ff';
 
@@ -52,8 +54,9 @@
 
   let entries = $state<MapViewEntry[]>([]);
   let isLoading = $state(true);
-  let selectedRef = $state<string | null>(null);
+  let hoveredRef = $state<string | null>(null);
   let activeCategory = $state<string>('all');
+  let filtersOpen = $state(false);
   let unsubscribeRefIndex: (() => void) | null = null;
   let lastRefIndexVersion = -1;
 
@@ -76,14 +79,18 @@
     lat: entry.lat!,
     lon: entry.lon!,
     label: entry.title,
-    iconClass: entry.ref === selectedRef || entry.highlighted ? 'embeds-map-view-marker-active' : 'default-map-marker',
+    iconClass: entry.ref === hoveredRef ? 'embeds-map-view-marker-active' : 'default-map-marker',
+    opacity: hoveredRef && entry.ref !== hoveredRef ? 0.5 : 1,
   })));
   const routePaths = $derived<MapRoutePath[]>(visibleEntries
     .filter((entry) => entry.route && entry.route.length > 1)
     .map((entry) => ({
       points: entry.route!,
-      color: entry.ref === selectedRef || entry.highlighted ? ACTIVE_ROUTE_COLOR : DEFAULT_ROUTE_COLOR,
-      weight: entry.ref === selectedRef || entry.highlighted ? 5 : 3,
+      color: entry.ref === hoveredRef ? ACTIVE_ROUTE_COLOR : DEFAULT_ROUTE_COLOR,
+      weight: 3,
+      opacity: hoveredRef && entry.ref !== hoveredRef ? 0.5 : 0.8,
+      ref: entry.ref,
+      testId: 'embeds-map-view-route-path',
     })));
   const mapCenter = $derived.by(() => {
     const points = [
@@ -192,6 +199,82 @@
     };
   }
 
+  function addRoutePoint(points: MapPathPoint[], lat: number | undefined, lon: number | undefined): void {
+    if (lat == null || lon == null) return;
+    const lastPoint = points.at(-1);
+    if (lastPoint && lastPoint.lat === lat && lastPoint.lon === lon) return;
+    points.push({ lat, lon });
+  }
+
+  function extractRouteFromSegmentRecords(segments: unknown[]): MapPathPoint[] {
+    const points: MapPathPoint[] = [];
+    for (const segment of segments) {
+      if (!segment || typeof segment !== 'object' || Array.isArray(segment)) continue;
+      const record = segment as Record<string, unknown>;
+      addRoutePoint(
+        points,
+        firstNumber(record.departure_latitude, record.departure_lat),
+        firstNumber(record.departure_longitude, record.departure_lng, record.departure_lon),
+      );
+      addRoutePoint(
+        points,
+        firstNumber(record.arrival_latitude, record.arrival_lat),
+        firstNumber(record.arrival_longitude, record.arrival_lng, record.arrival_lon),
+      );
+    }
+    return points;
+  }
+
+  function extractRouteFromStructuredTravelLegs(content: Record<string, unknown> | null): MapPathPoint[] {
+    if (!Array.isArray(content?.legs)) return [];
+    const segments = content.legs.flatMap((leg) => {
+      if (!leg || typeof leg !== 'object' || Array.isArray(leg)) return [];
+      const legRecord = leg as Record<string, unknown>;
+      return Array.isArray(legRecord.segments) ? legRecord.segments : [];
+    });
+    return extractRouteFromSegmentRecords(segments);
+  }
+
+  function extractRouteFromFlatTravelSegments(content: Record<string, unknown> | null): MapPathPoint[] {
+    if (!content) return [];
+    const segments: Record<string, unknown>[] = [];
+
+    for (let legIndex = 0; legIndex < MAX_TRAVEL_LEGS; legIndex += 1) {
+      for (let segmentIndex = 0; segmentIndex < MAX_TRAVEL_SEGMENTS_PER_LEG; segmentIndex += 1) {
+        const prefix = `legs_${legIndex}_segments_${segmentIndex}`;
+        const record = {
+          departure_latitude: content[`${prefix}_departure_latitude`],
+          departure_longitude: content[`${prefix}_departure_longitude`],
+          arrival_latitude: content[`${prefix}_arrival_latitude`],
+          arrival_longitude: content[`${prefix}_arrival_longitude`],
+        };
+        const hasSegmentData = Object.values(record).some((value) => value != null);
+        if (!hasSegmentData) {
+          if (segmentIndex === 0) break;
+          continue;
+        }
+        segments.push(record);
+      }
+    }
+
+    return extractRouteFromSegmentRecords(segments);
+  }
+
+  function extractRouteFromFlightTrack(content: Record<string, unknown> | null): MapPathPoint[] {
+    const flightTrack = getNestedRecord(content, 'flight_track');
+    const tracks = flightTrack?.tracks;
+    if (!Array.isArray(tracks)) return [];
+    return tracks
+      .map((point) => {
+        if (!point || typeof point !== 'object' || Array.isArray(point)) return null;
+        const record = point as Record<string, unknown>;
+        const lat = firstNumber(record.lat, record.latitude);
+        const lon = firstNumber(record.lon, record.lng, record.longitude);
+        return lat != null && lon != null ? { lat, lon } : null;
+      })
+      .filter((point): point is MapPathPoint => point != null);
+  }
+
   function extractRoute(content: Record<string, unknown> | null): MapPathPoint[] {
     const routeValue = content?.route_points || content?.route || content?.path || content?.polyline_points;
     if (Array.isArray(routeValue)) {
@@ -205,6 +288,15 @@
         })
         .filter((point): point is MapPathPoint => point != null);
     }
+
+    const structuredTravelRoute = extractRouteFromStructuredTravelLegs(content);
+    if (structuredTravelRoute.length > 1) return structuredTravelRoute;
+
+    const flatTravelRoute = extractRouteFromFlatTravelSegments(content);
+    if (flatTravelRoute.length > 1) return flatTravelRoute;
+
+    const flightTrackRoute = extractRouteFromFlightTrack(content);
+    if (flightTrackRoute.length > 1) return flightTrackRoute;
 
     const origin = getNestedRecord(content, 'origin');
     const destination = getNestedRecord(content, 'destination');
@@ -311,12 +403,11 @@
     }
 
     entries = await Promise.all(refs.slice(0, MAX_VISIBLE_ENTRIES).map(resolveEntry));
-    selectedRef = entries.find((entry) => entry.highlighted)?.ref || entries[0]?.ref || null;
+    hoveredRef = null;
     isLoading = false;
   }
 
   function openEntry(entry: MapViewEntry): void {
-    selectedRef = entry.ref;
     if (!entry.embedId || !entry.embedData) return;
     dispatchEmbedFullscreen({
       embedId: entry.embedId,
@@ -346,28 +437,44 @@
   });
 </script>
 
-<section class="embeds-map-view" data-testid="embeds-map-view" data-map-view-id={id}>
-  <header class="map-view-header">
-    <div>
-      <p class="eyebrow">Map view</p>
-      <h3>{title}</h3>
-    </div>
-    <span class="entry-count">{visibleEntries.length} shown</span>
-  </header>
-
-  {#if categories.length > 2}
-    <div class="map-view-filters" data-testid="embeds-map-view-filters">
-      {#each categories as category}
+<section class="embeds-map-view" data-testid="embeds-map-view" data-map-view-id={id} aria-label={title}>
+  <header class="map-view-toolbar">
+    <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
+    {#if categories.length > 1}
+      <div class="filter-menu-wrapper">
         <button
           type="button"
-          class:active={category === activeCategory}
-          onclick={() => (activeCategory = category)}
+          class="filter-button"
+          data-testid="embeds-map-view-filter-button"
+          aria-haspopup="menu"
+          aria-expanded={filtersOpen}
+          onclick={() => (filtersOpen = !filtersOpen)}
         >
-          {category === 'all' ? 'All' : category}
+          <span class="filter-icon" aria-hidden="true"></span>
+          <span>{activeCategory === 'all' ? 'Filter' : activeCategory}</span>
         </button>
-      {/each}
-    </div>
-  {/if}
+        {#if filtersOpen}
+          <div class="filter-menu" data-testid="embeds-map-view-filter-menu" role="menu">
+            {#each categories as category}
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={category === activeCategory}
+                class:active={category === activeCategory}
+                onclick={() => {
+                  activeCategory = category;
+                  hoveredRef = null;
+                  filtersOpen = false;
+                }}
+              >
+                {category === 'all' ? 'All results' : category}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </header>
 
   <div class="map-view-body">
     <div class="map-view-list" data-testid="embeds-map-view-list">
@@ -381,19 +488,27 @@
             type="button"
             class="map-view-card"
             class:highlighted={entry.highlighted}
-            class:selected={entry.ref === selectedRef}
+            class:hovered={entry.ref === hoveredRef}
+            class:dimmed={hoveredRef != null && entry.ref !== hoveredRef}
             data-testid="embeds-map-view-card"
             data-entry-status={entry.status}
             data-entry-category={entry.category}
             data-highlighted={entry.highlighted ? 'true' : 'false'}
-            data-selected={entry.ref === selectedRef ? 'true' : 'false'}
+            data-hovered={entry.ref === hoveredRef ? 'true' : 'false'}
+            data-dimmed={hoveredRef != null && entry.ref !== hoveredRef ? 'true' : 'false'}
             onclick={() => openEntry(entry)}
-            onmouseenter={() => (selectedRef = entry.ref)}
-            onfocus={() => (selectedRef = entry.ref)}
+            onpointerenter={() => (hoveredRef = entry.ref)}
+            onpointerleave={() => {
+              if (hoveredRef === entry.ref) hoveredRef = null;
+            }}
+            onfocus={() => (hoveredRef = entry.ref)}
+            onblur={() => {
+              if (hoveredRef === entry.ref) hoveredRef = null;
+            }}
           >
             <span class="category-pill">{entry.category}</span>
             <strong>{entry.title}</strong>
-            <span>{entry.subtitle}</span>
+            <span class="entry-subtitle">{entry.subtitle}</span>
             {#if entry.status !== 'ready'}
               <em>{entry.status === 'loading' ? 'Resolving...' : 'Unavailable'}</em>
             {/if}
@@ -402,20 +517,18 @@
       {/if}
     </div>
 
-    <div class="map-view-map" data-testid="embeds-map-view-map">
+    <div class="map-view-map" data-testid="embeds-map-view-map" data-route-count={routePaths.length}>
       {#if mapCenter}
-        {#key `${selectedRef || 'none'}-${activeCategory}-${visibleEntries.length}`}
-          <EmbedLeafletMap
-            center={mapCenter}
-            zoom={12}
-            markers={mapMarkers}
-            paths={routePaths}
-            height="100%"
-            minHeight="260px"
-            fitBounds={true}
-            scrollWheelZoom={false}
-          />
-        {/key}
+        <EmbedLeafletMap
+          center={mapCenter}
+          zoom={12}
+          markers={mapMarkers}
+          paths={routePaths}
+          height="100%"
+          minHeight="260px"
+          fitBounds={true}
+          scrollWheelZoom={false}
+        />
       {:else}
         <div class="empty-map">Referenced embeds do not expose coordinates yet.</div>
       {/if}
@@ -427,118 +540,185 @@
   .embeds-map-view {
     container-type: inline-size;
     width: 100%;
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--color-grey-25, rgba(0, 0, 0, 0.08));
     border-radius: 18px;
-    background: color-mix(in srgb, var(--color-background-soft, #111827) 88%, transparent);
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
     overflow: hidden;
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.05));
   }
 
-  .map-view-header {
+  .map-view-toolbar {
+    position: relative;
     display: flex;
     justify-content: space-between;
-    gap: 16px;
-    padding: 16px 18px 10px;
-  }
-
-  .eyebrow {
-    margin: 0 0 4px;
-    font-size: var(--font-size-tiny);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-grey-50, #8b95a7);
-  }
-
-  h3 {
-    margin: 0;
-    font-size: var(--font-size-lg);
-    line-height: 1.25;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
   }
 
   .entry-count {
-    align-self: flex-start;
-    border-radius: 999px;
-    padding: 5px 9px;
+    color: var(--color-font-secondary, #666666);
     font-size: var(--font-size-xxs);
-    background: color-mix(in srgb, var(--color-primary, #6c63ff) 16%, transparent);
-    color: var(--color-primary, #6c63ff);
     white-space: nowrap;
   }
 
-  .map-view-filters {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 0 18px 12px;
+  .filter-menu-wrapper {
+    position: relative;
+    z-index: var(--z-index-dropdown-1, 10);
   }
 
-  .map-view-filters button {
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  .filter-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--color-grey-30, #e3e3e3);
     border-radius: 999px;
-    background: transparent;
-    color: inherit;
-    padding: 6px 10px;
+    background: var(--color-grey-10, #f9f9f9);
+    color: var(--color-font-primary, #222222);
+    padding: 7px 10px;
+    font: inherit;
+    font-size: var(--font-size-xxs);
+    line-height: 1;
     text-transform: capitalize;
     cursor: pointer;
   }
 
-  .map-view-filters button.active {
-    border-color: var(--color-primary, #6c63ff);
-    background: color-mix(in srgb, var(--color-primary, #6c63ff) 18%, transparent);
+  .filter-icon {
+    width: 14px;
+    height: 14px;
+    background: currentColor;
+    -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
+    mask-image: url('@openmates/ui/static/icons/filter.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  .filter-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    display: grid;
+    gap: 4px;
+    min-width: 150px;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: var(--radius-5, 12px);
+    background: var(--color-grey-0, #ffffff);
+    box-shadow: var(--shadow-lg, 0 4px 16px rgba(0, 0, 0, 0.15));
+    padding: 6px;
+  }
+
+  .filter-menu button {
+    border: 0;
+    border-radius: var(--radius-4, 10px);
+    background: transparent;
+    color: var(--color-font-primary, #222222);
+    padding: 8px 10px;
+    font: inherit;
+    font-size: var(--font-size-xs);
+    text-align: left;
+    text-transform: capitalize;
+    cursor: pointer;
+  }
+
+  .filter-menu button.active,
+  .filter-menu button:hover {
+    background: var(--color-grey-blue, #e6eaff);
+    color: var(--color-font-primary, #222222);
+  }
+
+  .filter-menu button[aria-checked='true']::after {
+    content: '✓';
+    float: right;
   }
 
   .map-view-body {
     display: grid;
-    grid-template-columns: minmax(180px, 30%) minmax(0, 70%);
-    min-height: 320px;
+    grid-template-columns: minmax(260px, 34%) minmax(0, 66%);
+    min-height: 360px;
+    border-top: 1px solid var(--color-grey-20, #f3f3f3);
   }
 
   .map-view-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 0 12px 14px 18px;
-    overflow: auto;
+    min-width: 0;
     max-height: 420px;
+    overflow: auto;
+    padding: 14px;
+    background: var(--color-grey-10, #f9f9f9);
+    border-right: 1px solid var(--color-grey-20, #f3f3f3);
   }
 
   .map-view-card {
     display: grid;
-    gap: 4px;
+    gap: 6px;
     width: 100%;
+    min-height: 106px;
     text-align: left;
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
-    border-radius: var(--radius-6);
-    background: color-mix(in srgb, var(--color-background, #0b1020) 84%, transparent);
-    color: inherit;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: var(--radius-6, 14px);
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
     padding: 12px;
+    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
     cursor: pointer;
+    opacity: 1;
+    transition: opacity var(--duration-fast, 0.15s) ease, border-color var(--duration-fast, 0.15s) ease;
   }
 
-  .map-view-card.highlighted {
+  .map-view-card.dimmed {
+    opacity: 0.5;
+  }
+
+  .map-view-card.highlighted,
+  .map-view-card.hovered {
     border-color: var(--color-primary, #6c63ff);
   }
 
-  .map-view-card.selected {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary, #6c63ff) 38%, transparent);
+  .map-view-card strong {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-font-primary, #222222);
+    font-size: var(--font-size-small, 0.875rem);
+    line-height: 1.28;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
-  .map-view-card span,
+  .map-view-card .entry-subtitle,
   .map-view-card em {
-    color: var(--color-grey-60, #9aa4b5);
-    font-size: var(--font-size-xxs);
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-font-secondary, #666666);
+    font-size: var(--font-size-xxs, 0.75rem);
+    line-height: 1.3;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   .category-pill {
     width: fit-content;
     border-radius: 999px;
     padding: 3px 7px;
-    background: color-mix(in srgb, var(--color-primary, #6c63ff) 14%, transparent);
+    background: var(--color-grey-blue, #e6eaff);
+    color: var(--color-font-primary, #222222);
+    font-size: var(--font-size-tiny, 0.6875rem);
+    line-height: 1.2;
     text-transform: capitalize;
+    white-space: nowrap;
   }
 
   .map-view-map {
     min-width: 0;
-    min-height: 320px;
+    min-height: 360px;
+    background: var(--color-grey-20, #f3f3f3);
   }
 
   .empty-state,
@@ -552,10 +732,9 @@
   }
 
   :global(.embeds-map-view-marker-active .marker-icon) {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     background-color: var(--color-primary, #6c63ff);
-    filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-primary, #6c63ff) 70%, transparent));
     -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
     mask-image: url('@openmates/ui/static/icons/pin.svg');
     -webkit-mask-size: contain;
@@ -564,6 +743,7 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+    transition: opacity var(--duration-fast, 0.15s) ease;
   }
 
   @container (max-width: 720px) {
@@ -576,7 +756,9 @@
       flex-direction: row;
       max-height: none;
       overflow-x: auto;
-      padding: 0 14px 12px;
+      border-right: 0;
+      border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
+      padding: 14px;
       scroll-snap-type: x mandatory;
     }
 

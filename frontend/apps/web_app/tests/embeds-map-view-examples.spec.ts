@@ -53,6 +53,8 @@ test.describe('Embeds map view public examples', () => {
 			}
 		});
 
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.emulateMedia({ colorScheme: 'dark' });
 		await page.goto(getE2EDebugUrl(`/example/${EXAMPLE_SLUG}`), {
 			waitUntil: 'domcontentloaded'
 		});
@@ -68,13 +70,70 @@ test.describe('Embeds map view public examples', () => {
 
 		const mapView = page.getByTestId('embeds-map-view');
 		await expect(mapView).toBeVisible({ timeout: 30_000 });
-		await expect(mapView).toContainText('Mapped results');
+		await expect(mapView).not.toContainText('Mapped results');
+		await expect(mapView).not.toContainText('Map view');
 		await expect(mapView).toContainText(/build fridays berlin/i);
+		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toBeVisible();
+		await mapView.getByTestId('embeds-map-view-filter-button').click();
+		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toBeVisible();
+		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toContainText('event');
+		await mapView.getByTestId('embeds-map-view-filter-button').click();
+		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toBeHidden();
 
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(4, { timeout: 15_000 });
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(cards.first()).toHaveAttribute('data-entry-category', 'event');
+		const mobileCardMetrics = await mapView.evaluate((element) => {
+			function channelToLinear(channel: number): number {
+				const normalized = channel / 255;
+				return normalized <= 0.03928
+					? normalized / 12.92
+					: Math.pow((normalized + 0.055) / 1.055, 2.4);
+			}
+
+			function luminance(value: string): number {
+				const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+				if (!match) return 0;
+				const red = Number(match[1]);
+				const green = Number(match[2]);
+				const blue = Number(match[3]);
+				return (
+					0.2126 * channelToLinear(red) +
+					0.7152 * channelToLinear(green) +
+					0.0722 * channelToLinear(blue)
+				);
+			}
+
+			const cardElements = Array.from(
+				element.querySelectorAll<HTMLElement>('[data-testid="embeds-map-view-card"]')
+			);
+			const firstBox = cardElements[0]?.getBoundingClientRect();
+			const secondBox = cardElements[1]?.getBoundingClientRect();
+			const firstStyle = cardElements[0] ? getComputedStyle(cardElements[0]) : null;
+			const foreground = firstStyle?.color || 'rgb(0, 0, 0)';
+			const background = firstStyle?.backgroundColor || 'rgb(0, 0, 0)';
+			const foregroundLum = luminance(foreground);
+			const backgroundLum = luminance(background);
+			const contrastRatio =
+				(Math.max(foregroundLum, backgroundLum) + 0.05) /
+				(Math.min(foregroundLum, backgroundLum) + 0.05);
+
+			return {
+				firstWidth: firstBox?.width || 0,
+				firstHeight: firstBox?.height || 0,
+				firstRight: firstBox?.right || 0,
+				secondLeft: secondBox?.left || 0,
+				contrastRatio
+			};
+		});
+		expect(mobileCardMetrics.firstWidth).toBeGreaterThanOrEqual(220);
+		expect(mobileCardMetrics.firstHeight).toBeGreaterThanOrEqual(80);
+		expect(mobileCardMetrics.secondLeft).toBeGreaterThan(mobileCardMetrics.firstRight);
+		expect(mobileCardMetrics.contrastRatio).toBeGreaterThan(3);
+		await cards.nth(1).hover();
+		await expect(cards.nth(1)).toHaveAttribute('data-hovered', 'true');
+		await expect(cards.first()).toHaveAttribute('data-dimmed', 'true');
 		await expect(mapView.getByTestId('embeds-map-view-map')).toBeVisible();
 		await expect(mapView.getByTestId('embeds-map-view-map')).not.toContainText(
 			'Referenced embeds do not expose coordinates yet.'

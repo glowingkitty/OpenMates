@@ -54,7 +54,7 @@ from backend.apps.ai.utils.embeds_map_view import (
     append_missing_embeds_map_view_block,
     content_has_map_capable_app_skill_use,
     is_embeds_map_view_fence_language,
-    is_map_view_request,
+    is_map_view_suppressed_request,
     normalize_embeds_map_view_blocks,
     should_include_embeds_map_view_hint,
 )
@@ -8347,7 +8347,7 @@ async def _consume_main_processing_stream(
             for tool_call in tool_calls_info or []
             if isinstance(tool_call, dict)
         ) or (
-            is_map_view_request(user_texts)
+            not is_map_view_suppressed_request(user_texts)
             and content_has_map_capable_app_skill_use(aggregated_response)
         )
         if should_repair_map_view:

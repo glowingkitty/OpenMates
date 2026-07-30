@@ -53,8 +53,11 @@ describe("EmbedsMapView", () => {
     embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => {
       const map: Record<string, string> = {
         "events-search-abcdef": "source-embed-id",
+        "travel-search-routes": "travel-source-id",
         "event-one-111111": "event-one-id",
         "place-two-222222": "place-two-id",
+        "train-one-111111": "train-one-id",
+        "train-two-222222": "train-two-id",
       };
       return map[ref] || ref;
     });
@@ -67,6 +70,17 @@ describe("EmbedsMapView", () => {
           status: "finished",
           content: "source-content",
           embed_ids: ["event-one-111111", "place-two-222222"],
+          createdAt: 1,
+          updatedAt: 1,
+        };
+      }
+      if (embedId === "travel-source-id") {
+        return {
+          embed_id: embedId,
+          type: "app_skill_use",
+          status: "finished",
+          content: "travel-source-content",
+          embed_ids: ["train-one-111111", "train-two-222222"],
           createdAt: 1,
           updatedAt: 1,
         };
@@ -91,11 +105,32 @@ describe("EmbedsMapView", () => {
           updatedAt: 1,
         };
       }
+      if (embedId === "train-one-id") {
+        return {
+          embed_id: embedId,
+          type: "travel-connection",
+          status: "finished",
+          content: "train-one-content",
+          createdAt: 1,
+          updatedAt: 1,
+        };
+      }
+      if (embedId === "train-two-id") {
+        return {
+          embed_id: embedId,
+          type: "travel-connection",
+          status: "finished",
+          content: "train-two-content",
+          createdAt: 1,
+          updatedAt: 1,
+        };
+      }
       return null;
     });
 
     embedResolverMocks.decodeToonContent.mockImplementation(async (content: string) => {
       if (content === "source-content") return { app_id: "events", skill_id: "search" };
+      if (content === "travel-source-content") return { app_id: "travel", skill_id: "search_connections" };
       if (content === "event-content") {
         return {
           app_id: "events",
@@ -113,6 +148,48 @@ describe("EmbedsMapView", () => {
           skill_id: "place",
           displayName: "Factory Berlin",
           formattedAddress: "Lohmuehlenstrasse 65, Berlin",
+        };
+      }
+      if (content === "train-one-content") {
+        return {
+          app_id: "travel",
+          skill_id: "search_connections",
+          origin: "Bonn Hbf",
+          destination: "Muenchen Hbf",
+          departure: "2026-08-12T08:27:00+02:00",
+          legs: [{
+            segments: [
+              {
+                departure_latitude: 50.731964,
+                departure_longitude: 7.096678,
+                arrival_latitude: 50.00124,
+                arrival_longitude: 8.258453,
+              },
+              {
+                departure_latitude: 50.00124,
+                departure_longitude: 8.258453,
+                arrival_latitude: 49.7913,
+                arrival_longitude: 9.9534,
+              },
+            ],
+          }],
+        };
+      }
+      if (content === "train-two-content") {
+        return {
+          app_id: "travel",
+          skill_id: "search_connections",
+          origin: "Bonn Hbf",
+          destination: "Muenchen Hbf",
+          departure: "2026-08-12T08:56:00+02:00",
+          legs_0_segments_0_departure_latitude: 50.731964,
+          legs_0_segments_0_departure_longitude: 7.096678,
+          legs_0_segments_0_arrival_latitude: 50.350777,
+          legs_0_segments_0_arrival_longitude: 7.588343,
+          legs_0_segments_1_departure_latitude: 50.350777,
+          legs_0_segments_1_departure_longitude: 7.588343,
+          legs_0_segments_1_arrival_latitude: 48.1402,
+          legs_0_segments_1_arrival_longitude: 11.5583,
         };
       }
       return null;
@@ -141,10 +218,82 @@ describe("EmbedsMapView", () => {
     expect(cards[0].textContent).toContain("Factory Berlin");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
-    expect(target.querySelector('[data-testid="embeds-map-view-filters"]')?.textContent).toContain("event");
-    expect(target.querySelector('[data-testid="embeds-map-view-filters"]')?.textContent).toContain("place");
+    expect(target.querySelector('[data-testid="embeds-map-view-count"]')?.textContent).toContain("2 shown");
+    expect(target.querySelector('[data-testid="embeds-map-view-filter-button"]')?.textContent).toContain("Filter");
+    expect(target.textContent).not.toContain("Map view");
+    expect(target.textContent).not.toContain("Berlin AI events");
     expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledTimes(3);
     expect(fullscreenMocks.dispatchEmbedFullscreen).not.toHaveBeenCalled();
+
+    unmount(component);
+    target.remove();
+  });
+
+  it("opens a top-right filter menu and dims non-hovered entries", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-2",
+        title: "Berlin AI events",
+        embedRefs: [],
+        sourceRefs: ["events-search-abcdef"],
+        highlightRefs: ["place-two-222222"],
+      },
+    });
+
+    await flush();
+
+    const filterButton = target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]');
+    expect(filterButton).not.toBeNull();
+    filterButton!.click();
+    await tick();
+
+    const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
+    expect(filterMenu?.textContent).toContain("All results");
+    expect(filterMenu?.textContent).toContain("event");
+    expect(filterMenu?.textContent).toContain("place");
+
+    const cards = Array.from(target.querySelectorAll<HTMLButtonElement>('[data-testid="embeds-map-view-card"]'));
+    cards[1].dispatchEvent(new Event("pointerenter"));
+    await tick();
+
+    expect(cards[1].dataset.hovered).toBe("true");
+    expect(cards[0].dataset.dimmed).toBe("true");
+
+    cards[1].dispatchEvent(new Event("pointerleave"));
+    await tick();
+    expect(cards[0].dataset.dimmed).toBe("false");
+
+    unmount(component);
+    target.remove();
+  });
+
+  it("draws multiple travel connection routes from structured and flat segment coordinates", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-routes",
+        title: "Bonn to Munich routes",
+        embedRefs: [],
+        sourceRefs: ["travel-search-routes"],
+        highlightRefs: ["train-two-222222"],
+      },
+    });
+
+    await flush();
+
+    const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
+    expect(cards).toHaveLength(2);
+    expect(cards[0].textContent).toContain("Bonn Hbf -> Muenchen Hbf");
+    expect(cards[0].classList.contains("highlighted")).toBe(true);
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("2");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
 
     unmount(component);
     target.remove();

@@ -23,12 +23,19 @@ MAP_VIEW_CAPABLE_SKILLS = {
 }
 _MAP_VIEW_REQUEST_RE = re.compile(r"\b(map|map/list|mapped|route|routes|locations?|nearby)\b", re.IGNORECASE)
 _INLINE_EMBED_REF_RE = re.compile(r"\]\(embed:([^\s)]+)\)")
+_MAP_VIEW_SUPPRESS_RE = re.compile(
+    r"\b(?:no|without|skip|hide|exclude|don't|dont|do not)\s+(?:a\s+)?(?:map|map/list|mapped\s+view)\b"
+    r"|\b(?:text|list)\s+only\b"
+    r"|\bcompact\s+answer\s+only\b",
+    re.IGNORECASE,
+)
 
 EMBEDS_MAP_VIEW_INSTRUCTION = """**Embeds Map View**
 
-When the user asks to show results on a map and location-capable or route-capable
-embed refs are available, include exactly one compact map/list block. Use direct
-child refs when those are the only refs available:
+When location-capable or route-capable embed refs are available, include exactly
+one compact map/list block by default unless a map would clearly not make sense
+for the user's request or the user explicitly asks for text/list-only output. Use
+direct child refs when those are the only refs available:
 
 ```embeds_map_view
 title: Berlin AI events
@@ -49,7 +56,8 @@ Rules:
 - Do not include filters, provider, enrichment, route geometry, prices, or JSON in the block.
 - Do not call or imply automatic paid enrichment such as travel.flight_details, booking details, Flightradar24, or FlightAware.
 - Only use embed_ref values that already appear in the conversation context.
-- If the user did not ask for a map/list overview, do not add this block just because embeds exist.
+- Prefer adding this block for map-capable app-skill results even when the user did not explicitly ask for a map.
+- Omit it only when the request explicitly asks for no map, text-only/list-only output, or the result has no usable spatial data.
 """
 
 _MAP_VIEW_FENCE_RE = re.compile(
@@ -88,13 +96,51 @@ def should_include_embeds_map_view_hint(app_id: str, skill_id: str, user_texts: 
 
     if (app_id, skill_id) not in MAP_VIEW_CAPABLE_SKILLS:
         return False
-    return is_map_view_request(user_texts)
+    return not is_map_view_suppressed_request(user_texts)
 
 
 def is_map_view_request(user_texts: Iterable[str]) -> bool:
     """Return whether user text explicitly asks for mapped or route output."""
 
     return any(_MAP_VIEW_REQUEST_RE.search(text) for text in user_texts if isinstance(text, str))
+
+
+def is_map_view_suppressed_request(user_texts: Iterable[str]) -> bool:
+    """Return whether user text explicitly opts out of a map/list view."""
+
+    return any(_MAP_VIEW_SUPPRESS_RE.search(text) for text in user_texts if isinstance(text, str))
+
+
+def extract_map_capable_source_refs(content: str) -> list[str]:
+    """Return ordered source embed IDs for map-capable app-skill fences."""
+
+    if not content or "app_skill_use" not in content:
+        return []
+    seen: set[str] = set()
+    refs: list[str] = []
+    for match in _JSON_FENCE_RE.finditer(content):
+        try:
+            payload = json.loads(match.group("body").strip())
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict) or payload.get("type") != "app_skill_use":
+            continue
+        app_id = payload.get("app_id")
+        skill_id = payload.get("skill_id")
+        embed_id = payload.get("embed_id")
+        if not (
+            isinstance(app_id, str)
+            and isinstance(skill_id, str)
+            and isinstance(embed_id, str)
+            and (app_id, skill_id) in MAP_VIEW_CAPABLE_SKILLS
+        ):
+            continue
+        ref = embed_id.strip()
+        if not ref or ref in seen:
+            continue
+        seen.add(ref)
+        refs.append(ref)
+    return refs
 
 
 def content_has_map_capable_app_skill_use(content: str) -> bool:
@@ -131,19 +177,28 @@ def extract_inline_embed_refs(content: str) -> list[str]:
 
 
 def append_missing_embeds_map_view_block(content: str, *, title: str = "Mapped results") -> tuple[str, bool]:
-    """Append a minimal map-view block from existing inline refs when absent."""
+    """Append a minimal map-view block from existing source or inline refs."""
 
     if not content or f"```{EMBEDS_MAP_VIEW_FENCE_LANGUAGE}" in content:
         return content, False
-    refs = extract_inline_embed_refs(content)
-    if not refs:
+    source_refs = extract_map_capable_source_refs(content)
+    inline_refs = extract_inline_embed_refs(content)
+    if not source_refs and not inline_refs:
         return content, False
-    block = "\n".join([
+
+    block_lines = [
         f"```{EMBEDS_MAP_VIEW_FENCE_LANGUAGE}",
         f"title: {title}",
-        f"embeds: {_join_refs(refs)}",
-        "```",
-    ])
+    ]
+    if source_refs:
+        block_lines.append(f"sources: {_join_refs(source_refs)}")
+        highlighted_refs = [ref for ref in inline_refs if ref not in source_refs]
+        if highlighted_refs:
+            block_lines.append(f"highlight: {_join_refs(highlighted_refs)}")
+    else:
+        block_lines.append(f"embeds: {_join_refs(inline_refs)}")
+    block_lines.append("```")
+    block = "\n".join(block_lines)
     return f"{content.rstrip()}\n\n{block}", True
 
 

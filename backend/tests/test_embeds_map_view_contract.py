@@ -10,9 +10,11 @@ from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
     append_missing_embeds_map_view_block,
     content_has_map_capable_app_skill_use,
+    extract_map_capable_source_refs,
     extract_inline_embed_refs,
     is_embeds_map_view_fence_language,
     is_map_view_request,
+    is_map_view_suppressed_request,
     normalize_embeds_map_view_blocks,
     should_include_embeds_map_view_hint,
 )
@@ -21,14 +23,16 @@ from backend.apps.ai.utils.embeds_map_view import (
 def test_instruction_limits_fields_and_forbids_paid_enrichment() -> None:
     assert ALLOWED_EMBEDS_MAP_VIEW_FIELDS == {"title", "embeds", "sources", "highlight"}
     assert "```embeds_map_view" in EMBEDS_MAP_VIEW_INSTRUCTION
-    assert "When the user asks to show results on a map" in EMBEDS_MAP_VIEW_INSTRUCTION
-    assert "include exactly one compact map/list block" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "When location-capable or route-capable embed refs are available" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "include exactly" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "by default" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "title" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "embeds" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "sources" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "highlight" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "Do not include filters" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "Do not call" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "Prefer adding this block" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "travel.flight_details" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "Flightradar24" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "FlightAware" in EMBEDS_MAP_VIEW_INSTRUCTION
@@ -41,9 +45,11 @@ def test_map_view_fence_language_is_reserved_for_client_renderer() -> None:
     assert is_embeds_map_view_fence_language(None) is False
 
 
-def test_map_view_hint_is_limited_to_explicit_map_requests_and_capable_skills() -> None:
+def test_map_view_hint_defaults_to_capable_skills_unless_suppressed() -> None:
     assert is_map_view_request(["Find Berlin AI events and show them on a map."]) is True
     assert is_map_view_request(["Find Berlin AI events."]) is False
+    assert is_map_view_suppressed_request(["Find Berlin AI events, but no map."]) is True
+    assert is_map_view_suppressed_request(["Find Berlin AI events, text only."]) is True
     assert should_include_embeds_map_view_hint(
         "events",
         "search",
@@ -53,6 +59,11 @@ def test_map_view_hint_is_limited_to_explicit_map_requests_and_capable_skills() 
         "events",
         "search",
         ["Find upcoming AI events in Berlin."],
+    ) is True
+    assert should_include_embeds_map_view_hint(
+        "events",
+        "search",
+        ["Find upcoming AI events in Berlin, but no map."],
     ) is False
     assert should_include_embeds_map_view_hint(
         "web",
@@ -70,6 +81,7 @@ def test_content_detector_finds_map_capable_app_skill_json_fence() -> None:
 '''
 
     assert content_has_map_capable_app_skill_use(content) is True
+    assert extract_map_capable_source_refs(content) == ["abc"]
 
 
 def test_content_detector_rejects_non_map_capable_app_skill_json_fence() -> None:
@@ -95,6 +107,24 @@ def test_append_missing_map_view_uses_existing_inline_refs_only() -> None:
     assert "```embeds_map_view" in repaired
     assert "title: Berlin AI events" in repaired
     assert "embeds: event-one-111111, event-two-222222" in repaired
+
+
+def test_append_missing_map_view_prefers_source_refs_and_highlights_inline_children() -> None:
+    content = '''```json
+{"type":"app_skill_use","embed_id":"source-abc","app_id":"travel","skill_id":"search_connections"}
+```
+
+[!](embed:source-abc)
+- [08:27 train](embed:rb-0827-tLB)
+- [08:56 train](embed:rb-0856-nAn)
+'''
+
+    repaired, changed = append_missing_embeds_map_view_block(content, title="Bonn to Munich routes")
+
+    assert changed is True
+    assert "sources: source-abc" in repaired
+    assert "highlight: rb-0827-tLB, rb-0856-nAn" in repaired
+    assert "embeds: source-abc" not in repaired
 
 
 def test_append_missing_map_view_is_noop_when_block_exists() -> None:
