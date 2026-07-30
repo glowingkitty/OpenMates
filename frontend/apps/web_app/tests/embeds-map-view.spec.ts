@@ -58,7 +58,7 @@ test.describe('Embeds map view preview', () => {
 
 		const mapView = page.getByTestId('embeds-map-view');
 		await expect(mapView).toBeVisible({ timeout: 30_000 });
-		await expect(mapView).toContainText('Berlin AI events and routes');
+		await expect(mapView).toHaveAttribute('aria-label', 'Berlin AI events and routes');
 
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(3, { timeout: 15_000 });
@@ -66,18 +66,25 @@ test.describe('Embeds map view preview', () => {
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(cards.first()).toHaveAttribute('data-entry-category', 'place');
 
-		const filters = mapView.getByTestId('embeds-map-view-filters');
-		await expect(filters).toContainText('event');
-		await expect(filters).toContainText('place');
-		await expect(filters).toContainText('route');
-		await filters.getByRole('button', { name: 'route' }).click();
+		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
+		await expect(filterButton).toBeVisible();
+		await filterButton.click();
+		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
+		await expect(filterMenu).toContainText('event');
+		await expect(filterMenu).toContainText('place');
+		await expect(filterMenu).toContainText('route');
+		await filterMenu.getByRole('menuitemradio', { name: 'route' }).click();
 		await expect(cards).toHaveCount(1);
 		await expect(cards.first()).toContainText('Berlin Hbf');
-		await filters.getByRole('button', { name: 'All' }).click();
+		await filterButton.click();
+		await mapView
+			.getByTestId('embeds-map-view-filter-menu')
+			.getByRole('menuitemradio', { name: 'All results' })
+			.click();
 		await expect(cards).toHaveCount(3);
 
 		await cards.nth(1).hover();
-		await expect(cards.nth(1)).toHaveAttribute('data-selected', 'true');
+		await expect(cards.nth(1)).toHaveAttribute('data-hovered', 'true');
 
 		const desktopListBox = await mapView.getByTestId('embeds-map-view-list').boundingBox();
 		const desktopMapBox = await mapView.getByTestId('embeds-map-view-map').boundingBox();
