@@ -42,6 +42,8 @@ FASTAPI_ROUTES = [
     ("/v1/payments", "Payments", False),
     ("/v1/ws", "WebSocket", False),
     ("/v1/apps", "Apps (public + webapp)", False),
+    ("/v1/code/run", "Code execution", False),
+    ("/v1/code/notebooks/run", "Notebook execution", False),
     ("/v1/models", "OpenAI-compatible model list", False),
     ("/v1/chat/completions", "OpenAI-compatible chat completions", False),
     ("/v1/share", "Share endpoints", False),
