@@ -39,6 +39,7 @@ const DATA_REGISTRY_PATH = path.join(
 );
 const EXTRACT_SCRIPT = path.join(REPO_ROOT, 'scripts/extract-shared-chat.mjs');
 const EMBEDS_MAP_VIEW_LANGUAGE = 'embeds_map_view';
+const CODE_IMAGE_TO_HTML_APP_SKILL = 'code.image_to_html';
 
 const LANGUAGES = [
   'en',
@@ -330,6 +331,9 @@ function extractEmbedRefsFromEmbeds(embeds) {
   const refs = new Set();
   const pattern = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
   for (const embed of embeds) {
+    if (typeof embed.embed_id === 'string' && embed.embed_id.trim()) {
+      refs.add(embed.embed_id.trim());
+    }
     const match = String(embed.content || '').match(pattern);
     if (match) refs.add(match[1].trim());
   }
@@ -530,39 +534,19 @@ function appSkillUseJsonBlock(embed) {
   return `\`\`\`json\n${JSON.stringify(publicPayload)}\n\`\`\``;
 }
 
-function appSkillUseChildEmbedIds(embed) {
-  if (Array.isArray(embed.embed_ids)) {
-    return embed.embed_ids.filter((embedId) => typeof embedId === 'string' && embedId.trim());
+function appSkillUseMessageBlock(embed) {
+  if (appSkillExampleKey(embed) === CODE_IMAGE_TO_HTML_APP_SKILL) {
+    return appSkillUseJsonBlock(embed);
   }
-
-  const embedIds = parseToonScalar(embed.content, 'embed_ids');
-  if (!embedIds) return [];
-  return embedIds.split('|').map((embedId) => embedId.trim()).filter(Boolean);
-}
-
-function appSkillUseChildrenAreVisible(embed, embedsById, messageEmbedRefs) {
-  const childEmbedIds = appSkillUseChildEmbedIds(embed);
-  if (childEmbedIds.length === 0) return false;
-
-  return childEmbedIds.every((childEmbedId) => {
-    if (messageEmbedRefs.has(childEmbedId)) return true;
-
-    const childEmbed = embedsById.get(childEmbedId);
-    const childEmbedRef = childEmbed ? parseToonScalar(childEmbed.content, 'embed_ref') : null;
-    return Boolean(childEmbedRef && messageEmbedRefs.has(childEmbedRef));
-  });
+  return `[!](embed:${embed.embed_id})`;
 }
 
 function appSkillUsesNeedingMessageRefs(chat) {
   const messageText = (chat.messages || []).map((message) => String(message.content || '')).join('\n');
-  const messageEmbedRefs = extractEmbedRefsFromMessages(chat.messages || []);
-  const embedsById = new Map((chat.embeds || []).map((embed) => [embed.embed_id, embed]));
-
   return (chat.embeds || []).filter(
     (embed) => embed.type === 'app_skill_use'
       && !embed.parent_embed_id
-      && !messageText.includes(embed.embed_id)
-      && !appSkillUseChildrenAreVisible(embed, embedsById, messageEmbedRefs),
+      && !messageText.includes(embed.embed_id),
   );
 }
 
@@ -577,7 +561,7 @@ export function withPromotedAppSkillUseMessages(chat) {
 
   const messages = chat.messages.map((message, index) => {
     if (index !== firstAssistantIndex) return message;
-    const appSkillBlocks = missingAppSkillUses.map(appSkillUseJsonBlock).join('\n\n');
+    const appSkillBlocks = missingAppSkillUses.map(appSkillUseMessageBlock).join('\n\n');
     return {
       ...message,
       content: `${appSkillBlocks}\n\n${message.content || ''}`,
@@ -1014,7 +998,7 @@ export const ${varName}: ExampleChat = {
 function yamlScalar(value) {
   const text = String(value ?? '');
   if (text.includes('\n')) {
-    return `|\n${text.split('\n').map((line) => `    ${line}`).join('\n')}`;
+    return `|\n${text.split('\n').map((line) => (line ? `    ${line}` : '')).join('\n')}`;
   }
   return JSON.stringify(text);
 }

@@ -117,7 +117,7 @@ test('inlines embeds_map_view code embeds as message-level map-view fences', () 
   assert.deepEqual(chat.embeds.map((embed) => embed.embed_id), ['place-a-id']);
 });
 
-test('does not promote parent app-skill JSON when all child embeds are already visible', () => {
+test('promotes parent app-skill embeds as markdown when child embeds are already visible', () => {
   const content = 'Routes: [08:27](embed:route-a) and [08:56](embed:route-b)';
   const chat = withPromotedAppSkillUseMessages({
     chat_id: 'source-chat',
@@ -150,10 +150,10 @@ test('does not promote parent app-skill JSON when all child embeds are already v
     ],
   });
 
-  assert.equal(chat.messages[0].content, content);
+  assert.equal(chat.messages[0].content, `[!](embed:parent-skill-use)\n\n${content}`);
 });
 
-test('promotes unreferenced parent app-skill embeds into example messages', () => {
+test('promotes unreferenced parent app-skill embeds as markdown references', () => {
   const chat = withPromotedAppSkillUseMessages({
     chat_id: 'source-chat',
     messages: [
@@ -168,6 +168,28 @@ test('promotes unreferenced parent app-skill embeds into example messages', () =
         embed_id: 'parent-skill-use',
         type: 'app_skill_use',
         content: 'app_id: travel\nskill_id: search_connections\nstatus: finished',
+      },
+    ],
+  });
+
+  assert.equal(chat.messages[0].content, '[!](embed:parent-skill-use)\n\nNo visible result embeds yet.');
+});
+
+test('keeps code image-to-html app-skill promotion as JSON for audit compatibility', () => {
+  const chat = withPromotedAppSkillUseMessages({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content: 'Generated the HTML.',
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'parent-skill-use',
+        type: 'app_skill_use',
+        content: 'app_id: code\nskill_id: image_to_html\nstatus: finished',
       },
     ],
   });
