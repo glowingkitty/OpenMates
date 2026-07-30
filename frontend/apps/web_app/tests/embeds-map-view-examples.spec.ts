@@ -72,7 +72,7 @@ test.describe('Embeds map view public examples', () => {
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(4, { timeout: 15_000 });
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
-		await expect(mapView.getByTestId('embeds-map-view-filters')).toContainText('event');
+		await expect(cards.first()).toHaveAttribute('data-entry-category', 'event');
 		await expect(mapView.getByTestId('embeds-map-view-map')).toBeVisible();
 		await expect(mapView.getByTestId('embeds-map-view-map')).not.toContainText(
 			'Referenced embeds do not expose coordinates yet.'
