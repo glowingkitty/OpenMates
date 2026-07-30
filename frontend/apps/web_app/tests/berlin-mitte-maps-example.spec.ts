@@ -9,7 +9,7 @@
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
-const { closeFullscreen, openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
+const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
 const EXAMPLE_SLUG = 'berlin-mitte-work-friendly-restaurants';
 const EXAMPLE_CHAT_ID = 'example-berlin-mitte-work-friendly';
@@ -89,7 +89,13 @@ test.describe('Berlin Mitte Maps public example', () => {
 			'cafe restaurant with wifi Berlin Mitte',
 			{ timeout: 15_000 }
 		);
-		const resultCards = await verifySearchGrid(resultsOverlay, 3, 30_000);
+		const resultCards = resultsOverlay.locator(
+			'[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="location"][data-status="finished"]'
+		);
+		await expect.poll(async () => resultCards.count(), {
+			message: 'Maps search fullscreen should render place result cards',
+			timeout: 30_000
+		}).toBeGreaterThanOrEqual(3);
 		await expect(resultCards.first()).toContainText(/St\. Oberholz|Cafe Latrio|Father Carpenter/i);
 
 		await resultCards.first().click({ force: true });
