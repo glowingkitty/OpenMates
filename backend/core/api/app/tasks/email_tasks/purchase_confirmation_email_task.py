@@ -3,8 +3,10 @@ import logging
 import os
 import base64
 import asyncio
+import re
 from datetime import datetime, timezone
-from typing import Optional
+from html import escape
+from typing import Any, Optional
 import hashlib
 import uuid
 
@@ -25,6 +27,134 @@ sensitive_filter = SensitiveDataFilter()
 logger.addFilter(sensitive_filter)
 event_logger = logging.getLogger("app.events")
 event_logger.addFilter(sensitive_filter)
+
+BILLING_ADMIN_ERROR_TEMPLATE = "billing-processing-error"
+BILLING_ADMIN_ERROR_MESSAGE_LIMIT = 2000
+BILLING_ADMIN_FIELD_LIMIT = 300
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_BEARER_TOKEN_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_API_SECRET_RE = re.compile(
+    r"(?i)\b(api[_-]?key|token|secret|password)\s*[:=]\s*[^,\s;]+"
+)
+_STRIPE_SECRET_RE = re.compile(r"\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9_]+\b")
+
+
+def _billing_admin_recipient() -> Optional[str]:
+    return os.getenv("ADMIN_NOTIFY_EMAIL") or os.getenv("SERVER_OWNER_EMAIL")
+
+
+def _sanitize_billing_admin_text(value: Any, limit: int = BILLING_ADMIN_FIELD_LIMIT) -> str:
+    if value is None:
+        return "unknown"
+
+    text = str(value)
+    text = _CONTROL_CHAR_RE.sub("", text)
+    text = _EMAIL_RE.sub("<redacted-email>", text)
+    text = _BEARER_TOKEN_RE.sub("Bearer <redacted>", text)
+    text = _API_SECRET_RE.sub(r"\1=<redacted>", text)
+    text = _STRIPE_SECRET_RE.sub("<redacted-stripe-key>", text)
+    if len(text) > limit:
+        text = f"{text[:limit]}... [truncated]"
+    return escape(text)
+
+
+def _hash_admin_user_id(user_id: str) -> str:
+    return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:16]
+
+
+async def _notify_billing_processing_error(
+    *,
+    task: BaseServiceTask,
+    stage: str,
+    order_id: str,
+    user_id: str,
+    credits_purchased: int,
+    provider: Optional[str],
+    provider_order_id: Optional[str],
+    send_email: bool,
+    error: BaseException | str,
+) -> bool:
+    admin_email = _billing_admin_recipient()
+    if not admin_email:
+        logger.error("Billing processing error notification skipped: ADMIN_NOTIFY_EMAIL/SERVER_OWNER_EMAIL is not configured")
+        return False
+
+    email_service = getattr(task, "email_template_service", None)
+    if email_service is None:
+        try:
+            await task.initialize_services()
+        except Exception as init_err:
+            logger.error(
+                "Billing processing error notification skipped: could not initialize email services: %s",
+                init_err,
+                exc_info=True,
+            )
+            return False
+        email_service = getattr(task, "email_template_service", None)
+
+    if email_service is None:
+        logger.error("Billing processing error notification skipped: email_template_service is unavailable")
+        return False
+
+    if isinstance(error, BaseException):
+        error_type = type(error).__name__
+        error_message = str(error)
+    else:
+        error_type = "BillingProcessingError"
+        error_message = str(error)
+
+    context = {
+        "darkmode": True,
+        "environment": _sanitize_billing_admin_text(
+            os.getenv("SERVER_ENVIRONMENT") or os.getenv("ENVIRONMENT") or "unknown"
+        ),
+        "stage": _sanitize_billing_admin_text(stage),
+        "order_id": _sanitize_billing_admin_text(order_id),
+        "provider": _sanitize_billing_admin_text(provider or "unknown"),
+        "provider_order_id": _sanitize_billing_admin_text(provider_order_id or "none"),
+        "user_id_hash": _hash_admin_user_id(user_id),
+        "credits_purchased": _sanitize_billing_admin_text(credits_purchased),
+        "send_email": _sanitize_billing_admin_text(send_email),
+        "error_type": _sanitize_billing_admin_text(error_type),
+        "error_message": _sanitize_billing_admin_text(error_message, BILLING_ADMIN_ERROR_MESSAGE_LIMIT),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    try:
+        sent = await email_service.send_email(
+            template=BILLING_ADMIN_ERROR_TEMPLATE,
+            recipient_email=admin_email,
+            subject=f"[OpenMates] Billing processing error: {context['stage']} order {context['order_id']}",
+            context=context,
+            lang="en",
+        )
+    except Exception as notify_err:
+        logger.error("Failed to send billing processing error notification: %s", notify_err, exc_info=True)
+        return False
+
+    if not sent:
+        logger.error("Billing processing error notification send_email() returned False")
+        return False
+
+    logger.info(
+        "Sent billing processing error notification for order %s at stage %s",
+        order_id,
+        stage,
+    )
+    return True
+
+
+async def _notify_billing_processing_error_safely(**kwargs: Any) -> bool:
+    try:
+        return await _notify_billing_processing_error(**kwargs)
+    except Exception as notify_err:
+        logger.error(
+            "Billing processing error notification failed and will not mask the original error: %s",
+            notify_err,
+            exc_info=True,
+        )
+        return False
 
 
 @app.task(name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email', base=BaseServiceTask, bind=True)
@@ -782,6 +912,17 @@ async def _async_process_invoice_and_send_email(
 
             if not email_success:
                 logger.error(f"Failed to send purchase confirmation email for invoice to {decrypted_email[:2]}***")
+                await _notify_billing_processing_error_safely(
+                    task=task,
+                    stage="purchase_confirmation_email",
+                    order_id=order_id,
+                    user_id=user_id,
+                    credits_purchased=credits_purchased,
+                    provider=effective_provider,
+                    provider_order_id=provider_order_id,
+                    send_email=send_email,
+                    error="Purchase confirmation email delivery failed",
+                )
                 # Don't fail the whole task if email fails, but log it.
                 # The invoice exists in S3 and Directus.
                 return False # Indicate email sending failed
@@ -877,12 +1018,34 @@ async def _async_process_invoice_and_send_email(
 
             except Exception as ninja_err:
                 logger.error(f"Error processing income transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)
+                await _notify_billing_processing_error_safely(
+                    task=task,
+                    stage="invoice_ninja_income_transaction",
+                    order_id=order_id,
+                    user_id=user_id,
+                    credits_purchased=credits_purchased,
+                    provider=effective_provider,
+                    provider_order_id=provider_order_id,
+                    send_email=send_email,
+                    error=ninja_err,
+                )
                 # Log the error but do not fail the main task
 
         return True # Indicate overall success if email sent and invoice processed (even if Ninja failed)
 
     except Exception as e:
         logger.error(f"Error in _async_process_invoice_and_send_email task for order: {str(e)}", exc_info=True)
+        await _notify_billing_processing_error_safely(
+            task=task,
+            stage="invoice_processing",
+            order_id=order_id,
+            user_id=user_id,
+            credits_purchased=credits_purchased,
+            provider=provider,
+            provider_order_id=provider_order_id,
+            send_email=send_email,
+            error=e,
+        )
         # Re-raise the exception so Celery knows the task failed
         raise e
     finally:

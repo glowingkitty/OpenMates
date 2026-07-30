@@ -178,7 +178,7 @@ services:
     mem_limit: "${TASK_WORKER_MEMORY_LIMIT:-3g}"
     environment:
       <<: *openmates-worker-env
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,reminder,push"
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
       CELERY_AUTOSCALE_MAX: "${TASK_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9101"

@@ -198,7 +198,7 @@ services:
       VAULT_URL: "http://vault:8200"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,reminder,push" # Used by celery_config to determine which services to initialize
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
