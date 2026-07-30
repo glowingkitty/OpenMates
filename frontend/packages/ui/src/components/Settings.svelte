@@ -61,7 +61,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
     import { loadReferralStatus, referralStatus } from '../services/referralService';
     import { DEMO_MARKETING_CREDITS, DEMO_MARKETING_USERNAME } from '../demo_chats/usageDemoData';
-    import { convertDemoChatToChat, convertDemoMessagesToMessages, getPublicChatById, translateDemoChat } from '../demo_chats';
+    import { convertDemoChatToChat, convertDemoMessagesToMessages, getExampleChat, getExampleChatMessages, getPublicChatById, isExampleChat, translateDemoChat } from '../demo_chats';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -573,19 +573,26 @@ changes to the documentation (to keep the documentation up to date).
             let chat = await chatDB.getChat(chatId);
             let messages: Message[] = [];
             if (!chat) {
-                const publicChat = getPublicChatById(chatId);
-                if (!publicChat) {
+                if (isExampleChat(chatId)) {
+                    chat = getExampleChat(chatId);
+                    messages = getExampleChatMessages(chatId);
+                }
+
+                const publicChat = chat ? null : getPublicChatById(chatId);
+                if (!chat && !publicChat) {
                     chatSettingsStore.clear();
                     console.warn('[Settings] Cannot hydrate chat settings context: chat not found', { chatId });
                     return;
                 }
-                const translatedPublicChat = translateDemoChat(publicChat);
-                chat = convertDemoChatToChat(translatedPublicChat);
-                messages = convertDemoMessagesToMessages(
-                    translatedPublicChat.messages,
-                    chatId,
-                    translatedPublicChat.metadata.category,
-                );
+                if (publicChat) {
+                    const translatedPublicChat = translateDemoChat(publicChat);
+                    chat = convertDemoChatToChat(translatedPublicChat);
+                    messages = convertDemoMessagesToMessages(
+                        translatedPublicChat.messages,
+                        chatId,
+                        translatedPublicChat.metadata.category,
+                    );
+                }
             } else {
                 try {
                     messages = await chatDB.getMessagesForChat(chatId);

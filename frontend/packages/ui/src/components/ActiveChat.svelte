@@ -5214,6 +5214,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          !isPublicChat(currentChat.chat_id) &&
         (!showWelcome || currentMessages.length > 0)
      ));
+      let hasActiveExampleChatSurface = $derived(Boolean(
+         currentChat?.chat_id &&
+         isExampleChat(currentChat.chat_id) &&
+        (!showWelcome || currentMessages.length > 0)
+     ));
+      let hasActiveShareableChatSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
+      let hasActiveChatDetailsSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
 
      async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
         if (typeof indexedDB === 'undefined') return null;
@@ -12333,9 +12340,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     >
                         <!-- Left side buttons -->
                         <div class="left-buttons">
-                            {#if hasActivePrivateChatSurface}
-                                <!-- Share button - opens settings menu with share submenu -->
-                                <!-- Hidden for intro, example, and legal chats (public/static chats the user doesn't own) -->
+                            {#if hasActiveShareableChatSurface}
+                                <!-- Share button - opens settings menu with share submenu. -->
+                                <!-- Public example chats use the static public-link share panel. -->
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_share top-button"
@@ -12414,13 +12421,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
-                            {#if hasActivePrivateChatSurface && currentChat?.chat_id && ($authStore.isAuthenticated || currentChat.is_shared_by_others)}
+                            {#if hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)}
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_settings top-button"
                                         data-testid="chat-details-button"
                                         aria-label="Chat details"
-                                        onclick={() => openChatDetailsSettings('tasks')}
+                                        onclick={() => openChatDetailsSettings(currentChat?.chat_id && isExampleChat(currentChat.chat_id) ? 'share' : 'tasks')}
                                         use:tooltip
                                     >
                                     </button>

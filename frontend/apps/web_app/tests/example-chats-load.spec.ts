@@ -280,6 +280,40 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
+	test('guest example chat exposes share and chat settings with a static public link', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		const exampleChatId = 'example-ai-workshops-meetups-berlin';
+
+		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('chat-share-button')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('chat-details-button')).toBeVisible({ timeout: 10000 });
+
+		await page.getByTestId('chat-details-button').click();
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}/share`, {
+			timeout: 10000
+		});
+		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });
+
+		const expectedShareUrl = await page.evaluate((chatId: string) => `${window.location.origin}/#chat-id=${chatId}`, exampleChatId);
+		await expect(settingsMenu.getByTestId('share-short-link-url')).toHaveText(expectedShareUrl, {
+			timeout: 10000
+		});
+		await expect(settingsMenu.getByTestId('chat-settings-share-password')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('chat-settings-share-community')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('chat-settings-share-expire')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('share-generate-link')).toHaveCount(0);
+	});
+
 	test('memory example cards update the reloadable chat hash on wide viewports', async ({
 		page
 	}: {

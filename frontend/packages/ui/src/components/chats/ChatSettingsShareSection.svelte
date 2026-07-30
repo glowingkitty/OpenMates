@@ -20,7 +20,7 @@
   import { downloadChatAsYaml } from '../../services/chatExportService';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { userDB } from '../../services/userDB';
-  import { isPublicChat } from '../../demo_chats/convertToChat';
+  import { isExampleChat, isPublicChat } from '../../demo_chats';
   import { getSharedChatUrl } from '../../services/sharedChatKeyStorage';
   import type { Chat, Message } from '../../types/chat';
   import {
@@ -64,6 +64,20 @@
 
   let durationSeconds = $derived<ShareDuration>(autoExpireEnabled ? 600 : 0);
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
+  let isExampleShareChat = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id) && !isSharedViewer);
+  let publicShareLink = $state('');
+
+  $effect(() => {
+    const chatId = chat?.chat_id;
+    if (!chatId || !isExampleChat(chatId) || typeof window === 'undefined') {
+      publicShareLink = '';
+      return;
+    }
+
+    const link = `${window.location.origin}/#chat-id=${chatId}`;
+    publicShareLink = link;
+    generateQrCode(link);
+  });
 
   $effect(() => {
     const chatId = chat?.chat_id;
@@ -282,6 +296,17 @@
     setTimeout(() => { isCopied = false; }, 2000);
   }
 
+  async function copyPublicShareLink(): Promise<void> {
+    if (!publicShareLink) return;
+    const result = await copyToClipboard(publicShareLink);
+    if (!result.success) {
+      notificationStore.error('Could not copy link.');
+      return;
+    }
+    isCopied = true;
+    setTimeout(() => { isCopied = false; }, 2000);
+  }
+
   async function stopSharing(): Promise<void> {
     const existing = await chatDB.getChat(chat.chat_id);
     if (!existing) return;
@@ -311,7 +336,34 @@
 </script>
 
 <section class="chat-share" data-testid="chat-settings-share-section">
-  {#if isSharedViewer}
+  {#if isExampleShareChat}
+    <SettingsCard>
+      <div class="generated" data-testid="chat-settings-share-readonly">
+        <SettingsInfoBox type="info">This public example chat already has a static share link. Passwords, expiration, and community sharing are only available for your private chats.</SettingsInfoBox>
+      </div>
+      <div class="generated-actions" data-testid="share-short-link-section">
+        <SettingsItem type="action" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy public chat link'} data-testid="share-copy-link" onClick={() => void copyPublicShareLink()} />
+        <div data-testid="share-short-link-copy" class="short-link-copy">
+          <span data-testid="share-short-link-url">{publicShareLink}</span>
+        </div>
+        <SettingsItem type="action" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+        {#if showQr}
+          <div class="qr-code" data-testid="chat-settings-share-qr">
+            <img src={qrCodeImageUrl} alt="Share QR code" />
+          </div>
+        {/if}
+        <SettingsItem type="action" icon="subsetting_icon copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
+        {#if showUrl}
+          <div class="url-box" data-testid="chat-settings-share-url" data-share-url-kind="public">{publicShareLink}</div>
+        {/if}
+      </div>
+    </SettingsCard>
+    <SettingsDivider spacing="sm" />
+    <SettingsCard>
+      <SettingsItem type="action" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="action" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+    </SettingsCard>
+  {:else if isSharedViewer}
     <SettingsCard>
       <div class="generated" data-testid="chat-settings-share-readonly">
         <SettingsInfoBox type="info">This shared chat is read-only. Only the owner can change password, expiration, community sharing, or stop sharing.</SettingsInfoBox>

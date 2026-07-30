@@ -17,6 +17,7 @@
   import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
+  import { isExampleChat } from '../../demo_chats';
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
@@ -59,6 +60,8 @@
   );
   let totalCredits = $derived(usageTotalCredits ?? display?.credits ?? chat?.budget_spent ?? totalKnownCredits(usageRows));
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
+  let isExampleChatSettings = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id));
+  let visibleTabs = $derived(isExampleChatSettings ? tabs.filter((tab) => tab.id === 'share') : tabs);
   let doneTaskCount = $derived(tasks.filter((task) => task.status === 'done').length);
   let taskProgressPercent = $derived(tasks.length > 0 ? Math.round((doneTaskCount / tasks.length) * 100) : 0);
   let activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
@@ -71,13 +74,17 @@
   });
 
   $effect(() => {
-    activeTab = normalizeChatSettingsTab(context?.activeTab);
+    const nextTab = isExampleChatSettings ? 'share' : normalizeChatSettingsTab(context?.activeTab);
+    activeTab = nextTab;
+    if (isExampleChatSettings && context?.activeTab !== 'share') {
+      chatSettingsStore.setTab('share');
+    }
   });
 
   $effect(() => {
     const requestedTab = activeSettingsView.split('/')[2];
     if (!requestedTab) return;
-    const nextTab = normalizeChatSettingsTab(requestedTab);
+    const nextTab = isExampleChatSettings ? 'share' : normalizeChatSettingsTab(requestedTab);
     if (nextTab !== context?.activeTab) {
       chatSettingsStore.setTab(nextTab);
     }
@@ -85,7 +92,7 @@
   });
 
   $effect(() => {
-    if (!chat?.chat_id || isSharedViewer) {
+    if (!chat?.chat_id || isSharedViewer || isExampleChatSettings) {
       usageTotalCredits = null;
       return;
     }
@@ -96,7 +103,7 @@
 
   $effect(() => {
     const chatId = chat?.chat_id;
-    if (!chatId || isSharedViewer) return;
+    if (!chatId || isSharedViewer || isExampleChatSettings) return;
     const interval = window.setInterval(() => void refreshUsageTotal(chatId), USAGE_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(interval);
   });
@@ -133,7 +140,7 @@
   });
 
   function setTab(tabId: string): void {
-    const nextTab = normalizeChatSettingsTab(tabId);
+    const nextTab = isExampleChatSettings ? 'share' : normalizeChatSettingsTab(tabId);
     activeTab = nextTab;
     chatSettingsStore.setTab(nextTab);
     if (chat?.chat_id) {
@@ -329,7 +336,7 @@
     {/if}
 
     <div class="tabs-shell" data-testid="chat-settings-tabs">
-      <SettingsTabs tabs={tabs} bind:activeTab maxVisibleTabs={tabs.length} testIdPrefix="chat-settings-tab" onChange={setTab} />
+      <SettingsTabs tabs={visibleTabs} bind:activeTab maxVisibleTabs={visibleTabs.length} testIdPrefix="chat-settings-tab" onChange={setTab} />
     </div>
 
     {#if activeTab === 'plan'}
