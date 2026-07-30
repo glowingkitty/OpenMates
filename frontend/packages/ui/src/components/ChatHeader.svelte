@@ -217,7 +217,9 @@
     $text('demo_chats.for_everyone.teaser_line3'),
   ]);
   const isIntroTeaserChat = $derived(currentChatId === 'demo-for-everyone');
-  const displayTitle = $derived(title || (isSharedChat ? $text('chat.header.shared_chat') : ''));
+  const displayTitle = $derived(
+    title || (isSharedChat ? $text('chat.header.shared_chat') : writable ? $text('common.untitled_chat') : '')
+  );
   const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [displayTitle]);
 
   // ─── In-place video player ────────────────────────────────────────────────

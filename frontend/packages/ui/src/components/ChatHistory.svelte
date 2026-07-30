@@ -1522,23 +1522,26 @@
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
   // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
 
-  // Whether to show the chat header card (or its loading placeholder) at the top of the chat.
-  // Only shown for new chats — existing chats opened from the sidebar never show this.
-  // The header is visible as long as any of these are true:
-  //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
-  //   b) we have a title (loaded state; category may be missing on older partial metadata), or
-  //   c) isNewChatCreditsError is true (credits error state), or
-  //   d) isIncognito is true (always show the incognito header immediately), or
-  //   e) isSharedChat is true (badge remains visible even if shared metadata has no title)
-  let showChatHeader = $derived(
-    isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat,
-  );
   let chatHeaderWritable = $derived(
     !!currentChatId &&
     !isIncognito &&
     !isExampleChat &&
     !isSharedChat &&
     !isPublicChat(currentChatId)
+  );
+
+  // Whether to show the chat header card (or its loading placeholder) at the top of the chat.
+  // Owned writable chats keep the unified detail shell visible even while encrypted
+  // metadata is still catching up after hash/cold-boot navigation.
+  // The header is visible as long as any of these are true:
+  //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
+  //   b) we have a title (loaded state; category may be missing on older partial metadata), or
+  //   c) isNewChatCreditsError is true (credits error state), or
+  //   d) isIncognito is true (always show the incognito header immediately), or
+  //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
+  //   f) this is an owned writable chat whose encrypted title is not yet available.
+  let showChatHeader = $derived(
+    isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable,
   );
 
   async function saveChatHeaderTitle(title: string): Promise<void> {
