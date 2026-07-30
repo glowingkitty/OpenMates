@@ -59,9 +59,16 @@ def test_invoice_filename_helpers_preserve_invoice_number_with_original_date():
     assert audit_script._invoice_number_from_filename(filename) == "RDGV4VK-2"
 
 
+def test_invoice_s3_object_key_uses_new_original_date_key(monkeypatch):
+    monkeypatch.setattr(audit_script.uuid, "uuid4", lambda: SimpleNamespace(hex="fixeduuid"))
+
+    assert audit_script._invoice_s3_object_key_for_date("2026-06-04") == "2026_06_04_fixeduuid.pdf"
+
+
 def test_stripe_amount_to_display_units_handles_zero_decimal_currencies():
     assert audit_script._stripe_amount_to_display_units(1000, "eur") == 10.0
     assert audit_script._stripe_amount_to_display_units(1000, "jpy") == 1000.0
+    assert audit_script._stripe_amount_to_display_units(1000, "xpf") == 1000.0
 
 
 class FakeEncryption:
@@ -137,6 +144,14 @@ class ReplacementNinja:
 
     async def make_api_request(self, method, endpoint, params=None, data=None):
         self.events.append((method, endpoint))
+        return {}
+
+
+class OldDeleteFailsReplacementNinja(ReplacementNinja):
+    async def make_api_request(self, method, endpoint, params=None, data=None):
+        self.events.append((method, endpoint))
+        if endpoint == "/bank_transactions/bank-old":
+            return None
         return {}
 
 
@@ -252,6 +267,46 @@ async def test_recreate_locked_ninja_surfaces_deletes_old_rows_after_replacement
         ("DELETE", "/bank_transactions/bank-old"),
         ("DELETE", "/payments/pay-old"),
         ("DELETE", "/invoices/inv-old"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_recreate_locked_ninja_surfaces_cleans_replacement_when_old_delete_fails(monkeypatch):
+    monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
+    monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
+    ninja = OldDeleteFailsReplacementNinja(
+        replacement={
+            "invoice_id": "inv-new",
+            "invoice_number": "ACCT-1",
+            "payment_id": "pay-new",
+            "bank_transaction_id": "bank-new",
+            "pdf_upload_success": True,
+            "transaction_match_success": True,
+        }
+    )
+
+    result = await audit_script._recreate_locked_invoice_ninja_surfaces(
+        ninja=ninja,
+        external_order_id="pi_123",
+        invoice_rows=[{"id": "inv-old"}],
+        invoice_number="ACCT-1",
+        invoice_date="2026-07-01",
+        pdf_bytes=b"pdf",
+        user_hash="user-hash",
+        user={"account_id": "acct"},
+        credits=1000,
+        amount_paid=1000,
+        currency_code="eur",
+        card_details={},
+        is_gift_card=False,
+        apply=True,
+    )
+
+    assert result["recreated"] is False
+    assert result["errors"] == ["failed to delete old bank transaction bank-old"]
+    assert ninja.events == [
+        ("PROCESS", "pi_123"),
+        ("DELETE", "/bank_transactions/bank-old"),
     ]
 
 

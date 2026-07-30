@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -47,7 +48,24 @@ INVOICE_TASK = "app.tasks.email_tasks.purchase_confirmation_email_task.process_i
 STRIPE_SECRET_PATH = "kv/data/providers/stripe"
 INVOICE_SENDER_SECRET_PATH = "kv/data/providers/invoice_sender"
 BACKFILLED_INVOICE_FILENAME_RE = re.compile(r"^openmates_invoice_\d{4}_\d{2}_\d{2}_(?P<number>.+)\.pdf$")
-ZERO_DECIMAL_CURRENCIES = {"jpy", "krw", "vnd", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof"}
+ZERO_DECIMAL_CURRENCIES = {
+    "bif",
+    "clp",
+    "djf",
+    "gnf",
+    "jpy",
+    "kmf",
+    "krw",
+    "mga",
+    "pyg",
+    "rwf",
+    "ugx",
+    "vnd",
+    "vuv",
+    "xaf",
+    "xof",
+    "xpf",
+}
 
 
 def _is_production() -> bool:
@@ -95,6 +113,10 @@ def _stripe_invoice_datetime(payment_intent: Any) -> datetime:
 
 def _invoice_filename_for_date(invoice_number: str, invoice_date: str) -> str:
     return f"openmates_invoice_{invoice_date.replace('-', '_')}_{invoice_number}.pdf"
+
+
+def _invoice_s3_object_key_for_date(invoice_date: str) -> str:
+    return f"{invoice_date.replace('-', '_')}_{uuid.uuid4().hex}.pdf"
 
 
 def _invoice_number_from_filename(filename: str) -> str | None:
@@ -547,7 +569,8 @@ async def _recreate_locked_invoice_ninja_surfaces(
         "errors": [],
     }
 
-    async def delete_rows(endpoint: str, rows: list[dict[str, Any]], label: str) -> None:
+    async def delete_rows(endpoint: str, rows: list[dict[str, Any]], label: str, *, stop_on_error: bool = False) -> bool:
+        deleted_all = True
         for row in rows:
             row_id = row.get("id")
             if not row_id:
@@ -555,6 +578,10 @@ async def _recreate_locked_invoice_ninja_surfaces(
             response = await ninja.make_api_request("DELETE", f"/{endpoint}/{row_id}")
             if response is None:
                 result["errors"].append(f"failed to delete {label} {row_id}")
+                deleted_all = False
+                if stop_on_error:
+                    return False
+        return deleted_all
 
     if not apply:
         return result
@@ -613,9 +640,15 @@ async def _recreate_locked_invoice_ninja_surfaces(
         return result
 
     result["replacement_created"] = True
-    await delete_rows("bank_transactions", bank_transactions, "old bank transaction")
-    await delete_rows("payments", payments, "old payment")
-    await delete_rows("invoices", invoice_rows, "old invoice")
+    if not await delete_rows("bank_transactions", bank_transactions, "old bank transaction", stop_on_error=True):
+        result["recreated"] = False
+        return result
+    if not await delete_rows("payments", payments, "old payment", stop_on_error=True):
+        result["recreated"] = False
+        return result
+    if not await delete_rows("invoices", invoice_rows, "old invoice", stop_on_error=True):
+        result["recreated"] = False
+        return result
     result["recreated"] = not result["errors"]
     return result
 
@@ -669,10 +702,11 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
             original_datetime = _stripe_invoice_datetime(payment_intent)
             original_date = original_datetime.date().isoformat()
             current_date = _parse_datetime(str(invoice.get("date") or ""))
+            directus_date_matches = bool(current_date and current_date.date() == original_datetime.date())
             if (
-                current_date
-                and current_date.date() == original_datetime.date()
+                directus_date_matches
                 and not args.recreate_locked_invoice_ninja
+                and not selected_payment_intents
             ):
                 continue
 
@@ -749,7 +783,7 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
             record.update({
                 "current_filename": current_filename,
                 "corrected_filename": corrected_filename,
-                "s3_object_key_preserved": s3_object_key,
+                "old_s3_object_key_preserved": s3_object_key,
             })
 
             ninja_rows, ninja_lookup_error = await _ninja_invoice_rows(ninja, external_order_id)
@@ -795,50 +829,63 @@ async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
                     findings.append(record)
                     blocked += 1
                     continue
-                try:
-                    encrypted_pdf_payload, encrypted_aes_key, aes_nonce_b64 = await _encrypt_repair_pdf_payload(
-                        encryption,
-                        vault_key_id,
-                        pdf_bytes,
+                if directus_date_matches:
+                    record["directus_already_repaired"] = True
+                else:
+                    try:
+                        encrypted_pdf_payload, encrypted_aes_key, aes_nonce_b64 = await _encrypt_repair_pdf_payload(
+                            encryption,
+                            vault_key_id,
+                            pdf_bytes,
+                        )
+                    except RuntimeError as exc:
+                        record["status"] = "blocked"
+                        record["errors"].append(str(exc))
+                        findings.append(record)
+                        blocked += 1
+                        continue
+                    new_s3_object_key = _invoice_s3_object_key_for_date(original_date)
+                    encrypted_new_s3_object_key, _ = await encryption.encrypt_with_user_key(new_s3_object_key, vault_key_id)
+                    encrypted_corrected_filename, _ = await encryption.encrypt_with_user_key(corrected_filename, vault_key_id)
+                    if not encrypted_new_s3_object_key or not encrypted_corrected_filename:
+                        record["status"] = "blocked"
+                        record["errors"].append("failed to encrypt repaired S3 key or filename")
+                        findings.append(record)
+                        blocked += 1
+                        continue
+                    upload_result = await s3.upload_file(
+                        bucket_key="invoices",
+                        file_key=new_s3_object_key,
+                        content=encrypted_pdf_payload,
+                        content_type="application/octet-stream",
                     )
-                except RuntimeError as exc:
-                    record["status"] = "blocked"
-                    record["errors"].append(str(exc))
-                    findings.append(record)
-                    blocked += 1
-                    continue
-                upload_result = await s3.upload_file(
-                    bucket_key="invoices",
-                    file_key=s3_object_key,
-                    content=encrypted_pdf_payload,
-                    content_type="application/octet-stream",
-                )
-                if not upload_result.get("url"):
-                    record["status"] = "blocked"
-                    record["errors"].append("failed to overwrite encrypted S3 PDF")
-                    findings.append(record)
-                    blocked += 1
-                    continue
+                    if not upload_result.get("url"):
+                        record["status"] = "blocked"
+                        record["errors"].append("failed to upload repaired encrypted S3 PDF")
+                        findings.append(record)
+                        blocked += 1
+                        continue
 
-                encrypted_corrected_filename, _ = await encryption.encrypt_with_user_key(corrected_filename, vault_key_id)
-                update_result = await directus.update_item(
-                    "invoices",
-                    str(invoice["id"]),
-                    {
-                        "date": original_datetime.isoformat(),
-                        "encrypted_filename": encrypted_corrected_filename,
-                        "encrypted_aes_key": encrypted_aes_key,
-                        "aes_nonce": aes_nonce_b64,
-                    },
-                    admin_required=True,
-                )
-                if not update_result:
-                    record["status"] = "blocked"
-                    record["errors"].append("failed to update Directus invoice date/filename")
-                    findings.append(record)
-                    blocked += 1
-                    continue
-                record["rotated_pdf_encryption"] = True
+                    update_result = await directus.update_item(
+                        "invoices",
+                        str(invoice["id"]),
+                        {
+                            "date": original_datetime.isoformat(),
+                            "encrypted_filename": encrypted_corrected_filename,
+                            "encrypted_s3_object_key": encrypted_new_s3_object_key,
+                            "encrypted_aes_key": encrypted_aes_key,
+                            "aes_nonce": aes_nonce_b64,
+                        },
+                        admin_required=True,
+                    )
+                    if not update_result:
+                        record["status"] = "blocked"
+                        record["errors"].append("failed to update Directus invoice date/filename")
+                        findings.append(record)
+                        blocked += 1
+                        continue
+                    record["rotated_pdf_encryption"] = True
+                    record["new_s3_object_key"] = new_s3_object_key
                 record["invoice_ninja"] = await apply_invoice_ninja_repair(apply=True)
                 if record["invoice_ninja"].get("errors"):
                     record["status"] = "partial"
