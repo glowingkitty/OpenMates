@@ -250,7 +250,7 @@ for (const example of LOOKUP_EXAMPLE_CHATS) {
 }
 
 // ============================================================================
-// EMBED REGISTRATION — register embed_ref → embed_id mappings
+// EMBED REGISTRATION — register message embed refs → embed_id mappings
 // ============================================================================
 
 /** Regex to extract embed_ref from TOON content */
@@ -271,7 +271,7 @@ function extractChildEmbedIds(content: string): string[] {
 }
 
 /**
- * Register all example chat embed_ref → embed_id mappings in the embedStore.
+ * Register all example chat embed message refs → embed_id mappings in the embedStore.
  * This must be called once so inline embed references in messages
  * (e.g. [!](embed:popularmechanics.com-kIm)) can be resolved to embed UUIDs.
  */
@@ -295,8 +295,10 @@ export function registerExampleChatEmbedRefs(): void {
         appId,
         skillId,
       });
+      const embedId = normalizeEmbedId(embed.embed_id);
+      embedStore.registerEmbedRef(embedId, embedId, appId);
+      registered++;
       if (embed.pii_mappings?.length) {
-        const embedId = normalizeEmbedId(embed.embed_id);
         embedStore.setInMemoryOnly(`embed_pii:${embedId}`, {
           embed_id: embedId,
           pii_mappings: embed.pii_mappings,
@@ -316,7 +318,7 @@ export function registerExampleChatEmbedRefs(): void {
   }
   if (registered > 0) {
     console.debug(
-      `[exampleChatStore] Registered ${registered} embed_ref mappings for example chats`,
+      `[exampleChatStore] Registered ${registered} embed ref mappings for example chats`,
     );
   }
 }
