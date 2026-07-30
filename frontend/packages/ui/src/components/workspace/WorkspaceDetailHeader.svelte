@@ -305,7 +305,27 @@
     --edit-affordance-size: 36px;
     display: block;
   }
-  .display-value { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; cursor: text; }
+  .display-value {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    filter: none;
+    font: inherit;
+    cursor: text;
+  }
+  .display-value:hover,
+  .display-value:active {
+    background: transparent;
+    filter: none;
+    scale: none;
+  }
   .editable-field:has(.edit-affordance) .display-value { min-width: 0; }
   .display-value:disabled { cursor: default; opacity: 1; }
   .title-value, .title-input { font-size: var(--font-size-h3); font-weight: 700; text-align: center; }
@@ -316,6 +336,8 @@
     line-clamp: var(--description-line-clamp);
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
   .edit-affordance {
     position: absolute;

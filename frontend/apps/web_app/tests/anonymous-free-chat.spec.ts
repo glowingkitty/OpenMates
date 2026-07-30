@@ -652,7 +652,24 @@ test.describe('Anonymous free chat', () => {
 				const maxVisibleHeight = lineHeight * 3;
 				const clamp = styles.getPropertyValue('-webkit-line-clamp') || styles.getPropertyValue('line-clamp');
 				const visibleHeight = element.getBoundingClientRect().height;
-				return clamp === '3' && styles.overflow === 'hidden' && visibleHeight <= maxVisibleHeight + 2;
+				const range = document.createRange();
+				range.selectNodeContents(element);
+				const elementRect = element.getBoundingClientRect();
+				const visibleLineCount = new Set(
+					Array.from(range.getClientRects())
+						.filter((rect) => rect.width > 0 && rect.top >= elementRect.top - 1 && rect.bottom <= elementRect.bottom + 1)
+						.map((rect) => Math.round(rect.top))
+				).size;
+				range.detach();
+				const noHorizontalClip = element.scrollWidth <= element.clientWidth + 1;
+				return (
+					clamp === '3' &&
+					styles.overflow === 'hidden' &&
+					styles.whiteSpace === 'normal' &&
+					noHorizontalClip &&
+					visibleLineCount >= 2 &&
+					visibleHeight <= maxVisibleHeight + 2
+				);
 			}), { timeout: 5000 })
 			.toBe(true);
 		await expect(page.getByTestId('follow-up-suggestion-item').first()).toContainText(
