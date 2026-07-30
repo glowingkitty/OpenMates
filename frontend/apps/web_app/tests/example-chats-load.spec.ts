@@ -68,6 +68,39 @@ async function expectGuestSlideZeroIntro(page: any) {
 	);
 }
 
+async function expectNoPreviewOverflow(locator: any, label: string) {
+	const overflow = await locator.evaluate((node: HTMLElement) => {
+		const epsilon = 1;
+		const nodeRect = node.getBoundingClientRect();
+		const overflowingChildren = Array.from(node.querySelectorAll<HTMLElement>('[data-testid]'))
+			.filter((child) => {
+				const style = window.getComputedStyle(child);
+				return style.display !== 'none' && style.visibility !== 'hidden' && child.offsetParent !== null;
+			})
+			.map((child) => ({
+				testId: child.getAttribute('data-testid'),
+				rect: child.getBoundingClientRect(),
+				text: child.textContent?.replace(/\s+/g, ' ').trim().slice(0, 80) || ''
+			}))
+			.filter(({ rect }) =>
+				rect.left < nodeRect.left - epsilon ||
+				rect.right > nodeRect.right + epsilon ||
+				rect.top < nodeRect.top - epsilon ||
+				rect.bottom > nodeRect.bottom + epsilon
+			)
+			.map(({ testId, text }) => ({ testId, text }));
+
+		return {
+			selfOverflows:
+				node.scrollWidth > node.clientWidth + epsilon ||
+				node.scrollHeight > node.clientHeight + epsilon,
+			overflowingChildren
+		};
+	});
+
+	expect(overflow, label).toEqual({ selfOverflows: false, overflowingChildren: [] });
+}
+
 test.describe('Example chats loading for new users', () => {
 	async function ensureSidebarVisible(page: any): Promise<void> {
 		const history = page.getByTestId('activity-history-wrapper');
@@ -445,6 +478,71 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
 		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('middle eastern');
 		await expect(page.locator('body')).toContainText('8.7g');
+	});
+
+	test('Deutschlandticket travel example keeps preview metadata readable and shows map route lines', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(120000);
+		await page.setViewportSize({ width: 1600, height: 1000 });
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-deutschlandticket-train-fare-breakdown'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'Deutsche Bahn' })
+			.first();
+		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
+
+		const travelSearchCards = assistantMessage.locator(
+			'[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"][data-status="finished"]'
+		);
+		await expect.poll(async () => travelSearchCards.count(), {
+			message: 'Deutschlandticket example should render at least one finished travel search preview',
+			timeout: 15000
+		}).toBeGreaterThan(0);
+
+		const travelSearchCount = await travelSearchCards.count();
+		for (let index = 0; index < travelSearchCount; index += 1) {
+			const card = travelSearchCards.nth(index);
+			await expect(card, `travel search preview ${index + 1} should keep route metadata`).toContainText(
+				/Bonn.*M(unich|ünchen)/i
+			);
+			await expect(card, `travel search preview ${index + 1} should keep date metadata`).toContainText(
+				/(Aug 12|2026-08-12)/i
+			);
+		}
+
+		const firstTravelSearch = travelSearchCards.first();
+		await expect(firstTravelSearch, 'parent preview should use result_count/embed_ids instead of showing 0').toContainText('5 connections');
+
+		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);
+		const resultCards = await verifySearchGrid(fullscreenOverlay, 5, 30000);
+		const cardsToCheck = Math.min(3, await resultCards.count());
+		for (let index = 0; index < cardsToCheck; index += 1) {
+			const previewDetails = resultCards.nth(index).getByTestId('connection-preview-details');
+			await expect(previewDetails).toBeVisible({ timeout: 5000 });
+			await expectNoPreviewOverflow(previewDetails, `travel result card ${index + 1} should not clip visible preview details`);
+		}
+
+		await resultCards.first().click();
+		await expect(page.getByTestId('flight-details-card')).toBeVisible({ timeout: 15000 });
+
+		const routePaths = page.locator('[data-testid="travel-route-path"]');
+		await expect.poll(async () => routePaths.count(), {
+			message: 'travel connection fullscreen should draw visible route lines between stops',
+			timeout: 15000
+		}).toBeGreaterThanOrEqual(2);
+
+		const transportTypes = await routePaths.evaluateAll((paths: SVGPathElement[]) =>
+			paths.map((path) => path.getAttribute('data-transport-type')).filter(Boolean)
+		);
+		expect(transportTypes).toContain('regional_train');
+		expect(transportTypes).toContain('long_distance_train');
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({

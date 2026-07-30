@@ -1313,6 +1313,8 @@
   /** Leaflet map instance (set by onMapReady) */
   let map: LeafletMap | null = null;
 
+  let routeLineLayer: import('leaflet').LayerGroup | null = null;
+
   let routeFitCorrectionTimer: ReturnType<typeof setTimeout> | null = null;
 
   const ROUTE_MAP_PADDING_PX = 40;
@@ -1320,6 +1322,76 @@
   const ROUTE_DETAIL_CARD_LEFT_PX = 24;
   const ROUTE_DETAIL_CARD_WIDTH_PX = 345;
   const ROUTE_DETAIL_CARD_GAP_PX = 24;
+
+  interface RouteLineStyle {
+    colorVar: string;
+    fallbackColor: string;
+    weight: number;
+    dashArray?: string;
+  }
+
+  interface RouteLineSegment {
+    transportType: string;
+    points: [number, number][];
+    style: RouteLineStyle;
+  }
+
+  // Leaflet writes inline SVG strokes and does not reliably resolve CSS var(...).
+  // Resolve token values at draw time and keep these fallbacks only as a safety net.
+  const ROUTE_LINE_STYLES: Record<string, RouteLineStyle> = {
+    regional_train: { colorVar: '--color-chat-rainbow-green', fallbackColor: '#30d158', weight: 4 },
+    long_distance_train: { colorVar: '--color-primary-start', fallbackColor: '#4867cd', weight: 4 },
+    train: { colorVar: '--color-primary-start', fallbackColor: '#4867cd', weight: 4 },
+    tram: { colorVar: '--color-chat-rainbow-purple', fallbackColor: '#bf5af2', weight: 3.5 },
+    subway: { colorVar: '--color-chat-rainbow-purple', fallbackColor: '#bf5af2', weight: 3.5 },
+    bus: { colorVar: '--color-warning', fallbackColor: '#e67e22', weight: 3.5, dashArray: '8 6' },
+    ferry: { colorVar: '--color-chat-rainbow-cyan', fallbackColor: '#32ade6', weight: 3.5, dashArray: '10 5' },
+    flight: { colorVar: '--color-chat-rainbow-cyan', fallbackColor: '#32ade6', weight: 3, dashArray: '12 7' },
+    walk: { colorVar: '--color-grey-70', fallbackColor: '#666666', weight: 2.5, dashArray: '4 6' },
+    unknown: { colorVar: '--color-grey-70', fallbackColor: '#666666', weight: 3, dashArray: '6 6' },
+  };
+
+  const LONG_DISTANCE_RAIL_PATTERN = /\b(ICE|IC|EC|TGV|THA|RJ|RJX|NJ|EN)\b/;
+  const REGIONAL_RAIL_PATTERN = /\b(RE\d*|RB\d*|S\d*|SBAHN|S-BAHN|REGIONAL)\b/;
+  const RAIL_PRODUCT_PATTERN = /\b(ICE|IC|EC|TGV|THA|RJ|RJX|NJ|EN|RE\d*|RB\d*|S\d*|SBAHN|S-BAHN|REGIONAL)\b/;
+
+  function resolveRouteColor(style: RouteLineStyle): string {
+    if (typeof window === 'undefined') return style.fallbackColor;
+    const resolved = getComputedStyle(document.documentElement).getPropertyValue(style.colorVar).trim();
+    return resolved || style.fallbackColor;
+  }
+
+  function routeLineStyleFor(transportType: string): RouteLineStyle {
+    return ROUTE_LINE_STYLES[transportType] || ROUTE_LINE_STYLES.unknown;
+  }
+
+  function classifyTransportType(segment: SegmentData): string {
+    const mode = (segment.mode || '').toLowerCase();
+    const product = `${segment.carrier || ''} ${segment.line || ''} ${segment.number || ''} ${segment.operator || ''}`.toUpperCase();
+    const railProduct = RAIL_PRODUCT_PATTERN.test(product);
+
+    if (mode === 'airplane' || mode === 'flight') return 'flight';
+    if (mode === 'tram') return 'tram';
+    if (mode === 'subway') return 'subway';
+    if (mode === 'bus') return 'bus';
+    if (mode === 'ferry') return 'ferry';
+    if (mode === 'walk' || mode === 'walking') return 'walk';
+
+    if (mode === 'train' || railProduct) {
+      if (LONG_DISTANCE_RAIL_PATTERN.test(product)) return 'long_distance_train';
+      if (REGIONAL_RAIL_PATTERN.test(product)) return 'regional_train';
+      return 'train';
+    }
+
+    return 'unknown';
+  }
+
+  function segmentHasCoordinates(segment: SegmentData): boolean {
+    return segment.departure_latitude != null &&
+      segment.departure_longitude != null &&
+      segment.arrival_latitude != null &&
+      segment.arrival_longitude != null;
+  }
 
   function clearRouteFitCorrectionTimer() {
     if (routeFitCorrectionTimer) {
@@ -1354,9 +1426,9 @@
   }
   
   /**
-   * Collect all unique airport coordinates from the connection legs/segments.
-   * Returns an ordered array of waypoints: [(lat, lng, iataCode), ...]
-   * following the flight path from first departure to final arrival.
+   * Collect all unique stop coordinates from the connection legs/segments.
+   * Returns an ordered array of waypoints following the route from first
+   * departure to final arrival.
    */
   let routeWaypoints = $derived.by(() => {
     const conn = connection as MaybeConnection;
@@ -1368,7 +1440,7 @@
     for (const leg of conn.legs) {
       if (!leg.segments) continue;
       for (const seg of leg.segments) {
-        // Add departure airport
+        // Add departure stop
         if (
           seg.departure_latitude != null &&
           seg.departure_longitude != null &&
@@ -1382,7 +1454,7 @@
           });
           seen.add(seg.departure_station);
         }
-        // Add arrival airport
+        // Add arrival stop
         if (
           seg.arrival_latitude != null &&
           seg.arrival_longitude != null &&
@@ -1451,10 +1523,36 @@
     return points;
   }
 
+  let routeLineSegments = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    if (!conn?.legs) return [];
+
+    const segments: RouteLineSegment[] = [];
+    for (const leg of conn.legs) {
+      for (const segment of leg.segments || []) {
+        if (!segmentHasCoordinates(segment)) continue;
+
+        const transportType = classifyTransportType(segment);
+        const start: [number, number] = [segment.departure_latitude!, segment.departure_longitude!];
+        const end: [number, number] = [segment.arrival_latitude!, segment.arrival_longitude!];
+        const points = transportType === 'flight'
+          ? greatCircleArc(start[0], start[1], end[0], end[1], 60)
+          : [start, end];
+
+        segments.push({
+          transportType,
+          points,
+          style: routeLineStyleFor(transportType),
+        });
+      }
+    }
+    return segments;
+  });
+
   /**
    * onMapReady callback for EntryWithMapTemplate.
    * Called with the raw Leaflet map instance and L module when the map is mounted.
-   * Draws flight arcs, FR24 tracks, and airport markers.
+   * Draws segment-colored route lines, FR24 tracks, and stop markers.
    */
   function handleMapReady(mapInstance: unknown, leafletModule: unknown) {
     map = mapInstance as LeafletMap;
@@ -1463,7 +1561,7 @@
     if (!L || !map || routeWaypoints.length < 2) return;
 
     try {
-      const airportIcon = L.divIcon({
+      const stopIcon = L.divIcon({
         className: 'travel-route-marker',
         html: '<div class="marker-dot"></div>',
         iconSize: [16, 16],
@@ -1471,43 +1569,51 @@
       });
 
       for (const wp of routeWaypoints) {
-        L.marker([wp.lat, wp.lng], { icon: airportIcon })
+        L.marker([wp.lat, wp.lng], { icon: stopIcon })
           .addTo(map)
           .bindPopup(wp.code);
       }
 
-      drawFlightPath();
+      drawRoutePath();
     } catch (err) {
       console.error('[TravelConnectionEmbedFullscreen] Failed to render map overlays:', err);
     }
   }
 
-  function drawFlightPath() {
+  function drawRoutePath() {
     if (!L || !map) return;
 
-    let boundsLatLngs: import('leaflet').LatLng[];
+    routeLineLayer?.remove();
+    routeLineLayer = L.layerGroup().addTo(map);
+
+    const boundsLatLngs: import('leaflet').LatLng[] = [];
 
     if (resolvedFlightTrack && resolvedFlightTrack.tracks.length >= 2) {
       const trackLatLngs = resolvedFlightTrack.tracks.map(p => L.latLng(p.lat, p.lon));
-      L.polyline(trackLatLngs, {
-        color: 'var(--color-primary, #6366f1)',
-        weight: 2.5,
+      const style = routeLineStyleFor('flight');
+      const line = L.polyline(trackLatLngs, {
+        color: resolveRouteColor(style),
+        weight: style.weight,
         opacity: 0.85,
-      }).addTo(map);
-      boundsLatLngs = trackLatLngs;
+        dashArray: style.dashArray,
+      }).addTo(routeLineLayer);
+      const element = line.getElement();
+      element?.setAttribute('data-testid', 'travel-route-path');
+      element?.setAttribute('data-transport-type', 'flight');
+      boundsLatLngs.push(...trackLatLngs);
     } else {
-      boundsLatLngs = [];
-      for (let i = 0; i < routeWaypoints.length - 1; i++) {
-        const wp1 = routeWaypoints[i];
-        const wp2 = routeWaypoints[i + 1];
-        const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
-        const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
+      for (const segment of routeLineSegments) {
+        const arcLatLngs = segment.points.map(([lat, lng]) => L!.latLng(lat, lng));
         boundsLatLngs.push(...arcLatLngs);
-        L.polyline(arcLatLngs, {
-          color: 'var(--color-primary, #6366f1)',
-          weight: 2.5,
-          opacity: 0.7,
-        }).addTo(map);
+        const line = L.polyline(arcLatLngs, {
+          color: resolveRouteColor(segment.style),
+          weight: segment.style.weight,
+          opacity: 0.82,
+          dashArray: segment.style.dashArray,
+        }).addTo(routeLineLayer);
+        const element = line.getElement();
+        element?.setAttribute('data-testid', 'travel-route-path');
+        element?.setAttribute('data-transport-type', segment.transportType);
       }
     }
 
@@ -1515,16 +1621,18 @@
     scheduleOneTimeRouteFitCorrection(boundsLatLngs);
   }
 
-  // Redraw flight path when FR24 track data loads after map is already mounted
+  // Redraw route paths when loaded track or segment data changes after map mount.
   $effect(() => {
-    if (resolvedFlightTrack && map && L) {
-      drawFlightPath();
+    if ((resolvedFlightTrack || routeLineSegments.length > 0) && map && L) {
+      drawRoutePath();
     }
   });
 
   // Cleanup on destroy
   onDestroy(() => {
     clearRouteFitCorrectionTimer();
+    routeLineLayer?.remove();
+    routeLineLayer = null;
     map = null;
     L = null;
   });

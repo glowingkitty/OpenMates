@@ -231,10 +231,10 @@
    * Returns the code if found, otherwise the full string
    */
   function extractCode(location: string): string {
-    const match = location.match(/\(([^)]+)\)/);
+    const match = location.match(/\(([A-Z0-9]{2,5})\)/);
     if (match) return match[1];
-    // If no code in parens, return first word
-    return location.split(' ')[0] || location;
+    // Station qualifiers like "(tief)" are not useful route labels.
+    return location.replace(/\s*\([^)]*\)/g, '').split(' ')[0] || location;
   }
   
   // No-op stop handler (connections don't have cancellable tasks)
@@ -255,6 +255,7 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
+  customHeight={230}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
@@ -320,9 +321,10 @@
   .connection-details {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-2);
+    gap: var(--spacing-1);
     height: 100%;
-    justify-content: center;
+    min-height: 0;
+    justify-content: flex-start;
     padding: 2px 0;
   }
 
@@ -334,12 +336,13 @@
   .price-row {
     display: flex;
     align-items: baseline;
-    gap: var(--spacing-3);
+    column-gap: var(--spacing-2);
+    row-gap: var(--spacing-1);
     flex-wrap: wrap;
   }
 
   .connection-price {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--color-success, #00a313);
     line-height: 1.2;
@@ -350,14 +353,14 @@
   }
 
   .trip-type-separator {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--color-font-primary);
     line-height: 1.2;
   }
 
   .trip-type-label {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--color-font-primary);
     line-height: 1.2;
@@ -394,9 +397,7 @@
     font-size: 0.875rem;
     color: var(--color-font-primary);
     line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .route-text {
@@ -404,7 +405,7 @@
   }
 
   .connection-time {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--color-font-primary);
     font-weight: 700;
     line-height: 1.25;
@@ -412,9 +413,10 @@
 
   /* Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" */
   .connection-meta {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: var(--color-grey-60);
     line-height: 1.3;
+    overflow-wrap: anywhere;
   }
 
   .realtime-status {
