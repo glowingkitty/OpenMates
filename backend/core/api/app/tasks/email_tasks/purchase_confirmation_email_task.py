@@ -40,6 +40,46 @@ _API_SECRET_RE = re.compile(
 _STRIPE_SECRET_RE = re.compile(r"\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9_]+\b")
 
 
+def _coerce_invoice_datetime(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, (int, float)):
+        parsed = datetime.fromtimestamp(value, tz=timezone.utc)
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            if text.isdigit():
+                parsed = datetime.fromtimestamp(int(text), tz=timezone.utc)
+            else:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _resolve_invoice_datetime(
+    explicit_invoice_date: Optional[str],
+    payment_order_details: dict[str, Any],
+) -> datetime:
+    for candidate in (
+        explicit_invoice_date,
+        payment_order_details.get("payment_created"),
+        payment_order_details.get("created"),
+        payment_order_details.get("created_at"),
+    ):
+        resolved = _coerce_invoice_datetime(candidate)
+        if resolved:
+            return resolved
+    return datetime.now(timezone.utc)
+
+
 def _billing_admin_recipient() -> Optional[str]:
     return os.getenv("ADMIN_NOTIFY_EMAIL") or os.getenv("SERVER_OWNER_EMAIL")
 
@@ -176,6 +216,7 @@ def process_invoice_and_send_email(
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
     send_email: bool = True,  # Backfills can generate records/PDFs without notifying users
     gift_card_code: Optional[str] = None,  # Generated code for gift-card purchase confirmation emails
+    invoice_date: Optional[str] = None,  # Original provider payment date for historical backfills
 ) -> bool:
     """
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
@@ -196,6 +237,7 @@ def process_invoice_and_send_email(
                 provider_order_id,
                 send_email,
                 gift_card_code,
+                invoice_date,
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -224,6 +266,7 @@ async def _async_process_invoice_and_send_email(
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
     send_email: bool = True,
     gift_card_code: Optional[str] = None,
+    invoice_date: Optional[str] = None,
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -380,10 +423,12 @@ async def _async_process_invoice_and_send_email(
         invoice_number = f"{account_id}-{invoice_counter_str}"
         logger.info(f"Generated invoice number: {invoice_number}")
 
-        # Get date components for filenames and invoice data
-        now_utc = datetime.now(timezone.utc)
-        date_str_iso = now_utc.strftime('%Y-%m-%d')
-        date_str_filename = now_utc.strftime('%Y_%m_%d')
+        # Get date components for filenames and invoice data. Historical
+        # backfills must preserve the original provider payment date.
+        invoice_datetime = _resolve_invoice_datetime(invoice_date, payment_order_details)
+        date_str_iso = invoice_datetime.date().isoformat()
+        date_str_filename = date_str_iso.replace('-', '_')
+        directus_invoice_date = invoice_datetime.isoformat()
 
         # 6. Prepare Invoice Data Dictionary (using service from BaseTask)
         # Decrypt email - different approach for auto top-up vs manual purchases
@@ -696,7 +741,7 @@ async def _async_process_invoice_and_send_email(
         directus_invoice_payload = {
             "order_id": order_id,
             "user_id_hash": user_id_hash, # Store the hash instead of the raw user_id
-            "date": datetime.now(timezone.utc).isoformat(),
+            "date": directus_invoice_date,
             "encrypted_amount": encrypted_amount,
             "encrypted_credits_purchased": encrypted_credits,
             "encrypted_s3_object_key": encrypted_s3_object_key, # Store encrypted S3 object key
@@ -1007,8 +1052,8 @@ async def _async_process_invoice_and_send_email(
                     credits_value=credits_purchased,
                     currency_code=currency_paid,
                     purchase_price_value=purchase_price_value,
-                    invoice_date=date_str_iso,  # Pass generated invoice date
-                    due_date=date_str_iso,  # Pass generated due date (same as invoice date)
+                    invoice_date=date_str_iso,
+                    due_date=date_str_iso,
                     payment_processor=effective_provider,  # Use the resolved provider name
                     card_brand_lower=card_brand_lower_safe,
                     custom_invoice_number=invoice_number,  # Pass generated invoice number

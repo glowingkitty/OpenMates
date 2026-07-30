@@ -15,6 +15,7 @@ scope:
     - Admin email notification whenever billing invoice or accounting processing fails.
     - Dry-run reconciliation for Stripe, Directus invoices, and Invoice Ninja records.
     - No-email backfill for missing internal accounting records.
+    - Original Stripe payment-date repair for the 2026-07-30 backfilled invoices.
   out:
     - Sending historical invoice PDFs to users during backfill.
     - Replaying Stripe or bank-transfer payments.
@@ -30,6 +31,7 @@ context_discovery:
     - docs/specs/cli-signup-billing-provisioning/spec.yml
   code_patterns:
     - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/services/payment/stripe_service.py
     - backend/core/api/app/services/invoiceninja/invoiceninja.py
     - backend/scripts/audit_backfill_missing_stripe_invoices.py
     - backend/core/docker-compose.selfhost.yml
@@ -56,11 +58,11 @@ clarification:
     - question: Should billing processing errors notify the server admin?
       answer: Yes. Any billing processing error must send an admin notification so failures are not silent.
   vision_summary: >
-    Production billing must use production Stripe, production Invoice Ninja, and production invoice storage. Historical backfill is internal-only and no-email. Any future billing processing error must notify the server admin in addition to being logged.
+    Production billing must use production Stripe, production Invoice Ninja, and production invoice storage. Historical backfill is internal-only and no-email, and invoice records/PDFs/accounting surfaces must preserve the original provider payment date. Any future billing processing error must notify the server admin in addition to being logged.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
+  subject_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
 
 approvals:
   product_contract:
@@ -98,6 +100,16 @@ decisions:
     decision: Stripe PaymentIntents without a unique current Directus user mapping are not backfilled as user invoices.
     reason: Encrypted PDF and Directus invoice creation require a verified user profile, vault key, and account ID.
     decided_at: "2026-07-30T19:35:00Z"
+  - id: D-6
+    status: active
+    decision: Historical Stripe backfills use Stripe latest_charge.created, then PaymentIntent.created, as the invoice issue/due date.
+    reason: The 2026-07-30 backfill initially used task execution time, which made Directus invoice dates, PDFs, filenames, and Invoice Ninja rows appear on the repair date instead of the payment date.
+    decided_at: "2026-07-30T20:40:20Z"
+  - id: D-7
+    status: active
+    decision: Locked paid Invoice Ninja rows are repaired by deleting the active invoice/payment/bank-transaction rows through the API and recreating active rows with the original date.
+    reason: Invoice Ninja rejects date updates for paid invoices with a locked-invoice 422 response; API deletes archive the old rows, so active-row filtering prevents duplicate repair targeting.
+    decided_at: "2026-07-30T20:40:20Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -124,19 +136,26 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-30T19:35:00Z"
     notes: Eight mapped direct-Stripe records were backfilled without user emails; four Stripe records and thirteen bank-transfer records remain report-only or blocked.
+  - id: ATTEMPT-5
+    task_id: TASK-6
+    approach: Update locked paid Invoice Ninja invoices in place during original-date repair.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-30T20:10:00Z"
+    notes: Invoice Ninja rejected paid invoice date updates with 422 locked-invoice errors, while Directus and S3 date/PDF metadata were repairable.
+  - id: ATTEMPT-6
+    task_id: TASK-6
+    approach: Delete/recreate active Invoice Ninja invoice, payment, and bank-transaction rows, then regenerate PDFs and Directus metadata from Stripe payment timestamps.
+    outcome: succeeded
+    recorded_at: "2026-07-30T20:40:20Z"
+    notes: All eight 2026-07-30 backfilled Stripe invoices were repaired to their original Stripe payment dates; direct PostgreSQL verification confirmed Directus persisted the corrected dates.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Decide whether to build dedicated Directus-only, Invoice-Ninja-only, and unmapped-payment reconciliation paths.
+  current_task_id: TASK-6
+  next_action: Deploy the durable original-date source fix and rerun reconciliation dry-runs.
   command: python3 scripts/spec_verify.py docs/specs/billing-processing-incident-2026-07/spec.yml
   expected_outcome: Required completed evidence passes; follow-up accounting gaps remain explicitly recorded.
-  blocker:
-    task_id: TASK-5
-    requires_user_input: true
-    reason: Four Stripe PaymentIntents lack a unique Directus user mapping, and the remaining Directus/Invoice-Ninja mismatch classes require dedicated non-duplicating backfill paths.
-    question: Should we continue with dedicated backfill tooling for the report-only accounting gaps, or leave them as a tracked follow-up?
-    next_action: If approved, implement Directus-only and Invoice-Ninja-only reconciliation paths with tests before further prod mutation.
-  last_verified_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
+  blocker: null
+  last_verified_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
 
 scenarios:
   - id: S-1
@@ -177,6 +196,16 @@ scenarios:
     then:
       - User-facing invoice emails are not sent.
       - Only safe internal records are created or reported for a dedicated backfill path.
+  - id: S-5
+    title: Backfilled Stripe invoices preserve original payment dates
+    given:
+      - A historical Stripe PaymentIntent is backfilled after its original payment date.
+    when:
+      - The invoice task or repair tooling creates or repairs Directus, PDF, S3 filename, and Invoice Ninja surfaces.
+    then:
+      - The Stripe charge/payment timestamp is used as the invoice issue and due date.
+      - The generated PDF and stored filename use that original date.
+      - Locked paid Invoice Ninja rows are not duplicated as active rows during repair.
 
 acceptance_criteria:
   - id: AC-1
@@ -216,6 +245,16 @@ acceptance_criteria:
     verification_scope: related_backend
     verification_ids:
       - T-PYTEST-003
+  - id: AC-5
+    scenario: S-5
+    text: Historical Stripe invoice backfills and repairs use the original Stripe payment date across Directus, PDFs, S3 filename metadata, and active Invoice Ninja rows.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-005
+      - V-PROD-DATE-REPAIR-001
 
 assumptions:
   - id: A-1
@@ -238,6 +277,7 @@ contracts:
   data:
     - Directus invoice rows are created only for Stripe orders missing Directus records.
     - Directus-present rows missing Invoice Ninja records are report-only until an Invoice-Ninja-only backfill exists.
+    - Stripe invoice issue/due dates are resolved from Stripe latest charge creation time, then PaymentIntent creation time, before falling back to task time.
   privacy_security:
     - Backfill does not send invoice PDFs or customer emails.
     - Admin error notifications include order/provider/error context only and must not include decrypted user email, PDF bytes, payment secrets, or raw Vault values.
@@ -264,9 +304,9 @@ tests:
       evidence:
         status: passed
         command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-21-tests
-        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
-        timestamp: "2026-07-30T19:46:31Z"
+        run_id: local-pytest-billing-guardrails-translation-20260730-26-tests
+        subject_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
+        timestamp: "2026-07-30T20:42:57Z"
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_billing_admin_notifications.py
@@ -289,9 +329,9 @@ tests:
       evidence:
         status: passed
         command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-21-tests
-        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
-        timestamp: "2026-07-30T19:46:31Z"
+        run_id: local-pytest-billing-guardrails-translation-20260730-26-tests
+        subject_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
+        timestamp: "2026-07-30T20:42:57Z"
   - id: T-PYTEST-003
     type: pytest
     file: backend/tests/test_invoice_reconciliation_script.py
@@ -314,9 +354,9 @@ tests:
       evidence:
         status: passed
         command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-21-tests
-        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
-        timestamp: "2026-07-30T19:46:31Z"
+        run_id: local-pytest-billing-guardrails-translation-20260730-26-tests
+        subject_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
+        timestamp: "2026-07-30T20:42:57Z"
   - id: T-PYTEST-004
     type: pytest
     file: backend/tests/test_billing_worker_compose.py
@@ -339,10 +379,37 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-worker-compose-translation-20260730-6-tests
-        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
-        timestamp: "2026-07-30T19:28:00Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
+        run_id: local-pytest-billing-guardrails-translation-20260730-26-tests
+        subject_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
+        timestamp: "2026-07-30T20:42:57Z"
+  - id: T-PYTEST-005
+    type: pytest
+    file: backend/tests/test_invoice_reconciliation_script.py
+    command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_billing_admin_notifications.py
+    covers:
+      - AC-5
+    assertions:
+      - invoice task prefers explicit backfill invoice_date over task execution time.
+      - invoice task uses provider payment_created before falling back to task execution time.
+      - reconciliation tooling derives invoice dates from Stripe charge or PaymentIntent created timestamps.
+      - filename helpers regenerate original-date invoice PDF filenames without changing the invoice number.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        reason: Original-date preservation tests were added after discovering the 2026-07-30 repair-date regression.
+        timestamp: "2026-07-30T20:40:20Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_billing_admin_notifications.py
+        run_id: local-pytest-original-invoice-date-repair-20260730-18-tests
+        subject_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
+        timestamp: "2026-07-30T20:40:20Z"
 
 verifications:
   - id: V-PROD-HOTFIX-001
@@ -386,6 +453,30 @@ verifications:
       run_id: prod-reconcile-no-email-backfill-20260730T1935Z
       subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
       timestamp: "2026-07-30T19:40:00Z"
+  - id: V-PROD-DATE-REPAIR-001
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-5
+    status: passed
+    evidence:
+      status: passed
+      reason: The 2026-07-30 no-email backfill had used repair-time invoice dates; accounting surfaces needed the original Stripe payment dates without emailing users.
+      summary: >
+        Production repair regenerated encrypted PDFs, updated Directus invoice
+        dates and encrypted filenames, and recreated locked paid active Invoice
+        Ninja rows for the eight mapped Stripe PaymentIntents. Direct PostgreSQL
+        verification in the Directus database showed the repaired dates persisted
+        as 2026-05-15, 2026-05-16, 2026-05-16, 2026-06-14, 2026-07-05,
+        2026-07-13, 2026-07-18, and 2026-07-18 for the eight payment intents.
+        A stale broad Directus API date-window response was isolated by exact-ID
+        and database checks; the repair script now re-fetches exact PaymentIntent
+        rows before deciding whether a candidate still needs repair.
+      command: ./scripts/prod-ssh.sh "docker exec cms-database sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"select id, provider_order_id, date from invoices where provider = '\''stripe'\'' and date >= '\''2026-05-01'\'' and date < '\''2026-07-31'\'' order by date;\"'"
+      run_id: prod-stripe-original-date-repair-20260730T2040Z
+      subject_commit: a79ecadf752d22fbe33c505522f28e9dcaac4fa4+working-tree-original-stripe-date-repair
+      timestamp: "2026-07-30T20:40:20Z"
 
 implementation_plan:
   spec_path: docs/specs/billing-processing-incident-2026-07/spec.yml
@@ -395,19 +486,25 @@ implementation_plan:
     - backend/scripts/audit_backfill_missing_stripe_invoices.py
   architecture: >
     Keep payment processing behavior unchanged. Add admin notification to the
-    billing task error paths, extend Invoice Ninja bank integration mapping, and
+    billing task error paths, extend Invoice Ninja bank integration mapping,
+    preserve provider payment dates for historical Stripe invoice backfills, and
     make reconciliation/backfill fail closed to avoid duplicate records or user
     invoice emails.
   data_flow:
     - Payment webhook grants credits and queues invoice processing.
+    - StripeService exposes provider payment timestamps from latest charge or PaymentIntent metadata to downstream invoice generation.
     - Invoice task creates encrypted invoice/PDF records and attempts Invoice Ninja sync.
+    - Historical no-email backfills pass the original provider payment timestamp to the invoice task.
     - Any billing error logs and sends a sanitized admin notification.
     - Backfill script audits Stripe, Directus, and Invoice Ninja before dispatching no-email tasks.
+    - Original-date repair tooling regenerates encrypted PDFs and recreates locked active Invoice Ninja rows only after exact PaymentIntent re-fetch confirms repair is still needed.
   affected_files:
     - path: backend/core/api/Dockerfile
       reason: Package worker gosu/celeryuser contract and generated locale JSON required by production invoice PDFs.
     - path: backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
-      reason: Notify admins on billing processing errors and keep backfill no-email behavior.
+      reason: Notify admins on billing processing errors, keep backfill no-email behavior, and use provider payment dates for invoices.
+    - path: backend/core/api/app/services/payment/stripe_service.py
+      reason: Preserve Stripe created/payment_created timestamps in normalized order data.
     - path: backend/core/api/templates/email/billing-processing-error.mjml
       reason: Sanitized server-admin billing error email template.
     - path: backend/core/api/app/services/email_template.py
@@ -415,7 +512,7 @@ implementation_plan:
     - path: backend/core/api/app/services/invoiceninja/invoiceninja.py
       reason: Add bank_transfer bank integration mapping.
     - path: backend/scripts/audit_backfill_missing_stripe_invoices.py
-      reason: Safe reconciliation/backfill tooling.
+      reason: Safe reconciliation/backfill tooling and original-date repair mode for historical Stripe rows.
     - path: backend/core/docker-compose.selfhost.yml
       reason: Permanent worker Vault/config/log mount and production env definition.
     - path: frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
@@ -423,6 +520,7 @@ implementation_plan:
   verification_strategy:
     - /home/superdev/projects/OpenMates/.venv/bin/ruff check backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py backend/core/api/app/services/email_template.py backend/core/api/app/services/invoiceninja/invoiceninja.py backend/scripts/audit_backfill_missing_stripe_invoices.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_invoice_reconciliation_script.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
     - /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
+    - /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_billing_admin_notifications.py
     - python3 scripts/spec_validate.py docs/specs/billing-processing-incident-2026-07/spec.yml
     - python3 scripts/spec_verify.py docs/specs/billing-processing-incident-2026-07/spec.yml
   verification_order:
@@ -432,6 +530,7 @@ implementation_plan:
     - Prod code deploy/hotfix.
     - Prod dry-run reconciliation.
     - No-email backfill only after dry-run review.
+    - Original-date repair dry-run before delete/recreate apply for locked paid Invoice Ninja rows.
 
 tasks:
   - id: TASK-1
@@ -580,3 +679,41 @@ tasks:
       - Invoice-Ninja-only backfill for Directus bank-transfer rows.
       - Manual/accounting review for unmapped Stripe PaymentIntents.
     independently_deployable: false
+  - id: TASK-6
+    title: Repair original dates for 2026-07-30 backfilled Stripe invoices
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - backend/core/api/app/services/payment/stripe_service.py
+      - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+      - backend/scripts/audit_backfill_missing_stripe_invoices.py
+      - backend/tests/test_invoice_reconciliation_script.py
+      - backend/tests/test_billing_admin_notifications.py
+      - docs/specs/billing-processing-incident-2026-07/spec.yml
+    verification:
+      - T-PYTEST-005
+      - V-PROD-DATE-REPAIR-001
+    verification_ids:
+      - T-PYTEST-005
+      - V-PROD-DATE-REPAIR-001
+    dependencies:
+      - TASK-5
+    ownership:
+      files:
+        - backend/core/api/app/services/payment/stripe_service.py
+        - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+        - backend/scripts/audit_backfill_missing_stripe_invoices.py
+        - backend/tests/test_invoice_reconciliation_script.py
+        - backend/tests/test_billing_admin_notifications.py
+        - docs/specs/billing-processing-incident-2026-07/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - Commit and deploy durable source changes so future backfills use original Stripe payment dates without ad-hoc prod script patches.
+      - Rerun reconciliation dry-runs after deploy to confirm no 2026-07-30 date repairs remain.
+    independently_deployable: true

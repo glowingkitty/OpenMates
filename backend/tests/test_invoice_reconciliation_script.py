@@ -8,8 +8,9 @@ to run without external services.
 """
 
 import importlib.util
-from datetime import timezone
+from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -27,6 +28,33 @@ def test_parse_datetime_supports_date_only_and_z_suffix():
     parsed = audit_script._parse_datetime("2026-07-01T12:34:56Z")
     assert parsed.tzinfo == timezone.utc
     assert parsed.isoformat() == "2026-07-01T12:34:56+00:00"
+
+
+def test_stripe_invoice_datetime_prefers_charge_created_timestamp():
+    payment_intent = SimpleNamespace(
+        id="pi_123",
+        created=int(datetime(2026, 7, 4, tzinfo=timezone.utc).timestamp()),
+        latest_charge=SimpleNamespace(created=int(datetime(2026, 7, 5, tzinfo=timezone.utc).timestamp())),
+    )
+
+    assert audit_script._stripe_invoice_datetime(payment_intent).isoformat() == "2026-07-05T00:00:00+00:00"
+
+
+def test_stripe_invoice_datetime_falls_back_to_payment_intent_created_timestamp():
+    payment_intent = SimpleNamespace(
+        id="pi_123",
+        created=int(datetime(2026, 7, 4, tzinfo=timezone.utc).timestamp()),
+        latest_charge="ch_123",
+    )
+
+    assert audit_script._stripe_invoice_datetime(payment_intent).isoformat() == "2026-07-04T00:00:00+00:00"
+
+
+def test_invoice_filename_helpers_preserve_invoice_number_with_original_date():
+    filename = audit_script._invoice_filename_for_date("RDGV4VK-2", "2026-06-04")
+
+    assert filename == "openmates_invoice_2026_06_04_RDGV4VK-2.pdf"
+    assert audit_script._invoice_number_from_filename(filename) == "RDGV4VK-2"
 
 
 def test_ninja_invoice_matches_custom_field_or_private_notes():

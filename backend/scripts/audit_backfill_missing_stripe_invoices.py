@@ -15,9 +15,11 @@ duplicate Directus invoice row.
 
 import argparse
 import asyncio
+import base64
 import json
 import logging
 import os
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -29,10 +31,13 @@ for path in (str(REPO_ROOT), "/app/backend"):
         sys.path.insert(0, path)
 
 import stripe  # noqa: E402
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa: E402
 
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.directus.directus import DirectusService  # noqa: E402
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402
+from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService  # noqa: E402
+from backend.core.api.app.services.s3 import S3UploadService  # noqa: E402
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
@@ -41,6 +46,7 @@ logger = logging.getLogger("audit_backfill_missing_stripe_invoices")
 INVOICE_TASK = "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email"
 STRIPE_SECRET_PATH = "kv/data/providers/stripe"
 INVOICE_SENDER_SECRET_PATH = "kv/data/providers/invoice_sender"
+BACKFILLED_INVOICE_FILENAME_RE = re.compile(r"^openmates_invoice_\d{4}_\d{2}_\d{2}_(?P<number>.+)\.pdf$")
 
 
 def _is_production() -> bool:
@@ -77,6 +83,36 @@ def _parse_datetime(value: str | None) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
+def _stripe_invoice_datetime(payment_intent: Any) -> datetime:
+    latest_charge = getattr(payment_intent, "latest_charge", None)
+    charge_created = getattr(latest_charge, "created", None) if latest_charge and not isinstance(latest_charge, str) else None
+    created = charge_created or getattr(payment_intent, "created", None)
+    if not created:
+        raise RuntimeError(f"PaymentIntent {payment_intent.id} has no created timestamp")
+    return datetime.fromtimestamp(int(created), tz=timezone.utc)
+
+
+def _invoice_filename_for_date(invoice_number: str, invoice_date: str) -> str:
+    return f"openmates_invoice_{invoice_date.replace('-', '_')}_{invoice_number}.pdf"
+
+
+def _invoice_number_from_filename(filename: str) -> str | None:
+    match = BACKFILLED_INVOICE_FILENAME_RE.match(filename)
+    return match.group("number") if match else None
+
+
+def _card_details_from_payment_intent(payment_intent: Any) -> dict[str, str | None]:
+    latest_charge = getattr(payment_intent, "latest_charge", None)
+    payment_method_details = getattr(latest_charge, "payment_method_details", None)
+    card = getattr(payment_method_details, "card", None) if payment_method_details else None
+    billing_details = getattr(latest_charge, "billing_details", None) if latest_charge else None
+    return {
+        "card_brand": getattr(card, "brand", None) if card else None,
+        "card_last_four": getattr(card, "last4", None) if card else None,
+        "cardholder_name": getattr(billing_details, "name", None) if billing_details else None,
+    }
+
+
 def _iter_payment_intents(
     payment_intents: list[str],
     days: int,
@@ -85,7 +121,7 @@ def _iter_payment_intents(
 ):
     if payment_intents:
         for payment_intent_id in payment_intents:
-            yield stripe.PaymentIntent.retrieve(payment_intent_id)
+            yield stripe.PaymentIntent.retrieve(payment_intent_id, expand=["latest_charge"])
         return
 
     created_filter: dict[str, int] = {}
@@ -127,7 +163,13 @@ def _ninja_invoice_matches(row: dict[str, Any], external_order_id: str) -> bool:
     )
 
 
-async def _ninja_invoice_exists(ninja: InvoiceNinjaService, external_order_id: str) -> bool | None:
+def _is_active_ninja_row(row: dict[str, Any]) -> bool:
+    archived_at = row.get("archived_at")
+    deleted_at = row.get("deleted_at")
+    return archived_at in (None, 0, "0") and deleted_at in (None, 0, "0")
+
+
+async def _ninja_invoice_rows(ninja: InvoiceNinjaService, external_order_id: str) -> tuple[list[dict[str, Any]], bool]:
     rows: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     saw_lookup_error = False
@@ -147,7 +189,12 @@ async def _ninja_invoice_exists(ninja: InvoiceNinjaService, external_order_id: s
             if row_id:
                 seen_ids.add(row_id)
             rows.append(row)
-    if any(_ninja_invoice_matches(row, external_order_id) for row in rows):
+    return [row for row in rows if _is_active_ninja_row(row) and _ninja_invoice_matches(row, external_order_id)], saw_lookup_error
+
+
+async def _ninja_invoice_exists(ninja: InvoiceNinjaService, external_order_id: str) -> bool | None:
+    rows, saw_lookup_error = await _ninja_invoice_rows(ninja, external_order_id)
+    if rows:
         return True
     return None if saw_lookup_error else False
 
@@ -190,7 +237,7 @@ async def _user_for_customer(directus: DirectusService, customer_id: str | None)
         "users",
         params={
             "filter": {"stripe_customer_id": {"_eq": customer_id}},
-            "fields": "id,account_id,stripe_customer_id",
+            "fields": "id,account_id,stripe_customer_id,vault_key_id,language,darkmode",
             "limit": 2,
         },
         admin_required=True,
@@ -220,6 +267,557 @@ async def _iter_bank_transfer_invoice_rows(
         },
         admin_required=True,
     ) or []
+
+
+async def _iter_stripe_invoices_created_on(
+    directus: DirectusService,
+    created_on: datetime,
+) -> list[dict[str, Any]]:
+    start = created_on.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    return await directus.get_items(
+        "invoices",
+        params={
+            "filter": {
+                "provider": {"_eq": "stripe"},
+                "date": {"_gte": start.isoformat(), "_lt": end.isoformat()},
+            },
+            "fields": (
+                "id,order_id,provider_order_id,provider,date,user_id_hash,"
+                "encrypted_s3_object_key,encrypted_aes_key,aes_nonce,encrypted_filename,"
+                "encrypted_credits_purchased,is_gift_card"
+            ),
+            "limit": -1,
+        },
+        admin_required=True,
+    ) or []
+
+
+async def _stripe_invoice_rows_for_payment_intents(
+    directus: DirectusService,
+    payment_intent_ids: set[str],
+) -> list[dict[str, Any]]:
+    if not payment_intent_ids:
+        return []
+    rows: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for payment_intent_id in sorted(payment_intent_ids):
+        matches = await directus.get_items(
+            "invoices",
+            params={
+                "filter": {
+                    "_or": [
+                        {"order_id": {"_eq": payment_intent_id}},
+                        {"provider_order_id": {"_eq": payment_intent_id}},
+                    ],
+                    "provider": {"_eq": "stripe"},
+                },
+                "fields": (
+                    "id,order_id,provider_order_id,provider,date,user_id_hash,"
+                    "encrypted_s3_object_key,encrypted_aes_key,aes_nonce,encrypted_filename,"
+                    "encrypted_credits_purchased,is_gift_card"
+                ),
+                "limit": 1,
+            },
+            admin_required=True,
+        ) or []
+        for row in matches:
+            row_id = str(row.get("id") or "")
+            if row_id and row_id not in seen_ids:
+                seen_ids.add(row_id)
+                rows.append(row)
+    return rows
+
+
+async def _ninja_bank_transaction_rows(
+    ninja: InvoiceNinjaService,
+    external_order_id: str,
+    invoice_number: str,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for params in ({"filter": external_order_id}, {"filter": invoice_number}):
+        response = await ninja.make_api_request("GET", "/bank_transactions", params=params)
+        for row in (response or {}).get("data") or []:
+            row_id = str(row.get("id") or "")
+            if row_id and row_id in seen_ids:
+                continue
+            description = str(row.get("description") or "")
+            if not _is_active_ninja_row(row):
+                continue
+            if external_order_id not in description and invoice_number not in description:
+                continue
+            if row_id:
+                seen_ids.add(row_id)
+            rows.append(row)
+    return rows
+
+
+async def _ninja_payment_rows(ninja: InvoiceNinjaService, external_order_id: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for params in (
+        {"filter": external_order_id, "include": "invoices"},
+        {"transaction_reference": external_order_id, "include": "invoices"},
+    ):
+        response = await ninja.make_api_request("GET", "/payments", params=params)
+        for row in (response or {}).get("data") or []:
+            row_id = str(row.get("id") or "")
+            if row_id and row_id in seen_ids:
+                continue
+            if not _is_active_ninja_row(row):
+                continue
+            transaction_reference = str(row.get("transaction_reference") or "")
+            if transaction_reference != external_order_id:
+                continue
+            if row_id:
+                seen_ids.add(row_id)
+            rows.append(row)
+    return rows
+
+
+def _build_repair_invoice_data(
+    *,
+    invoice_number: str,
+    invoice_date: str,
+    user: dict[str, Any],
+    credits: int,
+    amount_paid: int,
+    card_details: dict[str, str | None],
+    sender: dict[str, str],
+    refund_link: str,
+    is_gift_card: bool,
+) -> dict[str, Any]:
+    card_brand = card_details.get("card_brand") or ""
+    formatted_card_brand = card_brand
+    if card_brand:
+        card_brand_lower = card_brand.lower()
+        if card_brand_lower == "visa":
+            formatted_card_brand = "VISA"
+        elif card_brand_lower == "mastercard":
+            formatted_card_brand = "MasterCard"
+        elif card_brand_lower == "american_express":
+            formatted_card_brand = "American Express"
+
+    return {
+        "invoice_number": invoice_number,
+        "date_of_issue": invoice_date,
+        "date_due": invoice_date,
+        "receiver_name": "",
+        "receiver_account_id": user.get("account_id"),
+        "credits": credits,
+        "actual_amount_paid": float(amount_paid) / 100,
+        "card_name": formatted_card_brand,
+        "card_last4": card_details.get("card_last_four"),
+        "sender_addressline1": sender.get("addressline1") or "",
+        "sender_addressline2": sender.get("addressline2") or "",
+        "sender_addressline3": sender.get("addressline3") or "",
+        "sender_country": sender.get("country") or "",
+        "sender_email": sender.get("email") or "support@openmates.org",
+        "sender_vat": sender.get("vat") or "",
+        "is_gift_card": is_gift_card,
+        "refund_link": refund_link,
+    }
+
+
+async def _patch_invoice_ninja_date_surfaces(
+    *,
+    ninja: InvoiceNinjaService,
+    external_order_id: str,
+    invoice_rows: list[dict[str, Any]],
+    invoice_number: str,
+    invoice_date: str,
+    pdf_bytes: bytes,
+    apply: bool,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "invoice_ids": [row.get("id") for row in invoice_rows],
+        "payment_ids": [],
+        "bank_transaction_ids": [],
+        "updated": False,
+        "errors": [],
+    }
+    payments = await _ninja_payment_rows(ninja, external_order_id)
+    bank_transactions = await _ninja_bank_transaction_rows(ninja, external_order_id, invoice_number)
+    result["payment_ids"] = [row.get("id") for row in payments]
+    result["bank_transaction_ids"] = [row.get("id") for row in bank_transactions]
+
+    if not apply:
+        return result
+
+    for row in invoice_rows:
+        invoice_id = row.get("id")
+        if not invoice_id:
+            result["errors"].append("invoice row missing id")
+            continue
+        response = await ninja.make_api_request(
+            "PUT",
+            f"/invoices/{invoice_id}",
+            data={"date": invoice_date, "due_date": invoice_date},
+        )
+        if response is None:
+            result["errors"].append(f"failed to update invoice {invoice_id} date")
+            continue
+        if not await ninja.upload_invoice_document(invoice_id, pdf_bytes, f"{external_order_id}_invoice.pdf"):
+            result["errors"].append(f"failed to upload corrected PDF for invoice {invoice_id}")
+
+    for payment in payments:
+        payment_id = payment.get("id")
+        if not payment_id:
+            continue
+        response = await ninja.make_api_request("PUT", f"/payments/{payment_id}", data={"date": invoice_date})
+        if response is None:
+            result["errors"].append(f"failed to update payment {payment_id} date")
+
+    for row in bank_transactions:
+        transaction_id = row.get("id")
+        if not transaction_id:
+            continue
+        response = await ninja.make_api_request(
+            "PUT",
+            f"/bank_transactions/{transaction_id}",
+            data={"date": invoice_date},
+        )
+        if response is None:
+            result["errors"].append(f"failed to update bank transaction {transaction_id} date")
+
+    result["updated"] = not result["errors"]
+    return result
+
+
+async def _recreate_locked_invoice_ninja_surfaces(
+    *,
+    ninja: InvoiceNinjaService,
+    external_order_id: str,
+    invoice_rows: list[dict[str, Any]],
+    invoice_number: str,
+    invoice_date: str,
+    pdf_bytes: bytes,
+    user_hash: str,
+    user: dict[str, Any],
+    credits: int,
+    amount_paid: int,
+    currency_code: str,
+    card_details: dict[str, str | None],
+    is_gift_card: bool,
+    apply: bool,
+) -> dict[str, Any]:
+    payments = await _ninja_payment_rows(ninja, external_order_id)
+    bank_transactions = await _ninja_bank_transaction_rows(ninja, external_order_id, invoice_number)
+    result: dict[str, Any] = {
+        "mode": "delete_recreate",
+        "old_invoice_ids": [row.get("id") for row in invoice_rows],
+        "old_invoice_dates": [row.get("date") for row in invoice_rows],
+        "old_invoice_due_dates": [row.get("due_date") for row in invoice_rows],
+        "old_invoice_statuses": [row.get("status") or row.get("status_id") for row in invoice_rows],
+        "old_invoice_archived_at": [row.get("archived_at") for row in invoice_rows],
+        "old_invoice_deleted_at": [row.get("deleted_at") for row in invoice_rows],
+        "old_payment_ids": [row.get("id") for row in payments],
+        "old_payment_dates": [row.get("date") for row in payments],
+        "old_payment_archived_at": [row.get("archived_at") for row in payments],
+        "old_payment_deleted_at": [row.get("deleted_at") for row in payments],
+        "old_bank_transaction_ids": [row.get("id") for row in bank_transactions],
+        "old_bank_transaction_dates": [row.get("date") for row in bank_transactions],
+        "old_bank_transaction_archived_at": [row.get("archived_at") for row in bank_transactions],
+        "old_bank_transaction_deleted_at": [row.get("deleted_at") for row in bank_transactions],
+        "recreated": False,
+        "errors": [],
+    }
+
+    if not apply:
+        return result
+
+    for row in bank_transactions:
+        transaction_id = row.get("id")
+        if not transaction_id:
+            continue
+        response = await ninja.make_api_request("DELETE", f"/bank_transactions/{transaction_id}")
+        if response is None:
+            result["errors"].append(f"failed to delete old bank transaction {transaction_id}")
+    if result["errors"]:
+        return result
+
+    for payment in payments:
+        payment_id = payment.get("id")
+        if not payment_id:
+            continue
+        response = await ninja.make_api_request("DELETE", f"/payments/{payment_id}")
+        if response is None:
+            result["errors"].append(f"failed to delete old payment {payment_id}")
+    if result["errors"]:
+        return result
+
+    for row in invoice_rows:
+        invoice_id = row.get("id")
+        if not invoice_id:
+            continue
+        response = await ninja.make_api_request("DELETE", f"/invoices/{invoice_id}")
+        if response is None:
+            result["errors"].append(f"failed to delete old invoice {invoice_id}")
+    if result["errors"]:
+        return result
+
+    cardholder_name = card_details.get("cardholder_name") or ""
+    customer_firstname = ""
+    customer_lastname = ""
+    if cardholder_name:
+        if " " in cardholder_name:
+            customer_firstname, customer_lastname = cardholder_name.split(" ", 1)
+        else:
+            customer_firstname = cardholder_name
+
+    await ninja.process_income_transaction(
+        user_hash=user_hash,
+        external_order_id=external_order_id,
+        customer_firstname=customer_firstname,
+        customer_lastname=customer_lastname,
+        customer_account_id=str(user.get("account_id") or ""),
+        customer_country_code="",
+        credits_value=credits,
+        currency_code=currency_code,
+        purchase_price_value=float(amount_paid) / 100,
+        invoice_date=invoice_date,
+        due_date=invoice_date,
+        payment_processor="stripe",
+        card_brand_lower=(card_details.get("card_brand") or "").lower(),
+        custom_invoice_number=invoice_number,
+        custom_pdf_data=pdf_bytes,
+        is_gift_card=is_gift_card,
+    )
+    result["recreated"] = True
+    return result
+
+
+async def _repair_backfilled_invoice_dates(args: argparse.Namespace) -> int:
+    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
+    created_on = _parse_datetime(args.repair_created_on)
+    if not created_on:
+        raise SystemExit("--repair-created-on must be a date or ISO timestamp")
+
+    secrets = SecretsManager()
+    await secrets.initialize()
+    cache = CacheService()
+    encryption = EncryptionService(cache_service=cache)
+    directus = DirectusService(cache_service=cache, encryption_service=encryption)
+    ninja = None
+    s3 = None
+
+    try:
+        stripe.api_key = await _stripe_api_key(secrets)
+        sender = await _sender_details(secrets)
+        ninja = await InvoiceNinjaService.create(secrets)
+        if args.apply_date_repair:
+            s3 = S3UploadService(secrets)
+            await s3.initialize()
+        invoice_template = await InvoiceTemplateService.create(secrets)
+        findings: list[dict[str, Any]] = []
+        repaired = 0
+        blocked = 0
+        selected_payment_intents = set(args.payment_intent or [])
+        directus_rows = await _iter_stripe_invoices_created_on(directus, created_on)
+        if selected_payment_intents:
+            rows_by_id = {str(row.get("id")): row for row in directus_rows if row.get("id")}
+            for row in await _stripe_invoice_rows_for_payment_intents(directus, selected_payment_intents):
+                row_id = str(row.get("id") or "")
+                if row_id:
+                    rows_by_id[row_id] = row
+            directus_rows = list(rows_by_id.values())
+
+        for invoice in directus_rows:
+            external_order_id = str(invoice.get("provider_order_id") or invoice.get("order_id") or "")
+            if not external_order_id.startswith("pi_"):
+                continue
+            if selected_payment_intents and external_order_id not in selected_payment_intents:
+                continue
+            exact_rows = await _stripe_invoice_rows_for_payment_intents(directus, {external_order_id})
+            if exact_rows:
+                invoice = exact_rows[0]
+
+            payment_intent = stripe.PaymentIntent.retrieve(external_order_id, expand=["latest_charge"])
+            original_datetime = _stripe_invoice_datetime(payment_intent)
+            original_date = original_datetime.date().isoformat()
+            current_date = _parse_datetime(str(invoice.get("date") or ""))
+            if (
+                current_date
+                and current_date.date() == original_datetime.date()
+                and not args.recreate_locked_invoice_ninja
+            ):
+                continue
+
+            record: dict[str, Any] = {
+                "directus_invoice_id": invoice.get("id"),
+                "payment_intent_id": external_order_id,
+                "current_directus_date": invoice.get("date"),
+                "original_invoice_datetime": original_datetime.isoformat(),
+                "original_invoice_date": original_date,
+                "apply_date_repair": bool(args.apply_date_repair),
+                "status": "pending",
+                "errors": [],
+            }
+
+            user = await _user_for_customer(directus, getattr(payment_intent, "customer", None))
+            if not user or not user.get("vault_key_id") or not user.get("account_id"):
+                record["status"] = "blocked"
+                record["errors"].append("missing unique Directus user mapping with vault/account data")
+                findings.append(record)
+                blocked += 1
+                continue
+
+            vault_key_id = user["vault_key_id"]
+            encrypted_filename = invoice.get("encrypted_filename")
+            encrypted_s3_object_key = invoice.get("encrypted_s3_object_key")
+            encrypted_aes_key = invoice.get("encrypted_aes_key")
+            aes_nonce_b64 = invoice.get("aes_nonce")
+            if not encrypted_filename or not encrypted_s3_object_key or not encrypted_aes_key or not aes_nonce_b64:
+                record["status"] = "blocked"
+                record["errors"].append("Directus invoice is missing encrypted PDF metadata")
+                findings.append(record)
+                blocked += 1
+                continue
+
+            current_filename = await encryption.decrypt_with_user_key(encrypted_filename, vault_key_id)
+            s3_object_key = await encryption.decrypt_with_user_key(encrypted_s3_object_key, vault_key_id)
+            aes_key_b64 = await encryption.decrypt_with_user_key(encrypted_aes_key, vault_key_id)
+            invoice_number = _invoice_number_from_filename(current_filename or "")
+            if not current_filename or not s3_object_key or not aes_key_b64 or not invoice_number:
+                record["status"] = "blocked"
+                record["errors"].append("failed to decrypt current filename, S3 key, AES key, or invoice number")
+                findings.append(record)
+                blocked += 1
+                continue
+
+            credits = _credits_from_metadata(payment_intent)
+            if not credits:
+                record["status"] = "blocked"
+                record["errors"].append("Stripe metadata does not contain credits_purchased")
+                findings.append(record)
+                blocked += 1
+                continue
+
+            refund_link = f"{os.getenv('WEBAPP_URL', 'https://openmates.org')}#settings/billing/invoices/{invoice['id']}/refund"
+            invoice_data = _build_repair_invoice_data(
+                invoice_number=invoice_number,
+                invoice_date=original_date,
+                user=user,
+                credits=credits,
+                amount_paid=int(getattr(payment_intent, "amount", 0) or 0),
+                card_details=_card_details_from_payment_intent(payment_intent),
+                sender=sender,
+                refund_link=refund_link,
+                is_gift_card=bool(invoice.get("is_gift_card")),
+            )
+            pdf_buffer = invoice_template.generate_invoice(
+                invoice_data,
+                lang="en",
+                currency=str(getattr(payment_intent, "currency", "eur")).lower(),
+                document_type="invoice",
+            )
+            pdf_bytes = pdf_buffer.getvalue()
+            pdf_buffer.close()
+            corrected_filename = _invoice_filename_for_date(invoice_number, original_date)
+            record.update({
+                "current_filename": current_filename,
+                "corrected_filename": corrected_filename,
+                "s3_object_key_preserved": s3_object_key,
+            })
+
+            ninja_rows, ninja_lookup_error = await _ninja_invoice_rows(ninja, external_order_id)
+            if not ninja_rows:
+                record["status"] = "blocked"
+                record["errors"].append("matching Invoice Ninja invoice not found" if not ninja_lookup_error else "Invoice Ninja lookup failed")
+                findings.append(record)
+                blocked += 1
+                continue
+
+            if args.recreate_locked_invoice_ninja:
+                record["invoice_ninja"] = await _recreate_locked_invoice_ninja_surfaces(
+                    ninja=ninja,
+                    external_order_id=external_order_id,
+                    invoice_rows=ninja_rows,
+                    invoice_number=invoice_number,
+                    invoice_date=original_date,
+                    pdf_bytes=pdf_bytes,
+                    user_hash=str(invoice.get("user_id_hash") or ""),
+                    user=user,
+                    credits=credits,
+                    amount_paid=int(getattr(payment_intent, "amount", 0) or 0),
+                    currency_code=str(getattr(payment_intent, "currency", "eur")).lower(),
+                    card_details=_card_details_from_payment_intent(payment_intent),
+                    is_gift_card=bool(invoice.get("is_gift_card")),
+                    apply=bool(args.apply_date_repair),
+                )
+            else:
+                record["invoice_ninja"] = await _patch_invoice_ninja_date_surfaces(
+                    ninja=ninja,
+                    external_order_id=external_order_id,
+                    invoice_rows=ninja_rows,
+                    invoice_number=invoice_number,
+                    invoice_date=original_date,
+                    pdf_bytes=pdf_bytes,
+                    apply=bool(args.apply_date_repair),
+                )
+
+            if args.apply_date_repair:
+                if s3 is None:
+                    record["status"] = "blocked"
+                    record["errors"].append("S3 service unavailable for apply")
+                    findings.append(record)
+                    blocked += 1
+                    continue
+                aes_key = base64.b64decode(aes_key_b64)
+                nonce = base64.b64decode(aes_nonce_b64)
+                encrypted_pdf_payload = AESGCM(aes_key).encrypt(nonce, pdf_bytes, None)
+                upload_result = await s3.upload_file(
+                    bucket_key="invoices",
+                    file_key=s3_object_key,
+                    content=encrypted_pdf_payload,
+                    content_type="application/octet-stream",
+                )
+                if not upload_result.get("url"):
+                    record["status"] = "blocked"
+                    record["errors"].append("failed to overwrite encrypted S3 PDF")
+                    findings.append(record)
+                    blocked += 1
+                    continue
+
+                encrypted_corrected_filename, _ = await encryption.encrypt_with_user_key(corrected_filename, vault_key_id)
+                update_result = await directus.update_item(
+                    "invoices",
+                    str(invoice["id"]),
+                    {"date": original_datetime.isoformat(), "encrypted_filename": encrypted_corrected_filename},
+                    admin_required=True,
+                )
+                if not update_result:
+                    record["status"] = "blocked"
+                    record["errors"].append("failed to update Directus invoice date/filename")
+                    findings.append(record)
+                    blocked += 1
+                    continue
+                if record["invoice_ninja"].get("errors"):
+                    record["status"] = "partial"
+                    blocked += 1
+                else:
+                    record["status"] = "repaired"
+                    repaired += 1
+            else:
+                record["status"] = "would_repair"
+            findings.append(record)
+
+        print(json.dumps({
+            "dry_run": not args.apply_date_repair,
+            "repair_created_on": created_on.date().isoformat(),
+            "scanned_directus_invoices": len(directus_rows),
+            "would_repair": sum(1 for item in findings if item.get("status") == "would_repair"),
+            "repaired": repaired,
+            "blocked": blocked,
+            "findings": findings,
+        }, indent=2, sort_keys=True))
+        return 1 if blocked else 0
+    finally:
+        if ninja:
+            await ninja.close()
+        await directus.close()
+        await secrets.aclose()
 
 
 def _credits_from_metadata(payment_intent: Any) -> int | None:
@@ -266,6 +864,8 @@ async def _audit(args: argparse.Namespace) -> int:
             if not credits:
                 skipped += 1
                 continue
+            invoice_datetime = _stripe_invoice_datetime(payment_intent)
+            invoice_date = invoice_datetime.date().isoformat()
 
             directus_invoice = await _invoice_record(directus, payment_intent.id)
             directus_present = directus_invoice is not None
@@ -289,6 +889,8 @@ async def _audit(args: argparse.Namespace) -> int:
                 "amount": payment_intent.amount,
                 "currency": payment_intent.currency,
                 "credits": credits,
+                "invoice_date": invoice_date,
+                "invoice_datetime": invoice_datetime.isoformat(),
                 "directus_invoice_id": directus_invoice.get("id") if directus_invoice else None,
                 "directus_present": directus_present,
                 "invoice_ninja_present": invoice_ninja_present,
@@ -377,6 +979,7 @@ async def _audit(args: argparse.Namespace) -> int:
                                 "provider": "stripe",
                                 "provider_order_id": item["payment_intent_id"],
                                 "send_email": False,
+                                "invoice_date": item["invoice_datetime"],
                             },
                             queue="email",
                         )
@@ -413,8 +1016,24 @@ def main() -> int:
     parser.add_argument("--check-invoice-ninja", action="store_true", help="Also report whether audited orders exist in Invoice Ninja")
     parser.add_argument("--include-bank-transfers", action="store_true", help="Also audit Directus bank-transfer invoices for missing Invoice Ninja rows")
     parser.add_argument("--apply", action="store_true", help="Dispatch no-email invoice backfill tasks for mapped missing invoices")
+    parser.add_argument("--repair-created-on", help="Repair historical invoice dates for direct-Stripe invoices created on this bad processing date")
+    parser.add_argument("--apply-date-repair", action="store_true", help="Apply --repair-created-on date/PDF/metadata repairs; dry-run by default")
+    parser.add_argument(
+        "--recreate-locked-invoice-ninja",
+        action="store_true",
+        help="For locked Invoice Ninja invoices, delete matched old invoice/payment/bank rows and recreate them with original dates",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable INFO logging")
-    return asyncio.run(_audit(parser.parse_args()))
+    args = parser.parse_args()
+    if args.repair_created_on:
+        if args.apply:
+            raise SystemExit("--repair-created-on cannot be combined with --apply")
+        return asyncio.run(_repair_backfilled_invoice_dates(args))
+    if args.apply_date_repair:
+        raise SystemExit("--apply-date-repair requires --repair-created-on")
+    if args.recreate_locked_invoice_ninja:
+        raise SystemExit("--recreate-locked-invoice-ninja requires --repair-created-on")
+    return asyncio.run(_audit(args))
 
 
 if __name__ == "__main__":

@@ -7,6 +7,8 @@ alert delivery problems must never hide the original invoice-processing error.
 External services are replaced with small fakes so the checks stay local.
 """
 
+from datetime import datetime, timezone
+
 import pytest
 
 from backend.core.api.app.tasks.email_tasks import purchase_confirmation_email_task as billing_task
@@ -45,6 +47,24 @@ class FailingInvoiceTask(FakeTask):
 
     async def initialize_services(self):
         raise RuntimeError("payment lookup failed for buyer@example.com")
+
+
+def test_invoice_datetime_prefers_explicit_backfill_payment_date():
+    resolved = billing_task._resolve_invoice_datetime(
+        explicit_invoice_date="2026-06-04T16:30:00Z",
+        payment_order_details={"payment_created": "2026-07-30T00:00:00Z"},
+    )
+
+    assert resolved.isoformat() == "2026-06-04T16:30:00+00:00"
+
+
+def test_invoice_datetime_uses_provider_payment_created_before_now():
+    resolved = billing_task._resolve_invoice_datetime(
+        explicit_invoice_date=None,
+        payment_order_details={"payment_created": int(datetime(2026, 7, 4, tzinfo=timezone.utc).timestamp())},
+    )
+
+    assert resolved.date().isoformat() == "2026-07-04"
 
 
 @pytest.mark.asyncio
