@@ -99,20 +99,25 @@ export async function sendUpdateSummaryImpl(
 		throw new Error("Chat summary update failed: encrypted chat key unavailable");
 	}
 
-	const currentMetadataVersion = chat.metadata_v ?? chat.title_v ?? 0;
+	const currentMetadataVersion = Math.max(chat.metadata_v ?? 0, chat.title_v ?? 0);
 	const versions: ChatComponentVersions = {
 		messages_v: chat.messages_v || 0,
 		title_v: chat.title_v || 0,
 		metadata_v: currentMetadataVersion,
 		draft_v: chat.draft_v || 0
 	};
-	await webSocketService.sendMessage("update_post_processing_metadata", {
+	const payload: Record<string, unknown> = {
 		chat_id,
 		encrypted_chat_summary: encryptedSummary,
 		encrypted_chat_key: chat.encrypted_chat_key,
 		manual_update: true,
+		title_changed: false,
 		versions
-	});
+	};
+	if (chat.encrypted_title) {
+		payload.encrypted_title = chat.encrypted_title;
+	}
+	await webSocketService.sendMessage("update_post_processing_metadata", payload);
 
 	chat.encrypted_chat_summary = encryptedSummary;
 	chat.metadata_v = currentMetadataVersion + 1;

@@ -109,6 +109,7 @@ async def handle_post_processing_metadata(
             encrypted_chat_key = payload.get("encrypted_chat_key")
             client_versions = payload.get("versions", {})
             is_manual_update = payload.get("manual_update") is True
+            title_changed = payload.get("title_changed")
 
             if not chat_id:
                 logger.error(f"Missing chat_id in post-processing metadata from {user_id}")
@@ -251,7 +252,7 @@ async def handle_post_processing_metadata(
                     directus_service,
                     user_id,
                     chat_id,
-                    title_changed=bool(encrypted_title),
+                    title_changed=bool(encrypted_title) if title_changed is None else title_changed is True,
                     fallback_versions=client_versions,
                 )
                 chat_update_fields.update(accepted_versions)
