@@ -73,6 +73,14 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	const phase1bChatCounts: number[] = [];
 	const phase2Payloads: any[] = [];
 	const sentTypes: string[] = [];
+	const onDemandRequestUrls: string[] = [];
+
+	page.on('request', (request: any) => {
+		const url = request.url();
+		if (url.includes('/messages/window')) {
+			onDemandRequestUrls.push(url);
+		}
+	});
 
 	page.on('websocket', (ws: any) => {
 		ws.on('framesent', (frame: any) => {
@@ -132,7 +140,11 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || new URL(page.url()).origin;
 	await page.goto(`${baseUrl}/#chat-id=${metadataOnlyChatId}`);
 
-	await expect.poll(() => sentTypes.includes('request_chat_content_batch'), {
+	await expect.poll(() => {
+		const expectedRestPath = `/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window`;
+		return sentTypes.includes('request_chat_content_batch') ||
+			onDemandRequestUrls.some((url) => url.includes(expectedRestPath));
+	}, {
 		timeout: 15000,
 		message: 'Opening metadata-only chat should request on-demand content hydration'
 	}).toBe(true);
