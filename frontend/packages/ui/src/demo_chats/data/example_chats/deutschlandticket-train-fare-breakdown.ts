@@ -92,7 +92,7 @@ export const deutschlandticketTrainFareBreakdownChat: ExampleChat = {
 ],
   metadata: {
     featured: true,
-    order: 119,
+    order: 120,
     app_skill_examples: ["travel.search_connections"],
   },
 };
