@@ -178,6 +178,32 @@ test.describe('Demo chat embed rendering', () => {
 		expect(await largeAppSkillNodes.count()).toBe(0);
 	});
 
+	test('Berlin Mitte app skill previews stay compact in one horizontal group', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-berlin-mitte-work-friendly'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+
+		const mapsSearchPreviews = assistantMessage.locator(
+			'[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="search"][data-status="finished"]'
+		);
+		await expect(mapsSearchPreviews.first()).toBeVisible({ timeout: 30000 });
+		expect(await mapsSearchPreviews.count()).toBe(2);
+
+		const groupedWrapper = assistantMessage.locator(
+			'[data-testid="embed-full-width-wrapper"][data-embed-type="app-skill-use-group"][data-group-count="2"]'
+		);
+		await expect(groupedWrapper).toHaveCount(1);
+		expect(await groupedWrapper.locator('[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="search"]').count()).toBe(2);
+
+		await expect(
+			assistantMessage.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="app-skill-use"]')
+		).toHaveCount(0);
+	});
+
 	test('public Habit Garden application example renders without starting a live preview', async ({ page }) => {
 		test.setTimeout(90000);
 

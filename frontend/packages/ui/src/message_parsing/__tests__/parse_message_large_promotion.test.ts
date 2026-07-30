@@ -27,6 +27,15 @@ function findInlineEmbeds(nodes: any[]): any[] {
   return out;
 }
 
+function findNodesByType(nodes: any[], type: string): any[] {
+  const out: any[] = [];
+  for (const node of nodes || []) {
+    if (node?.type === type) out.push(node);
+    if (Array.isArray(node?.content)) out.push(...findNodesByType(node.content, type));
+  }
+  return out;
+}
+
 describe("parse_message assistant large promotion", () => {
   afterEach(() => {
     embedStore.clearEmbedRefIndex();
@@ -238,6 +247,62 @@ describe("parse_message assistant large promotion", () => {
       app_id: "travel",
       skill_id: "search_connections",
     });
+  });
+
+  it("keeps multiple registered app-skill [!] refs compact and grouped", () => {
+    embedStore.registerStaticEmbed({
+      embedId: "maps-search-1",
+      type: "app_skill_use",
+      content: [
+        "app_id: maps",
+        "skill_id: search",
+        "embed_ref: maps-search-parent-1",
+      ].join("\n"),
+      appId: "maps",
+      skillId: "search",
+    });
+    embedStore.registerEmbedRef("maps-search-parent-1", "maps-search-1", "maps");
+    embedStore.registerStaticEmbed({
+      embedId: "maps-search-2",
+      type: "app_skill_use",
+      content: [
+        "app_id: maps",
+        "skill_id: search",
+        "embed_ref: maps-search-parent-2",
+      ].join("\n"),
+      appId: "maps",
+      skillId: "search",
+    });
+    embedStore.registerEmbedRef("maps-search-parent-2", "maps-search-2", "maps");
+
+    const doc = parseAssistant([
+      "[!](embed:maps-search-parent-1)",
+      "",
+      "[!](embed:maps-search-parent-2)",
+    ].join("\n"));
+
+    expect(findNodesByType(doc.content || [], "embedPreviewLarge")).toHaveLength(0);
+
+    const embeds = findNodesByType(doc.content || [], "embed");
+    expect(embeds).toHaveLength(1);
+    expect(embeds[0].attrs).toMatchObject({
+      type: "app-skill-use-group",
+      groupCount: 2,
+    });
+    expect(embeds[0].attrs.groupedItems).toEqual([
+      expect.objectContaining({
+        id: "maps-search-1",
+        type: "app-skill-use",
+        app_id: "maps",
+        skill_id: "search",
+      }),
+      expect.objectContaining({
+        id: "maps-search-2",
+        type: "app-skill-use",
+        app_id: "maps",
+        skill_id: "search",
+      }),
+    ]);
   });
 
   it("renders focus mode activation before app skill previews", () => {

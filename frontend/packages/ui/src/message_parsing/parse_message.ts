@@ -1060,6 +1060,10 @@ export function parse_message(
   // blockquotes that are source quotes and convert them (read mode only)
   if (mode === "read") {
     unifiedDoc = convertEmbedLinks(unifiedDoc);
+    // Link-based app-skill refs (`[!](embed:ref)`) are only known after
+    // convertEmbedLinks(), so run grouping again to preserve the compact
+    // horizontal app-skill row instead of rendering vertical single cards.
+    unifiedDoc = groupConsecutiveEmbedsInDocument(unifiedDoc);
     unifiedDoc = convertSourceQuotes(unifiedDoc);
   }
 
