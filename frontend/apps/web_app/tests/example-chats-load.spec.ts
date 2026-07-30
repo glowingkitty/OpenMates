@@ -542,7 +542,7 @@ test.describe('Example chats loading for new users', () => {
 			paths.map((path) => path.getAttribute('data-transport-type')).filter(Boolean)
 		);
 		expect(transportTypes).toContain('regional_train');
-		expect(transportTypes).toContain('long_distance_train');
+		expect(transportTypes).not.toContain('long_distance_train');
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({
