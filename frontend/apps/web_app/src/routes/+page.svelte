@@ -159,6 +159,25 @@
 		};
 	}
 
+	function isCurrentChatNavigationTarget(chatId: string): boolean {
+		const currentStoreChatId = activeChatStore.get();
+		const currentHashChatId = activeChatStore.getChatIdFromHash();
+		return currentStoreChatId === chatId || currentHashChatId === chatId;
+	}
+
+	function hasDifferentCurrentChatNavigationTarget(chatId: string): boolean {
+		const currentHashChatId = activeChatStore.getChatIdFromHash();
+		const currentStoreChatId = activeChatStore.get();
+		const currentChatTarget = currentHashChatId ?? currentStoreChatId;
+		return !!currentChatTarget && currentChatTarget !== chatId;
+	}
+
+	function skipStaleChatNavigationTarget(chatId: string, source: string): boolean {
+		if (!browser || isCurrentChatNavigationTarget(chatId)) return false;
+		console.debug(`[+page.svelte] Skipping stale ${source} for chat ${chatId}`);
+		return true;
+	}
+
 	type AuthenticatedDraftResponse = {
 		draft?: {
 			chat_id?: string;
@@ -602,6 +621,11 @@
 			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}${embedId ? `, embed: ${embedId}` : ''}${autoplayVideo ? ' (autoplay-video)' : ''}`
 		);
 
+		if (browser && hasDifferentCurrentChatNavigationTarget(chatId)) {
+			console.debug(`[+page.svelte] Skipping stale chat deep link for: ${chatId}`);
+			return;
+		}
+
 		// If messageId is provided, set it in the highlight store
 		if (messageId) {
 			messageHighlightStore.set(messageId);
@@ -860,6 +884,8 @@
 		// CRITICAL: For non-authenticated users, shared chats are already in IndexedDB, so load immediately
 		// For authenticated users, wait for sync to complete (chat might not be in IndexedDB yet)
 		const loadChatFromIndexedDB = async (retries = 20): Promise<void> => {
+			if (skipStaleChatNavigationTarget(chatId, 'deep-linked chat load')) return;
+
 			try {
 				const cachedDraftChat = $authStore.isAuthenticated
 					? chatListCache.getPendingOrCachedChat(chatId)
@@ -867,6 +893,7 @@
 				if (cachedDraftChat?.encrypted_draft_md || cachedDraftChat?.encrypted_draft_preview) {
 					console.debug(`[+page.svelte] Loading cached encrypted draft chat directly: ${chatId}`);
 					if (activeChat) {
+						if (skipStaleChatNavigationTarget(chatId, 'cached draft deep-link load')) return;
 						activeChat.loadChat(cachedDraftChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = cachedDraftChat.chat_id;
 
@@ -892,6 +919,7 @@
 				}
 
 				await chatDB.init(); // Ensure DB is initialized
+				if (skipStaleChatNavigationTarget(chatId, 'deep-linked IndexedDB lookup')) return;
 				let chat = $authStore.isAuthenticated
 					? await chatDB.getRawChat(chatId).catch(() => null)
 					: await chatDB.getChat(chatId);
@@ -905,6 +933,7 @@
 
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
+						if (skipStaleChatNavigationTarget(chatId, 'deep-linked IndexedDB chat load')) return;
 						activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = chat.chat_id;
 
@@ -1025,6 +1054,11 @@
 					}
 				};
 				const handlePhasedSyncComplete = async () => {
+					if (skipStaleChatNavigationTarget(chatId, 'phased-sync deep-link load')) {
+						clearDeepLinkWaiters();
+						return;
+					}
+
 					// Guard: if the user switched to a different chat while waiting for sync,
 					// don't force them back to the deep-linked chat. This prevents the bug where
 					// reloading a tab with chat A open and quickly switching to chat B would
@@ -1144,6 +1178,11 @@
 					chat = mergeCachedDraftFields(chat, activeChatId);
 				}
 				if (!chat) chat = await fetchAuthenticatedDraftChat(activeChatId);
+
+				if (!isCurrentChatNavigationTarget(activeChatId)) {
+					console.debug(`[+page.svelte] Skipping stale authenticated hash/store recovery: ${activeChatId}`);
+					return;
+				}
 
 				if (!chat || lastLoadedChatId === activeChatId) return;
 				console.debug(`[+page.svelte] Recovering authenticated active chat from hash/store: ${activeChatId}`);
