@@ -60,7 +60,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: af09f32bd9910a28ff6665acd5855d65112e598a
+  subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
 
 approvals:
   product_contract:
@@ -88,6 +88,16 @@ decisions:
     decision: Bank-transfer Invoice Ninja transactions map to the Revolut Business integration, not Revolut Business Merchant.
     reason: Prod Invoice Ninja exposes both names; SEPA bank transfers should reconcile to the bank account, not the card merchant integration.
     decided_at: "2026-07-30T17:30:00Z"
+  - id: D-4
+    status: active
+    decision: Directus-missing rows that already exist in Invoice Ninja are report-only until a Directus-only backfill exists.
+    reason: Replaying the full invoice task after Invoice Ninja exists can duplicate external accounting records.
+    decided_at: "2026-07-30T19:35:00Z"
+  - id: D-5
+    status: active
+    decision: Stripe PaymentIntents without a unique current Directus user mapping are not backfilled as user invoices.
+    reason: Encrypted PDF and Directus invoice creation require a verified user profile, vault key, and account ID.
+    decided_at: "2026-07-30T19:35:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -102,14 +112,31 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-30T17:37:00Z"
     notes: Worker logs showed production Invoice Ninja, Stripe Production True, and openmates-invoices bucket.
+  - id: ATTEMPT-3
+    task_id: TASK-5
+    approach: Recreate prod task-worker from the rebuilt image and source Compose worker command.
+    outcome: blocked
+    recorded_at: "2026-07-30T19:02:00Z"
+    notes: The image lacked celeryuser/gosu and then lacked generated locale JSON required by production invoice PDF rendering.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Patch the API image packaging to include celeryuser/gosu and generated locale JSON, then retry only safe no-email Stripe backfills.
+    outcome: succeeded
+    recorded_at: "2026-07-30T19:35:00Z"
+    notes: Eight mapped direct-Stripe records were backfilled without user emails; four Stripe records and thirteen bank-transfer records remain report-only or blocked.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Add admin billing-error email notifications and verify focused tests.
-  command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py
-  expected_outcome: Focused billing guardrail tests pass.
-  blocker: null
-  last_verified_commit: ceeaea918344f25366a1add05295583c706ad07a
+  current_task_id: TASK-5
+  next_action: Decide whether to build dedicated Directus-only, Invoice-Ninja-only, and unmapped-payment reconciliation paths.
+  command: python3 scripts/spec_verify.py docs/specs/billing-processing-incident-2026-07/spec.yml
+  expected_outcome: Required completed evidence passes; follow-up accounting gaps remain explicitly recorded.
+  blocker:
+    task_id: TASK-5
+    requires_user_input: true
+    reason: Four Stripe PaymentIntents lack a unique Directus user mapping, and the remaining Directus/Invoice-Ninja mismatch classes require dedicated non-duplicating backfill paths.
+    question: Should we continue with dedicated backfill tooling for the report-only accounting gaps, or leave them as a tracked follow-up?
+    next_action: If approved, implement Directus-only and Invoice-Ninja-only reconciliation paths with tests before further prod mutation.
+  last_verified_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
 
 scenarios:
   - id: S-1
@@ -236,10 +263,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
-        run_id: local-pytest-billing-guardrails-20260730-16-tests
-        subject_commit: af09f32bd9910a28ff6665acd5855d65112e598a
-        timestamp: "2026-07-30T18:19:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
+        run_id: local-pytest-billing-guardrails-translation-20260730-21-tests
+        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
+        timestamp: "2026-07-30T19:46:31Z"
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_billing_admin_notifications.py
@@ -254,16 +281,17 @@ tests:
       expected: fail
       evidence:
         status: missing_test
+        reason: Admin billing-error notification tests were added as part of the incident fix; no prior regression test existed before implementation.
         timestamp: "2026-07-30T17:30:00Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_billing_admin_notifications.py
-        run_id: local-pytest-billing-admin-notifications-20260730-3-tests
-        subject_commit: af09f32bd9910a28ff6665acd5855d65112e598a
-        timestamp: "2026-07-30T18:19:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
+        run_id: local-pytest-billing-guardrails-translation-20260730-21-tests
+        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
+        timestamp: "2026-07-30T19:46:31Z"
   - id: T-PYTEST-003
     type: pytest
     file: backend/tests/test_invoice_reconciliation_script.py
@@ -285,10 +313,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
-        run_id: local-pytest-billing-guardrails-20260730-16-tests
-        subject_commit: af09f32bd9910a28ff6665acd5855d65112e598a
-        timestamp: "2026-07-30T18:19:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
+        run_id: local-pytest-billing-guardrails-translation-20260730-21-tests
+        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
+        timestamp: "2026-07-30T19:46:31Z"
   - id: T-PYTEST-004
     type: pytest
     file: backend/tests/test_billing_worker_compose.py
@@ -299,6 +327,7 @@ tests:
       - task-worker Compose definitions use SERVER_ENVIRONMENT from the deployment env.
       - task-worker Compose definitions keep Vault, config, and logs mounts where required.
       - task-worker Compose queue env matches the command queue list including e2e_tests.
+      - API image packages the worker user/gosu contract and generated locale JSON needed by invoice PDFs.
     red_phase:
       required: false
       expected: not_applicable
@@ -310,10 +339,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_billing_worker_compose.py
-        run_id: local-pytest-billing-worker-compose-20260730-1-test
-        subject_commit: af09f32bd9910a28ff6665acd5855d65112e598a
-        timestamp: "2026-07-30T18:19:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
+        run_id: local-pytest-billing-worker-compose-translation-20260730-6-tests
+        subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
+        timestamp: "2026-07-30T19:28:00Z"
 
 verifications:
   - id: V-PROD-HOTFIX-001
@@ -337,10 +366,26 @@ verifications:
     required_for_done: true
     covers:
       - AC-4
-    status: pending
+    status: passed
     evidence:
-      status: pending
-      summary: Run prod dry-run reconciliation after permanent code is deployed.
+      status: passed
+      reason: Dry-run plus redacted worker logs verified that only safe mapped no-email backfills were created and all remaining duplicate-risk or unmapped rows were reported, not replayed.
+      summary: >
+        Production no-email backfill created the 8 safe mapped direct-Stripe
+        invoice records after rebuilding the API image with celeryuser/gosu and
+        generated locale JSON. Worker logs show Directus invoice rows created,
+        encrypted PDFs uploaded, and purchase-confirmation email sends skipped
+        for the backfilled invoices. Final dry-run reconciliation reports 4
+        Stripe PaymentIntents still missing Directus rows: 2 are missing both
+        Directus and Invoice Ninja but have no unique Directus user mapping, and
+        2 already exist in Invoice Ninja but have no Directus user mapping. With
+        bank transfers included, 13 Directus bank-transfer invoices are still
+        report-only for a future Invoice-Ninja-only backfill path. No historical
+        invoice PDFs were emailed to users.
+      command: ./scripts/prod-ssh.sh 'docker exec task-worker python /app/backend/scripts/audit_backfill_missing_stripe_invoices.py --from-date 2026-01-01 --to-date 2026-08-01 --check-invoice-ninja --include-bank-transfers'
+      run_id: prod-reconcile-no-email-backfill-20260730T1935Z
+      subject_commit: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc+working-tree-billing-dockerfile
+      timestamp: "2026-07-30T19:40:00Z"
 
 implementation_plan:
   spec_path: docs/specs/billing-processing-incident-2026-07/spec.yml
@@ -359,6 +404,8 @@ implementation_plan:
     - Any billing error logs and sends a sanitized admin notification.
     - Backfill script audits Stripe, Directus, and Invoice Ninja before dispatching no-email tasks.
   affected_files:
+    - path: backend/core/api/Dockerfile
+      reason: Package worker gosu/celeryuser contract and generated locale JSON required by production invoice PDFs.
     - path: backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
       reason: Notify admins on billing processing errors and keep backfill no-email behavior.
     - path: backend/core/api/templates/email/billing-processing-error.mjml
@@ -413,7 +460,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Add admin billing-error notifications
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -471,7 +518,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Deploy permanent fix to dev and verify
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
@@ -506,7 +553,7 @@ tasks:
     independently_deployable: true
   - id: TASK-5
     title: Run prod reconciliation dry-run and no-email backfill
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
@@ -525,6 +572,11 @@ tasks:
       files:
         - backend/scripts/audit_backfill_missing_stripe_invoices.py
       shared_files: []
-    blockers: []
-    follow_up_tasks: []
+    blockers:
+      - Four Stripe PaymentIntents still lack a unique Directus user mapping; two of those already exist in Invoice Ninja and must not replay the full invoice task.
+      - Thirteen Directus bank-transfer invoices require an Invoice-Ninja-only reconciliation path to avoid duplicate Directus rows.
+    follow_up_tasks:
+      - Directus-only backfill for Stripe rows already present in Invoice Ninja.
+      - Invoice-Ninja-only backfill for Directus bank-transfer rows.
+      - Manual/accounting review for unmapped Stripe PaymentIntents.
     independently_deployable: false

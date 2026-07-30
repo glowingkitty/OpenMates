@@ -19,6 +19,7 @@ COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.selfhost.yml",
     ROOT / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
 )
+API_DOCKERFILE = ROOT / "backend/core/api/Dockerfile"
 
 
 def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
@@ -37,3 +38,12 @@ def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
         if "selfhost" in compose_path.name:
             assert any(volume.endswith(":/app_config") for volume in volumes), compose_path
         assert any(volume.endswith(":/app/logs") for volume in volumes), compose_path
+
+
+def test_api_image_packages_worker_and_billing_translation_runtime() -> None:
+    dockerfile = API_DOCKERFILE.read_text(encoding="utf-8")
+
+    assert "gosu" in dockerfile
+    assert "groupadd --system celeryuser" in dockerfile
+    assert "useradd --system --gid celeryuser" in dockerfile
+    assert "frontend/packages/ui/src/i18n/locales" in dockerfile

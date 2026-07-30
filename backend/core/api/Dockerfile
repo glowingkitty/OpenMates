@@ -11,9 +11,14 @@ WORKDIR /app
 # Install system dependencies required by the application
 # git is needed for installing packages from GitHub (e.g., toon-format)
 RUN apt-get update && \
-    apt-get install -y curl git ffmpeg && \
+    apt-get install -y curl git ffmpeg gosu && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Celery workers start as root only long enough to fix mounted volume ownership,
+# then drop to this unprivileged runtime user via gosu in docker-compose.
+RUN groupadd --system celeryuser && \
+    useradd --system --gid celeryuser --create-home --shell /usr/sbin/nologin celeryuser
 
 # Copy the requirements file from its location within the backend/core/api directory
 # (relative to the new build context, which is the project root)
@@ -26,9 +31,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # This makes the 'backend' module available for import.
 COPY backend /app/backend
 COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
+COPY frontend/packages/ui/src/i18n/locales /app/frontend/packages/ui/src/i18n/locales
 
 # Create a directory for logs. The application should be configured to write logs here.
-RUN mkdir -p /app/logs
+RUN mkdir -p /app/logs && chown -R celeryuser:celeryuser /app/logs
 
 # Set environment variables for Python
 ENV PYTHONUNBUFFERED=1
