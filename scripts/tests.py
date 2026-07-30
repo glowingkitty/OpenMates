@@ -1804,8 +1804,9 @@ def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[s
 
 def require_active_lease(session_id: str = "", lease_id: str = "") -> dict[str, Any] | None:
     """Require a failed-test lease only when there are current triage entries."""
-    if active_lease_for_session(session_id=session_id, lease_id=lease_id):
-        return None
+    active_lease = active_lease_for_session(session_id=session_id, lease_id=lease_id)
+    if active_lease:
+        return active_lease
     triage = build_triage(limit=1)
     if not triage.get("entries"):
         return None
@@ -2000,6 +2001,18 @@ def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
     return suite, tests
 
 
+def seeded_only_failed_files_from_lease(lease: dict[str, Any] | None, args: list[str]) -> list[str]:
+    if not lease or "--only-failed" not in args:
+        return []
+    entry = lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json")
+    if not isinstance(entry, dict):
+        return []
+    test_name = str(entry.get("test") or "")
+    if not test_name or test_name.endswith(".spec.ts"):
+        return []
+    return [test_name]
+
+
 def run_targets_playwright(args: list[str]) -> bool:
     suite, tests = infer_run_suite_and_tests(args)
     return suite in {"playwright", "hourly-dev"} or any(test.endswith(".spec.ts") for test in tests)
@@ -2119,9 +2132,10 @@ def command_run(runner_args: list[str]) -> int:
                 file=sys.stderr,
             )
             return 2
+    active_lease: dict[str, Any] | None = None
     if options.lease_required:
         try:
-            require_active_lease(
+            active_lease = require_active_lease(
                 session_id=os.environ.get("OPENCODE_SESSION_ID", "manual"),
                 lease_id=options.lease_id,
             )
@@ -2145,10 +2159,14 @@ def command_run(runner_args: list[str]) -> int:
         return 2
 
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
+    run_env = os.environ.copy()
+    seeded_failed_files = seeded_only_failed_files_from_lease(active_lease, options.forwarded_args)
+    if seeded_failed_files:
+        run_env["OPENMATES_ONLY_FAILED_FILES_JSON"] = json.dumps(seeded_failed_files)
     suite, tests = infer_run_suite_and_tests(options.forwarded_args)
     mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
     artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
-    result = subprocess.run(command, cwd=PROJECT_ROOT)
+    result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
     recorded_commit = record_latest_run_artifact(expected_commit=options.expected_commit, since_mtime=artifact_start_mtime)
     if not recorded_commit:
         return 2 if options.expected_commit else result.returncode

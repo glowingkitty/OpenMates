@@ -272,6 +272,30 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
     assert options.expected_commit == "abc123"
 
 
+def test_seeded_only_failed_files_from_non_spec_lease(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    lease = {
+        "entry": {
+            "test": "scripts/run_tests.py",
+            "key": "playwright::scripts/run_tests.py",
+        }
+    }
+
+    assert tests_control.seeded_only_failed_files_from_lease(lease, ["--only-failed"]) == [
+        "scripts/run_tests.py"
+    ]
+    assert tests_control.seeded_only_failed_files_from_lease(lease, ["--spec", "chat-flow.spec.ts"]) == []
+
+
+def test_seeded_only_failed_files_ignores_real_specs(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    lease = {"entry": {"test": "chat-flow.spec.ts"}}
+
+    assert tests_control.seeded_only_failed_files_from_lease(lease, ["--only-failed"]) == []
+
+
 def test_main_strips_run_passthrough_sentinel(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     seen_args = []
@@ -512,7 +536,7 @@ def test_require_active_lease_blocks_when_failures_exist(tmp_path, monkeypatch):
 
     lease = tests_control.claim_next(session_id="s1")
 
-    assert tests_control.require_active_lease(session_id="s1") is None
+    assert tests_control.require_active_lease(session_id="s1")["lease_id"] == lease["lease_id"]
     assert tests_control.active_lease_for_session(lease_id=lease["lease_id"])["lease_id"] == lease["lease_id"]
 
 
@@ -588,7 +612,7 @@ def test_command_run_falls_back_to_timestamped_run_artifact(tmp_path, monkeypatc
         "suites": {},
     }
 
-    def fake_run(command, cwd=None):
+    def fake_run(command, cwd=None, env=None):
         tests_control.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
         (tests_control.RESULTS_DIR / "last-run.json").write_text(json.dumps(run_data), encoding="utf-8")
         (tests_control.RESULTS_DIR / "run-20260619T050002Z.json").write_text(json.dumps(run_data), encoding="utf-8")
