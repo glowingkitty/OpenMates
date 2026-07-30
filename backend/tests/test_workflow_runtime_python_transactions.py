@@ -251,6 +251,16 @@ async def test_worker_uses_supplied_app_skill_adapter_for_accepted_runs() -> Non
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Manual app skill", manual_app_skill_graph(), enabled=True)
     adapter = RecordingAppSkillAdapter()
+    service.repository.save_run(
+        {
+            "id": "run-accepted",
+            "workflow_id": workflow.id,
+            "version_id": workflow.current_version_id,
+            "owner_hash": service.repository.workflow_owner_hash("alice"),
+            "trigger_type": "manual",
+            "status": "queued",
+        }
+    )
 
     result = await workflow_tasks.run_workflow_now(
         workflow.id,
