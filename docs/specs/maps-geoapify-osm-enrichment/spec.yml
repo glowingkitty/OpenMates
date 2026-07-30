@@ -101,7 +101,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 96c4dc90c-working-tree
+  subject_commit: 514da61dbea740076c55c291824dd87ddd1f5d17
 
 approvals:
   product_contract:
@@ -207,14 +207,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-30T16:59:41Z"
     reason: Playwright run 30563531257 failed in Phase 4 because `maps_search_web` used LiveMock without recorded API cassettes, so the chat returned a generic AI-service error and never produced a Maps embed; Phase 1 preview assertions passed.
+  - id: ATTEMPT-12
+    task_id: TASK-5
+    approach: Add a deterministic `TEST_MOCK` Maps web fixture, redeploy, and rerun the deployed Maps Playwright gate.
+    outcome: succeeded
+    recorded_at: "2026-07-30T17:21:05Z"
+    reason: Playwright run 30565377501 passed against deployed commit 514da61dbea740076c55c291824dd87ddd1f5d17 after preserving REST/CLI/SDK as the earlier contract gates and using fixture replay only for browser embed rendering.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Deploy the deterministic Maps web fixture follow-up, wait for the matching Vercel commit, then rerun the Maps Playwright spec as the green web gate.
-  command: python3 scripts/tests.py run --spec skill-maps-search.spec.ts --gate-deploy --expected-commit <deployed-commit>
-  expected_outcome: The deployed web spec passes and proves the preview no-verified-results status panel plus existing Maps CLI/chat coverage.
+  current_task_id: TASK-6
+  next_action: Ask the user to confirm the deployed dev web Maps behavior looks and works correctly before starting Apple verification.
+  command: Manual user confirmation on https://app.dev.openmates.org after deployed commit 514da61dbea740076c55c291824dd87ddd1f5d17.
+  expected_outcome: User confirms the no-verified-results Maps UI and ordinary Maps search embed behavior are acceptable on dev, or provides requested changes.
   blocker: null
-  last_verified_commit: 96c4dc90c-working-tree
+  last_verified_commit: 514da61dbea740076c55c291824dd87ddd1f5d17
 
 scenarios:
   - id: S-1
@@ -754,13 +760,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        deployment_reference: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec skill-maps-search.spec.ts --gate-deploy --expected-commit 514da61
+        run_id: gha-30565377501 / orchestrator-2026-07-30T17:12:56Z
+        subject_commit: 514da61dbea740076c55c291824dd87ddd1f5d17
+        deployment_reference: dpl_G98zR44ks1LCPgwfHsCNoLPEy9dt
         target: app.dev.openmates.org
-        timestamp: ""
+        timestamp: "2026-07-30T17:21:05Z"
 
   - id: T-APPLE-BUILD
     type: manual
@@ -1060,7 +1066,7 @@ tasks:
 
   - id: TASK-5
     title: Render Maps enrichment in web and verify deployed E2E
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
