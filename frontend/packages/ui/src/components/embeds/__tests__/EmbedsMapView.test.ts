@@ -140,7 +140,7 @@ describe("EmbedsMapView", () => {
     expect(cards).toHaveLength(2);
     expect(cards[0].textContent).toContain("Factory Berlin");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
-    expect(cards[1].getAttribute("data-has-point")).toBe("true");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
     expect(target.querySelector('[data-testid="embeds-map-view-filters"]')?.textContent).toContain("event");
     expect(target.querySelector('[data-testid="embeds-map-view-filters"]')?.textContent).toContain("place");
     expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledTimes(3);
