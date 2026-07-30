@@ -2242,6 +2242,8 @@ export async function handlePostProcessingCompletedImpl(
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
     quick_tip_slugs?: string[]; // Optional: Product quick tip slugs selected during post-processing
     updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
+    source_title_v?: number | null;
+    source_metadata_v?: number | null;
     task_proposals?: Array<{
       title: string;
       description?: string | null;
@@ -2410,18 +2412,33 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
-    // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed
+    // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed.
+    // Manual title edits that happen while AI post-processing is still running must win over stale generated titles.
     if (payload.updated_chat_title) {
-      encryptedUpdatedTitle = await encryptWithChatKey(
-        payload.updated_chat_title,
-        chatKey,
-      );
-      if (encryptedUpdatedTitle) {
-        chat.encrypted_title = encryptedUpdatedTitle;
-        chat.title_v = (chat.title_v || 0) + 1;
+      const sourceTitleV =
+        typeof payload.source_title_v === "number" &&
+        Number.isFinite(payload.source_title_v)
+          ? payload.source_title_v
+          : null;
+      const latestChatForTitle = await chatDB.getChat(payload.chat_id);
+      const latestTitleV = latestChatForTitle?.title_v ?? chat.title_v ?? 0;
+      if (sourceTitleV !== null && latestTitleV > sourceTitleV) {
         console.info(
-          `[ChatSyncService:AI] Post-processing title update: '${payload.updated_chat_title}' (title_v: ${chat.title_v})`,
+          `[ChatSyncService:AI] Skipping stale post-processing title update for chat ${payload.chat_id} ` +
+            `(source_title_v=${sourceTitleV}, current_title_v=${latestTitleV})`,
         );
+      } else {
+        encryptedUpdatedTitle = await encryptWithChatKey(
+          payload.updated_chat_title,
+          chatKey,
+        );
+        if (encryptedUpdatedTitle) {
+          chat.encrypted_title = encryptedUpdatedTitle;
+          chat.title_v = Math.max(chat.title_v || 0, latestTitleV) + 1;
+          console.info(
+            `[ChatSyncService:AI] Post-processing title update: '${payload.updated_chat_title}' (title_v: ${chat.title_v})`,
+          );
+        }
       }
     }
 

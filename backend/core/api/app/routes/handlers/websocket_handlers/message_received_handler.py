@@ -63,6 +63,15 @@ CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
 
 TEAM_CHAT_WRITE_ROLES = {"owner", "admin", "member"}
 
+
+def _optional_int(value: Any) -> Optional[int]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
 BENCHMARK_METADATA_STRING_FIELDS = {
     "benchmark_run_id",
     "benchmark_suite",
@@ -1836,6 +1845,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         current_chat_title_from_client = message_payload_from_client.get("current_chat_title")
         if current_chat_title_from_client and not isinstance(current_chat_title_from_client, str):
             current_chat_title_from_client = None
+        current_chat_title_v_from_client = _optional_int(message_payload_from_client.get("current_chat_title_v"))
+        current_chat_metadata_v_from_client = _optional_int(message_payload_from_client.get("current_chat_metadata_v"))
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
         db_is_sub_chat = chat_metadata_from_db.get("is_sub_chat", False) if chat_metadata_from_db else False
@@ -1856,6 +1867,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             current_user_content=content_plain,
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
             current_chat_title=current_chat_title_from_client,  # OPE-265: For post-processing title update evaluation
+            current_chat_title_v=current_chat_title_v_from_client,
+            current_chat_metadata_v=current_chat_metadata_v_from_client,
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,

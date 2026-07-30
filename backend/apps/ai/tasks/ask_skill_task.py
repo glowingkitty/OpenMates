@@ -2258,6 +2258,11 @@ async def _async_process_ai_skill_ask_task(
             # chat_summary: prefer post-processing version (includes latest exchange) over preprocessing
             # chat_tags: from preprocessing (full history context)
             final_chat_summary = postprocessing_result.chat_summary or chat_summary
+            source_title_v = getattr(request_data, 'current_chat_title_v', None)
+            source_metadata_v = getattr(request_data, 'current_chat_metadata_v', None)
+            if preprocessing_result and preprocessing_result.title and not request_data.chat_has_title:
+                source_title_v = max(int(source_title_v or 0), 1)
+                source_metadata_v = max(int(source_metadata_v or 0), source_title_v)
             if postprocessing_result.chat_summary:
                 logger.info(f"[Task ID: {task_id}] Using post-processing chat_summary (length: {len(postprocessing_result.chat_summary)})")
             else:
@@ -2280,6 +2285,8 @@ async def _async_process_ai_skill_ask_task(
                 "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
                 "task_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_proposals],
                 "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
+                "source_title_v": source_title_v,
+                "source_metadata_v": source_metadata_v,
             }
 
             # OPE-265: Include updated title only when the postprocessor determined a title change is needed

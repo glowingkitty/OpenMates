@@ -852,6 +852,8 @@ export async function sendNewMessageImpl(
 			model_name?: string;
 			chat_has_title?: boolean;
 			current_chat_title?: string | null; // OPE-265: Decrypted title for post-processing title update evaluation
+			current_chat_title_v?: number;
+			current_chat_metadata_v?: number;
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
 		is_incognito?: boolean;
@@ -876,7 +878,9 @@ export async function sendNewMessageImpl(
 			content: contentForServer,
 			created_at: message.created_at,
 			sender_name: message.sender_name, // Include for cache but not critical for AI
-			chat_has_title: chatHasTitle // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
+			chat_has_title: chatHasTitle, // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
+			current_chat_title_v: chat?.title_v || 0,
+			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0
 			// NO category or encrypted fields - those go to Phase 2
 			// message_history is attached at top-level below when local history exists.
 		},
