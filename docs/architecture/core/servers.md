@@ -52,7 +52,7 @@ claims:
 ## Why This Exists
 
 - One `api` container hosts all app skills in-process (OPE-342) — every `backend/apps/{name}/` folder is loaded via `importlib` at startup, no per-app containers
-- Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
+- Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
 - Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, and manages host-level Caddyfile drift.
@@ -108,6 +108,7 @@ Only the Celery worker containers remain — they have real, queue-driven worklo
 | `app-images-worker` | `app_images` | GPU/CPU-heavy image generation |
 | `app-pdf-worker` | `app_pdf` | PDF rendering with `pymupdf`/`reportlab` |
 | `task-worker` | `email`, `persistence`, `user_init`, … | Infrastructure tasks |
+| `workflow-worker` | `workflow` | Manual workflow runs isolated from persistence and scheduled-trigger backlog |
 | `task-scheduler` | (Celery beat) | Periodic task dispatch |
 
 Workers also build their own `SkillRegistry` instance in `init_worker_process()` so they can dispatch skills without HTTPing back to `api`.

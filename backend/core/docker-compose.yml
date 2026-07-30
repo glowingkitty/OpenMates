@@ -249,6 +249,59 @@ services:
       cms-setup:
         condition: service_completed_successfully
 
+  workflow-worker:
+    container_name: workflow-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"
+      CELERY_QUEUES: "workflow"
+      CELERY_AUTOSCALE_MAX: "${WORKFLOW_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9108"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=workflow \
+             --concurrency=$${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+    volumes:
+      - ../../backend:/app/backend
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+
   task-scheduler:
     container_name: task-scheduler
     build:

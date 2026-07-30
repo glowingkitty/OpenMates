@@ -102,10 +102,13 @@ E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
 BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
     "api",
     "app-ai-worker",
+    "workflow-worker",
     "task-worker",
     "app-images-worker",
     "app-videos-worker",
 )
+BACKEND_LIVE_MOCK_PREFLIGHT_NAME = "backend-live-mock-preflight"
+BACKEND_LIVE_MOCK_PREFLIGHT_FILE = "scripts/run_tests.py"
 BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES = {"0", "false", "False", "no", "NO"}
 RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
     "account-recovery-flow.spec.ts": 14,
@@ -2220,6 +2223,15 @@ class ResultAggregator:
     @staticmethod
     def load_failed_specs() -> list[str]:
         """Load previously failed spec files from last-run.json."""
+        seeded_failed = os.getenv("OPENMATES_ONLY_FAILED_FILES_JSON")
+        if seeded_failed:
+            try:
+                decoded = json.loads(seeded_failed)
+            except json.JSONDecodeError:
+                decoded = []
+            if isinstance(decoded, list):
+                return [str(item) for item in decoded if str(item)]
+
         last_run = RESULTS_DIR / "last-run.json"
         if not last_run.is_file():
             _log("No last-run.json found — cannot use --only-failed", "ERROR")
@@ -5464,6 +5476,7 @@ class TestOrchestrator:
         self.record_live_fixtures = args.record_live_fixtures
         self.dry_run = args.dry_run
         self.dot_env = _read_env_file()
+        self.only_failed_synthetic_files: tuple[str, ...] = ()
 
         self.git_sha, self.git_branch = _git_info()
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -5861,7 +5874,12 @@ class TestOrchestrator:
                 }],
                 reason=reason,
             )
-        if not specs:
+        clear_backend_mock_preflight = (
+            self.only_failed
+            and BACKEND_LIVE_MOCK_PREFLIGHT_FILE in self.only_failed_synthetic_files
+        )
+
+        if not specs and not clear_backend_mock_preflight:
             return SuiteResult(status="skipped", reason="no specs to run")
 
         effective_batch_size = _effective_playwright_batch_size(self.max_concurrent)
@@ -5875,6 +5893,7 @@ class TestOrchestrator:
                 print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
 
+        synthetic_preflight_results: list[dict] = []
         if self.environment == "development" and self.use_mocks:
             backend_mock_error = _development_backend_live_mock_preflight_error()
             if backend_mock_error:
@@ -5882,8 +5901,8 @@ class TestOrchestrator:
                     status="failed",
                     tests=[
                         {
-                            "name": "backend-live-mock-preflight",
-                            "file": "scripts/run_tests.py",
+                            "name": BACKEND_LIVE_MOCK_PREFLIGHT_NAME,
+                            "file": BACKEND_LIVE_MOCK_PREFLIGHT_FILE,
                             "status": "failed",
                             "duration_seconds": 0,
                             "error": backend_mock_error,
@@ -5892,6 +5911,20 @@ class TestOrchestrator:
                     ],
                     reason=backend_mock_error,
                 )
+            if clear_backend_mock_preflight:
+                synthetic_preflight_results.append({
+                    "name": BACKEND_LIVE_MOCK_PREFLIGHT_NAME,
+                    "file": BACKEND_LIVE_MOCK_PREFLIGHT_FILE,
+                    "status": "passed",
+                    "duration_seconds": 0,
+                })
+
+        if not specs:
+            return SuiteResult(
+                status="passed" if synthetic_preflight_results else "skipped",
+                tests=synthetic_preflight_results,
+                reason=None if synthetic_preflight_results else "no specs to run",
+            )
 
         if self.environment == "development":
             deployment_ready, deployment_reason = _wait_for_vercel_deployment(self.git_sha, self.dot_env)
@@ -6002,6 +6035,8 @@ class TestOrchestrator:
                 for blocked_result in blocked_preflight_results
             ] + result.tests
             result.status = "failed"
+        if synthetic_preflight_results:
+            result.tests = synthetic_preflight_results + result.tests
         if preflight_reason:
             result.reason = (
                 f"{preflight_reason}; {result.reason}"
@@ -6278,6 +6313,7 @@ class TestOrchestrator:
 
         if self.only_failed:
             failed = ResultAggregator.load_failed_specs()
+            self.only_failed_synthetic_files = tuple(f for f in failed if not f.endswith(".spec.ts"))
             # Filter to only .spec.ts files
             specs = [f for f in failed if f.endswith(".spec.ts")]
             if specs:

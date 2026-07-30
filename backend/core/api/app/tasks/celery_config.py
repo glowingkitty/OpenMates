@@ -167,7 +167,8 @@ TASK_CONFIG = [
     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
-    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 run/event/cleanup tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 scheduled/cleanup tasks
+    {'name': 'workflow',    'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 manual run tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
@@ -998,6 +999,8 @@ task_routes = {
     "demo.*": {'queue': 'demo'},
     # Reminder tasks use custom names like "reminder.*"
     "reminder.*": {'queue': 'reminder'},
+    # Manual workflow runs must not wait behind persistence/scheduled-trigger backlog.
+    "workflows.run": {'queue': 'workflow'},
     # Workflow tasks use custom names like "workflows.run" instead of module paths.
     "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
@@ -1120,6 +1123,9 @@ _EXPLICIT_TASK_ROUTES = {
 
      # Browser Web Push notification task
      "app.tasks.push_notification_task.send_push_notification": "push",
+
+     # Workflow tasks
+     "workflows.run": "workflow",
  }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
