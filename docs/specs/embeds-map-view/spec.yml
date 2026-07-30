@@ -129,7 +129,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree:a0decf3cc
+  subject_commit: 6ff65d9a47725dcd2c305dad36b0554e4ca7212a
 
 approvals:
   product_contract:
@@ -204,11 +204,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the scoped map-view changes when the worktree can be safely staged, then run the deployed Playwright map/example gates and Apple/user-confirmation checks.
-  command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
-  expected_outcome: Deployed web verifies the Deutschlandticket example renders the grouped route map view, then final user confirmation and Apple parity can proceed.
+  next_action: Ask the user to confirm the deployed dev Berlin map-view example works visually on mobile/dark mode, then run Apple status/build or record an accepted Apple blocker.
+  command: "manual: ask user to confirm https://app.dev.openmates.org/example/berlin-ai-founder-meetups-map"
+  expected_outcome: User confirmation clears the final web-visual gate, after which Apple parity can be attempted with scripts/apple_remote.py status and build-ios.
   blocker: null
-  last_verified_commit: working-tree:a0decf3cc
+  last_verified_commit: 6ff65d9a47725dcd2c305dad36b0554e4ca7212a
 
 scenarios:
   - id: S-1
@@ -705,14 +705,22 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 9bb3b76
-        run_id: 2026-07-30T10:21:59Z / GitHub Actions 30534728170
-        subject_commit: 9bb3b760f
+        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 6ff65d9
+        run_id: 2026-07-30T19:07:20Z / GitHub Actions 30573444218
+        subject_commit: 6ff65d9a47725dcd2c305dad36b0554e4ca7212a
         target: app.dev.openmates.org
-        deployment_reference: dpl_9vYjFkXdRTvcu1ZjrJTUDAnAYZgy
-        timestamp: "2026-07-30T10:28:45Z"
-        summary: Passed after removing the stale persisted code embed/reference and adding assertions that visible Code snippet / raw embeds_map_view text are absent.
+        deployment_reference: GitHub Actions headSha 6ff65d9a47725dcd2c305dad36b0554e4ca7212a; tests.py dispatched after the expected-commit gate.
+        timestamp: "2026-07-30T19:08:57Z"
+        summary: Passed the deployed public example flow with mobile 390x844 dark-mode assertions for removed redundant headings, filter menu, card contrast/spacing, hover dimming, map visibility, and no forbidden provider/app-skill API calls.
         supporting_evidence:
+          - status: passed
+            command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 9bb3b76
+            run_id: 2026-07-30T10:21:59Z / GitHub Actions 30534728170
+            subject_commit: 9bb3b760f
+            target: app.dev.openmates.org
+            deployment_reference: dpl_9vYjFkXdRTvcu1ZjrJTUDAnAYZgy
+            timestamp: "2026-07-30T10:28:45Z"
+            summary: Earlier pass after removing the stale persisted code embed/reference and adding assertions that visible Code snippet / raw embeds_map_view text are absent.
           - status: passed
             command: Firecrawl mobile rendered extraction for https://app.dev.openmates.org/example/berlin-ai-founder-meetups-map
             run_id: firecrawl-scrape-019fb292-df74-7009-87bb-d9292cb6a229
