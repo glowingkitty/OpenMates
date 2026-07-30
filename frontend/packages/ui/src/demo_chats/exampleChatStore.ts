@@ -345,6 +345,7 @@ export function getExampleChatBySlug(slug: string): ExampleChat | undefined {
 
 /** Get messages for an example chat */
 export function getExampleChatMessages(chatId: string): Message[] {
+  registerExampleChatEmbedRefs();
   const record = chatRecordById.get(chatId);
   return record ? exampleMessagesToMessages(record.example) : [];
 }
