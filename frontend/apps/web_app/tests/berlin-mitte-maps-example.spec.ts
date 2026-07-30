@@ -25,6 +25,38 @@ const PRIVATE_MARKERS = [
 	'chatfiles/'
 ];
 
+async function expectMapBackedLocationFullscreen(page: any, label: string): Promise<any> {
+	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	const locationFullscreen = page.getByTestId('map-location-fullscreen').last();
+	await expect(locationFullscreen, `${label} should open a location fullscreen`).toBeVisible({
+		timeout: 15_000
+	});
+
+	const overlayBox = await overlays.last().boundingBox();
+	const locationBox = await locationFullscreen.boundingBox();
+	expect(overlayBox, `${label} overlay box should exist`).not.toBeNull();
+	expect(locationBox, `${label} location detail box should exist`).not.toBeNull();
+	expect(
+		locationBox!.x,
+		`${label} should use the map-backed layout with the details card on the left`
+	).toBeLessThan(overlayBox!.x + 220);
+	return overlays.last();
+}
+
+async function expectMapLocationPreviewLayout(card: any): Promise<void> {
+	const metrics = await card.evaluate((element: HTMLElement) => {
+		const cardBox = element.getBoundingClientRect();
+		const imageBox = element.querySelector('img')?.getBoundingClientRect();
+		return {
+			cardHeight: cardBox.height,
+			imageTopGap: imageBox ? imageBox.top - cardBox.top : null
+		};
+	});
+	expect(metrics.cardHeight, 'maps result preview should have room for image and text').toBeGreaterThanOrEqual(240);
+	expect(metrics.imageTopGap, 'maps result preview image should reach the top of the card').not.toBeNull();
+	expect(metrics.imageTopGap).toBeLessThanOrEqual(4);
+}
+
 test.describe('Berlin Mitte Maps public example', () => {
 	test('renders messages, maps embeds, map view, fullscreens, and reloads', async ({
 		page,
@@ -97,17 +129,25 @@ test.describe('Berlin Mitte Maps public example', () => {
 			timeout: 30_000
 		}).toBeGreaterThanOrEqual(3);
 		await expect(resultCards.first()).toContainText(/St\. Oberholz|Cafe Latrio|Father Carpenter/i);
+		await expectMapLocationPreviewLayout(resultCards.first());
 
 		await resultCards.first().click({ force: true });
-		await expect(page.getByTestId('map-location-fullscreen')).toBeVisible({ timeout: 15_000 });
+		const childLocationOverlay = await expectMapBackedLocationFullscreen(page, 'clicked maps search result');
 		await expect(page.getByTestId('map-location-fullscreen')).toContainText(/Berlin|Rosenthaler|Monbijou|Münzstraße/i);
-		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
+		await closeFullscreen(page, childLocationOverlay);
 		await closeFullscreen(page, resultsOverlay);
 
 		const noResultsOverlay = await openFullscreen(page, noResultsCard);
 		await expect(noResultsOverlay.getByTestId('embed-header-title')).toContainText('restaurant Berlin Mitte');
 		await expect(noResultsOverlay.getByTestId('maps-no-results')).toBeVisible({ timeout: 15_000 });
 		await closeFullscreen(page, noResultsOverlay);
+
+		const coffeeFellowsLink = assistantMessage.getByRole('link', { name: /Coffee Fellows/ }).first();
+		await expect(coffeeFellowsLink).toBeVisible({ timeout: 15_000 });
+		await coffeeFellowsLink.click();
+		const inlineLocationOverlay = await expectMapBackedLocationFullscreen(page, 'inline maps location link');
+		await expect(page.getByTestId('map-location-fullscreen')).toContainText('Coffee Fellows');
+		await closeFullscreen(page, inlineLocationOverlay);
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant').filter({

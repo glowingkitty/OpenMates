@@ -64,20 +64,66 @@
     onShowChat
   }: Props = $props();
 
-  // Extract fields from data.decodedContent
-  let dc = $derived(data.decodedContent);
-  let rawLocation = $derived(dc.location as Record<string, unknown> | undefined);
-  let displayName = $derived(typeof dc.displayName === 'string' ? dc.displayName : (typeof dc.name === 'string' ? dc.name : undefined));
-  let formattedAddress = $derived(typeof dc.formattedAddress === 'string' ? dc.formattedAddress : (typeof dc.formatted_address === 'string' ? dc.formatted_address : undefined));
-  let lat = $derived((rawLocation && typeof rawLocation.latitude === 'number') ? rawLocation.latitude : (typeof dc.lat === 'number' ? dc.lat : undefined));
-  let lon = $derived((rawLocation && typeof rawLocation.longitude === 'number') ? rawLocation.longitude : (typeof dc.lon === 'number' ? dc.lon : undefined));
+  function asRecord(value: unknown): Record<string, unknown> | undefined {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : undefined;
+  }
+
+  function pickFirstString(...values: Array<unknown>): string | undefined {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim()) return value;
+    }
+    return undefined;
+  }
+
+  function pickFirstNumber(...values: Array<unknown>): number | undefined {
+    for (const value of values) {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string' && value.trim()) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+    }
+    return undefined;
+  }
+
+  // Extract fields from data.decodedContent. Child place embeds can arrive as
+  // raw TOON-decoded payloads or normalized search results, so accept both shapes.
+  let dc = $derived(data.decodedContent ?? {});
+  let rawLocation = $derived(asRecord(dc.location));
+  let displayName = $derived(pickFirstString(dc.displayName, dc.name));
+  let formattedAddress = $derived(pickFirstString(dc.formattedAddress, dc.formatted_address, dc.address));
+  let lat = $derived(pickFirstNumber(
+    rawLocation?.latitude,
+    rawLocation?.lat,
+    dc.location_latitude,
+    dc.location_lat,
+    dc.latitude,
+    dc.lat,
+  ));
+  let lon = $derived(pickFirstNumber(
+    rawLocation?.longitude,
+    rawLocation?.lon,
+    rawLocation?.lng,
+    dc.location_longitude,
+    dc.location_lon,
+    dc.location_lng,
+    dc.longitude,
+    dc.lon,
+    dc.lng,
+  ));
   let zoom = $derived(typeof dc.zoom === 'number' ? dc.zoom : 15);
-  let rating = $derived(typeof dc.rating === 'number' ? dc.rating : undefined);
-  let userRatingCount = $derived(typeof dc.userRatingCount === 'number' ? dc.userRatingCount : undefined);
-  let placeType = $derived(typeof dc.place_type === 'string' ? dc.place_type : undefined);
-  let imageUrl = $derived(typeof dc.imageUrl === 'string' ? dc.imageUrl : undefined);
-  let websiteUri = $derived(typeof dc.websiteUri === 'string' ? dc.websiteUri : undefined);
-  let placeId = $derived(typeof dc.placeId === 'string' ? dc.placeId : undefined);
+  let rating = $derived(pickFirstNumber(dc.rating));
+  let userRatingCount = $derived(pickFirstNumber(dc.userRatingCount, dc.user_rating_count, dc.reviews));
+  let placeType = $derived(pickFirstString(
+    dc.placeType,
+    dc.place_type,
+    Array.isArray(dc.types) ? dc.types[0] : undefined,
+  ));
+  let imageUrl = $derived(pickFirstString(dc.imageUrl, dc.image_url, dc.photo_url));
+  let websiteUri = $derived(pickFirstString(dc.websiteUri, dc.website_uri));
+  let placeId = $derived(pickFirstString(dc.placeId, dc.place_id));
 
   let showShare = $derived(!!embedId);
 

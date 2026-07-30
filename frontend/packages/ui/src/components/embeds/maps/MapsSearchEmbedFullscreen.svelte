@@ -411,6 +411,22 @@
     width: 100% !important;
     min-width: unset !important;
     max-width: unset !important;
+    height: 280px !important;
+    min-height: 280px !important;
+    max-height: 280px !important;
+  }
+
+  .result-item :global(.place-card) {
+    justify-content: flex-start;
+    padding: 0 var(--spacing-8) var(--spacing-5);
+  }
+
+  .result-item :global(.place-image) {
+    width: calc(100% + var(--spacing-16));
+    max-width: none;
+    height: 112px;
+    margin: 0 calc(-1 * var(--spacing-8)) var(--spacing-4);
+    border-radius: 30px 30px var(--radius-4) var(--radius-4);
   }
 
   .loading-state,

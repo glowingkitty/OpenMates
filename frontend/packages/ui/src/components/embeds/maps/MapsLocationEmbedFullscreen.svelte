@@ -48,16 +48,34 @@
     onShowChat
   }: Props = $props();
 
-  // Extract fields from data.decodedContent with attrs fallback
-  let dc = $derived(data.decodedContent);
+  function pickFirstNumber(...values: Array<unknown>): number | undefined {
+    for (const value of values) {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string' && value.trim()) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+    }
+    return undefined;
+  }
+
+  function pickFirstString(...values: Array<unknown>): string | undefined {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim()) return value;
+    }
+    return undefined;
+  }
+
+  // Extract fields from data.decodedContent with attrs fallback.
+  let dc = $derived(data.decodedContent ?? {});
   let attrs = $derived(data.attrs ?? {});
-  let lat = $derived(typeof dc.lat === 'number' ? dc.lat : (typeof attrs.lat === 'number' ? attrs.lat : undefined));
-  let lon = $derived(typeof dc.lon === 'number' ? dc.lon : (typeof attrs.lon === 'number' ? attrs.lon : undefined));
+  let lat = $derived(pickFirstNumber(dc.lat, dc.latitude, dc.location_latitude, dc.location_lat, attrs.lat, attrs.latitude));
+  let lon = $derived(pickFirstNumber(dc.lon, dc.lng, dc.longitude, dc.location_longitude, dc.location_lon, dc.location_lng, attrs.lon, attrs.lng, attrs.longitude));
   let zoom = $derived(typeof dc.zoom === 'number' ? dc.zoom : 15);
-  let name = $derived(typeof dc.name === 'string' ? dc.name : undefined);
-  let address = $derived(typeof dc.address === 'string' ? dc.address : undefined);
-  let locationType = $derived(typeof dc.location_type === 'string' ? dc.location_type : undefined);
-  let mapImageUrl = $derived(typeof dc.map_image_url === 'string' ? dc.map_image_url : undefined);
+  let name = $derived(pickFirstString(dc.name, dc.displayName));
+  let address = $derived(pickFirstString(dc.address, dc.formatted_address, dc.formattedAddress));
+  let locationType = $derived(pickFirstString(dc.location_type));
+  let mapImageUrl = $derived(pickFirstString(dc.map_image_url));
 
   let showNearbyLabel = $derived(locationType === 'area');
   let showShare = $derived(!!embedId);
