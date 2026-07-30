@@ -12,6 +12,9 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 
+const LONG_ANONYMOUS_CHAT_SUMMARY =
+	'Anonymous streaming lifecycle completed with a deliberately long generated summary that should wrap across many visual lines when the chat header does not clamp it. This extra context protects the header layout from regressions by forcing overflow on narrow mobile widths. The visible summary must stay concise even when post-processing returns a verbose description.';
+
 function anonymousActiveServerStatusBody() {
 	return {
 		is_self_hosted: false,
@@ -116,7 +119,7 @@ async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Recor
 			}
 			return originalFetch(input, init);
 		};
-  });
+	});
 }
 
 async function mockDelayedAnonymousChatStream(
@@ -164,7 +167,7 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 		anonymousRequests.push(body);
 		return anonymousRequests.length;
 	});
-	await page.addInitScript(() => {
+	await page.addInitScript((longSummary: string) => {
 		const originalFetch = window.fetch.bind(window);
 		window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -247,7 +250,7 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 									'Compare anonymous and signed-in streaming flows'
 								],
 								new_chat_request_suggestions: [],
-								chat_summary: 'Anonymous streaming lifecycle completed',
+								chat_summary: longSummary,
 								chat_tags: [],
 								harmful_response: 0,
 								quick_tip_slugs: []
@@ -263,7 +266,7 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 			}
 			return originalFetch(input, init);
 		};
-  });
+	}, LONG_ANONYMOUS_CHAT_SUMMARY);
 }
 
 async function openDemoForEveryoneAndStartAnonymousChat(
@@ -638,9 +641,20 @@ test.describe('Anonymous free chat', () => {
 			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
 		).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 5000 });
-		await expect(page.getByTestId('chat-header-summary')).toContainText('Anonymous streaming lifecycle completed', {
+		const headerSummary = page.getByTestId('chat-header-summary');
+		await expect(headerSummary).toContainText('Anonymous streaming lifecycle completed', {
 			timeout: 5000
 		});
+		await expect
+			.poll(async () => headerSummary.evaluate((element: HTMLElement) => {
+				const styles = window.getComputedStyle(element);
+				const lineHeight = Number.parseFloat(styles.lineHeight);
+				const maxVisibleHeight = lineHeight * 3;
+				const clamp = styles.getPropertyValue('-webkit-line-clamp') || styles.getPropertyValue('line-clamp');
+				const visibleHeight = element.getBoundingClientRect().height;
+				return clamp === '3' && styles.overflow === 'hidden' && visibleHeight <= maxVisibleHeight + 2;
+			}), { timeout: 5000 })
+			.toBe(true);
 		await expect(page.getByTestId('follow-up-suggestion-item').first()).toContainText(
 			'Explain anonymous streaming in simpler terms',
 			{ timeout: 5000 }

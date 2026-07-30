@@ -823,6 +823,7 @@
                 {titleTestId}
                 descriptionTestId="chat-header-summary"
                 showDescription={showSummary || writable}
+                descriptionClampLines={3}
                 iconTestId="chat-header-icon"
               />
             </div>
@@ -1093,6 +1094,7 @@
             {titleTestId}
             descriptionTestId="chat-header-summary"
             showDescription={showSummary || writable}
+            descriptionClampLines={3}
             iconTestId="chat-header-icon"
           />
 

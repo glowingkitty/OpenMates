@@ -25,6 +25,7 @@
     titleTestId = 'workspace-detail-title',
     descriptionTestId = 'workspace-detail-description',
     showDescription = true,
+    descriptionClampLines = null,
     iconTestId = undefined,
     showIcon = true,
     alignment = 'center',
@@ -41,6 +42,7 @@
     titleTestId?: string;
     descriptionTestId?: string;
     showDescription?: boolean;
+    descriptionClampLines?: number | null;
     iconTestId?: string;
     showIcon?: boolean;
     alignment?: 'center' | 'start';
@@ -65,6 +67,9 @@
   const titleChanged = $derived(titleDraft.trim() !== title.trim());
   const descriptionChanged = $derived(descriptionDraft.trim() !== description.trim());
   const titleValid = $derived(titleDraft.trim().length > 0);
+  const descriptionClampStyle = $derived(
+    descriptionClampLines ? `--description-line-clamp: ${descriptionClampLines};` : undefined,
+  );
   const bannerStyle = $derived.by(() => {
     const colors = getCategoryGradientColors(category);
     if (!colors) return 'background: var(--color-primary); --orb-color: var(--color-grey-0);';
@@ -214,7 +219,16 @@
           <button type="button" data-testid="workspace-detail-description-undo" aria-label={$text('common.cancel')} disabled={savingField === 'description'} onclick={cancelEdit}><UndoIcon size={18} /></button>
         </div>
       {:else}
-        <button bind:this={descriptionDisplay} class="display-value description-value" type="button" data-testid={descriptionTestId} disabled={!writable} onclick={() => beginEdit('description')}>{description}</button>
+        <button
+          bind:this={descriptionDisplay}
+          class="display-value description-value"
+          class:description-clamped={!!descriptionClampLines}
+          style={descriptionClampStyle}
+          type="button"
+          data-testid={descriptionTestId}
+          disabled={!writable}
+          onclick={() => beginEdit('description')}
+        >{description}</button>
         {#if writable}
           <button class="edit-affordance" type="button" data-testid="workspace-detail-description-edit" aria-label={$text('common.edit')} onclick={() => beginEdit('description')}><EditIcon size={18} /></button>
         {/if}
@@ -296,6 +310,13 @@
   .display-value:disabled { cursor: default; opacity: 1; }
   .title-value, .title-input { font-size: var(--font-size-h3); font-weight: 700; text-align: center; }
   .description-value, textarea { font-size: var(--font-size-small); line-height: 1.5; text-align: center; }
+  .description-value.description-clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: var(--description-line-clamp);
+    line-clamp: var(--description-line-clamp);
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .edit-affordance {
     position: absolute;
     inset-block-start: 50%;
