@@ -459,7 +459,7 @@
                 </div>
               {:else if cell.cell_type === 'code'}
                 <div class="notebook-code-cell">
-                  <div class="notebook-code-lines">
+                  <div class="notebook-code-lines" data-testid="notebook-code-lines">
                     {#each highlightedCodeLines(cell) as lineHtml, lineIndex}
                       <div class="notebook-code-line">
                         <span class="notebook-code-gutter" aria-hidden="true">{lineIndex + 1}</span>

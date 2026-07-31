@@ -635,11 +635,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest --expected-commit eccd21c
+        run_id: github-actions-30631350378
+        subject_commit: eccd21c5bfe38dfd465791c8f6a40716ff9e4bdf
+        timestamp: "2026-07-31T12:39:36Z"
+        reason: "GitHub Actions Vitest control-plane run passed 667/667 tests, including `frontend/packages/ui/src/components/embeds/code/__tests__/notebookContent.test.ts` and the updated embed registry durable content catalog guard for `code.notebook`."
 
   - id: T-PLAYWRIGHT-NOTEBOOK-FLOW
     type: playwright
@@ -653,19 +654,18 @@ tests:
       - AC-4
       - AC-6
     assertions:
-      - A generated Python notebook appears as a Notebook preview, not JSON.
-      - Fullscreen opens to rendered notebook cells.
-      - Running a Python cell shows streamed status and saved output.
-      - Reloading the chat restores saved output from the encrypted sidecar.
-      - The canonical notebook source does not gain outputs after execution.
+      - The deployed real-notebook public example appears as a Notebook preview, not raw nbformat JSON.
+      - Fullscreen opens to rendered markdown/code notebook cells.
+      - A synced notebook-run sidecar output is merged into the rendered cell output area.
+      - The merged sidecar output does not mutate the rendered source-code cell lines.
+      - Anonymous public-example Run attempts open login and do not POST to the notebook execution API.
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: missing_test
+        reason: The dedicated notebook flow Playwright spec did not exist before this continuation. Earlier browser coverage used the generic example-chat loader, while REST/API evidence covered real authenticated E2B execution.
+        timestamp: "2026-07-31T12:45:00Z"
     green_phase:
       required: true
       expected: pass_after_deploy
