@@ -106,7 +106,7 @@
     height: var(--chat-settings-header-height);
     background: linear-gradient(135deg, var(--chat-gradient-start), var(--chat-gradient-end));
     border-radius: 0 0 var(--radius-6) var(--radius-6);
-    color: var(--color-white);
+    color: var(--color-white-fixed, #fff);
     box-shadow: var(--shadow-lg);
     transition: height var(--duration-fast) var(--easing-default);
     user-select: none;
@@ -119,8 +119,8 @@
   .chat-settings-title,
   .chat-settings-credits,
   .chat-settings-credits span {
-    color: var(--color-white) !important;
-    -webkit-text-fill-color: var(--color-white) !important;
+    color: var(--color-white-fixed, #fff) !important;
+    -webkit-text-fill-color: var(--color-white-fixed, #fff) !important;
   }
 
   .chat-settings-nav {
@@ -131,14 +131,14 @@
     min-height: 3rem;
     gap: var(--spacing-3);
     padding: 0 var(--spacing-5);
-    color: var(--color-white);
+    color: var(--color-white-fixed, #fff);
     font: var(--font-label-md);
     cursor: pointer;
     pointer-events: auto;
   }
 
   .chat-settings-nav:hover {
-    background: color-mix(in srgb, var(--color-white) 8%, transparent);
+    background: color-mix(in srgb, var(--color-white-fixed, #fff) 8%, transparent);
   }
 
   .nav-back-icon {
@@ -168,7 +168,7 @@
     flex: 0 0 auto;
     width: var(--chat-settings-icon-size);
     height: var(--chat-settings-icon-size);
-    background: var(--color-white);
+    background: var(--color-white-fixed, #fff);
     -webkit-mask-image: var(--chat-settings-icon-mask);
     mask-image: var(--chat-settings-icon-mask);
     -webkit-mask-repeat: no-repeat;
@@ -185,7 +185,8 @@
     font-size: var(--font-size-h3);
     line-height: 1.3;
     font-weight: 700;
-    color: var(--color-white) !important;
+    color: var(--color-white-fixed, #fff) !important;
+    -webkit-text-fill-color: var(--color-white-fixed, #fff) !important;
   }
 
   .chat-settings-credits {
@@ -197,14 +198,15 @@
     font: var(--font-heading-sm);
     font-weight: var(--font-weight-bold);
     opacity: var(--chat-settings-details-opacity);
-    color: var(--color-white) !important;
+    color: var(--color-white-fixed, #fff) !important;
+    -webkit-text-fill-color: var(--color-white-fixed, #fff) !important;
     transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   .credits-icon {
     width: 1.375rem;
     height: 1.375rem;
-    background: var(--color-white);
+    background: var(--color-white-fixed, #fff);
     -webkit-mask: url('@openmates/ui/static/icons/coins.svg') center / contain no-repeat;
     mask: url('@openmates/ui/static/icons/coins.svg') center / contain no-repeat;
   }
