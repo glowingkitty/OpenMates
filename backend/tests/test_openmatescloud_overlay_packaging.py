@@ -21,6 +21,7 @@ CELERY_CONFIG_PY = ROOT / "backend/core/api/app/tasks/celery_config.py"
 BASE_TASK_PY = ROOT / "backend/core/api/app/tasks/base_task.py"
 SDK_PY = ROOT / "backend/core/api/app/routes/sdk.py"
 TEAMS_PY = ROOT / "backend/core/api/app/routes/teams.py"
+DEV_COMPOSE_FILE = ROOT / "backend/core/docker-compose.yml"
 SELFHOST_COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.selfhost.yml",
     ROOT / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
@@ -91,6 +92,14 @@ def test_cloud_billing_requires_explicit_openmatescloud_overlay(monkeypatch) -> 
 
     assert server_mode.is_openmates_cloud_overlay_enabled() is True
     assert server_mode.is_cloud_billing_enabled() is True
+
+
+def test_dev_compose_does_not_enable_openmatescloud_overlay_by_default() -> None:
+    compose = _load_compose(DEV_COMPOSE_FILE)
+
+    for service_name in ("api", "task-worker"):
+        environment = compose["services"][service_name]["environment"]
+        assert environment[CLOUD_OVERLAY_ENV] == "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
 
 
 def test_selfhost_compose_explicitly_disables_openmatescloud_overlay() -> None:
