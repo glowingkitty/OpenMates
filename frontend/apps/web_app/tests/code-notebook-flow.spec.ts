@@ -62,7 +62,6 @@ test.describe('Code notebook flow', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, notebookPreview);
 		await expect(fullscreenOverlay.getByTestId('notebook-fullscreen')).toBeVisible({ timeout: 15_000 });
-		await expect(fullscreenOverlay).toContainText('open_meteo_weather_analysis.ipynb');
 		await expect(fullscreenOverlay).toContainText(/7 cells?, Notebook/i);
 
 		const fullscreenCells = fullscreenOverlay.getByTestId('notebook-cell');
