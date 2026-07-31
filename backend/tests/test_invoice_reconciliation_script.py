@@ -136,6 +136,16 @@ class EmptyNinja:
         return {"data": []}
 
 
+class FakeDirectusUsers:
+    def __init__(self, users_by_collection):
+        self.users_by_collection = users_by_collection
+        self.calls = []
+
+    async def get_items(self, collection, params=None, admin_required=False):
+        self.calls.append((collection, params, admin_required))
+        return self.users_by_collection.get(collection, [])
+
+
 @pytest.mark.asyncio
 async def test_ninja_invoice_exists_falls_back_to_filtered_private_notes():
     ninja = FakeNinja()
@@ -153,6 +163,26 @@ class FailingNinja:
 @pytest.mark.asyncio
 async def test_ninja_invoice_exists_returns_unknown_on_lookup_errors():
     assert await audit_script._ninja_invoice_exists(FailingNinja(), "pi_123") is None
+
+
+@pytest.mark.asyncio
+async def test_directus_users_by_hash_prefers_users_collection():
+    user = {"id": "user-1", "account_id": "ACCT001", "vault_key_id": "vault-key"}
+    user_hash = audit_script.hashlib.sha256(b"user-1").hexdigest()
+    directus = FakeDirectusUsers({"users": [user], "directus_users": []})
+
+    assert await audit_script._directus_users_by_hash(directus, {user_hash}) == {user_hash: user}
+    assert [call[0] for call in directus.calls] == ["users"]
+
+
+@pytest.mark.asyncio
+async def test_directus_users_by_hash_falls_back_to_directus_users_collection():
+    user = {"id": "user-1", "account_id": "ACCT001", "vault_key_id": "vault-key"}
+    user_hash = audit_script.hashlib.sha256(b"user-1").hexdigest()
+    directus = FakeDirectusUsers({"users": [], "directus_users": [user]})
+
+    assert await audit_script._directus_users_by_hash(directus, {user_hash}) == {user_hash: user}
+    assert [call[0] for call in directus.calls] == ["users", "directus_users"]
 
 
 @pytest.mark.asyncio

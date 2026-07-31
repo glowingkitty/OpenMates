@@ -301,28 +301,30 @@ async def _directus_users_by_hash(
     users_by_hash: dict[str, dict[str, Any]] = {}
     offset = 0
     limit = 500
-    while True:
-        users = await directus.get_items(
-            "directus_users",
-            params={
-                "fields": "id,account_id,vault_key_id",
-                "limit": limit,
-                "offset": offset,
-            },
-            admin_required=True,
-        ) or []
-        if not users:
-            break
-        for user in users:
-            user_id = str(user.get("id") or "")
-            if not user_id:
-                continue
-            user_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
-            if user_hash in wanted_hashes:
-                users_by_hash[user_hash] = user
-        if len(users_by_hash) == len(wanted_hashes):
-            break
-        offset += limit
+    for collection in ("users", "directus_users"):
+        offset = 0
+        while True:
+            users = await directus.get_items(
+                collection,
+                params={
+                    "fields": "id,account_id,vault_key_id",
+                    "limit": limit,
+                    "offset": offset,
+                },
+                admin_required=True,
+            ) or []
+            if not users:
+                break
+            for user in users:
+                user_id = str(user.get("id") or "")
+                if not user_id:
+                    continue
+                user_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+                if user_hash in wanted_hashes:
+                    users_by_hash[user_hash] = user
+            if len(users_by_hash) == len(wanted_hashes):
+                return users_by_hash
+            offset += limit
     return users_by_hash
 
 
