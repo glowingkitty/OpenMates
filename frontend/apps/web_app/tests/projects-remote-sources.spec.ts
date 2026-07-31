@@ -180,10 +180,12 @@ test.describe('Projects remote sources', () => {
     await expect(page.getByTestId('login-wrapper')).toHaveCount(0, { timeout: 30000 });
     await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
     const messageEditor = page.getByTestId('message-editor');
-    await expect(messageEditor.locator('[contenteditable="true"]')).toBeVisible({ timeout: 30000 });
+    const editableMessage = messageEditor.locator('[contenteditable="true"]');
+    await expect(editableMessage).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
     await messageEditor.click();
-    await page.keyboard.insertText(`@${projectName}`);
+    await expect(editableMessage).toBeFocused({ timeout: 5000 });
+    await page.keyboard.type(`@${projectName}`, { delay: 20 });
     const mentionDropdown = page.getByTestId('mention-dropdown');
     await expect(mentionDropdown).toBeVisible({ timeout: 30000 });
     const projectMention = mentionDropdown.getByTestId('mention-result').filter({ hasText: projectName }).first();
