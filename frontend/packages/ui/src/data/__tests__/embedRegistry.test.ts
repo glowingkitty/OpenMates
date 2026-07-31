@@ -453,6 +453,7 @@ describe("Embed Registry — content catalog", () => {
     const EXPECTED_CONTENT_IDS = [
       "audio.recording",
       "code.code",
+      "code.notebook",
       "code.repo",
       "docs.document",
       "electronics.schematic",
