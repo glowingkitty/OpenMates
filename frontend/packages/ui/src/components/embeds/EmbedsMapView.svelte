@@ -897,6 +897,7 @@
                       onclick={() => {
                         activeCategory = category;
                         hoveredRef = null;
+                        filtersOpen = false;
                       }}
                     >
                       {category === 'all' ? 'All results' : category}
