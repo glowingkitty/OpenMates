@@ -343,7 +343,11 @@ async def _iter_bank_transfer_invoice_rows(
                 "provider": {"_eq": "bank_transfer"},
                 "date": date_filter,
             },
-            "fields": "id,order_id,provider_order_id,provider,date",
+            "fields": (
+                "id,order_id,provider_order_id,provider,date,user_id_hash,"
+                "encrypted_amount,encrypted_credits_purchased,encrypted_currency,"
+                "encrypted_s3_object_key,encrypted_aes_key,aes_nonce,encrypted_filename,is_gift_card"
+            ),
             "limit": -1,
         },
         admin_required=True,

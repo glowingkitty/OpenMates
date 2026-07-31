@@ -146,6 +146,15 @@ class FakeDirectusUsers:
         return self.users_by_collection.get(collection, [])
 
 
+class RecordingDirectus:
+    def __init__(self):
+        self.calls = []
+
+    async def get_items(self, collection, params=None, admin_required=False):
+        self.calls.append((collection, params, admin_required))
+        return []
+
+
 @pytest.mark.asyncio
 async def test_ninja_invoice_exists_falls_back_to_filtered_private_notes():
     ninja = FakeNinja()
@@ -183,6 +192,33 @@ async def test_directus_users_by_hash_falls_back_to_directus_users_collection():
 
     assert await audit_script._directus_users_by_hash(directus, {user_hash}) == {user_hash: user}
     assert [call[0] for call in directus.calls] == ["users", "directus_users"]
+
+
+@pytest.mark.asyncio
+async def test_bank_transfer_invoice_iterator_requests_backfill_source_fields():
+    directus = RecordingDirectus()
+
+    await audit_script._iter_bank_transfer_invoice_rows(
+        directus,
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        datetime(2026, 8, 1, tzinfo=timezone.utc),
+    )
+
+    assert len(directus.calls) == 1
+    _, params, admin_required = directus.calls[0]
+    assert admin_required is True
+    fields = set(params["fields"].split(","))
+    assert {
+        "user_id_hash",
+        "encrypted_amount",
+        "encrypted_credits_purchased",
+        "encrypted_currency",
+        "encrypted_s3_object_key",
+        "encrypted_aes_key",
+        "aes_nonce",
+        "encrypted_filename",
+        "is_gift_card",
+    }.issubset(fields)
 
 
 @pytest.mark.asyncio
