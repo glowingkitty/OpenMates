@@ -113,16 +113,14 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Navigated to Billing');
 		await takeScreenshot(page, 'billing-page');
 
-		// Wait for usage overview to load (the "Usage" section in billing)
-		// The overview shows daily items — wait for at least one entry to appear
-		await page.waitForTimeout(3000); // Allow API fetch to complete
+		// Wait for usage overview to load (the "Usage" section in billing).
+		await expect(settingsMenu.getByTestId('usage-overview-day-heading').first()).toBeVisible({
+			timeout: 15000,
+		});
 
 		// Click the first usage item in the overview (most recent chat)
-		// These are SettingsItem components rendered as clickable menu items
-		const firstUsageEntry = settingsMenu
-			.locator('[data-testid="menu-item"][role="menuitem"]')
-			.filter({ hasText: /request/ })
-			.first();
+		// These are SettingsItem components rendered as usage overview chat rows.
+		const firstUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').first();
 		await expect(firstUsageEntry).toBeVisible({ timeout: 15000 });
 		await firstUsageEntry.click();
 		logStep('Clicked first usage entry (drill into chat entries)');
