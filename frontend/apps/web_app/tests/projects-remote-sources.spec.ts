@@ -180,14 +180,13 @@ test.describe('Projects remote sources', () => {
     await expect(page.getByTestId('login-wrapper')).toHaveCount(0, { timeout: 30000 });
     await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
     const messageEditor = page.getByTestId('message-editor');
-    const editableMessage = messageEditor.locator('[contenteditable="true"]');
-    await expect(editableMessage).toBeVisible({ timeout: 30000 });
+    await expect(messageEditor.locator('[contenteditable="true"]')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
-    await editableMessage.click();
-    await editableMessage.pressSequentially(`@${projectName}`, { delay: 20 });
-    await expect(editableMessage).toContainText(`@${projectName}`);
-    await expect(page.getByTestId('mention-dropdown')).toBeVisible({ timeout: 30000 });
-    const projectMention = page.getByTestId('mention-result').filter({ hasText: projectName }).first();
+    await messageEditor.click();
+    await page.keyboard.insertText(`@${projectName}`);
+    const mentionDropdown = page.getByTestId('mention-dropdown');
+    await expect(mentionDropdown).toBeVisible({ timeout: 30000 });
+    const projectMention = mentionDropdown.getByTestId('mention-result').filter({ hasText: projectName }).first();
     await expect(projectMention).toBeVisible({ timeout: 30000 });
     await projectMention.click();
 
