@@ -38,6 +38,14 @@ class FakeManager:
         self.calls.append(("broadcast_to_user_specific_event", event_name, user_id, payload.get("chat_id")))
 
 
+class FakeWebSocket:
+    def __init__(self):
+        self.sent = []
+
+    async def send_json(self, message):
+        self.sent.append(message)
+
+
 class FakeEmbedService:
     def __init__(self, cache_service, directus_service, encryption_service):
         pass
@@ -128,9 +136,11 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         lambda cache, directus: cutover,
     )
 
+    websocket = FakeWebSocket()
+
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=websocket,
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -143,6 +153,17 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
 
     assert manager.calls[0] == ("set_active_chat", "user-123", "device-123", "chat-123")
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    assert websocket.sent[0] == {
+        "type": "chat_message_confirmed",
+        "payload": {
+            "chat_id": "chat-123",
+            "message_id": "msg-123",
+            "temp_id": None,
+            "new_messages_v": 1,
+            "new_last_edited_overall_timestamp": 1_700_000_000,
+        },
+    }
+    assert not any(call[0] == "broadcast_to_user_specific_event" and call[1] == "chat_message_confirmed" for call in manager.calls)
     cutover.get_epoch.assert_awaited_once_with(authoritative=True)
     cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
 

@@ -156,6 +156,36 @@ def _sanitize_connected_account_token_refs(value: Any) -> list[dict[str, Any]] |
     return sanitized
 
 
+async def _send_origin_chat_message_confirmed(
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    """Acknowledge the sender on the same socket before any registry broadcast can race."""
+    message = {"type": "chat_message_confirmed", "payload": payload}
+    send_json = getattr(websocket, "send_json", None)
+    if callable(send_json):
+        try:
+            await send_json(message)
+            logger.debug(
+                "Sent direct chat_message_confirmed for message %s to user %s/%s",
+                payload.get("message_id"),
+                user_id,
+                device_fingerprint_hash,
+            )
+            return
+        except Exception as exc:
+            logger.warning(
+                "Direct chat_message_confirmed send failed for message %s; falling back to manager: %s",
+                payload.get("message_id"),
+                exc,
+            )
+
+    await manager.send_personal_message(message, user_id, device_fingerprint_hash)
+
+
 def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
     forbidden = sorted(key for key in item if key in CONNECTED_ACCOUNT_FORBIDDEN_FIELDS)
     if forbidden:
@@ -549,10 +579,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 return
 
             # Confirm to client (client waits for this before marking the message as synced)
-            await manager.broadcast_to_user_specific_event(
-                user_id=user_id,
-                event_name="chat_message_confirmed",
-                payload={
+            await _send_origin_chat_message_confirmed(
+                websocket,
+                manager,
+                user_id,
+                device_fingerprint_hash,
+                {
                     "chat_id": chat_id,
                     "message_id": message_id,
                     "temp_id": message_payload_from_client.get("temp_id"),
@@ -1066,21 +1098,20 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Send confirmation to the originating client device only after the
         # message plus optional connected-account directory/token refs are accepted.
         confirmation_payload = {
-            "type": "chat_message_confirmed", # Client expects this for their sent message
-            "payload": {
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "temp_id": message_payload_from_client.get("temp_id"), # Echo back temp_id if client sent one
-                "new_messages_v": new_messages_v,
-                "new_last_edited_overall_timestamp": new_last_edited_overall_timestamp
-            }
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "temp_id": message_payload_from_client.get("temp_id"), # Echo back temp_id if client sent one
+            "new_messages_v": new_messages_v,
+            "new_last_edited_overall_timestamp": new_last_edited_overall_timestamp
         }
-        await manager.broadcast_to_user_specific_event(
-            user_id=user_id,
-            event_name=confirmation_payload["type"],
-            payload=confirmation_payload["payload"]
+        await _send_origin_chat_message_confirmed(
+            websocket,
+            manager,
+            user_id,
+            device_fingerprint_hash,
+            confirmation_payload,
         )
-        logger.debug(f"Broadcasted chat_message_confirmed event for message {message_id} to user {user_id}")
+        logger.debug(f"Sent chat_message_confirmed event for message {message_id} to user {user_id}")
 
         # SEND EXTRACTED CODE EMBEDS TO CLIENT
         # These embeds were extracted from code blocks in the user message
