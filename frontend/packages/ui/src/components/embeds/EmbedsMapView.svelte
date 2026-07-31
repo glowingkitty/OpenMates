@@ -19,6 +19,8 @@
   const MAX_TRAVEL_SEGMENTS_PER_LEG = 32;
   const DEFAULT_ROUTE_COLOR = '#8a92a6';
   const ACTIVE_ROUTE_COLOR = '#6c63ff';
+  const MAP_HYDRATION_ROOT_MARGIN = '320px';
+  const HISTOGRAM_BUCKETS = 12;
 
   interface Props {
     id: string;
@@ -42,6 +44,42 @@
     route?: MapPathPoint[];
     embedData?: EmbedData;
     decodedContent?: Record<string, unknown> | null;
+    facets: EntryFacets;
+  }
+
+  interface EntryFacets {
+    category: string;
+    dateOrdinal?: number;
+    departureMinutes?: number;
+    arrivalMinutes?: number;
+    durationMinutes?: number;
+    stops?: number;
+    price?: number;
+    rsvpCount?: number;
+    rating?: number;
+    providers: string[];
+    transportModes: string[];
+    trainTypes: string[];
+    carriers: string[];
+    lines: string[];
+    amenities: string[];
+    fareCoverage: string[];
+  }
+
+  interface RangeFilterControl {
+    key: keyof EntryFacets & string;
+    label: string;
+    type: 'number' | 'time' | 'date';
+    min: number;
+    max: number;
+    values: number[];
+    unit?: string;
+  }
+
+  interface OptionFilterControl {
+    key: keyof EntryFacets & string;
+    label: string;
+    options: { value: string; label: string; count: number }[];
   }
 
   let {
@@ -56,20 +94,36 @@
   let isLoading = $state(true);
   let hoveredRef = $state<string | null>(null);
   let activeCategory = $state<string>('all');
+  let rangeFilters = $state<Record<string, { min: number; max: number }>>({});
+  let optionFilters = $state<Record<string, string[]>>({});
   let filtersOpen = $state(false);
+  let shouldHydrateMap = $state(false);
+  let mapShellElement = $state<HTMLDivElement | null>(null);
   let unsubscribeRefIndex: (() => void) | null = null;
+  let mapHydrationObserver: IntersectionObserver | null = null;
+  let mapHydrationTimer: ReturnType<typeof setTimeout> | null = null;
   let lastRefIndexVersion = -1;
+  let loadGeneration = 0;
+
+  const entryCache = new Map<string, { signature: string; entry: MapViewEntry }>();
+  const sourceChildrenCache = new Map<string, { signature: string; refs: string[] }>();
 
   const highlightSet = $derived(new Set(highlightRefs));
   const categories = $derived.by(() => {
     const values = Array.from(new Set(entries.filter((entry) => entry.status === 'ready').map((entry) => entry.category)));
     return ['all', ...values];
   });
+  const categoryFilteredEntries = $derived.by(() => {
+    if (activeCategory === 'all') return entries;
+    return entries.filter((entry) => entry.category === activeCategory || entry.status !== 'ready');
+  });
+  const rangeFilterControls = $derived(deriveRangeControls(categoryFilteredEntries));
+  const optionFilterControls = $derived(deriveOptionControls(categoryFilteredEntries));
+  const activeFilterCount = $derived(countActiveFilters(rangeFilterControls, optionFilterControls));
+  const hasAvailableFilters = $derived(categories.length > 1 || rangeFilterControls.length > 0 || optionFilterControls.length > 0);
   const visibleEntries = $derived.by(() => {
-    const filtered = activeCategory === 'all'
-      ? entries
-      : entries.filter((entry) => entry.category === activeCategory || entry.status !== 'ready');
-    return filtered
+    return categoryFilteredEntries
+      .filter(matchesActiveFilters)
       .slice()
       .sort((a, b) => Number(b.highlighted) - Number(a.highlighted))
       .slice(0, MAX_VISIBLE_ENTRIES);
@@ -143,6 +197,314 @@
   function getNestedRecord(record: Record<string, unknown> | null | undefined, key: string): Record<string, unknown> | null {
     const value = record?.[key];
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  }
+
+  function emptyFacets(category = 'loading'): EntryFacets {
+    return {
+      category,
+      providers: [],
+      transportModes: [],
+      trainTypes: [],
+      carriers: [],
+      lines: [],
+      amenities: [],
+      fareCoverage: [],
+    };
+  }
+
+  function contentSignature(embedId: string, embedData: EmbedData): string {
+    const content = typeof embedData.content === 'string' ? embedData.content : '';
+    return [
+      embedId,
+      embedData.type ?? '',
+      embedData.updatedAt ?? '',
+      content.length,
+      content.slice(0, 48),
+    ].join(':');
+  }
+
+  function uniqueStrings(values: unknown[]): string[] {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const value of values.flatMap((item) => Array.isArray(item) ? item : [item])) {
+      if (typeof value !== 'string' && typeof value !== 'number') continue;
+      const normalized = String(value).trim();
+      if (!normalized || normalized.toLowerCase() === 'null' || seen.has(normalized)) continue;
+      seen.add(normalized);
+      result.push(normalized);
+    }
+    return result;
+  }
+
+  function extractArrayRecords(value: unknown): Record<string, unknown>[] {
+    if (!Array.isArray(value)) return [];
+    return value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object' && !Array.isArray(item)));
+  }
+
+  function extractTravelSegments(content: Record<string, unknown> | null): Record<string, unknown>[] {
+    if (!content) return [];
+    const structuredSegments = extractArrayRecords(content.legs).flatMap((leg) => extractArrayRecords(leg.segments));
+    if (structuredSegments.length > 0) return structuredSegments;
+
+    const flatSegments: Record<string, unknown>[] = [];
+    for (let legIndex = 0; legIndex < MAX_TRAVEL_LEGS; legIndex += 1) {
+      for (let segmentIndex = 0; segmentIndex < MAX_TRAVEL_SEGMENTS_PER_LEG; segmentIndex += 1) {
+        const prefix = `legs_${legIndex}_segments_${segmentIndex}`;
+        const record = {
+          carrier: content[`${prefix}_carrier`],
+          carrier_code: content[`${prefix}_carrier_code`],
+          mode: content[`${prefix}_mode`],
+          line: content[`${prefix}_line`],
+          operator: content[`${prefix}_operator`],
+          source_provider: content[`${prefix}_source_provider`],
+          fare_coverage: content[`${prefix}_fare_coverage`],
+          departure_latitude: content[`${prefix}_departure_latitude`],
+          departure_longitude: content[`${prefix}_departure_longitude`],
+          arrival_latitude: content[`${prefix}_arrival_latitude`],
+          arrival_longitude: content[`${prefix}_arrival_longitude`],
+        };
+        const hasSegmentData = Object.values(record).some((item) => item != null);
+        if (!hasSegmentData) {
+          if (segmentIndex === 0) break;
+          continue;
+        }
+        flatSegments.push(record);
+      }
+    }
+    return flatSegments;
+  }
+
+  function minutesFromIsoLike(value: unknown): number | undefined {
+    if (typeof value !== 'string') return undefined;
+    const match = value.match(/(?:T|^)(\d{1,2}):(\d{2})/);
+    if (!match) return undefined;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return undefined;
+    return hours * 60 + minutes;
+  }
+
+  function dateOrdinalFromValue(value: unknown): number | undefined {
+    if (typeof value !== 'string') return undefined;
+    const match = value.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return undefined;
+    return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000;
+  }
+
+  function durationMinutesFromValue(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value !== 'string') return undefined;
+    const hours = value.match(/(\d+(?:\.\d+)?)\s*h/i);
+    const minutes = value.match(/(\d+(?:\.\d+)?)\s*m/i);
+    const total = (hours ? Number(hours[1]) * 60 : 0) + (minutes ? Number(minutes[1]) : 0);
+    return total > 0 ? total : firstNumber(value);
+  }
+
+  function extractProviders(content: Record<string, unknown> | null, segments: Record<string, unknown>[]): string[] {
+    const providerRecords = extractArrayRecords(content?.providers);
+    return uniqueStrings([
+      content?.provider,
+      content?.booking_provider,
+      content?.source_provider,
+      ...providerRecords.flatMap((provider) => [provider.id, provider.name]),
+      ...segments.map((segment) => segment.source_provider),
+    ]);
+  }
+
+  function extractFacets(category: string, content: Record<string, unknown> | null): EntryFacets {
+    const segments = extractTravelSegments(content);
+    const amenities = arrayFromUnknown(content?.amenities ?? content?.required_amenities);
+    return {
+      category,
+      dateOrdinal: dateOrdinalFromValue(firstString(content?.date, content?.date_start, content?.departure, content?.start_time, content?.check_in)),
+      departureMinutes: minutesFromIsoLike(firstString(content?.departure, content?.scheduled_departure, content?.start_time, content?.date_start)),
+      arrivalMinutes: minutesFromIsoLike(firstString(content?.arrival, content?.scheduled_arrival, content?.end_time, content?.date_end)),
+      durationMinutes: durationMinutesFromValue(content?.duration ?? content?.duration_minutes),
+      stops: firstNumber(content?.stops, content?.transfers, content?.transfer_count),
+      price: firstNumber(content?.price, content?.total_price, content?.min_price, content?.max_price),
+      rsvpCount: firstNumber(content?.rsvp_count, content?.attendee_count, content?.going_count, content?.capacity_used),
+      rating: firstNumber(content?.rating, content?.stars, content?.review_score),
+      providers: extractProviders(content, segments),
+      transportModes: uniqueStrings([content?.transport_method, content?.mode, ...segments.map((segment) => segment.mode)]),
+      trainTypes: uniqueStrings([content?.train_type, content?.carrier, ...segments.map((segment) => segment.carrier)]),
+      carriers: uniqueStrings([content?.carrier, content?.carrier_code, ...segments.flatMap((segment) => [segment.carrier, segment.carrier_code])]),
+      lines: uniqueStrings([content?.line, content?.number, ...segments.flatMap((segment) => [segment.line, segment.number])]),
+      amenities,
+      fareCoverage: uniqueStrings([content?.fare_coverage, ...segments.map((segment) => segment.fare_coverage)]),
+    };
+  }
+
+  function numberFacet(entry: MapViewEntry, key: string): number | undefined {
+    const value = entry.facets[key as keyof EntryFacets];
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  }
+
+  function optionFacet(entry: MapViewEntry, key: string): string[] {
+    const value = entry.facets[key as keyof EntryFacets];
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.length > 0) : [];
+  }
+
+  function makeRangeControl(
+    entriesToInspect: MapViewEntry[],
+    key: keyof EntryFacets & string,
+    label: string,
+    type: RangeFilterControl['type'],
+    unit?: string,
+  ): RangeFilterControl | null {
+    const values = entriesToInspect
+      .filter((entry) => entry.status === 'ready')
+      .map((entry) => numberFacet(entry, key))
+      .filter((value): value is number => value != null);
+    if (values.length === 0) return null;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) return null;
+    return { key, label, type, min, max, values, unit };
+  }
+
+  function deriveRangeControls(entriesToInspect: MapViewEntry[]): RangeFilterControl[] {
+    return [
+      makeRangeControl(entriesToInspect, 'departureMinutes', 'Departure time', 'time'),
+      makeRangeControl(entriesToInspect, 'arrivalMinutes', 'Arrival time', 'time'),
+      makeRangeControl(entriesToInspect, 'dateOrdinal', 'Date', 'date'),
+      makeRangeControl(entriesToInspect, 'durationMinutes', 'Duration', 'number', 'min'),
+      makeRangeControl(entriesToInspect, 'stops', 'Stops', 'number'),
+      makeRangeControl(entriesToInspect, 'price', 'Price', 'number'),
+      makeRangeControl(entriesToInspect, 'rsvpCount', 'RSVP count', 'number'),
+      makeRangeControl(entriesToInspect, 'rating', 'Rating', 'number'),
+    ].filter((control): control is RangeFilterControl => control != null);
+  }
+
+  function makeOptionControl(
+    entriesToInspect: MapViewEntry[],
+    key: keyof EntryFacets & string,
+    label: string,
+  ): OptionFilterControl | null {
+    const counts = new Map<string, number>();
+    for (const entry of entriesToInspect) {
+      if (entry.status !== 'ready') continue;
+      for (const value of optionFacet(entry, key)) {
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+    }
+    if (counts.size < 2) return null;
+    const options = Array.from(counts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, count]) => ({ value, count, label: formatOptionLabel(value) }));
+    return { key, label, options };
+  }
+
+  function deriveOptionControls(entriesToInspect: MapViewEntry[]): OptionFilterControl[] {
+    return [
+      makeOptionControl(entriesToInspect, 'providers', 'Provider'),
+      makeOptionControl(entriesToInspect, 'transportModes', 'Transport'),
+      makeOptionControl(entriesToInspect, 'trainTypes', 'Train type'),
+      makeOptionControl(entriesToInspect, 'carriers', 'Carrier'),
+      makeOptionControl(entriesToInspect, 'lines', 'Train line'),
+      makeOptionControl(entriesToInspect, 'amenities', 'Amenities'),
+      makeOptionControl(entriesToInspect, 'fareCoverage', 'Fare coverage'),
+    ].filter((control): control is OptionFilterControl => control != null);
+  }
+
+  function getRangeValue(control: RangeFilterControl): { min: number; max: number } {
+    return rangeFilters[control.key] ?? { min: control.min, max: control.max };
+  }
+
+  function isRangeFilterActive(control: RangeFilterControl): boolean {
+    const value = rangeFilters[control.key];
+    if (!value) return false;
+    return value.min > control.min || value.max < control.max;
+  }
+
+  function countActiveFilters(rangeControls: RangeFilterControl[], optionControls: OptionFilterControl[]): number {
+    return Number(activeCategory !== 'all')
+      + rangeControls.filter(isRangeFilterActive).length
+      + optionControls.reduce((count, control) => count + (optionFilters[control.key]?.length ? 1 : 0), 0);
+  }
+
+  function matchesActiveFilters(entry: MapViewEntry): boolean {
+    if (entry.status !== 'ready') return true;
+    for (const control of rangeFilterControls) {
+      if (!isRangeFilterActive(control)) continue;
+      const facetValue = numberFacet(entry, control.key);
+      const rangeValue = getRangeValue(control);
+      if (facetValue == null || facetValue < rangeValue.min || facetValue > rangeValue.max) return false;
+    }
+    for (const control of optionFilterControls) {
+      const selectedValues = optionFilters[control.key] ?? [];
+      if (selectedValues.length === 0) continue;
+      const values = optionFacet(entry, control.key);
+      if (!selectedValues.some((value) => values.includes(value))) return false;
+    }
+    return true;
+  }
+
+  function updateRangeFilter(key: string, side: 'min' | 'max', value: number): void {
+    const control = rangeFilterControls.find((candidate) => candidate.key === key);
+    if (!control) return;
+    const current = getRangeValue(control);
+    const next = { ...current, [side]: value };
+    if (next.min > next.max) {
+      if (side === 'min') next.max = next.min;
+      else next.min = next.max;
+    }
+    rangeFilters = { ...rangeFilters, [key]: next };
+    hoveredRef = null;
+  }
+
+  function toggleOptionFilter(key: string, value: string): void {
+    const current = optionFilters[key] ?? [];
+    const next = current.includes(value)
+      ? current.filter((item) => item !== value)
+      : [...current, value];
+    optionFilters = { ...optionFilters, [key]: next };
+    hoveredRef = null;
+  }
+
+  function clearFilters(): void {
+    activeCategory = 'all';
+    rangeFilters = {};
+    optionFilters = {};
+    hoveredRef = null;
+  }
+
+  function formatOptionLabel(value: string): string {
+    return value
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function formatRangeValue(control: RangeFilterControl, value: number): string {
+    if (control.type === 'time') {
+      const hours = Math.floor(value / 60).toString().padStart(2, '0');
+      const minutes = Math.round(value % 60).toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+    if (control.type === 'date') return dateFromOrdinal(value);
+    return `${Math.round(value)}${control.unit ? ` ${control.unit}` : ''}`;
+  }
+
+  function dateFromOrdinal(value: number): string {
+    return new Date(value * 86400000).toISOString().slice(0, 10);
+  }
+
+  function testIdPart(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
+  function histogramBuckets(control: RangeFilterControl): number[] {
+    const buckets = Array.from({ length: HISTOGRAM_BUCKETS }, () => 0);
+    const span = Math.max(control.max - control.min, 1);
+    for (const value of control.values) {
+      const index = Math.min(HISTOGRAM_BUCKETS - 1, Math.floor(((value - control.min) / span) * HISTOGRAM_BUCKETS));
+      buckets[index] += 1;
+    }
+    return buckets;
+  }
+
+  function histogramBarHeight(control: RangeFilterControl, count: number): number {
+    const max = Math.max(1, ...histogramBuckets(control));
+    return Math.max(12, Math.round((count / max) * 100));
   }
 
   function getCategory(embedType: string | null, content: Record<string, unknown> | null): string {
@@ -346,19 +708,28 @@
   async function resolveEntry(ref: string): Promise<MapViewEntry> {
     const embedId = await resolveRefToId(ref);
     if (!embedId) {
-      return { ref, embedId: null, embedType: null, title: ref, subtitle: 'Waiting for embed data', category: 'loading', status: 'loading', highlighted: highlightSet.has(ref) };
+      return { ref, embedId: null, embedType: null, title: ref, subtitle: 'Waiting for embed data', category: 'loading', status: 'loading', highlighted: highlightSet.has(ref), facets: emptyFacets() };
     }
 
     const embedData = await resolveEmbed(embedId);
     if (!embedData) {
-      return { ref, embedId, embedType: null, title: ref, subtitle: 'Waiting for embed data', category: 'loading', status: 'loading', highlighted: highlightSet.has(ref) };
+      return { ref, embedId, embedType: null, title: ref, subtitle: 'Waiting for embed data', category: 'loading', status: 'loading', highlighted: highlightSet.has(ref), facets: emptyFacets() };
+    }
+
+    const signature = contentSignature(embedId, embedData);
+    const cached = entryCache.get(ref);
+    if (cached?.signature === signature) {
+      return {
+        ...cached.entry,
+        highlighted: highlightSet.has(ref) || highlightSet.has(embedId),
+      };
     }
 
     const decodedContent = await decodeToonContent(embedData.content);
     const category = getCategory(embedData.type, decodedContent);
     const point = extractPoint(decodedContent);
     const route = extractRoute(decodedContent);
-    return {
+    const entry = {
       ref,
       embedId,
       embedType: embedData.type,
@@ -372,7 +743,10 @@
       route,
       embedData,
       decodedContent,
-    };
+      facets: extractFacets(category, decodedContent),
+    } satisfies MapViewEntry;
+    entryCache.set(ref, { signature, entry });
+    return entry;
   }
 
   async function resolveSourceChildren(sourceRef: string): Promise<string[]> {
@@ -380,29 +754,40 @@
     if (!sourceId) return [];
     const sourceEmbed = await resolveEmbed(sourceId);
     if (!sourceEmbed) return [];
+    const signature = contentSignature(sourceId, sourceEmbed);
+    const cached = sourceChildrenCache.get(sourceRef);
+    if (cached?.signature === signature) return cached.refs;
     const decoded = await decodeToonContent(sourceEmbed.content);
-    return uniqueRefs([
+    const refs = uniqueRefs([
       ...arrayFromUnknown(sourceEmbed.embed_ids),
       ...arrayFromUnknown(decoded?.embed_ids),
       ...arrayFromUnknown(decoded?.child_embed_ids),
     ]);
+    sourceChildrenCache.set(sourceRef, { signature, refs });
+    return refs;
   }
 
   async function loadEntries(): Promise<void> {
+    const generation = loadGeneration + 1;
+    loadGeneration = generation;
     isLoading = true;
     const directRefs = uniqueRefs(embedRefs);
     const sourceChildRefs = (await Promise.all(sourceRefs.map(resolveSourceChildren))).flat();
     const refs = uniqueRefs([...directRefs, ...sourceChildRefs]);
 
+    if (generation !== loadGeneration) return;
+
     if (refs.length === 0) {
       entries = sourceRefs.length > 0
-        ? sourceRefs.map((ref) => ({ ref, embedId: null, embedType: null, title: ref, subtitle: 'Waiting for source results', category: 'loading', status: 'loading', highlighted: false }))
+        ? sourceRefs.map((ref) => ({ ref, embedId: null, embedType: null, title: ref, subtitle: 'Waiting for source results', category: 'loading', status: 'loading', highlighted: false, facets: emptyFacets() }))
         : [];
       isLoading = false;
       return;
     }
 
-    entries = await Promise.all(refs.slice(0, MAX_VISIBLE_ENTRIES).map(resolveEntry));
+    const resolvedEntries = await Promise.all(refs.slice(0, MAX_VISIBLE_ENTRIES).map(resolveEntry));
+    if (generation !== loadGeneration) return;
+    entries = resolvedEntries;
     hoveredRef = null;
     isLoading = false;
   }
@@ -417,6 +802,35 @@
     });
   }
 
+  function scheduleMapHydration(): void {
+    if (shouldHydrateMap || mapHydrationTimer) return;
+    const hydrate = () => {
+      mapHydrationTimer = null;
+      shouldHydrateMap = true;
+      mapHydrationObserver?.disconnect();
+      mapHydrationObserver = null;
+    };
+    const requestIdle = (globalThis as typeof globalThis & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number }).requestIdleCallback;
+    if (requestIdle) {
+      requestIdle(hydrate, { timeout: 600 });
+      return;
+    }
+    mapHydrationTimer = setTimeout(hydrate, 80);
+  }
+
+  function setupMapHydrationObserver(): void {
+    if (!mapShellElement || shouldHydrateMap || mapHydrationObserver) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      scheduleMapHydration();
+      return;
+    }
+
+    mapHydrationObserver = new IntersectionObserver((observedEntries) => {
+      if (observedEntries.some((entry) => entry.isIntersecting)) scheduleMapHydration();
+    }, { rootMargin: MAP_HYDRATION_ROOT_MARGIN });
+    mapHydrationObserver.observe(mapShellElement);
+  }
+
   onMount(() => {
     void loadEntries();
     unsubscribeRefIndex = embedRefIndexVersion.subscribe((version) => {
@@ -426,7 +840,7 @@
       }
       if (version !== lastRefIndexVersion) {
         lastRefIndexVersion = version;
-        void loadEntries();
+        if (entries.some((entry) => entry.status !== 'ready')) void loadEntries();
       }
     });
   });
@@ -434,13 +848,21 @@
   onDestroy(() => {
     unsubscribeRefIndex?.();
     unsubscribeRefIndex = null;
+    mapHydrationObserver?.disconnect();
+    mapHydrationObserver = null;
+    if (mapHydrationTimer) clearTimeout(mapHydrationTimer);
+    mapHydrationTimer = null;
+  });
+
+  $effect(() => {
+    if (mapShellElement && mapCenter && !shouldHydrateMap) setupMapHydrationObserver();
   });
 </script>
 
 <section class="embeds-map-view" data-testid="embeds-map-view" data-map-view-id={id} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
-    {#if categories.length > 1}
+    {#if hasAvailableFilters}
       <div class="filter-menu-wrapper">
         <button
           type="button"
@@ -451,24 +873,112 @@
           onclick={() => (filtersOpen = !filtersOpen)}
         >
           <span class="filter-icon" aria-hidden="true"></span>
-          <span>{activeCategory === 'all' ? 'Filter' : activeCategory}</span>
+          <span>{activeFilterCount === 0 ? 'Filter' : `Filter (${activeFilterCount})`}</span>
         </button>
         {#if filtersOpen}
           <div class="filter-menu" data-testid="embeds-map-view-filter-menu" role="menu">
-            {#each categories as category}
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={category === activeCategory}
-                class:active={category === activeCategory}
-                onclick={() => {
-                  activeCategory = category;
-                  hoveredRef = null;
-                  filtersOpen = false;
-                }}
-              >
-                {category === 'all' ? 'All results' : category}
-              </button>
+            <div class="filter-menu-header">
+              <strong>Filters</strong>
+              {#if activeFilterCount > 0}
+                <button type="button" data-testid="embeds-map-view-clear-filters" onclick={clearFilters}>Clear all</button>
+              {/if}
+            </div>
+
+            {#if categories.length > 1}
+              <div class="filter-section">
+                <span class="filter-section-title">Type</span>
+                <div class="filter-category-options">
+                  {#each categories as category}
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={category === activeCategory}
+                      class:active={category === activeCategory}
+                      onclick={() => {
+                        activeCategory = category;
+                        hoveredRef = null;
+                      }}
+                    >
+                      {category === 'all' ? 'All results' : category}
+                    </button>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+
+            {#each rangeFilterControls as control}
+              {@const rangeValue = getRangeValue(control)}
+              <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
+                <div class="range-label-row">
+                  <span class="filter-section-title">{control.label}</span>
+                  <span>{formatRangeValue(control, rangeValue.min)} - {formatRangeValue(control, rangeValue.max)}</span>
+                </div>
+                {#if control.type === 'time'}
+                  <div class="filter-histogram" aria-hidden="true">
+                    {#each histogramBuckets(control) as bucket}
+                      <span style={`height: ${histogramBarHeight(control, bucket)}%;`}></span>
+                    {/each}
+                  </div>
+                {/if}
+                <div class="range-inputs">
+                  {#if control.type === 'date'}
+                    <input
+                      data-testid={`embeds-map-view-filter-${control.key}-min`}
+                      type="date"
+                      min={dateFromOrdinal(control.min)}
+                      max={dateFromOrdinal(control.max)}
+                      value={dateFromOrdinal(rangeValue.min)}
+                      oninput={(event) => updateRangeFilter(control.key, 'min', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.min)}
+                    />
+                    <input
+                      data-testid={`embeds-map-view-filter-${control.key}-max`}
+                      type="date"
+                      min={dateFromOrdinal(control.min)}
+                      max={dateFromOrdinal(control.max)}
+                      value={dateFromOrdinal(rangeValue.max)}
+                      oninput={(event) => updateRangeFilter(control.key, 'max', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.max)}
+                    />
+                  {:else}
+                    <input
+                      data-testid={`embeds-map-view-filter-${control.key}-min`}
+                      type="range"
+                      min={control.min}
+                      max={control.max}
+                      step={control.type === 'time' ? 5 : 1}
+                      value={rangeValue.min}
+                      oninput={(event) => updateRangeFilter(control.key, 'min', Number((event.currentTarget as HTMLInputElement).value))}
+                    />
+                    <input
+                      data-testid={`embeds-map-view-filter-${control.key}-max`}
+                      type="range"
+                      min={control.min}
+                      max={control.max}
+                      step={control.type === 'time' ? 5 : 1}
+                      value={rangeValue.max}
+                      oninput={(event) => updateRangeFilter(control.key, 'max', Number((event.currentTarget as HTMLInputElement).value))}
+                    />
+                  {/if}
+                </div>
+              </div>
+            {/each}
+
+            {#each optionFilterControls as control}
+              <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
+                <span class="filter-section-title">{control.label}</span>
+                <div class="option-chips">
+                  {#each control.options as option}
+                    <button
+                      type="button"
+                      data-testid={`embeds-map-view-option-${testIdPart(control.label)}-${testIdPart(option.value)}`}
+                      class:active={(optionFilters[control.key] ?? []).includes(option.value)}
+                      aria-pressed={(optionFilters[control.key] ?? []).includes(option.value)}
+                      onclick={() => toggleOptionFilter(control.key, option.value)}
+                    >
+                      {option.label} <span>{option.count}</span>
+                    </button>
+                  {/each}
+                </div>
+              </div>
             {/each}
           </div>
         {/if}
@@ -517,18 +1027,28 @@
       {/if}
     </div>
 
-    <div class="map-view-map" data-testid="embeds-map-view-map" data-route-count={routePaths.length}>
+    <div
+      class="map-view-map"
+      data-testid="embeds-map-view-map"
+      data-route-count={routePaths.length}
+      data-map-hydrated={shouldHydrateMap ? 'true' : 'false'}
+      bind:this={mapShellElement}
+    >
       {#if mapCenter}
-        <EmbedLeafletMap
-          center={mapCenter}
-          zoom={12}
-          markers={mapMarkers}
-          paths={routePaths}
-          height="100%"
-          minHeight="260px"
-          fitBounds={true}
-          scrollWheelZoom={false}
-        />
+        {#if shouldHydrateMap}
+          <EmbedLeafletMap
+            center={mapCenter}
+            zoom={12}
+            markers={mapMarkers}
+            paths={routePaths}
+            height="100%"
+            minHeight="260px"
+            fitBounds={true}
+            scrollWheelZoom={false}
+          />
+        {:else}
+          <div class="map-hydration-placeholder">Map loading when visible...</div>
+        {/if}
       {:else}
         <div class="empty-map">Referenced embeds do not expose coordinates yet.</div>
       {/if}
@@ -603,32 +1123,110 @@
     top: calc(100% + 8px);
     right: 0;
     display: grid;
-    gap: 4px;
-    min-width: 150px;
+    gap: 10px;
+    width: min(360px, calc(100vw - 32px));
+    max-height: min(70vh, 560px);
+    overflow: auto;
     border: 1px solid var(--color-grey-25, #e8e8e8);
     border-radius: var(--radius-5, 12px);
     background: var(--color-grey-0, #ffffff);
     box-shadow: var(--shadow-lg, 0 4px 16px rgba(0, 0, 0, 0.15));
-    padding: 6px;
+    padding: 12px;
+  }
+
+  .filter-menu-header,
+  .range-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .filter-menu-header strong,
+  .filter-section-title {
+    color: var(--color-font-primary, #222222);
+    font-size: var(--font-size-xs, 0.8125rem);
+    font-weight: 650;
+  }
+
+  .range-label-row span:last-child {
+    color: var(--color-font-secondary, #666666);
+    font-size: var(--font-size-tiny, 0.6875rem);
+    white-space: nowrap;
+  }
+
+  .filter-section {
+    display: grid;
+    gap: 8px;
+  }
+
+  .filter-category-options,
+  .option-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .filter-menu button {
-    border: 0;
-    border-radius: var(--radius-4, 10px);
-    background: transparent;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: 999px;
+    background: var(--color-grey-0, #ffffff);
     color: var(--color-font-primary, #222222);
-    padding: 8px 10px;
+    padding: 7px 10px;
     font: inherit;
-    font-size: var(--font-size-xs);
-    text-align: left;
-    text-transform: capitalize;
+    font-size: var(--font-size-xxs, 0.75rem);
+    text-align: center;
     cursor: pointer;
   }
 
   .filter-menu button.active,
+  .filter-menu button[aria-pressed='true'],
   .filter-menu button:hover {
     background: var(--color-grey-blue, #e6eaff);
     color: var(--color-font-primary, #222222);
+  }
+
+  .option-chips button span {
+    color: var(--color-font-secondary, #666666);
+    font-size: var(--font-size-tiny, 0.6875rem);
+  }
+
+  .filter-histogram {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    align-items: end;
+    gap: 3px;
+    height: 34px;
+    padding: 4px 0;
+  }
+
+  .filter-histogram span {
+    display: block;
+    min-height: 4px;
+    border-radius: 999px 999px 2px 2px;
+    background: var(--color-grey-blue, #e6eaff);
+  }
+
+  .range-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .range-inputs input[type='range'] {
+    min-width: 0;
+    accent-color: var(--color-primary, #6c63ff);
+  }
+
+  .range-inputs input[type='date'] {
+    min-width: 0;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: var(--radius-3, 8px);
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
+    padding: 6px;
+    font: inherit;
+    font-size: var(--font-size-xxs, 0.75rem);
   }
 
   .filter-menu button[aria-checked='true']::after {
@@ -727,7 +1325,8 @@
   }
 
   .empty-state,
-  .empty-map {
+  .empty-map,
+  .map-hydration-placeholder {
     display: grid;
     min-height: 180px;
     place-items: center;

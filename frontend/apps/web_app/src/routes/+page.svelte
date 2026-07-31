@@ -57,6 +57,8 @@
 		resetForcedLogoutInProgress,
 		isPublicChat,
 		isNewsletterChat,
+		isExampleChat,
+		getExampleChat,
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
@@ -557,12 +559,20 @@
 		return normalized ? normalized : null;
 	}
 
+	function isStaticPublicChatTarget(chatId: string | null | undefined): boolean {
+		return Boolean(chatId && (isPublicChat(chatId) || isExampleChat(chatId)));
+	}
+
 	async function resolveBrowserChatTitle(chatId: string | null): Promise<string | null> {
 		if (!browser || !chatId || chatId === NEW_CHAT_SENTINEL) return null;
 
 		if (isPublicChat(chatId)) {
 			const publicChat = getPublicChatById(chatId);
 			return normalizeBrowserChatTitle(publicChat ? translateDemoChat(publicChat).title : null);
+		}
+
+		if (isExampleChat(chatId)) {
+			return normalizeBrowserChatTitle(getExampleChat(chatId)?.title);
 		}
 
 		const chat = await chatDB.getChat(chatId).catch(() => null);
@@ -653,7 +663,6 @@
 		activeChatStore.setActiveChat(chatId);
 
 		// Check if this is an example chat (hardcoded with embeds)
-		const { isExampleChat, getExampleChat } = await import('@repo/ui');
 		if (isExampleChat(chatId)) {
 			const exampleChatObj = getExampleChat(chatId);
 			if (exampleChatObj && activeChat) {
@@ -1160,7 +1169,7 @@
 			!activeChatComponent ||
 			!$authStore.isAuthenticated ||
 			!activeChatId ||
-			isPublicChat(activeChatId) ||
+			isStaticPublicChatTarget(activeChatId) ||
 			isAnonymousChatId(activeChatId) ||
 			lastLoadedChatId === activeChatId ||
 			authenticatedHashRecoveryChatId === activeChatId
@@ -2092,7 +2101,7 @@
 
 					if (
 						hashChatId &&
-						!isPublicChat(hashChatId) &&
+						!isStaticPublicChatTarget(hashChatId) &&
 						!isAnonymousChatId(hashChatId) &&
 						!isShareLinkHash &&
 						!isSharedChatRedirect
@@ -2173,7 +2182,7 @@
 				const isSharedRedirect = sharedChatRedirectId === originalHashChatId;
 				if (
 					isForcedLogout &&
-					!isPublicChat(originalHashChatId) &&
+					!isStaticPublicChatTarget(originalHashChatId) &&
 					!isSharedRedirect &&
 					!isAnonymousChatId(originalHashChatId)
 				) {
@@ -2610,10 +2619,7 @@
 		// Public chats and shared chats are already loaded immediately above
 		if (originalHashChatId && !isProcessingInitialHash) {
 			// Check if it's a user chat that needs sync
-			const { getPublicChatById } = await import('@repo/ui');
-			const publicChat = getPublicChatById(originalHashChatId);
-
-			if (!publicChat && isAuth) {
+			if (!isStaticPublicChatTarget(originalHashChatId) && isAuth) {
 				// User chat for authenticated users - will be loaded after sync completes
 				console.debug(
 					`[+page.svelte] [DETECTED] Hash chat is user chat, will load after sync: ${originalHashChatId}`
@@ -3341,7 +3347,7 @@
 			activeChat &&
 			$authStore.isAuthenticated &&
 			lastLoadedChatId !== hashChatId &&
-			!isPublicChat(hashChatId) &&
+			!isStaticPublicChatTarget(hashChatId) &&
 			!isAnonymousChatId(hashChatId)
 		) {
 			try {

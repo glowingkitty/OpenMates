@@ -177,6 +177,25 @@ decisions:
       easier to compare on a map. The default should recommend a map view while
       preserving explicit user opt-outs and the no-enrichment cost/privacy boundary.
     decided_at: "2026-07-30T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Replace category-only filtering with frontend-derived dynamic facets.
+    reason: >
+      A single `route/event/place` selector is not enough for comparing real search
+      results. The renderer should derive useful filters from already-resolved
+      embed content, such as date, time, price, provider, RSVP count, transport
+      mode, train type, stops, duration, rating, and amenities, while keeping the
+      assistant-authored block limited to refs.
+    decided_at: "2026-07-31T15:00:00Z"
+  - id: D-7
+    status: active
+    decision: Map-view performance fixes must reduce cold-load work before adding heavier filter UI.
+    reason: >
+      Issue YVBZW showed mobile Safari unresponsiveness on a small route-map
+      example. Richer filters must reuse one normalized entry/facet model and must
+      not add repeated TOON decoding, source resolution, or Leaflet layer rebuilds
+      during initial chat load or slider changes.
+    decided_at: "2026-07-31T15:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -287,6 +306,37 @@ scenarios:
       - It does not eagerly decrypt or render all child embed content just because a source ref is present.
       - Deep links or explicit user actions can hydrate additional child content on demand.
       - Parent preview rendering remains self-contained and does not regress scalable chat loading guarantees.
+
+  - id: S-10
+    title: Dynamic filters are generated from the visible map-view content
+    given:
+      - A map view references route, event, place, stay, appointment, or mixed result embeds.
+      - Resolved embeds expose different optional fields such as departure time, event date, price, provider, rating, amenities, RSVP count, transport mode, train line, stops, or duration.
+    when:
+      - Alice opens the top-right filter button.
+    then:
+      - The filter panel shows only facets that have usable data in the current map-view entries.
+      - Time-like fields use range sliders with histogram bars showing entry distribution across the available spectrum.
+      - Date-like fields use start/end date controls.
+      - Numeric fields such as price, duration, stops, RSVP count, rating, or distance use range controls with min/max labels.
+      - Categorical fields such as provider, transport mode, train type, carrier, line, amenity, specialty, category, or fare coverage use multi-select chips or checkboxes.
+      - Filtering updates list entries, markers, route paths, and the shown count consistently.
+      - Clearing filters restores all resolved entries without reloading or re-decoding embed content.
+
+  - id: S-11
+    title: Mobile map-view load stays responsive while filters hydrate
+    given:
+      - Alice opens a public or example chat containing a source-backed route map view on mobile Safari-sized viewports.
+      - The browser must parse chat content, resolve referenced embeds, build filter facets, and render a map.
+    when:
+      - The chat first loads or reloads.
+    then:
+      - The message text and result cards render before Leaflet imports and tile requests block interaction.
+      - The map hydrates lazily or during idle/near-viewport time with a stable placeholder while pending.
+      - Map-view source resolution and TOON decoding are cached per embed/content identity for the component lifetime.
+      - Ref-index updates do not trigger redundant full entry reloads when the relevant refs and content are unchanged.
+      - Filter slider movement does not rebuild geometry layers or re-decode embeds on every pointer movement.
+      - Example-chat hash handling treats example chats as public targets and does not schedule duplicate user-chat deep-link loads after sync.
 
   - id: S-6
     title: Map view rendering is cost-safe and privacy-safe
@@ -423,6 +473,28 @@ acceptance_criteria:
       - T-PLAYWRIGHT-EXAMPLES
       - V-USER-CONFIRMATION
 
+  - id: AC-10
+    scenario: S-10
+    text: 'The map-view filter button opens a dynamic facet panel derived from resolved content, including range/date/time histogram controls and categorical multi-selects when the current entries expose those fields.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-11
+    scenario: S-11
+    text: 'Mobile cold-load and filter interaction stay bounded by lazy map hydration, cached normalized entries/facets, stable geometry layers, and no duplicate example-chat deep-link loads.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-DEUTSCHLANDTICKET
+
 assumptions:
   - id: A-1
     text: Existing readable `embed_ref` slugs can be resolved to full `embed_id` values after decrypted content/index metadata is available.
@@ -451,7 +523,7 @@ assumptions:
       - source: frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
         summary: Shared map component now accepts multiple route polylines while preserving the existing single `path` prop for older embed fullscreens.
       - source: frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
-        summary: Map-view renderer derives marker and route selected/highlighted styles from resolved refs and remounts the Leaflet instance when selection or filters change.
+        summary: Map-view renderer derives marker and route selected/highlighted styles from resolved refs; new performance work must keep Leaflet geometry stable when selection or filters change.
 
 contracts:
   syntax:
@@ -484,6 +556,7 @@ contracts:
     - Messages store only the lightweight `embeds_map_view` fenced text and refs.
     - Referenced embeds remain existing encrypted embed records; no copied child content is persisted in message text.
     - Source-backed views resolve child refs from existing parent app-skill embed relationships.
+    - Normalized map-view entries and filter facets are derived once per embed/content identity and reused for list, map, count, and filter interactions.
     - Example chats must strip private fields such as vault keys, user IDs, account IDs, and share key fragments before commit.
   ui_states:
     - Empty or unresolved refs.
@@ -492,6 +565,11 @@ contracts:
     - Mobile horizontal card list with full-width map.
     - Highlighted entries from `highlight`.
     - Derived filters present only when resolved content supports them.
+    - Time range filters with histogram bars for departure, arrival, event start, appointment start, opening, or other time-like fields.
+    - Date range filters for start/end dates, event dates, check-in/check-out dates, or travel dates.
+    - Numeric range filters for price, duration, stops/transfers, RSVP count, rating, distance, or delay when present.
+    - Categorical multi-select filters for provider, transport mode, train type, carrier, line, amenity, specialty, category, fare coverage, or availability state.
+    - Active-filter chips and clear-all behavior.
     - No-map fallback when no referenced item has coordinates or route geometry.
   privacy_security:
     - No decrypted embed plaintext is sent to a new endpoint for map rendering.
@@ -735,6 +813,57 @@ tests:
             timestamp: "2026-07-30T10:31:00Z"
             summary: containsCodeSnippetCard=false; containsRawEmbedsMapViewText=false; containsMappedResults=true.
 
+  - id: T-VITEST-FILTERS
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-10
+      - AC-11
+    assertions:
+      - Normalizes resolved map-view entries into reusable facet fields for time, date, price, provider, RSVP/count, transport, train line/type, stops, duration, rating, and amenities when present.
+      - Omits filters for missing fields instead of showing empty controls.
+      - Applies time/date/range and categorical filters to cards, markers, and route paths from cached normalized entries.
+      - Filter changes do not call `resolveEmbed` or `decodeToonContent` again for already-normalized entries.
+      - Ref-index updates that do not change relevant source/direct refs do not trigger a redundant full reload.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-DEUTSCHLANDTICKET
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chats-load.spec.ts
+    command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-11
+    assertions:
+      - The deployed Deutschlandticket example renders the grouped route map on mobile without raw `embeds_map_view` text or visible implementation errors.
+      - The map view exposes exactly one hydrated Leaflet map after load, route count remains at least five, and the page remains scrollable.
+      - Dynamic filters expose departure-time, duration/stops, provider, and train-line/type facets for route entries.
+      - Opening and applying filters does not trigger forbidden app-skill/provider/embed API calls beyond existing public/example chat loading.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        timestamp: ""
+
 verifications:
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
@@ -784,7 +913,9 @@ implementation_plan:
     - The assistant emits a text fenced block containing refs only.
     - The frontend parser converts the fenced block into a message node with title, direct refs, source refs, and highlight refs.
     - The renderer resolves refs through local decrypted/indexed embed metadata, then hydrates visible entries plus bounded overscan.
-    - Filters, marker labels, route summaries, and highlight state are derived from resolved embed content.
+    - A cached normalized entry model derives marker labels, route summaries, highlight state, and filter facets from resolved embed content once per embed/content identity.
+    - Filter state applies to normalized entries locally, updating cards, markers, route paths, and counts without new provider calls or repeated TOON decoding.
+    - Leaflet map hydration is deferred until after text/cards can render and the map is near-visible or idle, especially on mobile.
     - Example-chat workflow extracts real shared CLI chats and commits sanitized hardcoded example data.
   affected_files:
     - path: frontend/packages/ui/src/message_parsing/embedParsing.ts
@@ -794,9 +925,11 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
       reason: Route parsed map-view nodes to the renderer.
     - path: frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
-      reason: New responsive list/map message renderer.
+      reason: Responsive list/map message renderer, normalized facet extraction, dynamic filters, cached entry resolution, and lazy map hydration trigger.
     - path: frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
-      reason: Support multiple markers/routes, selected state, and callbacks needed by grouped map views.
+      reason: Support multiple markers/routes, selected state, callbacks, and low-cost layer updates needed by grouped map views.
+    - path: frontend/apps/web_app/src/routes/+page.svelte
+      reason: Ensure example chat hash targets are not misclassified as user chats during post-auth/sync deep-link handling.
     - path: frontend/packages/ui/src/services/embedStore.ts
       reason: Resolve source refs and visible child refs without eager all-child hydration.
     - path: backend/apps/ai/tasks/async_skill_continuation.py
@@ -813,6 +946,8 @@ implementation_plan:
       reason: Deployed web rendering and cost-safety E2E coverage.
     - path: frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
       reason: Deployed example-chat rendering coverage.
+    - path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      reason: Deployed Deutschlandticket mobile route-map performance and dynamic-filter coverage.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/embeds-map-view/spec.yml
     - python3 scripts/spec_verify.py docs/specs/embeds-map-view/spec.yml --phase red
@@ -1059,10 +1194,52 @@ tasks:
       - TASK-3
       - TASK-4
       - TASK-6
+      - TASK-7
     ownership:
       files:
         - docs/specs/embeds-map-view/spec.yml
       shared_files: []
     blockers: []
     follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-7
+    title: Redesign map-view filters and fix mobile cold-load performance
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-10
+        - S-11
+      acceptance_criteria:
+        - AC-10
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - frontend/apps/web_app/src/routes/+page.svelte
+      - frontend/apps/web_app/tests/example-chats-load.spec.ts
+      - docs/specs/embeds-map-view/spec.yml
+    verification:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-DEUTSCHLANDTICKET
+    verification_ids:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-DEUTSCHLANDTICKET
+    dependencies:
+      - TASK-3
+      - TASK-6
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - frontend/apps/web_app/src/routes/+page.svelte
+        - frontend/apps/web_app/tests/example-chats-load.spec.ts
+        - docs/specs/embeds-map-view/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
     independently_deployable: true

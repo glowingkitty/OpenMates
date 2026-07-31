@@ -121,8 +121,13 @@
   let markerLayerGroup: any = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let pathLayerGroup: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let markerLayers: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pathLayers: any[] = [];
   let mapResizeObserver: ResizeObserver | null = null;
   let stopWatchingMapTheme: (() => void) | null = null;
+  let resizeAnimationFrame: number | null = null;
   let appliedCenterPanX = 0;
   let leafletReady = $state(false);
   let lastFitGeometrySignature = '';
@@ -165,6 +170,8 @@
     pathLayerGroup?.remove?.();
     markerLayerGroup = L.layerGroup().addTo(leafletMap);
     pathLayerGroup = L.layerGroup().addTo(leafletMap);
+    markerLayers = [];
+    pathLayers = [];
 
     for (const marker of markers) {
       const customIcon = L.divIcon({
@@ -179,6 +186,7 @@
       if (marker.label) {
         m.bindTooltip(marker.label, { permanent: false });
       }
+      markerLayers.push(m);
     }
 
     for (const routePath of normalizedPaths) {
@@ -193,6 +201,7 @@
       const element = line.getElement();
       if (routePath.testId) element?.setAttribute('data-testid', routePath.testId);
       if (routePath.ref) element?.setAttribute('data-route-ref', routePath.ref);
+      pathLayers.push(line);
     }
 
     if (fitBoundsToGeometry) {
@@ -212,6 +221,40 @@
     }
     applyCenterOffset();
     lastLayerSignature = layerSignature();
+  }
+
+  function updateLeafletLayerStyles() {
+    if (!leafletModule) return;
+    const L = leafletModule;
+    markers.forEach((marker, index) => {
+      const markerLayer = markerLayers[index];
+      if (!markerLayer) return;
+      markerLayer.setOpacity?.(marker.opacity ?? 1);
+      markerLayer.setIcon?.(L.divIcon({
+        className: marker.iconClass || 'default-map-marker',
+        html: '<div class="marker-icon"></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+      }));
+    });
+    normalizedPaths.forEach((routePath, index) => {
+      pathLayers[index]?.setStyle?.({
+        color: routePath.color || pathColor,
+        weight: routePath.weight || pathWeight,
+        opacity: routePath.opacity ?? 0.8,
+      });
+    });
+    lastLayerSignature = layerSignature();
+  }
+
+  function scheduleResizeInvalidation() {
+    if (!leafletMap || resizeAnimationFrame != null) return;
+    resizeAnimationFrame = requestAnimationFrame(() => {
+      resizeAnimationFrame = null;
+      if (!leafletMap) return;
+      leafletMap.invalidateSize();
+      applyCenterOffset();
+    });
   }
 
   function getEffectiveCenterOffsetX(): number {
@@ -264,9 +307,7 @@
 
       if (typeof ResizeObserver !== 'undefined') {
         mapResizeObserver = new ResizeObserver(() => {
-          if (!leafletMap) return;
-          leafletMap.invalidateSize();
-          applyCenterOffset();
+          scheduleResizeInvalidation();
         });
         mapResizeObserver.observe(mapContainer);
       }
@@ -294,8 +335,14 @@
       leafletMap = null;
       appliedCenterPanX = 0;
     }
+    if (resizeAnimationFrame != null) {
+      cancelAnimationFrame(resizeAnimationFrame);
+      resizeAnimationFrame = null;
+    }
     markerLayerGroup = null;
     pathLayerGroup = null;
+    markerLayers = [];
+    pathLayers = [];
     stopWatchingMapTheme?.();
     stopWatchingMapTheme = null;
     tileLayer = null;
@@ -311,8 +358,12 @@
     if (!leafletReady) return;
     if (nextLayerSignature === lastLayerSignature && nextGeometrySignature === lastFitGeometrySignature) return;
     const shouldRefit = nextGeometrySignature !== lastFitGeometrySignature;
-    renderLeafletLayers({ fitBoundsToGeometry: shouldRefit });
-    if (shouldRefit) lastFitGeometrySignature = nextGeometrySignature;
+    if (shouldRefit) {
+      renderLeafletLayers({ fitBoundsToGeometry: true });
+      lastFitGeometrySignature = nextGeometrySignature;
+      return;
+    }
+    updateLeafletLayerStyles();
   });
 </script>
 

@@ -520,7 +520,7 @@ test.describe('Example chats loading for new users', () => {
 		page: any;
 	}) => {
 		test.setTimeout(120000);
-		await page.setViewportSize({ width: 1600, height: 1000 });
+		await page.setViewportSize({ width: 390, height: 844 });
 
 		await page.goto(getE2EDebugUrl('/#chat-id=example-deutschlandticket-train-fare-breakdown'), {
 			waitUntil: 'domcontentloaded'
@@ -557,10 +557,33 @@ test.describe('Example chats loading for new users', () => {
 		const mapView = assistantMessage.getByTestId('embeds-map-view');
 		await expect(mapView, 'Deutschlandticket example should include a grouped route map view').toBeVisible({ timeout: 15000 });
 		await expect(mapView).toContainText('Bonn');
+		await mapView.scrollIntoViewIfNeeded();
 		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
 			message: 'grouped Deutschlandticket map should render all route polylines',
 			timeout: 15000
 		}).toBeGreaterThanOrEqual(5);
+		await expect.poll(async () => mapView.getByTestId('embeds-map-view-map').getAttribute('data-map-hydrated'), {
+			message: 'grouped Deutschlandticket map should lazy-hydrate once visible',
+			timeout: 15000
+		}).toBe('true');
+		await expect(mapView.getByTestId('embed-leaflet-map')).toHaveCount(1, { timeout: 15000 });
+
+		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
+		await expect(filterButton).toBeVisible();
+		await filterButton.click();
+		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
+		await expect(filterMenu).toContainText('Departure time');
+		await expect(filterMenu).toContainText('Duration');
+		await expect(filterMenu).toContainText('Stops');
+		await expect(filterMenu).toContainText('Train line');
+		await expect(mapView.getByTestId('embeds-map-view-option-train-line-rb26')).toBeVisible();
+		await mapView.getByTestId('embeds-map-view-option-train-line-rb26').click();
+		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toContainText('Filter (1)');
+		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
+			message: 'train-line filtering should reduce visible route polylines without reloading the chat',
+			timeout: 15000
+		}).toBeGreaterThan(0);
+		await mapView.getByTestId('embeds-map-view-clear-filters').click();
 
 		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);
 		const resultCards = await verifySearchGrid(fullscreenOverlay, 5, 30000);

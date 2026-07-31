@@ -17,6 +17,7 @@ const embedResolverMocks = vi.hoisted(() => ({
 const embedStoreMocks = vi.hoisted(() => ({
   resolveByRefDeep: vi.fn(),
   subscribe: vi.fn((run: (value: number) => void) => {
+    (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex = run;
     run(0);
     return () => undefined;
   }),
@@ -49,6 +50,7 @@ describe("EmbedsMapView", () => {
     embedResolverMocks.decodeToonContent.mockReset();
     embedStoreMocks.resolveByRefDeep.mockReset();
     fullscreenMocks.dispatchEmbedFullscreen.mockReset();
+    delete (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex;
 
     embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => {
       const map: Record<string, string> = {
@@ -154,18 +156,31 @@ describe("EmbedsMapView", () => {
         return {
           app_id: "travel",
           skill_id: "search_connections",
+          transport_method: "train",
+          source_provider: "deutsche_bahn",
           origin: "Bonn Hbf",
           destination: "Muenchen Hbf",
           departure: "2026-08-12T08:27:00+02:00",
+          arrival: "2026-08-12T17:56:00+02:00",
+          duration: "9h 29m",
+          stops: 5,
           legs: [{
             segments: [
               {
+                carrier: "RB",
+                line: "RB26",
+                mode: "train",
+                fare_coverage: "pass_covered",
                 departure_latitude: 50.731964,
                 departure_longitude: 7.096678,
                 arrival_latitude: 50.00124,
                 arrival_longitude: 8.258453,
               },
               {
+                carrier: "RE",
+                line: "RE8",
+                mode: "train",
+                fare_coverage: "pass_covered",
                 departure_latitude: 50.00124,
                 departure_longitude: 8.258453,
                 arrival_latitude: 49.7913,
@@ -179,9 +194,17 @@ describe("EmbedsMapView", () => {
         return {
           app_id: "travel",
           skill_id: "search_connections",
+          transport_method: "train",
+          source_provider: "flix",
           origin: "Bonn Hbf",
           destination: "Muenchen Hbf",
           departure: "2026-08-12T08:56:00+02:00",
+          arrival: "2026-08-12T18:19:00+02:00",
+          duration: "9h 23m",
+          stops: 3,
+          line: "RE5",
+          carrier: "RE",
+          fare_coverage: "pass_covered",
           legs_0_segments_0_departure_latitude: 50.731964,
           legs_0_segments_0_departure_longitude: 7.096678,
           legs_0_segments_0_arrival_latitude: 50.350777,
@@ -294,6 +317,82 @@ describe("EmbedsMapView", () => {
     expect(cards[0].classList.contains("highlighted")).toBe(true);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("2");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
+
+    unmount(component);
+    target.remove();
+  });
+
+  it("derives route filters and applies them without re-decoding entries", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-route-filters",
+        title: "Bonn to Munich routes",
+        embedRefs: [],
+        sourceRefs: ["travel-search-routes"],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+    const decodeCountAfterLoad = embedResolverMocks.decodeToonContent.mock.calls.length;
+
+    const filterButton = target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]');
+    expect(filterButton).not.toBeNull();
+    filterButton!.click();
+    await tick();
+
+    const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
+    expect(filterMenu?.textContent).toContain("Departure time");
+    expect(filterMenu?.textContent).toContain("Duration");
+    expect(filterMenu?.textContent).toContain("Stops");
+    expect(filterMenu?.textContent).toContain("Provider");
+    expect(filterMenu?.textContent).toContain("Train line");
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-option-provider-deutsche_bahn"]')?.click();
+    await tick();
+
+    const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
+    expect(cards).toHaveLength(1);
+    expect(cards[0].textContent).toContain("08:27");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
+    expect(embedResolverMocks.decodeToonContent.mock.calls.length).toBe(decodeCountAfterLoad);
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
+    await tick();
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
+
+    unmount(component);
+    target.remove();
+  });
+
+  it("does not re-resolve ready entries for unrelated ref-index bumps", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-ref-index",
+        title: "Bonn to Munich routes",
+        embedRefs: [],
+        sourceRefs: ["travel-search-routes"],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+    const resolveCallsAfterLoad = embedResolverMocks.resolveEmbed.mock.calls.length;
+    const emitRefIndex = (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex;
+    expect(emitRefIndex).toBeTypeOf("function");
+
+    emitRefIndex?.(1);
+    await flush();
+
+    expect(embedResolverMocks.resolveEmbed.mock.calls.length).toBe(resolveCallsAfterLoad);
 
     unmount(component);
     target.remove();
