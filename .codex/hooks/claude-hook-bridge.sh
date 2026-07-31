@@ -133,9 +133,7 @@ case "$EVENT" in
 
     case "$TOOL" in
       apply_patch|Edit|Write)
-        if [ "$TOOL" = "apply_patch" ]; then
-          run_hook "e2e-encryption-guard.sh" "$INPUT" true
-        fi
+        run_hook "e2e-encryption-guard.sh" "$INPUT" true
 
         run_for_files "PreToolUse" true \
           "pre-edit-guard.sh" \
@@ -151,7 +149,8 @@ case "$EVENT" in
     case "$TOOL" in
       apply_patch|Edit|Write)
         run_for_files "PostToolUse" false \
-          "auto-track.sh"
+          "auto-track.sh" \
+          "skill-embed-registry-guard.sh"
         ;;
     esac
     ;;

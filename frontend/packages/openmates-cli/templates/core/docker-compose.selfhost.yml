@@ -15,6 +15,7 @@ x-openmates-worker-base: &openmates-worker-base
     VAULT_URL: http://vault:8200
     PROVIDER_CONFIG_DIR: /app_config/providers
     BACKEND_CONFIG_FILE: /app_config/backend_config.yml
+    OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
     LOG_LEVEL: ${LOG_LEVEL:-info}
     SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
     MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
@@ -50,6 +51,7 @@ services:
       INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
       PROVIDER_CONFIG_DIR: /app_config/providers
       BACKEND_CONFIG_FILE: /app_config/backend_config.yml
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
       SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
       MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
     ports:

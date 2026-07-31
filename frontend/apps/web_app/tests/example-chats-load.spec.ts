@@ -299,7 +299,7 @@ test.describe('Example chats loading for new users', () => {
 		await page.getByTestId('chat-details-button').click();
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
-		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}/share`, {
+		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}`, {
 			timeout: 10000
 		});
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });

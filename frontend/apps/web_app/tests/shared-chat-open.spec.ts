@@ -172,7 +172,7 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	await page.getByTestId('chat-details-button').click();
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+(?:\/[a-z]+)?$/, {
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
 		timeout: 10000
 	});
 	await expect(settingsMenu.getByTestId('chat-settings-page')).toBeVisible({ timeout: 10000 });
@@ -188,7 +188,7 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 
 	await settingsMenu.getByTestId('chat-settings-tab-usage').click();
 	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
-	await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/credits/i, { timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/\d+\s*credits/i, { timeout: 10000 });
 
 	await settingsMenu.getByTestId('chat-settings-tab-share').click();
 	await expect(settingsMenu.getByTestId('chat-settings-share-readonly')).toBeVisible({ timeout: 10000 });

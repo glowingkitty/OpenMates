@@ -66,11 +66,18 @@
     return undefined;
   }
 
+  function asRecord(value: unknown): Record<string, unknown> | undefined {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : undefined;
+  }
+
   // Extract fields from data.decodedContent with attrs fallback.
   let dc = $derived(data.decodedContent ?? {});
   let attrs = $derived(data.attrs ?? {});
-  let lat = $derived(pickFirstNumber(dc.lat, dc.latitude, dc.location_latitude, dc.location_lat, attrs.lat, attrs.latitude));
-  let lon = $derived(pickFirstNumber(dc.lon, dc.lng, dc.longitude, dc.location_longitude, dc.location_lon, dc.location_lng, attrs.lon, attrs.lng, attrs.longitude));
+  let rawLocation = $derived(asRecord(dc.location));
+  let lat = $derived(pickFirstNumber(rawLocation?.latitude, rawLocation?.lat, dc.lat, dc.latitude, dc.location_latitude, dc.location_lat, attrs.lat, attrs.latitude));
+  let lon = $derived(pickFirstNumber(rawLocation?.longitude, rawLocation?.lon, rawLocation?.lng, dc.lon, dc.lng, dc.longitude, dc.location_longitude, dc.location_lon, dc.location_lng, attrs.lon, attrs.lng, attrs.longitude));
   let zoom = $derived(typeof dc.zoom === 'number' ? dc.zoom : 15);
   let name = $derived(pickFirstString(dc.name, dc.displayName));
   let address = $derived(pickFirstString(dc.address, dc.formatted_address, dc.formattedAddress));

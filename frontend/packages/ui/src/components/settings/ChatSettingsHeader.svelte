@@ -101,11 +101,12 @@
     display: flex;
     flex-direction: column;
     background: linear-gradient(135deg, var(--chat-gradient-start), var(--chat-gradient-end));
-    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    border-radius: 0 0 14px 14px;
     color: var(--color-white);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
     transition: height var(--duration-fast) var(--easing-default);
     user-select: none;
+    pointer-events: none;
   }
 
   .chat-settings-nav {
@@ -119,6 +120,7 @@
     color: color-mix(in srgb, var(--color-white) 78%, transparent);
     font: var(--font-label-md);
     cursor: pointer;
+    pointer-events: auto;
   }
 
   .chat-settings-nav:hover {
@@ -165,7 +167,7 @@
     font-size: var(--font-size-h3);
     line-height: 1.3;
     font-weight: 700;
-    color: #fff !important;
+    color: var(--color-white) !important;
   }
 
   .chat-settings-credits {
@@ -176,14 +178,14 @@
     margin-top: var(--spacing-4);
     font: var(--font-heading-sm);
     font-weight: var(--font-weight-bold);
-    color: #fff !important;
+    color: var(--color-white) !important;
     transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   .credits-icon {
     width: 1.375rem;
     height: 1.375rem;
-    background: #fff;
+    background: var(--color-white);
     -webkit-mask: url('@openmates/ui/static/icons/coins.svg') center / contain no-repeat;
     mask: url('@openmates/ui/static/icons/coins.svg') center / contain no-repeat;
   }

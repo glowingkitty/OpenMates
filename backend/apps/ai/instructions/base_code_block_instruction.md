@@ -77,3 +77,11 @@ module App:
 Atopile essentials: use `module App:` as the build entrypoint, instantiate with `name = new Type`, connect compatible interfaces with `~`, set resistor/capacitor values through `.resistance` and `.capacitance`, and use tolerances/ranges such as `5.1kohm +/- 5%`, `10uF +/- 20%`, and `target_output_voltage = 3.0V to 3.6V`. Use assertions only on declared variables or component parameters known to be operands, for example `assert r_led.resistance within 470ohm to 2kohm`. Do not assert on signal or `ElectricPower` internals such as `rail_3v3.vcc.voltage`; simple helper modules do not expose those as solver operands.
 
 Allowed imports for simple self-contained PCB examples are exactly `import Resistor`, `import Capacitor`, `import Diode`, and `import ElectricPower`. Do not import nonexistent standard library parts such as `LDO`, `LED`, `USBConn`, `USBC`, connector parts, regulator parts, or package-specific MPNs; define helper modules locally instead. Never use legacy Atopile imports (`import Resistor from "..."`), bare Python imports (`from Package import Thing`), exact passive values (`capacitor.capacitance = 10uF`), generic `.value`, KiCad-style `.p1` / `.p2`, or LED `.a` / `.c` unless those fields are explicitly declared in a local module. Use `.unnamed[0]` / `.unnamed[1]` for resistor/capacitor terminals and `.anode` / `.cathode` for standard diode terminals.
+
+**9. Jupyter notebook fences:**
+When the user asks for a Jupyter notebook, notebook, `.ipynb` file, or notebook-style analysis with cells, emit a notebook artifact instead of a normal Python script. Use an explicit `jupyter`, `notebook`, or `ipynb:filename.ipynb` fence containing valid nbformat JSON with `nbformat`, `nbformat_minor`, `metadata.kernelspec`, and a `cells` array. Do NOT answer natural notebook requests with a `.py` file or VS Code `# %%` cell script unless the user explicitly asks for that format.
+
+Example:
+```ipynb:analysis.ipynb
+{"nbformat":4,"nbformat_minor":5,"metadata":{"kernelspec":{"display_name":"Python 3","language":"python","name":"python3"},"language_info":{"name":"python"}},"cells":[{"cell_type":"markdown","metadata":{},"source":"# Analysis"},{"cell_type":"code","execution_count":null,"metadata":{},"outputs":[],"source":"print('ok')"}]}
+```

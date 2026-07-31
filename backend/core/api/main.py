@@ -100,7 +100,7 @@ from backend.core.api.app.services.stripe_product_sync import StripeProductSync 
 from backend.core.api.app.services.translations import TranslationService  # noqa: E402 # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402 # Add import for SecretManager
-from backend.core.api.app.utils.server_mode import is_payment_enabled  # noqa: E402 # Import for checking payment status during router registration
+from backend.core.api.app.utils.server_mode import is_cloud_billing_enabled  # noqa: E402 # Import for cloud billing route registration
 from backend.core.api.app.services.limiter import limiter  # noqa: E402
 from backend.core.api.app.utils.config_manager import config_manager  # noqa: E402
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # noqa: E402 # Moved AppYAML to backend_shared
@@ -489,21 +489,22 @@ async def lifespan(app: FastAPI):
     app.state.s3_service = S3UploadService(secrets_manager=app.state.secrets_manager)
     logger.info("S3 service instance created.")
     
-    # Initialize PaymentService conditionally (only if payment is enabled)
-    # Note: We check payment_enabled later after domain validation, but create service instance here
-    # The service will only be initialized/used if payment_enabled is True
-    app.state.payment_service = PaymentService(secrets_manager=app.state.secrets_manager)
-    logger.info("Payment service instance created (will be initialized only if payment enabled).")
+    cloud_billing_enabled = is_cloud_billing_enabled()
+    app.state.cloud_billing_enabled = cloud_billing_enabled
+    if cloud_billing_enabled:
+        app.state.payment_service = PaymentService(secrets_manager=app.state.secrets_manager)
+        logger.info("Payment service instance created for OpenMatesCloud overlay runtime.")
 
-    # Initialize InvoiceNinjaService conditionally (only if payment is enabled)
-    # Note: We check payment_enabled later after domain validation, but create service instance here
-    # The service will only be initialized/used if payment_enabled is True
-    logger.info("Initializing Invoice Ninja service (will be initialized only if payment enabled)...")
-    try:
-        app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
-    except Exception as e:
-        logger.error(f"InvoiceNinjaService initialization failed (API will start without invoicing): {e}")
+        logger.info("Initializing Invoice Ninja service for OpenMatesCloud overlay runtime...")
+        try:
+            app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
+        except Exception as e:
+            logger.error(f"InvoiceNinjaService initialization failed (API will start without invoicing): {e}")
+            app.state.invoice_ninja_service = None
+    else:
+        app.state.payment_service = None
         app.state.invoice_ninja_service = None
+        logger.info("Skipping cloud payment/accounting service instances (OpenMatesCloud overlay disabled).")
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
@@ -776,11 +777,12 @@ async def lifespan(app: FastAPI):
             )
             
             # Determine payment status
-            payment_enabled = is_payment_enabled()
+            domain_payment_eligible = is_payment_enabled()
+            payment_enabled = is_cloud_billing_enabled()
             hosting_domain = get_hosting_domain()
             server_edition = get_server_edition()
             is_development = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
-            is_self_hosted = not payment_enabled
+            is_self_hosted = server_edition == "self_hosted"
             
             # Store payment status flags in app.state for use throughout the application
             app.state.payment_enabled = payment_enabled
@@ -790,6 +792,7 @@ async def lifespan(app: FastAPI):
             
             logger.info(
                 f"Payment/Billing Status: enabled={payment_enabled}, "
+                f"domain_payment_eligible={domain_payment_eligible}, "
                 f"self_hosted={is_self_hosted}, "
                 f"server_edition={server_edition}, "
                 f"hosting_domain={hosting_domain or 'localhost'}"
@@ -809,7 +812,11 @@ async def lifespan(app: FastAPI):
 
         # Initialize Payment service conditionally (only if payment is enabled)
         # Check payment_enabled flag that was set during domain validation
-        if hasattr(app.state, 'payment_enabled') and app.state.payment_enabled:
+        if (
+            hasattr(app.state, 'payment_enabled')
+            and app.state.payment_enabled
+            and getattr(app.state, 'payment_service', None)
+        ):
             logger.info("Initializing Payment service (payment enabled)...")
             await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
             logger.info("Payment service initialized successfully.")
@@ -1119,12 +1126,14 @@ async def lifespan(app: FastAPI):
         await app.state.encryption_service.close()
         
     # Close Payment service client
-    if hasattr(app.state, 'payment_service'):
-        await app.state.payment_service.close()
+    payment_service = getattr(app.state, 'payment_service', None)
+    if payment_service:
+        await payment_service.close()
 
     # Close InvoiceNinja service client
-    if hasattr(app.state, 'invoice_ninja_service'):
-        await app.state.invoice_ninja_service.close()
+    invoice_ninja_service = getattr(app.state, 'invoice_ninja_service', None)
+    if invoice_ninja_service:
+        await invoice_ninja_service.close()
         
     # Close Directus service client
     if hasattr(app.state, 'directus_service'):
@@ -1324,16 +1333,16 @@ def create_app() -> FastAPI:
     # Note: We call is_payment_enabled() directly here because app.state.payment_enabled
     # is only set during lifespan startup, which happens after create_app() returns.
     # This ensures the payment router is registered correctly based on domain/environment.
-    payment_enabled = is_payment_enabled()
+    cloud_billing_enabled = is_cloud_billing_enabled()
     
-    if payment_enabled:
+    if cloud_billing_enabled:
         app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - web app only
         app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - web app only
         app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - web app only
         app.include_router(referrals.router, include_in_schema=False)  # Referral endpoints - web app only
-        logger.info("Payment-related routes registered (payment enabled)")
+        logger.info("Payment-related routes registered (OpenMatesCloud overlay enabled)")
     else:
-        logger.info("Skipping payment-related routes (payment disabled - self-hosted mode)")
+        logger.info("Skipping payment-related routes (OpenMatesCloud overlay disabled)")
     
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
@@ -1410,12 +1419,12 @@ def create_app() -> FastAPI:
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     
-    # Conditionally register creators router (only if payment is enabled - tips require payment)
-    if payment_enabled:
+    # Conditionally register creators router (only if cloud billing is enabled - tips require payment)
+    if cloud_billing_enabled:
         app.include_router(creators.router, include_in_schema=True)  # Creators router - requires authentication, supports API keys
-        logger.info("Creators router registered (payment enabled)")
+        logger.info("Creators router registered (OpenMatesCloud overlay enabled)")
     else:
-        logger.info("Skipping creators router (payment disabled - tips require payment)")
+        logger.info("Skipping creators router (OpenMatesCloud overlay disabled - tips require payment)")
 
     # Redirect /health to /v1/health for backward compatibility
     @app.get("/health", include_in_schema=False)

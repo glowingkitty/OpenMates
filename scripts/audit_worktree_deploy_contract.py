@@ -33,7 +33,8 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         "sessions.py worktree cleanup --idle-hours 12",
         "Dirty idle worktrees are not committed, pushed, or deleted",
     ],
-    ".codex/hooks/bash-guard.sh": [
+    "scripts/safe_bash_guard.py": [
+        "sessions.py worktree ensure",
         "sessions.py worktree",
         "raw git worktree is forbidden",
     ],

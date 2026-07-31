@@ -2001,27 +2001,19 @@ Usage Settings - View usage statistics and export usage data
                         : oAppName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const oEntryIcon = getEntryIcon(entry)}
                     
-					<button
-						type="button"
-						data-testid="usage-chat-entry"
-						class="detail-entry clickable"
-						onclick={() => overviewSelectedEntry = entry}
-					>
+                    <div class="usage-entry-row">
                         <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                        <div class="entry-content">
-                            <div class="entry-icon icon icon_{oEntryIcon}"></div>
-                            <div class="entry-info">
-                                <div class="entry-label">{oDisplayName}</div>
-                                {#if entry.model_used}
-                                    <div class="entry-sublabel">{entry.model_used}</div>
-                                {/if}
-                            </div>
-                            <div class="entry-credits">
-                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
-                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                            </div>
-                        </div>
-                    </button>
+                        <SettingsItem
+                            type="quickaction"
+                            icon={oEntryIcon}
+                            iconBackground="none"
+                            title={oDisplayName}
+                            subtitleBottom={entry.model_used || undefined}
+                            creditsDisplay={formatCredits(entry.credits || 0)}
+                            data-testid="usage-chat-entry"
+                            onClick={() => overviewSelectedEntry = entry}
+                        />
+                    </div>
                 {/each}
             {/if}
         </div>
@@ -2175,21 +2167,16 @@ Usage Settings - View usage statistics and export usage data
                 {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
                 {@const entryIcon = getEntryIcon(entry)}
                 
-                <div class="detail-entry">
+                <div class="usage-entry-row">
                     <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                    <div class="entry-content">
-                        <div class="entry-icon icon icon_{entryIcon}"></div>
-                        <div class="entry-info">
-                            <div class="entry-label">{displayName}</div>
-                            {#if entry.app_id && entry.skill_id}
-                                <div class="entry-sublabel">{skillName || entry.skill_id}</div>
-                            {/if}
-                        </div>
-                        <div class="entry-credits">
-                            <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
-                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                        </div>
-                    </div>
+                    <SettingsItem
+                        type="quickaction"
+                        icon={entryIcon}
+                        iconBackground="none"
+                        title={displayName}
+                        subtitleBottom={entry.app_id && entry.skill_id ? (skillName || entry.skill_id) : undefined}
+                        creditsDisplay={formatCredits(entry.credits || 0)}
+                    />
                 </div>
                 {/each}
         </div>
@@ -2265,21 +2252,16 @@ Usage Settings - View usage statistics and export usage data
                     {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const entryIcon = getEntryIcon(entry)}
                     
-                    <div class="detail-entry">
+                    <div class="usage-entry-row">
                         <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                        <div class="entry-content">
-                            <div class="entry-icon icon icon_{entryIcon}"></div>
-                            <div class="entry-info">
-                                <div class="entry-label">{displayName}</div>
-                                {#if entry.skill_id}
-                                    <div class="entry-sublabel">{skillName || entry.skill_id}</div>
-                                {/if}
-                            </div>
-                            <div class="entry-credits">
-                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
-                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                            </div>
-                        </div>
+                        <SettingsItem
+                            type="quickaction"
+                            icon={entryIcon}
+                            iconBackground="none"
+                            title={displayName}
+                            subtitleBottom={entry.skill_id ? (skillName || entry.skill_id) : undefined}
+                            creditsDisplay={formatCredits(entry.credits || 0)}
+                        />
                     </div>
                 {/each}
             </div>
@@ -2334,21 +2316,16 @@ Usage Settings - View usage statistics and export usage data
                     {@const displayName = skillName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const entryIcon = getEntryIcon(entry)}
                     
-                    <div class="detail-entry">
+                    <div class="usage-entry-row">
                         <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                        <div class="entry-content">
-                            <div class="entry-icon icon icon_{entryIcon}"></div>
-                            <div class="entry-info">
-                                <div class="entry-label">{displayName}</div>
-                                {#if entry.skill_id}
-                                    <div class="entry-sublabel">{skillName || entry.skill_id}</div>
-                                {/if}
-                            </div>
-                            <div class="entry-credits">
-                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
-                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                            </div>
-                        </div>
+                        <SettingsItem
+                            type="quickaction"
+                            icon={entryIcon}
+                            iconBackground="none"
+                            title={displayName}
+                            subtitleBottom={entry.skill_id ? (skillName || entry.skill_id) : undefined}
+                            creditsDisplay={formatCredits(entry.credits || 0)}
+                        />
                     </div>
                 {/each}
             </div>
@@ -2616,16 +2593,6 @@ Usage Settings - View usage statistics and export usage data
         font-weight: 600;
     }
 
-    .credits-icon {
-        width: 16px;
-        height: 16px;
-        background-image: url('@openmates/ui/static/icons/coins.svg');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        opacity: 0.6;
-    }
-
     .credits-icon-img {
         width: 16px;
         height: 16px;
@@ -2634,12 +2601,6 @@ Usage Settings - View usage statistics and export usage data
     }
 
     /* Chat usage icon styles (used in detail views) */
-    .chat-usage-icon-wrapper {
-        flex: 0 0 28px;
-        position: relative;
-        height: 28px;
-    }
-
     .chat-usage-icon-circle {
         width: 28px;
         height: 28px;
@@ -2735,24 +2696,8 @@ Usage Settings - View usage statistics and export usage data
         margin-bottom: var(--spacing-12);
     }
 
-    .detail-entry {
+    .usage-entry-row {
         margin-bottom: var(--spacing-8);
-        background: none;
-        border: none;
-        padding: 0;
-        width: 100%;
-        text-align: left;
-        font: inherit;
-        color: inherit;
-    }
-
-    .detail-entry.clickable {
-        cursor: pointer;
-    }
-
-    .detail-entry.clickable .entry-content:hover {
-        background: var(--color-grey-20);
-        border-color: var(--color-grey-30);
     }
 
     .entry-time {
@@ -2761,45 +2706,12 @@ Usage Settings - View usage statistics and export usage data
         margin-bottom: var(--spacing-4);
     }
 
-    .entry-content {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-6);
-        padding: var(--spacing-6);
-        background: var(--color-grey-10);
-        border-radius: var(--radius-3);
-    }
-
     .entry-icon {
         width: 24px;
         height: 24px;
         background-size: contain;
         background-repeat: no-repeat;
         flex-shrink: 0;
-    }
-
-    .entry-info {
-        flex: 1;
-    }
-
-    .entry-label {
-        color: var(--color-grey-100);
-        font-size: var(--font-size-small);
-        font-weight: 500;
-    }
-
-    .entry-sublabel {
-        color: var(--color-grey-60);
-        font-size: var(--font-size-xxs);
-    }
-
-    .entry-credits {
-        color: var(--color-grey-80);
-        font-size: var(--font-size-small);
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-2);
     }
 
     .detail-export {

@@ -102,7 +102,7 @@ test('combined chat settings deep link hydrates chat context after reload', asyn
 
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/demo-for-everyone/tasks', {
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/demo-for-everyone', {
 		timeout: SETTINGS_TIMEOUT
 	});
 

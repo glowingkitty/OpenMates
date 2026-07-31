@@ -66,6 +66,7 @@
         lucideIcon = undefined,
         rightActionIcon = undefined,
         creditsDisplay = undefined,
+        'data-testid': testid = 'menu-item',
         children
     }: {
         /** Icon name — resolved to --icon-url-{name} CSS variable. See ICON_NAME_MAP for aliases. */
@@ -117,6 +118,7 @@
          * Shows "{creditsDisplay} [coins icon]" in var(--color-grey-50).
          */
         creditsDisplay?: string | undefined;
+        'data-testid'?: string | undefined;
         children?: Snippet | undefined;
     } = $props();
 
@@ -317,6 +319,7 @@
             {#if creditsDisplay}
                 <div class="credits-display">
                     <span class="credits-display-text">{creditsDisplay}</span>
+                    <span class="sr-only">credits</span>
                     <div class="credits-display-coins" aria-hidden="true"></div>
                 </div>
             {/if}
@@ -328,7 +331,7 @@
 {#if isClickable}
 <div
     class="menu-item settings-item clickable"
-    data-testid="menu-item"
+    data-testid={testid}
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}
@@ -339,6 +342,7 @@
     onclick={handleItemClick}
     onkeydown={(e) => !disabled && handleKeydown(e, () => onClick?.())}
     role="menuitem"
+    aria-disabled={disabled || undefined}
     tabindex={disabled ? -1 : 0}
 >
     {@render menuItemContent()}
@@ -347,7 +351,7 @@
 <!-- Non-clickable variant: presentation role, no tabindex -->
 <div
     class="menu-item settings-item"
-    data-testid="menu-item"
+    data-testid={testid}
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}
@@ -383,6 +387,18 @@
     .menu-item.disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
     .menu-item-content {

@@ -16,8 +16,12 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from backend.core.api.app.routes.workflows import WorkflowInputStartRequest
-from backend.core.api.app.services.workflow_input_service import (
+from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+
+install_code_route_import_stubs()
+
+from backend.core.api.app.routes.workflows import WorkflowInputStartRequest  # noqa: E402
+from backend.core.api.app.services.workflow_input_service import (  # noqa: E402
     WORKFLOW_INPUT_PLANNER_UNAVAILABLE,
     WORKFLOW_INPUT_SESSION_STATE_INVALID,
     WORKFLOW_INPUT_TRANSCRIPTION_UNAVAILABLE,
@@ -26,8 +30,8 @@ from backend.core.api.app.services.workflow_input_service import (
     WorkflowInputMutation,
     WorkflowInputService,
 )
-from backend.tests.test_workflows_models import FakeDirectusClient, rain_graph
-from backend.tests.workflow_test_utils import workflow_service
+from backend.tests.test_workflows_models import FakeDirectusClient, rain_graph  # noqa: E402
+from backend.tests.workflow_test_utils import workflow_service  # noqa: E402
 
 
 class QueuePlanner:

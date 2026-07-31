@@ -19,6 +19,7 @@ import audit_embed_structure
 import audit_app_provider_contracts
 import audit_apple_release_preflight
 import audit_domain_security
+import audit_figma_visual_evidence
 import audit_opencode_automation_budget
 import audit_playwright_determinism
 import audit_sensitive_logging
@@ -361,6 +362,13 @@ def main() -> int:
             blocks.append(label)
         else:
             warnings.append(label)
+
+    for issue in audit_figma_visual_evidence.audit_paths(
+        [REPO_ROOT / path for path in staged_files],
+        added_lines=added_lines_with_numbers,
+        evidence_paths=[REPO_ROOT / path for path in staged_files],
+    ):
+        warnings.append(f"figma visual evidence: {issue.path}:{issue.line}: {issue.message}")
 
     for issue in audit_app_provider_contracts.audit_paths(_paths_matching(staged_files, APP_PROVIDER_PATH_RE)):
         blocks.append(f"app/provider contract: {issue.path}: {issue.message}")

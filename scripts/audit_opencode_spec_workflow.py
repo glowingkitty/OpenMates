@@ -21,9 +21,7 @@ OPENCODE_COORDINATION_PLUGIN = Path(".opencode/plugins/openmates-hooks.js")
 OPENCODE_BLOCKING_LEASE_SCRIPT = Path("scripts/opencode_file_leases.py")
 OPENCODE_WARNING_GUARD = Path(".claude/hooks/pre-edit-guard.sh")
 REQUIRED_INSTRUCTIONS = {
-    ".claude/rules/planning.md",
-    ".claude/rules/testing.md",
-    "docs/contributing/guides/spec-driven-development.md",
+    "docs/contributing/guides/agent-workflow-core.md",
 }
 PLAN_PROMPT_TERMS = {
     "risk tier",
@@ -81,6 +79,7 @@ SKILL_TERMS = {
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",

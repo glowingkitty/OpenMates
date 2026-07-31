@@ -70,7 +70,7 @@ test.describe('Workspace sidebar', () => {
       await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
       await page.getByTestId('workflow-run-history').click();
-      await expect(page).toHaveURL(new RegExp(`/workflows/${workflowId}/runs$`));
+      await expect(page).toHaveURL(new RegExp(`/workflows#workflow-id=${workflowId}&workflow-tab=runs$`));
       await expect(page.getByTestId('workflow-runs')).toBeVisible();
 
       await page.getByTestId('sidebar-toggle').click();

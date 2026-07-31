@@ -318,6 +318,7 @@
 
 <div
   class="embed-leaflet-map"
+  data-testid="embed-leaflet-map"
   style="height: {height}; min-height: {minHeight};"
   bind:this={mapContainer}
 ></div>

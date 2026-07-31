@@ -198,6 +198,23 @@
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent !important;
+    color: inherit;
+    font: inherit;
+  }
+
+  .notebook-code-preview code:global(.hljs),
+  .notebook-code-preview code :global(.hljs) {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .notebook-code-preview code :global(span) {
+    background: transparent !important;
   }
 
   .notebook-output-pill {

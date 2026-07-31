@@ -46,7 +46,7 @@ test.describe('Chat settings Tasks parity', () => {
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}&settings=chats/${chatId}/tasks`), { waitUntil: 'domcontentloaded' });
 		const settingsMenu = page.getByTestId('settings-menu');
-		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${chatId}/tasks`, { timeout: 20_000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${chatId}`, { timeout: 20_000 });
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-tasks')).toBeVisible({ timeout: 20_000 });
 
 		await settingsMenu.getByTestId('chat-settings-task-title-input').fill(taskTitle);

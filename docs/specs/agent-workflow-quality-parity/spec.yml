@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-workflow-quality-parity
 title: Agent Workflow Output Quality And Tool Parity
-status: draft
+status: implementing
 
 goal: >
   Improve OpenCode output quality and context efficiency for OpenMates repo work,
@@ -89,13 +89,15 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+  subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
 
 approvals:
   product_contract:
-    status: pending
+    status: approved
+    approved_at: "2026-07-29T15:30:00Z"
   implementation_plan:
-    status: pending
+    status: approved
+    approved_at: "2026-07-29T15:30:00Z"
 
 decisions:
   - id: D-1
@@ -134,12 +136,12 @@ attempts:
     reason: The file is ignored by git and cannot make a fresh clone reproduce Claude Code hook coverage.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Review this draft product contract with the user, then run plan-from-spec after approval.
-  command: python3 scripts/spec_validate.py docs/specs/agent-workflow-quality-parity/spec.yml
-  expected_outcome: The draft spec validates structurally and waits for product-contract approval before implementation.
+  current_task_id: TASK-4
+  next_action: Commit or deploy the implemented tooling changes, then replace working-tree evidence subject refs with the final commit SHA before marking the spec verified.
+  command: python3 scripts/spec_verify.py docs/specs/agent-workflow-quality-parity/spec.yml
+  expected_outcome: The spec evidence remains complete, but final verified status waits for commit-stable evidence.
   blocker: null
-  last_verified_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+  last_verified_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
 
 scenarios:
   - id: S-1
@@ -215,7 +217,7 @@ acceptance_criteria:
     scenario: S-1
     text: OpenCode default repository instructions use a concise core file and lazy-load task-specific rules instead of eagerly loading the full planning, testing, and spec-driven documents.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -225,7 +227,7 @@ acceptance_criteria:
     scenario: S-2
     text: A deterministic output-quality audit fails on excessive always-loaded instruction budget, duplicated guidance blocks, or missing evidence-based final-answer guidance.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -234,7 +236,7 @@ acceptance_criteria:
     scenario: S-2
     text: OpenCode telemetry reports use aggregate-only fields and never persist raw prompts, titles, reasoning, message bodies, command output bodies, credentials, or private identifiers.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -244,7 +246,7 @@ acceptance_criteria:
     scenario: S-3
     text: Tracked Claude Code settings include the shared high-confidence hook baseline or a generated equivalent, with documented local-only exceptions.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -253,17 +255,18 @@ acceptance_criteria:
     scenario: S-4
     text: Codex and OpenCode hook/config coverage is audited against the same tracked parity inventory, and sync checks fail on unstated drift.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
       - T-TOOLING-PARITY-AUDIT
       - T-SYNC-PARITY
+      - T-SKILL-EMBED-WORKTREE
   - id: AC-6
     scenario: S-5
     text: The worktree deploy contract audit passes by validating the active raw-worktree guard implementation and preserving source-contract coverage.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -273,7 +276,7 @@ acceptance_criteria:
     scenario: S-6
     text: A concise agent workflow quickstart exists and is checked for links to canonical parity, output-quality, session worktree, deploy, and verification commands.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -354,11 +357,23 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py
+        run_id: local-2026-07-29-output-audit-red
+        subject_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T15:31:00Z"
+        summary: Test failed because scripts/audit_opencode_output_quality.py did not exist yet.
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py
+        run_id: local-2026-07-29-output-audit-green
+        subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T15:39:00Z"
+        summary: 4 tests passed; pytest cache warning was unrelated permission noise.
 
   - id: T-TOOLING-PARITY-AUDIT
     type: pytest
@@ -377,11 +392,23 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_agent_tooling_parity_audit.py
+        run_id: local-2026-07-29-tooling-parity-red
+        subject_commit: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T15:31:00Z"
+        summary: Test failed because scripts/audit_agent_tooling_parity.py did not exist yet.
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_agent_tooling_parity_audit.py
+        run_id: local-2026-07-29-tooling-parity-green
+        subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T16:18:00Z"
+        summary: 11 tests passed after adding structural Claude matcher checks, Codex matcher regression coverage, OpenCode delegated-bridge checks, unrepresented tracked Claude hook detection, tracked hook-file detection, and bridge-reference detection; pytest cache warning was unrelated permission noise.
 
   - id: T-SYNC-PARITY
     type: lint
@@ -401,7 +428,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 scripts/sync_agent_parity.py --check
+        run_id: local-2026-07-29-sync-agent-parity
+        subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T15:42:00Z"
+        summary: Agent-tool parity is up to date.
 
   - id: T-SPEC-WORKFLOW-AUDIT
     type: lint
@@ -416,11 +449,20 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-29T15:42:00Z"
+        reason: Existing spec workflow audit was already green before the concise-core split; the implementation updated the audit and recorded green evidence instead.
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_opencode_spec_workflow.py
+        run_id: local-2026-07-29-opencode-spec-workflow-audit
+        subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T15:39:00Z"
+        summary: OpenCode spec workflow audit passed after requiring the concise core instruction file.
 
   - id: T-WORKTREE-CONTRACT
     type: lint
@@ -445,7 +487,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_worktree_deploy_contract.py
+        run_id: local-2026-07-29-worktree-contract-green
+        subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T15:39:00Z"
+        summary: Worktree deploy contract audit passed after checking the active safe_bash_guard.py implementation.
 
   - id: T-HOOKS-CONTRACT
     type: unit
@@ -464,7 +512,37 @@ tests:
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        command: node --test scripts/tests/test_opencode_hooks_contract.mjs
+        run_id: local-2026-07-29-opencode-hooks-contract
+        subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T15:42:00Z"
+        summary: 19 Node source-contract tests passed.
+
+  - id: T-SKILL-EMBED-WORKTREE
+    type: pytest
+    file: scripts/tests/test_skill_embed_registry_worktree_paths.py
+    command: python3 -m pytest scripts/tests/test_skill_embed_registry_worktree_paths.py
+    covers:
+      - AC-5
+    assertions:
+      - skill-embed-registry-guard.sh recognizes OpenCode worktree backend/apps/*/app.yml paths
+      - audit_skill_embed_registry.py accepts worktree app metadata paths
+    red_phase:
+      required: false
+      expected: not_applicable
       evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_skill_embed_registry_worktree_paths.py
+        run_id: local-2026-07-29-skill-embed-worktree-paths
+        subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+        timestamp: "2026-07-29T16:25:00Z"
+        summary: 2 tests passed; pytest cache warning was unrelated permission noise.
 
 verifications:
   - id: V-OPENCODE-SAMPLE
@@ -473,8 +551,12 @@ verifications:
     required_for_done: true
     covers:
       - AC-3
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      status: passed
+      timestamp: "2026-07-29T15:45:00Z"
+      reason: Read-only aggregate query selected only agent, model, and token columns from 25 recent OpenMates OpenCode sessions; report keys were aggregate counts and token percentiles only, with no titles, prompts, messages, reasoning, or command output bodies.
+      summary: Sample report returned session_count, token percentiles, agent_counts, model_counts, and log_counts.
 
 implementation_plan:
   spec_path: docs/specs/agent-workflow-quality-parity/spec.yml
@@ -513,8 +595,12 @@ implementation_plan:
       reason: Keep shared hook invocation aligned with the tracked parity contract.
     - path: .opencode/plugins/openmates-hooks.js
       reason: Keep OpenCode hook coverage and output-quality hints aligned with the tracked parity contract.
+    - path: .claude/hooks/skill-embed-registry-guard.sh
+      reason: Ensure bridged OpenCode worktree app metadata edits trigger the registry guard.
     - path: scripts/sync_agent_parity.py
       reason: Extend or integrate parity validation for hook/config inventory drift.
+    - path: scripts/audit_skill_embed_registry.py
+      reason: Accept worktree backend app metadata paths when invoked by bridged hooks.
     - path: scripts/audit_opencode_output_quality.py
       reason: New deterministic output-quality and context-efficiency audit.
     - path: scripts/audit_agent_tooling_parity.py
@@ -529,6 +615,8 @@ implementation_plan:
       reason: Update tests after concise-core instruction split.
     - path: scripts/tests/test_opencode_hooks_contract.mjs
       reason: Preserve plugin source-contract coverage after parity changes.
+    - path: scripts/tests/test_skill_embed_registry_worktree_paths.py
+      reason: Prove bridged skill/embed registry guard coverage for OpenCode worktree paths.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/agent-workflow-quality-parity/spec.yml
     - python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py
@@ -550,7 +638,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add OpenCode output-quality and context audit
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -589,7 +677,7 @@ tasks:
 
   - id: TASK-2
     title: Add tracked Claude Codex OpenCode parity inventory
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -611,10 +699,12 @@ tasks:
       - T-TOOLING-PARITY-AUDIT
       - T-SYNC-PARITY
       - T-HOOKS-CONTRACT
+      - T-SKILL-EMBED-WORKTREE
     verification_ids:
       - T-TOOLING-PARITY-AUDIT
       - T-SYNC-PARITY
       - T-HOOKS-CONTRACT
+      - T-SKILL-EMBED-WORKTREE
     dependencies:
       - TASK-1
     ownership:
@@ -625,8 +715,11 @@ tasks:
         - .opencode/plugins/openmates-hooks.js
         - scripts/sync_agent_parity.py
         - scripts/audit_agent_tooling_parity.py
+        - scripts/audit_skill_embed_registry.py
         - scripts/tests/test_agent_tooling_parity_audit.py
+        - scripts/tests/test_skill_embed_registry_worktree_paths.py
         - docs/architecture/agent-tooling-parity.md
+        - .claude/hooks/skill-embed-registry-guard.sh
       shared_files:
         - .opencode/plugins/openmates-hooks.js
         - scripts/sync_agent_parity.py
@@ -635,7 +728,7 @@ tasks:
 
   - id: TASK-3
     title: Repair stale worktree deploy contract audit
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -667,7 +760,7 @@ tasks:
 
   - id: TASK-4
     title: Document quickstart and final verification
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:

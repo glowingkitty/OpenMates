@@ -66,7 +66,7 @@ current_milestone:
     - Compact vertical trigger/action/decision cards matching Figma geometry; expanding a node grows that card in place on desktop and mobile and never opens a sibling editor panel.
     - Explicit dirty state with contextual Undo and Save only after graph changes; graph edits are never auto-saved.
     - Workspace-aware sidebar content in mobile drawers and persistent desktop/tablet sidebars.
-    - Routed Workflow and Workflow runs tabs at /workflows/{workflow_id} and /workflows/{workflow_id}/runs, with the run screen matching Figma node 5488:39515.
+    - Hash-based Workflow and Workflow runs tabs inside /workflows, using /workflows#workflow-id={workflow_id}&workflow-tab=details and /workflows#workflow-id={workflow_id}&workflow-tab=runs so opening workflows and runs changes in-page state without a SvelteKit route reload.
   deferred:
     - General AI workflow planning, clarification, complex natural-language graph creation, and voice input.
     - Workflow definition time-machine UI and restore controls.
@@ -236,6 +236,13 @@ clarification:
         normalized envelope; sharing uses a persistent client-encrypted portable
         projection and Chat-style fragment-key links; Automation Vault, not
         cryptographic backend inaccessibility, is the unattended execution boundary.
+    - question: Should Workflow detail and run selection keep nested path routes or use hash-based in-app state like Chats?
+      answer: >
+        Use hash-based in-app state under /workflows, with examples such as
+        /workflows#workflow-id={workflow_id}&workflow-tab=details and
+        /workflows#workflow-id={workflow_id}&workflow-tab=runs. The feature has
+        not rolled out to production, so no old /workflows/{workflow_id}
+        compatibility routes are required.
   vision_summary: >
     Workflows V1 is a real product section, not a mock. It exposes durable
     server-side workflow graph and run models, a manual vertical editor, and a
@@ -250,7 +257,7 @@ clarification:
     and makes every sidebar or hamburger list reflect the active workspace. The
     corrected landing keeps Daily Inspiration and one mixed recent/example row.
     Workflow detail and run pages own a Figma-specific low-radius gradient header,
-    routed tabs, compact in-place expanding cards, action placement, and run
+    hash-based in-page tabs, compact in-place expanding cards, action placement, and run
     composition rather than inheriting the generic detail-header visual. Runtime
     records are created only for accepted executions, event routing is normalized
     and authenticated, and sharing uses a separate persistent client-encrypted
@@ -338,6 +345,15 @@ decisions:
     decision: Treat Automation Vault with least-privilege audited decrypt as the privacy boundary for unattended execution.
     reason: Server-side unattended workflows cannot be cryptographically inaccessible to the backend that must execute them.
     decided_at: "2026-07-11T00:00:00Z"
+  - id: D-16
+    status: active
+    decision: Use /workflows with hash-based in-app workflow state instead of nested workflow detail and run routes.
+    reason: >
+      The feature has not rolled out to production, so the clean contract is to
+      match chat navigation: selecting a workflow, tab, or run updates
+      client-only hash state without remounting or sending workflow ids in server
+      paths.
+    decided_at: "2026-07-31T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -802,20 +818,20 @@ scenarios:
     given:
       - Alice opens Daily Weather check from the workflow home or workspace sidebar.
     when:
-      - The canonical Workflow detail route replaces the landing in the main canvas.
+      - The canonical /workflows hash state replaces the landing in the main canvas.
       - Alice views or edits metadata through the Workflow-owned header composition and its existing Automation Vault metadata API.
       - Alice changes the trigger or an expanded workflow node.
     then:
       - The global app chrome and active-workspace sidebar remain available without a second workflow-library column.
       - The low-radius gradient header renders fixed white title/description text without shadows, an enabled toggle below the title, and Created relative time or applicable next-run metadata.
       - A top-left back arrow is followed by an orange New workflow CTA with Share and Report Issue beside it; there is no top-right report action.
-      - Workflow and Workflow runs are routed tabs at /workflows/{workflow_id} and /workflows/{workflow_id}/runs.
+      - Workflow and Workflow runs are hash-based in-page tabs at /workflows#workflow-id={workflow_id}&workflow-tab=details and /workflows#workflow-id={workflow_id}&workflow-tab=runs.
       - The vertical node canvas begins immediately after the header with Add action/Add decision controls and no duplicate Workflow/status/New workflow row.
       - A dirty graph state offers contextual Undo and Save; those actions are absent before a graph edit.
       - Leaving with unsaved graph changes requires an explicit decision rather than silently discarding or auto-saving.
       - Desktop and mobile render compact vertical cards matching Figma geometry, and expanding a node grows that card in place rather than opening any sibling editor panel.
       - The primary canvas has no run-retention picker, duplicate title/description form, run-content pill, permanent management toolbar, or permanent test/disable/delete button row.
-      - The run route follows Figma node 5488:39515.
+      - The runs tab follows Figma node 5488:39515 without remounting the Workflows route.
       - Native frame exports are available; exact nested values not visible in those exports are not asserted or invented while structured metadata is temporarily rate-limited.
 
   - id: S-30
@@ -1144,7 +1160,7 @@ acceptance_criteria:
     verification_ids: [T-E2E-003]
   - id: AC-37
     scenario: S-28
-    text: Web opens Workflow-specific routed detail and runs tabs with a low-radius gradient header, fixed white title/description, enabled toggle, relative Created or applicable next-run metadata, top-left back/New workflow/Share/Report Issue actions, and compact in-place expanding cards; it has no top-right report action, duplicate below-header row, sibling editor panel, or rejected management areas.
+    text: Web opens Workflow-specific hash-based detail and runs tabs inside /workflows with a low-radius gradient header, fixed white title/description, enabled toggle, relative Created or applicable next-run metadata, top-left back/New workflow/Share/Report Issue actions, and compact in-place expanding cards; it has no top-right report action, duplicate below-header row, sibling editor panel, nested route remount, or rejected management areas.
     required: true
     status: pending
     coverage_status: covered
@@ -1512,10 +1528,10 @@ contracts:
     - Empty workflows list with create button and example starter suggestions.
     - Workflow list with enabled/disabled/error statuses, lifecycle badges for persisted and temporary workflows, next run, last run, and action menu.
     - Figma-specific Workflow detail header with low-radius gradient, fixed white title/description without shadows, enabled toggle below title, relative Created or applicable next-run metadata, and top-left back arrow plus orange New workflow, Share, and Report Issue actions.
-    - Routed Workflow and Workflow runs tabs at /workflows/{workflow_id} and /workflows/{workflow_id}/runs; no top-right Report Issue button and no duplicate below-header Workflow/status/New workflow row.
+    - Hash-based Workflow and Workflow runs tabs at /workflows#workflow-id={workflow_id}&workflow-tab=details and /workflows#workflow-id={workflow_id}&workflow-tab=runs; no top-right Report Issue button, no duplicate below-header Workflow/status/New workflow row, and no nested SvelteKit route remount for same-page workflow navigation.
     - Shortcuts-style editor with compact vertical cards matching Figma geometry, app-skill previews, sentence-style Decision editor, and Repeat container; expansion grows the selected card in place on desktop/mobile and never creates a sibling editor panel.
     - Workflow definition time-machine timeline with capped version dots/cards, selected historical date/version, read-only historical graph rendering, current marker, and restore-as-new-version confirmation.
-    - Workflow run-history route matching Figma node 5488:39515 with completed/failed/cancelled/waiting states, trigger source, duration, cost, node-by-node status, input/output availability, and clear durable/ephemeral/expired/deleted content labels.
+    - Workflow run-history tab matching Figma node 5488:39515 with completed/failed/cancelled/waiting states, trigger source, duration, cost, node-by-node status, input/output availability, and clear durable/ephemeral/expired/deleted content labels.
     - Temporary workflow history surface with keep, run manually, disable, and delete controls before auto_delete_at.
     - Assistant pending workflow execution countdown with workflow name, expected actions, cost/permission summary, required inputs, cancel, and approve controls.
     - Manual run input form when a webhook/event-triggered workflow or reusable workflow requires start payload fields.
@@ -1575,8 +1591,10 @@ contracts:
     - Workflow input undo must not restore or expose data the user no longer owns, must not cross project/workflow ownership boundaries, and must not mutate historical workflow_versions or workflow_runs.
   routing:
     - /workflows is the Workflow landing/browse route.
-    - /workflows/{workflow_id} is the canonical Workflow tab and detail/editor route.
-    - /workflows/{workflow_id}/runs is the canonical Workflow runs tab and Figma 5488:39515 run-history route.
+    - /workflows#workflow-id={workflow_id}&workflow-tab=details is the canonical Workflow detail/editor state.
+    - /workflows#workflow-id={workflow_id}&workflow-tab=runs is the canonical Workflow runs state and Figma 5488:39515 run-history tab.
+    - /workflows#workflow-id={workflow_id}&workflow-tab=runs&run-id={run_id} selects a specific run in the run-history tab.
+    - /workflows/{workflow_id} and /workflows/{workflow_id}/runs are not shipped because the unreleased feature can adopt the cleaner hash-based state model without compatibility shims.
     - /s/{token}#{shortKey} is the online default encrypted template share URL; the fragment key is client-only.
     - /share/workflow-template/{templateId}#key={templateKeyBlob} is the offline/API long-link fallback backed by the persistent encrypted projection.
 
@@ -2136,7 +2154,9 @@ tests:
       - AC-19
     assertions:
       - web user can open Workflows workspace when platform:workflows is enabled
-      - opening Daily rain alert uses the canonical Workflow detail route and no second workflow-library column
+      - opening Daily rain alert uses canonical /workflows hash state and no second workflow-library column or nested route remount
+      - clicking the Workflow back action clears hash state and renders the Workflows landing on /workflows without relying on nested route compatibility
+      - clicking Run history and Back to editor changes the rendered Workflow tab through hash state on the same mounted /workflows route
       - scheduled Daily rain alert renders next-run-aware relative metadata in the Workflow-owned header
       - graph editing exposes Add action and Add decision through the Workflow-owned canvas
       - dirty graph changes show contextual Undo and Save, and those actions disappear after a successful save
@@ -2262,7 +2282,7 @@ tests:
       - Workflows mode sidebar shows workflows, workflow states, and opens the focused workflow editor
       - Projects mode sidebar shows projects rather than retaining chats
       - hamburger drawer and persistent desktop/tablet sidebar use the same active-workspace provider contract
-      - workflow run history renders selected run and per-node status without replacing the workspace sidebar with chats
+      - workflow run history renders through /workflows hash state with selected run and per-node status without replacing the workspace sidebar with chats
     red_phase:
       required: true
       expected: fail
@@ -2331,7 +2351,7 @@ implementation_plan:
     /v1/share/short-url path with workflow_template ownership/revocation; the
     server never receives projection plaintext keys or URL fragment keys. CLI,
     npm, and pip prove shared runtime/share contracts before web. Web then owns
-    the Workflow-specific routes and functional composition.
+    the Workflow-specific /workflows hash states and functional composition.
   boundaries:
     - No planned or future workflow_run records; recurrence state is only workflow_triggers.next_run_at and encrypted recurrence config.
     - No parallel short-link route, collection, encryption primitive, or Workflow-only resolver; extend /v1/share/short-url and share_short_links.
@@ -2357,7 +2377,7 @@ implementation_plan:
     - id: P4-web
       dependencies: [P3-sharing-cross-client]
       covers: [AC-1, AC-2, AC-4, AC-8, AC-11, AC-12, AC-19, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-43, AC-45]
-      outcome: Implement Workflow-owned /workflows/{workflow_id} and /workflows/{workflow_id}/runs screens, contextual actions, compact in-place expanding cards, share/import UI, and workspace navigation. Deploy, wait Ready, and run functional Playwright coverage.
+      outcome: Implement Workflow-owned /workflows hash detail and runs screens, contextual actions, compact in-place expanding cards, share/import UI, and workspace navigation. Deploy, wait Ready, and run functional Playwright coverage.
       verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-005]
     - id: P6-deferred-broad-features
       dependencies: [P4-web]
@@ -2372,7 +2392,7 @@ implementation_plan:
     - After an authorized workflow edit, the client recursively allowlists a portable template, encrypts it with a client-generated template key, wraps that key for the owner, and PUTs only template_id, source_version, ciphertext, checksum, schema version, and owner_wrapped_key.
     - Online sharing generates token, shortKey, and encrypted_url client-side; POST /v1/share/short-url receives content_type=workflow_template plus opaque ciphertext but no fragment key, and the client assembles /s/{token}#{shortKey}. Owner-authorized DELETE revokes retrieval.
     - Offline sharing reads the persistent local/cross-device projection and emits /share/workflow-template/{templateId}#key={templateKeyBlob}. Import decrypts and validates client-side, then sends the portable allowlisted payload to create a new recipient-owned disabled workflow with rebinding requirements.
-    - Web routes load the same owner-scoped records into the Workflow-owned header/editor or runs screen. Only dirty graph changes reveal Save/Undo.
+    - Web hash states under /workflows load the same owner-scoped records into the Workflow-owned header/editor or runs screen. Only dirty graph changes reveal Save/Undo.
   affected_files:
     - path: backend/core/directus/schemas/workflows.yml
       reason: Minimal owner/routing metadata and encrypted title/description references.
@@ -2422,10 +2442,6 @@ implementation_plan:
       reason: Existing generic short-link regression plus workflow_template ownership and revoke coverage.
     - path: frontend/apps/web_app/src/routes/workflows/+page.svelte
       reason: Landing/browse orchestration and restrained title-only draft composer.
-    - path: frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
-      reason: Canonical Workflow-owned detail/editor route.
-    - path: frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
-      reason: New canonical routed runs screen matching the approved artifact.
     - path: frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
       reason: New offline long-link projection retrieval/decrypt/import route.
     - path: frontend/packages/ui/src/services/shareEncryption.ts
@@ -2740,7 +2756,7 @@ tasks:
     independently_deployable: false
 
   - id: TASK-7
-    title: Build Workflow-owned web detail and runs routes with landing and sidebar regression coverage
+    title: Build Workflow-owned web detail and runs hash states with landing and sidebar regression coverage
     status: in_progress
     phase: working_tasks
     covers:
@@ -2748,8 +2764,6 @@ tasks:
       acceptance_criteria: [AC-1, AC-2, AC-4, AC-8, AC-11, AC-12, AC-19, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-45]
     expected_files:
       - frontend/apps/web_app/src/routes/workflows/+page.svelte
-      - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
-      - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
       - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
       - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
       - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
@@ -2762,8 +2776,6 @@ tasks:
       - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
     ownership:
       files:
-        - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
-        - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
         - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
         - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
         - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte

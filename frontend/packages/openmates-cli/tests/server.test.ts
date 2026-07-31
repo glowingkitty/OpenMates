@@ -62,6 +62,11 @@ import {
   shouldCheckWebHealth,
   unsetEnvValue,
   upsertEnvValue,
+  planOpenMatesCloudOverlay,
+  appendOpenMatesCloudComposeFiles,
+  planDockerComposeArgs,
+  defaultOpenMatesCloudComposeFile,
+  defaultOpenMatesCloudOverlayPath,
 } from "../src/serverPlanning.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
 
@@ -103,19 +108,39 @@ function hasLlmCredentials(envPath: string): boolean {
 /**
  * Inline copy of composeArgs for testing without requiring tsx.
  */
+function readEnvMapForComposeTest(installPath: string): Record<string, string> {
+  const envPath = join(installPath, ".env");
+  if (!existsSync(envPath)) return {};
+  const values: Record<string, string> = {};
+  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    values[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1).replace(/^"|"$/g, "");
+  }
+  return values;
+}
+
 function composeArgs(installPath: string, withOverrides: boolean, installMode?: "image" | "source"): string[] {
   const resolvedInstallMode = installMode ?? (
     existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
   );
-  const COMPOSE_FILE = resolvedInstallMode === "image"
-    ? join("backend", "core", "docker-compose.selfhost.yml")
-    : join("backend", "core", "docker-compose.yml");
-  const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
-  const args = ["compose", "--env-file", ".env", "-f", COMPOSE_FILE];
-  if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
-    args.push("-f", COMPOSE_OVERRIDE);
-  }
-  return args;
+  const env = readEnvMapForComposeTest(installPath);
+  const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true" ? "official_cloud" : "self_host";
+  const overlayPath = env.OPENMATES_CLOUD_OVERLAY_PATH || undefined;
+  const resolvedOverlayPath = overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath);
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
+  return planDockerComposeArgs({
+    openMatesPath: installPath,
+    installMode: resolvedInstallMode,
+    withOverrides,
+    overrideExists: existsSync(join(installPath, "backend", "core", "docker-compose.override.yml")),
+    deploymentMode,
+    overlayPath,
+    overlayComposeFile,
+    overlayExists: deploymentMode === "official_cloud" && existsSync(resolvedOverlayPath) && existsSync(overlayComposeFile),
+  });
 }
 
 function getDefaultImageTagForVersion(version: string): string {
@@ -443,6 +468,102 @@ describe("composeArgs", () => {
     const args = composeArgs(emptyDir, true);
     assert.equal(args.length, 5); // No override added
     rmSync(emptyDir, { recursive: true, force: true });
+  });
+
+  it("appends the OpenMatesCloud compose file when env enables official-cloud mode", () => {
+    const rootDir = join(tmpdir(), `openmates-official-cloud-${Date.now()}`);
+    const installPath = join(rootDir, "OpenMates");
+    const overlayPath = join(rootDir, "OpenMatesCloud");
+    const overlayComposeFile = join(overlayPath, "docker-compose.openmatescloud.yml");
+    mkdirSync(join(installPath, "backend", "core"), { recursive: true });
+    mkdirSync(overlayPath, { recursive: true });
+    writeFileSync(join(installPath, "backend", "core", "docker-compose.yml"), "services: {}\n");
+    writeFileSync(join(installPath, ".env"), "OPENMATES_CLOUD_OVERLAY_ENABLED=true\n");
+    writeFileSync(overlayComposeFile, "services: {}\n");
+
+    const args = composeArgs(installPath, false, "source");
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.yml"),
+      "-f", overlayComposeFile,
+    ]);
+    rmSync(rootDir, { recursive: true, force: true });
+  });
+
+  it("server composeArgs delegates to the shared OpenMatesCloud compose planner", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const composeSource = source.slice(source.indexOf("export function composeArgs"), source.indexOf("/** Ensure compose interpolation"));
+
+    assert.match(composeSource, /OPENMATES_CLOUD_OVERLAY_ENABLED/);
+    assert.match(composeSource, /planDockerComposeArgs/);
+  });
+});
+
+describe("OpenMatesCloud overlay planning", () => {
+  const openMatesPath = join("/srv", "OpenMates");
+  const siblingOverlayPath = join("/srv", "OpenMatesCloud");
+
+  it("keeps self-host core mode free of overlay requirements", () => {
+    const plan = planOpenMatesCloudOverlay({
+      deploymentMode: "self_host",
+      openMatesPath,
+    });
+    const baseArgs = ["compose", "--env-file", ".env", "-f", join("backend", "core", "docker-compose.selfhost.yml")];
+
+    assert.equal(plan.enabled, false);
+    assert.equal(plan.overlayPath, null);
+    assert.deepEqual(plan.composeFiles, []);
+    assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_ENABLED, "false");
+    assert.match(plan.modeLabel, /self-host core/);
+    assert.deepEqual(appendOpenMatesCloudComposeFiles(baseArgs, plan), baseArgs);
+  });
+
+  it("resolves sibling official-cloud overlay and appends its compose file", () => {
+    const plan = planOpenMatesCloudOverlay({
+      deploymentMode: "official_cloud",
+      openMatesPath,
+      overlayExists: true,
+    });
+    const baseArgs = ["compose", "--env-file", ".env", "-f", join("backend", "core", "docker-compose.yml")];
+
+    assert.equal(plan.enabled, true);
+    assert.equal(plan.overlayPath, siblingOverlayPath);
+    assert.deepEqual(plan.composeFiles, [join(siblingOverlayPath, "docker-compose.openmatescloud.yml")]);
+    assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_ENABLED, "true");
+    assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_PATH, siblingOverlayPath);
+    assert.match(plan.modeLabel, /official cloud overlay/);
+    assert.deepEqual(appendOpenMatesCloudComposeFiles(baseArgs, plan), [
+      ...baseArgs,
+      "-f",
+      join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+    ]);
+  });
+
+  it("plans real Docker compose args with official-cloud overlay included", () => {
+    const args = planDockerComposeArgs({
+      openMatesPath,
+      installMode: "source",
+      deploymentMode: "official_cloud",
+      overlayExists: true,
+    });
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.yml"),
+      "-f", join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+    ]);
+  });
+
+  it("requires the overlay path for official-cloud mode", () => {
+    assert.throws(
+      () => planOpenMatesCloudOverlay({
+        deploymentMode: "official_cloud",
+        openMatesPath,
+        overlayExists: false,
+      }),
+      /OpenMatesCloud overlay path is required/,
+    );
   });
 });
 

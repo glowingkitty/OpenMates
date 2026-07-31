@@ -558,6 +558,11 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    function getNormalizedChatSettingsPath(settingsPath: string): string {
+        const match = settingsPath.match(/^chats\/([^/]+)(?:\/[^/]+)?$/);
+        return match ? `chats/${match[1]}` : settingsPath;
+    }
+
     async function hydrateChatSettingsContext(settingsPath: string): Promise<void> {
         const match = settingsPath.match(/^chats\/([^/]+)(?:\/([^/]+))?$/);
         if (!match) return;
@@ -1530,6 +1535,7 @@ changes to the documentation (to keep the documentation up to date).
         const chatSettingsPattern = /^chats\/[^/]+(?:\/[^/]+)?$/;
         if (chatSettingsPattern.test(settingsPath)) {
             await hydrateChatSettingsContext(settingsPath);
+            settingsPath = getNormalizedChatSettingsPath(settingsPath);
         }
         if (chatSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
@@ -3538,14 +3544,16 @@ changes to the documentation (to keep the documentation up to date).
 
     .settings-header,
     .settings-content-wrapper,
-    :global(.app-details-header) {
+    :global(.app-details-header),
+    :global(.chat-settings-header) {
         opacity: 0;
         transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     .settings-menu.visible .settings-header,
     .settings-menu.visible .settings-content-wrapper,
-    .settings-menu.visible :global(.app-details-header) {
+    .settings-menu.visible :global(.app-details-header),
+    .settings-menu.visible :global(.chat-settings-header) {
         opacity: 1;
         transition: opacity var(--duration-slow) var(--easing-default);
     }
@@ -3620,7 +3628,8 @@ changes to the documentation (to keep the documentation up to date).
         width: 100%;
     }
 
-    .settings-banner-shell :global(.app-details-header) {
+    .settings-banner-shell :global(.app-details-header),
+    .settings-banner-shell :global(.chat-settings-header) {
         position: relative;
         z-index: var(--z-index-raised);
     }

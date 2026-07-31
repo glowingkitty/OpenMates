@@ -6,9 +6,9 @@
   tabs, and local-first Plan/Tasks/Files/Usage/Share sections.
 -->
 <script lang="ts">
-  import { chatSettingsRouteFor, chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
-  import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  import { chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge, SettingsInput, SettingsTextarea } from '../settings/elements';
+  import SettingsItem from '../SettingsItem.svelte';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
   import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
   import { buildChatUsageRows, loadChatUsageRows, loadChatUsageTotal, totalKnownCredits, usageEntriesToChatUsageRows, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
@@ -160,9 +160,6 @@
     const nextTab = normalizeVisibleChatSettingsTab(tabId);
     activeTab = nextTab;
     chatSettingsStore.setTab(nextTab);
-    if (chat?.chat_id) {
-      settingsDeepLink.set(chatSettingsRouteFor(chat.chat_id, nextTab));
-    }
   }
 
   async function refreshFiles(): Promise<void> {
@@ -333,6 +330,11 @@
     downloadTextFile(content, filename, format === 'csv' ? 'text/csv' : 'text/yaml');
   }
 
+  function downloadUsageData(): void {
+    downloadUsage('csv');
+    downloadUsage('yaml');
+  }
+
   function formatCredits(value: number | null | undefined): string {
     if (typeof value !== 'number') return 'Unknown';
     return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -456,22 +458,32 @@
       </div>
     {:else if activeTab === 'files'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-files" role="tabpanel" aria-labelledby="chat-settings-tab-files">
-        <div class="section-action">
-          <SettingsButton variant="secondary" dataTestid="chat-settings-download-files" onClick={() => void downloadAllFiles()} disabled={files.length === 0}>Download files</SettingsButton>
-        </div>
+        <SettingsItem
+          type="quickaction"
+          icon="download"
+          iconBackground="none"
+          title="Download files"
+          subtitleBottom={files.length > 0 ? `${files.length} downloadable ${files.length === 1 ? 'item' : 'items'}` : 'No downloadable files yet'}
+          rightActionIcon="download"
+          disabled={files.length === 0}
+          data-testid="chat-settings-download-files"
+          onClick={() => void downloadAllFiles()}
+        />
         {#if isLoadingFiles}
           <SettingsInfoBox type="info">Loading file details...</SettingsInfoBox>
         {:else if files.length > 0}
           <div class="file-list" data-testid="chat-settings-files-list">
             {#each files as file (file.contentRef)}
-              <article class="file-row" data-testid="chat-settings-file-row">
-                <span class="row-icon icon_{file.iconName || 'files'}"></span>
-                <div>
-                  <strong>{file.title}</strong>
-                  <small>{file.metadata}</small>
-                </div>
-                <SettingsButton variant="primary" size="sm" dataTestid="chat-settings-file-download" onClick={() => downloadFileReference(file)}>Download</SettingsButton>
-              </article>
+              <SettingsItem
+                type="quickaction"
+                icon={file.iconName || 'files'}
+                iconBackground="none"
+                title={file.title}
+                subtitleBottom={file.metadata}
+                rightActionIcon="download"
+                data-testid="chat-settings-file-row"
+                onClick={() => downloadFileReference(file)}
+              />
             {/each}
           </div>
         {:else}
@@ -480,13 +492,26 @@
       </div>
     {:else if activeTab === 'usage'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-usage" role="tabpanel" aria-labelledby="chat-settings-tab-usage">
-        <div class="section-action">
-          <SettingsButton variant="secondary" dataTestid="chat-settings-download-usage-csv" onClick={() => downloadUsage('csv')} disabled={usageRows.length === 0}>Download usage data</SettingsButton>
-          <SettingsButton variant="ghost" dataTestid="chat-settings-download-usage-yaml" onClick={() => downloadUsage('yaml')} disabled={usageRows.length === 0}>YAML</SettingsButton>
-        </div>
+        <SettingsItem
+          type="quickaction"
+          icon="download"
+          iconBackground="none"
+          title="Download usage data"
+          subtitleBottom="CSV & YAML"
+          rightActionIcon="download"
+          disabled={usageRows.length === 0}
+          data-testid="chat-settings-download-usage"
+          onClick={downloadUsageData}
+        />
         <SettingsCard>
-          <h2>Usage</h2>
-          <p class="usage-total" data-testid="chat-settings-usage-total">{formatCredits(totalCredits)} credits</p>
+          <SettingsItem
+            type="heading"
+            icon="usage"
+            iconBackground="none"
+            title="Usage"
+            creditsDisplay={formatCredits(totalCredits)}
+            data-testid="chat-settings-usage-total"
+          />
           {#if usageError}
             <SettingsInfoBox type="warning">{usageError}</SettingsInfoBox>
           {/if}
@@ -496,14 +521,15 @@
             <div data-testid="chat-settings-usage-list">
               {#each usageRows as row (row.id)}
                 {@const timestampLabel = formatUsageTimestamp(row.timestamp)}
-                <article class="usage-row" data-testid="chat-settings-usage-row">
-                  <span class="clickable-icon row-icon icon_{row.iconName || 'chat'}"></span>
-                  <div>
-                    <strong>{row.label}</strong>
-                    <small>{row.provider}{timestampLabel ? ` - ${timestampLabel}` : ''}</small>
-                  </div>
-                  <b>{formatCredits(row.credits)}</b>
-                </article>
+                <SettingsItem
+                  type="quickaction"
+                  icon={row.iconName || 'chat'}
+                  iconBackground="none"
+                  title={row.label}
+                  subtitleBottom={`${row.provider}${timestampLabel ? ` - ${timestampLabel}` : ''}`}
+                  creditsDisplay={formatCredits(row.credits)}
+                  data-testid="chat-settings-usage-row"
+                />
               {/each}
             </div>
           {:else}
@@ -616,45 +642,6 @@
   [data-testid="chat-settings-usage-list"] {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-3);
-  }
-
-  .file-row,
-  .usage-row {
-    display: grid;
-    grid-template-columns: 3.25rem 1fr auto;
-    align-items: center;
-    gap: var(--spacing-3);
-    padding: var(--spacing-3);
-    border-radius: var(--radius-lg);
-    background: var(--color-white);
-    box-shadow: var(--shadow-xs);
-  }
-
-  .file-row strong,
-  .usage-row strong {
-    display: block;
-    color: var(--color-primary);
-  }
-
-  .file-row small,
-  .usage-row small {
-    color: var(--color-grey-60);
-    font-weight: var(--font-weight-bold);
-  }
-
-  .row-icon {
-    width: 3rem;
-    height: 3rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    background: var(--color-primary);
-    cursor: default;
-  }
-
-  .usage-total {
-    margin: 0 0 var(--spacing-3);
-    color: var(--color-grey-70);
-    font-weight: var(--font-weight-bold);
+    gap: var(--spacing-1);
   }
 </style>

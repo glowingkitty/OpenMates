@@ -5,6 +5,9 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
+OPENMATES_CLOUD_OVERLAY_ENABLED_ENV = "OPENMATES_CLOUD_OVERLAY_ENABLED"
+TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
+
 def get_allowed_domain() -> Optional[str]:
     """
     Get the allowed domain from domain security service.
@@ -172,6 +175,23 @@ def is_payment_enabled() -> bool:
     
     # All other cases (self-hosted, or dev on custom domain) -> Disabled
     return False
+
+
+def is_openmates_cloud_overlay_enabled() -> bool:
+    """
+    Return whether this runtime explicitly loaded the OpenMatesCloud overlay.
+
+    Payment-domain eligibility alone is not enough to initialize official-cloud
+    charging/accounting providers. Self-host and core-only runtimes must fail
+    closed unless the CLI or deployment Compose opts into the cloud overlay.
+    """
+    value = os.getenv(OPENMATES_CLOUD_OVERLAY_ENABLED_ENV, "false")
+    return value.strip().lower() in TRUE_ENV_VALUES
+
+
+def is_cloud_billing_enabled() -> bool:
+    """Return true only when domain eligibility and cloud overlay opt-in agree."""
+    return is_openmates_cloud_overlay_enabled() and is_payment_enabled()
 
 def get_server_edition() -> str:
     """

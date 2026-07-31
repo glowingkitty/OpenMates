@@ -29,11 +29,15 @@ import {
   type CaddyAction,
   type CoreProfile,
   type ServerRole,
+  type ServerDeploymentMode,
   appendSelectedServices,
+  defaultOpenMatesCloudComposeFile,
+  defaultOpenMatesCloudOverlayPath,
   parseServerRole,
   planBackup,
   planCaddyCommand,
   planContinuousUpdateService,
+  planDockerComposeArgs,
   planRestore,
   planServerRuntime,
   planUpdate as planServerUpdate,
@@ -230,6 +234,7 @@ PREVIEW_CORS_ORIGINS=https://openmates.org
 PREVIEW_ALLOWED_REFERERS=https://openmates.org/*
 OPENMATES_IMAGE_REGISTRY=${DEFAULT_IMAGE_REGISTRY}
 OPENMATES_IMAGE_TAG=
+OPENMATES_CLOUD_OVERLAY_ENABLED=false
 GIT_WORK_DIR=
 DOCKER_GID=999
 CELERY_AUTOSCALE_MAX=3
@@ -314,6 +319,27 @@ function getCoreProfile(flags: Record<string, string | boolean>, config: ServerC
   const value = typeof flags.profile === "string" ? flags.profile : config?.serverProfile;
   if (value === "minimal" || value === "standard" || value === "production") return value;
   return "production";
+}
+
+function normalizeServerDeploymentMode(value: string | undefined): ServerDeploymentMode {
+  if (!value) return "self_host";
+  if (value === "self_host" || value === "self-host") return "self_host";
+  if (value === "official_cloud" || value === "official-cloud") return "official_cloud";
+  throw new Error("Unsupported deployment mode. Use self-host or official-cloud.");
+}
+
+function getServerDeploymentMode(flags: Record<string, string | boolean>, config: ServerConfig | null): ServerDeploymentMode {
+  if (flags["official-cloud"] === true) return "official_cloud";
+  if (flags["deployment-mode"] === true) throw new Error("Provide a deployment mode value: --deployment-mode self-host|official-cloud.");
+  if (typeof flags["deployment-mode"] === "string") return normalizeServerDeploymentMode(flags["deployment-mode"]);
+  return normalizeServerDeploymentMode(config?.deploymentMode);
+}
+
+function getOpenMatesCloudOverlayPath(flags: Record<string, string | boolean>, config: ServerConfig | null): string | undefined {
+  const explicit = flags["openmatescloud-path"] ?? flags["openmates-cloud-path"];
+  if (explicit === true) throw new Error("Provide an OpenMatesCloud path: --openmatescloud-path <dir>.");
+  if (typeof explicit === "string") return resolve(explicit);
+  return config?.openMatesCloudOverlayPath;
 }
 
 function hasServiceFilter(flags: Record<string, string | boolean>): boolean {
@@ -405,15 +431,30 @@ function featureKind(featureId: string): string {
 export function composeArgs(
   installPath: string,
   withOverrides: boolean,
-  installMode: ServerConfig["installMode"] = getInstallMode(installPath),
+  installMode: NonNullable<ServerConfig["installMode"]> = getInstallMode(installPath),
   role: ServerRole = "core",
 ): string[] {
-  const composeFile = installMode === "image" ? ROLE_IMAGE_COMPOSE_FILES[role] : SOURCE_COMPOSE_FILE;
-  const args = ["compose", "--env-file", ".env", "-f", composeFile];
-  if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
-    args.push("-f", COMPOSE_OVERRIDE);
-  }
-  return args;
+  const env = readEnvMap(installPath);
+  const config = loadConfigForInstallPath(installPath);
+  const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true"
+    ? "official_cloud"
+    : env.OPENMATES_CLOUD_OVERLAY_ENABLED === "false"
+      ? "self_host"
+      : normalizeServerDeploymentMode(config?.deploymentMode);
+  const overlayPath = env.OPENMATES_CLOUD_OVERLAY_PATH || config?.openMatesCloudOverlayPath || undefined;
+  const resolvedOverlayPath = overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath);
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
+  return planDockerComposeArgs({
+    openMatesPath: installPath,
+    withOverrides,
+    installMode,
+    role,
+    overrideExists: existsSync(join(installPath, COMPOSE_OVERRIDE)),
+    deploymentMode,
+    overlayPath,
+    overlayComposeFile,
+    overlayExists: deploymentMode === "official_cloud" && existsSync(resolvedOverlayPath) && existsSync(overlayComposeFile),
+  });
 }
 
 /** Ensure compose interpolation has an absolute project mount path. */
@@ -956,6 +997,34 @@ function writeEnvContent(installPath: string, content: string): void {
   mkdirSync(dirname(envPath), { recursive: true });
   writeFileSync(envPath, content, { mode: 0o600 });
   chmodSync(envPath, 0o600);
+}
+
+function writeDeploymentModeEnv(
+  installPath: string,
+  deploymentMode: ServerDeploymentMode,
+  overlayPath?: string,
+): { overlayPath: string | null } {
+  let content = readEnvContent(installPath);
+  if (deploymentMode === "self_host") {
+    content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_ENABLED", "false");
+    content = unsetEnvValue(content, "OPENMATES_CLOUD_OVERLAY_PATH");
+    writeEnvContent(installPath, content);
+    return { overlayPath: null };
+  }
+
+  const resolvedOverlayPath = resolve(overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath));
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
+  if (!existsSync(resolvedOverlayPath) || !existsSync(overlayComposeFile)) {
+    throw new Error(
+      "OpenMatesCloud official-cloud mode requires an overlay checkout with " +
+      `${overlayComposeFile}. Pass --openmatescloud-path <dir> or create the sibling OpenMatesCloud repository.`,
+    );
+  }
+
+  content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_ENABLED", "true");
+  content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_PATH", resolvedOverlayPath);
+  writeEnvContent(installPath, content);
+  return { overlayPath: resolvedOverlayPath };
 }
 
 function assertEnvKey(key: string | undefined): string {
@@ -1619,6 +1688,11 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   const fromSource = flags["from-source"] === true || sourcePath !== null;
   const role = getServerRole(flags, null);
   const profile = getCoreProfile(flags, null);
+  const deploymentMode = getServerDeploymentMode(flags, null);
+  const requestedOverlayPath = getOpenMatesCloudOverlayPath(flags, null);
+  if (deploymentMode === "official_cloud" && role !== "core") {
+    throw new Error("Official-cloud overlay installs are only supported for the core server role.");
+  }
   const runtimePlan = planServerRuntime({ role, profile, withAlerts: flags["with-alerts"] === true });
 
   // Check if already installed
@@ -1645,6 +1719,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     const imageTag = typeof flags["image-tag"] === "string" ? flags["image-tag"] : getDefaultImageTag();
     console.error(`Preparing OpenMates image-mode install at ${installPath}...`);
     await writeImageModeRuntimeFiles(installPath, imageTag, role);
+    const overlay = writeDeploymentModeEnv(installPath, deploymentMode, requestedOverlayPath);
     const cliUrls = deriveSelfHostCliUrls(readFileSync(join(installPath, ".env"), "utf-8"));
     try {
       exec("docker network create openmates", installPath);
@@ -1661,6 +1736,8 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       defaultServices: runtimePlan.defaultServices,
       composeFiles: runtimePlan.composeFiles,
       installMode: "image",
+      deploymentMode,
+      openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
       imageTag,
       ...cliUrls,
     });
@@ -1671,6 +1748,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       const firstInvite = getEnvVar(readFileSync(join(installPath, ".env"), "utf-8"), "SELF_HOST_FIRST_INVITE_CODE");
       console.log(`\nOpenMates installed at ${installPath}`);
       console.log(`Mode: image (${DEFAULT_IMAGE_REGISTRY}, tag ${imageTag})`);
+      console.log(`Deployment: ${deploymentMode === "official_cloud" ? "official cloud overlay" : "self-host core"}`);
       console.log("\nNext steps:");
       console.log("  1. Run: openmates server start");
       console.log("  2. Open http://localhost:5173");
@@ -1730,6 +1808,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
 
   // Save config
   const envPath = join(installPath, ".env");
+  const overlay = writeDeploymentModeEnv(installPath, deploymentMode, requestedOverlayPath);
   const cliUrls = deriveSelfHostCliUrls(existsSync(envPath) ? readFileSync(envPath, "utf-8") : "");
   saveServerConfig({
     installPath,
@@ -1740,6 +1819,8 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     defaultServices: runtimePlan.defaultServices,
     composeFiles: runtimePlan.composeFiles,
     installMode: "source",
+    deploymentMode,
+    openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
     ...cliUrls,
   });
 
@@ -1747,6 +1828,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     printJson({ command: "install", status: "success", path: installPath, mode: "source" });
   } else {
     console.log(`\nOpenMates installed at ${installPath}`);
+    console.log(`Deployment: ${deploymentMode === "official_cloud" ? "official cloud overlay" : "self-host core"}`);
     console.log("\nNext steps:");
     console.log("  1. Run: openmates server start");
     console.log("  2. Open http://localhost:5173");
@@ -2849,6 +2931,9 @@ Command Options:
     --image-tag <tag>   Prebuilt image tag (default: CLI version tag)
     --from-source       Clone/build from source instead of using prebuilt GHCR images
     --source-path <dir> Clone from a local checkout instead of GitHub (implies --from-source)
+    --official-cloud    Enable sibling/configured OpenMatesCloud overlay for official servers
+    --deployment-mode <mode>  self-host or official-cloud
+    --openmatescloud-path <dir>  Overlay checkout path (default: sibling OpenMatesCloud)
 
   start:
     --with-overrides    Include admin UIs (Directus CMS, Grafana)
@@ -2923,6 +3008,7 @@ Command Options:
 
 Examples:
   openmates server install
+  openmates server install --from-source --official-cloud --openmatescloud-path ../OpenMatesCloud
   openmates server start --with-overrides
   openmates server logs --container api --follow
   openmates server make-admin user@example.com

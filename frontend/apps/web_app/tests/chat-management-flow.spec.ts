@@ -397,7 +397,7 @@ test('reloads combined chat settings deep link with private chat context', async
 
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${chatId}/tasks`, {
+	await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${chatId}`, {
 		timeout: 15000
 	});
 

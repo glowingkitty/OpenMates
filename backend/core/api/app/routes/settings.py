@@ -2579,7 +2579,7 @@ async def get_server_status(
     try:
         # Import server mode utilities
         from backend.core.api.app.utils.server_mode import (
-            is_payment_enabled,
+            is_cloud_billing_enabled,
             get_server_edition,
             validate_request_domain
         )
@@ -2598,8 +2598,8 @@ async def get_server_status(
         if is_self_hosted:
             payment_enabled = None
         else:
-            # Only check environment-based payment logic if NOT self-hosted
-            payment_enabled = is_payment_enabled()
+            # Only official-cloud overlay runtimes expose cloud payment state.
+            payment_enabled = is_cloud_billing_enabled()
         
         ai_models_configured = await _are_ai_models_configured(request)
         free_testing_credits = None

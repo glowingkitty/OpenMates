@@ -646,8 +646,24 @@
   }
 
   .notebook-code-line code {
+    margin: 0;
     padding-right: var(--spacing-5);
+    border: 0;
+    border-radius: 0;
+    background: transparent !important;
+    color: inherit;
+    font: inherit;
     white-space: pre;
+  }
+
+  .notebook-code-line code:global(.hljs),
+  .notebook-code-line code :global(.hljs) {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .notebook-code-line code :global(span) {
+    background: transparent !important;
   }
 
   .notebook-raw-cell {

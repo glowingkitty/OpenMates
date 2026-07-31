@@ -58,7 +58,7 @@ async function createChatWithSummary(
 async function expectChatSettingsShell(page: any): Promise<any> {
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+(?:\/[a-z]+)?$/, {
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
 		timeout: 10_000
 	});
 	await expect(page.getByTestId('chat-details-settings-panel')).not.toBeVisible({ timeout: 2_000 });
@@ -99,6 +99,7 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 	const settingsSummary = settingsMenu.getByTestId('chat-settings-summary');
 	await expect(settingsSummary).toBeVisible({ timeout: 10_000 });
 	await expect(settingsSummary).not.toContainText(/```json|"embed_id"|\[!\]\(embed:/i);
+	const renderedSummaryText = (await settingsSummary.innerText()).trim();
 	await expect(settingsMenu.getByTestId('chat-settings-tabs')).toBeVisible({ timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-share-community')).toBeVisible({ timeout: 10_000 });
@@ -109,18 +110,20 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 	for (const tab of CHAT_SETTINGS_TABS) {
 		await settingsMenu.getByTestId(`chat-settings-tab-${tab}`).click();
 		const tabPanel = settingsMenu.getByTestId(`chat-settings-tabpanel-${tab}`);
+		await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/);
+		await expect(settingsSummary).toHaveText(renderedSummaryText);
 		await expect(settingsMenu.getByTestId(`chat-settings-tabpanel-${tab}`)).toBeVisible({
 			timeout: 10_000
 		});
 		await expect(settingsMenu.getByTestId(`chat-settings-tab-${tab}`)).toHaveAttribute('aria-selected', 'true');
 		if (tab === 'files') {
 			await expect(tabPanel.getByText('No downloadable files found for this chat yet.')).toBeVisible({ timeout: 10_000 });
-			await expect(tabPanel.getByRole('button', { name: 'Download files' })).toBeDisabled();
+			await expect(tabPanel.getByTestId('chat-settings-download-files')).toHaveAttribute('aria-disabled', 'true');
 		}
 		if (tab === 'usage') {
-			await expect(tabPanel.getByTestId('chat-settings-usage-total')).toContainText(/\d+ credits/i, { timeout: 10_000 });
-			await expect(tabPanel.getByRole('button', { name: 'Download usage data' })).toBeVisible();
-			await expect(tabPanel.getByRole('button', { name: 'YAML' })).toBeVisible();
+			await expect(tabPanel.getByTestId('chat-settings-usage-total')).toContainText(/\d+\s*credits/i, { timeout: 10_000 });
+			await expect(tabPanel.getByTestId('chat-settings-download-usage')).toBeVisible();
+			await expect(tabPanel.getByTestId('chat-settings-download-usage')).toContainText('CSV & YAML');
 		}
 		if (tab === 'tasks') {
 			await expect(tabPanel).not.toContainText(/Research Whisper usecases|Implement Whisper code|Debug code/i);

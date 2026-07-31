@@ -144,7 +144,7 @@ test.describe('Workflows input home', () => {
 			const draft = (await draftData.json()).workflow;
 			createdWorkflowIds.add(draft.id);
 			await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
-			await expect(page).toHaveURL(new RegExp(`/workflows/${draft.id}(?:[?#]|$)`));
+			await expect(page).toHaveURL(new RegExp(`/workflows#workflow-id=${draft.id}&workflow-tab=details$`));
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily school weather');
 			expect(draft.title).toBe('Daily school weather');
 			expect(draft.enabled).toBe(false);

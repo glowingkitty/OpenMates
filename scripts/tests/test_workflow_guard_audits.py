@@ -1,9 +1,9 @@
 """Tests for OpenCode workflow guardrail audits.
 
-Purpose: keep Apple release preflight and UI control visibility checks
-deterministic, path-scoped, and importable from `code_quality_guard.py`.
-Security: tests use in-memory examples only and do not access credentials.
-Run: python3 -m pytest scripts/tests/test_workflow_guard_audits.py.
+Purpose: keep Apple release preflight, UI control visibility, and Figma visual
+evidence checks deterministic, path-scoped, and importable from
+`code_quality_guard.py`. Security: tests use in-memory examples only and do not
+access credentials. Run: python3 -m pytest scripts/tests/test_workflow_guard_audits.py.
 """
 
 from __future__ import annotations
@@ -149,5 +149,57 @@ def test_ui_control_visibility_accepts_test_evidence_path() -> None:
         [ROOT / "apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"],
         evidence_paths=[ROOT / "apple/OpenMatesUITests/MessageInputAttachmentUITests.swift"],
     )
+
+    assert issues == []
+
+
+def test_figma_visual_evidence_warns_for_figma_claimed_ui_without_artifacts() -> None:
+    audit = load_module("audit_figma_visual_evidence", ROOT / "scripts/audit_figma_visual_evidence.py")
+
+    issues = audit.audit_paths(
+        [ROOT / "frontend/packages/ui/src/components/tasks/TaskBoard.svelte"],
+        added_lines=[("docs/specs/tasks/spec.yml", 10, "The UI should match the Figma task board.")],
+        evidence_paths=[],
+    )
+
+    assert len(issues) == 1
+    assert issues[0].blocking is False
+    assert "reference PNGs" in issues[0].message
+
+
+def test_figma_visual_evidence_ignores_unclaimed_ui_change() -> None:
+    audit = load_module("audit_figma_visual_evidence", ROOT / "scripts/audit_figma_visual_evidence.py")
+
+    issues = audit.audit_paths(
+        [ROOT / "frontend/packages/ui/src/components/tasks/TaskBoard.svelte"],
+        added_lines=[("frontend/packages/ui/src/components/tasks/TaskBoard.svelte", 10, "<div data-testid=\"task-board\">")],
+        evidence_paths=[],
+    )
+
+    assert issues == []
+
+
+def test_figma_visual_evidence_accepts_spec_artifact_review(tmp_path) -> None:
+    audit = load_module("audit_figma_visual_evidence", ROOT / "scripts/audit_figma_visual_evidence.py")
+    original_root = audit.REPO_ROOT
+    audit.REPO_ROOT = tmp_path
+    try:
+        ui_path = tmp_path / "frontend/packages/ui/src/components/tasks/TaskBoard.svelte"
+        spec_path = tmp_path / "docs/specs/tasks/spec.yml"
+        ui_path.parent.mkdir(parents=True)
+        spec_path.parent.mkdir(parents=True)
+        ui_path.write_text("<div data-testid=\"task-board\"></div>\n", encoding="utf-8")
+        spec_path.write_text(
+            "verifications:\n  - id: V-FIGMA-ARTIFACT-REVIEW\n    kind: artifact_review\n    evidence: reference PNG and rendered screenshot\n",
+            encoding="utf-8",
+        )
+
+        issues = audit.audit_paths(
+            [ui_path, spec_path],
+            added_lines=[("docs/specs/tasks/spec.yml", 10, "The UI should match the Figma task board.")],
+            evidence_paths=[spec_path],
+        )
+    finally:
+        audit.REPO_ROOT = original_root
 
     assert issues == []

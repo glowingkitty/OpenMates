@@ -206,11 +206,11 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 
 	const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
 	await page.getByTestId('chat-share-button').click();
-	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+\/share$/, {
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
 		timeout: 10000
 	});
 	await expect(page.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });
-	await page.getByRole('button', { name: /download chat zip/i }).click();
+	await page.getByTestId('chat-settings-share-download-zip').click();
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/\.zip$/);
 	const metadata = await readZipMetadata(download, testInfo.outputPath('long-chat-history.zip'));

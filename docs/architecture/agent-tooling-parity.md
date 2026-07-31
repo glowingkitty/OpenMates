@@ -16,6 +16,7 @@ OpenMates supports Claude Code, Codex, and OpenCode from the same repository. Cl
 - `.opencode/agents/`: OpenCode Markdown mirror generated from `.claude/agents/`.
 - `.codex/hooks.json` and `.codex/hooks/claude-hook-bridge.sh`: Codex lifecycle bridge to `.claude/hooks/`.
 - `.opencode/agents/` pins generated subagents to `openai/gpt-5.5`; OpenCode does not load the Claude Code provider.
+- `docs/architecture/agent-tooling-parity.yml`: tracked shared-hook inventory for Claude Code, Codex, and OpenCode parity checks.
 
 ## Sync Workflow
 
@@ -33,9 +34,17 @@ python3 scripts/sync_agent_parity.py --check
 
 The check verifies skill mirrors, Codex and OpenCode agent mirrors, copied Codex hook scripts, and Codex hook adapter references.
 
+Also run the tracked hook/config parity audit when changing agent tooling:
+
+```bash
+python3 scripts/audit_agent_tooling_parity.py
+```
+
 ## Hook Strategy
 
 Hook scripts are not reimplemented per tool. Codex translates its native lifecycle payloads into the Claude hook payload shape and invokes the same shell scripts. This keeps policy behavior consistent and avoids drift between tools.
+
+The shared hook baseline is listed in `docs/architecture/agent-tooling-parity.yml`. Tool-specific exceptions must include a reason there; otherwise the parity audit treats missing coverage as drift.
 
 Some lifecycle events are tool-specific. Codex supports `UserPromptSubmit` directly, so the bridge runs prompt context hooks there. OpenCode uses its native plugin runtime and GPT subagent model, with a thin wrapper that invokes the shared `.codex/hooks/claude-hook-bridge.sh` only for deterministic shell hook compatibility.
 

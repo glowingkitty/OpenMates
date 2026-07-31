@@ -68,7 +68,7 @@
     if (!importedWorkflow) throw new Error('Import the workflow before enabling it.');
     const enabledWorkflow = await workflowWorkspaceStore.setWorkflowEnabled(importedWorkflow.id, true);
     workflowWorkspaceStore.upsertWorkflow(enabledWorkflow);
-    await goto(`/workflows/${encodeURIComponent(importedWorkflow.id)}`);
+    await goto(`/workflows#workflow-id=${encodeURIComponent(importedWorkflow.id)}&workflow-tab=details`);
   }
 </script>
 

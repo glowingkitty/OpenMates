@@ -7,9 +7,13 @@
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
 
+import { dirname, join, resolve } from "node:path";
+
 export type ServerRole = "core" | "upload" | "preview";
 export type CoreProfile = "minimal" | "standard" | "production";
 export type CaddyAction = "check" | "status" | "diff" | "apply";
+export type ServerDeploymentMode = "self_host" | "official_cloud";
+export type ServerInstallMode = "image" | "source";
 
 export type ServiceFilter = {
   services?: string | string[];
@@ -34,6 +38,35 @@ export type RuntimePlan = {
   profileServices: string[];
   defaultServices: string[];
   healthChecks: string[];
+};
+
+export type OpenMatesCloudOverlayPlan = {
+  deploymentMode: ServerDeploymentMode;
+  enabled: boolean;
+  overlayPath: string | null;
+  composeFiles: string[];
+  env: Record<string, string>;
+  modeLabel: string;
+};
+
+export type OpenMatesCloudOverlayInput = {
+  deploymentMode?: ServerDeploymentMode;
+  openMatesPath: string;
+  overlayPath?: string;
+  overlayComposeFile?: string;
+  overlayExists?: boolean;
+};
+
+export type DockerComposeArgsInput = {
+  openMatesPath: string;
+  installMode: ServerInstallMode;
+  role?: ServerRole | string;
+  withOverrides?: boolean;
+  overrideExists?: boolean;
+  deploymentMode?: ServerDeploymentMode;
+  overlayPath?: string;
+  overlayComposeFile?: string;
+  overlayExists?: boolean;
 };
 
 export type UpdatePlan = {
@@ -126,6 +159,14 @@ const CORE_WORKER_SERVICES = [
   "app-code-worker",
   "app-social-media-worker",
 ];
+const OPENMATESCLOUD_OVERLAY_DIR = "OpenMatesCloud";
+const OPENMATESCLOUD_COMPOSE_FILE = "docker-compose.openmatescloud.yml";
+const SOURCE_COMPOSE_FILES: Record<ServerRole, string> = {
+  core: "backend/core/docker-compose.yml",
+  upload: "backend/upload/docker-compose.yml",
+  preview: "backend/preview/docker-compose.preview.yml",
+};
+const COMPOSE_OVERRIDE = "backend/core/docker-compose.override.yml";
 
 const CORE_OBSERVABILITY_BY_PROFILE: Record<CoreProfile, string[]> = {
   minimal: [],
@@ -287,6 +328,77 @@ export function parseServerRole(value: string | undefined): ServerRole {
   if (!value) return "core";
   if (value === "core" || value === "upload" || value === "preview") return value;
   throw new Error(`Unsupported server role '${value}'. Use core, upload, or preview.`);
+}
+
+export function defaultOpenMatesCloudOverlayPath(openMatesPath: string): string {
+  return resolve(join(dirname(resolve(openMatesPath)), OPENMATESCLOUD_OVERLAY_DIR));
+}
+
+export function defaultOpenMatesCloudComposeFile(overlayPath: string): string {
+  return resolve(join(overlayPath, OPENMATESCLOUD_COMPOSE_FILE));
+}
+
+export function planOpenMatesCloudOverlay(input: OpenMatesCloudOverlayInput): OpenMatesCloudOverlayPlan {
+  const deploymentMode = input.deploymentMode ?? "self_host";
+
+  if (deploymentMode === "self_host") {
+    return {
+      deploymentMode,
+      enabled: false,
+      overlayPath: null,
+      composeFiles: [],
+      env: { OPENMATES_CLOUD_OVERLAY_ENABLED: "false" },
+      modeLabel: "self-host core",
+    };
+  }
+
+  const openMatesPath = resolve(input.openMatesPath);
+  const overlayPath = resolve(input.overlayPath ?? defaultOpenMatesCloudOverlayPath(openMatesPath));
+  if (input.overlayExists !== true) {
+    throw new Error(`OpenMatesCloud overlay path is required for official-cloud mode: ${overlayPath}`);
+  }
+
+  const overlayComposeFile = resolve(input.overlayComposeFile ?? defaultOpenMatesCloudComposeFile(overlayPath));
+  return {
+    deploymentMode,
+    enabled: true,
+    overlayPath,
+    composeFiles: [overlayComposeFile],
+    env: {
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "true",
+      OPENMATES_CLOUD_OVERLAY_PATH: overlayPath,
+    },
+    modeLabel: "official cloud overlay",
+  };
+}
+
+export function appendOpenMatesCloudComposeFiles(args: string[], plan: OpenMatesCloudOverlayPlan): string[] {
+  if (!plan.enabled) return args;
+  return [...args, ...plan.composeFiles.flatMap((composeFile) => ["-f", composeFile])];
+}
+
+export function planDockerComposeArgs(input: DockerComposeArgsInput): string[] {
+  const role = parseServerRole(input.role);
+  if (input.deploymentMode === "official_cloud" && role !== "core") {
+    throw new Error("OpenMatesCloud overlay mode is only supported for the core server role.");
+  }
+
+  const composeFile = input.installMode === "image"
+    ? ROLE_DEFINITIONS[role].composeFile
+    : SOURCE_COMPOSE_FILES[role];
+  const args = ["compose", "--env-file", ".env", "-f", composeFile];
+  if (input.withOverrides === true && input.overrideExists === true) {
+    args.push("-f", COMPOSE_OVERRIDE);
+  }
+
+  const overlayPlan = planOpenMatesCloudOverlay({
+    deploymentMode: input.deploymentMode,
+    openMatesPath: input.openMatesPath,
+    overlayPath: input.overlayPath,
+    overlayComposeFile: input.overlayComposeFile,
+    overlayExists: input.overlayExists,
+  });
+  return appendOpenMatesCloudComposeFiles(args, overlayPlan);
 }
 
 export function planServerRuntime(input: { role?: ServerRole | string; profile?: CoreProfile; withAlerts?: boolean }): RuntimePlan {

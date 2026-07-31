@@ -1,7 +1,7 @@
 schema_version: 2
 id: chat-settings-redesign
 title: Chat Settings Redesign
-status: draft
+status: implementing
 
 goal: >
   Replace the accidentally exposed standalone chat details overlay and old chat
@@ -59,6 +59,7 @@ context_discovery:
     - "chat_files cached text includes Download files, Dev Server /projects/OpenMates/, 5 files 2.32MB, Whisper, code rows with line counts/language, and image rows with dimensions/AI-generated metadata."
     - "chat_usage cached text includes Download usage data, CSV & YAML, provider rows via Google and via Brave, AI | Ask, Web | Search, timestamps, words, attachment-like row, and credit counts."
     - "chat_share cached text includes Share with community, Password protection, Auto expire, Share chat, Download chat, Share Link created Auto expire in 10 minutes, Show QR code, Hide QR code, Copy to clipboard, Show URL, Hide URL, Stop sharing, and sample short URL omts.io/#98d2f-9cnv."
+    - "2026-07-31 direct Figma MCP inspection succeeded for Share node 5078:32342, Usage node 4973:62837, and Files node 4947:43695. Local evidence PNGs were saved under test-results/figma/chat-settings/."
     - "docs/specs/tasks-v1/spec.yml contains older overlapping chat settings notes and still references ChatDetailsSettingsPage; this dedicated chat-settings-redesign spec supersedes that implementation detail for the current work."
   code_patterns:
     - frontend/packages/ui/src/components/ActiveChat.svelte currently gates chat settings behind CHAT_DETAILS_SETTINGS_ENABLED=false; dev partially re-opened only the Share tab.
@@ -77,6 +78,9 @@ context_discovery:
     - frontend/apps/web_app/tests/application-preview-share.spec.ts
     - frontend/apps/web_app/tests/chat-management-flow.spec.ts
     - frontend/packages/ui/src/services/encryption/__tests__/shareEncryption.test.ts
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
 
 apple_impact:
   affected_files:
@@ -114,6 +118,12 @@ clarification:
       answer: >
         Use local-first chat settings with no new backend APIs. Reuse existing
         task and share APIs only where existing behavior already needs them.
+    - question: Should the remaining web UI gaps be implemented under this spec?
+      answer: >
+        Yes. On 2026-07-31 the user asked OpenCode to create and implement a
+        spec-backed fix for remaining Figma gaps: rounded header edges, settings
+        UI rows with left icons/toggles, billing usage row consistency, and
+        smooth tab transitions where the chat summary does not reload.
   vision_summary: >
     Chat settings should be a deep-linked settings page, not a separate overlay
     or normal settings navigation item. The page uses a chat hero header,
@@ -124,7 +134,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 04d243307
+  subject_commit: d77786a20
 
 approvals:
   product_contract:
@@ -152,6 +162,11 @@ decisions:
     decision: Files tab lists only downloadable embed/file items, not every referenced embed.
     reason: User confirmed the tab should only show downloadable items.
     decided_at: "2026-07-18"
+  - id: D-4
+    status: active
+    decision: Finish chat settings parity by reusing canonical SettingsItem rows and keeping the chat route stable while switching tabs.
+    reason: User explicitly asked to fix the remaining Figma gaps, including rounded header edges, settings UI rows with left icons/toggles, billing usage row consistency, and no summary reload on tab switches.
+    decided_at: "2026-07-31"
 
 attempts:
   - id: ATTEMPT-1
@@ -196,19 +211,56 @@ attempts:
       not complete within 60 seconds. Local HEAD then moved to unrelated
       unpushed commit 4a6b04db, blocking further expected-commit reruns without
       risking another session's commit.
+  - id: ATTEMPT-6
+    task_id: TASK-11
+    approach: Resume the existing chat-settings-redesign spec for the remaining Figma parity gaps after direct Figma MCP inspection succeeded for Share, Usage, and Files nodes.
+    outcome: planned
+    recorded_at: "2026-07-31"
+    evidence: spec_update_pending
+    notes: The resumed slice is browser-only settings UI; it changes no backend API, CLI, SDK, schema, or Apple code.
+  - id: ATTEMPT-7
+    task_id: TASK-11
+    approach: >
+      Implement stable base chat-settings routing for tab switches, align Files,
+      Usage, Share, and billing usage rows to the richer SettingsItem pattern,
+      preserve revealed share URL data attributes, and update affected E2E
+      assertions for the no-remount tab contract.
+    outcome: blocked
+    recorded_at: "2026-07-31T13:23:07Z"
+    evidence: local_checks_partial
+    notes: >
+      Passed: git diff --check; python3 scripts/spec_validate.py
+      docs/specs/chat-settings-redesign/spec.yml; touched Svelte/TS/design-token
+      checks inside bash scripts/lint_changed.sh. Blocked: full
+      bash scripts/lint_changed.sh still fails on unrelated dirty files
+      backend/core/api/main.py and scripts/tests/test_eks_calculator.py, and
+      Playwright green evidence still requires scoped dev deploy first.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Get permission to commit/push the spec-plus-test-only changes so GitHub Actions can see the new red Playwright specs, then rerun the TASK-3 red commands.
+  current_task_id: TASK-11
+  next_action: Deploy the scoped chat-settings frontend/test changes to dev, then run the three required Playwright specs against app.dev.openmates.org.
   command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts
-  expected_outcome: chat-settings-flow.spec.ts executes against current deployed dev and fails on missing Settings / Chats route rather than dispatching with "No tests found".
+  expected_outcome: The chat settings parity spec passes after dev deploy, followed by example-chat-settings-usage.spec.ts and usage-token-breakdown.spec.ts.
   blocker:
-    task_id: TASK-3
+    kind: unsafe_scoped_deploy
+    task_id: TASK-11
     requires_user_input: true
-    reason: Playwright specs run in GitHub Actions from committed SHA, and the new local test file is not available there until committed/pushed.
-    question: May I commit and push the spec/test-only changes to dev so the red Playwright run can execute?
-    next_action: If approved, run the repo deploy flow for the spec/test changes, then rerun chat-settings-flow.spec.ts and share-chat-flow.spec.ts red checks.
-  last_verified_commit: 7d22c5706
+    reason: >
+      The remaining Playwright verification requires a dev deploy, but this root
+      checkout has broad unrelated dirty work and unrelated Python lint failures
+      in backend/core/api/main.py and scripts/tests/test_eks_calculator.py. This
+      chat-settings edit is not attached to a clean sessions.py worktree/session,
+      so an unscoped deploy could commit unrelated changes.
+    question: >
+      Should OpenCode create or use a scoped deployment session for only the
+      chat-settings files listed in TASK-11, or wait until the unrelated dirty
+      work is cleared?
+    next_action: >
+      After deployment direction is confirmed, run prepare-deploy for the scoped
+      file set, deploy to dev, wait for Vercel Ready, then run
+      chat-settings-flow.spec.ts, example-chat-settings-usage.spec.ts, and
+      usage-token-breakdown.spec.ts.
+  last_verified_commit: d77786a20
 
 scenarios:
   - id: S-1
@@ -293,6 +345,18 @@ scenarios:
       - The existing embed share UI and behavior remain unchanged.
       - Chat settings Share tab is not used for embed sharing in this slice.
 
+  - id: S-8
+    title: Remaining Figma parity gaps are fixed without remounting the summary
+    given:
+      - Alice opens the chat settings page for a chat with a title, summary, files, usage, and share controls.
+    when:
+      - Alice switches between Share, Usage, and Files tabs.
+    then:
+      - The Settings / Chats header uses the same rounded-edge banner treatment as app settings headers.
+      - The chat summary remains mounted and visually stable while only the selected tab panel changes.
+      - Share toggle rows, Files rows, Usage rows, and matching billing usage rows use settings UI row elements with left icons and canonical right-side affordances.
+      - The tab bar continues to animate smoothly with no page-level slide transition between chat settings tabs.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -350,6 +414,38 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-E2E-EMBED-SHARE]
+  - id: AC-8
+    scenario: S-8
+    text: Chat settings tab clicks keep the active Settings view mounted for the same chat and update only the selected tab panel; the summary must not reload or disappear during tab switches.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-E2E-CHAT-SETTINGS-PARITY, T-E2E-EXAMPLE-CHAT-USAGE-PARITY]
+  - id: AC-9
+    scenario: S-8
+    text: ChatSettingsHeader uses the same rounded banner edge treatment as AppDetailsHeader instead of a chat-only bottom-only radius.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-E2E-CHAT-SETTINGS-PARITY, V-USER-VISUAL]
+  - id: AC-10
+    scenario: S-8
+    text: Share toggle rows, Files entries, Usage entries, and download/action rows are rendered with canonical settings row elements, including left icons and canonical toggle/credit/download affordances instead of custom row CSS.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-E2E-CHAT-SETTINGS-PARITY, T-E2E-EXAMPLE-CHAT-USAGE-PARITY, V-SETTINGS-UI-REVIEW]
+  - id: AC-11
+    scenario: S-8
+    text: Billing usage entries and chat settings usage entries use the same SettingsItem row pattern for usage rows with left icons and right credits display.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-E2E-BILLING-USAGE-PARITY, V-SETTINGS-UI-REVIEW]
 
 contracts:
   ui:
@@ -378,6 +474,12 @@ contracts:
         - Does not route embed share contexts into the new chat settings Share tab.
         - Initial state includes Share with community, Password protection, Auto expire, Share chat, and Download chat controls.
         - Generated state includes auto-expire status, Download chat, QR toggle, copy action, URL toggle, and Stop sharing.
+    - name: ChatSettingsVisualParitySlice
+      requirements:
+        - ChatSettingsHeader and AppDetailsHeader share the same rounded banner edge behavior so Settings / Chats does not look visually detached from app settings headers.
+        - Chat settings tab changes must not navigate through settingsDeepLink or otherwise remount the entire chat settings page for the same chat; only tab panel content changes.
+        - Share, Files, Usage, and Billing usage rows use the canonical SettingsItem row pattern with left icons, subtitles, toggles, right-side credits, and action affordances instead of local custom row shells.
+        - Custom row CSS in ChatSettingsPage and ChatSettingsShareSection is removed unless it styles non-row content such as QR images or URL/code display that has no canonical settings primitive.
   api:
     - No new backend API routes.
     - Existing short-link and share metadata endpoints may be reused by the chat Share tab.
@@ -653,6 +755,82 @@ tests:
         flaky: false
         notes: Passed with the deployment gate, proving the existing embed share flow still opens embed sharing and generates an embed share link on the current chat-settings subject commit.
 
+  - id: T-E2E-CHAT-SETTINGS-PARITY
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-8, AC-9, AC-10]
+    assertions:
+      - header has the same top-rounded banner shape as app settings headers.
+      - tab clicks keep data-active-view stable for the same chat while aria-selected moves between tabs.
+      - chat summary text remains visible and unchanged while switching tabs.
+      - Files, Usage, and Share panels expose SettingsItem menu rows with left icons instead of custom article row shells.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: pending
+        timestamp: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: pending
+        timestamp: pending
+
+  - id: T-E2E-EXAMPLE-CHAT-USAGE-PARITY
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    command: python3 scripts/tests.py run --spec example-chat-settings-usage.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-8, AC-10]
+    assertions:
+      - guest example chat usage tab can be selected without remounting the chat settings summary.
+      - static usage rows render with SettingsItem rows and right-side credit text.
+      - example chat settings remains limited to Share and Usage tabs.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: pending
+        timestamp: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: pending
+        timestamp: pending
+
+  - id: T-E2E-BILLING-USAGE-PARITY
+    type: playwright
+    file: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-11]
+    assertions:
+      - billing usage list entries continue to render with SettingsItem rows.
+      - row credits use the shared right-side credits display with a coins icon.
+      - token breakdown behavior remains unchanged.
+    red_phase:
+      required: false
+      expected: existing_contract
+      evidence:
+        status: not_applicable
+        timestamp: "2026-07-31"
+        reason: Existing billing usage behavior remains functionally unchanged; this slice aligns row styling and relies on green regression evidence.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: pending
+        timestamp: pending
+
 verifications:
   - id: V-USER-VISUAL
     kind: user_confirmation
@@ -665,6 +843,17 @@ verifications:
       summary: ""
       timestamp: ""
       prompt: User confirms deployed dev chat settings visually match the Figma intent and no separate overlay remains.
+  - id: V-SETTINGS-UI-REVIEW
+    kind: ai_evaluation
+    phase: green
+    required_for_done: true
+    covers: [AC-10, AC-11]
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+      prompt: Run settings-ui-consistency-checker or equivalent deterministic review for chat settings and billing usage row surfaces.
 
 implementation_plan:
   spec_path: docs/specs/chat-settings-redesign/spec.yml
@@ -858,6 +1047,14 @@ implementation_plan:
       verification: [T-E2E-CHAT-SHARE, T-UNIT-SHARE]
     - ac: AC-7
       verification: [T-E2E-EMBED-SHARE]
+    - ac: AC-8
+      verification: [T-E2E-CHAT-SETTINGS-PARITY, T-E2E-EXAMPLE-CHAT-USAGE-PARITY]
+    - ac: AC-9
+      verification: [T-E2E-CHAT-SETTINGS-PARITY, V-USER-VISUAL]
+    - ac: AC-10
+      verification: [T-E2E-CHAT-SETTINGS-PARITY, T-E2E-EXAMPLE-CHAT-USAGE-PARITY, V-SETTINGS-UI-REVIEW]
+    - ac: AC-11
+      verification: [T-E2E-BILLING-USAGE-PARITY, V-SETTINGS-UI-REVIEW]
   assumptions_to_check:
     - assumption: A-1
       timing: Before final spacing polish, not before the first implementation slice.
@@ -896,6 +1093,10 @@ implementation_plan:
       name: Deploy and confirm
       work: Deploy, run green Playwright suite, record evidence, and request user visual confirmation.
       covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    - id: PHASE-6
+      name: Remaining Figma parity fix
+      work: Stabilize tab switching, round the chat header like app settings, replace custom chat rows with SettingsItem rows, align billing usage rows, deploy, and collect visual confirmation.
+      covers: [AC-8, AC-9, AC-10, AC-11]
 
 tasks:
   - id: TASK-1
@@ -1162,6 +1363,61 @@ tasks:
     blockers: []
     follow_up_tasks: []
     independently_deployable: false
+  - id: TASK-11
+    title: Fix remaining Figma parity gaps in chat settings web UI
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-8, AC-9, AC-10, AC-11]
+    expected_files:
+      - docs/specs/chat-settings-redesign/spec.yml
+      - frontend/packages/ui/src/components/Settings.svelte
+      - frontend/packages/ui/src/components/SettingsItem.svelte
+      - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+      - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+      - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+      - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+      - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+      - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+      - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+      - frontend/apps/web_app/tests/example-chats-load.spec.ts
+      - frontend/apps/web_app/tests/long-chat-history.spec.ts
+      - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+      - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+      - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+      - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+      - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/SettingsItem.svelte
+        - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+        - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+        - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+        - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+        - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+        - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+        - frontend/apps/web_app/tests/example-chats-load.spec.ts
+        - frontend/apps/web_app/tests/long-chat-history.spec.ts
+        - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+        - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+        - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+        - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/components/Settings.svelte
+        - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+        - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+        - docs/specs/chat-settings-redesign/spec.yml
+    verification_ids: [T-E2E-CHAT-SETTINGS-PARITY, T-E2E-EXAMPLE-CHAT-USAGE-PARITY, T-E2E-BILLING-USAGE-PARITY, V-SETTINGS-UI-REVIEW, V-USER-VISUAL]
+    verification:
+      - python3 scripts/spec_validate.py docs/specs/chat-settings-redesign/spec.yml
+      - python3 scripts/tests.py run --spec chat-settings-flow.spec.ts
+      - python3 scripts/tests.py run --spec example-chat-settings-usage.spec.ts
+      - python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts
+    dependencies: [TASK-7, TASK-8]
+    blockers: []
+    follow_up_tasks: [TASK-9, TASK-10]
+    independently_deployable: true
 
 risks:
   - id: R-1

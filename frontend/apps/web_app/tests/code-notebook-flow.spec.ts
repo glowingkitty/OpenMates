@@ -16,6 +16,32 @@ const NOTEBOOK_EXAMPLE_CHAT_ID = 'example-open-meteo-weather-notebook';
 const NOTEBOOK_RUN_ENDPOINT = '**/v1/code/notebooks/run';
 const SIDECAR_OUTPUT_TEXT = 'sidecar output smoke';
 
+async function expectNotebookCodeBackgroundsClean(locator: any, label: string) {
+	const darkNodes = await locator.evaluateAll((nodes: HTMLElement[]) => {
+		function isDarkBackground(backgroundColor: string): boolean {
+			const match = backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+			if (!match) return false;
+			const [, red, green, blue, alpha = '1'] = match;
+			if (Number(alpha) === 0) return false;
+			return Number(red) < 24 && Number(green) < 24 && Number(blue) < 24;
+		}
+
+		return nodes.flatMap((node) => {
+			const targets = [node, ...Array.from(node.querySelectorAll<HTMLElement>('code, span'))];
+			return targets
+				.map((target) => ({
+					tag: target.tagName.toLowerCase(),
+					className: target.className || '',
+					backgroundColor: window.getComputedStyle(target).backgroundColor,
+					text: target.textContent?.replace(/\s+/g, ' ').trim().slice(0, 80) || ''
+				}))
+				.filter((target) => isDarkBackground(target.backgroundColor));
+		});
+	});
+
+	expect(darkNodes, label).toEqual([]);
+}
+
 test.describe('Code notebook flow', () => {
 	test('public notebook example renders cells, merges sidecar outputs, and blocks anonymous execution', async ({
 		page
@@ -52,6 +78,10 @@ test.describe('Code notebook flow', () => {
 		}).toBeGreaterThanOrEqual(2);
 		await expect(notebookPreview).toContainText(/Berlin 7-Day Weather Analysis|import requests/i);
 		await expect(notebookPreview.getByTestId('notebook-run-all-button')).toHaveCount(0);
+		await expectNotebookCodeBackgroundsClean(
+			notebookPreview.locator('.notebook-code-preview code'),
+			'notebook preview source lines should not inherit dark code backgrounds'
+		);
 
 		const previewText = await notebookPreview.evaluate((node: HTMLElement) => node.innerText || '');
 		expect(previewText).not.toMatch(/"cells"\s*:/);
@@ -74,6 +104,10 @@ test.describe('Code notebook flow', () => {
 
 		const sourceLines = fullscreenOverlay.getByTestId('notebook-code-lines').first();
 		await expect(sourceLines).toBeVisible({ timeout: 10_000 });
+		await expectNotebookCodeBackgroundsClean(
+			fullscreenOverlay.locator('.notebook-code-line code'),
+			'notebook fullscreen source tokens should not paint black backgrounds'
+		);
 		const sourceBeforeSidecar = await sourceLines.innerText();
 		expect(sourceBeforeSidecar).toContain('import requests');
 

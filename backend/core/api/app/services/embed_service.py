@@ -51,6 +51,8 @@ APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
     ".css",
     ".html",
 )
+NOTEBOOK_PYTHON_LANGUAGES = {"py", "python", "python3"}
+NOTEBOOK_FENCE_LANGUAGES = {"ipynb", "notebook", "jupyter", "jupyter-notebook"}
 
 EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "_api_key_hash",
@@ -854,19 +856,109 @@ class EmbedService:
             return None
 
     @staticmethod
-    def _is_notebook_artifact(language: Optional[str], filename: Optional[str]) -> bool:
+    def _safe_notebook_filename(filename: Optional[str]) -> str:
+        safe_filename = (filename or "notebook.ipynb").replace("\\", "/").split("/")[-1] or "notebook.ipynb"
+        lower_filename = safe_filename.lower()
+        if lower_filename.endswith(".ipynb"):
+            return safe_filename
+        if lower_filename.endswith(".py"):
+            return f"{safe_filename[:-3]}.ipynb"
+        return f"{safe_filename}.ipynb"
+
+    @staticmethod
+    def _is_python_language(language: Optional[str]) -> bool:
+        return (language or "").strip().lower() in NOTEBOOK_PYTHON_LANGUAGES
+
+    @staticmethod
+    def _is_python_percent_cell_notebook_source(language: Optional[str], raw_content: Optional[str]) -> bool:
+        if not EmbedService._is_python_language(language) or not raw_content:
+            return False
+        cell_markers = [
+            line for line in raw_content.splitlines()
+            if re.match(r"^#\s*%%(?:\s|\[|$)", line.strip())
+        ]
+        return len(cell_markers) >= 2
+
+    @staticmethod
+    def _python_percent_cell_source_to_notebook(raw_content: str) -> Dict[str, Any]:
+        def append_cell(cells: List[Dict[str, Any]], cell_type: str, source_lines: List[str]) -> None:
+            if not any(line.strip() for line in source_lines):
+                return
+            if cell_type == "markdown":
+                normalized_lines = []
+                for line in source_lines:
+                    stripped = line.lstrip()
+                    if stripped.startswith("# "):
+                        normalized_lines.append(stripped[2:])
+                    elif stripped == "#":
+                        normalized_lines.append("")
+                    elif stripped.startswith("#"):
+                        normalized_lines.append(stripped[1:].lstrip())
+                    else:
+                        normalized_lines.append(line)
+                cells.append({
+                    "cell_type": "markdown",
+                    "metadata": {},
+                    "source": "\n".join(normalized_lines).strip("\n"),
+                })
+                return
+
+            cells.append({
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": "\n".join(source_lines).strip("\n"),
+            })
+
+        cells: List[Dict[str, Any]] = []
+        current_cell_type = "code"
+        current_lines: List[str] = []
+        seen_marker = False
+        for line in raw_content.splitlines():
+            if re.match(r"^#\s*%%(?:\s|\[|$)", line.strip()):
+                append_cell(cells, current_cell_type, current_lines)
+                seen_marker = True
+                current_cell_type = "markdown" if "markdown" in line.lower() else "code"
+                current_lines = []
+                continue
+            current_lines.append(line)
+
+        append_cell(cells, current_cell_type, current_lines)
+        if not seen_marker:
+            cells = []
+
+        return {
+            "nbformat": 4,
+            "nbformat_minor": 5,
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3",
+                },
+                "language_info": {"name": "python"},
+            },
+            "cells": cells,
+        }
+
+    @staticmethod
+    def _is_notebook_artifact(
+        language: Optional[str],
+        filename: Optional[str],
+        raw_content: Optional[str] = None,
+    ) -> bool:
         language_value = (language or "").strip().lower()
         filename_value = (filename or "").strip().lower()
         return (
             filename_value.endswith(".ipynb")
-            or language_value in {"ipynb", "notebook", "jupyter", "jupyter-notebook"}
+            or language_value in NOTEBOOK_FENCE_LANGUAGES
+            or EmbedService._is_python_percent_cell_notebook_source(language, raw_content)
         )
 
     @staticmethod
     def _normalize_notebook_payload(raw_content: str, filename: Optional[str]) -> Dict[str, Any]:
-        safe_filename = (filename or "notebook.ipynb").replace("\\", "/").split("/")[-1] or "notebook.ipynb"
-        if not safe_filename.endswith(".ipynb"):
-            safe_filename = f"{safe_filename}.ipynb"
+        safe_filename = EmbedService._safe_notebook_filename(filename)
 
         notebook: Optional[Dict[str, Any]] = None
         try:
@@ -875,6 +967,9 @@ class EmbedService:
                 notebook = parsed
         except Exception:
             notebook = None
+
+        if notebook is None and EmbedService._is_python_percent_cell_notebook_source("python", raw_content):
+            notebook = EmbedService._python_percent_cell_source_to_notebook(raw_content)
 
         metadata = notebook.get("metadata") if isinstance(notebook, dict) and isinstance(notebook.get("metadata"), dict) else {}
         kernelspec = metadata.get("kernelspec") if isinstance(metadata.get("kernelspec"), dict) else {}
@@ -911,9 +1006,7 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
             embed_id = str(uuid.uuid4())
-            safe_filename = (filename or "notebook.ipynb").replace("\\", "/").split("/")[-1] or "notebook.ipynb"
-            if not safe_filename.endswith(".ipynb"):
-                safe_filename = f"{safe_filename}.ipynb"
+            safe_filename = self._safe_notebook_filename(filename)
             embed_ref = self._generate_direct_embed_ref(
                 "notebook",
                 embed_id,
@@ -1090,6 +1183,7 @@ class EmbedService:
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         filename: Optional[str] = None,
+        code_content: Optional[str] = None,
         log_prefix: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
@@ -1108,6 +1202,7 @@ class EmbedService:
             user_vault_key_id: User's vault key ID for encryption
             task_id: Optional task ID for tracking
             filename: Optional filename (extracted from language:filename format)
+            code_content: Optional source text for content-aware notebook detection
             log_prefix: Logging prefix for this operation
             
         Returns:
@@ -1117,7 +1212,7 @@ class EmbedService:
             None if creation fails
         """
         try:
-            if self._is_notebook_artifact(language, filename):
+            if self._is_notebook_artifact(language, filename, code_content):
                 return await self.create_notebook_embed_placeholder(
                     language=language,
                     chat_id=chat_id,
@@ -1338,6 +1433,21 @@ class EmbedService:
                     title=metadata["title"],
                     module_name=metadata["module_name"],
                     filename=metadata["filename"],
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
+                    log_prefix=log_prefix,
+                )
+
+            if self._is_notebook_artifact(language, filename, code_content):
+                return await self.update_notebook_embed_content(
+                    embed_id=embed_id,
+                    notebook_content=code_content,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status=status,
                     version_number=version_number,
                     content_hash=content_hash,
                     version_history_rows=version_history_rows,

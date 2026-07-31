@@ -27,12 +27,16 @@ const PRIVATE_MARKERS = [
 
 async function expectMapBackedLocationFullscreen(page: any, label: string): Promise<any> {
 	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	const overlay = overlays.last();
 	const locationFullscreen = page.getByTestId('map-location-fullscreen').last();
 	await expect(locationFullscreen, `${label} should open a location fullscreen`).toBeVisible({
 		timeout: 15_000
 	});
+	await expect(overlay.getByTestId('embed-leaflet-map'), `${label} should render the map pane`).toBeVisible({
+		timeout: 15_000
+	});
 
-	const overlayBox = await overlays.last().boundingBox();
+	const overlayBox = await overlay.boundingBox();
 	const locationBox = await locationFullscreen.boundingBox();
 	expect(overlayBox, `${label} overlay box should exist`).not.toBeNull();
 	expect(locationBox, `${label} location detail box should exist`).not.toBeNull();
@@ -40,7 +44,7 @@ async function expectMapBackedLocationFullscreen(page: any, label: string): Prom
 		locationBox!.x,
 		`${label} should use the map-backed layout with the details card on the left`
 	).toBeLessThan(overlayBox!.x + 220);
-	return overlays.last();
+	return overlay;
 }
 
 async function expectMapLocationPreviewLayout(card: any): Promise<void> {
@@ -115,6 +119,8 @@ test.describe('Berlin Mitte Maps public example', () => {
 
 		const noResultsCard = mapsSearchCards.filter({ hasText: 'restaurant Berlin Mitte' }).last();
 		await expect(noResultsCard).toBeVisible({ timeout: 15_000 });
+
+		await page.setViewportSize({ width: 1280, height: 900 });
 
 		const resultsOverlay = await openFullscreen(page, resultsCard);
 		await expect(resultsOverlay.getByTestId('embed-header-title')).toContainText(

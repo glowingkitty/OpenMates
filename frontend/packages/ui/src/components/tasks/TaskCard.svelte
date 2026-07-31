@@ -85,9 +85,9 @@
 
   <div class="task-actions" aria-label="Move task">
     {#if workflowRun}
-      <a href={`/workflows/${encodeURIComponent(workflowRun.workflowId)}`} data-testid="workflow-open">Open workflow</a>
+      <a href={`/workflows#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=details`} data-testid="workflow-open">Open workflow</a>
       {#if workflowRun.workflowRunId}
-        <a href={`/workflows/${encodeURIComponent(workflowRun.workflowId)}/runs?run_id=${encodeURIComponent(workflowRun.workflowRunId)}`} data-testid="workflow-run-open">Open workflow run</a>
+        <a href={`/workflows#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=runs&run-id=${encodeURIComponent(workflowRun.workflowRunId)}`} data-testid="workflow-run-open">Open workflow run</a>
       {/if}
       {#if workflowRun.canCancel}
         <button type="button" onclick={() => onCancelWorkflowRun(workflowRun)} data-testid="workflow-run-cancel">Cancel run</button>

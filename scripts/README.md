@@ -65,6 +65,19 @@ Check Open Graph tags for shared chats and embeds.
 python scripts/check_og_tags.py
 ```
 
+### `figma_access_doctor.py`
+
+Safely diagnose Figma API/MCP read access without printing tokens or private
+design JSON. Use it after Figma plan/seat changes or when `get_figma_data`
+returns `429 Too Many Requests`.
+
+**Usage:**
+
+```bash
+python3 scripts/figma_access_doctor.py --node-id 4944:31418
+python3 scripts/figma_access_doctor.py --json
+```
+
 ### `linear.py`
 
 Manage Linear issues through the Linear API when MCP access is unavailable. The

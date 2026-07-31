@@ -5608,6 +5608,7 @@ async def _consume_main_processing_stream(
                                                     user_vault_key_id=user_vault_key_id,
                                                     task_id=task_id,
                                                     filename=current_code_filename,
+                                                    code_content=capped_code_content,
                                                     log_prefix=log_prefix
                                                 )
 
@@ -6005,6 +6006,7 @@ async def _consume_main_processing_stream(
                                             user_vault_key_id=user_vault_key_id,
                                             task_id=task_id,
                                             filename=current_code_filename,
+                                            code_content=current_code_content,
                                             log_prefix=log_prefix
                                         )
 
@@ -6422,6 +6424,7 @@ async def _consume_main_processing_stream(
                                             user_vault_key_id=user_vault_key_id,
                                             task_id=task_id,
                                             filename=current_code_filename,
+                                            code_content=current_code_content,
                                             log_prefix=log_prefix
                                         )
 
@@ -6598,6 +6601,7 @@ async def _consume_main_processing_stream(
                                         user_vault_key_id=user_vault_key_id,
                                         task_id=task_id,
                                         filename=current_code_filename,
+                                        code_content=current_code_content,
                                         log_prefix=log_prefix
                                     )
                                     

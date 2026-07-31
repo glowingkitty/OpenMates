@@ -21,6 +21,8 @@
     onCreateWorkflow,
     onRunWorkflow,
     onDeleteWorkflow,
+    onOpenHome,
+    onOpenRuns,
     runsHref,
   }: {
     title: string;
@@ -36,6 +38,8 @@
     onCreateWorkflow: () => void | Promise<void>;
     onRunWorkflow: () => void | Promise<void>;
     onDeleteWorkflow: () => void | Promise<void>;
+    onOpenHome: () => void;
+    onOpenRuns: () => void;
     runsHref: string;
   } = $props();
 
@@ -56,13 +60,13 @@
 
 <section class="workflow-detail-header" data-testid="workspace-detail-header" data-header-system="workflow-detail">
   <div class="header-actions" data-testid="workflow-detail-actions" aria-label="Workflow actions">
-    <a class="back-action" data-testid="workflow-detail-back" href="/workflows" aria-label="Back to workflows">&larr;</a>
+    <a class="back-action" data-testid="workflow-detail-back" href="/workflows" aria-label="Back to workflows" onclick={(event) => { event.preventDefault(); onOpenHome(); }}>&larr;</a>
     {#if dirty}
       <button type="button" class="secondary-action" data-testid="undo-workflow" disabled={saving} onclick={onUndoWorkflow}>Undo</button>
       <button type="button" class="primary-action" data-testid="save-workflow" disabled={saving} onclick={() => void onSaveWorkflow()}>{saving ? 'Saving...' : 'Save'}</button>
     {/if}
     <button type="button" class="primary-action" data-testid="create-blank-workflow" disabled={saving} onclick={() => void onCreateWorkflow()}>New workflow</button>
-    <a class="secondary-action" data-testid="workflow-run-history" href={runsHref}>Run history</a>
+    <a class="secondary-action" data-testid="workflow-run-history" href={runsHref} onclick={(event) => { event.preventDefault(); onOpenRuns(); }}>Run history</a>
     <button type="button" class="secondary-action" data-testid="run-workflow" disabled={saving} onclick={() => void onRunWorkflow()}>Run now</button>
     <button type="button" class="destructive-action" data-testid="delete-workflow" disabled={saving} onclick={() => void onDeleteWorkflow()}>Delete</button>
     <WorkspaceReportIssueButton />

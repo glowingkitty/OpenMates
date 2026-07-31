@@ -380,6 +380,28 @@ def _sdk_route_module(module_name: str) -> Any:
     return importlib.import_module(f"backend.core.api.app.routes.{module_name}")
 
 
+def _is_cloud_payment_sdk_path(path: str, method: str) -> bool:
+    method = method.upper()
+    return (
+        (path == "auto-topup/low-balance" and method == "POST")
+        or path == "bank-transfer-orders"
+        or path.startswith("bank-transfer-orders/")
+        or path.startswith("gift-cards/")
+        or (path.startswith("invoices/") and path.endswith("/download"))
+        or (path.startswith("invoices/") and path.endswith("/credit-note/download"))
+        or (path == "refund" and method == "POST")
+    )
+
+
+def _require_cloud_billing_enabled(request: Request) -> None:
+    from backend.core.api.app.utils.server_mode import is_cloud_billing_enabled
+
+    if not is_cloud_billing_enabled():
+        raise HTTPException(status_code=404, detail="Feature not available on this server edition")
+    if getattr(request.app.state, "payment_service", None) is None:
+        raise HTTPException(status_code=503, detail="Payment service unavailable")
+
+
 def _extract_chat_response_content(result: Any) -> str | None:
     if not isinstance(result, dict):
         return None
@@ -1135,6 +1157,9 @@ async def _dispatch_sdk_surface(
             ))
 
     if surface == "billing":
+        if _is_cloud_payment_sdk_path(path, request.method):
+            _require_cloud_billing_enabled(request)
+
         if path == "" and request.method == "GET":
             settings_routes = _sdk_route_module("settings")
 

@@ -27,6 +27,7 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-true}"
       MOCK_EXTERNAL_APIS: "true"
       APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
@@ -197,6 +198,7 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-true}"
       MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)

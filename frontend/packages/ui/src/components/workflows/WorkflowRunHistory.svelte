@@ -1,7 +1,8 @@
 <!--
   WorkflowRunHistory.svelte
   Displays persisted workflow runs without owning workflow fetch or mutation state.
-  The routed web workspace supplies the selected workflow's cached run list.
+  The web workspace supplies the selected workflow's cached run list from
+  hash-based in-app state under /workflows.
   Node statuses remain visible even when run content has expired.
 -->
 
@@ -11,10 +12,12 @@
   let {
     runs,
     editorHref,
+    onOpenEditor,
     selectedRunId = null,
   }: {
     runs: WorkflowRun[];
     editorHref: string;
+    onOpenEditor: () => void;
     selectedRunId?: string | null;
   } = $props();
 
@@ -37,7 +40,7 @@
       <p>Workflow runs</p>
       <h2 data-testid="workflow-run-history-title">Run history</h2>
     </div>
-    <a href={editorHref} data-testid="workflow-runs-back-to-editor">Back to editor</a>
+    <a href={editorHref} data-testid="workflow-runs-back-to-editor" onclick={(event) => { event.preventDefault(); onOpenEditor(); }}>Back to editor</a>
   </header>
 
   {#if runs.length === 0}

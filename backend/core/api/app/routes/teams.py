@@ -212,9 +212,14 @@ def get_cache_service(request: Request) -> Any:
 
 
 def get_payment_service(request: Request) -> Any:
-    if not hasattr(request.app.state, "payment_service"):
+    from backend.core.api.app.utils.server_mode import is_cloud_billing_enabled
+
+    if not is_cloud_billing_enabled():
+        raise HTTPException(status_code=404, detail="Feature not available on this server edition")
+    payment_service = getattr(request.app.state, "payment_service", None)
+    if payment_service is None:
         raise HTTPException(status_code=503, detail="Payment service unavailable")
-    return request.app.state.payment_service
+    return payment_service
 
 
 async def _current_user(request: Request, response: Response) -> User:

@@ -112,6 +112,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - OpenCode must not load the Claude Code provider; generated `.opencode/agents/` subagents use `openai/gpt-5.5`.
 - Existing Claude Code hooks are bridged through `.codex/hooks/claude-hook-bridge.sh`: Codex calls it from `.codex/hooks.json`, and OpenCode calls it from its native `.opencode/plugins/openmates-hooks.js` wrapper. Update the bridge instead of duplicating hook logic.
 - Claude Code remains the canonical authoring format for project skills, subagents, and hook scripts. Run `python3 scripts/sync_agent_parity.py` after changing `.claude/skills/` or `.claude/agents/`, and run `python3 scripts/sync_agent_parity.py --check` to verify `.agents/skills/`, `.codex/agents/`, `.opencode/agents/`, and hook adapters are in sync.
+- For the short agent workflow entry point, read `docs/contributing/guides/agent-workflow-quickstart.md`. Run `python3 scripts/audit_opencode_output_quality.py` after changing OpenCode instructions and `python3 scripts/audit_agent_tooling_parity.py` after changing Claude/Codex/OpenCode hook or config coverage.
 - Do not add GSD/Get-Shit-Done workflows, commands, hooks, or agents to this repo.
 - If GSD files appear from global OpenCode config, treat them as unrelated user-level tooling and keep them disabled for OpenMates work.
 

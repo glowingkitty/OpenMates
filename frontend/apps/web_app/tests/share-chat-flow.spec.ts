@@ -118,7 +118,7 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	await docAssert('share-panel-opens-from-chat-header', async () => {
 		await expect(shareButton).toBeVisible({ timeout: 10000 });
 		await shareButton.dispatchEvent('click');
-		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+\/share$/, {
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
 			timeout: 10000
 		});
 	});

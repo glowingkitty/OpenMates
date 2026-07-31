@@ -10,8 +10,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { page } from '$app/state';
+  import { replaceState } from '$app/navigation';
   import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
   import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
   import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
@@ -35,6 +34,19 @@
     | { kind: 'placeholder'; id: string; label: string }
     | { kind: 'node'; id: string; node: WorkflowNode; index: number; branch?: boolean };
 
+  type WorkflowTab = 'details' | 'runs';
+
+  type WorkflowHashState = {
+    workflowId: string | null;
+    tab: WorkflowTab;
+    runId: string | null;
+  };
+
+  const WORKFLOWS_ROUTE = '/workflows';
+  const WORKFLOW_ID_HASH_PARAM = 'workflow-id';
+  const WORKFLOW_TAB_HASH_PARAM = 'workflow-tab';
+  const WORKFLOW_RUN_ID_HASH_PARAM = 'run-id';
+
   let workflows = $derived<WorkflowSummary[]>($workflowWorkspaceStore.workflows);
   let selectedWorkflow = $derived<WorkflowDetail | null>($workflowWorkspaceStore.selectedWorkflow);
   let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
@@ -53,6 +65,7 @@
   let workflowInputText = $state('');
   let workflowInputFocused = $state(false);
   let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
+  let workflowHashState = $state<WorkflowHashState>({ workflowId: null, tab: 'details', runId: null });
 
   let recentWorkflows = $derived([...workflows].sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0)).slice(0, 6));
   let workflowStarterItems: WorkflowContinueItem[] = [
@@ -102,11 +115,10 @@
     ...workflowStarterItems,
   ]);
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
-  let routeWorkflowId = $derived(page.params.workflow_id ?? null);
-  let isManageView = $derived(!!routeWorkflowId || page.url.searchParams.get('view') === 'manage');
-  let isRunsView = $derived(page.url.pathname.endsWith('/runs'));
-  let selectedRunId = $derived(page.url.searchParams.get('run_id'));
-  let requestedWorkflowId = $derived(routeWorkflowId ?? page.url.searchParams.get('workflow'));
+  let isManageView = $derived(!!workflowHashState.workflowId);
+  let isRunsView = $derived(workflowHashState.tab === 'runs');
+  let selectedRunId = $derived(workflowHashState.runId);
+  let requestedWorkflowId = $derived(workflowHashState.workflowId);
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let routeReady = $derived($authStore.isInitialized && featureAvailabilityLoaded);
@@ -118,8 +130,89 @@
   let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
 
   onMount(() => {
+    syncWorkflowHashFromLocation();
+    window.addEventListener('hashchange', syncWorkflowHashFromLocation);
     void initializeWorkflowsRoute();
+
+    return () => {
+      window.removeEventListener('hashchange', syncWorkflowHashFromLocation);
+    };
   });
+
+  function stripHashPrefix(hash: string): string {
+    if (!hash) return '';
+    return hash.startsWith('#/') ? hash.slice(2) : hash.replace(/^#/, '');
+  }
+
+  function parseHashParams(hash: string): URLSearchParams {
+    const fragment = stripHashPrefix(hash);
+    if (!fragment || fragment === 'settings' || fragment.startsWith('settings/')) {
+      return new URLSearchParams();
+    }
+    return new URLSearchParams(fragment);
+  }
+
+  function serializeHashParams(params: URLSearchParams): string {
+    const pairs: string[] = [];
+    params.forEach((value, key) => {
+      pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(value).replace(/%2F/g, '/').replace(/%3A/g, ':')}`);
+    });
+    return pairs.length > 0 ? `#${pairs.join('&')}` : '';
+  }
+
+  function readWorkflowHashState(hash: string): WorkflowHashState {
+    const params = parseHashParams(hash);
+    const workflowId = params.get(WORKFLOW_ID_HASH_PARAM)?.trim() || null;
+    const tab = params.get(WORKFLOW_TAB_HASH_PARAM) === 'runs' ? 'runs' : 'details';
+    return {
+      workflowId,
+      tab: workflowId ? tab : 'details',
+      runId: workflowId && tab === 'runs' ? params.get(WORKFLOW_RUN_ID_HASH_PARAM)?.trim() || null : null,
+    };
+  }
+
+  function syncWorkflowHashFromLocation(): void {
+    workflowHashState = readWorkflowHashState(window.location.hash);
+  }
+
+  function workflowStateHash(workflowId: string | null, tab: WorkflowTab = 'details', runId: string | null = null, baseHash = ''): string {
+    const params = parseHashParams(baseHash);
+    params.delete(WORKFLOW_ID_HASH_PARAM);
+    params.delete(WORKFLOW_TAB_HASH_PARAM);
+    params.delete(WORKFLOW_RUN_ID_HASH_PARAM);
+
+    if (workflowId) {
+      params.set(WORKFLOW_ID_HASH_PARAM, workflowId);
+      params.set(WORKFLOW_TAB_HASH_PARAM, tab);
+      if (tab === 'runs' && runId) {
+        params.set(WORKFLOW_RUN_ID_HASH_PARAM, runId);
+      }
+    }
+
+    return serializeHashParams(params);
+  }
+
+  function workflowStateHref(workflowId: string, tab: WorkflowTab = 'details', runId: string | null = null): string {
+    return `${WORKFLOWS_ROUTE}${workflowStateHash(workflowId, tab, runId)}`;
+  }
+
+  function setWorkflowUrlState(workflowId: string | null, tab: WorkflowTab = 'details', runId: string | null = null): void {
+    const nextHash = workflowStateHash(workflowId, tab, runId, window.location.hash);
+    workflowHashState = readWorkflowHashState(nextHash);
+    replaceState(`${WORKFLOWS_ROUTE}${nextHash}`, {});
+  }
+
+  function openWorkflowDetails(workflowId: string): void {
+    setWorkflowUrlState(workflowId, 'details');
+  }
+
+  function openWorkflowRuns(workflowId: string, runId: string | null = null): void {
+    setWorkflowUrlState(workflowId, 'runs', runId);
+  }
+
+  function openWorkflowHome(): void {
+    setWorkflowUrlState(null);
+  }
 
   async function initializeWorkflowsRoute() {
     try {
@@ -152,15 +245,12 @@
     const requestedWorkflow = requestedWorkflowId
       ? workflows.find((workflow) => workflow.id === requestedWorkflowId)
       : null;
-    const workflowId = requestedWorkflow?.id ?? (isManageView ? workflows[0]?.id : null);
+    const workflowId = requestedWorkflow?.id ?? null;
     if (requestedWorkflowId && !workflowId && $workflowWorkspaceStore.listStatus === 'ready') {
-      void goto('/workflows', { replaceState: true });
+      openWorkflowHome();
       return;
     }
     if (!workflowId || workflowId === $workflowWorkspaceStore.selectedWorkflowId) return;
-    if (requestedWorkflowId && requestedWorkflowId !== workflowId) {
-      void goto(`/workflows/${encodeURIComponent(workflowId)}`, { replaceState: true });
-    }
     void selectWorkflow(workflowId).catch((selectError) => {
       console.error('[WorkflowsRoute] Failed to select workflow:', selectError);
     });
@@ -200,10 +290,10 @@
     workflowInputText = inspiration.phrase || inspiration.title || '';
   }
 
-  async function continueWorkflowFromCard(item: WorkflowContinueItem) {
+  async function continueWorkflowFromCard(item: { id: string }) {
     if (!canLoadWorkflows) return;
     await selectWorkflow(item.id);
-    await goto(`/workflows/${encodeURIComponent(item.id)}`);
+    openWorkflowDetails(item.id);
   }
 
   async function startWorkflowFromCard(item: WorkflowContinueItem) {
@@ -239,7 +329,7 @@
       });
       await maintainTemplateProjection(workflow);
       await selectWorkflow(workflow.id);
-      await goto(`/workflows/${encodeURIComponent(workflow.id)}`);
+      openWorkflowDetails(workflow.id);
     } catch (createError) {
       routeError = createError instanceof Error ? createError.message : 'Failed to create workflow.';
     } finally {
@@ -263,11 +353,12 @@
 
   async function runSelectedWorkflow() {
     if (!selectedWorkflow) return;
+    const workflowId = selectedWorkflow.id;
     saving = true;
     routeError = null;
     try {
-      await workflowWorkspaceStore.runWorkflow(selectedWorkflow.id);
-      await goto(`/workflows/${encodeURIComponent(selectedWorkflow.id)}/runs`);
+      const run = await workflowWorkspaceStore.runWorkflow(workflowId);
+      openWorkflowRuns(workflowId, run.id);
     } catch (runError) {
       routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
     } finally {
@@ -281,7 +372,7 @@
     routeError = null;
     try {
       await workflowWorkspaceStore.deleteWorkflow(selectedWorkflow.id);
-      await goto('/workflows');
+      openWorkflowHome();
     } catch (deleteError) {
       routeError = deleteError instanceof Error ? deleteError.message : 'Failed to delete workflow.';
     } finally {
@@ -764,13 +855,16 @@
               onCreateWorkflow={createBlankWorkflow}
               onRunWorkflow={runSelectedWorkflow}
               onDeleteWorkflow={deleteSelectedWorkflow}
-              runsHref={`/workflows/${encodeURIComponent(selectedWorkflow.id)}/runs`}
+              onOpenHome={openWorkflowHome}
+              onOpenRuns={() => openWorkflowRuns(selectedWorkflow.id)}
+              runsHref={workflowStateHref(selectedWorkflow.id, 'runs')}
             />
 
             {#if isRunsView}
               <WorkflowRunHistory
                 {runs}
-                editorHref={`/workflows/${encodeURIComponent(selectedWorkflow.id)}`}
+                editorHref={workflowStateHref(selectedWorkflow.id, 'details')}
+                onOpenEditor={() => openWorkflowDetails(selectedWorkflow.id)}
                 {selectedRunId}
               />
             {:else}

@@ -32,11 +32,11 @@ test.describe('Example chat settings usage', () => {
 		await expect(settingsMenu.getByTestId('chat-settings-tab-files')).toHaveCount(0);
 
 		await settingsMenu.getByTestId('chat-settings-tab-usage').click();
-		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}/usage`, {
+		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}`, {
 			timeout: 10000
 		});
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
-		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toHaveText('25 credits');
+		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/25\s*credits/i);
 		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(2);
 		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('ai | ask');
 		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('Google AI Studio / US');
