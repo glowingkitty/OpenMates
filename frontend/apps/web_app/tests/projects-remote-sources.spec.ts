@@ -172,6 +172,10 @@ test.describe('Projects remote sources', () => {
     await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
     await page.getByTestId('chats-nav-link').click();
     await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 30000 });
+    if (await page.getByTestId('login-wrapper').isVisible({ timeout: 3000 }).catch(() => false)) {
+      const loginTab = page.getByTestId('tab-login');
+      if (await loginTab.isVisible({ timeout: 3000 }).catch(() => false)) await loginTab.click();
+    }
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('closeLoginInterface')));
     await expect(page.getByTestId('login-wrapper')).toHaveCount(0, { timeout: 30000 });
     await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
