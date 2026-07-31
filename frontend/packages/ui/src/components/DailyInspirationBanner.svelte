@@ -342,9 +342,9 @@
   });
 
   // Mobile cards start with explanatory text. Guest landing slides then compact the
-  // heading after 1500ms so the animation can play below it, matching the Figma flow.
+  // heading after 1500ms once the expanded intro overlay is gone, matching the Figma flow.
   $effect(() => {
-    if (!shouldCycleMobileCard) {
+    if (!shouldCycleMobileCard || landingIntroOverlayActive) {
       showMobileCard = false;
       return;
     }
