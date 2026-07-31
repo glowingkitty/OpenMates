@@ -113,6 +113,16 @@
     pointer-events: none;
   }
 
+  .chat-settings-header,
+  .chat-settings-nav,
+  .chat-settings-nav span,
+  .chat-settings-title,
+  .chat-settings-credits,
+  .chat-settings-credits span {
+    color: var(--color-white) !important;
+    -webkit-text-fill-color: var(--color-white) !important;
+  }
+
   .chat-settings-nav {
     all: unset;
     box-sizing: border-box;
@@ -121,7 +131,7 @@
     min-height: 3rem;
     gap: var(--spacing-3);
     padding: 0 var(--spacing-5);
-    color: color-mix(in srgb, var(--color-white) 78%, transparent);
+    color: var(--color-white);
     font: var(--font-label-md);
     cursor: pointer;
     pointer-events: auto;
@@ -170,7 +180,7 @@
   }
 
   .chat-settings-header .chat-settings-title {
-    max-width: 22rem;
+    max-width: min(100%, 34rem);
     margin: 0;
     font-size: var(--font-size-h3);
     line-height: 1.3;

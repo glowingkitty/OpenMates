@@ -464,7 +464,6 @@
           iconBackground="none"
           title="Download files"
           subtitleBottom={files.length > 0 ? `${files.length} downloadable ${files.length === 1 ? 'item' : 'items'}` : 'No downloadable files yet'}
-          rightActionIcon="download"
           disabled={files.length === 0}
           data-testid="chat-settings-download-files"
           onClick={() => void downloadAllFiles()}
@@ -480,7 +479,6 @@
                 iconBackground="none"
                 title={file.title}
                 subtitleBottom={file.metadata}
-                rightActionIcon="download"
                 data-testid="chat-settings-file-row"
                 onClick={() => downloadFileReference(file)}
               />
@@ -498,7 +496,6 @@
           iconBackground="none"
           title="Download usage data"
           subtitleBottom="CSV & YAML"
-          rightActionIcon="download"
           disabled={usageRows.length === 0}
           data-testid="chat-settings-download-usage"
           onClick={downloadUsageData}
@@ -643,5 +640,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-1);
+  }
+
+  @media (max-width: 730px) {
+    .chat-settings-page {
+      padding-inline: var(--spacing-2);
+    }
   }
 </style>

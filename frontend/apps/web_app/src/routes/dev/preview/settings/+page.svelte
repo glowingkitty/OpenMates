@@ -249,14 +249,13 @@ Y5Z6-A7B8-C9D0`;
 						hasModifyButton={true}
 						onClick={() => {}}
 					/>
-					<!-- Download entry: icon SVG colored with app gradient, download button on right -->
+					<!-- Download entry: icon SVG colored with app gradient -->
 					<SettingsItem
 						type="quickaction"
 						icon="legal"
 						iconColor="var(--color-app-legal)"
 						title="2025-03-13"
 						subtitleBottom="10 EUR"
-						rightActionIcon="download"
 						onClick={() => {}}
 					/>
 					<!-- Chat entry with credits: category icon in category gradient color -->

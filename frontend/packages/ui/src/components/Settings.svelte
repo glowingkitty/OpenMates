@@ -3463,6 +3463,7 @@ changes to the documentation (to keep the documentation up to date).
     }
     
     .settings-menu {
+        --settings-panel-width: 323px;
         background-color: var(--color-grey-20);
         height: 100%;
         width: 0px;
@@ -3489,7 +3490,7 @@ changes to the documentation (to keep the documentation up to date).
             height: auto;
             z-index: var(--z-index-modal);
             /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
-            width: 323px;
+            width: var(--settings-panel-width);
             transition: transform var(--duration-slow) var(--easing-default), visibility var(--duration-slow) var(--easing-default);
             transform: translateX(calc(100% + 40px));
             visibility: hidden;
@@ -3524,6 +3525,7 @@ changes to the documentation (to keep the documentation up to date).
 
     @media (max-width: 730px) {
         .settings-menu {
+            --settings-panel-width: calc(100vw - var(--spacing-2) - var(--spacing-2));
             inset-inline-end: 10px;
             bottom: 10px;
             transform: translateX(calc(100% + 20px));
@@ -3543,7 +3545,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .settings-menu.visible {
-        width: 323px;
+        width: var(--settings-panel-width);
         visibility: visible;
     }
 

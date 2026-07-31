@@ -64,7 +64,6 @@
         iconColor = undefined,
         iconBackground = undefined,
         lucideIcon = undefined,
-        rightActionIcon = undefined,
         creditsDisplay = undefined,
         'data-testid': testid = 'menu-item',
         children
@@ -108,11 +107,6 @@
          * the same background/sizing as the standard icon. Useful for dynamic/category icons.
          */
         lucideIcon?: Component<{ size?: number; color?: string }> | undefined;
-        /**
-         * Optional right-side action button icon name (e.g. 'download' shows a download button).
-         * Renders a gradient circle button identical to ModifyButton but with a different icon.
-         */
-        rightActionIcon?: string | undefined;
         /**
          * Credits display on the right side (usage entries).
          * Shows "{creditsDisplay} [coins icon]" in var(--color-grey-50).
@@ -309,13 +303,6 @@
                     data-testid={`${testid}-modify-button`}
                 >
                     <ModifyButton />
-                </div>
-            {/if}
-
-            <!-- Right-side action icon button (e.g. download) -->
-            {#if rightActionIcon}
-                <div class="right-action-button" aria-label={rightActionIcon}>
-                    <div class="right-action-icon" style="--right-action-icon-url: var(--icon-url-{resolveIconName(rightActionIcon)});"></div>
                 </div>
             {/if}
 
@@ -634,37 +621,6 @@
         display: flex;
         align-items: center;
         cursor: pointer;
-    }
-
-    /* Right-side action button (e.g. download) — same circle style as ModifyButton */
-    .right-action-button {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: var(--color-primary);
-        cursor: pointer;
-        position: relative;
-        box-shadow: var(--shadow-sm);
-        flex-shrink: 0;
-        transition: transform var(--duration-normal) var(--easing-default);
-    }
-
-    .right-action-button:hover {
-        transform: scale(1.1);
-    }
-
-    .right-action-icon {
-        position: absolute;
-        inset: 0;
-        background-color: var(--color-grey-0);
-        -webkit-mask-image: var(--right-action-icon-url);
-        -webkit-mask-size: 50%;
-        -webkit-mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-image: var(--right-action-icon-url);
-        mask-size: 50%;
-        mask-position: center;
-        mask-repeat: no-repeat;
     }
 
     /* Credits display (coin icon + amount) for usage entries */

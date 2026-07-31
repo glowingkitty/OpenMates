@@ -343,17 +343,17 @@
         <SettingsInfoBox type="info">This public example chat already has a static share link. Passwords, expiration, and community sharing are only available for your private chats.</SettingsInfoBox>
       </div>
       <div class="generated-actions" data-testid="share-short-link-section">
-        <SettingsItem type="quickaction" icon="subsetting_icon copy" rightActionIcon="copy" title={isCopied ? 'Copied' : 'Copy public chat link'} data-testid="share-copy-link" onClick={() => void copyPublicShareLink()} />
+        <SettingsItem type="quickaction" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy public chat link'} data-testid="share-copy-link" onClick={() => void copyPublicShareLink()} />
         <div data-testid="share-short-link-copy" class="short-link-copy">
           <span data-testid="share-short-link-url">{publicShareLink}</span>
         </div>
-        <SettingsItem type="quickaction" icon="subsetting_icon camera" rightActionIcon="camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+        <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
         {#if showQr}
           <div class="qr-code" data-testid="chat-settings-share-qr">
             <img src={qrCodeImageUrl} alt="Share QR code" />
           </div>
         {/if}
-        <SettingsItem type="quickaction" icon="subsetting_icon copy" rightActionIcon="copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
+        <SettingsItem type="quickaction" icon="subsetting_icon copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
         {#if showUrl}
           <div data-share-url-kind="public">
             <SettingsCodeBlock code={publicShareLink} dataTestid="chat-settings-share-url" />
@@ -363,8 +363,8 @@
     </SettingsCard>
     <SettingsDivider spacing="sm" />
     <SettingsCard>
-      <SettingsItem type="quickaction" icon="subsetting_icon download" rightActionIcon="download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
-      <SettingsItem type="quickaction" icon="subsetting_icon files" rightActionIcon="download" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
     </SettingsCard>
   {:else if isSharedViewer}
     <SettingsCard>
@@ -375,17 +375,17 @@
         <p data-testid="chat-settings-share-link-loading">Loading shared chat link...</p>
       {:else if storedSharedUrl}
         <div class="generated-actions" data-testid="share-short-link-section">
-          <SettingsItem type="quickaction" icon="subsetting_icon copy" rightActionIcon="copy" title={isCopied ? 'Copied' : 'Copy shared chat link'} data-testid="share-copy-link" onClick={() => void copyStoredSharedLink()} />
+          <SettingsItem type="quickaction" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy shared chat link'} data-testid="share-copy-link" onClick={() => void copyStoredSharedLink()} />
           <div data-testid="share-short-link-copy" class="short-link-copy">
             <span data-testid="share-short-link-url">{storedSharedUrl}</span>
           </div>
-          <SettingsItem type="quickaction" icon="subsetting_icon camera" rightActionIcon="camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+          <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
           {#if showQr}
             <div class="qr-code" data-testid="chat-settings-share-qr">
               <img src={qrCodeImageUrl} alt="Share QR code" />
             </div>
           {/if}
-          <SettingsItem type="quickaction" icon="subsetting_icon copy" rightActionIcon="copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
+          <SettingsItem type="quickaction" icon="subsetting_icon copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
           {#if showUrl}
             <div data-share-url-kind="original">
               <SettingsCodeBlock code={storedSharedUrl} dataTestid="chat-settings-share-url" />
@@ -402,8 +402,8 @@
     </SettingsCard>
     <SettingsDivider spacing="sm" />
     <SettingsCard>
-      <SettingsItem type="quickaction" icon="subsetting_icon download" rightActionIcon="download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
-      <SettingsItem type="quickaction" icon="subsetting_icon files" rightActionIcon="download" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
     </SettingsCard>
   {:else if !generatedLink}
     <SettingsCard>
@@ -455,8 +455,8 @@
     {/if}
     <SettingsDivider spacing="sm" />
     <SettingsCard>
-      <SettingsItem type="quickaction" icon="subsetting_icon download" rightActionIcon="download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
-      <SettingsItem type="quickaction" icon="subsetting_icon files" rightActionIcon="download" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
     </SettingsCard>
     <SettingsCard>
       <div class="share-preview" data-testid="share-chat-preview">
@@ -473,17 +473,17 @@
         <SettingsInfoBox type="success">Share link created. Auto expire: {autoExpireEnabled ? '10 minutes' : 'never'}.</SettingsInfoBox>
       </div>
       <div class="generated-actions" data-testid="share-short-link-section">
-      <SettingsItem type="quickaction" icon="subsetting_icon copy" rightActionIcon="copy" title={isCopied ? 'Copied' : 'Copy to clipboard'} data-testid="share-copy-link" onClick={() => void copyGeneratedLink()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy to clipboard'} data-testid="share-copy-link" onClick={() => void copyGeneratedLink()} />
       <div data-testid="share-short-link-copy" class="short-link-copy">
         <span data-testid="share-short-link-url">{generatedLink}</span>
       </div>
-      <SettingsItem type="quickaction" icon="subsetting_icon camera" rightActionIcon="camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+      <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
       {#if showQr}
         <div class="qr-code" data-testid="chat-settings-share-qr">
           <img src={qrCodeImageUrl} alt="Share QR code" />
         </div>
       {/if}
-      <SettingsItem type="quickaction" icon="subsetting_icon copy" rightActionIcon="copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
+      <SettingsItem type="quickaction" icon="subsetting_icon copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
       {#if showUrl}
         <div data-share-url-kind={generatedLink === generatedLongLink ? 'long' : 'short'}>
           <SettingsCodeBlock code={generatedLink} dataTestid="chat-settings-share-url" />
@@ -492,13 +492,13 @@
       {#if shortLinkError}
         <p class="share-error" data-testid="share-short-link-error">{shortLinkError}</p>
       {/if}
-      <SettingsItem type="quickaction" icon="subsetting_icon delete" rightActionIcon="delete" title="Stop sharing" data-testid="chat-settings-share-stop" onClick={() => void stopSharing()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon delete" title="Stop sharing" data-testid="chat-settings-share-stop" onClick={() => void stopSharing()} />
       </div>
     </SettingsCard>
     <SettingsDivider spacing="sm" />
     <SettingsCard>
-      <SettingsItem type="quickaction" icon="subsetting_icon download" rightActionIcon="download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
-      <SettingsItem type="quickaction" icon="subsetting_icon files" rightActionIcon="download" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="quickaction" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
     </SettingsCard>
   {/if}
 </section>
