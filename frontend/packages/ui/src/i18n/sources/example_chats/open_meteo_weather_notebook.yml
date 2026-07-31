@@ -1,0 +1,313 @@
+title:
+  context: "Title of example chat: Open-Meteo weather notebook"
+  en: "Open-Meteo weather notebook"
+  de: "Open-Meteo weather notebook"
+  zh: "Open-Meteo weather notebook"
+  es: "Open-Meteo weather notebook"
+  fr: "Open-Meteo weather notebook"
+  pt: "Open-Meteo weather notebook"
+  ru: "Open-Meteo weather notebook"
+  ja: "Open-Meteo weather notebook"
+  ko: "Open-Meteo weather notebook"
+  it: "Open-Meteo weather notebook"
+  tr: "Open-Meteo weather notebook"
+  vi: "Open-Meteo weather notebook"
+  id: "Open-Meteo weather notebook"
+  pl: "Open-Meteo weather notebook"
+  nl: "Open-Meteo weather notebook"
+  ar: "Open-Meteo weather notebook"
+  hi: "Open-Meteo weather notebook"
+  th: "Open-Meteo weather notebook"
+  cs: "Open-Meteo weather notebook"
+  sv: "Open-Meteo weather notebook"
+  he: "Open-Meteo weather notebook"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Open-Meteo weather notebook"
+  en: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  de: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  zh: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  es: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  fr: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  pt: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  ru: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  ja: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  ko: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  it: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  tr: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  vi: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  id: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  pl: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  nl: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  ar: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  hi: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  th: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  cs: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  sv: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  he: "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Open-Meteo weather notebook. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  de: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  zh: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  es: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  fr: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  pt: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  ru: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  ja: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  ko: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  it: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  tr: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  vi: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  id: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  pl: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  nl: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  ar: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  hi: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  th: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  cs: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  sv: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  he: "Create the actual Jupyter notebook file, not an outline. Emit exactly one fenced code artifact with this opening fence line: json:open_meteo_weather_analysis.ipynb. The artifact body must be valid nbformat 4 JSON with metadata, nbformat, nbformat_minor, and cells. Use markdown and Python code cells only. The notebook should pull the next 7 days of hourly weather data for Berlin from the free Open-Meteo API with no API key. Use Python requests and pandas to fetch temperature_2m, precipitation, wind_speed_10m, and cloud_cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short markdown explanation of what the forecast means for planning a weekend bike ride. Do not include prose outside the notebook artifact."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Open-Meteo weather notebook. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  de: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  zh: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  es: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  fr: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  pt: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  ru: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  ja: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  ko: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  it: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  tr: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  vi: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  id: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  pl: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  nl: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  ar: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  hi: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  th: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  cs: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  sv: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  he: |
+    ```json
+    {"type": "notebook", "embed_id": "bed8cbe3-2ce3-47f0-ac01-1b864a17e574"}
+    ```
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for weather forecasts for other cities"
+  de: "Search for weather forecasts for other cities"
+  zh: "Search for weather forecasts for other cities"
+  es: "Search for weather forecasts for other cities"
+  fr: "Search for weather forecasts for other cities"
+  pt: "Search for weather forecasts for other cities"
+  ru: "Search for weather forecasts for other cities"
+  ja: "Search for weather forecasts for other cities"
+  ko: "Search for weather forecasts for other cities"
+  it: "Search for weather forecasts for other cities"
+  tr: "Search for weather forecasts for other cities"
+  vi: "Search for weather forecasts for other cities"
+  id: "Search for weather forecasts for other cities"
+  pl: "Search for weather forecasts for other cities"
+  nl: "Search for weather forecasts for other cities"
+  ar: "Search for weather forecasts for other cities"
+  hi: "Search for weather forecasts for other cities"
+  th: "Search for weather forecasts for other cities"
+  cs: "Search for weather forecasts for other cities"
+  sv: "Search for weather forecasts for other cities"
+  he: "Search for weather forecasts for other cities"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to interpret the weather data"
+  de: "Explain how to interpret the weather data"
+  zh: "Explain how to interpret the weather data"
+  es: "Explain how to interpret the weather data"
+  fr: "Explain how to interpret the weather data"
+  pt: "Explain how to interpret the weather data"
+  ru: "Explain how to interpret the weather data"
+  ja: "Explain how to interpret the weather data"
+  ko: "Explain how to interpret the weather data"
+  it: "Explain how to interpret the weather data"
+  tr: "Explain how to interpret the weather data"
+  vi: "Explain how to interpret the weather data"
+  id: "Explain how to interpret the weather data"
+  pl: "Explain how to interpret the weather data"
+  nl: "Explain how to interpret the weather data"
+  ar: "Explain how to interpret the weather data"
+  hi: "Explain how to interpret the weather data"
+  th: "Explain how to interpret the weather data"
+  cs: "Explain how to interpret the weather data"
+  sv: "Explain how to interpret the weather data"
+  he: "Explain how to interpret the weather data"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find bike routes in Berlin"
+  de: "Find bike routes in Berlin"
+  zh: "Find bike routes in Berlin"
+  es: "Find bike routes in Berlin"
+  fr: "Find bike routes in Berlin"
+  pt: "Find bike routes in Berlin"
+  ru: "Find bike routes in Berlin"
+  ja: "Find bike routes in Berlin"
+  ko: "Find bike routes in Berlin"
+  it: "Find bike routes in Berlin"
+  tr: "Find bike routes in Berlin"
+  vi: "Find bike routes in Berlin"
+  id: "Find bike routes in Berlin"
+  pl: "Find bike routes in Berlin"
+  nl: "Find bike routes in Berlin"
+  ar: "Find bike routes in Berlin"
+  hi: "Find bike routes in Berlin"
+  th: "Find bike routes in Berlin"
+  cs: "Find bike routes in Berlin"
+  sv: "Find bike routes in Berlin"
+  he: "Find bike routes in Berlin"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Analyze the impact of wind speed on cycling"
+  de: "Analyze the impact of wind speed on cycling"
+  zh: "Analyze the impact of wind speed on cycling"
+  es: "Analyze the impact of wind speed on cycling"
+  fr: "Analyze the impact of wind speed on cycling"
+  pt: "Analyze the impact of wind speed on cycling"
+  ru: "Analyze the impact of wind speed on cycling"
+  ja: "Analyze the impact of wind speed on cycling"
+  ko: "Analyze the impact of wind speed on cycling"
+  it: "Analyze the impact of wind speed on cycling"
+  tr: "Analyze the impact of wind speed on cycling"
+  vi: "Analyze the impact of wind speed on cycling"
+  id: "Analyze the impact of wind speed on cycling"
+  pl: "Analyze the impact of wind speed on cycling"
+  nl: "Analyze the impact of wind speed on cycling"
+  ar: "Analyze the impact of wind speed on cycling"
+  hi: "Analyze the impact of wind speed on cycling"
+  th: "Analyze the impact of wind speed on cycling"
+  cs: "Analyze the impact of wind speed on cycling"
+  sv: "Analyze the impact of wind speed on cycling"
+  he: "Analyze the impact of wind speed on cycling"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Generate a summary of the weather data"
+  de: "Generate a summary of the weather data"
+  zh: "Generate a summary of the weather data"
+  es: "Generate a summary of the weather data"
+  fr: "Generate a summary of the weather data"
+  pt: "Generate a summary of the weather data"
+  ru: "Generate a summary of the weather data"
+  ja: "Generate a summary of the weather data"
+  ko: "Generate a summary of the weather data"
+  it: "Generate a summary of the weather data"
+  tr: "Generate a summary of the weather data"
+  vi: "Generate a summary of the weather data"
+  id: "Generate a summary of the weather data"
+  pl: "Generate a summary of the weather data"
+  nl: "Generate a summary of the weather data"
+  ar: "Generate a summary of the weather data"
+  hi: "Generate a summary of the weather data"
+  th: "Generate a summary of the weather data"
+  cs: "Generate a summary of the weather data"
+  sv: "Generate a summary of the weather data"
+  he: "Generate a summary of the weather data"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare this weather to historical averages"
+  de: "Compare this weather to historical averages"
+  zh: "Compare this weather to historical averages"
+  es: "Compare this weather to historical averages"
+  fr: "Compare this weather to historical averages"
+  pt: "Compare this weather to historical averages"
+  ru: "Compare this weather to historical averages"
+  ja: "Compare this weather to historical averages"
+  ko: "Compare this weather to historical averages"
+  it: "Compare this weather to historical averages"
+  tr: "Compare this weather to historical averages"
+  vi: "Compare this weather to historical averages"
+  id: "Compare this weather to historical averages"
+  pl: "Compare this weather to historical averages"
+  nl: "Compare this weather to historical averages"
+  ar: "Compare this weather to historical averages"
+  hi: "Compare this weather to historical averages"
+  th: "Compare this weather to historical averages"
+  cs: "Compare this weather to historical averages"
+  sv: "Compare this weather to historical averages"
+  he: "Compare this weather to historical averages"
+  verified_by_human: []
+
