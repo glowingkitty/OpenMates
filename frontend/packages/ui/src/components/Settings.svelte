@@ -525,6 +525,7 @@ changes to the documentation (to keep the documentation up to date).
             const insetPx = Math.round(deterministicValue(`${item.chatId}-inset`, 6, 18));
             const rotationDeg = Math.round(deterministicValue(`${item.chatId}-rotation`, -28, 28));
             const gradient = getCategoryGradientColors(item.category) ?? getCategoryGradientColors('general_knowledge');
+            const fallbackGradient = getCategoryGradientColors('general_knowledge');
 
             decor.push({
                 key: `${item.chatId}-${item.iconName}-${side}`,
@@ -533,8 +534,8 @@ changes to the documentation (to keep the documentation up to date).
                 topPercent,
                 insetPx,
                 rotationDeg,
-                gradientStart: gradient?.start ?? '#de1e66',
-                gradientEnd: gradient?.end ?? '#ff763b',
+                gradientStart: gradient?.start ?? fallbackGradient?.start ?? 'var(--color-primary-start)',
+                gradientEnd: gradient?.end ?? fallbackGradient?.end ?? 'var(--color-primary-end)',
             });
         }
 
@@ -1128,7 +1129,9 @@ changes to the documentation (to keep the documentation up to date).
         )
     );
     let chatSettingsGradient = $derived(
-        getCategoryGradientColors(chatSettingsCategory) ?? { start: '#063f4d', end: '#0d6b7c' }
+        getCategoryGradientColors(chatSettingsCategory) ??
+        getCategoryGradientColors('general_knowledge') ??
+        { start: 'var(--color-primary-start)', end: 'var(--color-primary-end)' }
     );
     let chatSettingsCredits = $derived(
         chatSettingsContext?.display?.credits ??
@@ -2939,7 +2942,7 @@ changes to the documentation (to keep the documentation up to date).
 {/if}
 
 <!-- Dummy element to make linter recognize mobile-overlay class as used -->
-<div class="settings-menu mobile-overlay" style="display: none;"></div>
+<div class="settings-menu mobile-overlay mobile-overlay-sentinel"></div>
 
 <div
     class="settings-menu"
@@ -2965,6 +2968,7 @@ changes to the documentation (to keep the documentation up to date).
                 <button
 					id="settings-back-button"
                     class="nav-button"
+                    data-testid="settings-back-button"
                     class:left={navButtonLeft}
                     class:left-aligned={activeSettingsView !== 'main'}
                     onclick={activeSettingsView !== 'main' ? (e) => backToMainView(e) : null}
@@ -3045,15 +3049,19 @@ changes to the documentation (to keep the documentation up to date).
                     class="header-chat-icons-layer on-banner"
                     class:menu-open={isMenuVisible}
                     aria-hidden="true"
-                    style="opacity: {headerDecorOpacity}"
+                    style:--header-chat-decor-opacity={headerDecorOpacity}
                 >
                     {#each headerChatDecorIcons as decor, index (decor.key)}
                         {@const IconComponent = getLucideIcon(decor.iconName)}
                         <div
                             class="header-chat-icon {decor.side}"
-                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; --deco-rotate: {decor.rotationDeg}deg; --float-rx: 6px; --float-ry: 7px; animation-delay: {-index * 2}s;"
+                            style:--header-chat-icon-top={`${decor.topPercent}%`}
+                            style:--header-chat-icon-inset={`${decor.insetPx}px`}
+                            style:--header-chat-icon-rotation={`${decor.rotationDeg}deg`}
+                            style:--deco-rotate={`${decor.rotationDeg}deg`}
+                            style:--header-chat-icon-animation-delay={`${-index * 2}s`}
                         >
-                            <IconComponent size={22} color="rgba(255, 255, 255, 0.45)" />
+                            <IconComponent size={22} color="var(--header-chat-icon-color)" />
                         </div>
                     {/each}
                 </div>
@@ -3459,12 +3467,16 @@ changes to the documentation (to keep the documentation up to date).
         height: 100%;
         width: 0px;
         border-radius: 17px;
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+        box-shadow: var(--shadow-xl);
         display: flex;
         flex-direction: column;
         overflow: hidden;
         transition: width var(--duration-slow) var(--easing-default);
         z-index: var(--z-index-modal-above);
+    }
+
+    .mobile-overlay-sentinel {
+        display: none;
     }
 
     @media (max-width: 1100px) {
@@ -3499,7 +3511,7 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         .settings-menu.overlay {
-            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--shadow-md);
         }
         
         /* Add mobile overlay style for higher z-index */
@@ -3564,7 +3576,7 @@ changes to the documentation (to keep the documentation up to date).
         position: sticky;
         top: 0;
         z-index: var(--z-index-dropdown-1);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        box-shadow: var(--shadow-sm);
         display: flex;
         flex-direction: column;
         border-bottom: 1px solid var(--color-grey-30);
@@ -3578,6 +3590,7 @@ changes to the documentation (to keep the documentation up to date).
         overflow: hidden;
         pointer-events: none;
         z-index: var(--z-index-base);
+        opacity: var(--header-chat-decor-opacity, 1);
         transition: opacity 0.28s ease;
     }
 
@@ -3590,13 +3603,16 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
+        top: var(--header-chat-icon-top);
+        --header-chat-icon-color: color-mix(in srgb, var(--color-white) 45%, transparent);
+        --float-rx: 6px;
+        --float-ry: 7px;
         transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
         opacity: 0;
         transition: opacity 0.28s ease;
-        /* Orbital float — each icon drifts in a small circle. Per-icon phase
-           offset set via negative animation-delay in the inline style so all
-           8 icons orbit independently (staggered by 2s each). */
+        /* Orbital float — each icon drifts in a small circle with a per-icon phase offset. */
         animation: decoFloat 16s linear infinite;
+        animation-delay: var(--header-chat-icon-animation-delay);
     }
 
     .header-chat-icons-layer.menu-open .header-chat-icon {

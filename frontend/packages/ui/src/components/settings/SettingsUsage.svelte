@@ -12,8 +12,8 @@ Usage Settings - View usage statistics and export usage data
     import { chatDB } from '../../services/db';
     import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
     import type { Chat } from '../../types/chat';
-    import * as LucideIcons from '@lucide/svelte';
     import Icon from '../Icon.svelte';
+    import SettingsButton from './elements/SettingsButton.svelte';
     import SettingsTabs from './elements/SettingsTabs.svelte';
     import { decryptWithMasterKey, getKeyFromStorage, decryptChatKeyWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
     import { appsMetadata } from '../../data/appsMetadata';
@@ -25,6 +25,10 @@ Usage Settings - View usage statistics and export usage data
     import { computeSHA256 } from '../../message_parsing/utils';
     import { demoMode } from '../../stores/demoModeStore';
     import { buildDemoUsageEntries, demoUsageMetadata } from '../../demo_chats/usageDemoData';
+    import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
+
+    const DEFAULT_CHAT_ICON_BACKGROUND = 'var(--color-grey-30)';
+    const UNSENT_DRAFT_ICON_BACKGROUND = 'var(--color-primary)';
 
     const dispatch = createEventDispatcher<{
         chatSelected: { chat: Chat };
@@ -919,70 +923,9 @@ Usage Settings - View usage statistics and export usage data
 
     // Usage entries are now loaded directly via fetchUsageDetails, no need for derived values
 
-    /**
-     * Get gradient colors for a category based on mate configuration
-     * (Same as Chat.svelte)
-     */
-    function getCategoryGradientColors(category: string): { start: string; end: string } | null {
-        const categoryGradients: Record<string, { start: string; end: string }> = {
-            'software_development': { start: '#155D91', end: '#42ABF4' },
-            'business_development': { start: '#004040', end: '#008080' },
-            'medical_health': { start: '#FD50A0', end: '#F42C2D' },
-            'legal_law': { start: '#239CFF', end: '#005BA5' },
-            'openmates_official': { start: '#6366f1', end: '#4f46e5' },
-            'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
-            'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
-            'finance': { start: '#119106', end: '#15780D' },
-            'design': { start: '#101010', end: '#2E2E2E' },
-            'electrical_engineering': { start: '#233888', end: '#2E4EC8' },
-            'movies_tv': { start: '#00C2C5', end: '#3170DC' },
-            'history': { start: '#4989F2', end: '#2F44BF' },
-            'science': { start: '#FF7300', end: '#D5320' },
-            'life_coach_psychology': { start: '#FDB250', end: '#F42C2D' },
-            'cooking_food': { start: '#FD8450', end: '#F42C2D' },
-            'activism': { start: '#F53D00', end: '#F56200' },
-            'general_knowledge': { start: '#DE1E66', end: '#FF763B' }
-        };
-        return categoryGradients[category] || null;
-    }
-
-    /**
-     * Get fallback icon for a category when no icon names are provided
-     * (Same as Chat.svelte)
-     */
-    function getFallbackIconForCategory(category: string): string {
-        const categoryIcons: Record<string, string> = {
-            'software_development': 'code',
-            'business_development': 'briefcase',
-            'medical_health': 'heart',
-            'legal_law': 'gavel',
-            'openmates_official': 'shield-check',
-            'maker_prototyping': 'wrench',
-            'marketing_sales': 'megaphone',
-            'finance': 'dollar-sign',
-            'design': 'palette',
-            'electrical_engineering': 'zap',
-            'movies_tv': 'tv',
-            'history': 'clock',
-            'science': 'microscope',
-            'life_coach_psychology': 'users',
-            'cooking_food': 'utensils',
-            'activism': 'trending-up',
-            'general_knowledge': 'help-circle'
-        };
-        return categoryIcons[category] || 'help-circle';
-    }
-
-    /**
-     * Get the Lucide icon component by name
-     * (Same as Chat.svelte)
-     */
-    function getLucideIcon(iconName: string) {
-        const pascalCaseName = iconName
-            .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join('');
-        return LucideIcons[pascalCaseName] || LucideIcons.HelpCircle;
+    function getGradientBackground(colors: { start: string; end: string } | null): string {
+        if (!colors) return DEFAULT_CHAT_ICON_BACKGROUND;
+        return `linear-gradient(135deg, ${colors.start}, ${colors.end})`;
     }
 
     /**
@@ -1728,6 +1671,7 @@ Usage Settings - View usage statistics and export usage data
     type="quickaction"
     icon="download"
     title={$text('settings.usage.export')}
+    data-testid="usage-export-button"
     onClick={exportToCSV}
 />
 
@@ -1754,6 +1698,7 @@ Usage Settings - View usage statistics and export usage data
             type="quickaction"
             icon="subsetting_icon reload"
             title={$text('common.retry')}
+            data-testid="usage-retry-button"
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />
 {:else if activeTab === 'overview'}
@@ -1779,6 +1724,7 @@ Usage Settings - View usage statistics and export usage data
             <div class="usage-detail-view" data-testid="usage-detail-view">
                 <button
                     class="back-button"
+                    data-testid="usage-entry-detail-back-button"
                     onclick={() => overviewSelectedEntry = null}
                 >
                     <div class="clickable-icon icon_back"></div>
@@ -1787,7 +1733,7 @@ Usage Settings - View usage statistics and export usage data
                 
                 <div class="detail-header">
                     <div class="detail-icon-wrapper">
-                        <div class="entry-icon icon icon_{entryIconName}" style="width: 32px; height: 32px;"></div>
+                        <div class="entry-icon entry-icon--detail icon icon_{entryIconName}"></div>
                     </div>
                     <div class="detail-title-wrapper">
                         <h3 class="detail-title">{entryDisplayName}</h3>
@@ -1802,7 +1748,7 @@ Usage Settings - View usage statistics and export usage data
                             <span class="entry-detail-label">{$text('settings.usage.total_credits_label')}</span>
                             <span class="entry-detail-value">
                                 <span class="credits-amount">{formatCredits(selEntry.credits)}</span>
-                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                <Icon name="coins" type="default" size="var(--spacing-8)" className="credits-icon-img" />
                             </span>
                         </div>
                     {/if}
@@ -1912,14 +1858,14 @@ Usage Settings - View usage statistics and export usage data
 
                 <!-- "Open message" / "Open result" button — only shown when the target exists in IndexedDB -->
                 {#if openTarget}
-                    <button onclick={handleOpenTarget}>
+                    <SettingsButton variant="secondary" size="sm" dataTestid="usage-open-target-button" onClick={handleOpenTarget}>
                         <div class="clickable-icon icon_{openTarget.type === 'message' ? 'message-circle' : 'external-link'}"></div>
                         <span>
                             {openTarget.type === 'message'
                                 ? $text('settings.usage.open_message')
                                 : $text('settings.usage.open_embed')}
                         </span>
-                    </button>
+                    </SettingsButton>
                 {/if}
             </div>
         {/each}
@@ -1940,6 +1886,7 @@ Usage Settings - View usage statistics and export usage data
         <div class="usage-detail-view" data-testid="usage-detail-view">
             <button 
                 class="back-button"
+                data-testid="usage-chat-detail-back-button"
                 onclick={() => {
                     overviewSelectedChatId = null;
                     overviewChatEntries = [];
@@ -1952,15 +1899,15 @@ Usage Settings - View usage statistics and export usage data
             <div class="detail-header">
                 <div class="detail-icon-wrapper">
                     {#if isOverviewIncognito}
-                        <div class="chat-usage-icon-circle" style="background: #555555;">
+                        <div class="chat-usage-icon-circle chat-usage-icon-circle--incognito">
                             <div class="chat-usage-icon">
-                                <div class="icon icon_incognito" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"></div>
+                                <div class="icon icon_incognito usage-incognito-icon usage-incognito-icon--small"></div>
                             </div>
                         </div>
                     {:else}
                         <div 
                             class="chat-usage-icon-circle" 
-                            style={chatGradient ? `background: linear-gradient(135deg, ${chatGradient.start}, ${chatGradient.end})` : 'background: #cccccc'}
+                            style:--usage-icon-background={getGradientBackground(chatGradient)}
                         >
                             <div class="chat-usage-icon">
                                 {#if ChatIcon}
@@ -2001,19 +1948,16 @@ Usage Settings - View usage statistics and export usage data
                         : oAppName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const oEntryIcon = getEntryIcon(entry)}
                     
-                    <div class="usage-entry-row">
-                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                        <SettingsItem
-                            type="quickaction"
-                            icon={oEntryIcon}
-                            iconBackground="none"
-                            title={oDisplayName}
-                            subtitleBottom={entry.model_used || undefined}
-                            creditsDisplay={formatCredits(entry.credits || 0)}
-                            data-testid="usage-chat-entry"
-                            onClick={() => overviewSelectedEntry = entry}
-                        />
-                    </div>
+                    <SettingsItem
+                        type="quickaction"
+                        icon={oEntryIcon}
+                        iconBackground="none"
+                        title={oDisplayName}
+                        subtitleBottom={entry.model_used ? `${formatRelativeTime(entry.created_at)} - ${entry.model_used}` : formatRelativeTime(entry.created_at)}
+                        creditsDisplay={formatCredits(entry.credits || 0)}
+                        data-testid="usage-chat-entry"
+                        onClick={() => overviewSelectedEntry = entry}
+                    />
                 {/each}
             {/if}
         </div>
@@ -2032,7 +1976,7 @@ Usage Settings - View usage statistics and export usage data
             </div>
         {:else}
             {#each dailyOverview as day}
-                <SettingsItem type="heading" icon="event" title={getDayLabel(day.date)} creditsDisplay={formatCredits(day.total_credits)} />
+                <SettingsItem type="heading" icon="event" title={getDayLabel(day.date)} creditsDisplay={formatCredits(day.total_credits)} data-testid="usage-overview-day-heading" />
 
                 {#if day.items.length === 0}
                     <div class="overview-empty-day">
@@ -2056,7 +2000,7 @@ Usage Settings - View usage statistics and export usage data
                             {@const LucideIcon = (!isDeletedChat && !isIncognitoChat && !isUnsentDraft) ? getLucideIcon(iconName) : null}
                             {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
                             {@const itemIcon = isIncognitoChat ? 'anonym' : (isUnsentDraft ? 'recordaudio' : (isDeletedChat ? 'delete' : 'chat'))}
-                            {@const itemIconColor = isIncognitoChat ? 'var(--color-grey-50)' : (isUnsentDraft ? 'linear-gradient(135deg, #6B8DD6, #8E37D7)' : (isDeletedChat ? 'var(--color-grey-40)' : (gradientColors ? `linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'var(--color-grey-50)')))}
+                            {@const itemIconColor = isIncognitoChat ? 'var(--color-grey-50)' : (isUnsentDraft ? UNSENT_DRAFT_ICON_BACKGROUND : (isDeletedChat ? 'var(--color-grey-40)' : (gradientColors ? `linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'var(--color-grey-50)')))}
 
                             <SettingsItem
                                 type="submenu"
@@ -2067,6 +2011,7 @@ Usage Settings - View usage statistics and export usage data
                                 title={title}
                                 subtitleBottom={`${item.entry_count} ${item.entry_count === 1 ? 'request' : 'requests'}`}
                                 creditsDisplay={formatCredits(item.total_credits)}
+                                data-testid="usage-overview-chat-row"
                                 onClick={async () => {
                                     overviewSelectedChatId = item.chat_id;
                                     await fetchChatEntries(item.chat_id!);
@@ -2081,13 +2026,15 @@ Usage Settings - View usage statistics and export usage data
             <!-- Load more days button -->
             {#if hasMoreDays && !isLoadingDailyOverview}
                 <div class="show-more-container">
-                    <button
-                        class="show-more-button"
-                        onclick={loadMoreDays}
-                        aria-label={$text('settings.usage.load_more_days')}
+                    <SettingsButton
+                        variant="secondary"
+                        size="sm"
+                        dataTestid="usage-load-more-days-button"
+                        ariaLabel={$text('settings.usage.load_more_days')}
+                        onClick={loadMoreDays}
                     >
                         {$text('settings.usage.load_more_days')}
-                    </button>
+                    </SettingsButton>
                 </div>
             {/if}
         {/if}
@@ -2097,6 +2044,7 @@ Usage Settings - View usage statistics and export usage data
     <div class="usage-detail-view">
         <button 
             class="back-button"
+            data-testid="usage-selected-chat-back-button"
             onclick={() => selectedChatId = null}
         >
             <div class="clickable-icon icon_back"></div>
@@ -2119,15 +2067,15 @@ Usage Settings - View usage statistics and export usage data
             <div class="detail-header">
                 <div class="detail-icon-wrapper">
                     {#if isSelectedIncognito}
-                        <div class="detail-icon-circle" style="background: #555555;">
+                        <div class="detail-icon-circle detail-icon-circle--incognito">
                             <div class="detail-icon">
-                                <div class="icon icon_incognito" style="width: 20px; height: 20px; filter: brightness(0) invert(1);"></div>
+                                <div class="icon icon_incognito usage-incognito-icon usage-incognito-icon--medium"></div>
                             </div>
                         </div>
                     {:else}
                         <div 
                             class="detail-icon-circle" 
-                            style={selectedGradientColors ? `background: linear-gradient(135deg, ${selectedGradientColors.start}, ${selectedGradientColors.end})` : 'background: #cccccc'}
+                            style:--usage-icon-background={getGradientBackground(selectedGradientColors)}
                         >
                             <div class="detail-icon">
                                 {#if SelectedIconComponent}
@@ -2167,25 +2115,23 @@ Usage Settings - View usage statistics and export usage data
                 {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
                 {@const entryIcon = getEntryIcon(entry)}
                 
-                <div class="usage-entry-row">
-                    <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                    <SettingsItem
-                        type="quickaction"
-                        icon={entryIcon}
-                        iconBackground="none"
-                        title={displayName}
-                        subtitleBottom={entry.app_id && entry.skill_id ? (skillName || entry.skill_id) : undefined}
-                        creditsDisplay={formatCredits(entry.credits || 0)}
-                    />
-                </div>
+                <SettingsItem
+                    type="quickaction"
+                    icon={entryIcon}
+                    iconBackground="none"
+                    title={displayName}
+                    subtitleBottom={entry.app_id && entry.skill_id ? `${formatRelativeTime(entry.created_at)} - ${skillName || entry.skill_id}` : formatRelativeTime(entry.created_at)}
+                    creditsDisplay={formatCredits(entry.credits || 0)}
+                    data-testid="usage-detail-entry-row"
+                />
                 {/each}
         </div>
         {/if}
         
         <div class="detail-export">
-            <button class="export-button" onclick={exportToCSV}>
+            <SettingsButton variant="secondary" size="sm" dataTestid="usage-detail-export-button" onClick={exportToCSV}>
                 {$text('settings.usage.export')}
-            </button>
+            </SettingsButton>
         </div>
     </div>
 {:else}
@@ -2195,6 +2141,7 @@ Usage Settings - View usage statistics and export usage data
         <div class="usage-detail-view">
             <button 
                 class="back-button"
+                data-testid="usage-api-detail-back-button"
                 onclick={() => {
                     selectedApiKeyHash = null;
                     selectedApiKeyMonth = null;
@@ -2215,7 +2162,7 @@ Usage Settings - View usage statistics and export usage data
                         <Icon 
                             name={detailIcon}
                             type="default"
-                            size="40px"
+                            size="var(--spacing-20)"
                         />
                     </div>
                     <div class="detail-info">
@@ -2252,17 +2199,15 @@ Usage Settings - View usage statistics and export usage data
                     {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const entryIcon = getEntryIcon(entry)}
                     
-                    <div class="usage-entry-row">
-                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                        <SettingsItem
-                            type="quickaction"
-                            icon={entryIcon}
-                            iconBackground="none"
-                            title={displayName}
-                            subtitleBottom={entry.skill_id ? (skillName || entry.skill_id) : undefined}
-                            creditsDisplay={formatCredits(entry.credits || 0)}
-                        />
-                    </div>
+                    <SettingsItem
+                        type="quickaction"
+                        icon={entryIcon}
+                        iconBackground="none"
+                        title={displayName}
+                        subtitleBottom={entry.skill_id ? `${formatRelativeTime(entry.created_at)} - ${skillName || entry.skill_id}` : formatRelativeTime(entry.created_at)}
+                        creditsDisplay={formatCredits(entry.credits || 0)}
+                        data-testid="usage-app-detail-entry-row"
+                    />
                 {/each}
             </div>
             {/if}
@@ -2272,6 +2217,7 @@ Usage Settings - View usage statistics and export usage data
         <div class="usage-detail-view">
             <button 
                 class="back-button"
+                data-testid="usage-app-detail-back-button"
                 onclick={() => {
                     selectedAppId = null;
                     selectedAppMonth = null;
@@ -2290,7 +2236,7 @@ Usage Settings - View usage statistics and export usage data
                         <Icon 
                             name={appIconName}
                             type="app"
-                            size="40px"
+                            size="var(--spacing-20)"
                         />
                     </div>
                     <div class="detail-info">
@@ -2316,17 +2262,15 @@ Usage Settings - View usage statistics and export usage data
                     {@const displayName = skillName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const entryIcon = getEntryIcon(entry)}
                     
-                    <div class="usage-entry-row">
-                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
-                        <SettingsItem
-                            type="quickaction"
-                            icon={entryIcon}
-                            iconBackground="none"
-                            title={displayName}
-                            subtitleBottom={entry.skill_id ? (skillName || entry.skill_id) : undefined}
-                            creditsDisplay={formatCredits(entry.credits || 0)}
-                        />
-                    </div>
+                    <SettingsItem
+                        type="quickaction"
+                        icon={entryIcon}
+                        iconBackground="none"
+                        title={displayName}
+                        subtitleBottom={entry.skill_id ? `${formatRelativeTime(entry.created_at)} - ${skillName || entry.skill_id}` : formatRelativeTime(entry.created_at)}
+                        creditsDisplay={formatCredits(entry.credits || 0)}
+                        data-testid="usage-app-detail-entry-row"
+                    />
                 {/each}
             </div>
             {/if}
@@ -2347,7 +2291,7 @@ Usage Settings - View usage statistics and export usage data
         {:else}
             {#each Array.from(chatsByMonth.entries()) as [month, summaries]}
                 {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
-                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} />
+                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} data-testid="usage-chat-month-heading" />
 
                 {#each summaries as summary}
                     {@const chat = summary.chat}
@@ -2364,7 +2308,7 @@ Usage Settings - View usage statistics and export usage data
                     {@const LucideIcon = (!isDeletedChat && !isIncognitoChat && !isUnsentDraft) ? getLucideIcon(iconName) : null}
                     {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
                     {@const chatItemIcon = isIncognitoChat ? 'anonym' : (isUnsentDraft ? 'recordaudio' : (isDeletedChat ? 'delete' : 'chat'))}
-                    {@const chatItemColor = isIncognitoChat ? 'var(--color-grey-50)' : (isUnsentDraft ? 'linear-gradient(135deg, #6B8DD6, #8E37D7)' : (isDeletedChat ? 'var(--color-grey-40)' : (gradientColors ? `linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'var(--color-grey-50)')))}
+                    {@const chatItemColor = isIncognitoChat ? 'var(--color-grey-50)' : (isUnsentDraft ? UNSENT_DRAFT_ICON_BACKGROUND : (isDeletedChat ? 'var(--color-grey-40)' : (gradientColors ? `linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'var(--color-grey-50)')))}
 
                     <SettingsItem
                         type="submenu"
@@ -2374,6 +2318,7 @@ Usage Settings - View usage statistics and export usage data
                         lucideIcon={LucideIcon}
                         title={title}
                         creditsDisplay={formatCredits(summary.totalCredits)}
+                        data-testid="usage-chat-summary-row"
                         onClick={async () => {
                             selectedChatId = summary.chat_id;
                             await fetchUsageDetails('chats', summary.chat_id, summary.month);
@@ -2393,7 +2338,7 @@ Usage Settings - View usage statistics and export usage data
         {:else}
             {#each Array.from(appsByMonth.entries()) as [month, summaries]}
                 {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
-                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} />
+                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} data-testid="usage-app-month-heading" />
 
                 {#each summaries as summary}
                     {@const appName = getAppName(summary.app_id)}
@@ -2405,6 +2350,7 @@ Usage Settings - View usage statistics and export usage data
                         iconBackground="none"
                         title={appName}
                         creditsDisplay={formatCredits(summary.totalCredits)}
+                        data-testid="usage-app-summary-row"
                         onClick={async () => {
                             selectedAppId = summary.app_id;
                             selectedAppMonth = summary.month;
@@ -2430,7 +2376,7 @@ Usage Settings - View usage statistics and export usage data
         {:else}
             {#each Array.from(apiKeysByMonth.entries()) as [month, summaries]}
                 {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
-                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} />
+                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} data-testid="usage-api-month-heading" />
 
                 {#each summaries as summary}
                     {@const labelKey = `${summary.api_key_hash}:${summary.month}`}
@@ -2445,6 +2391,7 @@ Usage Settings - View usage statistics and export usage data
                         title={apiKeyLabel.title}
                         subtitleBottom={apiKeyLabel.subtitle && !isSyntheticDeviceEntry ? apiKeyLabel.subtitle : undefined}
                         creditsDisplay={formatCredits(summary.totalCredits)}
+                        data-testid="usage-api-summary-row"
                         onClick={async () => {
                             selectedApiKeyHash = summary.api_key_hash;
                             selectedApiKeyMonth = summary.month;
@@ -2465,7 +2412,7 @@ Usage Settings - View usage statistics and export usage data
             </div>
         {:else}
             {#each processedEntries as [timePeriod, { entries, total }]}
-                <SettingsItem type="heading" icon="event" title={timePeriod} creditsDisplay={formatCredits(total)} />
+                <SettingsItem type="heading" icon="event" title={timePeriod} creditsDisplay={formatCredits(total)} data-testid="usage-period-heading" />
 
                 {#each entries as entry}
                     <SettingsItem
@@ -2474,6 +2421,7 @@ Usage Settings - View usage statistics and export usage data
                         iconBackground="none"
                         title={getEntryDisplayName(entry)}
                         creditsDisplay={formatCredits(entry.credits || 0)}
+                        data-testid="usage-entry-row"
                     />
                 {/each}
             {/each}
@@ -2483,39 +2431,21 @@ Usage Settings - View usage statistics and export usage data
     <!-- Show more months button (only for non-overview tabs - overview is handled in its own branch above) -->
     {#if hasMoreMonths && !isLoadingSummaries}
         <div class="show-more-container">
-            <button
-                class="show-more-button"
-                onclick={showMoreMonths}
-                aria-label={$text('settings.usage.show_more')}
+            <SettingsButton
+                variant="secondary"
+                size="sm"
+                dataTestid="usage-load-more-months-button"
+                ariaLabel={$text('settings.usage.show_more')}
+                onClick={showMoreMonths}
             >
                 {$text('settings.usage.show_more')}
-            </button>
+            </SettingsButton>
         </div>
     {/if}
 {/if}
 </div>
 
 <style>
-    .export-button {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-4);
-        padding: var(--spacing-4) var(--spacing-8);
-        background: var(--color-accent);
-        color: white;
-        border: none;
-        border-radius: var(--radius-3);
-        font-size: var(--font-size-xs);
-        font-weight: 500;
-        cursor: pointer;
-        transition: all var(--duration-normal) var(--easing-default);
-    }
-
-    .export-button:hover {
-        background: var(--color-accent-hover);
-        transform: translateY(-1px);
-    }
-
     /* Panel that visually groups tab content below the tab bar */
     .tab-content-panel {
         margin: 8px 10px 0;
@@ -2600,6 +2530,11 @@ Usage Settings - View usage statistics and export usage data
         flex-shrink: 0;
     }
 
+    .entry-icon--detail {
+        width: 32px;
+        height: 32px;
+    }
+
     /* Chat usage icon styles (used in detail views) */
     .chat-usage-icon-circle {
         width: 28px;
@@ -2609,9 +2544,14 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
         border: 2px solid var(--color-background);
+        background: var(--usage-icon-background, var(--color-grey-30));
         transition: all var(--duration-normal) var(--easing-default);
+    }
+
+    .chat-usage-icon-circle--incognito {
+        background: var(--color-grey-70);
     }
 
     .chat-usage-icon {
@@ -2620,6 +2560,20 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    .usage-incognito-icon {
+        filter: brightness(0) invert(1);
+    }
+
+    .usage-incognito-icon--small {
+        width: 16px;
+        height: 16px;
+    }
+
+    .usage-incognito-icon--medium {
+        width: 20px;
+        height: 20px;
     }
 
     .usage-detail-view {
@@ -2667,8 +2621,13 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
         border: 2px solid var(--color-background);
+        background: var(--usage-icon-background, var(--color-grey-30));
+    }
+
+    .detail-icon-circle--incognito {
+        background: var(--color-grey-70);
     }
 
     .detail-icon {
@@ -2694,16 +2653,6 @@ Usage Settings - View usage statistics and export usage data
 
     .detail-entries {
         margin-bottom: var(--spacing-12);
-    }
-
-    .usage-entry-row {
-        margin-bottom: var(--spacing-8);
-    }
-
-    .entry-time {
-        color: var(--color-grey-60);
-        font-size: var(--font-size-xxs);
-        margin-bottom: var(--spacing-4);
     }
 
     .entry-icon {
@@ -2765,26 +2714,6 @@ Usage Settings - View usage statistics and export usage data
         padding: var(--spacing-10) var(--spacing-5);
         margin-top: var(--spacing-12);
         border-top: 1px solid var(--color-grey-20);
-    }
-
-    .show-more-button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: var(--spacing-6) var(--spacing-12);
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-30);
-        border-radius: var(--radius-3);
-        color: var(--color-grey-80);
-        font-size: var(--font-size-small);
-        font-weight: 500;
-        cursor: pointer;
-        transition: all var(--duration-normal) var(--easing-default);
-    }
-
-    .show-more-button:hover {
-        background: var(--color-grey-20);
-        border-color: var(--color-grey-40);
     }
 
     .overview-empty-day {

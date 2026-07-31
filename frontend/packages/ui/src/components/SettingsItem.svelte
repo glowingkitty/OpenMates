@@ -152,6 +152,9 @@
             ? ` --si-bg: ${iconColor ?? 'var(--color-primary)'};`
             : ` --si-color: ${resolvedColor};`)
     );
+    let lucideIconStyle = $derived(
+        hasIconBg ? `--si-bg: ${resolvedColor};` : `--si-color: ${resolvedColor};`
+    );
 
     // Computed values
     let isClickable = $derived(onClick !== undefined);
@@ -207,7 +210,7 @@
                     <div
                         class="settings-icon lucide-icon"
                         class:has-bg={hasIconBg}
-                        style={hasIconBg ? `--si-bg: ${resolvedColor};` : `background: linear-gradient(135deg, var(--color-grey-20), var(--color-grey-30));`}
+                        style={lucideIconStyle}
                     >
                         <LucideComp size={hasIconBg ? 20 : 22} color={hasIconBg ? 'white' : resolvedColor} />
                     </div>
@@ -303,6 +306,7 @@
                     role="button"
                     tabindex="0"
                     class="modify-button-container"
+                    data-testid={`${testid}-modify-button`}
                 >
                     <ModifyButton />
                 </div>
@@ -542,7 +546,7 @@
 
     /* Brighter gradient for dark mode readability */
     :global([data-theme="dark"]) .menu-title.gradient-text {
-        background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%);
+        background: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
         -webkit-background-clip: text;
         background-clip: text;
     }

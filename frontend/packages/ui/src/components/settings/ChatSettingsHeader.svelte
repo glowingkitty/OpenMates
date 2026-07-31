@@ -58,7 +58,9 @@
 <div
   class="chat-settings-header"
   data-testid="chat-settings-header"
-  style="height: {headerHeight}px; --chat-gradient-start: {gradientStart}; --chat-gradient-end: {gradientEnd};"
+  style:--chat-settings-header-height={`${headerHeight}px`}
+  style:--chat-gradient-start={gradientStart}
+  style:--chat-gradient-end={gradientEnd}
 >
   <button
     class="chat-settings-nav"
@@ -76,7 +78,8 @@
     <div
       class="chat-settings-icon"
       aria-hidden="true"
-      style="width: {iconSize}px; height: {iconSize}px; -webkit-mask-image: var(--icon-url-{resolvedIcon}); mask-image: var(--icon-url-{resolvedIcon});"
+      style:--chat-settings-icon-size={`${iconSize}px`}
+      style:--chat-settings-icon-mask={`var(--icon-url-${resolvedIcon})`}
     ></div>
     <h1 class="chat-settings-title" data-testid="chat-settings-title">{title}</h1>
   </div>
@@ -84,7 +87,7 @@
   <div
     class="chat-settings-credits"
     data-testid="chat-settings-credits"
-    style="opacity: {detailsOpacity};"
+    style:--chat-settings-details-opacity={detailsOpacity}
     aria-hidden={detailsOpacity < 0.05}
   >
     <span>{displayCredits}</span>
@@ -100,10 +103,11 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    height: var(--chat-settings-header-height);
     background: linear-gradient(135deg, var(--chat-gradient-start), var(--chat-gradient-end));
-    border-radius: 0 0 14px 14px;
+    border-radius: 0 0 var(--radius-6) var(--radius-6);
     color: var(--color-white);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-lg);
     transition: height var(--duration-fast) var(--easing-default);
     user-select: none;
     pointer-events: none;
@@ -152,7 +156,11 @@
 
   .chat-settings-icon {
     flex: 0 0 auto;
+    width: var(--chat-settings-icon-size);
+    height: var(--chat-settings-icon-size);
     background: var(--color-white);
+    -webkit-mask-image: var(--chat-settings-icon-mask);
+    mask-image: var(--chat-settings-icon-mask);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
@@ -178,6 +186,7 @@
     margin-top: var(--spacing-4);
     font: var(--font-heading-sm);
     font-weight: var(--font-weight-bold);
+    opacity: var(--chat-settings-details-opacity);
     color: var(--color-white) !important;
     transition: opacity var(--duration-fast) var(--easing-default);
   }
