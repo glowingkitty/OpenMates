@@ -30,9 +30,10 @@ from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
 import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startup
 from typing import Dict, Optional  # noqa: E402 # For type hinting
+from importlib import import_module  # noqa: E402
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, invoice, credit_note, settings, payments, referrals, websockets, sdk  # noqa: E402
+from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
@@ -51,7 +52,6 @@ from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Co
 from backend.core.api.app.routes import code_notebook_execution  # noqa: E402 # Import Code notebook execution router
 from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
 from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
-from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
 from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
@@ -94,9 +94,6 @@ from backend.core.api.app.services.compliance import ComplianceService  # noqa: 
 from backend.core.api.app.utils.setup_compliance_logging import setup_compliance_logging  # noqa: E402
 from backend.core.api.app.services.email_template import EmailTemplateService  # noqa: E402
 from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E402 # Import S3UploadService
-from backend.core.api.app.services.payment.payment_service import PaymentService  # noqa: E402 # Import PaymentService
-from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402 # Import InvoiceNinjaService
-from backend.core.api.app.services.stripe_product_sync import StripeProductSync  # noqa: E402 # Import StripeProductSync
 from backend.core.api.app.services.translations import TranslationService  # noqa: E402 # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402 # Add import for SecretManager
@@ -117,6 +114,21 @@ from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, upd
 
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
+
+OPENMATESCLOUD_BILLING_OVERLAY_MODULE = "openmatescloud.api.billing_overlay"
+
+
+def _load_openmatescloud_billing_overlay():
+    try:
+        return import_module(OPENMATESCLOUD_BILLING_OVERLAY_MODULE)
+    except ModuleNotFoundError as exc:
+        missing_module = exc.name or ""
+        if missing_module == "openmatescloud" or missing_module.startswith("openmatescloud."):
+            raise RuntimeError(
+                "OPENMATES_CLOUD_OVERLAY_ENABLED=true but the OpenMatesCloud "
+                "billing overlay package is not mounted."
+            ) from exc
+        raise
 
 # DISCOVERED_APPS_METADATA_CACHE_KEY is now defined in CacheService
 
@@ -492,15 +504,8 @@ async def lifespan(app: FastAPI):
     cloud_billing_enabled = is_cloud_billing_enabled()
     app.state.cloud_billing_enabled = cloud_billing_enabled
     if cloud_billing_enabled:
-        app.state.payment_service = PaymentService(secrets_manager=app.state.secrets_manager)
-        logger.info("Payment service instance created for OpenMatesCloud overlay runtime.")
-
-        logger.info("Initializing Invoice Ninja service for OpenMatesCloud overlay runtime...")
-        try:
-            app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
-        except Exception as e:
-            logger.error(f"InvoiceNinjaService initialization failed (API will start without invoicing): {e}")
-            app.state.invoice_ninja_service = None
+        billing_overlay = _load_openmatescloud_billing_overlay()
+        await billing_overlay.create_billing_services(app)
     else:
         app.state.payment_service = None
         app.state.invoice_ninja_service = None
@@ -810,42 +815,16 @@ async def lifespan(app: FastAPI):
         await app.state.metrics_service.initialize_metrics(app.state.directus_service)
         logger.info("Metrics service initialized successfully.")
 
-        # Initialize Payment service conditionally (only if payment is enabled)
-        # Check payment_enabled flag that was set during domain validation
+        # Initialize payment providers through the OpenMatesCloud overlay only.
+        # Check payment_enabled flag that was set during domain validation.
+        cloud_billing_enabled = bool(getattr(app.state, 'cloud_billing_enabled', False))
         if (
-            hasattr(app.state, 'payment_enabled')
-            and app.state.payment_enabled
+            cloud_billing_enabled
+            and getattr(app.state, 'payment_enabled', False)
             and getattr(app.state, 'payment_service', None)
         ):
-            logger.info("Initializing Payment service (payment enabled)...")
-            await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
-            logger.info("Payment service initialized successfully.")
-
-            # Initialize Stripe Product Sync service (only if payment enabled)
-            logger.info("Initializing Stripe Product Sync service...")
-            app.state.stripe_product_sync = StripeProductSync(app.state.payment_service.provider)
-            logger.info("Stripe Product Sync service initialized successfully.")
-
-            # Synchronize Stripe products with pricing configuration (only if payment enabled)
-            logger.info("Synchronizing Stripe products with pricing configuration...")
-            try:
-                sync_result = await app.state.stripe_product_sync.sync_all_products()
-                if sync_result.get("success"):
-                    results = sync_result.get("results", {})
-                    logger.info(f"Stripe product synchronization completed successfully. "
-                               f"One-time products: {results.get('one_time_products', {}).get('created', 0)} created, "
-                               f"{results.get('one_time_products', {}).get('updated', 0)} updated, "
-                               f"{results.get('one_time_products', {}).get('errors', 0)} errors. "
-                               f"Subscription products: {results.get('subscription_products', {}).get('created', 0)} created, "
-                               f"{results.get('subscription_products', {}).get('updated', 0)} updated, "
-                               f"{results.get('subscription_products', {}).get('errors', 0)} errors.")
-                else:
-                    error_msg = sync_result.get("error", "Unknown error")
-                    logger.warning(f"Stripe product synchronization failed: {error_msg}")
-                    # Don't fail startup, just log the warning
-            except Exception as sync_error:
-                logger.warning(f"Stripe product synchronization encountered an error: {str(sync_error)}")
-                # Don't fail startup, just log the warning
+            billing_overlay = _load_openmatescloud_billing_overlay()
+            await billing_overlay.initialize_billing_providers(app)
 
         else:
             logger.info("Skipping Payment service initialization (payment disabled - self-hosted mode)")
@@ -1336,10 +1315,8 @@ def create_app() -> FastAPI:
     cloud_billing_enabled = is_cloud_billing_enabled()
     
     if cloud_billing_enabled:
-        app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - web app only
-        app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - web app only
-        app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - web app only
-        app.include_router(referrals.router, include_in_schema=False)  # Referral endpoints - web app only
+        billing_overlay = _load_openmatescloud_billing_overlay()
+        billing_overlay.register_billing_routes(app)
         logger.info("Payment-related routes registered (OpenMatesCloud overlay enabled)")
     else:
         logger.info("Skipping payment-related routes (OpenMatesCloud overlay disabled)")
@@ -1419,13 +1396,6 @@ def create_app() -> FastAPI:
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     
-    # Conditionally register creators router (only if cloud billing is enabled - tips require payment)
-    if cloud_billing_enabled:
-        app.include_router(creators.router, include_in_schema=True)  # Creators router - requires authentication, supports API keys
-        logger.info("Creators router registered (OpenMatesCloud overlay enabled)")
-    else:
-        logger.info("Skipping creators router (OpenMatesCloud overlay disabled - tips require payment)")
-
     # Redirect /health to /v1/health for backward compatibility
     @app.get("/health", include_in_schema=False)
     async def health_redirect():

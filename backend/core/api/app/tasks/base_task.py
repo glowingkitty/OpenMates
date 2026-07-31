@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import os # Import os for environment variables
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TYPE_CHECKING
 import asyncio # Keep asyncio import if initialize_services uses it
 
 from celery import Task # Import Task for context
@@ -16,14 +18,16 @@ from backend.core.api.app.services.pdf.credit_note import CreditNoteTemplateServ
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
-from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
-from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
 from backend.shared.python_utils.celery_dedup import (
     DEDUP_KEY_PREFIX,
     DEFAULT_DEDUP_TTL_SECONDS,
     acquire_celery_task_dedup_lock,
     release_celery_task_dedup_lock,
 )
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
+    from backend.core.api.app.services.payment.payment_service import PaymentService
 
 logger = logging.getLogger(__name__)
 
@@ -276,6 +280,8 @@ class BaseServiceTask(DedupedTask):
 
         # Initialize InvoiceNinjaService
         if self._invoice_ninja_service is None:
+            from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
+
             logger.debug(f"Initializing InvoiceNinjaService for task {self.request.id}")
             # InvoiceNinjaService needs SecretsManager for async init
             self._invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=self._secrets_manager)
@@ -285,6 +291,8 @@ class BaseServiceTask(DedupedTask):
 
         # Initialize PaymentService
         if self._payment_service is None:
+            from backend.core.api.app.services.payment.payment_service import PaymentService
+
             logger.debug(f"Initializing PaymentService for task {self.request.id}")
             self._payment_service = PaymentService(secrets_manager=self._secrets_manager)
             # PaymentService also needs to initialize its internal provider

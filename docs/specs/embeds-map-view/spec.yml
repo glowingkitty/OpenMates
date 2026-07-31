@@ -753,6 +753,22 @@ tests:
         target: app.dev.openmates.org
         deployment_reference: dpl_2tMB2d35HDfbZioLwKVK2yrCmTy9
         timestamp: "2026-07-30T21:07:51Z"
+        supporting_evidence:
+          - status: failed_then_fixed
+            command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 3880083 --no-mocks
+            run_id: 2026-07-31T15:53:41Z / GitHub Actions 30645291283
+            subject_commit: 9a25db61cd85b1bca0bc8574758ca8a13ebb96ae
+            target: app.dev.openmates.org
+            timestamp: "2026-07-31T16:04:50Z"
+            summary: Failed because the new dynamic filter panel kept category selection open while the legacy spec reopened the panel to select All results.
+          - status: passed
+            command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 893103a --no-mocks
+            run_id: 2026-07-31T16:13:09Z / GitHub Actions 30646819626
+            subject_commit: 893103a5c151dd57d277f453f232eb6a8a0e03a0
+            target: app.dev.openmates.org
+            deployment_reference: dpl_56eKXnZezBdcB7WYBSrt6rkpDfXj
+            timestamp: "2026-07-31T16:23:54Z"
+            summary: Deployed preview map-view spec passed after restoring close-on-category filter behavior.
 
   - id: T-PLAYWRIGHT-EXAMPLES
     type: playwright
@@ -830,14 +846,19 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        timestamp: ""
+        status: skipped_with_reason
+        reason: The first control-plane Vitest dispatch after adding tests targeted the then-current dev commit and passed; no separate red run was captured before implementation.
+        timestamp: "2026-07-31T15:33:34Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: 2026-07-31T15:49:53Z / GitHub Actions 30644562294
+        subject_commit: 3880083362af86857a5816d9e6341d054696be01
+        timestamp: "2026-07-31T15:51:09Z"
+        summary: 669/669 Vitest tests passed, including the new map-view dynamic filter and cache/no-redecode assertions.
 
   - id: T-PLAYWRIGHT-DEUTSCHLANDTICKET
     type: playwright
@@ -855,14 +876,29 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        timestamp: ""
+        status: skipped_with_reason
+        reason: No separate red run was captured before extending the deployed example-chat spec; green Playwright and visual smoke evidence now cover the mobile route-map regression.
+        timestamp: "2026-07-31T15:49:50Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit 3880083 --no-mocks
+        run_id: 2026-07-31T15:53:41Z / GitHub Actions 30645254259
+        subject_commit: 9a25db61cd85b1bca0bc8574758ca8a13ebb96ae
+        target: app.dev.openmates.org
+        deployment_reference: dpl_Azece75p5MVmsVBDFNmR1nrQxhKJ
+        timestamp: "2026-07-31T15:59:44Z"
+        summary: Deployed Deutschlandticket mobile route-map example passed with lazy map hydration and dynamic route filters.
+        supporting_evidence:
+          - status: passed
+            command: Firecrawl mobile rendered extraction for https://app.dev.openmates.org/#chat-id=example-deutschlandticket-train-fare-breakdown
+            run_id: firecrawl-scrape-019fb8fd-861c-74db-9516-b9a8fdccf0c0
+            subject_commit: af6bd4b27
+            target: app.dev.openmates.org
+            timestamp: "2026-07-31T16:24:22Z"
+            summary: Deutschlandticket map/list content present, filter button available, no raw embeds_map_view text, no visible implementation errors, no stuck loading/spinner state, and no obvious mobile layout breakage at 390x844.
 
 verifications:
   - id: V-USER-CONFIRMATION
@@ -1205,7 +1241,7 @@ tasks:
 
   - id: TASK-7
     title: Redesign map-view filters and fix mobile cold-load performance
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:

@@ -17,6 +17,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 MAIN_PY = ROOT / "backend/core/api/main.py"
+CELERY_CONFIG_PY = ROOT / "backend/core/api/app/tasks/celery_config.py"
+BASE_TASK_PY = ROOT / "backend/core/api/app/tasks/base_task.py"
 SDK_PY = ROOT / "backend/core/api/app/routes/sdk.py"
 TEAMS_PY = ROOT / "backend/core/api/app/routes/teams.py"
 SELFHOST_COMPOSE_FILES = (
@@ -24,6 +26,16 @@ SELFHOST_COMPOSE_FILES = (
     ROOT / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
 )
 CLOUD_OVERLAY_ENV = "OPENMATES_CLOUD_OVERLAY_ENABLED"
+CLOUD_ROUTE_MODULES = {"credit_note", "creators", "invoice", "payments", "referrals"}
+CLOUD_SERVICE_MODULES = {
+    "backend.core.api.app.services.invoiceninja.invoiceninja",
+    "backend.core.api.app.services.payment.payment_service",
+    "backend.core.api.app.services.stripe_product_sync",
+}
+
+
+def _module_level_import_froms(tree: ast.AST) -> list[ast.ImportFrom]:
+    return [node for node in getattr(tree, "body", []) if isinstance(node, ast.ImportFrom)]
 
 
 def _load_compose(path: Path) -> dict:
@@ -97,17 +109,48 @@ def test_api_startup_payment_providers_are_guarded_by_cloud_billing() -> None:
 
     assert _calls_guarded_by_cloud_billing(
         tree,
-        lambda call: isinstance(call.func, ast.Name) and call.func.id == "PaymentService",
+        lambda call: isinstance(call.func, ast.Attribute) and call.func.attr == "create_billing_services",
     )
     assert _calls_guarded_by_cloud_billing(
         tree,
-        lambda call: (
-            isinstance(call.func, ast.Attribute)
-            and call.func.attr == "create"
-            and isinstance(call.func.value, ast.Name)
-            and call.func.value.id == "InvoiceNinjaService"
-        ),
+        lambda call: isinstance(call.func, ast.Attribute) and call.func.attr == "initialize_billing_providers",
     )
+
+
+def test_core_api_does_not_eager_import_cloud_billing_routes_or_services() -> None:
+    tree = ast.parse(MAIN_PY.read_text(encoding="utf-8"))
+    offenders: list[str] = []
+
+    for node in _module_level_import_froms(tree):
+        if node.module == "backend.core.api.app.routes":
+            offenders.extend(alias.name for alias in node.names if alias.name in CLOUD_ROUTE_MODULES)
+        if node.module in CLOUD_SERVICE_MODULES:
+            offenders.append(node.module)
+
+    assert offenders == []
+
+
+def test_core_worker_bootstrap_does_not_eager_import_cloud_accounting_services() -> None:
+    offenders: list[str] = []
+    for path in (CELERY_CONFIG_PY, BASE_TASK_PY):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        offenders.extend(
+            f"{path.name}:{node.module}"
+            for node in _module_level_import_froms(tree)
+            if node.module in CLOUD_SERVICE_MODULES
+        )
+
+    assert offenders == []
+
+
+def test_core_api_delegates_billing_hooks_to_openmatescloud_overlay() -> None:
+    source = MAIN_PY.read_text(encoding="utf-8")
+
+    assert "openmatescloud.api.billing_overlay" in source
+    assert "_load_openmatescloud_billing_overlay" in source
+    assert "create_billing_services" in source
+    assert "initialize_billing_providers" in source
+    assert "register_billing_routes" in source
 
 
 def test_payment_router_registration_is_guarded_by_cloud_billing() -> None:
@@ -115,21 +158,7 @@ def test_payment_router_registration_is_guarded_by_cloud_billing() -> None:
 
     assert _calls_guarded_by_cloud_billing(
         tree,
-        lambda call: (
-            isinstance(call.func, ast.Attribute)
-            and call.func.attr == "include_router"
-            and call.args
-            and ast.unparse(call.args[0]) == "payments.router"
-        ),
-    )
-    assert _calls_guarded_by_cloud_billing(
-        tree,
-        lambda call: (
-            isinstance(call.func, ast.Attribute)
-            and call.func.attr == "include_router"
-            and call.args
-            and ast.unparse(call.args[0]) == "creators.router"
-        ),
+        lambda call: isinstance(call.func, ast.Attribute) and call.func.attr == "register_billing_routes",
     )
 
 

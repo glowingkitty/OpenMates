@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from celery import Celery, signals
 from kombu import Queue
 import os
@@ -5,7 +7,7 @@ import logging
 import sys
 import importlib
 import time
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from urllib.parse import quote
 import asyncio
 from datetime import timedelta
@@ -15,11 +17,13 @@ from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.request_context import set_request_id
-from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService as _CacheService
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
@@ -490,6 +494,8 @@ async def initialize_services():
 
         # Now initialize services that depend on SecretsManager
         if invoice_ninja_service is None:
+            from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
+
             logger.info("Initializing InvoiceNinjaService for worker process...")
             try:
                 invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)

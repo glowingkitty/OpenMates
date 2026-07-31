@@ -17,6 +17,7 @@ import sys
 import time
 import types
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -52,8 +53,19 @@ if "regex" not in sys.modules:
 if "backend.core.api.app.tasks.celery_config" not in sys.modules:
     tasks_module = types.ModuleType("backend.core.api.app.tasks")
     celery_config_module = types.ModuleType("backend.core.api.app.tasks.celery_config")
-    celery_config_module.app = types.SimpleNamespace(send_task=lambda **_kwargs: None)
-    tasks_module.__path__ = []
+
+    class FakeCeleryApp:
+        def send_task(self, **_kwargs):
+            return None
+
+        def task(self, *_args, **_kwargs):
+            def decorator(func):
+                return func
+
+            return decorator
+
+    celery_config_module.app = FakeCeleryApp()
+    tasks_module.__path__ = [str(Path(__file__).resolve().parents[1] / "core/api/app/tasks")]
     sys.modules["backend.core.api.app.tasks"] = tasks_module
     sys.modules["backend.core.api.app.tasks.celery_config"] = celery_config_module
 
