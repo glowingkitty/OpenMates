@@ -37,6 +37,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa: E402
 
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.directus.directus import DirectusService  # noqa: E402
+from backend.core.api.app.services.invoiceninja import countries  # noqa: E402
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService  # noqa: E402
 from backend.core.api.app.services.s3 import S3UploadService  # noqa: E402
@@ -328,6 +329,48 @@ async def _directus_users_by_hash(
     return users_by_hash
 
 
+def _normalize_invoice_country_code(country_code: Any) -> str | None:
+    normalized = str(country_code or "").strip().upper()
+    if len(normalized) != 2 or not normalized.isalpha():
+        return None
+    if normalized not in countries.COUNTRY_CODE_TO_ID_MAP:
+        return None
+    return normalized
+
+
+async def _country_code_from_api_key_devices(
+    directus: DirectusService,
+    encryption: EncryptionService,
+    user_hash: str,
+    vault_key_id: str,
+) -> str | None:
+    if not user_hash or not vault_key_id:
+        return None
+    devices = await directus.get_items(
+        "api_key_devices",
+        params={
+            "filter": {"hashed_user_id": {"_eq": user_hash}},
+            "fields": "encrypted_country_code,last_access_at,approved_at",
+            "sort": "-last_access_at",
+            "limit": 20,
+        },
+        admin_required=True,
+    ) or []
+    for device in devices:
+        encrypted_country_code = device.get("encrypted_country_code")
+        if not encrypted_country_code:
+            continue
+        try:
+            country_code = await encryption.decrypt_with_user_key(encrypted_country_code, vault_key_id)
+        except Exception as exc:  # noqa: BLE001 - keep this operational lookup best-effort.
+            logger.warning("Failed to decrypt api_key_devices country code for invoice backfill: %s", exc)
+            continue
+        normalized = _normalize_invoice_country_code(country_code)
+        if normalized:
+            return normalized
+    return None
+
+
 async def _iter_bank_transfer_invoice_rows(
     directus: DirectusService,
     from_date: datetime,
@@ -527,6 +570,65 @@ async def _decrypt_directus_invoice_pdf(
         raise RuntimeError("failed to decrypt stored invoice PDF") from exc
 
 
+def _build_bank_transfer_invoice_data(
+    *,
+    invoice_number: str,
+    invoice_date: str,
+    user: dict[str, Any],
+    credits: int,
+    amount_paid: int,
+    currency_code: str,
+    sender: dict[str, str],
+    is_gift_card: bool,
+) -> dict[str, Any]:
+    return _build_repair_invoice_data(
+        invoice_number=invoice_number,
+        invoice_date=invoice_date,
+        user=user,
+        credits=credits,
+        amount_paid=amount_paid,
+        currency_code=currency_code,
+        card_details={"card_brand": "SEPA Bank Transfer", "card_last_four": "xxxx"},
+        sender=sender,
+        refund_link="",
+        is_gift_card=is_gift_card,
+    )
+
+
+def _regenerate_bank_transfer_invoice_pdf(
+    *,
+    invoice_template: InvoiceTemplateService,
+    invoice_number: str,
+    invoice_date: str,
+    user: dict[str, Any],
+    credits: int,
+    amount_paid: int,
+    currency_code: str,
+    sender: dict[str, str],
+    is_gift_card: bool,
+) -> bytes:
+    invoice_data = _build_bank_transfer_invoice_data(
+        invoice_number=invoice_number,
+        invoice_date=invoice_date,
+        user=user,
+        credits=credits,
+        amount_paid=amount_paid,
+        currency_code=currency_code,
+        sender=sender,
+        is_gift_card=is_gift_card,
+    )
+    pdf_buffer = invoice_template.generate_invoice(
+        invoice_data,
+        lang="en",
+        currency=currency_code,
+        document_type="invoice",
+    )
+    try:
+        return pdf_buffer.getvalue()
+    finally:
+        pdf_buffer.close()
+
+
 async def _backfill_invoice_ninja_from_directus_invoice(
     *,
     ninja: InvoiceNinjaService,
@@ -535,6 +637,8 @@ async def _backfill_invoice_ninja_from_directus_invoice(
     invoice: dict[str, Any],
     user: dict[str, Any] | None,
     apply: bool,
+    invoice_template: InvoiceTemplateService | None = None,
+    sender: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     external_order_id = str(invoice.get("order_id") or invoice.get("provider_order_id") or "")
     result: dict[str, Any] = {
@@ -567,6 +671,15 @@ async def _backfill_invoice_ninja_from_directus_invoice(
     if not user_hash or not user or not vault_key_id:
         result["status"] = "blocked"
         result["errors"].append("missing Directus user mapping with vault key")
+        return result
+    existing_client_id = await ninja.find_client_by_hash(user_hash)
+    customer_country_code = _normalize_invoice_country_code(user.get("country_code"))
+    result["invoice_ninja_client_present"] = bool(existing_client_id)
+    if customer_country_code:
+        result["customer_country_code"] = customer_country_code
+    elif not existing_client_id:
+        result["status"] = "blocked"
+        result["errors"].append("missing customer country_code for new Invoice Ninja client")
         return result
 
     try:
@@ -607,19 +720,38 @@ async def _backfill_invoice_ninja_from_directus_invoice(
         return result
 
     try:
-        pdf_bytes = await _decrypt_directus_invoice_pdf(
-            s3=s3,
-            encryption=encryption,
-            invoice=invoice,
-            vault_key_id=vault_key_id,
-        )
+        try:
+            pdf_bytes = await _decrypt_directus_invoice_pdf(
+                s3=s3,
+                encryption=encryption,
+                invoice=invoice,
+                vault_key_id=vault_key_id,
+            )
+            result["pdf_source"] = "directus_s3"
+        except RuntimeError as pdf_err:
+            if str(pdf_err) != "failed to download encrypted invoice PDF from S3":
+                raise
+            if invoice_template is None or sender is None:
+                raise
+            pdf_bytes = _regenerate_bank_transfer_invoice_pdf(
+                invoice_template=invoice_template,
+                invoice_number=invoice_number,
+                invoice_date=invoice_date.date().isoformat(),
+                user=user,
+                credits=credits,
+                amount_paid=amount_paid,
+                currency_code=currency_code,
+                sender=sender,
+                is_gift_card=bool(invoice.get("is_gift_card")),
+            )
+            result["pdf_source"] = "regenerated_from_directus_metadata"
         replacement = await ninja.process_income_transaction(
             user_hash=user_hash,
             external_order_id=external_order_id,
             customer_firstname="",
             customer_lastname="",
             customer_account_id=customer_account_id,
-            customer_country_code="",
+            customer_country_code=customer_country_code or "",
             credits_value=credits,
             currency_code=currency_code,
             purchase_price_value=_stripe_amount_to_display_units(amount_paid, currency_code),
@@ -1183,6 +1315,7 @@ async def _audit(args: argparse.Namespace) -> int:
     directus = DirectusService(cache_service=cache, encryption_service=encryption)
     ninja = None
     s3 = None
+    invoice_template = None
 
     try:
         stripe.api_key = await _stripe_api_key(secrets)
@@ -1191,6 +1324,7 @@ async def _audit(args: argparse.Namespace) -> int:
         if args.apply_invoice_ninja_backfill:
             s3 = S3UploadService(secrets)
             await s3.initialize()
+            invoice_template = await InvoiceTemplateService.create(secrets)
         sender = await _sender_details(secrets)
         scanned = missing_directus = missing_invoice_ninja = dispatched = skipped = 0
         invoice_ninja_backfilled = invoice_ninja_backfill_blocked = 0
@@ -1287,13 +1421,25 @@ async def _audit(args: argparse.Namespace) -> int:
                 )
                 for invoice, record in missing_bank_transfer_invoices:
                     user_hash = str(invoice.get("user_id_hash") or "")
+                    user = users_by_hash.get(user_hash)
+                    if user and not user.get("country_code"):
+                        country_code = await _country_code_from_api_key_devices(
+                            directus,
+                            encryption,
+                            user_hash,
+                            str(user.get("vault_key_id") or ""),
+                        )
+                        if country_code:
+                            user["country_code"] = country_code
                     backfill_result = await _backfill_invoice_ninja_from_directus_invoice(
                         ninja=ninja,
                         s3=s3,
                         encryption=encryption,
                         invoice=invoice,
-                        user=users_by_hash.get(user_hash),
+                        user=user,
                         apply=args.apply_invoice_ninja_backfill,
+                        invoice_template=invoice_template,
+                        sender=sender,
                     )
                     record["invoice_ninja_backfill"] = backfill_result
                     if backfill_result.get("status") == "created":
@@ -1362,7 +1508,7 @@ async def _audit(args: argparse.Namespace) -> int:
                         dispatched += 1
 
         print(json.dumps({
-            "dry_run": not args.apply,
+            "dry_run": not args.apply and not args.apply_invoice_ninja_backfill,
             "scanned": scanned,
             "skipped": skipped,
             "missing": missing_directus,

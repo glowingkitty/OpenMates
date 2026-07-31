@@ -62,7 +62,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+  subject_commit: 52b883f09+working-tree-bank-transfer-country-pdf-fallback
 
 approvals:
   product_contract:
@@ -120,6 +120,11 @@ decisions:
     decision: Directus-present bank-transfer rows missing Invoice Ninja records are backfilled by creating only Invoice Ninja invoice/payment/bank-transaction rows from the existing encrypted Directus invoice and PDF.
     reason: Replaying the purchase-confirmation task would duplicate Directus invoice rows and S3 PDFs; the existing Directus record is the accounting source of truth for these completed bank transfers.
     decided_at: "2026-07-31T10:00:00Z"
+  - id: D-10
+    status: active
+    decision: Bank-transfer Invoice Ninja-only backfill may create a new Invoice Ninja client only when a real ISO country code can be decrypted from the user's API-key device history; if the stored encrypted S3 PDF object is missing, the script may regenerate an English invoice PDF from the same encrypted Directus invoice metadata for Invoice Ninja upload only.
+    reason: Invoice Ninja requires country_id for new clients, so missing country evidence must fail closed. Some historical Directus rows reference missing S3 objects, but their encrypted invoice metadata is still sufficient to reconstruct the internal Invoice Ninja attachment without mutating Directus or S3 or emailing users.
+    decided_at: "2026-07-31T11:34:34Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -182,14 +187,26 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-31T10:00:00Z"
     notes: The script now dry-runs by default, rechecks Invoice Ninja before writes, decrypts the existing Directus invoice metadata/PDF, creates only Invoice Ninja rows, and cleans up incomplete replacement rows.
+  - id: ATTEMPT-11
+    task_id: TASK-7
+    approach: Harden the bank-transfer Invoice Ninja-only path for missing customer country and missing stored S3 PDFs.
+    outcome: succeeded
+    recorded_at: "2026-07-31T11:34:34Z"
+    notes: New Invoice Ninja clients now require a decrypted API-key-device country code, existing clients can proceed without inventing a country, and missing S3 PDFs are regenerated from encrypted Directus invoice metadata only for Invoice Ninja upload. Focused reconciliation tests cover the guards.
+  - id: ATTEMPT-12
+    task_id: TASK-7
+    approach: Rerun the broader four-file billing guardrail bundle inside the api container for the updated subject revision.
+    outcome: blocked
+    recorded_at: "2026-07-31T11:34:34Z"
+    notes: The command reported 33 passed and 6 failures unrelated to this code change; the api container lacks pytest-asyncio for older async tests in bank-integration/admin-notification files, and one compose test expects a CLI template path not present at /app. The focused reconciliation script suite that covers the new country/PDF fallback passed.
 
 handoff:
   current_task_id: TASK-7
-  next_action: Deploy bank-transfer Invoice Ninja-only backfill tooling, refresh prod task-worker script, run prod dry-run, apply only would_create bank-transfer rows, then verify reconciliation.
-  command: 'python3 scripts/sessions.py deploy --session e96a --title "fix: backfill bank transfer accounting rows" --include backend/scripts/audit_backfill_missing_stripe_invoices.py --include backend/tests/test_invoice_reconciliation_script.py --include docs/specs/billing-processing-incident-2026-07/spec.yml --skip-tests "Focused billing tests already passed locally for this script-only incident tooling update."'
-  expected_outcome: Dev contains the new guarded tooling before the prod no-email Invoice Ninja-only backfill is applied.
+  next_action: Deploy the bank-transfer country/PDF fallback hardening, refresh the prod task-worker script, rerun prod dry-run, apply only the remaining would_create bank-transfer rows one order at a time, then verify reconciliation.
+  command: 'python3 scripts/sessions.py deploy --session e96a --title "fix: harden bank transfer accounting backfill" --include backend/scripts/audit_backfill_missing_stripe_invoices.py --include backend/tests/test_invoice_reconciliation_script.py --include docs/specs/billing-processing-incident-2026-07/spec.yml --skip-tests "docker exec api python -m pytest /app/backend/tests/test_invoice_reconciliation_script.py and python3 -m ruff check backend/scripts/audit_backfill_missing_stripe_invoices.py backend/tests/test_invoice_reconciliation_script.py passed locally."'
+  expected_outcome: Dev contains the guarded country lookup and missing-PDF fallback before the prod Invoice Ninja-only backfill is applied.
   blocker: null
-  last_verified_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+  last_verified_commit: 52b883f09+working-tree-bank-transfer-country-pdf-fallback
 
 scenarios:
   - id: S-1
@@ -313,6 +330,8 @@ contracts:
   data:
     - Directus invoice rows are created only for Stripe orders missing Directus records.
     - Directus-present bank-transfer rows missing Invoice Ninja records are backfilled by creating only Invoice Ninja rows from existing Directus encrypted invoice metadata/PDF.
+    - Bank-transfer Invoice Ninja-only backfill blocks new Invoice Ninja client creation unless a real country code is decrypted from the user's API-key-device history.
+    - If the encrypted Directus invoice metadata is valid but the referenced S3 PDF object is missing, bank-transfer backfill may regenerate the English PDF from Directus metadata for the Invoice Ninja upload without changing Directus or S3.
     - Stripe invoice issue/due dates are resolved from Stripe latest charge creation time, then PaymentIntent creation time, before falling back to task time.
     - Repaired encrypted PDFs rotate AES key, nonce, and encrypted S3 object-key metadata together, leaving the old encrypted object referenced until Directus update succeeds.
     - Locked Invoice Ninja paid-row repair creates complete replacement invoice/payment/bank-transaction rows before archiving old active rows.
@@ -381,6 +400,8 @@ tests:
       - Invoice Ninja lookup errors are unknown, not missing.
       - apply preflight blocks unmapped or non-dispatchable rows.
       - Directus-present bank-transfer rows can dry-run an Invoice Ninja-only backfill from existing encrypted Directus invoice metadata.
+      - new Invoice Ninja clients require decrypted device-country evidence and fail closed without it.
+      - missing stored S3 PDFs are regenerated from Directus invoice metadata for Invoice Ninja upload only.
       - incomplete Invoice Ninja-only replacement rows are cleaned up without mutating Directus.
     red_phase:
       required: false
@@ -393,10 +414,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
-        run_id: local-pytest-billing-guardrails-20260731-33-tests
-        subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
-        timestamp: "2026-07-31T10:00:00Z"
+        command: docker exec api python -m pytest /app/backend/tests/test_invoice_reconciliation_script.py
+        run_id: api-container-pytest-invoice-reconciliation-20260731-30-tests
+        subject_commit: 52b883f09+working-tree-bank-transfer-country-pdf-fallback
+        timestamp: "2026-07-31T11:34:34Z"
   - id: T-PYTEST-004
     type: pytest
     file: backend/tests/test_billing_worker_compose.py

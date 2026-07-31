@@ -8,7 +8,10 @@ to run without external services.
 """
 
 import base64
+import io
 import importlib.util
+import sys
+import types
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,11 +21,17 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "audit_backfill_missing_stripe_invoices.py"
+sys.modules.setdefault("stripe", types.SimpleNamespace())
 
 spec = importlib.util.spec_from_file_location("audit_backfill_missing_stripe_invoices", SCRIPT_PATH)
 assert spec and spec.loader
 audit_script = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit_script)
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
 
 def test_parse_datetime_supports_date_only_and_z_suffix():
@@ -89,7 +98,15 @@ class MapEncryption(FakeEncryption):
         return self.values[ciphertext]
 
 
-@pytest.mark.asyncio
+class TolerantMapEncryption(FakeEncryption):
+    def __init__(self, values):
+        self.values = values
+
+    async def decrypt_with_user_key(self, ciphertext, key_id):
+        return self.values.get(ciphertext)
+
+
+@pytest.mark.anyio
 async def test_repair_pdf_encryption_uses_fresh_key_and_nonce(monkeypatch):
     generated = iter([b"\x01" * 32, b"\x02" * 12])
     monkeypatch.setattr(audit_script.os, "urandom", lambda size: next(generated))
@@ -131,9 +148,29 @@ class EmptyNinja:
     def __init__(self):
         self.calls = []
 
+    async def find_client_by_hash(self, user_hash):
+        self.calls.append(("FIND_CLIENT", user_hash))
+        return None
+
     async def make_api_request(self, method, endpoint, params=None, data=None):
         self.calls.append((method, endpoint, params, data))
         return {"data": []}
+
+    async def process_income_transaction(self, **kwargs):
+        self.calls.append(("PROCESS", kwargs))
+        return {
+            "invoice_id": "inv-new",
+            "payment_id": "pay-new",
+            "bank_transaction_id": "bank-new",
+            "pdf_upload_success": True,
+            "transaction_match_success": True,
+        }
+
+
+class ExistingClientNinja(EmptyNinja):
+    async def find_client_by_hash(self, user_hash):
+        self.calls.append(("FIND_CLIENT", user_hash))
+        return "client-1"
 
 
 class FakeDirectusUsers:
@@ -155,7 +192,35 @@ class RecordingDirectus:
         return []
 
 
-@pytest.mark.asyncio
+class DeviceCountryDirectus(RecordingDirectus):
+    def __init__(self, devices):
+        super().__init__()
+        self.devices = devices
+
+    async def get_items(self, collection, params=None, admin_required=False):
+        self.calls.append((collection, params, admin_required))
+        if collection == "api_key_devices":
+            return self.devices
+        return []
+
+
+class MissingPdfS3:
+    environment = "production"
+
+    async def get_file(self, bucket, key):
+        return None
+
+
+class FakeInvoiceTemplate:
+    def __init__(self):
+        self.calls = []
+
+    def generate_invoice(self, invoice_data, lang="en", currency="eur", document_type="invoice"):
+        self.calls.append((invoice_data, lang, currency, document_type))
+        return io.BytesIO(b"rebuilt pdf")
+
+
+@pytest.mark.anyio
 async def test_ninja_invoice_exists_falls_back_to_filtered_private_notes():
     ninja = FakeNinja()
 
@@ -169,12 +234,12 @@ class FailingNinja:
         return None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_ninja_invoice_exists_returns_unknown_on_lookup_errors():
     assert await audit_script._ninja_invoice_exists(FailingNinja(), "pi_123") is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_directus_users_by_hash_prefers_users_collection():
     user = {"id": "user-1", "account_id": "ACCT001", "vault_key_id": "vault-key"}
     user_hash = audit_script.hashlib.sha256(b"user-1").hexdigest()
@@ -184,7 +249,7 @@ async def test_directus_users_by_hash_prefers_users_collection():
     assert [call[0] for call in directus.calls] == ["users"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_directus_users_by_hash_falls_back_to_directus_users_collection():
     user = {"id": "user-1", "account_id": "ACCT001", "vault_key_id": "vault-key"}
     user_hash = audit_script.hashlib.sha256(b"user-1").hexdigest()
@@ -194,7 +259,29 @@ async def test_directus_users_by_hash_falls_back_to_directus_users_collection():
     assert [call[0] for call in directus.calls] == ["users", "directus_users"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+async def test_country_code_from_api_key_devices_uses_latest_valid_decrypted_code():
+    directus = DeviceCountryDirectus([
+        {"encrypted_country_code": "enc-local"},
+        {"encrypted_country_code": "enc-de"},
+    ])
+
+    country_code = await audit_script._country_code_from_api_key_devices(
+        directus,
+        TolerantMapEncryption({"enc-local": "Local", "enc-de": "de"}),
+        "user-hash",
+        "vault-key",
+    )
+
+    assert country_code == "DE"
+    collection, params, admin_required = directus.calls[0]
+    assert collection == "api_key_devices"
+    assert params["filter"] == {"hashed_user_id": {"_eq": "user-hash"}}
+    assert params["sort"] == "-last_access_at"
+    assert admin_required is True
+
+
+@pytest.mark.anyio
 async def test_bank_transfer_invoice_iterator_requests_backfill_source_fields():
     directus = RecordingDirectus()
 
@@ -221,7 +308,7 @@ async def test_bank_transfer_invoice_iterator_requests_backfill_source_fields():
     }.issubset(fields)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_invoice_ninja_backfill_dry_run_uses_directus_invoice_metadata():
     result = await audit_script._backfill_invoice_ninja_from_directus_invoice(
         ninja=EmptyNinja(),
@@ -243,7 +330,7 @@ async def test_invoice_ninja_backfill_dry_run_uses_directus_invoice_metadata():
             "encrypted_credits_purchased": "enc-credits",
             "encrypted_currency": "enc-currency",
         },
-        user={"vault_key_id": "vault-key", "account_id": "RDGV4VK"},
+        user={"vault_key_id": "vault-key", "account_id": "RDGV4VK", "country_code": "DE"},
         apply=False,
     )
 
@@ -253,6 +340,70 @@ async def test_invoice_ninja_backfill_dry_run_uses_directus_invoice_metadata():
     assert result["amount"] == 1000
     assert result["credits"] == 10000
     assert result["currency"] == "eur"
+    assert result["customer_country_code"] == "DE"
+
+
+@pytest.mark.anyio
+async def test_invoice_ninja_backfill_blocks_new_client_without_customer_country():
+    result = await audit_script._backfill_invoice_ninja_from_directus_invoice(
+        ninja=EmptyNinja(),
+        s3=None,
+        encryption=MapEncryption({}),
+        invoice={
+            "id": "invoice-1",
+            "provider": "bank_transfer",
+            "order_id": "bt_123",
+            "date": "2026-07-01T09:00:00+00:00",
+            "user_id_hash": "hash-1",
+        },
+        user={"vault_key_id": "vault-key", "account_id": "RDGV4VK"},
+        apply=False,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["errors"] == ["missing customer country_code for new Invoice Ninja client"]
+
+
+@pytest.mark.anyio
+async def test_invoice_ninja_backfill_regenerates_pdf_when_s3_object_is_missing():
+    ninja = ExistingClientNinja()
+    template = FakeInvoiceTemplate()
+
+    result = await audit_script._backfill_invoice_ninja_from_directus_invoice(
+        ninja=ninja,
+        s3=MissingPdfS3(),
+        encryption=MapEncryption({
+            "enc-filename": "openmates_invoice_2026_07_01_RDGV4VK-2.pdf",
+            "enc-amount": "1000",
+            "enc-credits": "10000",
+            "enc-currency": "eur",
+            "enc-s3-key": "missing.pdf",
+            "enc-aes-key": base64.b64encode(b"0" * 32).decode("utf-8"),
+        }),
+        invoice={
+            "id": "invoice-1",
+            "provider": "bank_transfer",
+            "order_id": "bt_123",
+            "date": "2026-07-01T09:00:00+00:00",
+            "user_id_hash": "hash-1",
+            "encrypted_filename": "enc-filename",
+            "encrypted_amount": "enc-amount",
+            "encrypted_credits_purchased": "enc-credits",
+            "encrypted_currency": "enc-currency",
+            "encrypted_s3_object_key": "enc-s3-key",
+            "encrypted_aes_key": "enc-aes-key",
+            "aes_nonce": base64.b64encode(b"1" * 12).decode("utf-8"),
+        },
+        user={"vault_key_id": "vault-key", "account_id": "RDGV4VK"},
+        apply=True,
+        invoice_template=template,
+        sender={"addressline1": "A", "addressline2": "B", "addressline3": "C", "country": "DE", "email": "support@example.com", "vat": "VAT"},
+    )
+
+    assert result["status"] == "created"
+    assert result["pdf_source"] == "regenerated_from_directus_metadata"
+    assert template.calls[0][0]["invoice_number"] == "RDGV4VK-2"
+    assert template.calls[0][0]["card_name"] == "SEPA Bank Transfer"
 
 
 def test_missing_invoice_ninja_replacement_parts_requires_complete_surfaces():
@@ -266,7 +417,7 @@ def test_missing_invoice_ninja_replacement_parts_requires_complete_surfaces():
     }) == ["replacement payment", "replacement bank transaction match"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_cleanup_incomplete_invoice_ninja_replacement_deletes_new_rows_in_safe_order():
     ninja = ReplacementNinja(replacement={})
 
@@ -312,7 +463,7 @@ async def fake_bank_transaction_rows(ninja, external_order_id, invoice_number):
     return [{"id": "bank-old"}]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_recreate_locked_ninja_surfaces_keeps_old_rows_when_replacement_fails(monkeypatch):
     monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
     monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
@@ -340,7 +491,7 @@ async def test_recreate_locked_ninja_surfaces_keeps_old_rows_when_replacement_fa
     assert ninja.events == [("PROCESS", "pi_123")]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_recreate_locked_ninja_surfaces_cleans_incomplete_replacement(monkeypatch):
     monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
     monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
@@ -377,7 +528,7 @@ async def test_recreate_locked_ninja_surfaces_cleans_incomplete_replacement(monk
     assert ninja.events == [("PROCESS", "pi_123"), ("DELETE", "/invoices/inv-new")]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_recreate_locked_ninja_surfaces_deletes_old_rows_after_replacement_success(monkeypatch):
     monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
     monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
@@ -419,7 +570,7 @@ async def test_recreate_locked_ninja_surfaces_deletes_old_rows_after_replacement
     ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_recreate_locked_ninja_surfaces_cleans_replacement_when_old_delete_fails(monkeypatch):
     monkeypatch.setattr(audit_script, "_ninja_payment_rows", fake_payment_rows)
     monkeypatch.setattr(audit_script, "_ninja_bank_transaction_rows", fake_bank_transaction_rows)
