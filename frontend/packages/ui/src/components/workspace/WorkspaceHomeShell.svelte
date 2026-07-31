@@ -733,7 +733,7 @@
     }
 
     .workspace-home-shell[data-surface='workflows'] .workspace-center-content.center-content {
-      top: 25%;
+      top: 32%;
     }
 
     .recent-chats-scroll-container {

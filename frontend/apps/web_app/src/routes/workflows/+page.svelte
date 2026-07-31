@@ -820,10 +820,12 @@
               />
             </section>
           {:else}
-              {#if workflows.length > 0}
-                <button type="button" class="show-all-button workflow-home-show-all" data-testid="workflows-show-all" onclick={() => showAllWorkflows = true}>Show all {workflows.length}</button>
-              {/if}
-              <button type="button" class="show-all-button workflow-home-search" data-testid="workflows-search" disabled>Search</button>
+              <div class="workflow-home-toolbar">
+                {#if workflows.length > 0}
+                  <button type="button" class="show-all-button workflow-home-show-all" data-testid="workflows-show-all" onclick={() => showAllWorkflows = true}>Show all {workflows.length}</button>
+                {/if}
+                <button type="button" class="show-all-button workflow-home-search" data-testid="workflows-search" disabled>Search</button>
+              </div>
               <WorkspaceHomeShell
               surface="workflows"
               testId="workflows-start-screen"
@@ -1178,18 +1180,21 @@
     overflow: hidden;
   }
 
-  .workflow-home-show-all {
+  .workflow-home-toolbar {
     position: absolute;
-    top: 10px;
+    top: calc(max(35vh, 240px) + 14px);
     left: 10px;
-    z-index: var(--z-index-raised-3);
-  }
-
-  .workflow-home-search {
-    position: absolute;
-    top: 10px;
     right: 10px;
     z-index: var(--z-index-raised-3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  .workflow-home-toolbar .show-all-button {
+    pointer-events: auto;
   }
 
   .workflow-management {
@@ -1244,6 +1249,12 @@
   .show-all-button {
     color: var(--color-font-primary);
     background: var(--color-grey-20);
+  }
+
+  @media (max-width: 730px) {
+    .workflow-home-toolbar {
+      top: 202px;
+    }
   }
 
   .workflow-detail {
