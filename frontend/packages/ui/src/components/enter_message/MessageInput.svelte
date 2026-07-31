@@ -684,8 +684,12 @@
     }
 
     $effect(() => {
-        if (!editor || editor.isDestroyed || startNewChatOnClick || placeholderText || hasSendableDraft || isMessageFieldFocused) {
+        const guestCtaPlaceholderActive = guestCtaMode && !$authStore.isAuthenticated;
+        if (!editor || editor.isDestroyed || startNewChatOnClick || placeholderText || guestCtaPlaceholderActive || hasSendableDraft || isMessageFieldFocused) {
             stopPlaceholderCycle();
+            if (guestCtaPlaceholderActive) {
+                messageInputPlaceholderOverride.set(getBasePlaceholderText());
+            }
             return;
         }
         startPlaceholderCycle();
