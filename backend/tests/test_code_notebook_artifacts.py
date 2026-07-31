@@ -147,6 +147,18 @@ def test_normalize_notebook_payload_strips_accidental_fence_tail() -> None:
     assert normalized["notebook"] == _python_notebook()
 
 
+def test_normalize_notebook_payload_extracts_leading_json_before_trailing_prose() -> None:
+    normalized = EmbedService._normalize_notebook_payload(
+        f"{json.dumps(_python_notebook(), indent=2)}\n\nWould you like me to export an HTML report?",
+        "weather.ipynb",
+    )
+
+    assert normalized["filename"] == "weather.ipynb"
+    assert normalized["language"] == "python"
+    assert normalized["cell_count"] == 2
+    assert normalized["notebook"] == _python_notebook()
+
+
 @pytest.mark.asyncio
 async def test_ipynb_code_artifact_creates_notebook_embed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(embed_service_module, "encode", lambda value: json.dumps(value))

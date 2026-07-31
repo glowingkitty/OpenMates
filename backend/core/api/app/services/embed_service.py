@@ -973,12 +973,21 @@ class EmbedService:
         payload = EmbedService._strip_notebook_fence_wrappers(raw_content)
 
         notebook: Optional[Dict[str, Any]] = None
+        parsed: Any = None
         try:
             parsed = json.loads(payload) if payload.strip() else None
-            if isinstance(parsed, dict) and isinstance(parsed.get("cells"), list):
-                notebook = parsed
+        except json.JSONDecodeError:
+            try:
+                # Streaming models can append prose after a complete nbformat object.
+                # raw_decode recovers that leading object without accepting broken JSON.
+                parsed, _ = json.JSONDecoder().raw_decode(payload.lstrip())
+            except Exception:
+                parsed = None
         except Exception:
-            notebook = None
+            parsed = None
+
+        if isinstance(parsed, dict) and isinstance(parsed.get("cells"), list):
+            notebook = parsed
 
         if notebook is None and EmbedService._is_python_percent_cell_notebook_source("python", payload):
             notebook = EmbedService._python_percent_cell_source_to_notebook(payload)
