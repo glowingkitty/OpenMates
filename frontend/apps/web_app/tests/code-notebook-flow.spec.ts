@@ -14,6 +14,8 @@ const { openFullscreen } = require('./helpers/embed-test-helpers');
 const NOTEBOOK_EXAMPLE_PATH = '/example/open-meteo-weather-notebook';
 const NOTEBOOK_EXAMPLE_CHAT_ID = 'example-open-meteo-weather-notebook';
 const NOTEBOOK_RUN_ENDPOINT = '**/v1/code/notebooks/run';
+const NOTEBOOK_CELL_COUNT_TEXT = /10 cells?, Notebook/i;
+const NOTEBOOK_TITLE_TEXT = 'Berlin Weekend Bike Ride Weather Forecast';
 const SIDECAR_OUTPUT_TEXT = 'sidecar output smoke';
 
 async function expectNotebookCodeBackgroundsClean(locator: any, label: string) {
@@ -69,7 +71,7 @@ test.describe('Code notebook flow', () => {
 			.first();
 		await expect(notebookPreview).toBeVisible({ timeout: 30_000 });
 		await expect(notebookPreview.getByTestId('notebook-preview')).toBeVisible({ timeout: 10_000 });
-		await expect(notebookPreview).toContainText(/7 cells?, Notebook/i);
+		await expect(notebookPreview).toContainText(NOTEBOOK_CELL_COUNT_TEXT);
 
 		const previewCells = notebookPreview.getByTestId('notebook-preview-cell');
 		await expect.poll(async () => previewCells.count(), {
@@ -92,14 +94,14 @@ test.describe('Code notebook flow', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, notebookPreview);
 		await expect(fullscreenOverlay.getByTestId('notebook-fullscreen')).toBeVisible({ timeout: 15_000 });
-		await expect(fullscreenOverlay).toContainText(/7 cells?, Notebook/i);
+		await expect(fullscreenOverlay).toContainText(NOTEBOOK_CELL_COUNT_TEXT);
 
 		const fullscreenCells = fullscreenOverlay.getByTestId('notebook-cell');
 		await expect.poll(async () => fullscreenCells.count(), {
 			message: 'fullscreen should render every notebook cell',
 			timeout: 10_000
 		}).toBeGreaterThanOrEqual(7);
-		await expect(fullscreenOverlay).toContainText('Berlin 7-Day Weather Analysis');
+		await expect(fullscreenOverlay).toContainText(NOTEBOOK_TITLE_TEXT);
 		await expect(fullscreenOverlay).toContainText('import requests');
 
 		const sourceLines = fullscreenOverlay.getByTestId('notebook-code-lines').first();
