@@ -62,6 +62,15 @@ def test_stream_consumer_application_parent_finalizer_noops_without_code_files()
     assert "if generated_code_file_embeds and not application_parent_embed_created:" in source
 
 
+def test_stream_consumer_rewrites_promoted_notebook_references() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+
+    assert "def _replace_streamed_json_embed_reference_type" in source
+    assert "finalized_as_notebook = EmbedService._is_notebook_artifact" in source
+    assert 'old_type="code"' in source
+    assert 'new_type="notebook"' in source
+
+
 def test_mermaid_instruction_is_inactive_and_prefers_source_only() -> None:
     instruction = MERMAID_INSTRUCTION_PATH.read_text(encoding="utf-8")
 

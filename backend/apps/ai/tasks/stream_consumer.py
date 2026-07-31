@@ -1758,6 +1758,33 @@ def _fix_backticked_inline_embed_references(aggregated_response: str, log_prefix
     return modified
 
 
+def _replace_streamed_json_embed_reference_type(
+    final_response_chunks: list[str],
+    *,
+    embed_id: str,
+    old_type: str,
+    new_type: str,
+    log_prefix: str = "",
+) -> bool:
+    """Update an already-streamed embed reference when final content changes type."""
+    old_reference = f"```json\n{json.dumps({'type': old_type, 'embed_id': embed_id})}\n```\n\n"
+    new_reference = f"```json\n{json.dumps({'type': new_type, 'embed_id': embed_id})}\n```\n\n"
+    for index in range(len(final_response_chunks) - 1, -1, -1):
+        if old_reference not in final_response_chunks[index]:
+            continue
+        final_response_chunks[index] = final_response_chunks[index].replace(old_reference, new_reference, 1)
+        logger.info(
+            f"{log_prefix} [EMBED_REFERENCE_TYPE_REWRITE] Rewrote streamed embed reference "
+            f"{embed_id} from {old_type} to {new_type}"
+        )
+        return True
+    logger.warning(
+        f"{log_prefix} [EMBED_REFERENCE_TYPE_REWRITE] Could not find streamed {old_type} "
+        f"reference for promoted embed {embed_id}"
+    )
+    return False
+
+
 def _request_user_texts(request_data: AskSkillRequest) -> list[str]:
     texts: list[str] = []
     current_user_content = getattr(request_data, "current_user_content", None)
@@ -7040,6 +7067,11 @@ async def _consume_main_processing_stream(
                                         current_code_content,
                                     )
                                     current_code_content = capped_code_content
+                                    finalized_as_notebook = EmbedService._is_notebook_artifact(
+                                        current_code_language,
+                                        current_code_filename,
+                                        current_code_content,
+                                    )
                                     if current_code_replacement_ref:
                                         current_code_content = _apply_requested_symbol_rename(
                                             request_data,
@@ -7125,6 +7157,14 @@ async def _consume_main_processing_stream(
                                             user_vault_key_id=user_vault_key_id,
                                             status="finished",
                                             learning_mode_metadata=learning_mode_metadata,
+                                            log_prefix=log_prefix,
+                                        )
+                                    if finalized_as_notebook:
+                                        _replace_streamed_json_embed_reference_type(
+                                            final_response_chunks,
+                                            embed_id=current_code_embed_id,
+                                            old_type="code",
+                                            new_type="notebook",
                                             log_prefix=log_prefix,
                                         )
                                     _record_generated_code_file_embed(
