@@ -634,7 +634,7 @@
     min-width: max-content;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: var(--font-size-small);
-    line-height: 1.55;
+    line-height: 1.32;
   }
 
   .notebook-code-gutter {

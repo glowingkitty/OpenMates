@@ -187,10 +187,11 @@
   .notebook-code-preview {
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
+    gap: 0;
     overflow: hidden;
     color: var(--color-grey-90);
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    line-height: 1.25;
     white-space: pre;
   }
 

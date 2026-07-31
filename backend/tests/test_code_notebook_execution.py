@@ -109,3 +109,35 @@ async def test_start_notebook_run_delegates_to_code_run(monkeypatch: pytest.Monk
     assert calls[0]["target_embed_id"] == "embed-1"
     assert calls[0]["target_path"] == "openmates_notebook_runner.py"
     assert calls[0]["dependency_installs"]
+
+
+@pytest.mark.anyio
+async def test_start_notebook_run_allows_valid_client_notebook_for_example_chat(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict] = []
+
+    async def fake_start_code_run_execution(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(execution_id="execution-example", status="queued", target_filename="openmates_notebook_runner.py", files=["openmates_notebook_runner.py"])
+
+    async def fake_verify(*_args, **_kwargs):
+        return False
+
+    monkeypatch.setattr(code_notebook_execution, "start_code_run_execution", fake_start_code_run_execution)
+    monkeypatch.setattr(code_notebook_execution, "verify_notebook_embed_access", fake_verify)
+
+    response = await code_notebook_execution.start_notebook_run(
+        request=SimpleNamespace(),
+        body=code_notebook_execution.NotebookRunStartRequest(
+            chat_id="example-open-meteo-weather-notebook",
+            notebook_embed_id="example-notebook-embed",
+            client_notebook=_python_notebook(),
+        ),
+        current_user=User(id="user-1", username="alice", vault_key_id="vault-1", credits=10),
+        cache_service=SimpleNamespace(client=_AwaitableValue(SimpleNamespace())),
+        directus_service=SimpleNamespace(),
+        encryption_service=SimpleNamespace(),
+    )
+
+    assert response.execution_id == "execution-example"
+    assert calls[0]["chat_id"] == "example-open-meteo-weather-notebook"
+    assert calls[0]["target_embed_id"] == "example-notebook-embed"
