@@ -102,7 +102,7 @@
     try {
       const restoredWorkflow = await workflowWorkspaceStore.restoreWorkflowVersion(workflow.id, selectedVersion.version_id);
       await onRestored(restoredWorkflow);
-      restoredMessage = $text('workflows.version_history.restore_success', { version: selectedVersion.version_number });
+      restoredMessage = $text('workflows.version_history.restore_success', { values: { version: selectedVersion.version_number } });
       await loadHistory(workflow.id, restoredWorkflow.graph);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : $text('workflows.version_history.restore_failed');
@@ -128,7 +128,7 @@
       <h2>{$text('workflows.version_history.title')}</h2>
       <p data-testid="workflow-version-history-retention">
         {maxVersions
-          ? $text('workflows.version_history.retention', { max: maxVersions })
+          ? $text('workflows.version_history.retention', { values: { max: maxVersions } })
           : $text('workflows.version_history.retention_loading')}
       </p>
     </div>
@@ -150,7 +150,7 @@
           data-version-number={version.version_number}
           onclick={() => void inspectVersion(version)}
         >
-          <span class="version-label">{$text('workflows.version_history.version', { version: version.version_number })}</span>
+          <span class="version-label">{$text('workflows.version_history.version', { values: { version: version.version_number } })}</span>
           <span>{formatVersionDate(version.created_at)}</span>
           {#if version.current}<span class="current-marker">{$text('workflows.version_history.current')}</span>{/if}
           {#if version.restored_from_version_id}<span>{$text('workflows.version_history.restored')}</span>{/if}
@@ -163,7 +163,7 @@
         <p data-testid="workflow-version-inspection-loading">{$text('workflows.version_history.inspecting')}</p>
       {:else if selectedVersion && inspectedGraph}
         <div class="inspection-heading">
-          <h3>{$text('workflows.version_history.inspecting_version', { version: selectedVersion.version_number })}</h3>
+          <h3>{$text('workflows.version_history.inspecting_version', { values: { version: selectedVersion.version_number } })}</h3>
           <span>{inspectedGraph.nodes.length} {$text('workflows.version_history.nodes')}</span>
         </div>
         <div class="graph-nodes" data-testid="workflow-version-inspection-nodes">
@@ -185,7 +185,7 @@
         </div>
       {:else}
         <button type="button" class="restore-action" data-testid="workflow-version-restore" onclick={requestRestore}>
-          {$text('workflows.version_history.restore_as_new', { version: selectedVersion?.version_number ?? 0 })}
+          {$text('workflows.version_history.restore_as_new', { values: { version: selectedVersion?.version_number ?? 0 } })}
         </button>
       {/if}
     {/if}
@@ -249,7 +249,7 @@
     border-radius: var(--radius-4);
     padding: var(--spacing-4);
     color: var(--color-font-primary);
-    background: var(--color-grey-5);
+    background: var(--color-grey-10);
     text-align: left;
     cursor: pointer;
   }
@@ -269,7 +269,7 @@
     gap: var(--spacing-4);
     padding: var(--spacing-4);
     border-radius: var(--radius-4);
-    background: var(--color-grey-5);
+    background: var(--color-grey-10);
   }
 
   .graph-nodes {
