@@ -27,7 +27,7 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-true}"
+      MOCK_EXTERNAL_APIS: "true"
       APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
@@ -197,7 +197,7 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-true}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -266,7 +266,7 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-true}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "workflow"
       CELERY_AUTOSCALE_MAX: "${WORKFLOW_WORKER_CONCURRENCY:-2}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
@@ -317,7 +317,7 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-true}"
+      MOCK_EXTERNAL_APIS: "true"
     command: >
       sh -c "python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
     volumes:
@@ -364,7 +364,7 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-true}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -426,7 +426,7 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-true}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "app_images" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -546,7 +546,7 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-true}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "app_videos"
       CELERY_AUTOSCALE_MAX: "${CELERY_VIDEOS_AUTOSCALE_MAX:-2}"
       CELERY_AUTOSCALE_MIN: "${CELERY_VIDEOS_AUTOSCALE_MIN:-1}"

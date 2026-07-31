@@ -16,6 +16,8 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 RUN_TESTS_PATH = ROOT / "scripts/run_tests.py"
+DEV_COMPOSE_PATH = ROOT / "backend/core/docker-compose.yml"
+SELFHOST_COMPOSE_PATH = ROOT / "backend/core/docker-compose.selfhost.yml"
 
 
 def load_run_tests_module():
@@ -36,6 +38,15 @@ def test_backend_live_mock_preflight_passes_when_all_containers_are_mocked(monke
     monkeypatch.setattr(run_tests, "_docker_container_env", fake_env)
 
     assert run_tests._development_backend_live_mock_preflight_error() is None
+
+
+def test_dev_compose_forces_live_mock_feature_flag_for_e2e() -> None:
+    dev_compose = DEV_COMPOSE_PATH.read_text()
+    selfhost_compose = SELFHOST_COMPOSE_PATH.read_text()
+
+    assert 'MOCK_EXTERNAL_APIS: "true"' in dev_compose
+    assert "${MOCK_EXTERNAL_APIS" not in dev_compose
+    assert 'MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"' in selfhost_compose
 
 
 def test_backend_live_mock_preflight_fails_when_container_would_ignore_markers(monkeypatch) -> None:
