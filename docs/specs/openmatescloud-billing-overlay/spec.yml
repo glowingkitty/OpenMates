@@ -185,14 +185,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-31T16:21:59Z"
     notes: Core API now delegates cloud billing service creation, provider initialization, and route registration to the mounted OpenMatesCloud overlay package. Combined billing regression passed after fixing an order-dependent test stub that hid real email task imports.
+  - id: ATTEMPT-9
+    task_id: TASK-3
+    approach: Confirm the deployed dev runtime boots with the sibling OpenMatesCloud overlay package mounted on api, task-worker, and task-scheduler.
+    outcome: succeeded
+    recorded_at: "2026-07-31T16:42:13Z"
+    notes: Read-only dev boot probe passed against https://api.dev.openmates.org after recreating api with the overlay compose file; public health is healthy, server-status reports official-cloud payments enabled, the payment webhook route is registered, and local Docker overlay markers are present.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Deploy the scoped OpenMates changes, restart the local dev api/task-worker/task-scheduler with the OpenMatesCloud overlay mounted, then run the read-only cloud overlay boot script against https://api.dev.openmates.org.
-  command: python3 scripts/api_tests/test_cloud_overlay_boot.py --api-url https://api.dev.openmates.org --cli-overlay --redact
-  expected_outcome: Combined OpenMates plus OpenMatesCloud dev runtime boots with payment routes and billing workers only in official-cloud mode.
+  next_action: Run the remaining TASK-3 dev income/provider smoke gate now that the official-cloud overlay runtime boots successfully.
+  command: TBD provider smoke command for T-DEV-INCOME-SMOKE
+  expected_outcome: Dev provider smoke proves income/payment accounting still works through the OpenMatesCloud overlay.
   blocker: null
-  last_verified_commit: a70cfbbe0aefc49cb24d15fae5f0179b3ff99a0c+working-tree-openmatescloud-task3-overlay-hooks
+  last_verified_commit: 9eaab522705792274da3f03bc8e87d26e07a16c7+openmatescloud-untracked-overlay
 
 scenarios:
   - id: S-1
@@ -558,11 +564,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/api_tests/test_cloud_overlay_boot.py --api-url https://api.dev.openmates.org --cli-overlay --redact
+        run_id: local-2026-07-31-164213-cloud-overlay-boot
+        subject_commit: 9eaab522705792274da3f03bc8e87d26e07a16c7+openmatescloud-untracked-overlay
+        timestamp: "2026-07-31T16:42:13Z"
+        summary: Public dev API returned healthy status, server-status reported official-cloud payment_enabled=true, the invalid payment webhook probe stopped at HTTP 400 signature/body validation, and local Docker api/task-worker/task-scheduler overlay markers plus task-worker email/persistence queues were present.
   - id: T-REGRESSION-BILLING
     type: pytest
     file: backend/tests/test_bank_transfer.py
