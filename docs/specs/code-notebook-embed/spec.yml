@@ -105,7 +105,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7
+  subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
 
 approvals:
   product_contract:
@@ -168,14 +168,22 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-31T12:19:06Z"
     notes: "Execution e0ffce21-28ed-4d10-be68-3610983393e3 started via the workspace CLI session, installed notebook dependencies, ran `openmates_notebook_runner.py`, and reached status `finished` after three status polls. Sanitized start/status outputs are in `/tmp/opencode/notebook-run-start.json` and `/tmp/opencode/notebook-run-status.json`."
+  - id: ATTEMPT-7
+    task_id: TASK-8
+    approach: Load the Apple parity workflow, inspect native embed routing/renderers for notebook support, and run the sanitized remote Mac status wrapper.
+    outcome: blocked
+    recorded_at: "2026-07-31T13:19:33Z"
+    notes: "`python3 scripts/apple_remote.py status` reported sanitized SSH reachability. Static inspection found no `code-notebook`/Notebook renderer, `EmbedType` enum case, or `EmbedContentView` routing case yet, so Apple read-only notebook parity still requires implementation. Per the Apple workflow, native implementation is deferred until `V-USER-CONFIRM-NOTEBOOK-UI` confirms the deployed web notebook UI."
 
 handoff:
   current_task_id: TASK-8
-  next_action: "Resolve the remaining completion gates: create or record a waiver for the missing notebook renderer Vitest and notebook-flow Playwright tests, get user confirmation for the deployed notebook UI, then run Apple read-only notebook rendering verification."
+  next_action: "Ask for user confirmation of the deployed notebook preview/fullscreen UI at `/example/open-meteo-weather-notebook`; after confirmation, implement Apple read-only code-notebook routing/rendering and run remote Mac build verification."
   command: "python3 scripts/spec_verify.py docs/specs/code-notebook-embed/spec.yml"
-  expected_outcome: "The spec remains active until the missing automated web tests, user confirmation, and Apple build evidence are recorded or explicitly waived."
-  blocker: null
-  last_verified_commit: ce743f9e3
+  expected_outcome: "The spec remains active until user confirmation and Apple read-only notebook build evidence are recorded or explicitly waived."
+  blocker:
+    verification: V-USER-CONFIRM-NOTEBOOK-UI
+    reason: Apple read-only notebook implementation waits for user confirmation of the deployed web notebook UI per the Apple parity workflow.
+  last_verified_commit: 4b18d03
 
 scenarios:
   - id: S-1
@@ -551,9 +559,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest "backend/tests/test_code_notebook_artifacts.py" "backend/tests/test_code_notebook_execution.py" "backend/tests/test_notebook_run_outputs.py"
-        run_id: local-pytest-code-notebook-focused-2026-07-30T21-20Z
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7
-        timestamp: "2026-07-30T21:20:00Z"
+        run_id: local-pytest-code-notebook-focused-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
 
   - id: T-PYTEST-NOTEBOOK-API
     type: pytest
@@ -581,9 +589,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest "backend/tests/test_code_notebook_artifacts.py" "backend/tests/test_code_notebook_execution.py" "backend/tests/test_notebook_run_outputs.py"
-        run_id: local-pytest-code-notebook-focused-2026-07-30T21-20Z
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7
-        timestamp: "2026-07-30T21:20:00Z"
+        run_id: local-pytest-code-notebook-focused-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
 
   - id: T-PYTEST-NOTEBOOK-SIDECAR
     type: pytest
@@ -609,9 +617,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest "backend/tests/test_code_notebook_artifacts.py" "backend/tests/test_code_notebook_execution.py" "backend/tests/test_notebook_run_outputs.py"
-        run_id: local-pytest-code-notebook-focused-2026-07-30T21-20Z
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7
-        timestamp: "2026-07-30T21:20:00Z"
+        run_id: local-pytest-code-notebook-focused-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
 
   - id: T-VITEST-NOTEBOOK-RENDERER
     type: vitest
@@ -636,11 +644,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --suite vitest --expected-commit eccd21c
-        run_id: github-actions-30631350378
-        subject_commit: eccd21c5bfe38dfd465791c8f6a40716ff9e4bdf
-        timestamp: "2026-07-31T12:39:36Z"
-        reason: "GitHub Actions Vitest control-plane run passed 667/667 tests, including `frontend/packages/ui/src/components/embeds/code/__tests__/notebookContent.test.ts` and the updated embed registry durable content catalog guard for `code.notebook`."
+        command: python3 scripts/tests.py run --suite vitest --expected-commit 4b18d03
+        run_id: github-actions-30634202676
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:23:54Z"
+        reason: "GitHub Actions Vitest control-plane run passed 667/667 tests against the latest deployed notebook subject commit, including `frontend/packages/ui/src/components/embeds/code/__tests__/notebookContent.test.ts` and the embed registry durable content catalog guard for `code.notebook`."
 
   - id: T-PLAYWRIGHT-NOTEBOOK-FLOW
     type: playwright
@@ -670,11 +678,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec code-notebook-flow.spec.ts --expected-commit 4b18d03
+        run_id: github-actions-30633706419
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:16:52Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_HK5pAuZoQU6YbK3wnhzwtdVn1CnC
+        reason: "The deployed Playwright gate passed after Vercel Ready. The initial run 30632578113 failed only on an over-specific filename assertion because fullscreen intentionally uses the notebook markdown heading; commit 4b18d03 removed that assertion and the rerun passed. Account slot 1 preflight remained unavailable (`user_lookup_failed`), so the control plane used fallback slot 2."
 
   - id: T-MANUAL-REALISTIC-CLI-CHAT
     type: manual
@@ -728,9 +739,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/audit_sdk_cli_parity.py
-        run_id: local-audit-sdk-cli-parity-2026-07-30T21-33Z
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7
-        timestamp: "2026-07-30T21:33:00Z"
+        run_id: local-audit-sdk-cli-parity-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
 
   - id: T-APPLE-NOTEBOOK-BUILD
     type: build
@@ -1239,6 +1250,7 @@ tasks:
         - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
         - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
       shared_files: []
-    blockers: []
+    blockers:
+      - verification: V-USER-CONFIRM-NOTEBOOK-UI
     follow_up_tasks: []
     independently_deployable: false
