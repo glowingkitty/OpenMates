@@ -165,6 +165,7 @@
   }
 
   .chat-settings-icon {
+    display: none;
     flex: 0 0 auto;
     width: var(--chat-settings-icon-size);
     height: var(--chat-settings-icon-size);
