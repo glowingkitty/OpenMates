@@ -191,14 +191,22 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-31T16:42:13Z"
     notes: Read-only dev boot probe passed against https://api.dev.openmates.org after recreating api with the overlay compose file; public health is healthy, server-status reports official-cloud payments enabled, the payment webhook route is registered, and local Docker overlay markers are present.
+  - id: ATTEMPT-10
+    task_id: TASK-3
+    approach: Run the live dev income smoke with Revolut Sandbox topups after the readiness check passed.
+    outcome: blocked
+    recorded_at: "2026-07-31T17:30:18Z"
+    notes: The read-only readiness check passed, but the --execute run stopped before mutating dev/provider state because the gitignored operator helper scripts/revolut_business_setup.py is missing locally and was not present in the OpenMatesCloud sibling repo.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Run the remaining TASK-3 dev income/provider smoke gate now that the official-cloud overlay runtime boots successfully.
-  command: TBD provider smoke command for T-DEV-INCOME-SMOKE
+  next_action: Restore the gitignored operator helper scripts/revolut_business_setup.py from the private operator store, then rerun the live TASK-3 income/provider smoke gate with --execute.
+  command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete,duplicate-completed-reference --execute
   expected_outcome: Dev provider smoke proves income/payment accounting still works through the OpenMatesCloud overlay.
-  blocker: null
-  last_verified_commit: 9eaab522705792274da3f03bc8e87d26e07a16c7+openmatescloud-untracked-overlay
+  blocker:
+    reason: Missing local gitignored operator helper scripts/revolut_business_setup.py required for Revolut Sandbox /sandbox/topup simulation.
+    next_action: Restore the helper from the private operator store before rerunning the live --execute smoke.
+  last_verified_commit: 54059099aa0d577bdf986f62529196ab66c1f11f+openmatescloud-untracked-overlay
 
 scenarios:
   - id: S-1
@@ -616,7 +624,14 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: blocked
+        command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete,duplicate-completed-reference --execute
+        run_id: local-2026-07-31-173018-dev-income-smoke-blocked
+        subject_commit: 54059099aa0d577bdf986f62529196ab66c1f11f+openmatescloud-untracked-overlay
+        timestamp: "2026-07-31T17:30:18Z"
+        reason: The read-only readiness check passed, but --execute stopped before mutation because scripts/revolut_business_setup.py is missing locally; the helper is intentionally gitignored and must be restored from the private operator store.
+        next_action: Restore scripts/revolut_business_setup.py and rerun the same --execute command.
   - id: T-REVOLUT-LEDGER
     type: pytest
     file: backend/tests/test_openmatescloud_revolut_ledger.py
