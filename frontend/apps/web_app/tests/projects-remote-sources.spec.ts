@@ -185,8 +185,12 @@ test.describe('Projects remote sources', () => {
     const editableMessage = messageEditor.locator('[contenteditable="true"]');
     await expect(editableMessage).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
-    await messageEditor.click();
-    await page.keyboard.type(`@${projectName}`, { delay: 20 });
+    await editableMessage.click();
+    const mentionQuery = `@${projectName.slice(projectName.lastIndexOf(' ') + 1)}`;
+    await page.keyboard.insertText(mentionQuery);
+    await expect
+      .poll(async () => ((await messageEditor.textContent()) || '').replace(/\s+/g, ' ').trim(), { timeout: 10000 })
+      .toContain(mentionQuery);
     const mentionDropdown = page.getByTestId('mention-dropdown');
     await expect(mentionDropdown).toBeVisible({ timeout: 30000 });
     const projectMention = mentionDropdown.getByTestId('mention-result').filter({ hasText: projectName }).first();
