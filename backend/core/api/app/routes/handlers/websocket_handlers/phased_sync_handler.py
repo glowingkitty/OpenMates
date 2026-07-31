@@ -634,7 +634,9 @@ def _merge_partial_cache_chat_details(
     Redis can hold list-item data while the versions key has expired. In that
     partial-cache state Phase 1a still needs complete encrypted header metadata;
     otherwise the client stores null title/icon/category and the chat header has
-    nothing to decrypt.
+    nothing to decrypt. When both sources report the same metadata version, keep
+    cache values because WebSocket metadata updates refresh Redis before the
+    asynchronous Directus persistence task finishes.
     """
     if not directus_details:
         return cached_details
@@ -646,7 +648,7 @@ def _merge_partial_cache_chat_details(
 
     cached_metadata_v = _effective_metadata_v(cached_details)
     directus_metadata_v = _effective_metadata_v(directus_details)
-    if directus_metadata_v > 0 and directus_metadata_v >= cached_metadata_v:
+    if directus_metadata_v > 0 and directus_metadata_v > cached_metadata_v:
         for field in PHASE1_VERSIONED_METADATA_FIELDS:
             directus_value = directus_details.get(field)
             if directus_value is not None:

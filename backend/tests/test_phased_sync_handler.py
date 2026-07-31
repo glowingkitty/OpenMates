@@ -113,7 +113,7 @@ def test_phase1_partial_cache_keeps_cached_message_version_when_present() -> Non
     assert merged["title_v"] == 2
 
 
-def test_phase1_merge_prefers_current_directus_metadata_fields() -> None:
+def test_phase1_merge_prefers_newer_directus_metadata_fields() -> None:
     cached_details = {
         "id": "chat-1",
         "encrypted_title": "stale-title",
@@ -135,7 +135,7 @@ def test_phase1_merge_prefers_current_directus_metadata_fields() -> None:
         "encrypted_chat_summary": "fresh-summary",
         "messages_v": 9,
         "title_v": 5,
-        "metadata_v": 7,
+        "metadata_v": 8,
         "unread_count": 0,
     }
 
@@ -148,7 +148,47 @@ def test_phase1_merge_prefers_current_directus_metadata_fields() -> None:
     assert merged["encrypted_chat_key"] == "cached-key"
     assert merged["messages_v"] == 10
     assert merged["unread_count"] == 3
+    assert merged["metadata_v"] == 8
+
+
+def test_phase1_merge_preserves_cached_metadata_on_equal_version() -> None:
+    cached_details = {
+        "id": "chat-1",
+        "encrypted_title": "cached-current-title",
+        "encrypted_chat_key": "cached-key",
+        "encrypted_icon": "cached-icon",
+        "encrypted_category": "cached-category",
+        "encrypted_chat_summary": "manual-summary-from-live-sync",
+        "messages_v": 10,
+        "title_v": 5,
+        "metadata_v": 7,
+        "updated_at": 200,
+        "last_edited_overall_timestamp": 200,
+    }
+    directus_details = {
+        "id": "chat-1",
+        "encrypted_title": "directus-title-same-version",
+        "encrypted_chat_key": "directus-key",
+        "encrypted_icon": "directus-icon-same-version",
+        "encrypted_category": "directus-category-same-version",
+        "encrypted_chat_summary": "stale-generated-summary",
+        "messages_v": 9,
+        "title_v": 5,
+        "metadata_v": 7,
+        "updated_at": 100,
+        "last_edited_overall_timestamp": 100,
+    }
+
+    merged = _merge_partial_cache_chat_details(cached_details, directus_details)
+
+    assert merged["encrypted_title"] == "cached-current-title"
+    assert merged["encrypted_icon"] == "cached-icon"
+    assert merged["encrypted_category"] == "cached-category"
+    assert merged["encrypted_chat_summary"] == "manual-summary-from-live-sync"
+    assert merged["encrypted_chat_key"] == "cached-key"
+    assert merged["messages_v"] == 10
     assert merged["metadata_v"] == 7
+    assert merged["updated_at"] == 200
 
 
 def test_phase1_merge_rejects_older_directus_metadata_fields() -> None:
