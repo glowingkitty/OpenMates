@@ -943,6 +943,17 @@ class EmbedService:
         }
 
     @staticmethod
+    def _strip_notebook_fence_wrappers(raw_content: str) -> str:
+        payload = raw_content.strip()
+        if payload.startswith("```"):
+            first_newline = payload.find("\n")
+            if first_newline >= 0:
+                payload = payload[first_newline + 1:].lstrip()
+        if payload.endswith("```"):
+            payload = payload[:-3].rstrip()
+        return payload
+
+    @staticmethod
     def _is_notebook_artifact(
         language: Optional[str],
         filename: Optional[str],
@@ -959,17 +970,18 @@ class EmbedService:
     @staticmethod
     def _normalize_notebook_payload(raw_content: str, filename: Optional[str]) -> Dict[str, Any]:
         safe_filename = EmbedService._safe_notebook_filename(filename)
+        payload = EmbedService._strip_notebook_fence_wrappers(raw_content)
 
         notebook: Optional[Dict[str, Any]] = None
         try:
-            parsed = json.loads(raw_content) if raw_content.strip() else None
+            parsed = json.loads(payload) if payload.strip() else None
             if isinstance(parsed, dict) and isinstance(parsed.get("cells"), list):
                 notebook = parsed
         except Exception:
             notebook = None
 
-        if notebook is None and EmbedService._is_python_percent_cell_notebook_source("python", raw_content):
-            notebook = EmbedService._python_percent_cell_source_to_notebook(raw_content)
+        if notebook is None and EmbedService._is_python_percent_cell_notebook_source("python", payload):
+            notebook = EmbedService._python_percent_cell_source_to_notebook(payload)
 
         metadata = notebook.get("metadata") if isinstance(notebook, dict) and isinstance(notebook.get("metadata"), dict) else {}
         kernelspec = metadata.get("kernelspec") if isinstance(metadata.get("kernelspec"), dict) else {}

@@ -135,6 +135,18 @@ def test_validate_notebook_payload_rejects_non_python_for_execution() -> None:
     assert "Python notebooks only" in str(exc.value.detail)
 
 
+def test_normalize_notebook_payload_strips_accidental_fence_tail() -> None:
+    normalized = EmbedService._normalize_notebook_payload(
+        f"```json\n{json.dumps(_python_notebook())}\n```",
+        "weather.ipynb",
+    )
+
+    assert normalized["filename"] == "weather.ipynb"
+    assert normalized["language"] == "python"
+    assert normalized["cell_count"] == 2
+    assert normalized["notebook"] == _python_notebook()
+
+
 @pytest.mark.asyncio
 async def test_ipynb_code_artifact_creates_notebook_embed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(embed_service_module, "encode", lambda value: json.dumps(value))
