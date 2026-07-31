@@ -191,6 +191,42 @@ async def handle_post_processing_metadata(
                         )
                         encrypted_title = None
                         encrypted_chat_summary = None
+                else:
+                    current_metadata = await directus_service.chat.get_chat_metadata(chat_id) or {}
+                    cached_metadata = None
+                    get_cached_metadata = getattr(cache_service, "get_chat_list_item_data", None)
+                    if callable(get_cached_metadata):
+                        try:
+                            cached_metadata = await get_cached_metadata(user_id, chat_id)
+                        except Exception as cache_metadata_error:
+                            logger.warning(
+                                "Failed to read cached metadata before unversioned post-processing guard for chat %s: %s",
+                                chat_id,
+                                cache_metadata_error,
+                            )
+
+                    existing_title = current_metadata.get("encrypted_title")
+                    existing_summary = current_metadata.get("encrypted_chat_summary")
+                    if cached_metadata is not None:
+                        existing_title = getattr(cached_metadata, "title", None) or existing_title
+                        existing_summary = (
+                            getattr(cached_metadata, "encrypted_chat_summary", None)
+                            or existing_summary
+                        )
+
+                    dropped_fields = []
+                    if encrypted_title and existing_title:
+                        encrypted_title = None
+                        dropped_fields.append("encrypted_title")
+                    if encrypted_chat_summary and existing_summary:
+                        encrypted_chat_summary = None
+                        dropped_fields.append("encrypted_chat_summary")
+                    if dropped_fields:
+                        logger.info(
+                            "Dropping unversioned generated post-processing metadata for chat %s: %s",
+                            chat_id,
+                            ",".join(dropped_fields),
+                        )
 
             # Build update fields for Directus
             chat_update_fields = {}

@@ -7,10 +7,26 @@ only ciphertext; Workflow metadata remains inside its Automation Vault boundary.
 """
 
 import asyncio
+import sys
+import types
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+
+
+if "redis.asyncio" not in sys.modules:
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+
+    class FakeRedis:
+        pass
+
+    redis_asyncio_module.Redis = FakeRedis
+    redis_module.asyncio = redis_asyncio_module
+    redis_module.exceptions = SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
+    sys.modules["redis"] = redis_module
+    sys.modules["redis.asyncio"] = redis_asyncio_module
 
 from backend.core.api.app.routes.handlers.websocket_handlers import (
     encrypted_chat_metadata_handler,
@@ -158,9 +174,18 @@ class TitleUpdateDirectus:
 
 
 class PostProcessingCache:
-    def __init__(self, events: list[tuple], metadata_v: int = 4) -> None:
+    def __init__(
+        self,
+        events: list[tuple],
+        metadata_v: int = 4,
+        *,
+        cached_title: str | None = None,
+        cached_summary: str | None = None,
+    ) -> None:
         self.events = events
         self.metadata_v = metadata_v
+        self.cached_title = cached_title
+        self.cached_summary = cached_summary
 
     async def get_chat_versions(self, _user_id: str, _chat_id: str) -> SimpleNamespace:
         return SimpleNamespace(messages_v=12, title_v=7, metadata_v=self.metadata_v)
@@ -189,6 +214,12 @@ class PostProcessingCache:
     ) -> bool:
         self.events.append(("cache", user_id, chat_id, field, value))
         return True
+
+    async def get_chat_list_item_data(self, _user_id: str, _chat_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            title=self.cached_title,
+            encrypted_chat_summary=self.cached_summary,
+        )
 
 
 class OrderedPostProcessingManager(ChatMetadataManager):
@@ -517,6 +548,56 @@ def test_post_processing_drops_stale_summary_without_blocking_other_metadata(mon
     persisted = task_args[1]
     assert persisted["encrypted_chat_tags"] == "fresh-tags-from-post-processing"
     assert persisted["encrypted_chat_key"] == "cipher-key"
+    assert "encrypted_chat_summary" not in persisted
+    assert "metadata_v" not in persisted
+
+
+def test_generated_post_processing_without_baseline_preserves_existing_summary(monkeypatch) -> None:
+    events: list[tuple] = []
+    queued_tasks: list[tuple[str, list, str | None]] = []
+
+    def queue_task(name: str, args=None, queue: str | None = None):
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="task-1")
+
+    monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+
+    manager = OrderedPostProcessingManager(events)
+    asyncio.run(
+        handle_post_processing_metadata(
+            websocket=None,
+            manager=manager,
+            cache_service=PostProcessingCache(
+                events,
+                metadata_v=8,
+                cached_title="manual-title-v9",
+                cached_summary="manual-summary-v9",
+            ),
+            directus_service=ChatMetadataDirectus(is_owner=True, metadata_v=8),
+            encryption_service=None,
+            user_id="owner-1",
+            user_id_hash="owner-hash",
+            device_fingerprint_hash="device-1",
+            payload={
+                "chat_id": "chat-1",
+                "encrypted_title": "late-generated-title",
+                "encrypted_chat_summary": "late-generated-summary",
+                "encrypted_chat_tags": "fresh-generated-tags",
+                "encrypted_chat_key": "cipher-key",
+            },
+        )
+    )
+
+    assert events == [("personal", "post_processing_metadata_stored")]
+    assert manager.broadcasts == []
+    assert len(queued_tasks) == 1
+    task_name, task_args, queue = queued_tasks[0]
+    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
+    assert queue == "persistence"
+    persisted = task_args[1]
+    assert persisted["encrypted_chat_tags"] == "fresh-generated-tags"
+    assert persisted["encrypted_chat_key"] == "cipher-key"
+    assert "encrypted_title" not in persisted
     assert "encrypted_chat_summary" not in persisted
     assert "metadata_v" not in persisted
 
