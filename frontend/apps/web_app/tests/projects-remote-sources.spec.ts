@@ -29,7 +29,7 @@ test.describe('Projects remote sources', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 
-    const projectName = `E2E Remote Source ${Date.now()}`;
+    const projectName = `E2E Remote Source ${Date.now().toString(36)}`;
     const created = page.waitForResponse(
       (response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
     );
