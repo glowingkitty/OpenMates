@@ -28,6 +28,7 @@ const LANDING_INTRO_REQUESTS = [
 ];
 const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
 const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
+const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
 const LANDING_INTRO_REQUEST_APP_IDS = new Map(
 	LANDING_INTRO_REQUESTS.map((request, index) => [request, LANDING_INTRO_HIGHLIGHTED_APPS[index]])
 );
@@ -208,6 +209,36 @@ async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
 					rowBottomGap: bannerRect.bottom - rowRect.bottom
 				};
 			})
+		};
+	});
+}
+
+async function mobileActionableSlideState(page: any): Promise<{
+	bannerHeight: number;
+	headlineFontSize: number;
+	headlineOpacity: number;
+	headlineBottom: number;
+	demoOpacity: number;
+	demoTop: number;
+	demoHeight: number;
+}> {
+	return page.evaluate(() => {
+		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+		const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
+		const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
+		if (!banner || !headline || !demo) throw new Error('mobile actionable slide elements not found');
+
+		const bannerRect = banner.getBoundingClientRect();
+		const headlineRect = headline.getBoundingClientRect();
+		const demoRect = demo.getBoundingClientRect();
+		return {
+			bannerHeight: bannerRect.height,
+			headlineFontSize: Number.parseFloat(getComputedStyle(headline).fontSize),
+			headlineOpacity: Number.parseFloat(getComputedStyle(headline).opacity),
+			headlineBottom: headlineRect.bottom,
+			demoOpacity: Number.parseFloat(getComputedStyle(demo).opacity),
+			demoTop: demoRect.top,
+			demoHeight: demoRect.height
 		};
 	});
 }
@@ -454,7 +485,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(suggestionIds.every((id) => id.startsWith('chat.new_chat_suggestions.'))).toBe(true);
 	});
 
-	test('mobile guest intro alternates copy and video', async ({ page }: { page: any }) => {
+	test('mobile guest intro compacts copy above the animation', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -470,6 +501,20 @@ test.describe('Guest interest smart selection', () => {
 		expect(mobileIntroMetrics.height).toBeGreaterThanOrEqual(mobileIntroMetrics.containerHeight * 0.65);
 
 		await skipExpandedLandingIntro(page);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+		const initialActionable = await mobileActionableSlideState(page);
+		expect(initialActionable.bannerHeight, 'regular mobile guest banner should be 20px taller').toBeGreaterThanOrEqual(190);
+		expect(initialActionable.headlineFontSize, 'mobile headline should be large before the demo appears').toBeGreaterThanOrEqual(24);
+		expect(initialActionable.demoOpacity, 'demo should not be visible during the large-heading phase').toBeLessThanOrEqual(0.15);
+
+		await page.waitForTimeout(MOBILE_HEADING_COMPACT_SETTLE_MS);
+		const compactActionable = await mobileActionableSlideState(page);
+		expect(compactActionable.headlineFontSize, 'headline should shrink into the compact top caption').toBeLessThanOrEqual(initialActionable.headlineFontSize * 0.72);
+		expect(compactActionable.headlineOpacity, 'compact headline should be visually secondary').toBeLessThanOrEqual(0.75);
+		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
+		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
+		expect(compactActionable.demoHeight, 'demo should keep useful vertical space').toBeGreaterThanOrEqual(80);
+
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
 	});

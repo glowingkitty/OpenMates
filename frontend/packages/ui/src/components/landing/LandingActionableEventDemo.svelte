@@ -4,11 +4,22 @@
    *
    * Lightweight logged-out landing animation for the Actionable product slide.
    * It mirrors real chat-message bubbles and the events embed preview while
-   * showing a cursor opening a real Luma event CTA.
+   * sequencing each stage through the same centered fade-up transition.
    */
 
+  import { onMount } from 'svelte';
+  import { fly } from 'svelte/transition';
   import { text } from '@repo/ui';
   import EventEmbedPreview from '../embeds/events/EventEmbedPreview.svelte';
+
+  const ACTIONABLE_STAGE_INTERVAL_MS = 2200;
+  const ACTIONABLE_STAGE_TRANSITION_MS = 420;
+  const ACTIONABLE_STAGES = ['user-request', 'assistant-response', 'event-preview', 'luma-cta'] as const;
+
+  type ActionableStage = typeof ACTIONABLE_STAGES[number];
+
+  let activeStageIndex = $state(0);
+  let activeStage = $derived<ActionableStage>(ACTIONABLE_STAGES[activeStageIndex] ?? ACTIONABLE_STAGES[0]);
 
   const demoStartDate = new Date('2024-05-22T11:00:00+02:00');
   const demoEndDate = new Date(demoStartDate);
@@ -41,44 +52,54 @@
   function noop() {
     // Non-interactive decorative preview inside the autoplay landing slide.
   }
+
+  onMount(() => {
+    const interval = window.setInterval(() => {
+      activeStageIndex = (activeStageIndex + 1) % ACTIONABLE_STAGES.length;
+    }, ACTIONABLE_STAGE_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  });
 </script>
 
-<div class="landing-actionable-demo" data-testid="landing-actionable-event-demo">
+<div class="landing-actionable-demo" data-testid="landing-actionable-event-demo" data-active-stage={activeStage}>
   <div class="landing-actionable-scene" data-testid="landing-actionable-event-scene">
-    <div class="landing-actionable-chat">
-      <div class="chat-message user landing-actionable-user-row" data-testid="landing-actionable-user-row">
-        <div class="message-align-right">
-          <div class="user-message-content" data-testid="landing-actionable-user-message">
-            <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_user_message')}</div>
+    {#key activeStage}
+      <div
+        class="landing-actionable-stage"
+        data-testid="landing-actionable-stage"
+        data-stage={activeStage}
+        in:fly={{ y: 24, duration: ACTIONABLE_STAGE_TRANSITION_MS }}
+        out:fly={{ y: -24, duration: ACTIONABLE_STAGE_TRANSITION_MS }}
+      >
+        {#if activeStage === 'user-request'}
+          <div class="chat-message user landing-actionable-message-stage" data-testid="landing-actionable-user-row">
+            <div class="message-align-right">
+              <div class="user-message-content" data-testid="landing-actionable-user-message">
+                <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_user_message')}</div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <div class="chat-message assistant landing-actionable-assistant-row" data-testid="landing-actionable-assistant-row">
-        <div class="mate-profile general_knowledge" data-testid="landing-actionable-assistant-profile"></div>
-        <div class="message-align-left">
-          <div class="mate-message-content" data-testid="landing-actionable-assistant-message">
-            <div class="chat-mate-name" data-testid="landing-actionable-assistant-name">OpenMates</div>
-            <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_assistant_message')}</div>
+        {:else if activeStage === 'assistant-response'}
+          <div class="chat-message assistant landing-actionable-message-stage" data-testid="landing-actionable-assistant-row">
+            <div class="mate-profile general_knowledge" data-testid="landing-actionable-assistant-profile"></div>
+            <div class="message-align-left">
+              <div class="mate-message-content" data-testid="landing-actionable-assistant-message">
+                <div class="chat-mate-name" data-testid="landing-actionable-assistant-name">OpenMates</div>
+                <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_assistant_message')}</div>
+              </div>
+            </div>
           </div>
-        </div>
+        {:else if activeStage === 'event-preview'}
+          <div class="landing-actionable-preview" data-testid="landing-actionable-event-preview">
+            <EventEmbedPreview id="landing-actionable-event-preview-card" event={demoEvent} isMobile={false} onFullscreen={noop} />
+            <div class="landing-actionable-preview-title" data-testid="landing-actionable-event-title">{$text('demo_chats.for_everyone.landing_actionable_event_title')}</div>
+          </div>
+        {:else}
+          <button class="landing-actionable-luma-button" data-testid="landing-actionable-luma-button" type="button">Open on Luma</button>
+        {/if}
       </div>
-    </div>
-
-    <div class="landing-actionable-preview" data-testid="landing-actionable-event-preview">
-      <EventEmbedPreview id="landing-actionable-event-preview-card" event={demoEvent} isMobile={false} onFullscreen={noop} />
-      <div class="landing-actionable-preview-title" data-testid="landing-actionable-event-title">{$text('demo_chats.for_everyone.landing_actionable_event_title')}</div>
-    </div>
-
-    <div class="landing-actionable-cta-card" data-testid="landing-actionable-event-cta-card">
-      <div class="landing-actionable-cta-copy">
-        <span>{$text('demo_chats.for_everyone.landing_actionable_event_source')}</span>
-        <strong>{$text('demo_chats.for_everyone.landing_actionable_event_title')}</strong>
-      </div>
-      <button class="landing-actionable-luma-button" data-testid="landing-actionable-luma-button" type="button">Open on Luma</button>
-    </div>
-
-    <div class="landing-actionable-cursor" data-testid="landing-actionable-cursor" aria-hidden="true"></div>
+    {/key}
   </div>
 </div>
 
@@ -101,64 +122,62 @@
   .landing-actionable-scene {
     position: absolute;
     inset: 0;
-    transform-origin: center;
-    animation: landingActionableScene 9.6s ease-in-out infinite;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
   }
 
-  .landing-actionable-chat {
+  .landing-actionable-stage {
     position: absolute;
-    inset: 18px 18px auto;
+    inset: 0;
     z-index: var(--z-index-raised);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-width: 0;
+    padding: 18px;
+    box-sizing: border-box;
   }
 
-  .landing-actionable-chat :global(.chat-message) {
+  .landing-actionable-message-stage {
+    width: min(100%, 520px);
     transform-origin: center;
   }
 
-  .landing-actionable-user-row {
-    animation: landingActionableUserMessage 9.6s ease-in-out infinite;
-  }
-
-  .landing-actionable-assistant-row {
-    animation: landingActionableAssistantMessage 9.6s ease-in-out infinite;
-  }
-
-  .landing-actionable-chat :global(.mate-profile) {
+  .landing-actionable-message-stage :global(.mate-profile) {
     width: 42px !important;
     height: 42px !important;
     margin: 0 !important;
     flex: 0 0 auto;
   }
 
-  .landing-actionable-chat :global(.mate-profile::after) {
+  .landing-actionable-message-stage :global(.mate-profile::after) {
     width: 16px !important;
     height: 16px !important;
     right: -4px !important;
     bottom: -4px !important;
   }
 
-  .landing-actionable-chat :global(.mate-profile::before) {
+  .landing-actionable-message-stage :global(.mate-profile::before) {
     width: 10px !important;
     height: 10px !important;
     right: -1px !important;
     bottom: -1px !important;
   }
 
-  .landing-actionable-chat :global(.message-align-right) {
-    max-width: min(72%, 440px);
+  .landing-actionable-message-stage :global(.message-align-right) {
+    max-width: min(78%, 440px);
     padding-inline-start: 0;
+    margin-left: auto;
   }
 
-  .landing-actionable-chat :global(.message-align-left) {
-    max-width: min(78%, 470px);
+  .landing-actionable-message-stage :global(.message-align-left) {
+    max-width: min(82%, 470px);
     padding-inline-end: 0;
   }
 
-  .landing-actionable-chat :global(.user-message-content),
-  .landing-actionable-chat :global(.mate-message-content) {
+  .landing-actionable-message-stage :global(.user-message-content),
+  .landing-actionable-message-stage :global(.mate-message-content) {
     flex: 0 1 auto;
     padding: 10px 12px;
     margin-top: 0;
@@ -168,21 +187,17 @@
     font-weight: 700;
   }
 
-  .landing-actionable-chat :global(.chat-mate-name) {
+  .landing-actionable-message-stage :global(.chat-mate-name) {
     margin-bottom: 3px;
     font-size: 0.68rem;
     color: var(--color-grey-60);
   }
 
   .landing-actionable-preview {
-    position: absolute;
-    left: 50%;
-    bottom: 18px;
+    position: relative;
     z-index: var(--z-index-raised-2);
     width: 300px;
-    transform: translateX(-50%) translateY(18px) scale(0.92);
-    opacity: 0;
-    animation: landingActionablePreview 9.6s ease-in-out infinite;
+    max-width: 100%;
   }
 
   .landing-actionable-preview :global(.unified-embed-preview) {
@@ -198,7 +213,7 @@
     top: 20px;
     z-index: var(--z-index-raised);
     max-width: 150px;
-    color: #fff;
+    color: var(--color-grey-0);
     font-size: 0.92rem;
     line-height: 1.08;
     font-weight: 800;
@@ -206,134 +221,9 @@
     pointer-events: none;
   }
 
-  .landing-actionable-cta-card {
-    position: absolute;
-    left: 50%;
-    bottom: 30px;
-    z-index: var(--z-index-dropdown);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    width: min(86%, 430px);
-    padding: 16px;
-    border-radius: var(--radius-5);
-    background: var(--color-grey-0);
-    box-shadow: var(--shadow-xl);
-    color: var(--color-font-primary);
-    transform: translateX(-50%) translateY(28px) scale(0.94);
-    opacity: 0;
-    animation: landingActionableCtaCard 9.6s ease-in-out infinite;
-  }
-
-  .landing-actionable-cta-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-  }
-
-  .landing-actionable-cta-copy span {
-    color: var(--color-grey-60);
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .landing-actionable-cta-copy strong {
-    overflow: hidden;
-    font-size: 1rem;
-    line-height: 1.15;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .landing-actionable-luma-button {
-    flex: 0 0 auto;
-    min-width: 136px;
-    height: 42px;
-    padding: 0 18px;
-    border: 0;
-    border-radius: 999px;
-    color: white;
-    background: #111827;
-    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.2);
-    font: inherit;
-    font-size: 0.86rem;
     font-weight: 800;
-  }
-
-  .landing-actionable-cursor {
-    position: absolute;
-    left: 24%;
-    top: 50%;
-    z-index: var(--z-index-popover);
-    width: 24px;
-    height: 24px;
-    filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.3));
-    transform: translate(-50%, -50%);
-    animation: landingActionableCursor 9.6s ease-in-out infinite;
-  }
-
-  .landing-actionable-cursor::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: white;
-    clip-path: polygon(0 0, 0 100%, 28% 76%, 45% 100%, 60% 92%, 44% 68%, 78% 68%);
-  }
-
-  .landing-actionable-cursor::after {
-    content: '';
-    position: absolute;
-    left: 8px;
-    top: 8px;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    border: 2px solid rgba(255, 255, 255, 0.84);
-    opacity: 0;
-    transform: scale(0.28);
-    animation: landingActionableCursorClick 9.6s ease-in-out infinite;
-  }
-
-  @keyframes landingActionableScene {
-    0%, 100% { transform: scale(1); }
-  }
-
-  @keyframes landingActionableUserMessage {
-    0% { opacity: 0; transform: translateY(12px); }
-    10%, 100% { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes landingActionableAssistantMessage {
-    0%, 12% { opacity: 0; transform: translateY(12px); }
-    22%, 100% { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes landingActionablePreview {
-    0%, 38% { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.92); }
-    50%, 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-  }
-
-  @keyframes landingActionableCtaCard {
-    0%, 66% { opacity: 0; transform: translateX(-50%) translateY(28px) scale(0.94); }
-    76%, 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-  }
-
-  @keyframes landingActionableCursor {
-    0%, 46% { opacity: 0; left: 28%; top: 54%; transform: translate(-50%, -50%) scale(1); }
-    52%, 62% { opacity: 1; left: 54%; top: 71%; transform: translate(-50%, -50%) scale(1); }
-    66% { opacity: 1; left: 54%; top: 71%; transform: translate(-50%, -50%) scale(0.86); }
-    72%, 84% { opacity: 1; left: 64%; top: 83%; transform: translate(-50%, -50%) scale(1); }
-    88% { opacity: 1; left: 73%; top: 83%; transform: translate(-50%, -50%) scale(0.86); }
-    96%, 100% { opacity: 0; left: 73%; top: 83%; transform: translate(-50%, -50%) scale(1); }
-  }
-
-  @keyframes landingActionableCursorClick {
-    0%, 62%, 70%, 84%, 92%, 100% { opacity: 0; transform: scale(0.28); }
-    66%, 88% { opacity: 0.9; transform: scale(1); }
+    white-space: nowrap;
   }
 
   @media (max-width: 730px) {
@@ -344,54 +234,28 @@
       min-height: 0;
     }
 
-    .landing-actionable-chat {
-      inset: 10px 10px auto;
-      gap: 8px;
+    .landing-actionable-stage {
+      padding: 4px 6px;
+    }
+
+    .landing-actionable-message-stage {
+      width: min(100%, 320px);
+      transform: scale(0.9);
     }
 
     .landing-actionable-preview {
-      bottom: 10px;
-      width: min(100%, 300px);
-    }
-
-    .landing-actionable-cta-card {
-      bottom: 14px;
-      width: min(92%, 360px);
-      padding: 12px;
-      gap: 10px;
+      width: 300px;
+      transform: scale(0.58);
     }
 
     .landing-actionable-luma-button {
-      min-width: 118px;
-      height: 38px;
-      padding: 0 14px;
-      font-size: 0.78rem;
+      transform: scale(0.9);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .landing-actionable-scene,
-    .landing-actionable-user-row,
-    .landing-actionable-assistant-row,
-    .landing-actionable-preview,
-    .landing-actionable-cta-card,
-    .landing-actionable-cursor,
-    .landing-actionable-cursor::after {
-      animation: none !important;
-    }
-
-    .landing-actionable-user-row,
-    .landing-actionable-preview,
-    .landing-actionable-cta-card {
-      opacity: 1;
-    }
-
-    .landing-actionable-preview {
-      transform: translateX(-50%);
-    }
-
-    .landing-actionable-cta-card {
-      transform: translateX(-50%);
+    .landing-actionable-stage {
+      transition: none !important;
     }
   }
 </style>

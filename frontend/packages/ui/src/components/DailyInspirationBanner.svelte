@@ -57,6 +57,7 @@
 
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
+  const MOBILE_GUEST_HEADING_COMPACT_DELAY_MS = 1500;
   const LANDING_INTRO_REQUESTS_COUNT = 4;
   const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
   const LANDING_INTRO_REQUEST_INTERVAL_MS = 2100;
@@ -340,7 +341,8 @@
     onVisibleInspirationChange?.(current);
   });
 
-  // Mobile card loop: start on the assistant message, then alternate message and preview.
+  // Mobile cards start with explanatory text. Guest landing slides then compact the
+  // heading after 1500ms so the animation can play below it, matching the Figma flow.
   $effect(() => {
     if (!shouldCycleMobileCard) {
       showMobileCard = false;
@@ -350,6 +352,14 @@
     void currentIndex;
     void mobilePreviewKey;
     showMobileCard = false;
+
+    if (isGuestIntroVariant) {
+      const timeout = window.setTimeout(() => {
+        showMobileCard = true;
+      }, MOBILE_GUEST_HEADING_COMPACT_DELAY_MS);
+
+      return () => window.clearTimeout(timeout);
+    }
 
     const interval = window.setInterval(() => {
       showMobileCard = !showMobileCard;
@@ -3098,9 +3108,9 @@
     }
 
     .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
-      --daily-inspiration-regular-height: 170px;
-      height: 170px;
-      min-height: 170px;
+      --daily-inspiration-regular-height: 190px;
+      height: 190px;
+      min-height: 190px;
     }
 
     .daily-inspiration-banner.landing-intro-expanded {
@@ -3117,7 +3127,7 @@
 
     :global(.menu-open) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded),
     :global(.side-by-side-active) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
-      height: 170px;
+      height: 190px;
       min-height: unset;
     }
 
@@ -3202,7 +3212,7 @@
     }
 
     .guest-intro-copy-line {
-      font-size: clamp(0.98rem, 4.8vw, 1.42rem);
+      font-size: clamp(1.35rem, 7vw, 1.9rem);
       line-height: 1.06;
     }
 
@@ -3216,7 +3226,7 @@
     }
 
     .guest-feature-headline {
-      font-size: clamp(0.98rem, 4.8vw, 1.42rem);
+      font-size: clamp(1.45rem, 7.2vw, 2rem);
       line-height: 1.08;
       -webkit-line-clamp: 5;
       line-clamp: 5;
@@ -3314,11 +3324,43 @@
       transform: translateY(0);
     }
 
-    .banner-content.mobile-card-loop.show-mobile-card .banner-left,
-    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
+    .banner-content.mobile-card-loop.show-mobile-card .banner-left {
       opacity: 0;
       pointer-events: none;
       transform: translateY(-6px);
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
+      inset: 0 0 auto;
+      height: clamp(38px, 11vw, 50px);
+      align-items: center;
+      justify-content: center;
+      opacity: 0.7;
+      pointer-events: none;
+      text-align: center;
+      transform: translateY(-2px) scale(0.82);
+      transform-origin: top center;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy .guest-intro-ai-icon,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy .guest-feature-inline-icon {
+      display: none;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy-line,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-feature-headline {
+      display: -webkit-box;
+      max-width: min(100%, 330px);
+      overflow: hidden;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: clamp(0.72rem, 3vw, 0.9rem);
+      line-height: 1.08;
+      opacity: 0.7;
+      text-align: center;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
     }
 
     .banner-embed-wrapper {
@@ -3380,6 +3422,19 @@
       height: 100%;
       max-height: none;
       margin: 0 auto;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-product-demo-shell,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell {
+      inset: clamp(44px, 12vw, 56px) 0 0;
+      height: auto;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell :global(.landing-actionable-demo) {
+      inset: 0;
+      height: 100%;
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {
