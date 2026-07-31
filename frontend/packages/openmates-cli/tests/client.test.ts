@@ -87,6 +87,7 @@ const {
   loadSyncCache,
   saveSyncCache,
 } = await import("../src/storage.ts");
+const { OpenMatesWsClient } = await import("../src/ws.ts");
 
 after(() => {
   if (originalHome === undefined) {
@@ -2239,6 +2240,19 @@ describe("CLI saved-chat recovery preflight", () => {
     const address = server.address();
     assert.ok(address && typeof address === "object");
 
+    const originalWaitForMessage = OpenMatesWsClient.prototype.waitForMessage;
+    const confirmationTimeouts: number[] = [];
+    OpenMatesWsClient.prototype.waitForMessage = function (
+      expectedType: string,
+      predicate?: (payload: unknown) => boolean,
+      timeoutMs?: number,
+    ) {
+      if (expectedType === "chat_message_confirmed") {
+        confirmationTimeouts.push(timeoutMs ?? 20_000);
+      }
+      return originalWaitForMessage.call(this, expectedType, predicate, timeoutMs);
+    };
+
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
@@ -2258,7 +2272,9 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(typeof captured.preflightPayload?.encrypted_chat_key, "string");
       assert.equal(captured.frameTypes.includes("recovery_job_claim"), false);
       assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
+      assert.deepEqual(confirmationTimeouts, [50]);
     } finally {
+      OpenMatesWsClient.prototype.waitForMessage = originalWaitForMessage;
       wss.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));

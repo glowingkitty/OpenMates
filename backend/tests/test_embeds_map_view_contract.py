@@ -41,6 +41,8 @@ def test_instruction_limits_fields_and_forbids_paid_enrichment() -> None:
 def test_map_view_fence_language_is_reserved_for_client_renderer() -> None:
     assert is_embeds_map_view_fence_language("embeds_map_view") is True
     assert is_embeds_map_view_fence_language("embeds_map_view title=Berlin") is True
+    assert is_embeds_map_view_fence_language("") is False
+    assert is_embeds_map_view_fence_language("   ") is False
     assert is_embeds_map_view_fence_language("json") is False
     assert is_embeds_map_view_fence_language(None) is False
 

@@ -108,6 +108,7 @@ import {
 import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
 
 const PROMPT_INJECTION_DISABLED = "disabled";
+const DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS = 20_000;
 
 function withAppSkillPromptInjectionOption(
   inputData: Record<string, unknown>,
@@ -5764,7 +5765,7 @@ export class OpenMatesClient {
     precollectResponse?: boolean;
     /** Disable chat-side encrypted task update jobs for flows that must only clarify. */
     taskUpdateJobs?: boolean;
-    /** Override the WebSocket AI response collection timeout for long-running turns. */
+    /** Override WebSocket turn waits for long-running sends and responses. */
     responseTimeoutMs?: number;
   }): Promise<{
     status: "completed" | "waiting_for_user";
@@ -6148,7 +6149,7 @@ export class OpenMatesClient {
         const eventPayload = payload as Record<string, unknown>;
         return eventPayload.chat_id === chatId && eventPayload.message_id === messageId;
       },
-      20_000,
+      params.responseTimeoutMs ?? DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS,
     );
     await ws.sendAsync("chat_message_added", messagePayload);
     const confirmedPayload = (await confirmed).payload as Record<string, unknown>;

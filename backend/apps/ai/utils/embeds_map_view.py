@@ -87,7 +87,10 @@ def is_embeds_map_view_fence_language(language: str | None) -> bool:
 
     if not isinstance(language, str):
         return False
-    fence_language = language.strip().split(maxsplit=1)[0].lower()
+    stripped_language = language.strip()
+    if not stripped_language:
+        return False
+    fence_language = stripped_language.split(maxsplit=1)[0].lower()
     return fence_language == EMBEDS_MAP_VIEW_FENCE_LANGUAGE
 
 
