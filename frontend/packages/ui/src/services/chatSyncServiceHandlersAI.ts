@@ -2281,6 +2281,11 @@ export async function handlePostProcessingCompletedImpl(
       );
       return;
     }
+    const sourceMetadataV =
+      typeof payload.source_metadata_v === "number" &&
+      Number.isFinite(payload.source_metadata_v)
+        ? payload.source_metadata_v
+        : null;
 
     // KEYS-04: converted from getKeySync+getKey to withKey for key-before-content guarantee.
     // Post-processing encryption buffers until key is available rather than failing immediately.
@@ -2362,11 +2367,25 @@ export async function handlePostProcessingCompletedImpl(
     // Encrypt chat summary and tags
     // CRITICAL FIX: await all encryption operations since encrypt functions are async
     if (payload.chat_summary) {
-      encryptedChatSummary = await encryptWithChatKey(
-        payload.chat_summary,
-        chatKey,
+      const latestChatForSummary = await chatDB.getChat(payload.chat_id);
+      const latestMetadataV = Math.max(
+        latestChatForSummary?.metadata_v ?? 0,
+        latestChatForSummary?.title_v ?? 0,
+        chat.metadata_v ?? 0,
+        chat.title_v ?? 0,
       );
-      chat.encrypted_chat_summary = encryptedChatSummary;
+      if (sourceMetadataV !== null && latestMetadataV > sourceMetadataV) {
+        console.info(
+          `[ChatSyncService:AI] Skipping stale post-processing summary update for chat ${payload.chat_id} ` +
+            `(source_metadata_v=${sourceMetadataV}, current_metadata_v=${latestMetadataV})`,
+        );
+      } else {
+        encryptedChatSummary = await encryptWithChatKey(
+          payload.chat_summary,
+          chatKey,
+        );
+        chat.encrypted_chat_summary = encryptedChatSummary;
+      }
     }
 
     if (payload.share_cta_text) {

@@ -12,6 +12,7 @@ import {
   handleAIBackgroundResponseCompletedImpl,
   handleAITypingStartedImpl,
   handleEmbedUpdateImpl,
+  handlePostProcessingCompletedImpl,
   handleSendEmbedDataImpl,
 } from "../chatSyncServiceHandlersAI";
 
@@ -66,6 +67,7 @@ const mockUnreadMessagesStore = vi.hoisted(() => ({
 const mockChatKeyManager = vi.hoisted(() => ({
   getKeySync: vi.fn(),
   getKey: vi.fn(),
+  withKey: vi.fn(),
   receiveKeyFromServer: vi.fn(),
   computeKeyFingerprint: vi.fn(() => "raw-key-fingerprint"),
 }));
@@ -77,6 +79,8 @@ const mockWebSocketService = vi.hoisted(() => ({
 }));
 
 const mockEncryptWithChatKey = vi.hoisted(() => vi.fn());
+const mockEncryptArrayWithChatKey = vi.hoisted(() => vi.fn());
+const mockEncryptWithMasterKey = vi.hoisted(() => vi.fn());
 const mockEncryptChatKeyWithMasterKey = vi.hoisted(() => vi.fn());
 const mockDeriveEmbedKeyFromChatKey = vi.hoisted(() => vi.fn());
 const mockEncryptWithEmbedKey = vi.hoisted(() => vi.fn());
@@ -89,6 +93,7 @@ const mockSendEncryptedStoragePackage = vi.hoisted(() => vi.fn());
 const mockSendStoreEmbed = vi.hoisted(() => vi.fn());
 const mockSendStoreEmbedKeys = vi.hoisted(() => vi.fn());
 const mockSendStoreEmbedDiff = vi.hoisted(() => vi.fn());
+const mockSendPostProcessingMetadata = vi.hoisted(() => vi.fn());
 const mockComputeSHA256 = vi.hoisted(() => vi.fn());
 const mockChatMetadataCache = vi.hoisted(() => ({
   invalidateChat: vi.fn(),
@@ -127,14 +132,14 @@ vi.mock("../../message_parsing/utils", () => ({
 vi.mock("../encryption/MessageEncryptor", () => ({
   encryptWithChatKey: mockEncryptWithChatKey,
   decryptWithChatKey: vi.fn(),
-  encryptArrayWithChatKey: vi.fn(),
+  encryptArrayWithChatKey: mockEncryptArrayWithChatKey,
   decryptArrayWithChatKey: vi.fn(),
 }));
 
 vi.mock("../encryption/MetadataEncryptor", () => ({
   encryptChatKeyWithMasterKey: mockEncryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey: vi.fn(),
-  encryptWithMasterKey: vi.fn(),
+  encryptWithMasterKey: mockEncryptWithMasterKey,
   generateEmbedKey: vi.fn(),
   deriveEmbedKeyFromChatKey: mockDeriveEmbedKeyFromChatKey,
   encryptWithEmbedKey: mockEncryptWithEmbedKey,
@@ -155,6 +160,7 @@ vi.mock("../chatSyncServiceSenders", () => ({
   sendStoreEmbedImpl: mockSendStoreEmbed,
   sendStoreEmbedKeysImpl: mockSendStoreEmbedKeys,
   sendStoreEmbedDiffImpl: mockSendStoreEmbedDiff,
+  sendPostProcessingMetadataImpl: mockSendPostProcessingMetadata,
 }));
 
 vi.mock("../websocketService", () => ({
@@ -445,6 +451,94 @@ describe("handleAITypingStartedImpl", () => {
     );
     expect(mockEncryptWithChatKey).not.toHaveBeenCalled();
     expect(mockSendEncryptedStoragePackage).not.toHaveBeenCalled();
+  });
+});
+
+describe("handlePostProcessingCompletedImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockChatDB.updateChat.mockResolvedValue(undefined);
+    mockChatKeyManager.withKey.mockImplementation(
+      async (
+        _chatId: string,
+        _reason: string,
+        callback: (key: Uint8Array) => Promise<void>,
+      ) => {
+        await callback(new Uint8Array([1, 2, 3]));
+      },
+    );
+    mockEnsureChatKeySafeForWrite.mockResolvedValue(true);
+    mockEncryptWithChatKey.mockImplementation(async (value: string) =>
+      `encrypted:${value}`,
+    );
+    mockEncryptArrayWithChatKey.mockImplementation(async (values: string[]) =>
+      `encrypted-array:${values.join(",")}`,
+    );
+    mockEncryptWithMasterKey.mockImplementation(async (value: string) =>
+      `encrypted-master:${value}`,
+    );
+    mockSendPostProcessingMetadata.mockResolvedValue(undefined);
+  });
+
+  it("does not overwrite a newer manual summary with stale generated post-processing", async () => {
+    const existingChat = {
+      chat_id: "chat-1",
+      encrypted_title: "encrypted-title",
+      encrypted_chat_summary: "manual-summary",
+      encrypted_chat_key: "encrypted-chat-key",
+      messages_v: 2,
+      title_v: 3,
+      metadata_v: 4,
+      last_edited_overall_timestamp: 100,
+      unread_count: 0,
+      created_at: 100,
+      updated_at: 200,
+    };
+    mockChatDB.getChat.mockResolvedValue(existingChat);
+    const service = {
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handlePostProcessingCompletedImpl(service, {
+      chat_id: "chat-1",
+      task_id: "task-1",
+      follow_up_request_suggestions: ["Follow up"],
+      new_chat_request_suggestions: [],
+      chat_summary: "Generated summary from the old response baseline",
+      share_cta_text: "",
+      chat_tags: ["Berlin"],
+      harmful_response: 0,
+      top_recommended_apps_for_user: [],
+      quick_tip_slugs: [],
+      source_title_v: 3,
+      source_metadata_v: 3,
+    });
+
+    expect(mockEncryptWithChatKey).not.toHaveBeenCalledWith(
+      "Generated summary from the old response baseline",
+      expect.any(Uint8Array),
+    );
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-1",
+        encrypted_chat_summary: "manual-summary",
+        encrypted_follow_up_request_suggestions: "encrypted-array:Follow up",
+        encrypted_chat_tags: "encrypted-array:Berlin",
+      }),
+    );
+    expect(mockSendPostProcessingMetadata).toHaveBeenCalledWith(
+      service,
+      "chat-1",
+      "encrypted-array:Follow up",
+      [],
+      "",
+      "encrypted-array:Berlin",
+      "",
+      "",
+      "",
+      "",
+      "encrypted-chat-key",
+    );
   });
 });
 
