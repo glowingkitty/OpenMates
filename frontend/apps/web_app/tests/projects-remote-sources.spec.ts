@@ -26,14 +26,17 @@ test.describe('Projects remote sources', () => {
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 
     const projectName = `E2E Remote Source ${Date.now()}`;
-    await page.getByTestId('project-create-main-button').click();
-    await expect(page.getByTestId('projects-sidebar')).toBeVisible();
-    await page.getByTestId('project-name-input').fill(projectName);
-    await page.getByTestId('project-create-button').click();
-    await expect(page.getByTestId('project-card').filter({ hasText: projectName }).first()).toBeVisible();
+    const created = page.waitForResponse(
+      (response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
+    );
+    await page.getByTestId('project-input-textarea').fill(projectName);
+    await page.getByTestId('project-input-submit').click();
+    const createdProjectId = (await (await created).json()).project.project_id;
+    await expect(page).toHaveURL(new RegExp(`/projects#project-id=${createdProjectId}$`));
+    await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 30000 });
 
     const sourceId = `source-${Date.now()}`;
-    const sourcePayload = await page.evaluate(async ({ name, apiBaseUrl, sourceId }) => {
+    const sourcePayload = await page.evaluate(async ({ name, apiBaseUrl, sourceId, projectId }) => {
       const bytesFromBase64 = (base64) => {
         let standard = base64.replace(/-/g, '+').replace(/_/g, '/');
         const missingPadding = standard.length % 4;
@@ -83,7 +86,7 @@ test.describe('Projects remote sources', () => {
       if (!response.ok) throw new Error(`Project list failed: ${response.status}`);
       const data = await response.json();
       const projects = Array.isArray(data.projects) ? data.projects : [];
-      const latest = projects.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))[0];
+      const latest = projects.find((project) => project.project_id === projectId);
       if (!latest?.project_id) throw new Error(`Could not resolve project id for ${name}`);
       if (!latest.encrypted_project_key) throw new Error(`Could not resolve encrypted project key for ${name}`);
       const masterKey = await readMasterKey();
@@ -110,7 +113,7 @@ test.describe('Projects remote sources', () => {
         encryptedDisplayName: await encryptWithProjectKey(sourceId, projectKey),
         encryptedMetadata: await encryptWithProjectKey(JSON.stringify(metadata), projectKey),
       };
-    }, { name: projectName, apiBaseUrl: API_BASE_URL, sourceId });
+    }, { name: projectName, apiBaseUrl: API_BASE_URL, sourceId, projectId: createdProjectId });
 
     await page.evaluate(async ({ apiBaseUrl, projectId, sourceId, encryptedDisplayName, encryptedMetadata }) => {
       const timestamp = Math.floor(Date.now() / 1000);
@@ -134,7 +137,8 @@ test.describe('Projects remote sources', () => {
 
     await page.reload();
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId('project-card').filter({ hasText: projectName }).first()).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/projects#project-id=${sourcePayload.projectId}$`));
+    await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 30000 });
     await expect(page.getByTestId('project-remote-sources-section')).toBeVisible();
     await expect(page.getByTestId('project-remote-source-card').filter({ hasText: sourceId })).toBeVisible();
     await expect(page.getByTestId('project-remote-source-card').filter({ hasText: 'connected' })).toBeVisible();
@@ -182,11 +186,13 @@ test.describe('Projects remote sources', () => {
     await expect(editor.getByTestId('project-access-chip')).toContainText('Read');
 
     await page.goto('/projects');
-    const projectCard = page.getByTestId('project-card').filter({ hasText: projectName }).first();
+    const projectCard = page.getByTestId('project-landing-card').filter({ hasText: projectName }).first();
     await expect(projectCard).toBeVisible({ timeout: 30000 });
     await projectCard.click();
+    await expect(page).toHaveURL(new RegExp(`/projects#project-id=${sourcePayload.projectId}$`));
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId('project-delete-button').click();
-    await expect(page.getByTestId('project-card').filter({ hasText: projectName })).toHaveCount(0);
+    await expect(page.getByTestId('projects-start-screen')).toBeVisible();
+    await expect(page.getByTestId('project-landing-card').filter({ hasText: projectName })).toHaveCount(0);
   });
 });

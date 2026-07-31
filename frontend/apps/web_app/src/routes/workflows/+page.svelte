@@ -12,6 +12,7 @@
   import { onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
   import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
+  import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
   import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
   import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
   import { userProfile } from '@repo/ui/stores/userProfile';
@@ -63,7 +64,6 @@
   let expandedNodeId = $state<string | null>(null);
   let showAllWorkflows = $state(false);
   let workflowInputText = $state('');
-  let workflowInputFocused = $state(false);
   let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
   let workflowHashState = $state<WorkflowHashState>({ workflowId: null, tab: 'details', runId: null });
 
@@ -314,6 +314,10 @@
     if (!title || saving || !canLoadWorkflows) return;
     workflowInputText = '';
     await createWorkflow(title, blankWorkflowGraph(), false);
+  }
+
+  function showWorkflowVoiceInputUnavailable(): void {
+    notificationStore.info('Voice input for workflows is coming soon.', 4000, true, 'workflows-voice-input');
   }
 
   async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
@@ -799,12 +803,21 @@
                   </button>
                 {/each}
               </div>
-              <form class="workflow-input-composer" class:has-action={workflowInputFocused && !!workflowInputText.trim()} data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
-                <textarea data-testid="workflow-input-textarea" bind:value={workflowInputText} rows="1" placeholder="Name a new workflow" disabled={saving || !canRenderWorkflowData} onfocus={() => workflowInputFocused = true} onblur={() => workflowInputFocused = false}></textarea>
-                {#if workflowInputFocused && workflowInputText.trim()}
-                  <div class="workflow-input-actions"><button type="submit" data-testid="workflow-input-submit" disabled={saving || !canRenderWorkflowData} onmousedown={(event) => event.preventDefault()}>{saving ? 'Creating...' : 'Create workflow'}</button></div>
-                {/if}
-              </form>
+              <WorkspacePromptComposer
+                surface="workflows"
+                bind:value={workflowInputText}
+                placeholder="Name a new workflow"
+                submitLabel="Create workflow"
+                submittingLabel="Creating..."
+                disabled={saving || !canRenderWorkflowData}
+                submitting={saving}
+                testId="workflow-input-composer"
+                inputTestId="workflow-input-textarea"
+                submitTestId="workflow-input-submit"
+                micTestId="workflow-input-mic"
+                onSubmit={submitWorkflowInput}
+                onMicClick={showWorkflowVoiceInputUnavailable}
+              />
             </section>
           {:else}
               {#if workflows.length > 0}
@@ -824,12 +837,21 @@
               onStartInspiration={startWorkflowFromInspiration}
             >
               <svelte:fragment slot="composer">
-                <form class="workflow-input-composer" class:has-action={workflowInputFocused && !!workflowInputText.trim()} data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
-                  <textarea data-testid="workflow-input-textarea" bind:value={workflowInputText} rows="1" placeholder="Name a new workflow" disabled={saving || !canRenderWorkflowData} onfocus={() => workflowInputFocused = true} onblur={() => workflowInputFocused = false}></textarea>
-                  {#if workflowInputFocused && workflowInputText.trim()}
-                    <div class="workflow-input-actions"><button type="submit" data-testid="workflow-input-submit" disabled={saving || !canRenderWorkflowData} onmousedown={(event) => event.preventDefault()}>{saving ? 'Creating...' : 'Create workflow'}</button></div>
-                  {/if}
-                </form>
+                <WorkspacePromptComposer
+                  surface="workflows"
+                  bind:value={workflowInputText}
+                  placeholder="Name a new workflow"
+                  submitLabel="Create workflow"
+                  submittingLabel="Creating..."
+                  disabled={saving || !canRenderWorkflowData}
+                  submitting={saving}
+                  testId="workflow-input-composer"
+                  inputTestId="workflow-input-textarea"
+                  submitTestId="workflow-input-submit"
+                  micTestId="workflow-input-mic"
+                  onSubmit={submitWorkflowInput}
+                  onMicClick={showWorkflowVoiceInputUnavailable}
+                />
               </svelte:fragment>
             </WorkspaceHomeShell>
           {/if}
@@ -1498,67 +1520,6 @@
     gap: 8px;
   }
 
-  .workflow-input-composer {
-    width: min(629px, 100%);
-    min-height: 60px;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin: 0 auto;
-    padding: 0 var(--spacing-5);
-    border: 0;
-    border-radius: 24px;
-    background: var(--color-grey-blue);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    box-sizing: border-box;
-  }
-
-  .workflow-input-composer textarea {
-    width: 100%;
-    min-height: 40px;
-    max-height: 160px;
-    resize: none;
-    flex: 1;
-    min-width: 0;
-    border: 0;
-    outline: none;
-    padding: 10px 0;
-    border-radius: 0;
-    color: var(--color-font-primary);
-    background: transparent;
-    font: inherit;
-    font-size: var(--font-size-p);
-    text-align: center;
-  }
-
-  .workflow-input-composer textarea::placeholder {
-    color: var(--color-grey-60);
-    font-weight: 600;
-    text-align: center;
-  }
-
-  .workflow-input-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    flex-shrink: 0;
-  }
-
-  .workflow-input-actions button {
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-    min-height: 40px;
-    padding: var(--spacing-4) var(--spacing-8);
-    border-radius: var(--radius-8);
-    font-weight: 500;
-  }
-
-  .workflow-input-actions button[type="submit"] {
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
-  }
-
   .settings-wrapper {
     display: flex;
     align-items: flex-start;
@@ -1612,16 +1573,5 @@
       border-radius: var(--radius-10, 24px);
     }
 
-    .workflow-input-composer {
-      flex-wrap: wrap;
-      align-items: flex-end;
-      padding-block: var(--spacing-4);
-      border-radius: 24px;
-    }
-
-    .workflow-input-actions {
-      justify-content: flex-end;
-      flex-wrap: wrap;
-    }
   }
 </style>

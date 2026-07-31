@@ -20,13 +20,18 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 async function expectUnifiedDetail(page, domain: string, itemId: string, headerSystem = 'workspace-detail'): Promise<void> {
-	await expect(page).toHaveURL(new RegExp(`/${domain}/${itemId}(?:[?#]|$)`));
+	const urlPattern = domain === 'projects'
+		? new RegExp(`/${domain}#(?:[^#]*&)?project-id=${itemId}(?:&|$)`)
+		: domain === 'workflows'
+			? new RegExp(`/${domain}#(?:[^#]*&)?workflow-id=${itemId}(?:&|$)`)
+			: new RegExp(`/${domain}/${itemId}(?:[?#]|$)`);
+	await expect(page).toHaveURL(urlPattern);
 	const header = page.getByTestId('workspace-detail-header');
 	await expect(header).toBeVisible({ timeout: 30000 });
 	await expect(header).toHaveAttribute('data-header-system', headerSystem);
 	await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
 	await page.reload({ waitUntil: 'domcontentloaded' });
-	await expect(page).toHaveURL(new RegExp(`/${domain}/${itemId}(?:[?#]|$)`));
+	await expect(page).toHaveURL(urlPattern);
 	await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', headerSystem);
 }
 
@@ -48,15 +53,12 @@ test.describe('Unified workspace detail pages', () => {
 			await page.goto(getE2EDebugUrl('/projects'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 			await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
-			await page.getByTestId('project-create-main-button').click();
-			await page.getByTestId('project-name-input').fill(title);
 			const created = page.waitForResponse(
 				(response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
 			);
-			await page.getByTestId('project-create-button').click();
+			await page.getByTestId('project-input-textarea').fill(title);
+			await page.getByTestId('project-input-submit').click();
 			projectId = (await (await created).json()).project.project_id;
-			const card = page.getByTestId('project-card').filter({ hasText: title }).first();
-			await card.getByTestId('project-detail-link').click();
 			await expectUnifiedDetail(page, 'projects', projectId);
 		} finally {
 			if (projectId) await page.request.delete(`${apiUrl}/v1/projects/${encodeURIComponent(projectId)}`).catch(() => null);
