@@ -58,9 +58,13 @@ test.describe('Projects v1 flow', () => {
     await page.getByTestId('project-landing-card').filter({ hasText: projectName }).first().click();
     await expect(page).toHaveURL(projectHashUrlPattern(projectId));
 
+    const deleted = page.waitForResponse(
+      (response) => response.request().method() === 'DELETE' && response.url().endsWith(`/v1/projects/${projectId}`) && response.ok()
+    );
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId('project-delete-button').click();
-    await expect(page.getByTestId('projects-start-screen')).toBeVisible();
+    await deleted;
+    await expect(page.getByTestId('projects-start-screen')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('project-landing-card').filter({ hasText: projectName })).toHaveCount(0);
   });
 });

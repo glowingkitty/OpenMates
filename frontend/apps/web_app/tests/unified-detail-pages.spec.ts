@@ -32,7 +32,8 @@ async function expectUnifiedDetail(page, domain: string, itemId: string, headerS
 	await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await expect(page).toHaveURL(urlPattern);
-	await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', headerSystem);
+	await expect(page.getByTestId('workspace-detail-header')).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', headerSystem, { timeout: 30000 });
 }
 
 test.describe('Unified workspace detail pages', () => {

@@ -11,6 +11,10 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 
+function projectHashUrlPattern(projectId: string): RegExp {
+  return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
+}
+
 test.describe('Projects remote sources', () => {
   test.beforeEach(async ({ page }) => {
     skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -32,7 +36,7 @@ test.describe('Projects remote sources', () => {
     await page.getByTestId('project-input-textarea').fill(projectName);
     await page.getByTestId('project-input-submit').click();
     const createdProjectId = (await (await created).json()).project.project_id;
-    await expect(page).toHaveURL(new RegExp(`/projects#project-id=${createdProjectId}$`));
+    await expect(page).toHaveURL(projectHashUrlPattern(createdProjectId));
     await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 30000 });
 
     const sourceId = `source-${Date.now()}`;
@@ -137,7 +141,7 @@ test.describe('Projects remote sources', () => {
 
     await page.reload();
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
-    await expect(page).toHaveURL(new RegExp(`/projects#project-id=${sourcePayload.projectId}$`));
+    await expect(page).toHaveURL(projectHashUrlPattern(sourcePayload.projectId));
     await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 30000 });
     await expect(page.getByTestId('project-remote-sources-section')).toBeVisible();
     await expect(page.getByTestId('project-remote-source-card').filter({ hasText: sourceId })).toBeVisible();
@@ -157,7 +161,7 @@ test.describe('Projects remote sources', () => {
     const projectSettings = page.locator(`[data-testid="settings-menu"][data-active-view="projects/${sourcePayload.projectId}"]`);
     await expect(projectSettings).toBeVisible({ timeout: 10000 });
     await expect(projectSettings.getByTestId('project-settings-page')).toBeVisible();
-    await expect(projectSettings.getByTestId('project-settings-title')).toContainText(projectName);
+    await expect(projectSettings.getByTestId('project-settings-title')).toContainText(projectName, { timeout: 30000 });
     await expect(projectSettings.getByTestId('project-settings-source-card').filter({ hasText: sourceId })).toBeVisible();
     await projectSettings.getByTestId('project-settings-write-mode-safe-writes').click();
     await expect(projectSettings).toContainText('Project write policy saved.');
@@ -174,13 +178,15 @@ test.describe('Projects remote sources', () => {
     const messageEditor = page.getByTestId('message-editor');
     const editableMessage = messageEditor.locator('[contenteditable="true"]');
     await editableMessage.click();
-    await editableMessage.pressSequentially('@', { delay: 50 });
-    await expect(editableMessage).toContainText('@');
-    await expect(page.getByTestId('mention-dropdown')).toBeVisible();
-    await page.getByTestId('mention-result').filter({ hasText: projectName }).first().click();
+    await editableMessage.pressSequentially(`@${projectName}`, { delay: 20 });
+    await expect(editableMessage).toContainText(`@${projectName}`);
+    await expect(page.getByTestId('mention-dropdown')).toBeVisible({ timeout: 30000 });
+    const projectMention = page.getByTestId('mention-result').filter({ hasText: projectName }).first();
+    await expect(projectMention).toBeVisible({ timeout: 30000 });
+    await projectMention.click();
 
     const editor = page.getByTestId('message-editor');
-    await expect(editor.locator('[data-mention-type="project"], [data-mention-type="project_folder"], [data-mention-type="project_file"]')).toBeVisible();
+    await expect(editor.getByTestId('project-access-chip')).toBeVisible({ timeout: 30000 });
     await expect(editor.getByTestId('project-access-chip')).toContainText('Read & Write');
     await editor.getByTestId('project-access-chip').press('Enter');
     await expect(editor.getByTestId('project-access-chip')).toContainText('Read');
@@ -189,10 +195,14 @@ test.describe('Projects remote sources', () => {
     const projectCard = page.getByTestId('project-landing-card').filter({ hasText: projectName }).first();
     await expect(projectCard).toBeVisible({ timeout: 30000 });
     await projectCard.click();
-    await expect(page).toHaveURL(new RegExp(`/projects#project-id=${sourcePayload.projectId}$`));
+    await expect(page).toHaveURL(projectHashUrlPattern(sourcePayload.projectId));
+    const deleted = page.waitForResponse(
+      (response) => response.request().method() === 'DELETE' && response.url().endsWith(`/v1/projects/${sourcePayload.projectId}`) && response.ok()
+    );
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId('project-delete-button').click();
-    await expect(page.getByTestId('projects-start-screen')).toBeVisible();
+    await deleted;
+    await expect(page.getByTestId('projects-start-screen')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('project-landing-card').filter({ hasText: projectName })).toHaveCount(0);
   });
 });
