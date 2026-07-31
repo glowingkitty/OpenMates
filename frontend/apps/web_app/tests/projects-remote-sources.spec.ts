@@ -5,7 +5,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { skipIfFeaturesDisabled, skipWithoutCredentials } = require('./helpers/env-guard');
-const { getTestAccount } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
@@ -169,7 +169,7 @@ test.describe('Projects remote sources', () => {
 
     await page.getByTestId('icon-button-close').click();
 
-    await page.goto('/');
+    await page.goto(getE2EDebugUrl('/'));
     const newChatButton = page.getByTestId('new-chat-button');
     if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await newChatButton.click();
