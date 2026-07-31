@@ -378,6 +378,24 @@ def test_completed_lease_blocks_same_stale_run_but_not_new_failure(tmp_path, mon
     assert second["entry"]["test"] == "account-recovery-flow.spec.ts"
 
 
+def test_completed_lease_blocks_same_run_sibling_group_entries(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    lease = {
+        "status": "completed",
+        "group_id": "auth_signup-same",
+        "entry": {"key": "playwright::first.spec.ts", "run_id": "run-1"},
+    }
+
+    assert tests_control.lease_blocks_entry(
+        lease,
+        {"group_id": "auth_signup-same", "key": "playwright::second.spec.ts", "run_id": "run-1"},
+    )
+    assert not tests_control.lease_blocks_entry(
+        lease,
+        {"group_id": "auth_signup-same", "key": "playwright::second.spec.ts", "run_id": "run-2"},
+    )
+
+
 def test_released_lease_blocks_same_test_until_expiry(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     run = sample_run()

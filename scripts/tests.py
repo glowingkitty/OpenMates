@@ -1784,12 +1784,12 @@ def lease_blocks_entry(lease: dict[str, Any], entry: dict[str, Any], now: dateti
 
     leased_entry = lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json")
     leased_entry = leased_entry if isinstance(leased_entry, dict) else {}
-    if str(leased_entry.get("key") or "") != str(entry.get("key") or ""):
-        return False
     if status == "completed":
         leased_run_id = str(leased_entry.get("run_id") or "")
         entry_run_id = str(entry.get("run_id") or "")
         return bool(leased_run_id and entry_run_id and leased_run_id == entry_run_id)
+    if str(leased_entry.get("key") or "") != str(entry.get("key") or ""):
+        return False
     return True
 
 
