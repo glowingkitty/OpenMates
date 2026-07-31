@@ -19,6 +19,9 @@ install_code_route_import_stubs()
 from backend.core.api.app.models.user import User  # noqa: E402
 from backend.core.api.app.routes import code_notebook_execution  # noqa: E402
 
+PUBLIC_EXAMPLE_CHAT_ID = "example-open-meteo-weather-notebook"
+PUBLIC_EXAMPLE_NOTEBOOK_EMBED_ID = "b7ea93b1-e497-41bc-b952-bb7495610e5f"
+
 
 def _python_notebook() -> dict:
     return {
@@ -128,8 +131,8 @@ async def test_start_notebook_run_allows_valid_client_notebook_for_example_chat(
     response = await code_notebook_execution.start_notebook_run(
         request=SimpleNamespace(),
         body=code_notebook_execution.NotebookRunStartRequest(
-            chat_id="example-open-meteo-weather-notebook",
-            notebook_embed_id="example-notebook-embed",
+            chat_id=PUBLIC_EXAMPLE_CHAT_ID,
+            notebook_embed_id=PUBLIC_EXAMPLE_NOTEBOOK_EMBED_ID,
             client_notebook=_python_notebook(),
         ),
         current_user=User(id="user-1", username="alice", vault_key_id="vault-1", credits=10),
@@ -139,5 +142,58 @@ async def test_start_notebook_run_allows_valid_client_notebook_for_example_chat(
     )
 
     assert response.execution_id == "execution-example"
-    assert calls[0]["chat_id"] == "example-open-meteo-weather-notebook"
-    assert calls[0]["target_embed_id"] == "example-notebook-embed"
+    assert calls[0]["chat_id"] == PUBLIC_EXAMPLE_CHAT_ID
+    assert calls[0]["target_embed_id"] == PUBLIC_EXAMPLE_NOTEBOOK_EMBED_ID
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("chat_id", "notebook_embed_id", "client_notebook", "expected_status"),
+    [
+        (PUBLIC_EXAMPLE_CHAT_ID, "wrong-example-embed", _python_notebook(), 403),
+        ("example-unknown-notebook", PUBLIC_EXAMPLE_NOTEBOOK_EMBED_ID, _python_notebook(), 403),
+        ("chat-1", PUBLIC_EXAMPLE_NOTEBOOK_EMBED_ID, _python_notebook(), 403),
+        (PUBLIC_EXAMPLE_CHAT_ID, PUBLIC_EXAMPLE_NOTEBOOK_EMBED_ID, None, 403),
+        (
+            PUBLIC_EXAMPLE_CHAT_ID,
+            PUBLIC_EXAMPLE_NOTEBOOK_EMBED_ID,
+            {**_python_notebook(), "metadata": {"kernelspec": {"language": "javascript", "name": "node"}}},
+            422,
+        ),
+    ],
+)
+async def test_start_notebook_run_restricts_example_bypass(
+    monkeypatch: pytest.MonkeyPatch,
+    chat_id: str,
+    notebook_embed_id: str,
+    client_notebook: dict | None,
+    expected_status: int,
+) -> None:
+    calls: list[dict] = []
+
+    async def fake_start_code_run_execution(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(execution_id="execution-example", status="queued", target_filename="openmates_notebook_runner.py", files=["openmates_notebook_runner.py"])
+
+    async def fake_verify(*_args, **_kwargs):
+        return False
+
+    monkeypatch.setattr(code_notebook_execution, "start_code_run_execution", fake_start_code_run_execution)
+    monkeypatch.setattr(code_notebook_execution, "verify_notebook_embed_access", fake_verify)
+
+    with pytest.raises(HTTPException) as exc:
+        await code_notebook_execution.start_notebook_run(
+            request=SimpleNamespace(),
+            body=code_notebook_execution.NotebookRunStartRequest(
+                chat_id=chat_id,
+                notebook_embed_id=notebook_embed_id,
+                client_notebook=client_notebook,
+            ),
+            current_user=User(id="user-1", username="alice", vault_key_id="vault-1", credits=10),
+            cache_service=SimpleNamespace(client=_AwaitableValue(SimpleNamespace())),
+            directus_service=SimpleNamespace(),
+            encryption_service=SimpleNamespace(),
+        )
+
+    assert exc.value.status_code == expected_status
+    assert calls == []

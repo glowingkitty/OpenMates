@@ -14,7 +14,8 @@ const { openFullscreen } = require('./helpers/embed-test-helpers');
 const NOTEBOOK_EXAMPLE_PATH = '/example/open-meteo-weather-notebook';
 const NOTEBOOK_EXAMPLE_CHAT_ID = 'example-open-meteo-weather-notebook';
 const NOTEBOOK_RUN_ENDPOINT = '**/v1/code/notebooks/run';
-const NOTEBOOK_CELL_COUNT_TEXT = /10 cells?, Notebook/i;
+const NOTEBOOK_CELL_COUNT = 10;
+const NOTEBOOK_CELL_COUNT_TEXT = new RegExp(`${NOTEBOOK_CELL_COUNT} cells?, Notebook`, 'i');
 const NOTEBOOK_TITLE_TEXT = 'Berlin Weekend Bike Ride Weather Forecast';
 const SIDECAR_OUTPUT_TEXT = 'sidecar output smoke';
 
@@ -100,7 +101,7 @@ test.describe('Code notebook flow', () => {
 		await expect.poll(async () => fullscreenCells.count(), {
 			message: 'fullscreen should render every notebook cell',
 			timeout: 10_000
-		}).toBeGreaterThanOrEqual(7);
+		}).toBeGreaterThanOrEqual(NOTEBOOK_CELL_COUNT);
 		await expect(fullscreenOverlay).toContainText(NOTEBOOK_TITLE_TEXT);
 		await expect(fullscreenOverlay).toContainText('import requests');
 

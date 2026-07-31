@@ -50,7 +50,9 @@ MAX_NOTEBOOK_CELLS = 200
 MAX_NOTEBOOK_JSON_CHARS = MAX_TOTAL_CHARS
 NOTEBOOK_FILENAME = "notebook.ipynb"
 NOTEBOOK_RUNNER_FILENAME = "openmates_notebook_runner.py"
-PUBLIC_EXAMPLE_CHAT_ID_PREFIX = "example-"
+PUBLIC_EXAMPLE_NOTEBOOK_EMBED_IDS: dict[str, frozenset[str]] = {
+    "example-open-meteo-weather-notebook": frozenset({"b7ea93b1-e497-41bc-b952-bb7495610e5f"}),
+}
 NOTEBOOK_REQUIREMENTS = (
     "nbformat",
     "nbclient",
@@ -130,8 +132,8 @@ def _notebook_content_from_embed_payload(payload: dict[str, Any]) -> dict[str, A
     return payload if "cells" in payload else None
 
 
-def _is_public_example_chat_id(chat_id: str) -> bool:
-    return chat_id.startswith(PUBLIC_EXAMPLE_CHAT_ID_PREFIX)
+def _is_public_example_notebook_embed(chat_id: str, notebook_embed_id: str) -> bool:
+    return notebook_embed_id in PUBLIC_EXAMPLE_NOTEBOOK_EMBED_IDS.get(chat_id, frozenset())
 
 
 def validate_notebook_payload(
@@ -388,7 +390,7 @@ async def start_notebook_run(
     notebook_payload = body.client_notebook
     has_embed_access = await verify_notebook_embed_access(body.chat_id, body.notebook_embed_id, current_user, cache_service, directus_service)
     if not has_embed_access:
-        if not (_is_public_example_chat_id(body.chat_id) and notebook_payload is not None):
+        if not (_is_public_example_notebook_embed(body.chat_id, body.notebook_embed_id) and notebook_payload is not None):
             raise HTTPException(status_code=403, detail="Notebook embed does not belong to this chat")
         validate_notebook_payload(notebook_payload, require_python=True)
 
