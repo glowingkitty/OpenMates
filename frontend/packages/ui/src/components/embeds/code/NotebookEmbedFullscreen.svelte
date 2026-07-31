@@ -461,7 +461,7 @@
                 <div class="notebook-code-cell">
                   <div class="notebook-code-lines" data-testid="notebook-code-lines">
                     {#each highlightedCodeLines(cell) as lineHtml, lineIndex}
-                      <div class="notebook-code-line">
+                      <div class="notebook-code-line" data-testid="notebook-code-line">
                         <span class="notebook-code-gutter" aria-hidden="true">{lineIndex + 1}</span>
                         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                         <code>{@html lineHtml}</code>

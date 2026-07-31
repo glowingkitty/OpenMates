@@ -25,6 +25,15 @@ def test_code_instruction_enables_application_preview_for_runnable_web_apps() ->
     assert "Use normal language fences only when" in instruction
 
 
+def test_code_instruction_uses_notebook_artifacts_for_jupyter_requests() -> None:
+    instruction = CODE_BLOCK_INSTRUCTION_PATH.read_text(encoding="utf-8")
+
+    assert "Jupyter notebook fences" in instruction
+    assert "emit a notebook artifact instead of a normal Python script" in instruction
+    assert "ipynb:filename.ipynb" in instruction
+    assert "Do NOT answer natural notebook requests with a `.py` file" in instruction
+
+
 def test_stream_consumer_suppresses_deferred_application_preview_chunks() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 

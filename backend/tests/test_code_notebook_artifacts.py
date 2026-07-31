@@ -38,6 +38,21 @@ def _python_notebook() -> dict:
     }
 
 
+def _python_percent_cell_script() -> str:
+    return """# %% [markdown]
+# # Berlin Bike Weather
+# Check whether the coming week is good for a weekend bike ride.
+# %%
+import pandas as pd
+
+hourly = pd.DataFrame({"temperature": [20, 22], "rain": [0.0, 0.2]})
+hourly["ride_score"] = 100 - hourly["rain"] * 50
+# %%
+daily = hourly.mean(numeric_only=True)
+print(daily)
+"""
+
+
 class FakeRedisClient:
     def __init__(self) -> None:
         self.values: dict[str, str] = {}
@@ -183,4 +198,104 @@ async def test_ipynb_code_artifact_creates_notebook_embed(monkeypatch: pytest.Mo
     final_event = cache._client.published[-1][1]["payload"]
     assert final_event["type"] == "notebook"
     assert final_event["version_number"] == 2
+    assert '"type": "notebook"' in final_event["content"]
+
+
+@pytest.mark.asyncio
+async def test_python_percent_cell_script_creates_notebook_embed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(embed_service_module, "encode", lambda value: json.dumps(value))
+    monkeypatch.setattr(embed_service_module, "decode", lambda value: json.loads(value))
+
+    cache = FakeCacheService()
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+    source = _python_percent_cell_script()
+
+    created = await service.create_code_embed_placeholder(
+        language="python",
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+        filename="berlin_bike_weather.py",
+        code_content=source,
+        log_prefix="[test]",
+    )
+
+    assert created is not None
+    assert json.loads(created["embed_reference"]) == {
+        "type": "notebook",
+        "embed_id": created["embed_id"],
+    }
+
+    ok = await service.update_code_embed_content(
+        embed_id=created["embed_id"],
+        code_content=source,
+        chat_id="chat-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+        status="finished",
+        log_prefix="[test]",
+    )
+
+    assert ok is True
+    cached_final = json.loads(cache._client.values[f"embed:{created['embed_id']}"])
+    final_content = json.loads(cached_final["encrypted_content"])
+    assert cached_final["type"] == "notebook"
+    assert final_content["type"] == "notebook"
+    assert final_content["filename"] == "berlin_bike_weather.ipynb"
+    assert final_content["language"] == "python"
+    assert final_content["cell_count"] == 3
+    notebook = final_content["notebook"]
+    assert notebook["nbformat"] == 4
+    assert [cell["cell_type"] for cell in notebook["cells"]] == ["markdown", "code", "code"]
+    assert "# Berlin Bike Weather" in notebook["cells"][0]["source"]
+    assert "pd.DataFrame" in notebook["cells"][1]["source"]
+
+
+@pytest.mark.asyncio
+async def test_python_percent_cell_update_promotes_existing_code_embed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(embed_service_module, "encode", lambda value: json.dumps(value))
+    monkeypatch.setattr(embed_service_module, "decode", lambda value: json.loads(value))
+
+    cache = FakeCacheService()
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+
+    created = await service.create_code_embed_placeholder(
+        language="python",
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+        filename="weather_cells.py",
+        log_prefix="[test]",
+    )
+
+    assert created is not None
+    assert json.loads(created["embed_reference"])["type"] == "code"
+
+    ok = await service.update_code_embed_content(
+        embed_id=created["embed_id"],
+        code_content=_python_percent_cell_script(),
+        chat_id="chat-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+        status="finished",
+        log_prefix="[test]",
+    )
+
+    assert ok is True
+    cached_final = json.loads(cache._client.values[f"embed:{created['embed_id']}"])
+    final_content = json.loads(cached_final["encrypted_content"])
+    assert cached_final["type"] == "notebook"
+    assert final_content["type"] == "notebook"
+    assert final_content["filename"] == "weather_cells.ipynb"
+    assert final_content["cell_count"] == 3
+    final_event = cache._client.published[-1][1]["payload"]
+    assert final_event["type"] == "notebook"
     assert '"type": "notebook"' in final_event["content"]

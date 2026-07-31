@@ -128,7 +128,7 @@
           <div class="notebook-preview-cell" data-testid="notebook-preview-cell">
             <div class="notebook-cell-kind">{index + 1}. {cell.cell_type}</div>
             {#if cell.cell_type === 'code'}
-              <pre class="notebook-code-preview">{#each codePreviewLines(cell) as line}<code>{line}</code>{/each}</pre>
+              <pre class="notebook-code-preview" data-testid="notebook-preview-code-lines">{#each codePreviewLines(cell) as line}<code data-testid="notebook-preview-code-line">{line}</code>{/each}</pre>
             {:else}
               <div class="notebook-markdown-preview">{firstLine(cell)}</div>
             {/if}

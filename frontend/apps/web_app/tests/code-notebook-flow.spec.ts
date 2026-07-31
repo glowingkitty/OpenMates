@@ -79,7 +79,7 @@ test.describe('Code notebook flow', () => {
 		await expect(notebookPreview).toContainText(/Berlin 7-Day Weather Analysis|import requests/i);
 		await expect(notebookPreview.getByTestId('notebook-run-all-button')).toHaveCount(0);
 		await expectNotebookCodeBackgroundsClean(
-			notebookPreview.locator('.notebook-code-preview code'),
+			notebookPreview.getByTestId('notebook-preview-code-line'),
 			'notebook preview source lines should not inherit dark code backgrounds'
 		);
 
@@ -105,7 +105,7 @@ test.describe('Code notebook flow', () => {
 		const sourceLines = fullscreenOverlay.getByTestId('notebook-code-lines').first();
 		await expect(sourceLines).toBeVisible({ timeout: 10_000 });
 		await expectNotebookCodeBackgroundsClean(
-			fullscreenOverlay.locator('.notebook-code-line code'),
+			fullscreenOverlay.getByTestId('notebook-code-line'),
 			'notebook fullscreen source tokens should not paint black backgrounds'
 		);
 		const sourceBeforeSidecar = await sourceLines.innerText();
