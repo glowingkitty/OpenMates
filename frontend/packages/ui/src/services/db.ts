@@ -143,10 +143,13 @@ class ChatDatabase {
   //             trigger onupgradeneeded, so affected browsers need a new bump.
   // Version 30: message_window_pages store — encrypted page-cache metadata for
   //             bounded chat viewing windows, explicitly separate from messages_v.
-  private readonly VERSION = 30;
+  // Version 31: notebook_run_outputs store — encrypted sidecar rows for Jupyter
+  //             notebook cell outputs, separate from canonical notebook source.
+  private readonly VERSION = 31;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
+  public readonly NOTEBOOK_RUN_OUTPUTS_STORE_NAME = "notebook_run_outputs";
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   public readonly MESSAGE_WINDOW_PAGES_STORE_NAME = "message_window_pages";
   private readonly REQUIRED_STORE_NAMES = [
@@ -163,6 +166,7 @@ class ChatDatabase {
     this.MESSAGE_HIGHLIGHTS_STORE_NAME,
     this.EMBED_DIFFS_STORE_NAME,
     this.CODE_RUN_OUTPUTS_STORE_NAME,
+    this.NOTEBOOK_RUN_OUTPUTS_STORE_NAME,
     this.DAILY_INSPIRATIONS_STORE_NAME,
     this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
     this.MESSAGE_WINDOW_PAGES_STORE_NAME,
@@ -1535,6 +1539,22 @@ class ChatDatabase {
         { unique: false },
       );
       console.warn("[ChatDatabase] Created code_run_outputs store (v26)");
+    }
+
+    // Notebook Run outputs store (v31) — sidecar persistence for cell outputs.
+    if (!db.objectStoreNames.contains(this.NOTEBOOK_RUN_OUTPUTS_STORE_NAME)) {
+      const notebookRunOutputsStore = db.createObjectStore(
+        this.NOTEBOOK_RUN_OUTPUTS_STORE_NAME,
+        { keyPath: "id" },
+      );
+      notebookRunOutputsStore.createIndex("chat_id", "chat_id", { unique: false });
+      notebookRunOutputsStore.createIndex("notebook_embed_id", "notebook_embed_id", { unique: false });
+      notebookRunOutputsStore.createIndex(
+        "chat_id_notebook_embed_id",
+        ["chat_id", "notebook_embed_id"],
+        { unique: false },
+      );
+      console.warn("[ChatDatabase] Created notebook_run_outputs store (v31)");
     }
 
     // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.

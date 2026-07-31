@@ -596,6 +596,13 @@ export async function handleBackgroundMessageSyncImpl(
       );
     }
 
+    if (payload.notebook_run_outputs && payload.notebook_run_outputs.length > 0) {
+      const { handleNotebookRunOutputSyncedImpl } = await import("./handlersNotebookRunOutputs");
+      await Promise.all(
+        payload.notebook_run_outputs.map((output) => handleNotebookRunOutputSyncedImpl(output)),
+      );
+    }
+
     // Yield to main thread between batches
     await new Promise((resolve) => setTimeout(resolve, 0));
   } catch (error) {

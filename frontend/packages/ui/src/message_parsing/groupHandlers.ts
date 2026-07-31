@@ -1035,6 +1035,20 @@ export class GroupHandlerRegistry {
         "description",
       ]),
     );
+    this.register(
+      new BaseGroupHandler("code-notebook", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "filename",
+        "language",
+        "cell_count",
+        "code_cell_count",
+        "markdown_cell_count",
+        "source_version",
+      ]),
+    );
     this.register(new DocsDocGroupHandler());
     this.register(new SheetsSheetGroupHandler());
     this.register(new AppSkillUseGroupHandler());

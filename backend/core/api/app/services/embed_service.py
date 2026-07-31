@@ -853,6 +853,233 @@ class EmbedService:
             logger.error(f"{log_prefix} Error creating focus mode activation embed: {e}", exc_info=True)
             return None
 
+    @staticmethod
+    def _is_notebook_artifact(language: Optional[str], filename: Optional[str]) -> bool:
+        language_value = (language or "").strip().lower()
+        filename_value = (filename or "").strip().lower()
+        return (
+            filename_value.endswith(".ipynb")
+            or language_value in {"ipynb", "notebook", "jupyter", "jupyter-notebook"}
+        )
+
+    @staticmethod
+    def _normalize_notebook_payload(raw_content: str, filename: Optional[str]) -> Dict[str, Any]:
+        safe_filename = (filename or "notebook.ipynb").replace("\\", "/").split("/")[-1] or "notebook.ipynb"
+        if not safe_filename.endswith(".ipynb"):
+            safe_filename = f"{safe_filename}.ipynb"
+
+        notebook: Optional[Dict[str, Any]] = None
+        try:
+            parsed = json.loads(raw_content) if raw_content.strip() else None
+            if isinstance(parsed, dict) and isinstance(parsed.get("cells"), list):
+                notebook = parsed
+        except Exception:
+            notebook = None
+
+        metadata = notebook.get("metadata") if isinstance(notebook, dict) and isinstance(notebook.get("metadata"), dict) else {}
+        kernelspec = metadata.get("kernelspec") if isinstance(metadata.get("kernelspec"), dict) else {}
+        language_info = metadata.get("language_info") if isinstance(metadata.get("language_info"), dict) else {}
+        language = "unknown"
+        for value in (kernelspec.get("language"), language_info.get("name"), kernelspec.get("name")):
+            if isinstance(value, str) and value.strip():
+                normalized = value.strip().lower()
+                language = "python" if normalized in {"python", "python3", "py"} else normalized
+                break
+
+        cells = notebook.get("cells") if notebook else []
+        return {
+            "notebook": notebook,
+            "filename": safe_filename,
+            "language": language,
+            "cell_count": len(cells) if isinstance(cells, list) else 0,
+        }
+
+    async def create_notebook_embed_placeholder(
+        self,
+        language: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        filename: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+            embed_id = str(uuid.uuid4())
+            safe_filename = (filename or "notebook.ipynb").replace("\\", "/").split("/")[-1] or "notebook.ipynb"
+            if not safe_filename.endswith(".ipynb"):
+                safe_filename = f"{safe_filename}.ipynb"
+            embed_ref = self._generate_direct_embed_ref(
+                "notebook",
+                embed_id,
+                {"filename": safe_filename, "language": language or "python"},
+            )
+            placeholder_content = {
+                "type": "notebook",
+                "app_id": "code",
+                "skill_id": "notebook",
+                "language": language or "python",
+                "filename": safe_filename,
+                "content": "",
+                "cell_count": 0,
+                "embed_ref": embed_ref,
+                "status": "processing",
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+            now = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "notebook",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": now,
+                "updated_at": now,
+            }
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="notebook",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=now,
+                updated_at=now,
+                log_prefix=log_prefix
+            )
+            logger.info(f"{log_prefix} Created processing notebook embed placeholder {embed_id} (filename: {safe_filename})")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "notebook", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating notebook embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_notebook_embed_content(
+        self,
+        embed_id: str,
+        notebook_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        log_prefix: str = ""
+    ) -> bool:
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Notebook embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            filename = "notebook.ipynb"
+            embed_ref = None
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                    if isinstance(existing_content, dict):
+                        filename = existing_content.get("filename") or filename
+                        embed_ref = existing_content.get("embed_ref")
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing notebook embed content: {e}")
+
+            normalized = self._normalize_notebook_payload(notebook_content, filename)
+            updated_content = {
+                "type": "notebook",
+                "app_id": "code",
+                "skill_id": "notebook",
+                "language": normalized["language"],
+                "filename": normalized["filename"],
+                "cell_count": normalized["cell_count"],
+                "embed_ref": embed_ref or self._generate_direct_embed_ref(
+                    "notebook",
+                    embed_id,
+                    {"filename": normalized["filename"], "language": normalized["language"]},
+                ),
+                "status": status,
+                "source_version": content_hash,
+            }
+            if normalized["notebook"] is not None:
+                updated_content["notebook"] = normalized["notebook"]
+            else:
+                updated_content["content"] = notebook_content
+
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "type": "notebook",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="notebook",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+            logger.info(f"{log_prefix} Updated notebook embed {embed_id} with status {status}")
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating notebook embed content: {e}", exc_info=True)
+            return False
+
     async def create_code_embed_placeholder(
         self,
         language: str,
@@ -890,6 +1117,19 @@ class EmbedService:
             None if creation fails
         """
         try:
+            if self._is_notebook_artifact(language, filename):
+                return await self.create_notebook_embed_placeholder(
+                    language=language,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    filename=filename,
+                    log_prefix=log_prefix,
+                )
+
             from backend.apps.ai.utils.pcb_schematic_fences import (
                 _extract_pcb_schematic_metadata,
                 _is_pcb_schematic_fence,
@@ -1053,6 +1293,20 @@ class EmbedService:
             if existing_toon:
                 try:
                     existing_content = decode(existing_toon)
+                    if isinstance(existing_content, dict) and existing_content.get("type") == "notebook":
+                        return await self.update_notebook_embed_content(
+                            embed_id=embed_id,
+                            notebook_content=code_content,
+                            chat_id=chat_id,
+                            user_id=user_id,
+                            user_id_hash=user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            status=status,
+                            version_number=version_number,
+                            content_hash=content_hash,
+                            version_history_rows=version_history_rows,
+                            log_prefix=log_prefix,
+                        )
                     language = existing_content.get("language", "")
                     filename = existing_content.get("filename")
                     embed_ref = existing_content.get("embed_ref")

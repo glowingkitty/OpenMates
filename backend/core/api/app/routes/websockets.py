@@ -34,6 +34,10 @@ from .handlers.websocket_handlers.code_run_output_handlers import (
     handle_upsert_code_run_output,
     handle_request_code_run_output,
 )
+from .handlers.websocket_handlers.notebook_run_output_handlers import (
+    handle_upsert_notebook_run_output,
+    handle_request_notebook_run_output,
+)
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
@@ -2518,6 +2522,30 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     directus_service=directus_service,
                     encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "upsert_notebook_run_output":
+                await handle_upsert_notebook_run_output(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "request_notebook_run_output":
+                await handle_request_notebook_run_output(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,

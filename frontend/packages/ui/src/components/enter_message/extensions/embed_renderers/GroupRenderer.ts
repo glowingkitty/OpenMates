@@ -27,6 +27,7 @@ import { mount, unmount } from "svelte";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
+import NotebookEmbedPreview from "../../../embeds/code/NotebookEmbedPreview.svelte";
 import ApplicationEmbedPreview from "../../../embeds/code/ApplicationEmbedPreview.svelte";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
@@ -108,6 +109,7 @@ import {
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 import { get } from "svelte/store";
 import { text } from "@repo/ui";
+import { normalizeNotebookContent, notebookTitle, sourceToText } from "../../../embeds/code/notebookContent";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -333,6 +335,11 @@ export class GroupRenderer implements EmbedRenderer {
         "code-code",
         (item, embedData, decodedContent, content) =>
           this.renderCodeComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "code-notebook",
+        (item, embedData, decodedContent, content) =>
+          this.renderNotebookComponent(item, embedData, decodedContent, content),
       ],
       [
         "code-application",
@@ -715,6 +722,16 @@ export class GroupRenderer implements EmbedRenderer {
       return;
     }
 
+    if (baseType === "code-notebook") {
+      await this.renderNotebookGroup({
+        baseType,
+        groupDisplayName,
+        items: reversedItems,
+        content,
+      });
+      return;
+    }
+
     // Document groups must render each item using DocsEmbedPreview component
     // so sizing and interactions match single-item rendering.
     if (baseType === "docs-doc") {
@@ -829,6 +846,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderVideoItem(item, embedData, decodedContent);
       case "code-code":
         return this.renderCodeItem(item, embedData, decodedContent);
+      case "code-notebook":
+        return this.renderNotebookItem(item, embedData, decodedContent);
       case "code-application":
         return this.renderApplicationItem(item, embedData, decodedContent);
       case "code-repo":
@@ -3095,6 +3114,54 @@ export class GroupRenderer implements EmbedRenderer {
     this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
   }
 
+  private async renderNotebookGroup(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+  }): Promise<void> {
+    const { baseType, groupDisplayName, items, content } = args;
+    const updated = await this.tryIncrementalGroupUpdate({
+      baseType,
+      groupDisplayName,
+      items,
+      content,
+      mountFn: (item, target) => this.mountNotebookPreview(item, target),
+    });
+    if (updated) return;
+
+    this.unmountMountedComponentsInSubtree(content);
+    content.innerHTML = "";
+
+    const groupWrapper = document.createElement("div");
+    groupWrapper.className = `${baseType}-preview-group`;
+    groupWrapper.dataset.embedGroupBaseType = baseType;
+
+    const header = document.createElement("div");
+    header.className = "group-header";
+    const headerText = document.createElement("span");
+    headerText.textContent = groupDisplayName;
+    header.appendChild(headerText);
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.className = "group-scroll-container";
+    groupWrapper.appendChild(header);
+    groupWrapper.appendChild(scrollContainer);
+    content.appendChild(groupWrapper);
+
+    for (const item of items) {
+      const itemWrapper = document.createElement("div");
+      itemWrapper.className = "embed-group-item";
+      itemWrapper.dataset.embedType = baseType;
+      itemWrapper.style.flex = "0 0 auto";
+      itemWrapper.setAttribute("data-embed-item-id", item.id || item.contentRef || "unknown");
+      scrollContainer.appendChild(itemWrapper);
+      await this.mountNotebookPreview(item, itemWrapper);
+    }
+
+    this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
+  }
+
   /**
    * Downloads all code files from a code group as a zip
    * Resolves each embed, extracts code content, and creates a zip download
@@ -3239,6 +3306,9 @@ export class GroupRenderer implements EmbedRenderer {
     // Resolve content for this document item
     const embedId = item.contentRef?.startsWith("embed:")
       ? item.contentRef.replace("embed:", "")
+      : "";
+    const previewId = item.contentRef?.startsWith("preview:")
+      ? item.contentRef.replace("preview:docs-doc:", "")
       : "";
 
     let embedData: EmbedData | null = null;
@@ -3467,6 +3537,72 @@ export class GroupRenderer implements EmbedRenderer {
       );
       target.innerHTML = fallbackHtml;
       this.appendLearningModeShortenedNotice(target, decodedContent);
+    }
+  }
+
+  private async mountNotebookPreview(
+    item: EmbedNodeAttributes,
+    target: HTMLElement,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<void> {
+    const embedId = item.contentRef?.startsWith("embed:")
+      ? item.contentRef.replace("embed:", "")
+      : "";
+    const previewId = item.contentRef?.startsWith("preview:")
+      ? item.contentRef.replace("preview:code-notebook:", "")
+      : "";
+
+    let resolvedEmbedData = embedData;
+    let resolvedContent = decodedContent;
+    if (embedId && !resolvedContent) {
+      try {
+        resolvedEmbedData = await resolveEmbed(embedId);
+        resolvedContent = resolvedEmbedData?.content
+          ? await decodeToonContent(resolvedEmbedData.content)
+          : null;
+      } catch (error) {
+        console.error("[GroupRenderer] Error loading notebook embed:", error);
+      }
+    }
+
+    const normalized = normalizeNotebookContent(resolvedContent ?? item as unknown as Record<string, unknown>);
+    const status = (resolvedContent?.status || resolvedEmbedData?.status || item.status || "finished") as "processing" | "finished" | "error" | "cancelled";
+    const targetEmbedId = embedId || previewId || item.id || "";
+    const existingComponent = mountedComponents.get(target);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    target.innerHTML = "";
+
+    try {
+      const component = mount(NotebookEmbedPreview, {
+        target,
+        props: {
+          id: targetEmbedId,
+          notebook: normalized.notebook,
+          filename: normalized.filename,
+          cellCount: normalized.cellCount,
+          language: normalized.language,
+          sourceVersion: normalized.sourceVersion,
+          status,
+          taskId: typeof resolvedContent?.task_id === "string" ? resolvedContent.task_id : undefined,
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(item, resolvedEmbedData, resolvedContent),
+          content: resolvedContent,
+        },
+      });
+      mountedComponents.set(target, component);
+      this.appendLearningModeShortenedNotice(target, resolvedContent);
+    } catch (error) {
+      console.error("[GroupRenderer] Error mounting NotebookEmbedPreview component:", error);
+      const fallbackHtml = await this.renderNotebookItem(item, resolvedEmbedData, resolvedContent);
+      target.innerHTML = fallbackHtml;
+      this.appendLearningModeShortenedNotice(target, resolvedContent);
     }
   }
 
@@ -4013,6 +4149,15 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
+  private async renderNotebookComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    await this.mountNotebookPreview(item, content, embedData, decodedContent);
+  }
+
   /**
    * Render generated application embed using the Svelte preview component.
    */
@@ -4043,17 +4188,10 @@ export class GroupRenderer implements EmbedRenderer {
 
     try {
       const handleFullscreen = () => {
-        const fullscreenContent =
-          decodedContent ||
-          (htmlContent
-            ? {
-                html: htmlContent,
-                code: htmlContent,
-                title,
-                filename,
-                word_count: wordCount,
-              }
-            : null);
+        const fullscreenContent = decodedContent || {
+          name: item.title,
+          status,
+        };
         this.openFullscreen(item, embedData, fullscreenContent);
       };
 
@@ -4573,6 +4711,34 @@ export class GroupRenderer implements EmbedRenderer {
       <div class="embed-extended-preview">
         <div class="code-preview">
           <div class="code-snippet">// Code preview would be rendered here</div>
+        </div>
+      </div>
+    `;
+  }
+
+  private async renderNotebookItem(
+    item: EmbedNodeAttributes,
+    _embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const normalized = normalizeNotebookContent(decodedContent ?? item as unknown as Record<string, unknown>);
+    const title = escapeHtml(notebookTitle(normalized));
+    const firstCell = normalized.notebook?.cells.find((cell) => sourceToText(cell.source).trim());
+    const preview = escapeHtml(sourceToText(firstCell?.source).trim().split("\n").slice(0, 3).join("\n"));
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon code">
+        <span class="icon icon_code"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${title}</div>
+        <div class="embed-text-line">${normalized.cellCount} cells, Notebook</div>
+      </div>
+      <div class="embed-extended-preview">
+        <div class="code-preview">
+          <div class="code-snippet">${preview || "Notebook preview"}</div>
         </div>
       </div>
     `;

@@ -762,6 +762,13 @@ export async function handlePhase1bChatContentImpl(
       );
     }
 
+    if (payload.notebook_run_outputs && payload.notebook_run_outputs.length > 0) {
+      const { handleNotebookRunOutputSyncedImpl } = await import("./handlersNotebookRunOutputs");
+      await Promise.all(
+        payload.notebook_run_outputs.map((output) => handleNotebookRunOutputSyncedImpl(output)),
+      );
+    }
+
     if (deferredChatIds.size > 0) {
       console.warn(
         `[ChatSyncService:CoreSync] Phase 1b deferred content for ${deferredChatIds.size} chat(s): ${Array.from(deferredChatIds).join(", ")}`,
@@ -1156,6 +1163,15 @@ export async function handleChatContentBatchResponseImpl(
     );
     await Promise.all(
       payload.code_run_outputs.map((output) => handleCodeRunOutputSyncedImpl(output)),
+    );
+  }
+
+  if (payload.notebook_run_outputs && payload.notebook_run_outputs.length > 0) {
+    const { handleNotebookRunOutputSyncedImpl } = await import(
+      "./handlersNotebookRunOutputs"
+    );
+    await Promise.all(
+      payload.notebook_run_outputs.map((output) => handleNotebookRunOutputSyncedImpl(output)),
     );
   }
 }

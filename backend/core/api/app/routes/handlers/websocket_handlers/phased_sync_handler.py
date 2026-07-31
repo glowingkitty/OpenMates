@@ -15,6 +15,9 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     get_latest_chat_compression_checkpoint,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.notebook_run_output_handlers import (
+    fetch_notebook_run_outputs_for_chats,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydration import (
     load_sync_messages_with_directus_fallback,
 )
@@ -1088,6 +1091,7 @@ async def _handle_phase1b_sync(
         all_embeds: List[Dict[str, Any]] = []
         all_embed_keys: List[Dict[str, Any]] = []
         all_code_run_outputs: List[Dict[str, Any]] = []
+        all_notebook_run_outputs: List[Dict[str, Any]] = []
         seen_embed_ids: set = set()
         seen_key_ids: set = set()
         hashed_chat_ids: List[str] = []
@@ -1133,6 +1137,11 @@ async def _handle_phase1b_sync(
             phase1_chat_ids,
             user_id,
         )
+        all_notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
+            directus_service,
+            phase1_chat_ids,
+            user_id,
+        )
         all_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
             directus_service,
             phase1_chat_ids,
@@ -1149,6 +1158,7 @@ async def _handle_phase1b_sync(
                     "embed_keys": all_embed_keys,
                     "chat_key_wrappers": all_chat_key_wrappers,
                     "code_run_outputs": all_code_run_outputs,
+                    "notebook_run_outputs": all_notebook_run_outputs,
                 }
             },
             user_id,
@@ -1162,7 +1172,8 @@ async def _handle_phase1b_sync(
             f"{len(chats_data)} chats, {messages_total} messages, "
             f"{len(all_embeds)} embeds, {len(all_embed_keys)} embed_keys, "
             f"{len(all_chat_key_wrappers)} chat_key_wrappers, "
-            f"{len(all_code_run_outputs)} code_run_outputs"
+            f"{len(all_code_run_outputs)} code_run_outputs, "
+            f"{len(all_notebook_run_outputs)} notebook_run_outputs"
         )
 
     except Exception as e:
@@ -1528,6 +1539,7 @@ async def _handle_phase3_sync(
             batch_embeds: List[Dict[str, Any]] = []
             batch_embed_keys: List[Dict[str, Any]] = []
             batch_code_run_outputs: List[Dict[str, Any]] = []
+            batch_notebook_run_outputs: List[Dict[str, Any]] = []
             batch_seen_embed_ids: set = set()
             batch_seen_key_ids: set = set()
             batch_hashed_ids: List[str] = []
@@ -1587,6 +1599,13 @@ async def _handle_phase3_sync(
             )
             if batch_code_run_outputs:
                 payload_data["code_run_outputs"] = batch_code_run_outputs
+            batch_notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
+                directus_service,
+                batch_chat_ids,
+                user_id,
+            )
+            if batch_notebook_run_outputs:
+                payload_data["notebook_run_outputs"] = batch_notebook_run_outputs
             batch_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
                 directus_service,
                 batch_chat_ids,
@@ -1608,7 +1627,8 @@ async def _handle_phase3_sync(
                 f"Phase 3: Sent batch {batch_num} ({len(batch_data)} chats, "
                 f"{len(batch_embeds)} embeds, {len(batch_embed_keys)} embed_keys, "
                 f"{len(batch_chat_key_wrappers)} chat_key_wrappers, "
-                f"{len(batch_code_run_outputs)} code_run_outputs)"
+                f"{len(batch_code_run_outputs)} code_run_outputs, "
+                f"{len(batch_notebook_run_outputs)} notebook_run_outputs)"
             )
 
         # Clear sync cache after successful completion
@@ -1637,6 +1657,26 @@ async def _handle_phase3_sync(
             )
         except Exception as output_sync_error:
             logger.warning(f"Failed to sync Code Run outputs: {output_sync_error}", exc_info=True)
+
+        try:
+            notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
+                directus_service,
+                cached_chat_ids,
+                user_id,
+            )
+            await manager.send_personal_message(
+                {
+                    "type": "notebook_run_outputs_sync_ready",
+                    "payload": {
+                        "outputs": notebook_run_outputs,
+                        "output_count": len(notebook_run_outputs),
+                    },
+                },
+                user_id,
+                device_fingerprint_hash,
+            )
+        except Exception as output_sync_error:
+            logger.warning(f"Failed to sync notebook outputs: {output_sync_error}", exc_info=True)
 
         # Trigger app memories sync
         try:

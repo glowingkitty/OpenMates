@@ -34,6 +34,9 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_ch
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_content_batch_handler import (
     _fetch_code_run_outputs_for_chats,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.notebook_run_output_handlers import (
+    fetch_notebook_run_outputs_for_chats,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydration import (
     load_sync_messages_with_directus_fallback,
 )
@@ -83,6 +86,7 @@ class OfflinePrefetchResponse(BaseModel):
     embed_keys: list[dict[str, Any]] = Field(default_factory=list)
     chat_key_wrappers: list[dict[str, Any]] = Field(default_factory=list)
     code_run_outputs: list[dict[str, Any]] = Field(default_factory=list)
+    notebook_run_outputs: list[dict[str, Any]] = Field(default_factory=list)
     next_cursor: int | None = None
     done: bool = False
 
@@ -206,6 +210,11 @@ async def build_offline_prefetch_chunk(
         selected_chat_ids,
         user_id,
     )
+    notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
+        directus_service,
+        selected_chat_ids,
+        user_id,
+    )
 
     done = next_cursor_candidate > OFFLINE_PREFETCH_END_OFFSET or not selected_chat_ids
     return OfflinePrefetchResponse(
@@ -217,6 +226,7 @@ async def build_offline_prefetch_chunk(
         embed_keys=embed_keys,
         chat_key_wrappers=chat_key_wrappers,
         code_run_outputs=code_run_outputs,
+        notebook_run_outputs=notebook_run_outputs,
         next_cursor=None if done else next_cursor_candidate,
         done=done,
     )
