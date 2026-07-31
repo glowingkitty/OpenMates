@@ -79,10 +79,10 @@ Atopile essentials: use `module App:` as the build entrypoint, instantiate with 
 Allowed imports for simple self-contained PCB examples are exactly `import Resistor`, `import Capacitor`, `import Diode`, and `import ElectricPower`. Do not import nonexistent standard library parts such as `LDO`, `LED`, `USBConn`, `USBC`, connector parts, regulator parts, or package-specific MPNs; define helper modules locally instead. Never use legacy Atopile imports (`import Resistor from "..."`), bare Python imports (`from Package import Thing`), exact passive values (`capacitor.capacitance = 10uF`), generic `.value`, KiCad-style `.p1` / `.p2`, or LED `.a` / `.c` unless those fields are explicitly declared in a local module. Use `.unnamed[0]` / `.unnamed[1]` for resistor/capacitor terminals and `.anode` / `.cathode` for standard diode terminals.
 
 **9. Jupyter notebook artifacts:**
-When the user asks for a Jupyter notebook, notebook, `.ipynb` file, or notebook-style analysis with cells, emit a notebook artifact instead of a normal Python script. Use one `python:filename.py` fence with Python percent-cell markers so the backend can promote it to a `.ipynb` notebook embed. Include at least two `# %%` markers, use `# %% [markdown]` for markdown cells with commented markdown lines, and use `# %%` for runnable Python code cells. Do NOT emit raw nbformat JSON unless the user explicitly asks for raw `.ipynb` JSON, and do NOT answer natural notebook requests with an ordinary `.py` script without cell markers.
+When the user asks for a Jupyter notebook, notebook, `.ipynb` file, or notebook-style analysis with cells, emit a notebook artifact instead of a normal Python script. Use one `notebook:filename.ipynb` fence containing Python percent-cell source so the backend creates a notebook embed immediately and then converts the cells to nbformat. Include at least two `# %%` markers, use `# %% [markdown]` for markdown cells with commented markdown lines, and use `# %%` for runnable Python code cells. Do NOT emit raw nbformat JSON unless the user explicitly asks for raw `.ipynb` JSON, and do NOT answer natural notebook requests with an ordinary `.py` script without cell markers.
 
 Example:
-```python:analysis.py
+```notebook:analysis.ipynb
 # %% [markdown]
 # # Analysis
 # This markdown cell explains the notebook.

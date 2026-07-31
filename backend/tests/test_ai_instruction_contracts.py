@@ -30,7 +30,7 @@ def test_code_instruction_uses_notebook_artifacts_for_jupyter_requests() -> None
 
     assert "Jupyter notebook artifacts" in instruction
     assert "emit a notebook artifact instead of a normal Python script" in instruction
-    assert "python:filename.py" in instruction
+    assert "notebook:filename.ipynb" in instruction
     assert "# %% [markdown]" in instruction
     assert "Do NOT emit raw nbformat JSON unless" in instruction
 
