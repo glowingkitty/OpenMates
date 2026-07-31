@@ -44,6 +44,10 @@ import {
   resolveServerPath,
 } from "../src/serverConfig.ts";
 import {
+  ensureSourceInstallTranslations,
+  sourceInstallLocalesPath,
+} from "../src/sourceInstallTranslations.ts";
+import {
   parseServerRole,
   planBackup,
   planCaddyCommand,
@@ -497,6 +501,46 @@ describe("composeArgs", () => {
 
     assert.match(composeSource, /OPENMATES_CLOUD_OVERLAY_ENABLED/);
     assert.match(composeSource, /planDockerComposeArgs/);
+  });
+});
+
+describe("source install translations", () => {
+  it("copies generated locale JSON from a local source checkout", () => {
+    const rootDir = join(tmpdir(), `openmates-source-translations-${Date.now()}`);
+    const sourcePath = join(rootDir, "source");
+    const installPath = join(rootDir, "install");
+    const sourceLocaleDir = sourceInstallLocalesPath(sourcePath);
+    mkdirSync(sourceLocaleDir, { recursive: true });
+    mkdirSync(installPath, { recursive: true });
+    writeFileSync(join(sourceLocaleDir, "en.json"), JSON.stringify({ common: { ok: { text: "OK" } } }));
+    writeFileSync(join(sourceLocaleDir, "de.json"), JSON.stringify({ common: { ok: { text: "OK" } } }));
+
+    const result = ensureSourceInstallTranslations(installPath, sourcePath);
+
+    assert.equal(result.status, "copied");
+    assert.equal(result.copiedFiles, 2);
+    assert.equal(
+      readFileSync(join(sourceInstallLocalesPath(installPath), "en.json"), "utf-8"),
+      '{"common":{"ok":{"text":"OK"}}}',
+    );
+    assert.equal(
+      readFileSync(join(sourceInstallLocalesPath(installPath), "de.json"), "utf-8"),
+      '{"common":{"ok":{"text":"OK"}}}',
+    );
+    rmSync(rootDir, { recursive: true, force: true });
+  });
+
+  it("does not rebuild when required generated locale JSON already exists", () => {
+    const installPath = join(tmpdir(), `openmates-existing-translations-${Date.now()}`);
+    const localeDir = sourceInstallLocalesPath(installPath);
+    mkdirSync(localeDir, { recursive: true });
+    writeFileSync(join(localeDir, "en.json"), "{}");
+
+    const result = ensureSourceInstallTranslations(installPath, null);
+
+    assert.equal(result.status, "already_present");
+    assert.equal(result.copiedFiles, 0);
+    rmSync(installPath, { recursive: true, force: true });
   });
 });
 

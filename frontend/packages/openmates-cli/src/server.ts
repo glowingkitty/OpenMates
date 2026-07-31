@@ -25,6 +25,7 @@ import {
 } from "./serverConfig.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import { renderSupportStartReminder } from "./support.js";
+import { ensureSourceInstallTranslations } from "./sourceInstallTranslations.js";
 import {
   type CaddyAction,
   type CoreProfile,
@@ -1792,6 +1793,13 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     }
     copyFileSync(envSource, join(installPath, ".env"));
     console.error(`Copied ${envSource} to ${installPath}/.env`);
+  }
+
+  const translationResult = ensureSourceInstallTranslations(installPath, sourcePath);
+  if (translationResult.status === "copied") {
+    console.error(`Prepared ${translationResult.copiedFiles} generated locale JSON files for source install.`);
+  } else if (translationResult.status === "built") {
+    console.error("Generated locale JSON files for source install.");
   }
 
   // Run setup.sh
