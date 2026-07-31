@@ -720,6 +720,10 @@ _MIXED_URL_EMBED_PATTERN = re.compile(
 _BACKTICKED_INLINE_EMBED_LINK_PATTERN = re.compile(
     r'(?<!`)`(\[[^\]\n]*\]\(embed:[^)`\n]+\))`(?!`)'
 )
+_JSON_CODE_EMBED_REFERENCE_FENCE_PATTERN = re.compile(
+    r'```json\s*\n\s*\{\s*"type"\s*:\s*"code"\s*,\s*'
+    r'"embed_id"\s*:\s*"(?P<embed_id>[0-9a-fA-F-]{36})"\s*\}\s*\n\s*```\s*\n*'
+)
 
 _EMAIL_TO_PATTERN = re.compile(r'^(?:to|receiver|recipient)\s*:\s*(.+)$', re.IGNORECASE)
 _EMAIL_SUBJECT_PATTERN = re.compile(r'^subject\s*:\s*(.+)$', re.IGNORECASE)
@@ -1783,6 +1787,37 @@ def _replace_streamed_json_embed_reference_type(
         f"reference for promoted embed {embed_id}"
     )
     return False
+
+
+async def _rewrite_json_embed_references_to_cached_types(
+    aggregated_response: str,
+    cache_service: Optional[CacheService],
+    log_prefix: str = "",
+) -> str:
+    if not aggregated_response or '"type": "code"' not in aggregated_response or not cache_service:
+        return aggregated_response
+
+    matches = list(_JSON_CODE_EMBED_REFERENCE_FENCE_PATTERN.finditer(aggregated_response))
+    if not matches:
+        return aggregated_response
+
+    modified = aggregated_response
+    rewritten = 0
+    for match in reversed(matches):
+        embed_id = match.group("embed_id")
+        cached_embed = await cache_service.get_embed_from_cache(embed_id)
+        if not cached_embed or cached_embed.get("type") != "notebook":
+            continue
+        replacement = f"```json\n{json.dumps({'type': 'notebook', 'embed_id': embed_id})}\n```\n\n"
+        modified = modified[:match.start()] + replacement + modified[match.end():]
+        rewritten += 1
+
+    if rewritten:
+        logger.info(
+            f"{log_prefix} [EMBED_REFERENCE_TYPE_REWRITE] Rewrote {rewritten} persisted "
+            "code embed reference(s) to notebook based on cached embed type"
+        )
+    return modified
 
 
 def _request_user_texts(request_data: AskSkillRequest) -> list[str]:
@@ -8190,6 +8225,30 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
                 f"Failed embed IDs: {failed_embed_ids}"
             )
+
+    # --- Promoted Embed Reference Type Fix ---
+    # Streaming placeholders can start as code and later promote to notebook once
+    # percent-cell content is complete. Persist the final reference type.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        reference_type_fixed_response = await _rewrite_json_embed_references_to_cached_types(
+            aggregated_response,
+            cache_service,
+            log_prefix,
+        )
+        if reference_type_fixed_response != aggregated_response:
+            aggregated_response = reference_type_fixed_response
+            final_response_chunks = [aggregated_response]
+
+            if cache_service:
+                reference_type_fix_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                    is_final=False, model_name=stream_model_name,
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, reference_type_fix_payload, log_prefix,
+                    f"Published response with promoted embed reference types fixed "
+                    f"(length: {len(aggregated_response)})",
+                )
 
     # --- Backticked Inline Embed Reference Fix ---
     # Detect and rewrite patterns where the LLM wrapped a correct embed markdown

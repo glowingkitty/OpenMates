@@ -66,9 +66,12 @@ def test_stream_consumer_rewrites_promoted_notebook_references() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
     assert "def _replace_streamed_json_embed_reference_type" in source
+    assert "def _rewrite_json_embed_references_to_cached_types" in source
     assert "finalized_as_notebook = EmbedService._is_notebook_artifact" in source
     assert 'old_type="code"' in source
     assert 'new_type="notebook"' in source
+    assert "cached_embed.get(\"type\") != \"notebook\"" in source
+    assert "reference_type_fixed_response = await _rewrite_json_embed_references_to_cached_types" in source
 
 
 def test_mermaid_instruction_is_inactive_and_prefers_source_only() -> None:
