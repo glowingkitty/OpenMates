@@ -8,14 +8,15 @@ Directus rows are created without notifying users. Run inside the api container
 so Vault, Directus, Redis, S3, Stripe, and Celery settings match the target env.
 
 When --check-invoice-ninja is set, the audit also checks whether each order is
-present in Invoice Ninja. Directus-present/Invoice-Ninja-missing rows are
-reported but not applied because replaying the invoice task would create a
-duplicate Directus invoice row.
+present in Invoice Ninja. Directus-present/Invoice-Ninja-missing bank-transfer
+rows can be created with --apply-invoice-ninja-backfill, which uses the existing
+encrypted Directus invoice/PDF as the source of truth and does not email users.
 """
 
 import argparse
 import asyncio
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -39,6 +40,7 @@ from backend.core.api.app.services.directus.directus import DirectusService  # n
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService  # noqa: E402
 from backend.core.api.app.services.s3 import S3UploadService  # noqa: E402
+from backend.core.api.app.services.s3.config import get_bucket_name  # noqa: E402
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
@@ -66,6 +68,11 @@ ZERO_DECIMAL_CURRENCIES = {
     "xof",
     "xpf",
 }
+INCOMPLETE_REPLACEMENT_CLEANUP_ORDER = (
+    ("bank_transactions", "bank_transaction_id", "incomplete replacement bank transaction"),
+    ("payments", "payment_id", "incomplete replacement payment"),
+    ("invoices", "invoice_id", "incomplete replacement invoice"),
+)
 
 
 def _is_production() -> bool:
@@ -124,6 +131,11 @@ def _invoice_number_from_filename(filename: str) -> str | None:
     return match.group("number") if match else None
 
 
+def _account_id_from_invoice_number(invoice_number: str) -> str | None:
+    account_id, separator, counter = invoice_number.rpartition("-")
+    return account_id if separator and account_id and counter.isdigit() else None
+
+
 def _stripe_amount_to_display_units(amount: int, currency_code: str) -> float:
     if currency_code.lower() in ZERO_DECIMAL_CURRENCIES:
         return float(amount)
@@ -177,7 +189,11 @@ async def _invoice_record(directus: DirectusService, payment_intent_id: str) -> 
                     {"provider_order_id": {"_eq": payment_intent_id}},
                 ]
             },
-            "fields": "id,order_id,provider_order_id,provider,date",
+            "fields": (
+                "id,order_id,provider_order_id,provider,date,user_id_hash,"
+                "encrypted_amount,encrypted_credits_purchased,encrypted_currency,"
+                "encrypted_s3_object_key,encrypted_aes_key,aes_nonce,encrypted_filename,is_gift_card"
+            ),
             "limit": 1,
         },
         admin_required=True,
@@ -274,6 +290,40 @@ async def _user_for_customer(directus: DirectusService, customer_id: str | None)
     if len(users) != 1:
         return None
     return users[0]
+
+
+async def _directus_users_by_hash(
+    directus: DirectusService,
+    wanted_hashes: set[str],
+) -> dict[str, dict[str, Any]]:
+    if not wanted_hashes:
+        return {}
+    users_by_hash: dict[str, dict[str, Any]] = {}
+    offset = 0
+    limit = 500
+    while True:
+        users = await directus.get_items(
+            "directus_users",
+            params={
+                "fields": "id,account_id,vault_key_id",
+                "limit": limit,
+                "offset": offset,
+            },
+            admin_required=True,
+        ) or []
+        if not users:
+            break
+        for user in users:
+            user_id = str(user.get("id") or "")
+            if not user_id:
+                continue
+            user_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+            if user_hash in wanted_hashes:
+                users_by_hash[user_hash] = user
+        if len(users_by_hash) == len(wanted_hashes):
+            break
+        offset += limit
+    return users_by_hash
 
 
 async def _iter_bank_transfer_invoice_rows(
@@ -403,6 +453,195 @@ async def _ninja_payment_rows(ninja: InvoiceNinjaService, external_order_id: str
                 seen_ids.add(row_id)
             rows.append(row)
     return rows
+
+
+async def _cleanup_incomplete_invoice_ninja_replacement(
+    ninja: InvoiceNinjaService,
+    replacement: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    for endpoint, id_key, label in INCOMPLETE_REPLACEMENT_CLEANUP_ORDER:
+        row_id = replacement.get(id_key)
+        if not row_id:
+            continue
+        response = await ninja.make_api_request("DELETE", f"/{endpoint}/{row_id}")
+        if response is None:
+            errors.append(f"failed to delete {label} {row_id}")
+    return errors
+
+
+def _missing_invoice_ninja_replacement_parts(replacement: dict[str, Any] | None) -> list[str]:
+    if not replacement:
+        return ["replacement transaction"]
+    required_parts = (
+        ("invoice_id", "replacement invoice"),
+        ("payment_id", "replacement payment"),
+        ("bank_transaction_id", "replacement bank transaction"),
+        ("pdf_upload_success", "replacement PDF upload"),
+        ("transaction_match_success", "replacement bank transaction match"),
+    )
+    return [label for key, label in required_parts if not replacement.get(key)]
+
+
+async def _decrypt_required_invoice_value(
+    encryption: EncryptionService,
+    invoice: dict[str, Any],
+    field: str,
+    vault_key_id: str,
+) -> str:
+    encrypted_value = invoice.get(field)
+    if not encrypted_value:
+        raise RuntimeError(f"Directus invoice is missing {field}")
+    value = await encryption.decrypt_with_user_key(encrypted_value, vault_key_id)
+    if value in (None, ""):
+        raise RuntimeError(f"failed to decrypt Directus invoice {field}")
+    return str(value)
+
+
+async def _decrypt_directus_invoice_pdf(
+    *,
+    s3: S3UploadService,
+    encryption: EncryptionService,
+    invoice: dict[str, Any],
+    vault_key_id: str,
+) -> bytes:
+    s3_object_key = await _decrypt_required_invoice_value(encryption, invoice, "encrypted_s3_object_key", vault_key_id)
+    aes_key_b64 = await _decrypt_required_invoice_value(encryption, invoice, "encrypted_aes_key", vault_key_id)
+    nonce_b64 = invoice.get("aes_nonce")
+    if not nonce_b64:
+        raise RuntimeError("Directus invoice is missing aes_nonce")
+    encrypted_pdf_payload = await s3.get_file(get_bucket_name("invoices", s3.environment), s3_object_key)
+    if not encrypted_pdf_payload:
+        raise RuntimeError("failed to download encrypted invoice PDF from S3")
+    try:
+        aes_key = base64.b64decode(aes_key_b64)
+        nonce = base64.b64decode(str(nonce_b64))
+        return AESGCM(aes_key).decrypt(nonce, encrypted_pdf_payload, None)
+    except Exception as exc:  # noqa: BLE001 - keep this operational script fail-closed.
+        raise RuntimeError("failed to decrypt stored invoice PDF") from exc
+
+
+async def _backfill_invoice_ninja_from_directus_invoice(
+    *,
+    ninja: InvoiceNinjaService,
+    s3: S3UploadService | None,
+    encryption: EncryptionService,
+    invoice: dict[str, Any],
+    user: dict[str, Any] | None,
+    apply: bool,
+) -> dict[str, Any]:
+    external_order_id = str(invoice.get("order_id") or invoice.get("provider_order_id") or "")
+    result: dict[str, Any] = {
+        "directus_invoice_id": invoice.get("id"),
+        "order_id": external_order_id,
+        "apply": apply,
+        "status": "pending",
+        "errors": [],
+    }
+    if invoice.get("provider") != "bank_transfer":
+        result["status"] = "blocked"
+        result["errors"].append("Invoice Ninja-only backfill currently supports bank_transfer invoices only")
+        return result
+    if not external_order_id:
+        result["status"] = "blocked"
+        result["errors"].append("Directus invoice is missing order_id/provider_order_id")
+        return result
+
+    latest_invoice_ninja_present = await _ninja_invoice_exists(ninja, external_order_id)
+    if latest_invoice_ninja_present is True:
+        result["status"] = "already_present"
+        return result
+    if latest_invoice_ninja_present is None:
+        result["status"] = "blocked"
+        result["errors"].append("Invoice Ninja lookup failed")
+        return result
+
+    user_hash = str(invoice.get("user_id_hash") or "")
+    vault_key_id = str((user or {}).get("vault_key_id") or "")
+    if not user_hash or not user or not vault_key_id:
+        result["status"] = "blocked"
+        result["errors"].append("missing Directus user mapping with vault key")
+        return result
+
+    try:
+        invoice_date = _parse_datetime(str(invoice.get("date") or ""))
+        if not invoice_date:
+            raise RuntimeError("Directus invoice is missing date")
+        filename = await _decrypt_required_invoice_value(encryption, invoice, "encrypted_filename", vault_key_id)
+        invoice_number = _invoice_number_from_filename(filename)
+        if not invoice_number:
+            raise RuntimeError("failed to parse invoice number from encrypted filename")
+        amount_paid = int(await _decrypt_required_invoice_value(encryption, invoice, "encrypted_amount", vault_key_id))
+        credits = int(await _decrypt_required_invoice_value(encryption, invoice, "encrypted_credits_purchased", vault_key_id))
+        currency_code = "eur"
+        if invoice.get("encrypted_currency"):
+            currency_code = (await _decrypt_required_invoice_value(encryption, invoice, "encrypted_currency", vault_key_id)).lower()
+        customer_account_id = str(user.get("account_id") or _account_id_from_invoice_number(invoice_number) or "")
+        if not customer_account_id:
+            raise RuntimeError("missing account_id for Invoice Ninja client")
+    except (RuntimeError, TypeError, ValueError) as exc:
+        result["status"] = "blocked"
+        result["errors"].append(str(exc))
+        return result
+
+    result.update({
+        "invoice_number": invoice_number,
+        "invoice_date": invoice_date.date().isoformat(),
+        "amount": amount_paid,
+        "credits": credits,
+        "currency": currency_code,
+        "customer_account_id": customer_account_id,
+    })
+    if not apply:
+        result["status"] = "would_create"
+        return result
+    if s3 is None:
+        result["status"] = "blocked"
+        result["errors"].append("S3 service unavailable for Invoice Ninja PDF backfill")
+        return result
+
+    try:
+        pdf_bytes = await _decrypt_directus_invoice_pdf(
+            s3=s3,
+            encryption=encryption,
+            invoice=invoice,
+            vault_key_id=vault_key_id,
+        )
+        replacement = await ninja.process_income_transaction(
+            user_hash=user_hash,
+            external_order_id=external_order_id,
+            customer_firstname="",
+            customer_lastname="",
+            customer_account_id=customer_account_id,
+            customer_country_code="",
+            credits_value=credits,
+            currency_code=currency_code,
+            purchase_price_value=_stripe_amount_to_display_units(amount_paid, currency_code),
+            invoice_date=invoice_date.date().isoformat(),
+            due_date=invoice_date.date().isoformat(),
+            payment_processor="bank_transfer",
+            card_brand_lower="",
+            custom_invoice_number=invoice_number,
+            custom_pdf_data=pdf_bytes,
+            is_gift_card=bool(invoice.get("is_gift_card")),
+        )
+    except Exception as exc:  # noqa: BLE001 - operational script returns structured blockers.
+        result["status"] = "blocked"
+        result["errors"].append(str(exc))
+        return result
+
+    result["invoice_ninja"] = replacement
+    missing_parts = _missing_invoice_ninja_replacement_parts(replacement)
+    if missing_parts:
+        result["status"] = "blocked"
+        result["errors"].append(f"failed to create complete Invoice Ninja rows: {', '.join(missing_parts)}")
+        if replacement:
+            result["cleanup_errors"] = await _cleanup_incomplete_invoice_ninja_replacement(ninja, replacement)
+            result["errors"].extend(result["cleanup_errors"])
+        return result
+
+    result["status"] = "created"
+    return result
 
 
 async def _encrypt_repair_pdf_payload(
@@ -937,13 +1176,18 @@ async def _audit(args: argparse.Namespace) -> int:
     encryption = EncryptionService(cache_service=cache)
     directus = DirectusService(cache_service=cache, encryption_service=encryption)
     ninja = None
+    s3 = None
 
     try:
         stripe.api_key = await _stripe_api_key(secrets)
         if check_invoice_ninja:
             ninja = await InvoiceNinjaService.create(secrets)
+        if args.apply_invoice_ninja_backfill:
+            s3 = S3UploadService(secrets)
+            await s3.initialize()
         sender = await _sender_details(secrets)
         scanned = missing_directus = missing_invoice_ninja = dispatched = skipped = 0
+        invoice_ninja_backfilled = invoice_ninja_backfill_blocked = 0
         findings: list[dict[str, Any]] = []
 
         for payment_intent in _iter_payment_intents(args.payment_intent, args.days, from_date, to_date):
@@ -1000,16 +1244,20 @@ async def _audit(args: argparse.Namespace) -> int:
                 missing_invoice_ninja += 1
 
         if args.include_bank_transfers:
+            selected_order_ids = set(args.order_id or [])
             bank_transfer_from_date = from_date or (datetime.now(timezone.utc) - timedelta(days=args.days))
+            missing_bank_transfer_invoices: list[tuple[dict[str, Any], dict[str, Any]]] = []
             for invoice in await _iter_bank_transfer_invoice_rows(directus, bank_transfer_from_date, to_date):
                 order_id = str(invoice.get("order_id") or invoice.get("provider_order_id") or "")
                 if not order_id:
+                    continue
+                if selected_order_ids and order_id not in selected_order_ids:
                     continue
                 invoice_ninja_present = await _ninja_invoice_exists(ninja, order_id) if ninja else None
                 if invoice_ninja_present is not False:
                     continue
                 missing_invoice_ninja += 1
-                findings.append({
+                record = {
                     "source": "directus_bank_transfer_invoice",
                     "order_id": order_id,
                     "directus_invoice_id": invoice.get("id"),
@@ -1017,8 +1265,35 @@ async def _audit(args: argparse.Namespace) -> int:
                     "invoice_ninja_present": invoice_ninja_present,
                     "provider": invoice.get("provider"),
                     "date": invoice.get("date"),
-                    "apply_action": "none_requires_invoice_ninja_backfill",
-                })
+                    "apply_action": (
+                        "create_invoice_ninja_rows"
+                        if args.apply_invoice_ninja_backfill
+                        else "none_requires_invoice_ninja_backfill"
+                    ),
+                }
+                findings.append(record)
+                missing_bank_transfer_invoices.append((invoice, record))
+
+            if missing_bank_transfer_invoices:
+                users_by_hash = await _directus_users_by_hash(
+                    directus,
+                    {str(invoice.get("user_id_hash") or "") for invoice, _ in missing_bank_transfer_invoices},
+                )
+                for invoice, record in missing_bank_transfer_invoices:
+                    user_hash = str(invoice.get("user_id_hash") or "")
+                    backfill_result = await _backfill_invoice_ninja_from_directus_invoice(
+                        ninja=ninja,
+                        s3=s3,
+                        encryption=encryption,
+                        invoice=invoice,
+                        user=users_by_hash.get(user_hash),
+                        apply=args.apply_invoice_ninja_backfill,
+                    )
+                    record["invoice_ninja_backfill"] = backfill_result
+                    if backfill_result.get("status") == "created":
+                        invoice_ninja_backfilled += 1
+                    elif backfill_result.get("status") == "blocked":
+                        invoice_ninja_backfill_blocked += 1
 
         if args.apply:
             blocked, unmapped = _apply_preflight_blockers(findings)
@@ -1088,11 +1363,15 @@ async def _audit(args: argparse.Namespace) -> int:
             "missing_directus": missing_directus,
             "missing_invoice_ninja": missing_invoice_ninja,
             "dispatched": dispatched,
+            "invoice_ninja_backfilled": invoice_ninja_backfilled,
+            "invoice_ninja_backfill_blocked": invoice_ninja_backfill_blocked,
             "findings": findings,
         }, indent=2, sort_keys=True))
         if args.apply and dispatched == 0 and any(item.get("apply_action") == "dispatch_no_email_invoice_task" for item in findings):
             return 1
         if args.apply and any(item.get("apply_action") not in ("dispatch_no_email_invoice_task", "none_directus_present") for item in findings):
+            return 1
+        if args.apply_invoice_ninja_backfill and invoice_ninja_backfill_blocked:
             return 1
         return 0
     finally:
@@ -1108,9 +1387,11 @@ def main() -> int:
     parser.add_argument("--from-date", help="Inclusive UTC start date/time, e.g. 2026-07-01 or 2026-07-01T00:00:00Z")
     parser.add_argument("--to-date", help="Exclusive UTC end date/time, e.g. 2026-08-01 or 2026-08-01T00:00:00Z")
     parser.add_argument("--payment-intent", action="append", default=[], help="Specific PaymentIntent ID to inspect; repeatable")
+    parser.add_argument("--order-id", action="append", default=[], help="Specific Directus order_id/provider_order_id to inspect for Invoice Ninja-only backfill; repeatable")
     parser.add_argument("--check-invoice-ninja", action="store_true", help="Also report whether audited orders exist in Invoice Ninja")
     parser.add_argument("--include-bank-transfers", action="store_true", help="Also audit Directus bank-transfer invoices for missing Invoice Ninja rows")
     parser.add_argument("--apply", action="store_true", help="Dispatch no-email invoice backfill tasks for mapped missing invoices")
+    parser.add_argument("--apply-invoice-ninja-backfill", action="store_true", help="Create missing Invoice Ninja rows for Directus-present bank-transfer invoices")
     parser.add_argument("--repair-created-on", help="Repair historical invoice dates for direct-Stripe invoices created on this bad processing date")
     parser.add_argument("--apply-date-repair", action="store_true", help="Apply --repair-created-on date/PDF/metadata repairs; dry-run by default")
     parser.add_argument(
@@ -1128,6 +1409,12 @@ def main() -> int:
         raise SystemExit("--apply-date-repair requires --repair-created-on")
     if args.recreate_locked_invoice_ninja:
         raise SystemExit("--recreate-locked-invoice-ninja requires --repair-created-on")
+    if args.apply and args.apply_invoice_ninja_backfill:
+        raise SystemExit("--apply-invoice-ninja-backfill cannot be combined with --apply")
+    if args.apply_invoice_ninja_backfill and not args.include_bank_transfers:
+        raise SystemExit("--apply-invoice-ninja-backfill requires --include-bank-transfers")
+    if args.order_id and not args.include_bank_transfers:
+        raise SystemExit("--order-id requires --include-bank-transfers")
     return asyncio.run(_audit(args))
 
 

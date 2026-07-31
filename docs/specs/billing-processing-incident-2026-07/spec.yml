@@ -62,7 +62,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
+  subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
 
 approvals:
   product_contract:
@@ -115,6 +115,11 @@ decisions:
     decision: Repaired invoice PDFs always use fresh AES-GCM key/nonce metadata and a new encrypted S3 object key.
     reason: AES-GCM nonces must not be reused with the same key for different PDF plaintexts, and Directus update failure must leave the old encrypted invoice object decryptable.
     decided_at: "2026-07-30T21:12:50Z"
+  - id: D-9
+    status: active
+    decision: Directus-present bank-transfer rows missing Invoice Ninja records are backfilled by creating only Invoice Ninja invoice/payment/bank-transaction rows from the existing encrypted Directus invoice and PDF.
+    reason: Replaying the purchase-confirmation task would duplicate Directus invoice rows and S3 PDFs; the existing Directus record is the accounting source of truth for these completed bank transfers.
+    decided_at: "2026-07-31T10:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -171,14 +176,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-30T21:27:04Z"
     notes: Old Invoice Ninja row archival now stops on first delete failure and keeps the verified replacement set; explicit PaymentIntent retries skip S3/Directus rewrites when Directus already has the original payment date.
+  - id: ATTEMPT-10
+    task_id: TASK-7
+    approach: Add a guarded Invoice Ninja-only backfill path for Directus bank-transfer invoices.
+    outcome: succeeded
+    recorded_at: "2026-07-31T10:00:00Z"
+    notes: The script now dry-runs by default, rechecks Invoice Ninja before writes, decrypts the existing Directus invoice metadata/PDF, creates only Invoice Ninja rows, and cleans up incomplete replacement rows.
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Deploy the new-S3-object repair hardening and rerun reconciliation dry-runs.
-  command: python3 scripts/spec_verify.py docs/specs/billing-processing-incident-2026-07/spec.yml
-  expected_outcome: Required completed evidence passes; follow-up accounting gaps remain explicitly recorded.
+  current_task_id: TASK-7
+  next_action: Deploy bank-transfer Invoice Ninja-only backfill tooling, refresh prod task-worker script, run prod dry-run, apply only would_create bank-transfer rows, then verify reconciliation.
+  command: 'python3 scripts/sessions.py deploy --session e96a --title "fix: backfill bank transfer accounting rows" --include backend/scripts/audit_backfill_missing_stripe_invoices.py --include backend/tests/test_invoice_reconciliation_script.py --include docs/specs/billing-processing-incident-2026-07/spec.yml --skip-tests "Focused billing tests already passed locally for this script-only incident tooling update."'
+  expected_outcome: Dev contains the new guarded tooling before the prod no-email Invoice Ninja-only backfill is applied.
   blocker: null
-  last_verified_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
+  last_verified_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
 
 scenarios:
   - id: S-1
@@ -301,7 +312,7 @@ contracts:
       encryption_boundary: Existing encrypted invoice storage is preserved; no public route changes.
   data:
     - Directus invoice rows are created only for Stripe orders missing Directus records.
-    - Directus-present rows missing Invoice Ninja records are report-only until an Invoice-Ninja-only backfill exists.
+    - Directus-present bank-transfer rows missing Invoice Ninja records are backfilled by creating only Invoice Ninja rows from existing Directus encrypted invoice metadata/PDF.
     - Stripe invoice issue/due dates are resolved from Stripe latest charge creation time, then PaymentIntent creation time, before falling back to task time.
     - Repaired encrypted PDFs rotate AES key, nonce, and encrypted S3 object-key metadata together, leaving the old encrypted object referenced until Directus update succeeds.
     - Locked Invoice Ninja paid-row repair creates complete replacement invoice/payment/bank-transaction rows before archiving old active rows.
@@ -331,10 +342,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-33-tests
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
-        timestamp: "2026-07-30T21:27:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
+        run_id: local-pytest-billing-guardrails-20260731-33-tests
+        subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+        timestamp: "2026-07-31T10:00:00Z"
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_billing_admin_notifications.py
@@ -356,10 +367,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-33-tests
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
-        timestamp: "2026-07-30T21:27:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
+        run_id: local-pytest-billing-guardrails-20260731-33-tests
+        subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+        timestamp: "2026-07-31T10:00:00Z"
   - id: T-PYTEST-003
     type: pytest
     file: backend/tests/test_invoice_reconciliation_script.py
@@ -369,7 +380,8 @@ tests:
     assertions:
       - Invoice Ninja lookup errors are unknown, not missing.
       - apply preflight blocks unmapped or non-dispatchable rows.
-      - Directus-present/Invoice-Ninja-missing rows are report-only.
+      - Directus-present bank-transfer rows can dry-run an Invoice Ninja-only backfill from existing encrypted Directus invoice metadata.
+      - incomplete Invoice Ninja-only replacement rows are cleaned up without mutating Directus.
     red_phase:
       required: false
       expected: not_applicable
@@ -381,10 +393,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-33-tests
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
-        timestamp: "2026-07-30T21:27:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
+        run_id: local-pytest-billing-guardrails-20260731-33-tests
+        subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+        timestamp: "2026-07-31T10:00:00Z"
   - id: T-PYTEST-004
     type: pytest
     file: backend/tests/test_billing_worker_compose.py
@@ -407,10 +419,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-33-tests
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
-        timestamp: "2026-07-30T21:27:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
+        run_id: local-pytest-billing-guardrails-20260731-33-tests
+        subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+        timestamp: "2026-07-31T10:00:00Z"
   - id: T-PYTEST-005
     type: pytest
     file: backend/tests/test_invoice_reconciliation_script.py
@@ -434,10 +446,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-33-tests
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
-        timestamp: "2026-07-30T21:27:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
+        run_id: local-pytest-billing-guardrails-20260731-33-tests
+        subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+        timestamp: "2026-07-31T10:00:00Z"
   - id: T-PYTEST-006
     type: pytest
     file: backend/tests/test_invoice_reconciliation_script.py
@@ -463,10 +475,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py backend/tests/test_translation_service.py
-        run_id: local-pytest-billing-guardrails-translation-20260730-33-tests
-        subject_commit: 3381f58f5a7bc01aab875b6a5d425135017653c7+working-tree-new-s3-object-repair
-        timestamp: "2026-07-30T21:27:04Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -q backend/tests/test_invoice_reconciliation_script.py backend/tests/test_invoice_ninja_bank_integrations.py backend/tests/test_billing_admin_notifications.py backend/tests/test_billing_worker_compose.py
+        run_id: local-pytest-billing-guardrails-20260731-33-tests
+        subject_commit: 8dbdd833a+working-tree-bank-transfer-invoice-ninja-backfill
+        timestamp: "2026-07-31T10:00:00Z"
 
 verifications:
   - id: V-PROD-HOTFIX-001
@@ -554,6 +566,7 @@ implementation_plan:
     - Historical no-email backfills pass the original provider payment timestamp to the invoice task.
     - Any billing error logs and sends a sanitized admin notification.
     - Backfill script audits Stripe, Directus, and Invoice Ninja before dispatching no-email tasks.
+    - Invoice Ninja-only bank-transfer backfill reads existing Directus encrypted invoice metadata/PDF, creates only external accounting rows, and cleans up incomplete replacements.
     - Original-date repair tooling regenerates encrypted PDFs with fresh AES-GCM key/nonce/S3 object-key metadata and recreates locked active Invoice Ninja rows only after exact PaymentIntent re-fetch confirms repair is still needed.
     - Repair apply writes the encrypted PDF and Directus metadata before mutating Invoice Ninja, then creates a complete replacement before archiving old paid rows.
   affected_files:
@@ -739,7 +752,7 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Repair original dates for 2026-07-30 backfilled Stripe invoices
-    status: in_progress
+    status: done
     phase: running_checks
     covers:
       scenarios:
@@ -776,6 +789,43 @@ tasks:
       shared_files: []
     blockers: []
     follow_up_tasks:
-      - Commit and deploy repair-safety hardening so future repair runs cannot reuse PDF AES-GCM metadata or archive old Invoice Ninja rows before replacement is complete.
-      - Rerun reconciliation dry-runs after deploy to confirm no 2026-07-30 date repairs remain.
+      - TASK-7
+    independently_deployable: true
+  - id: TASK-7
+    title: Backfill Directus bank-transfer invoices into Invoice Ninja only
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-4
+    expected_files:
+      - backend/scripts/audit_backfill_missing_stripe_invoices.py
+      - backend/tests/test_invoice_reconciliation_script.py
+      - docs/specs/billing-processing-incident-2026-07/spec.yml
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-003
+      - V-PROD-RECONCILE-001
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-003
+      - V-PROD-RECONCILE-001
+    dependencies:
+      - TASK-5
+      - TASK-6
+    ownership:
+      files:
+        - backend/scripts/audit_backfill_missing_stripe_invoices.py
+        - backend/tests/test_invoice_reconciliation_script.py
+        - docs/specs/billing-processing-incident-2026-07/spec.yml
+      shared_files: []
+    blockers:
+      - Four Stripe PaymentIntents still lack a unique Directus user mapping and remain excluded from automated backfill.
+    follow_up_tasks:
+      - Directus-only backfill for Stripe rows already present in Invoice Ninja.
+      - Manual/accounting review for unmapped Stripe PaymentIntents.
     independently_deployable: true

@@ -59,6 +59,11 @@ def test_invoice_filename_helpers_preserve_invoice_number_with_original_date():
     assert audit_script._invoice_number_from_filename(filename) == "RDGV4VK-2"
 
 
+def test_account_id_from_invoice_number_uses_counter_suffix():
+    assert audit_script._account_id_from_invoice_number("RDGV4VK-2") == "RDGV4VK"
+    assert audit_script._account_id_from_invoice_number("missing-counter") is None
+
+
 def test_invoice_s3_object_key_uses_new_original_date_key(monkeypatch):
     monkeypatch.setattr(audit_script.uuid, "uuid4", lambda: SimpleNamespace(hex="fixeduuid"))
 
@@ -74,6 +79,14 @@ def test_stripe_amount_to_display_units_handles_zero_decimal_currencies():
 class FakeEncryption:
     async def encrypt_with_user_key(self, plaintext, key_id):
         return f"wrapped:{key_id}:{plaintext}", "v1"
+
+
+class MapEncryption(FakeEncryption):
+    def __init__(self, values):
+        self.values = values
+
+    async def decrypt_with_user_key(self, ciphertext, key_id):
+        return self.values[ciphertext]
 
 
 @pytest.mark.asyncio
@@ -114,6 +127,15 @@ class FakeNinja:
         return {"data": []}
 
 
+class EmptyNinja:
+    def __init__(self):
+        self.calls = []
+
+    async def make_api_request(self, method, endpoint, params=None, data=None):
+        self.calls.append((method, endpoint, params, data))
+        return {"data": []}
+
+
 @pytest.mark.asyncio
 async def test_ninja_invoice_exists_falls_back_to_filtered_private_notes():
     ninja = FakeNinja()
@@ -131,6 +153,67 @@ class FailingNinja:
 @pytest.mark.asyncio
 async def test_ninja_invoice_exists_returns_unknown_on_lookup_errors():
     assert await audit_script._ninja_invoice_exists(FailingNinja(), "pi_123") is None
+
+
+@pytest.mark.asyncio
+async def test_invoice_ninja_backfill_dry_run_uses_directus_invoice_metadata():
+    result = await audit_script._backfill_invoice_ninja_from_directus_invoice(
+        ninja=EmptyNinja(),
+        s3=None,
+        encryption=MapEncryption({
+            "enc-filename": "openmates_invoice_2026_07_01_RDGV4VK-2.pdf",
+            "enc-amount": "1000",
+            "enc-credits": "10000",
+            "enc-currency": "eur",
+        }),
+        invoice={
+            "id": "invoice-1",
+            "provider": "bank_transfer",
+            "order_id": "bt_123",
+            "date": "2026-07-01T09:00:00+00:00",
+            "user_id_hash": "hash-1",
+            "encrypted_filename": "enc-filename",
+            "encrypted_amount": "enc-amount",
+            "encrypted_credits_purchased": "enc-credits",
+            "encrypted_currency": "enc-currency",
+        },
+        user={"vault_key_id": "vault-key", "account_id": "RDGV4VK"},
+        apply=False,
+    )
+
+    assert result["status"] == "would_create"
+    assert result["invoice_number"] == "RDGV4VK-2"
+    assert result["invoice_date"] == "2026-07-01"
+    assert result["amount"] == 1000
+    assert result["credits"] == 10000
+    assert result["currency"] == "eur"
+
+
+def test_missing_invoice_ninja_replacement_parts_requires_complete_surfaces():
+    assert audit_script._missing_invoice_ninja_replacement_parts(None) == ["replacement transaction"]
+    assert audit_script._missing_invoice_ninja_replacement_parts({
+        "invoice_id": "inv-new",
+        "payment_id": None,
+        "bank_transaction_id": "bank-new",
+        "pdf_upload_success": True,
+        "transaction_match_success": False,
+    }) == ["replacement payment", "replacement bank transaction match"]
+
+
+@pytest.mark.asyncio
+async def test_cleanup_incomplete_invoice_ninja_replacement_deletes_new_rows_in_safe_order():
+    ninja = ReplacementNinja(replacement={})
+
+    assert await audit_script._cleanup_incomplete_invoice_ninja_replacement(ninja, {
+        "invoice_id": "inv-new",
+        "payment_id": "pay-new",
+        "bank_transaction_id": "bank-new",
+    }) == []
+    assert ninja.events == [
+        ("DELETE", "/bank_transactions/bank-new"),
+        ("DELETE", "/payments/pay-new"),
+        ("DELETE", "/invoices/inv-new"),
+    ]
 
 
 class ReplacementNinja:
