@@ -104,7 +104,7 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
 			await expect(page.getByText('Continue where you left off', { exact: true })).toHaveCount(0);
 			const mixedCards = mixedRow.getByTestId('workflow-landing-card');
-			expect(await mixedCards.count()).toBeGreaterThan(6);
+			await expect.poll(async () => await mixedCards.count(), { timeout: 30000 }).toBeGreaterThan(6);
 			await expect(mixedCards.first()).toHaveAttribute('data-card-source', 'recent');
 			await expect(mixedCards.last()).toHaveAttribute('data-card-source', 'example');
 			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
