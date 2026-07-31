@@ -1769,12 +1769,13 @@ def active_group_ids(leases: list[dict[str, Any]]) -> set[str]:
 def lease_blocks_entry(lease: dict[str, Any], entry: dict[str, Any], now: datetime | None = None) -> bool:
     """Return whether an unexpired claim makes this failure unavailable to lease."""
     status = str(lease.get("status") or "")
-    if status not in {"active", "released"}:
+    if status not in {"active", "released", "completed"}:
         return False
 
-    expires_at = parse_utc(str(lease.get("expires_at") or ""))
-    if expires_at is not None and expires_at <= (now or datetime.now(timezone.utc)):
-        return False
+    if status in {"active", "released"}:
+        expires_at = parse_utc(str(lease.get("expires_at") or ""))
+        if expires_at is not None and expires_at <= (now or datetime.now(timezone.utc)):
+            return False
 
     if str(lease.get("group_id") or "") != str(entry.get("group_id") or ""):
         return False
@@ -1783,7 +1784,13 @@ def lease_blocks_entry(lease: dict[str, Any], entry: dict[str, Any], now: dateti
 
     leased_entry = lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json")
     leased_entry = leased_entry if isinstance(leased_entry, dict) else {}
-    return str(leased_entry.get("key") or "") == str(entry.get("key") or "")
+    if str(leased_entry.get("key") or "") != str(entry.get("key") or ""):
+        return False
+    if status == "completed":
+        leased_run_id = str(leased_entry.get("run_id") or "")
+        entry_run_id = str(entry.get("run_id") or "")
+        return bool(leased_run_id and entry_run_id and leased_run_id == entry_run_id)
+    return True
 
 
 def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[str, Any] | None:

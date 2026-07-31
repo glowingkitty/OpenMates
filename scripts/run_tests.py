@@ -5874,9 +5874,11 @@ class TestOrchestrator:
                 }],
                 reason=reason,
             )
+        only_failed = bool(getattr(self, "only_failed", False))
+        only_failed_synthetic_files = getattr(self, "only_failed_synthetic_files", set())
         clear_backend_mock_preflight = (
-            self.only_failed
-            and BACKEND_LIVE_MOCK_PREFLIGHT_FILE in self.only_failed_synthetic_files
+            only_failed
+            and BACKEND_LIVE_MOCK_PREFLIGHT_FILE in only_failed_synthetic_files
         )
 
         if not specs and not clear_backend_mock_preflight:
@@ -5954,7 +5956,7 @@ class TestOrchestrator:
         preflight_reason: Optional[str] = None
         normal_account_slots = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
 
-        if not self.spec and not self.only_failed:
+        if not self.spec:
             preflight = self._run_account_preflight(client)
             preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
             specs, blocked_preflight_results, normal_account_slots, preflight_reason = (

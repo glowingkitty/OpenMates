@@ -175,6 +175,74 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
 
 
+def test_only_failed_batch_preflights_and_skips_unhealthy_normal_account(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured: dict[str, object] = {}
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = None
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = True
+    orchestrator.fail_fast = False
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator._discover_specs = lambda: ["regular-a.spec.ts", "regular-b.spec.ts"]
+    orchestrator._merge_cookie_audits = lambda: None
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        return run_tests.SuiteResult(
+            status="failed",
+            tests=[
+                {
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "failed",
+                    "account": 1,
+                },
+                {
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "passed",
+                    "account": 2,
+                },
+            ],
+            reason="slot 1 failed",
+        )
+
+    class FakeBatchRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run_all_batches(self):
+            return run_tests.SuiteResult(
+                status="passed",
+                tests=[
+                    {"name": "regular-a.spec.ts", "file": "regular-a.spec.ts", "status": "passed"},
+                    {"name": "regular-b.spec.ts", "file": "regular-b.spec.ts", "status": "passed"},
+                ],
+            )
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "passed"
+    assert preflight_calls == [None]
+    assert captured["normal_account_slots"] == (2,)
+    assert result.reason is not None
+    assert "Unavailable normal account slot(s)" in result.reason
+
+
 def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_path):
     run_tests = load_run_tests_module()
     preflight_calls: list[list[int] | None] = []
