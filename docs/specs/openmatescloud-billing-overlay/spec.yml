@@ -173,14 +173,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-31T13:54:28Z"
     notes: OpenMatesCloud overlay compose guard passed with 2 tests; overlay file marks existing core runtime services and introduces no new containers yet.
+  - id: ATTEMPT-7
+    task_id: TASK-2
+    approach: Deploy source-install locale JSON preparation, rerun the dedicated self-host workflow, and refresh backend self-host exclusion guard evidence.
+    outcome: succeeded
+    recorded_at: "2026-07-31T15:52:38Z"
+    notes: Dedicated self-host workflow run 30641989418 passed after source-mode timing, image-mode install, status, container, and Playwright smoke steps all completed successfully.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Deploy the self-host exclusion guardrails when a scoped dev deploy is safe, then run the self-host smoke before starting payment route/service extraction.
-  command: python3 scripts/tests.py run --spec selfhost-smoke.spec.ts
-  expected_outcome: Self-host smoke confirms payment UI/routes stay unavailable with OPENMATES_CLOUD_OVERLAY_ENABLED=false.
+  current_task_id: TASK-3
+  next_action: Start moving cloud billing routes and services behind the OpenMatesCloud overlay while preserving self-host exclusion.
+  command: python3 scripts/api_tests/test_cloud_overlay_boot.py --api-url https://api.dev.openmates.org --cli-overlay --redact
+  expected_outcome: Combined OpenMates plus OpenMatesCloud dev runtime boots with payment routes and billing workers only in official-cloud mode.
   blocker: null
-  last_verified_commit: 3d94f9ea0a42d51b47062de45a003682eec2ecf2+working-tree-openmatescloud-overlay-bootstrap
+  last_verified_commit: a909e1d240e937d6052cab744a003767634f5c4b
 
 scenarios:
   - id: S-1
@@ -489,9 +495,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_openmatescloud_overlay_packaging.py
-        run_id: local-2026-07-31-133930-openmatescloud-overlay-packaging-green-7-passed
-        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e+working-tree-openmatescloud-overlay-guard
-        timestamp: "2026-07-31T13:39:30Z"
+        run_id: local-2026-07-31-155238-openmatescloud-overlay-packaging-green-7-passed
+        subject_commit: a909e1d240e937d6052cab744a003767634f5c4b
+        timestamp: "2026-07-31T15:52:38Z"
+        summary: Backend self-host exclusion and overlay packaging guard passed with 7 tests after the source-install locale fix was deployed.
   - id: T-SELFHOST-SMOKE
     type: playwright
     file: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
@@ -514,11 +521,12 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: gh workflow run selfhost-smoke.yml --ref dev
+        run_id: github-actions-30641989418-job-91193990456
+        subject_commit: a909e1d240e937d6052cab744a003767634f5c4b
+        timestamp: "2026-07-31T15:50:54Z"
+        summary: Dedicated self-host install smoke passed in 36m39s, including source-mode timing, image-mode image builds and install timing, self-host server status, healthy API/webapp/cms containers, and frontend self-host smoke spec.
   - id: T-DEV-CLOUD-BOOT
     type: manual
     file: scripts/api_tests/test_cloud_overlay_boot.py
@@ -797,7 +805,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Add self-host exclusion guardrails
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2]
@@ -812,8 +820,7 @@ tasks:
       - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
     verification_ids: [T-SELFHOST-EXCLUSION, T-SELFHOST-SMOKE]
     dependencies: [TASK-1]
-    blockers:
-      - Self-host Playwright smoke remains pending until deploy.
+    blockers: []
     follow_up_tasks: []
     ownership:
       files: [backend/tests/test_openmatescloud_overlay_packaging.py]
