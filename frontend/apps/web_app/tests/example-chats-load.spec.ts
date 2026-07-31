@@ -576,6 +576,14 @@ test.describe('Example chats loading for new users', () => {
 		await expect(filterMenu).toContainText('Duration');
 		await expect(filterMenu).toContainText('Stops');
 		await expect(filterMenu).toContainText('Train line');
+		const filterMenuBox = await filterMenu.boundingBox();
+		expect(filterMenuBox, 'mobile map-view filter sheet should be measurable').not.toBeNull();
+		expect(filterMenuBox!.x, 'mobile map-view filter sheet should not be clipped off the left edge').toBeGreaterThanOrEqual(0);
+		expect(
+			filterMenuBox!.x + filterMenuBox!.width,
+			'mobile map-view filter sheet should not be clipped off the right edge'
+		).toBeLessThanOrEqual(390);
+		expect(filterMenuBox!.height, 'mobile map-view filter sheet should stay compact and internally scrollable').toBeLessThanOrEqual(330);
 		await expect(mapView.getByTestId('embeds-map-view-option-train-line-rb26')).toBeVisible();
 		await mapView.getByTestId('embeds-map-view-option-train-line-rb26').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toContainText('Filter (1)');
