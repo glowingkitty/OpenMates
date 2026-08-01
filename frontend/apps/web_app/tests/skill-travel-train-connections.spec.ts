@@ -109,10 +109,17 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const first = results[0];
 		expect(first.transport_method).toBe('train');
 		expect(first.transfer_quality?.min_transfer_minutes).toBe(TRAIN_MIN_TRANSFER_MINUTES);
-		expect(first.total_price).toBeTruthy();
-		expect(first.booking_url).toBeTruthy();
-		expect(first.booking_url).toMatch(/bahn\.de|flixbus\.com|flixtrain\./i);
-		console.log(`[P1] First: ${first.origin} → ${first.destination}, €${first.total_price}, booking: ${first.booking_url.substring(0, 60)}...`);
+		if (first.fare?.is_pass_only) {
+			expect(first.total_price).toBeNull();
+			expect(first.fare.covered_by_passes).toContain('deutschland_ticket');
+			expect(first.fare.confidence).toBe('pass_only');
+			console.log(`[P1] First: ${first.origin} → ${first.destination}, covered by Deutschland Ticket`);
+		} else {
+			expect(first.total_price).toBeTruthy();
+			expect(first.booking_url).toBeTruthy();
+			expect(first.booking_url).toMatch(/bahn\.de|flixbus\.com|flixtrain\./i);
+			console.log(`[P1] First: ${first.origin} → ${first.destination}, €${first.total_price}, booking: ${first.booking_url.substring(0, 60)}...`);
+		}
 
 		const optimizedResults = results.filter((item: any) => item.optimization?.optimized_by === 'openmates');
 		for (const optimized of optimizedResults) {

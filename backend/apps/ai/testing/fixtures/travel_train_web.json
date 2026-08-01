@@ -190,6 +190,7 @@
                   "airport_code": "NUE",
                   "duration": "20m",
                   "duration_minutes": 20,
+                  "meets_min_transfer": true,
                   "overnight": false
                 }
               ]
@@ -202,6 +203,11 @@
           "arrival": "2026-08-12T14:22:00+02:00",
           "duration": "6h 45m",
           "stops": 1,
+          "transfer_quality": {
+            "min_transfer_minutes": 15,
+            "has_transfers": true,
+            "short_transfer_count": 0
+          },
           "carriers": ["FlixTrain", "FlixBus"],
           "carrier_codes": ["flixtrain", "flixbus"],
           "booking_url": "https://shop.global.flixbus.com/search?departureCity=berlin&arrivalCity=munich&rideDate=12.08.2026",
