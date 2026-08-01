@@ -8,8 +8,9 @@
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { openFullscreen } = require('./helpers/embed-test-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const NOTEBOOK_EXAMPLE_PATH = '/example/open-meteo-weather-notebook';
 const NOTEBOOK_EXAMPLE_CHAT_ID = 'example-open-meteo-weather-notebook';
@@ -162,5 +163,63 @@ test.describe('Code notebook flow', () => {
 		await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 10_000 });
 		expect(await anonymousRunAttempt).toBe('not-posted');
 		expect(notebookRunRequests).toHaveLength(0);
+	});
+
+	test('authenticated notebook run controls keep live output inside the executed cell', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(180_000);
+		const { email, password, otpKey } = getTestAccount();
+		test.skip(!email || !password || !otpKey, 'Test account credentials required.');
+
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: false });
+
+		const runRequests: Array<{ run_scope?: string; cell_indices?: number[]; hasNotebook: boolean }> = [];
+		await page.route(NOTEBOOK_RUN_ENDPOINT, async (route) => {
+			const payload = route.request().postDataJSON();
+			runRequests.push({
+				run_scope: payload?.run_scope,
+				cell_indices: payload?.cell_indices,
+				hasNotebook: Boolean(payload?.client_notebook?.cells?.length)
+			});
+			await route.fulfill({
+				status: 503,
+				contentType: 'application/json',
+				body: JSON.stringify({ detail: 'e2e mocked notebook runner unavailable' })
+			});
+		});
+
+		await page.goto(getE2EDebugUrl(NOTEBOOK_EXAMPLE_PATH), { waitUntil: 'domcontentloaded' });
+		await expect(page).toHaveURL(new RegExp(`chat-id=${NOTEBOOK_EXAMPLE_CHAT_ID}`), {
+			timeout: 15_000
+		});
+
+		const notebookPreview = page
+			.locator(
+				'[data-testid="embed-preview"][data-app-id="code"][data-skill-id="notebook"][data-status="finished"]'
+			)
+			.first();
+		await expect(notebookPreview).toBeVisible({ timeout: 30_000 });
+
+		const fullscreenOverlay = await openFullscreen(page, notebookPreview);
+		await expect(fullscreenOverlay.getByTestId('notebook-fullscreen')).toBeVisible({ timeout: 15_000 });
+
+		const cells = fullscreenOverlay.getByTestId('notebook-cell');
+		const firstCodeCell = cells.nth(1);
+		await expect(firstCodeCell.getByTestId('notebook-run-cell-button')).toBeVisible({ timeout: 10_000 });
+
+		await firstCodeCell.getByTestId('notebook-run-cell-button').click();
+		await expect(firstCodeCell.getByTestId('notebook-live-run-output')).toBeVisible({ timeout: 10_000 });
+		await expect(firstCodeCell.getByTestId('notebook-live-run-output')).toContainText(/notebook run failed/i);
+		await expect(fullscreenOverlay.locator(':scope > [data-testid="notebook-run-panel"]')).toHaveCount(0);
+		expect(runRequests[0]).toMatchObject({ run_scope: 'cells', cell_indices: [1], hasNotebook: true });
+
+		await fullscreenOverlay.getByTestId('notebook-run-all-button').click();
+		await expect(firstCodeCell.getByTestId('notebook-live-run-output')).toBeVisible({ timeout: 10_000 });
+		await expect(fullscreenOverlay.locator(':scope > [data-testid="notebook-run-panel"]')).toHaveCount(0);
+		expect(runRequests[1]).toMatchObject({ run_scope: 'all', hasNotebook: true });
 	});
 });
