@@ -417,7 +417,7 @@
   }
 
   .plans-shell-frame :global(.daily-inspiration-banner) {
-    --daily-inspiration-regular-height: clamp(150px, 20vh, 190px);
+    --daily-inspiration-regular-height: clamp(112px, 14vh, 135px);
     min-height: 0;
   }
 
