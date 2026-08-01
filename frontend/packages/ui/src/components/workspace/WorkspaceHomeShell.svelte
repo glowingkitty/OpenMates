@@ -11,14 +11,11 @@
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import { getContinueGradientColors, getResumeCardGradientStyle, getResumeLargeCardStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
+  import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
   type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans';
 
-  type WorkspaceInspiration = {
-    phrase: string;
-    title?: string;
-  };
 
   type ContinueItem = {
     id: string;
@@ -43,9 +40,10 @@
     actionItemsTestId?: string;
     itemTestId?: string;
     continueSectionTestId?: string;
+    centerTestId?: string;
     onContinueItem?: (item: ContinueItem) => void;
     onActionItem?: (item: ContinueItem) => void;
-    onStartInspiration?: (inspiration: WorkspaceInspiration) => void;
+    onStartInspiration?: (inspiration: DailyInspiration) => void;
   };
 
   let {
@@ -60,6 +58,7 @@
     actionItemsTestId = `${surface}-workspace-actions`,
     itemTestId = 'resume-chat-card',
     continueSectionTestId = `${surface}-workspace-continue`,
+    centerTestId = `${surface}-workspace-center`,
     onContinueItem,
     onActionItem,
     onStartInspiration,
@@ -81,7 +80,7 @@
     return () => window.removeEventListener('resize', handleResize);
   });
 
-  function handleStartInspiration(inspiration: WorkspaceInspiration): void {
+  function handleStartInspiration(inspiration: DailyInspiration): void {
     onStartInspiration?.(inspiration);
   }
 
@@ -111,7 +110,7 @@
     />
   </div>
 
-  <div class="center-content workspace-center-content" data-testid={`${surface}-workspace-center`}>
+  <div class="center-content workspace-center-content" data-testid={centerTestId}>
     <div class="team-profile">
       <div class="welcome-text">
         {#if eyebrow}

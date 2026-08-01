@@ -17,7 +17,7 @@ import {
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
 
-export type UserPlanStatus = "draft" | "awaiting_confirmation" | "active" | "executing" | "blocked" | "completed" | "archived";
+export type UserPlanStatus = "draft" | "checking_assumptions" | "awaiting_confirmation" | "active" | "executing" | "running_checks" | "blocked" | "completed" | "archived";
 export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
 export type UserPlanVerificationStatus = "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "waived";
 export type UserPlanKeyWrapperType = "master" | "chat" | "project";

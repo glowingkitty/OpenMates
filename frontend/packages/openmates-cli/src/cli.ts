@@ -42,8 +42,10 @@ import {
   type ProjectSourceRecord,
   type UserTaskActionInput,
   type UserTaskReorderInput,
+  type UserTaskRecord,
   type UserTaskStatus,
   type UserPlanCriterionRecord,
+  type UserPlanRecord,
   type UserPlanStatus,
   type UserPlanVerificationStatus,
   type WorkspaceHistoryResult,
@@ -728,7 +730,7 @@ async function handleTasks(
     if (exactAsk) {
       const result = await client.askUserTasks({ instruction, ...exactAsk });
       if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
-      printAskApplyResult("task", result, flags);
+      printAskApplyResult("task", await prepareTaskAskOutput(result, masterKey), flags);
       return;
     }
     const proposals = await proposeTasksForAsk(client, instruction, flags);
@@ -749,7 +751,7 @@ async function handleTasks(
     }
     const result = await client.askUserTasks({ instruction, encryptedCreates });
     if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
-    printAskApplyResult("task", result, flags);
+    printAskApplyResult("task", await prepareTaskAskOutput(result, masterKey), flags);
     return;
   }
 
@@ -952,6 +954,47 @@ function isShortWorkspaceAsk(instruction: string): boolean {
 function splitTaskAskInstruction(instruction: string): Array<{ title: string }> {
   const suffix = instruction.includes(":") ? instruction.split(":").slice(1).join(":") : instruction;
   return suffix.split(/[,;]\s*/).map((title) => title.trim()).filter(Boolean).map((title) => ({ title }));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPrivateCliOutputKey(key: string): boolean {
+  return key === "linked_project_hashes" || key.startsWith("encrypted_") || key.startsWith("hashed_");
+}
+
+function sanitizeWorkspaceAskOutput(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => sanitizeWorkspaceAskOutput(item));
+  if (!isRecord(value)) return value;
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (isPrivateCliOutputKey(key)) continue;
+    sanitized[key] = sanitizeWorkspaceAskOutput(nested);
+  }
+  return sanitized;
+}
+
+async function prepareTaskAskOutput(result: Record<string, unknown>, masterKey: Uint8Array): Promise<Record<string, unknown>> {
+  const output = sanitizeWorkspaceAskOutput(result) as Record<string, unknown>;
+  if (isRecord(result.task)) {
+    output.task = taskToJson(await decryptUserTask(result.task as unknown as UserTaskRecord, masterKey));
+  }
+  if (Array.isArray(result.tasks) && result.tasks.every(isRecord)) {
+    output.tasks = (await decryptUserTasks(result.tasks as unknown as UserTaskRecord[], masterKey)).map(taskToJson);
+  }
+  return output;
+}
+
+async function preparePlanAskOutput(result: Record<string, unknown>, masterKey: Uint8Array): Promise<Record<string, unknown>> {
+  const output = sanitizeWorkspaceAskOutput(result) as Record<string, unknown>;
+  if (isRecord(result.plan)) {
+    output.plan = planToJson(await decryptUserPlan(result.plan as unknown as UserPlanRecord, masterKey));
+  }
+  if (Array.isArray(result.plans) && result.plans.every(isRecord)) {
+    output.plans = (await decryptUserPlans(result.plans as unknown as UserPlanRecord[], masterKey)).map(planToJson);
+  }
+  return output;
 }
 
 function printHistoryCommands(history: WorkspaceHistoryResult | null | undefined): void {
@@ -1707,7 +1750,7 @@ async function handlePlans(
     if (exactAsk) {
       const result = await client.askUserPlans({ instruction, ...exactAsk });
       if (await handleWorkspaceAskFallbackChat(client, "plan", instruction, result, flags, redactor)) return;
-      printAskApplyResult("plan", result, flags);
+      printAskApplyResult("plan", await preparePlanAskOutput(result, masterKey), flags);
       return;
     }
     const proposal = isShortWorkspaceAsk(instruction)
@@ -1730,7 +1773,7 @@ async function handlePlans(
     });
     const result = await client.askUserPlans({ instruction, encryptedCreate: input });
     if (await handleWorkspaceAskFallbackChat(client, "plan", instruction, result, flags, redactor)) return;
-    printAskApplyResult("plan", result, flags);
+    printAskApplyResult("plan", await preparePlanAskOutput(result, masterKey), flags);
     return;
   }
 
@@ -1870,7 +1913,7 @@ async function handlePlans(
 
   if (subcommand === "complete" || subcommand === "done") {
     const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, subcommand);
-    const completed = await client.completeUserPlan(plan.planId, { version: plan.version });
+    const completed = await client.completeUserPlan(plan.planId, { version: plan.version, updated_at: Math.floor(Date.now() / 1000) });
     printPlanOutput(await decryptUserPlan(completed, masterKey), flags);
     return;
   }

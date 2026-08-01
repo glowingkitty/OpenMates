@@ -78,12 +78,15 @@
 <style>
   .task-board {
     display: grid;
-    grid-template-columns: repeat(5, minmax(240px, 1fr));
+    grid-template-columns: repeat(5, minmax(260px, 280px));
     gap: 14px;
     align-items: start;
-    min-width: min(100%, 1240px);
-    overflow-x: auto;
+    min-width: max-content;
+    max-width: 100%;
+    max-height: min(62vh, 720px);
+    overflow: auto;
     padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .task-column {
@@ -147,12 +150,12 @@
 
   @media (max-width: 900px) {
     .task-board {
-      grid-template-columns: minmax(260px, 1fr);
-      overflow: visible;
+      grid-template-columns: repeat(5, minmax(252px, 270px));
+      max-height: 58vh;
     }
 
     .task-column {
-      min-height: auto;
+      min-height: 300px;
     }
   }
 </style>

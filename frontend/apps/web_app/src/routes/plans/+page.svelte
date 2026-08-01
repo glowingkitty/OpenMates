@@ -1,9 +1,7 @@
 <!--
   Plans route for the authenticated web app.
-  Reuses the encrypted TasksPage workspace because Plans V1 keeps plans and
-  verification tasks together while giving the header switcher a first-class
-  Plans destination. The route shell mirrors Tasks so sidebar/settings behavior
-  stays consistent across workspace sections.
+  Renders the encrypted Plans workspace while preserving the same authenticated
+  route shell, sidebar, settings, and notification behavior as Tasks.
 -->
 
 <script lang="ts">
@@ -13,8 +11,8 @@
     Header,
     Notification,
     Settings,
-    TasksPage,
     PlanDetailPage,
+    PlansWorkspacePage,
     authStore,
     featureAvailabilityStore,
     initialize,
@@ -52,7 +50,7 @@
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="plans-container" class:menu-open={$panelState.isSettingsOpen}>
       <div class="plans-wrapper" id="main-plans" tabindex="-1">
-        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{:else}<TasksPage focus="plans" />{/if}
+        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{:else}<PlansWorkspacePage />{/if}
       </div>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />
