@@ -28,6 +28,7 @@ BASE_URL = "https://app.services-bahn.de/mob"
 
 CT_JOURNEY = "application/x.db.vendo.mob.verbindungssuche.v9+json"
 CT_LOCATION = "application/x.db.vendo.mob.location.v3+json"
+CT_TRAIN_RUN = "application/x.db.vendo.mob.zuglauf.v2+json"
 
 USER_AGENT = "DBNavigator/Android/25.18.2"
 REQUEST_TIMEOUT = 15.0
@@ -323,6 +324,7 @@ async def search_journeys(
     transport_filter: Optional[List[str]] = None,
     deutschland_ticket: bool = False,
     deutschland_ticket_only: bool = False,
+    min_transfer_minutes: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Search for train connections with prices.
@@ -339,6 +341,7 @@ async def search_journeys(
         transport_filter: Transport types to include (default: ["ALL"]).
         deutschland_ticket: Whether the traveller has a Deutschland-Ticket.
         deutschland_ticket_only: Whether to search only Deutschlandticket-eligible connections.
+        min_transfer_minutes: Minimum transfer duration requested from DB.
 
     Returns:
         Raw API response dict with 'verbindungen' array.
@@ -364,6 +367,8 @@ async def search_journeys(
     }
     if max_changes is not None:
         wunsch["maxUmstiege"] = max_changes
+    if min_transfer_minutes is not None:
+        wunsch["minUmstiegsdauer"] = max(0, int(min_transfer_minutes))
 
     body = {
         "autonomeReservierung": False,
@@ -383,6 +388,18 @@ async def search_journeys(
             f"{BASE_URL}/angebote/fahrplan",
             json=body,
             headers=_base_headers(CT_JOURNEY),
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def get_train_run(zuglauf_id: str) -> Dict[str, Any]:
+    """Fetch a DB train run with the full stop list for overlap checks."""
+
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, transport=_db_http_transport()) as client:
+        resp = await client.get(
+            f"{BASE_URL}/zuglauf/{zuglauf_id}",
+            headers=_base_headers(CT_TRAIN_RUN),
         )
         resp.raise_for_status()
         return resp.json()

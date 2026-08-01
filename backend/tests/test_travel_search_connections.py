@@ -57,6 +57,7 @@ class FakeTransportProvider(BaseTransportProvider):
         self.requested_owned_passes: Optional[List[str]] = None
         self.requested_pass_only: Optional[bool] = None
         self.requested_rail_products: Optional[List[str]] = None
+        self.requested_min_transfer_minutes: Optional[int] = None
         self.calls = 0
 
     def supports_transport_method(self, method: str) -> bool:
@@ -79,12 +80,16 @@ class FakeTransportProvider(BaseTransportProvider):
         owned_passes: Optional[List[str]] = None,
         pass_only: bool = False,
         rail_products: Optional[List[str]] = None,
+        min_transfer_minutes: Optional[int] = None,
+        cache_service: Any = None,
     ) -> List[ConnectionResult]:
+        del cache_service
         self.calls += 1
         self.requested_max_results = max_results
         self.requested_owned_passes = owned_passes
         self.requested_pass_only = pass_only
         self.requested_rail_products = rail_products
+        self.requested_min_transfer_minutes = min_transfer_minutes
         return self.results[:max_results]
 
 
@@ -388,6 +393,113 @@ async def test_search_connections_forwards_pass_only_and_rail_products_to_db_pro
 
 
 @pytest.mark.anyio
+async def test_search_connections_defaults_and_forwards_min_transfer_minutes() -> None:
+    provider = FakeTransportProvider(
+        [make_connection(0, "2026-06-01 09:00", "2026-06-01 11:00", source_provider="deutsche_bahn")],
+        provider_id="deutsche_bahn",
+        supported_methods={"train"},
+        supported_countries={"DE"},
+    )
+
+    _, results, error = await make_skill()._process_single_request(
+        {
+            "legs": [{"origin": "Berlin", "destination": "Munich", "date": "2026-06-01"}],
+            "transport_methods": ["train"],
+            "providers": ["deutsche_bahn"],
+        },
+        request_id="default-min-transfer",
+        all_providers=[provider],
+    )
+
+    assert error is None
+    assert provider.requested_min_transfer_minutes == 10
+    assert results[0]["transfer_quality"] == {
+        "min_transfer_minutes": 10,
+        "has_transfers": False,
+        "short_transfer_count": 0,
+    }
+
+
+def test_search_connections_filters_short_known_transfers() -> None:
+    skill = make_skill()
+    filtered = skill._filter_results([
+        make_result_dict(make_connection(0, "2026-06-01 09:00", "2026-06-01 13:00", layover_minutes=8)),
+        make_result_dict(make_connection(1, "2026-06-01 09:00", "2026-06-01 14:00", layover_minutes=20)),
+    ], {"min_transfer_minutes": 10})
+
+    assert [result["total_price"] for result in filtered] == ["101"]
+
+
+@pytest.mark.anyio
+async def test_transfer_amenities_use_three_geoapify_groups_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.travel.skills import search_connections as search_module
+
+    calls: list[dict[str, Any]] = []
+
+    class FakeCache:
+        def __init__(self) -> None:
+            self.values: dict[str, Any] = {}
+
+        async def get(self, key: str) -> Any:
+            return self.values.get(key)
+
+        async def set(self, key: str, value: Any, ttl: int) -> None:
+            self.values[key] = value
+
+    class FakeGeoapifyProvider:
+        def __init__(self, **kwargs: Any) -> None:
+            self.kwargs = kwargs
+
+        async def search_places(self, **kwargs: Any) -> Any:
+            calls.append(kwargs)
+            return types.SimpleNamespace(
+                status="ok",
+                places=[{"properties": {"name": f"{kwargs['categories'][0]} place"}}],
+            )
+
+    monkeypatch.setattr(search_module, "GeoapifyPlacesProvider", FakeGeoapifyProvider)
+    cache = FakeCache()
+    results = [{
+        "transport_method": "train",
+        "transfer_quality": {"min_transfer_minutes": 10},
+        "legs": [{
+            "layovers": [{
+                "airport": "Wolfsburg Hbf",
+                "duration_minutes": 25,
+                "latitude": 52.429,
+                "longitude": 10.789,
+            }]
+        }],
+    }]
+
+    enriched = await make_skill()._enrich_transfer_amenities(
+        results,
+        secrets_manager=object(),
+        cache_service=cache,
+    )
+    cached = await make_skill()._enrich_transfer_amenities(
+        [{
+            "transport_method": "train",
+            "transfer_quality": {"min_transfer_minutes": 10},
+            "legs": [{"layovers": [{"airport": "Wolfsburg Hbf", "duration_minutes": 25, "latitude": 52.429, "longitude": 10.789}]}],
+        }],
+        secrets_manager=object(),
+        cache_service=cache,
+    )
+
+    assert [call["categories"] for call in calls] == [
+        ["catering"],
+        ["commercial.supermarket", "commercial.convenience", "commercial.food_and_drink.bakery", "commercial.kiosk"],
+        ["amenity.toilet"],
+    ]
+    amenities = enriched[0]["legs"][0]["layovers"][0]["amenities"]
+    assert amenities["provider"] == "Geoapify"
+    assert amenities["groups"]["food_drink"]["count"] == 1
+    assert cached[0]["legs"][0]["layovers"][0]["amenities"]["cache_hit"] is True
+    assert len(calls) == 3
+
+
+@pytest.mark.anyio
 async def test_deutsche_bahn_provider_forwards_deutschland_ticket_and_marks_partial_fare(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -522,6 +634,142 @@ async def test_deutsche_bahn_provider_forwards_pass_only_and_rail_products(
         confidence="pass_only",
         summary="Covered by Deutschlandticket; no additional DB fare returned.",
     )
+
+
+@pytest.mark.anyio
+async def test_deutsche_bahn_provider_forwards_min_transfer_minutes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.apps.travel.providers import db_provider
+
+    calls: list[dict[str, Any]] = []
+
+    async def fake_resolve_location_id(city_name: str) -> str:
+        return f"A=1@O={city_name} Hbf@L=8000001@"
+
+    async def fake_search_journeys(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {"verbindungen": []}
+
+    monkeypatch.setattr(db_provider, "resolve_location_id", fake_resolve_location_id)
+    monkeypatch.setattr(db_provider, "search_journeys", fake_search_journeys)
+
+    await db_provider.DeutscheBahnProvider().search_connections(
+        legs=[{"origin": "Berlin", "destination": "Hamburg", "date": "2026-06-01"}],
+        passengers=1,
+        travel_class="economy",
+        max_results=3,
+        non_stop_only=False,
+        currency="EUR",
+        min_transfer_minutes=15,
+    )
+
+    assert calls[0]["min_transfer_minutes"] == 15
+
+
+@pytest.mark.anyio
+async def test_deutsche_bahn_provider_adds_optimized_normal_connection_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.apps.travel.providers import db_provider
+
+    async def fake_resolve_location_id(city_name: str) -> str:
+        return f"A=1@O={city_name} Hbf@L=8000001@"
+
+    async def fake_search_journeys(**kwargs: Any) -> dict[str, Any]:
+        return {
+            "verbindungen": [{
+                "verbindung": {
+                    "reiseDauer": 14400,
+                    "umstiegeAnzahl": 1,
+                    "verbindungsAbschnitte": [
+                        {
+                            "typ": "FAHRZEUG",
+                            "produktGattung": "RE",
+                            "mitteltext": "RE 1",
+                            "zuglaufId": "run-a",
+                            "abschnittsDauer": 7200,
+                            "abgangsOrt": {"name": "Berlin Hbf", "position": {"latitude": 52.525, "longitude": 13.369}},
+                            "ankunftsOrt": {"name": "Hannover Hbf", "position": {"latitude": 52.376, "longitude": 9.741}},
+                            "halte": [
+                                {"abgangsDatum": "2026-06-01T08:00:00+02:00"},
+                                {"ankunftsDatum": "2026-06-01T10:00:00+02:00"},
+                            ],
+                        },
+                        {
+                            "typ": "FAHRZEUG",
+                            "produktGattung": "RE",
+                            "mitteltext": "RE 2",
+                            "zuglaufId": "run-b",
+                            "abschnittsDauer": 7200,
+                            "abgangsOrt": {"name": "Hannover Hbf", "position": {"latitude": 52.376, "longitude": 9.741}},
+                            "ankunftsOrt": {"name": "Hamburg Hbf", "position": {"latitude": 53.553, "longitude": 10.006}},
+                            "halte": [
+                                {"abgangsDatum": "2026-06-01T10:05:00+02:00"},
+                                {"ankunftsDatum": "2026-06-01T12:00:00+02:00"},
+                            ],
+                        },
+                    ],
+                },
+                "angebote": {"preise": {"gesamt": {"ab": {}}}},
+            }]
+        }
+
+    train_run_calls: list[str] = []
+
+    async def fake_get_train_run(zuglauf_id: str) -> dict[str, Any]:
+        train_run_calls.append(zuglauf_id)
+        if zuglauf_id == "run-a":
+            return {
+                "halte": [
+                    {"name": "Berlin Hbf", "abgangsDatum": "2026-06-01T08:00:00+02:00"},
+                    {"name": "Wolfsburg Hbf", "ankunftsDatum": "2026-06-01T09:20:00+02:00", "position": {"latitude": 52.429, "longitude": 10.789}},
+                    {"name": "Hannover Hbf", "ankunftsDatum": "2026-06-01T10:00:00+02:00"},
+                ]
+            }
+        return {
+            "halte": [
+                {"name": "Wolfsburg Hbf", "abgangsDatum": "2026-06-01T09:45:00+02:00", "position": {"latitude": 52.429, "longitude": 10.789}},
+                {"name": "Hannover Hbf", "abgangsDatum": "2026-06-01T10:05:00+02:00"},
+                {"name": "Hamburg Hbf", "ankunftsDatum": "2026-06-01T12:00:00+02:00"},
+            ]
+        }
+
+    monkeypatch.setattr(db_provider, "resolve_location_id", fake_resolve_location_id)
+    monkeypatch.setattr(db_provider, "search_journeys", fake_search_journeys)
+    monkeypatch.setattr(db_provider, "get_train_run", fake_get_train_run)
+
+    results = await db_provider.DeutscheBahnProvider().search_connections(
+        legs=[{"origin": "Berlin", "destination": "Hamburg", "date": "2026-06-01"}],
+        passengers=1,
+        travel_class="economy",
+        max_results=4,
+        non_stop_only=False,
+        currency="EUR",
+        owned_passes=["deutschland_ticket"],
+        pass_only=True,
+        rail_products=["regional", "regional_express"],
+        min_transfer_minutes=15,
+    )
+
+    assert train_run_calls == ["run-a", "run-b"]
+    assert len(results) == 2
+    optimized = results[1]
+    assert optimized.source_provider == "deutsche_bahn"
+    assert optimized.optimization == {
+        "optimized_by": "openmates",
+        "badge": "Optimized by OpenMates",
+        "original_transfer_station": "Hannover Hbf",
+        "optimized_transfer_station": "Wolfsburg Hbf",
+        "min_transfer_minutes": 15,
+        "transfer_minutes": 25,
+        "confidence": "bounded_train_run_overlap",
+    }
+    layover = optimized.legs[0].layovers[0]
+    assert layover.airport == "Wolfsburg Hbf"
+    assert layover.duration_minutes == 25
+    assert optimized.legs[0].segments[0].arrival_station == "Wolfsburg Hbf"
+    assert optimized.legs[0].segments[1].departure_station == "Wolfsburg Hbf"
 
 
 @pytest.mark.anyio

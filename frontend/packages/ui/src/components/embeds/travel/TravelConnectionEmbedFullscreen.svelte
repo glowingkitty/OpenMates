@@ -85,12 +85,31 @@
   }
 
   /** Layover data between segments */
+  interface TransferAmenityGroup {
+    label?: string;
+    status?: string;
+    count?: number;
+    items?: string[];
+  }
+
+  interface TransferAmenities {
+    provider?: string;
+    data_source?: string;
+    status?: string;
+    cache_hit?: boolean;
+    groups?: Record<string, TransferAmenityGroup>;
+  }
+
   interface LayoverData {
     airport: string;
     airport_code?: string;
     duration?: string;
     duration_minutes?: number;
     overnight?: boolean;
+    latitude?: number;
+    longitude?: number;
+    meets_min_transfer?: boolean;
+    amenities?: TransferAmenities;
   }
 
   /** Leg data */
@@ -110,6 +129,23 @@
     stops: number;
     segments: SegmentData[];
     layovers?: LayoverData[];
+  }
+
+  interface TransferQuality {
+    min_transfer_minutes?: number;
+    has_transfers?: boolean;
+    short_transfer_count?: number;
+    unknown_transfer_count?: number;
+  }
+
+  interface OptimizationData {
+    optimized_by?: string;
+    badge?: string;
+    original_transfer_station?: string;
+    optimized_transfer_station?: string;
+    min_transfer_minutes?: number;
+    transfer_minutes?: number;
+    confidence?: string;
   }
 
   /** Connection data */
@@ -147,6 +183,8 @@
     co2_kg?: number;
     co2_typical_kg?: number;
     co2_difference_percent?: number;
+    transfer_quality?: TransferQuality;
+    optimization?: OptimizationData;
     /**
      * Persisted flight track data from Flightradar24.
      * Present after a successful get_flight lookup (post-persist).
@@ -235,6 +273,8 @@
     co2_kg: typeof dc.co2_kg === 'number' ? dc.co2_kg : undefined,
     co2_typical_kg: typeof dc.co2_typical_kg === 'number' ? dc.co2_typical_kg : undefined,
     co2_difference_percent: typeof dc.co2_difference_percent === 'number' ? dc.co2_difference_percent : undefined,
+    transfer_quality: (typeof dc.transfer_quality === 'object' && dc.transfer_quality !== null) ? dc.transfer_quality as TransferQuality : undefined,
+    optimization: (typeof dc.optimization === 'object' && dc.optimization !== null) ? dc.optimization as OptimizationData : undefined,
     flight_track: (typeof dc.flight_track === 'object' && dc.flight_track !== null) ? dc.flight_track as ConnectionData['flight_track'] : undefined,
   }));
 
@@ -385,6 +425,58 @@
     if (!formattedPrice) return '';
     return `${formattedPrice} | ${tripTypeLabel}`;
   });
+
+  let optimizationBadge = $derived.by(() => {
+    const optimization = (connection as MaybeConnection)?.optimization;
+    if (optimization?.optimized_by !== 'openmates') return '';
+    return optimization.badge || 'Optimized by OpenMates';
+  });
+
+  let optimizationSummary = $derived.by(() => {
+    const optimization = (connection as MaybeConnection)?.optimization;
+    if (!optimization || optimization.optimized_by !== 'openmates') return '';
+    const from = optimization.original_transfer_station;
+    const to = optimization.optimized_transfer_station;
+    if (from && to) return `Transfer adjusted from ${from} to ${to}.`;
+    if (to) return `Transfer fixed at ${to}.`;
+    return 'Route synthesized from bounded train-run overlap.';
+  });
+
+  let transferQualitySummary = $derived.by(() => {
+    const quality = (connection as MaybeConnection)?.transfer_quality;
+    if (!quality?.has_transfers) return '';
+    const parts: string[] = [];
+    if (quality.min_transfer_minutes != null) parts.push(`Minimum transfer: ${quality.min_transfer_minutes} min`);
+    if ((quality.short_transfer_count || 0) > 0) parts.push(`${quality.short_transfer_count} short transfer${quality.short_transfer_count === 1 ? '' : 's'}`);
+    if ((quality.unknown_transfer_count || 0) > 0) parts.push(`${quality.unknown_transfer_count} unknown transfer${quality.unknown_transfer_count === 1 ? '' : 's'}`);
+    return parts.join(' · ');
+  });
+
+  const AMENITY_GROUP_ORDER = ['food_drink', 'shops', 'toilets'];
+  const AMENITY_FALLBACK_LABELS: Record<string, string> = {
+    food_drink: 'Food and drinks',
+    shops: 'Shops',
+    toilets: 'Toilets',
+  };
+
+  function amenityGroupStatus(group: TransferAmenityGroup | undefined, key: string): string {
+    if (!group) return `${AMENITY_FALLBACK_LABELS[key] || key}: unknown`;
+    const label = group.label || AMENITY_FALLBACK_LABELS[key] || key;
+    if (typeof group.count === 'number' && group.count > 0) return `${label}: ${group.count}`;
+    const status = (group.status || 'unknown').replace(/_/g, ' ');
+    return `${label}: ${status}`;
+  }
+
+  function layoverTransferStatus(layover: LayoverData | undefined): string {
+    if (!layover) return '';
+    const parts: string[] = [];
+    if (layover.duration_minutes != null) {
+      parts.push(`${layover.duration_minutes} min transfer`);
+    }
+    if (layover.meets_min_transfer === true) parts.push('meets minimum');
+    if (layover.meets_min_transfer === false) parts.push('below minimum');
+    return parts.join(' · ');
+  }
 
   /** Map center derived from midpoint of route waypoints */
   let mapCenter = $derived.by(() => {
@@ -1708,6 +1800,21 @@
         </div>
       {/if}
 
+      {#if optimizationBadge}
+        <div class="optimization-summary" data-testid="optimized-by-openmates-badge">
+          <span class="optimization-badge">{optimizationBadge}</span>
+          {#if optimizationSummary}
+            <span class="optimization-detail">{optimizationSummary}</span>
+          {/if}
+        </div>
+      {/if}
+
+      {#if transferQualitySummary}
+        <div class="transfer-quality-summary" data-testid="transfer-quality-summary">
+          {transferQualitySummary}
+        </div>
+      {/if}
+
       {#if startAirportName}
         <div class="start-airport">
           <span class="start-label">Start:</span>
@@ -1790,6 +1897,7 @@
 
             {#if segIdx < leg.segments.length - 1}
               {@const layover = leg.layovers?.[segIdx]}
+              {@const transferStatus = layoverTransferStatus(layover)}
               <div class="layover-section" data-testid="layover-section">
                 {#if layover?.overnight}
                   <div class="layover-overnight-badge">
@@ -1803,6 +1911,25 @@
                 <div class="layover-airport-text">
                   Layover in{#if layover?.airport}<br/>{layover.airport}{/if}
                 </div>
+                {#if transferStatus}
+                  <div class="layover-transfer-status" data-testid="layover-transfer-status">
+                    {transferStatus}
+                  </div>
+                {/if}
+                {#if layover?.amenities?.groups}
+                  <div class="transfer-amenities" data-testid="transfer-amenities">
+                    {#each AMENITY_GROUP_ORDER as amenityKey}
+                      <span class="transfer-amenity-pill" data-testid={`transfer-amenity-${amenityKey.replace('_', '-')}`}>
+                        {amenityGroupStatus(layover.amenities.groups[amenityKey], amenityKey)}
+                      </span>
+                    {/each}
+                    {#if layover.amenities.provider}
+                      <span class="transfer-amenity-source">
+                        {layover.amenities.data_source || layover.amenities.provider}{layover.amenities.cache_hit ? ' · cached' : ''}
+                      </span>
+                    {/if}
+                  </div>
+                {/if}
               </div>
             {/if}
           {/each}
@@ -1864,6 +1991,10 @@
   .fare-summary { display: flex; flex-direction: column; gap: var(--spacing-1); padding: 10px 14px; border-radius: 11px; background: rgba(var(--color-primary-rgb), 0.08); color: var(--color-font-primary); text-align: center; }
   .fare-summary-label { font-size: 0.938rem; font-weight: 800; color: var(--color-primary); }
   .fare-summary-detail { font-size: 0.75rem; font-weight: 600; color: var(--color-grey-60); line-height: 1.35; }
+  .optimization-summary { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1); padding: 10px 14px; border-radius: 11px; background: rgba(var(--color-primary-rgb), 0.1); text-align: center; }
+  .optimization-badge { font-size: 0.75rem; font-weight: 900; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.03em; }
+  .optimization-detail { font-size: 0.75rem; font-weight: 700; color: var(--color-grey-60); line-height: 1.35; }
+  .transfer-quality-summary { padding: 8px 12px; border-radius: 11px; background: var(--color-grey-10); color: var(--color-grey-70); font-size: 0.75rem; font-weight: 800; text-align: center; }
   .start-airport { font-size: 0.875rem; font-weight: 700; color: var(--color-grey-50); text-align: center; }
 
   .segment-card { display: flex; gap: 12px; background: var(--color-grey-10); border-radius: 15px; padding: 14px; }
@@ -1898,6 +2029,10 @@
   .layover-overnight-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }
   .layover-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .layover-airport-text { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
+  .layover-transfer-status { font-size: 0.75rem; font-weight: 800; color: var(--color-grey-60); }
+  .transfer-amenities { display: flex; flex-wrap: wrap; gap: var(--spacing-2); align-items: center; }
+  .transfer-amenity-pill { display: inline-flex; padding: 3px 8px; border-radius: 999px; background: var(--color-grey-20); color: var(--color-grey-70); font-size: 0.688rem; font-weight: 800; }
+  .transfer-amenity-source { flex-basis: 100%; font-size: 0.688rem; color: var(--color-grey-50); font-weight: 700; }
 
   .summary-fallback { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 0; font-size: 1rem; color: var(--color-font-primary); font-weight: 600; }
   .fr24-attribution { font-size: 0.7rem; color: var(--color-grey-50); text-align: right; margin-top: 4px; }

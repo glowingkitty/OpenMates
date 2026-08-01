@@ -52,6 +52,7 @@ def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
         "min_departure_time",
         "max_departure_time",
         "max_duration_minutes",
+        "min_transfer_minutes",
         "max_layover_minutes",
         "avoid_overnight_layovers",
         "origin",

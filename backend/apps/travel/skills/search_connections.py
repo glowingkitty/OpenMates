@@ -29,12 +29,35 @@ from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
 from backend.apps.travel.providers.flix_provider import FlixProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
+from backend.shared.providers.geoapify.places import GeoapifyPlacesProvider, GEOAPIFY_SOURCE_LABEL
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_RESULTS = 20
 MAX_RESULTS_LIMIT = 50
 FILTER_OVERFETCH_MULTIPLIER = 3
+DEFAULT_MIN_TRANSFER_MINUTES = 10
+TRANSFER_AMENITY_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
+TRANSFER_AMENITY_SEARCH_RADIUS_METERS = 350
+TRANSFER_AMENITY_GROUPS = {
+    "food_drink": {
+        "label": "Food and drinks",
+        "categories": ["catering"],
+    },
+    "shops": {
+        "label": "Shops",
+        "categories": [
+            "commercial.supermarket",
+            "commercial.convenience",
+            "commercial.food_and_drink.bakery",
+            "commercial.kiosk",
+        ],
+    },
+    "toilets": {
+        "label": "Toilets",
+        "categories": ["amenity.toilet"],
+    },
+}
 VALID_PROVIDER_IDS = {"google_flights", "deutsche_bahn", "flix", "transitous"}
 VALID_RAIL_PRODUCTS = {
     "high_speed",
@@ -197,6 +220,10 @@ class SearchConnectionsRequestItem(BaseModel):
     max_duration_minutes: Optional[int] = Field(
         default=None,
         description="Maximum total duration for the first leg, in minutes.",
+    )
+    min_transfer_minutes: int = Field(
+        default=DEFAULT_MIN_TRANSFER_MINUTES,
+        description="Minimum acceptable layover/transfer duration, in minutes. Defaults to 10.",
     )
     max_layover_minutes: Optional[int] = Field(
         default=None,
@@ -654,6 +681,7 @@ class SearchConnectionsSkill(BaseSkill):
                 "min_arrival_time",
                 "max_arrival_time",
                 "max_duration_minutes",
+                "min_transfer_minutes",
                 "max_layover_minutes",
                 "avoid_overnight_layovers",
             )
@@ -706,8 +734,16 @@ class SearchConnectionsSkill(BaseSkill):
         rail_products = self._valid_rail_products(req.get("rail_products"))
         currency = req.get("currency", "EUR")
         sort_by = req.get("sort_by", "price_asc")
+        min_transfer_minutes, min_transfer_error = self._normalize_min_transfer_minutes(req.get("min_transfer_minutes"))
+        if min_transfer_error:
+            return (request_id, [], min_transfer_error)
         result_filters = self._extract_result_filters(req)
-        provider_max_results = self._provider_fetch_limit(max_results, result_filters)
+        provider_filters = dict(result_filters)
+        if "min_transfer_minutes" in req:
+            provider_filters["min_transfer_minutes"] = min_transfer_minutes
+        filtering_filters = dict(result_filters)
+        filtering_filters["min_transfer_minutes"] = min_transfer_minutes
+        provider_max_results = self._provider_fetch_limit(max_results, provider_filters)
 
         # Validate legs
         if not legs or not isinstance(legs, list):
@@ -766,6 +802,8 @@ class SearchConnectionsSkill(BaseSkill):
                     owned_passes=owned_passes,
                     pass_only=pass_only,
                     rail_products=rail_products,
+                    min_transfer_minutes=min_transfer_minutes,
+                    cache_service=cache_service,
                     currency=currency,
                 )
                 all_connections.extend(connections)
@@ -875,15 +913,23 @@ class SearchConnectionsSkill(BaseSkill):
                 result_dict["co2_typical_kg"] = connection.co2_typical_kg
             if connection.co2_difference_percent is not None:
                 result_dict["co2_difference_percent"] = connection.co2_difference_percent
+            if connection.optimization:
+                result_dict["optimization"] = connection.optimization
+            self._annotate_transfer_quality(result_dict, min_transfer_minutes, connection.transfer_quality)
 
             results.append(result_dict)
 
-        if result_filters:
-            results = self._filter_results(results, result_filters)
+        if filtering_filters:
+            results = self._filter_results(results, filtering_filters)
 
         # Sort results according to the requested sort_by parameter
         self._sort_results(results, sort_by)
         results = results[:max_results]
+        results = await self._enrich_transfer_amenities(
+            results,
+            secrets_manager=secrets_manager,
+            cache_service=cache_service,
+        )
 
         try:
             results = await sanitize_long_text_fields_in_payload(
@@ -928,6 +974,7 @@ class SearchConnectionsSkill(BaseSkill):
             "min_arrival_time",
             "max_arrival_time",
             "max_duration_minutes",
+            "min_transfer_minutes",
             "max_layover_minutes",
             "avoid_overnight_layovers",
             "pass_only",
@@ -959,6 +1006,19 @@ class SearchConnectionsSkill(BaseSkill):
             if normalized not in products:
                 products.append(normalized)
         return products or None
+
+    @staticmethod
+    def _normalize_min_transfer_minutes(value: Any) -> tuple[int, Optional[str]]:
+        """Return the effective minimum transfer time or a validation error."""
+        if value in (None, ""):
+            return DEFAULT_MIN_TRANSFER_MINUTES, None
+        try:
+            minutes = int(value)
+        except (TypeError, ValueError):
+            return DEFAULT_MIN_TRANSFER_MINUTES, "min_transfer_minutes must be an integer"
+        if minutes < 0:
+            return DEFAULT_MIN_TRANSFER_MINUTES, "min_transfer_minutes must be greater than or equal to 0"
+        return minutes, None
 
     @staticmethod
     def _fare_dict_for_connection(connection: Any) -> Optional[Dict[str, Any]]:
@@ -993,6 +1053,177 @@ class SearchConnectionsSkill(BaseSkill):
             "summary": "No fare returned for this connection.",
         }
 
+    @staticmethod
+    def _annotate_transfer_quality(
+        result: Dict[str, Any],
+        min_transfer_minutes: int,
+        existing_quality: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Attach transfer-quality metadata and per-layover min-transfer flags."""
+
+        has_transfers = False
+        short_transfer_count = 0
+        unknown_transfer_count = 0
+        for leg in result.get("legs", []) or []:
+            for layover in leg.get("layovers", []) or []:
+                has_transfers = True
+                duration = layover.get("duration_minutes")
+                if duration is None:
+                    unknown_transfer_count += 1
+                    continue
+                meets = int(duration) >= min_transfer_minutes
+                layover["meets_min_transfer"] = meets
+                if not meets:
+                    short_transfer_count += 1
+
+        quality = {
+            "min_transfer_minutes": min_transfer_minutes,
+            "has_transfers": has_transfers,
+            "short_transfer_count": short_transfer_count,
+        }
+        if unknown_transfer_count:
+            quality["unknown_transfer_count"] = unknown_transfer_count
+        if existing_quality:
+            quality.update(existing_quality)
+            quality.setdefault("min_transfer_minutes", min_transfer_minutes)
+            quality.setdefault("has_transfers", has_transfers)
+            quality.setdefault("short_transfer_count", short_transfer_count)
+        result["transfer_quality"] = quality
+
+    async def _enrich_transfer_amenities(
+        self,
+        results: List[Dict[str, Any]],
+        *,
+        secrets_manager: Any,
+        cache_service: Any,
+    ) -> List[Dict[str, Any]]:
+        """Add bounded Geoapify amenity summaries to train/bus transfer stops."""
+
+        if not secrets_manager:
+            return results
+        provider: Optional[GeoapifyPlacesProvider] = None
+        for result in results:
+            if result.get("transport_method") not in {"train", "bus"}:
+                continue
+            min_transfer = (result.get("transfer_quality") or {}).get("min_transfer_minutes")
+            for leg in result.get("legs", []) or []:
+                for layover in leg.get("layovers", []) or []:
+                    if layover.get("amenities"):
+                        continue
+                    duration = layover.get("duration_minutes")
+                    if duration is not None and min_transfer is not None and int(duration) < int(min_transfer):
+                        continue
+                    provider = provider or GeoapifyPlacesProvider(
+                        secrets_manager=secrets_manager,
+                        cache_service=cache_service,
+                    )
+                    layover["amenities"] = await self._transfer_amenity_summary(
+                        provider,
+                        cache_service=cache_service,
+                        station=str(layover.get("airport") or ""),
+                        latitude=layover.get("latitude"),
+                        longitude=layover.get("longitude"),
+                    )
+        return results
+
+    async def _transfer_amenity_summary(
+        self,
+        provider: GeoapifyPlacesProvider,
+        *,
+        cache_service: Any,
+        station: str,
+        latitude: Any,
+        longitude: Any,
+    ) -> Dict[str, Any]:
+        """Return cached food/shop/toilet counts near one transfer station."""
+
+        cache_key = self._transfer_amenity_cache_key(station, latitude, longitude)
+        cached = await self._cache_get(cache_service, cache_key)
+        if isinstance(cached, dict):
+            cached = dict(cached)
+            cached["cache_hit"] = True
+            return cached
+
+        groups: Dict[str, Any] = {}
+        geo_filter = self._geoapify_circle_filter(latitude, longitude)
+        for group_id, group in TRANSFER_AMENITY_GROUPS.items():
+            search_result = await provider.search_places(
+                query=station,
+                limit=10,
+                categories=group["categories"],
+                geo_filter=geo_filter,
+                bias=geo_filter,
+            )
+            if search_result.status != "ok":
+                groups[group_id] = {
+                    "label": group["label"],
+                    "status": search_result.status,
+                    "count": 0,
+                    "items": [],
+                }
+                continue
+            items = [
+                self._geoapify_place_label(place)
+                for place in search_result.places[:3]
+            ]
+            groups[group_id] = {
+                "label": group["label"],
+                "status": "matched" if search_result.places else "no_match",
+                "count": len(search_result.places),
+                "items": [item for item in items if item],
+            }
+
+        summary = {
+            "provider": "Geoapify",
+            "data_source": GEOAPIFY_SOURCE_LABEL,
+            "status": "matched" if any(group["count"] for group in groups.values()) else "no_match",
+            "cache_hit": False,
+            "groups": groups,
+        }
+        await self._cache_set(cache_service, cache_key, summary, TRANSFER_AMENITY_CACHE_TTL_SECONDS)
+        return summary
+
+    @staticmethod
+    def _geoapify_place_label(place: Dict[str, Any]) -> str:
+        properties = place.get("properties") if isinstance(place, dict) else None
+        if not isinstance(properties, dict):
+            return ""
+        return str(properties.get("name") or properties.get("formatted") or "")
+
+    @staticmethod
+    def _geoapify_circle_filter(latitude: Any, longitude: Any) -> Optional[str]:
+        try:
+            lat = float(latitude)
+            lon = float(longitude)
+        except (TypeError, ValueError):
+            return None
+        return f"circle:{lon},{lat},{TRANSFER_AMENITY_SEARCH_RADIUS_METERS}"
+
+    @staticmethod
+    def _transfer_amenity_cache_key(station: str, latitude: Any, longitude: Any) -> str:
+        raw = json.dumps({"station": station, "lat": latitude, "lon": longitude}, sort_keys=True)
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+        return f"travel:transfer_amenities:v1:{digest}"
+
+    @staticmethod
+    async def _cache_get(cache_service: Any, key: str) -> Any:
+        if not cache_service:
+            return None
+        try:
+            return await cache_service.get(key)
+        except Exception as exc:
+            logger.debug("Transfer amenity cache read failed for %s: %s", key, exc)
+            return None
+
+    @staticmethod
+    async def _cache_set(cache_service: Any, key: str, value: Dict[str, Any], ttl: int) -> None:
+        if not cache_service:
+            return
+        try:
+            await cache_service.set(key, value, ttl=ttl)
+        except Exception as exc:
+            logger.debug("Transfer amenity cache write failed for %s: %s", key, exc)
+
     def _filter_results(
         self,
         results: List[Dict[str, Any]],
@@ -1021,6 +1252,7 @@ class SearchConnectionsSkill(BaseSkill):
                 continue
             if not self._matches_layover_filters(
                 result,
+                result_filters.get("min_transfer_minutes"),
                 result_filters.get("max_layover_minutes"),
                 bool(result_filters.get("avoid_overnight_layovers")),
             ):
@@ -1099,9 +1331,14 @@ class SearchConnectionsSkill(BaseSkill):
     @staticmethod
     def _matches_layover_filters(
         result: Dict[str, Any],
+        min_transfer_minutes: Any,
         max_layover_minutes: Any,
         avoid_overnight_layovers: bool,
     ) -> bool:
+        try:
+            min_minutes = int(min_transfer_minutes) if min_transfer_minutes not in (None, "") else None
+        except (TypeError, ValueError):
+            min_minutes = None
         try:
             max_minutes = int(max_layover_minutes) if max_layover_minutes not in (None, "") else None
         except (TypeError, ValueError):
@@ -1112,6 +1349,8 @@ class SearchConnectionsSkill(BaseSkill):
                 if avoid_overnight_layovers and layover.get("overnight"):
                     return False
                 duration = layover.get("duration_minutes")
+                if min_minutes is not None and duration is not None and duration < min_minutes:
+                    return False
                 if max_minutes is not None and duration is not None and duration > max_minutes:
                     return False
         return True

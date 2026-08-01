@@ -502,6 +502,8 @@ class SerpApiProvider(BaseTransportProvider):
         owned_passes: Optional[List[str]] = None,
         pass_only: bool = False,
         rail_products: Optional[List[str]] = None,
+        min_transfer_minutes: Optional[int] = None,
+        cache_service: Any = None,
     ) -> List[ConnectionResult]:
         """
         Search for flight connections via the SerpAPI Google Flights engine.
@@ -512,6 +514,7 @@ class SerpApiProvider(BaseTransportProvider):
         """
         if not legs:
             return []
+        del owned_passes, pass_only, rail_products, min_transfer_minutes, cache_service
 
         api_key = await _get_serpapi_key_async(self._secrets_manager)
         if not api_key:

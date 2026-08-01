@@ -68,6 +68,11 @@
     carrierCodes?: string[];
     /** Number of bookable seats remaining */
     bookableSeats?: number;
+    /** OpenMates route optimization metadata */
+    optimization?: {
+      optimized_by?: string;
+      badge?: string;
+    };
     /** Whether this connection is among the cheapest results */
     isCheapest?: boolean;
     /** Processing status */
@@ -99,6 +104,7 @@
     airlineLogo,
     carrierCodes: carrierCodesProp = [],
     bookableSeats,
+    optimization,
     // isCheapest not used in redesigned preview — price is always green
     isCheapest: _isCheapest = false,
     status = 'finished',
@@ -212,6 +218,11 @@
     if (arrivalDelayMinutes == null || arrivalDelayMinutes === 0) return 'ontime';
     return arrivalDelayMinutes > 0 ? 'late' : 'early';
   });
+
+  let optimizationBadge = $derived.by(() => {
+    if (optimization?.optimized_by !== 'openmates') return '';
+    return optimization.badge || 'Optimized by OpenMates';
+  });
   
   // Carriers array is used for props but display is now in the meta line
   
@@ -255,7 +266,7 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
-  customHeight={230}
+  customHeight={250}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
@@ -301,6 +312,12 @@
       {#if realtimeStatus}
         <div class="realtime-status" class:late={realtimeStatusTone === 'late'} class:early={realtimeStatusTone === 'early'} class:ontime={realtimeStatusTone === 'ontime'} class:cancelled={realtimeStatusTone === 'cancelled'} data-testid="connection-realtime-status">
           {realtimeStatus}
+        </div>
+      {/if}
+
+      {#if optimizationBadge}
+        <div class="optimization-badge" data-testid="connection-optimization-badge">
+          {optimizationBadge}
         </div>
       {/if}
 
@@ -438,6 +455,17 @@
   .realtime-status.ontime {
     color: #166534;
     background: #dcfce7;
+  }
+
+  .optimization-badge {
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--color-primary, #4867cd);
+    background: rgba(var(--color-primary-rgb), 0.1);
   }
 
   /* Seats warning */

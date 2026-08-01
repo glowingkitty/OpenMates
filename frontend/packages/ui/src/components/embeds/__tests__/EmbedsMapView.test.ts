@@ -209,6 +209,7 @@ describe("EmbedsMapView", () => {
                 arrival_longitude: 9.9534,
               },
             ],
+            layovers: [{ airport: "Mainz Hbf", duration: "8m", duration_minutes: 8, meets_min_transfer: false }],
           }],
         };
       }
@@ -235,6 +236,10 @@ describe("EmbedsMapView", () => {
           legs_0_segments_1_departure_longitude: 7.588343,
           legs_0_segments_1_arrival_latitude: 48.1402,
           legs_0_segments_1_arrival_longitude: 11.5583,
+          legs_0_layovers_0_airport: "Koblenz Hbf",
+          legs_0_layovers_0_duration: "22m",
+          legs_0_layovers_0_duration_minutes: 22,
+          legs_0_layovers_0_meets_min_transfer: true,
         };
       }
       return null;
@@ -438,14 +443,29 @@ describe("EmbedsMapView", () => {
     const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
     expect(filterMenu?.textContent).toContain("Departure time");
     expect(filterMenu?.textContent).toContain("Duration");
+    expect(filterMenu?.textContent).toContain("Transfer time");
     expect(filterMenu?.textContent).toContain("Stops");
     expect(filterMenu?.textContent).toContain("Provider");
     expect(filterMenu?.textContent).toContain("Train line");
 
+    const transferMin = target.querySelector<HTMLInputElement>('[data-testid="embeds-map-view-filter-transferMinutes-min"]');
+    expect(transferMin).not.toBeNull();
+    transferMin!.value = "15";
+    transferMin!.dispatchEvent(new Event("input", { bubbles: true }));
+    await tick();
+
+    let cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
+    expect(cards).toHaveLength(1);
+    expect(cards[0].textContent).toContain("08:56");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
+    await tick();
+
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-option-provider-deutsche_bahn"]')?.click();
     await tick();
 
-    const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
+    cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(1);
     expect(cards[0].textContent).toContain("08:27");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");

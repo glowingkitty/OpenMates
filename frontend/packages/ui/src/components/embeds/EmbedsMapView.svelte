@@ -53,6 +53,7 @@
     departureMinutes?: number;
     arrivalMinutes?: number;
     durationMinutes?: number;
+    transferMinutes?: number;
     stops?: number;
     price?: number;
     rsvpCount?: number;
@@ -305,6 +306,32 @@
     return flatSegments;
   }
 
+  function extractTravelLayovers(content: Record<string, unknown> | null): Record<string, unknown>[] {
+    if (!content) return [];
+    const structuredLayovers = extractArrayRecords(content.legs).flatMap((leg) => extractArrayRecords(leg.layovers));
+    if (structuredLayovers.length > 0) return structuredLayovers;
+
+    const flatLayovers: Record<string, unknown>[] = [];
+    for (let legIndex = 0; legIndex < MAX_TRAVEL_LEGS; legIndex += 1) {
+      for (let layoverIndex = 0; layoverIndex < MAX_TRAVEL_SEGMENTS_PER_LEG; layoverIndex += 1) {
+        const prefix = `legs_${legIndex}_layovers_${layoverIndex}`;
+        const record = {
+          airport: content[`${prefix}_airport`],
+          duration: content[`${prefix}_duration`],
+          duration_minutes: content[`${prefix}_duration_minutes`],
+          meets_min_transfer: content[`${prefix}_meets_min_transfer`],
+        };
+        const hasLayoverData = Object.values(record).some((item) => item != null);
+        if (!hasLayoverData) {
+          if (layoverIndex === 0) break;
+          continue;
+        }
+        flatLayovers.push(record);
+      }
+    }
+    return flatLayovers;
+  }
+
   function minutesFromIsoLike(value: unknown): number | undefined {
     if (typeof value !== 'string') return undefined;
     const match = value.match(/(?:T|^)(\d{1,2}):(\d{2})/);
@@ -331,6 +358,14 @@
     return total > 0 ? total : firstNumber(value);
   }
 
+  function shortestTransferMinutes(layovers: Record<string, unknown>[]): number | undefined {
+    const values = layovers
+      .map((layover) => firstNumber(layover.duration_minutes) ?? durationMinutesFromValue(layover.duration))
+      .filter((value): value is number => value != null);
+    if (values.length === 0) return undefined;
+    return Math.min(...values);
+  }
+
   function extractProviders(content: Record<string, unknown> | null, segments: Record<string, unknown>[]): string[] {
     const providerRecords = extractArrayRecords(content?.providers);
     return uniqueStrings([
@@ -344,6 +379,7 @@
 
   function extractFacets(category: string, content: Record<string, unknown> | null): EntryFacets {
     const segments = extractTravelSegments(content);
+    const layovers = extractTravelLayovers(content);
     const amenities = arrayFromUnknown(content?.amenities ?? content?.required_amenities);
     return {
       category,
@@ -351,6 +387,7 @@
       departureMinutes: minutesFromIsoLike(firstString(content?.departure, content?.scheduled_departure, content?.start_time, content?.date_start)),
       arrivalMinutes: minutesFromIsoLike(firstString(content?.arrival, content?.scheduled_arrival, content?.end_time, content?.date_end)),
       durationMinutes: durationMinutesFromValue(content?.duration ?? content?.duration_minutes),
+      transferMinutes: shortestTransferMinutes(layovers),
       stops: firstNumber(content?.stops, content?.transfers, content?.transfer_count),
       price: firstNumber(content?.price, content?.total_price, content?.min_price, content?.max_price),
       rsvpCount: firstNumber(content?.rsvp_count, content?.attendee_count, content?.going_count, content?.capacity_used),
@@ -415,6 +452,7 @@
       makeRangeControl(entriesToInspect, 'arrivalMinutes', rangeTimeLabel(entriesToInspect, 'arrivalMinutes'), 'time'),
       makeRangeControl(entriesToInspect, 'dateOrdinal', 'Date', 'date'),
       makeRangeControl(entriesToInspect, 'durationMinutes', 'Duration', 'number', 'min'),
+      makeRangeControl(entriesToInspect, 'transferMinutes', 'Transfer time', 'number', 'min'),
       makeRangeControl(entriesToInspect, 'stops', 'Stops', 'number'),
       makeRangeControl(entriesToInspect, 'price', 'Price', 'number'),
       makeRangeControl(entriesToInspect, 'rsvpCount', 'RSVP count', 'number'),

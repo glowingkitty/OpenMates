@@ -2660,6 +2660,8 @@ describe("apps travel search_connections typed request", () => {
       "owned-passes": "deutschland_ticket",
       "pass-only": true,
       "rail-products": "regional,s_bahn",
+      "min-transfer-minutes": "15",
+      "max-results": "8",
     });
 
     assert.deepEqual(request, {
@@ -2669,6 +2671,8 @@ describe("apps travel search_connections typed request", () => {
       owned_passes: ["deutschland_ticket"],
       rail_products: ["regional", "s_bahn"],
       pass_only: true,
+      min_transfer_minutes: 15,
+      max_results: 8,
     });
   });
 });

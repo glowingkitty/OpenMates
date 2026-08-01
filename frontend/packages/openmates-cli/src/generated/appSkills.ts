@@ -2844,6 +2844,11 @@ export const APP_SKILL_METADATA = [
                 "type": "integer",
                 "description": "Maximum total duration for the first leg, in minutes."
               },
+              "min_transfer_minutes": {
+                "type": "integer",
+                "description": "Minimum acceptable layover or transfer duration, in minutes. Defaults to 10.",
+                "default": 10
+              },
               "max_layover_minutes": {
                 "type": "integer",
                 "description": "Maximum allowed layover or transfer duration, in minutes."

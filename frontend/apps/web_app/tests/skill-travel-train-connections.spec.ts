@@ -47,6 +47,8 @@ const {
 	verifySavedMemoryEntry
 } = require('./helpers/saved-memory-test-helpers');
 
+const TRAIN_MIN_TRANSFER_MINUTES = 15;
+
 /** Get a date 14 days from now in YYYY-MM-DD format */
 function futureDate(daysAhead = 14): string {
 	const d = new Date();
@@ -73,8 +75,13 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 				'apps', 'travel', 'search_connections',
 				'--input', JSON.stringify({
 					requests: [{
-						legs: [{ origin: 'Berlin', destination: 'Munich', date }],
-						transport_methods: ['train']
+						legs: [{ origin: 'Berlin', destination: 'Hamburg', date }],
+						providers: ['deutsche_bahn'],
+						transport_methods: ['train'],
+						owned_passes: ['deutschland_ticket'],
+						pass_only: true,
+						rail_products: ['regional', 'regional_express', 's_bahn'],
+						min_transfer_minutes: TRAIN_MIN_TRANSFER_MINUTES
 					}]
 				}),
 				'--json'
@@ -101,10 +108,18 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		// Verify train-specific fields
 		const first = results[0];
 		expect(first.transport_method).toBe('train');
+		expect(first.transfer_quality?.min_transfer_minutes).toBe(TRAIN_MIN_TRANSFER_MINUTES);
 		expect(first.total_price).toBeTruthy();
 		expect(first.booking_url).toBeTruthy();
 		expect(first.booking_url).toMatch(/bahn\.de|flixbus\.com|flixtrain\./i);
 		console.log(`[P1] First: ${first.origin} → ${first.destination}, €${first.total_price}, booking: ${first.booking_url.substring(0, 60)}...`);
+
+		const optimizedResults = results.filter((item: any) => item.optimization?.optimized_by === 'openmates');
+		for (const optimized of optimizedResults) {
+			expect(optimized.optimization.badge).toBe('Optimized by OpenMates');
+			expect(optimized.optimization.optimized_transfer_station).toBeTruthy();
+		}
+		console.log(`[P1] Optimized route candidates: ${optimizedResults.length}`);
 
 		// Verify provider attribution
 		expect(parsed.data?.provider).toContain('Deutsche Bahn');
@@ -114,6 +129,16 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		expect(first.legs.length).toBeGreaterThanOrEqual(1);
 		const leg = first.legs[0];
 		expect(leg.segments.length).toBeGreaterThanOrEqual(1);
+		for (const layover of leg.layovers || []) {
+			if (typeof layover.duration_minutes === 'number') {
+				expect(layover.duration_minutes).toBeGreaterThanOrEqual(TRAIN_MIN_TRANSFER_MINUTES);
+			}
+			if (layover.amenities?.groups) {
+				expect(layover.amenities.groups.food_drink).toBeTruthy();
+				expect(layover.amenities.groups.shops).toBeTruthy();
+				expect(layover.amenities.groups.toilets).toBeTruthy();
+			}
+		}
 		const seg = leg.segments[0];
 		expect(seg.carrier).toBeTruthy(); // e.g., "ICE"
 		expect(seg.departure_station).toBeTruthy();
@@ -135,7 +160,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const date = futureDate();
 
 		const message = withLiveMockMarker(
-			`Find train connections from Berlin to Munich on ${date}`,
+			`I have a Deutschland Ticket. Find regional trains from Berlin to Hamburg on ${date} with at least ${TRAIN_MIN_TRANSFER_MINUTES} minutes to change and tell me what is at the transfer station.`,
 			'travel_train_cli'
 		);
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 90_000);
@@ -166,7 +191,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		await sendMessage(
 			page,
-			withMockMarker(`Find train connections from Berlin to Munich on ${date}`, 'travel_train_web'),
+			withMockMarker(`I have a Deutschland Ticket. Find regional trains from Berlin to Hamburg on ${date} with at least ${TRAIN_MIN_TRANSFER_MINUTES} minutes to change and tell me what is at the transfer station.`, 'travel_train_web'),
 			logCheckpoint, takeStepScreenshot, 'travel-train'
 		);
 
@@ -212,12 +237,30 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const metaEl = previewDetails.getByTestId('connection-meta');
 		await expect(metaEl).toBeVisible();
 
+		const optimizationBadges = fullscreenOverlay.getByTestId('connection-optimization-badge');
+		const optimizationBadgeCount = await optimizationBadges.count();
+		if (optimizationBadgeCount > 0) {
+			await expect(optimizationBadges.first()).toContainText('Optimized by OpenMates');
+			logCheckpoint(`Optimized route badge shown on ${optimizationBadgeCount} preview card(s).`);
+		} else {
+			logCheckpoint('No optimized route candidate returned by DB for this run; continuing with transfer-quality checks.');
+		}
+
 		logCheckpoint('Provider favicon shown in the preview card.');
 
 		await takeStepScreenshot(page, 'train-preview-verified');
 
 		// ── Open child connection fullscreen ──
-		await firstPreview.click();
+		let selectedPreview = firstPreview;
+		for (let i = 0; i < cardCount; i += 1) {
+			const candidate = resultCards.nth(i);
+			const candidateMeta = await candidate.getByTestId('connection-meta').textContent();
+			if (candidateMeta && !/\bDirect\b/i.test(candidateMeta)) {
+				selectedPreview = candidate;
+				break;
+			}
+		}
+		await selectedPreview.click();
 		await page.waitForTimeout(1500);
 
 		// The details card should be visible
@@ -232,6 +275,25 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const segCount = await segmentCards.count();
 		expect(segCount).toBeGreaterThanOrEqual(1);
 		logCheckpoint(`Details card has ${segCount} segment card(s).`);
+
+		const transferQualitySummary = detailsCard.getByTestId('transfer-quality-summary');
+		await expect(transferQualitySummary).toBeVisible({ timeout: 5000 });
+		await expect(transferQualitySummary).toContainText(`${TRAIN_MIN_TRANSFER_MINUTES} min`);
+		logCheckpoint(`Transfer quality summary: ${await transferQualitySummary.textContent()}`);
+
+		const layoverStatuses = detailsCard.getByTestId('layover-transfer-status');
+		if (await layoverStatuses.count()) {
+			await expect(layoverStatuses.first()).toContainText('transfer');
+			logCheckpoint(`Layover transfer status: ${await layoverStatuses.first().textContent()}`);
+		}
+
+		const transferAmenities = detailsCard.getByTestId('transfer-amenities');
+		if (await transferAmenities.count()) {
+			await expect(transferAmenities.first().getByTestId('transfer-amenity-food-drink')).toBeVisible();
+			await expect(transferAmenities.first().getByTestId('transfer-amenity-shops')).toBeVisible();
+			await expect(transferAmenities.first().getByTestId('transfer-amenity-toilets')).toBeVisible();
+			logCheckpoint(`Transfer amenities: ${await transferAmenities.first().textContent()}`);
+		}
 
 		// ── Verify booking CTA is pre-resolved (no loading state) ──
 		// Train results have booking_url set directly, so the CTA should

@@ -169,10 +169,12 @@ class TransitousProvider(BaseTransportProvider):
         owned_passes: Optional[List[str]] = None,
         pass_only: bool = False,
         rail_products: Optional[List[str]] = None,
+        min_transfer_minutes: Optional[int] = None,
+        cache_service: Any = None,
     ) -> List[ConnectionResult]:
         """Search Transitous plans and return timetable-only connection results."""
         del passengers, travel_class, currency, children, infants_in_seat, infants_on_lap
-        del include_airlines, exclude_airlines, owned_passes, pass_only, rail_products
+        del include_airlines, exclude_airlines, owned_passes, pass_only, rail_products, min_transfer_minutes, cache_service
 
         all_connections: List[ConnectionResult] = []
         for leg in legs:

@@ -5226,8 +5226,10 @@ export function buildTravelConnectionsRequest(
   const request: Record<string, unknown> = {
     legs: [{ origin, destination, date }],
   };
+  const transportMethods = csvFlag(flags, "transport_methods") ?? csvFlag(flags, "transport-methods");
   const transport = stringFlag(flags, "transport") ?? stringFlag(flags, "transport-method");
-  if (transport) request.transport_methods = [transport];
+  if (transportMethods) request.transport_methods = transportMethods;
+  else if (transport) request.transport_methods = [transport];
   const providers = csvFlag(flags, "providers") ?? csvFlag(flags, "provider");
   if (providers) request.providers = providers;
   const ownedPasses = csvFlag(flags, "owned_passes") ?? csvFlag(flags, "owned-passes");
@@ -5236,6 +5238,10 @@ export function buildTravelConnectionsRequest(
   if (railProducts) request.rail_products = railProducts;
   const passOnly = booleanFlag(flags, "pass_only") ?? booleanFlag(flags, "pass-only");
   if (passOnly !== undefined) request.pass_only = passOnly;
+  const minTransferMinutes = integerFlag(flags, "min_transfer_minutes") ?? integerFlag(flags, "min-transfer-minutes");
+  if (minTransferMinutes !== undefined) request.min_transfer_minutes = minTransferMinutes;
+  const maxResults = integerFlag(flags, "max_results") ?? integerFlag(flags, "max-results");
+  if (maxResults !== undefined) request.max_results = maxResults;
   return request;
 }
 
@@ -5331,6 +5337,15 @@ function booleanFlag(flags: Record<string, string | boolean>, name: string): boo
   if (["1", "true", "yes", "on"].includes(normalized)) return true;
   if (["0", "false", "no", "off"].includes(normalized)) return false;
   return true;
+}
+
+function integerFlag(flags: Record<string, string | boolean>, name: string): number | undefined {
+  const raw = readFlag(flags, name);
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "string") throw new Error(`--${kebabCase(name)} requires an integer value`);
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isInteger(parsed)) throw new Error(`--${kebabCase(name)} must be an integer`);
+  return parsed;
 }
 
 function coerceAppSkillFlagValue(

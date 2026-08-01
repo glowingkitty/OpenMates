@@ -35,12 +35,31 @@
   }
 
   /** Layover data between segments */
+  interface TransferAmenityGroup {
+    label?: string;
+    status?: string;
+    count?: number;
+    items?: string[];
+  }
+
+  interface TransferAmenities {
+    provider?: string;
+    data_source?: string;
+    status?: string;
+    cache_hit?: boolean;
+    groups?: Record<string, TransferAmenityGroup>;
+  }
+
   interface LayoverData {
     airport: string;
     airport_code?: string;
     duration?: string;
     duration_minutes?: number;
     overnight?: boolean;
+    latitude?: number;
+    longitude?: number;
+    meets_min_transfer?: boolean;
+    amenities?: TransferAmenities;
   }
 
   /** Segment data within a leg */
@@ -113,6 +132,23 @@
     icon_url?: string;
   }
 
+  interface TransferQuality {
+    min_transfer_minutes?: number;
+    has_transfers?: boolean;
+    short_transfer_count?: number;
+    unknown_transfer_count?: number;
+  }
+
+  interface OptimizationData {
+    optimized_by?: string;
+    badge?: string;
+    original_transfer_station?: string;
+    optimized_transfer_station?: string;
+    min_transfer_minutes?: number;
+    transfer_minutes?: number;
+    confidence?: string;
+  }
+
   /**
    * Connection result interface (transformed from child embeds)
    */
@@ -148,6 +184,8 @@
     co2_kg?: number;
     co2_typical_kg?: number;
     co2_difference_percent?: number;
+    transfer_quality?: TransferQuality;
+    optimization?: OptimizationData;
   }
 
   interface Props {
@@ -329,9 +367,30 @@
         duration: (content[`legs_${i}_duration`] as string) || '',
         stops: (content[`legs_${i}_stops`] as number) || 0,
         segments: reconstructSegments(content, i),
+        layovers: reconstructLayovers(content, i),
       });
     }
     return legs;
+  }
+
+  function reconstructLayovers(content: Record<string, unknown>, legIndex: number): LayoverData[] | undefined {
+    const layovers: LayoverData[] = [];
+    for (let j = 0; j < 10; j++) {
+      const airport = content[`legs_${legIndex}_layovers_${j}_airport`];
+      if (typeof airport !== 'string') break;
+      layovers.push({
+        airport,
+        airport_code: content[`legs_${legIndex}_layovers_${j}_airport_code`] as string | undefined,
+        duration: content[`legs_${legIndex}_layovers_${j}_duration`] as string | undefined,
+        duration_minutes: content[`legs_${legIndex}_layovers_${j}_duration_minutes`] as number | undefined,
+        overnight: content[`legs_${legIndex}_layovers_${j}_overnight`] as boolean | undefined,
+        latitude: content[`legs_${legIndex}_layovers_${j}_latitude`] as number | undefined,
+        longitude: content[`legs_${legIndex}_layovers_${j}_longitude`] as number | undefined,
+        meets_min_transfer: content[`legs_${legIndex}_layovers_${j}_meets_min_transfer`] as boolean | undefined,
+        amenities: content[`legs_${legIndex}_layovers_${j}_amenities`] as TransferAmenities | undefined,
+      });
+    }
+    return layovers.length > 0 ? layovers : undefined;
   }
 
   function reconstructSegments(content: Record<string, unknown>, legIndex: number): SegmentData[] {
@@ -452,6 +511,10 @@
               duration: lay.duration as string | undefined,
               duration_minutes: lay.duration_minutes as number | undefined,
               overnight: lay.overnight as boolean | undefined,
+              latitude: lay.latitude as number | undefined,
+              longitude: lay.longitude as number | undefined,
+              meets_min_transfer: lay.meets_min_transfer as boolean | undefined,
+              amenities: lay.amenities as TransferAmenities | undefined,
             }))
           : undefined,
       }));
@@ -511,6 +574,8 @@
       co2_kg: content.co2_kg as number | undefined,
       co2_typical_kg: content.co2_typical_kg as number | undefined,
       co2_difference_percent: content.co2_difference_percent as number | undefined,
+      transfer_quality: content.transfer_quality as TransferQuality | undefined,
+      optimization: content.optimization as OptimizationData | undefined,
     };
   }
 
@@ -623,6 +688,7 @@
       airlineLogo={result.airline_logo}
       carrierCodes={result.carrier_codes}
       bookableSeats={result.bookable_seats}
+      optimization={result.optimization}
       isCheapest={isCheapestResult(result)}
       status="finished"
       isMobile={false}

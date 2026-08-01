@@ -4167,6 +4167,19 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'HH:MM '
                                                                                                         'format.',
                                                                                          'type': 'string'},
+                                                                  'min_transfer_minutes': {'default': 10,
+                                                                                           'description': 'Minimum '
+                                                                                                          'acceptable '
+                                                                                                          'layover '
+                                                                                                          'or '
+                                                                                                          'transfer '
+                                                                                                          'duration, '
+                                                                                                          'in '
+                                                                                                          'minutes. '
+                                                                                                          'Defaults '
+                                                                                                          'to '
+                                                                                                          '10.',
+                                                                                           'type': 'integer'},
                                                                   'non_stop_only': {'default': False,
                                                                                     'description': 'If '
                                                                                                    'true, '

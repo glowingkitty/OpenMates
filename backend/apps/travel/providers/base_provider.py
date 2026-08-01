@@ -10,7 +10,7 @@ flights, Travelpayouts for price calendars, Transitous for trains/buses, etc.).
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -76,6 +76,10 @@ class LayoverResult(BaseModel):
     duration: Optional[str] = Field(default=None, description="Layover duration (e.g., '2h 15m')")
     duration_minutes: Optional[int] = Field(default=None, description="Layover duration in minutes")
     overnight: Optional[bool] = Field(default=None, description="True if layover spans overnight")
+    latitude: Optional[float] = Field(default=None, description="Transfer location latitude when known")
+    longitude: Optional[float] = Field(default=None, description="Transfer location longitude when known")
+    meets_min_transfer: Optional[bool] = Field(default=None, description="Whether this transfer meets the requested minimum transfer time")
+    amenities: Optional[Dict[str, Any]] = Field(default=None, description="Source-labelled transfer amenity summary")
 
 
 class LegResult(BaseModel):
@@ -152,6 +156,8 @@ class ConnectionResult(BaseModel):
     co2_kg: Optional[int] = Field(default=None, description="CO2 emissions in kg for this connection")
     co2_typical_kg: Optional[int] = Field(default=None, description="Typical CO2 emissions in kg for this route")
     co2_difference_percent: Optional[int] = Field(default=None, description="CO2 difference vs typical (e.g., -7 = 7% less)")
+    transfer_quality: Optional[Dict[str, Any]] = Field(default=None, description="Transfer buffer and enrichment metadata")
+    optimization: Optional[Dict[str, Any]] = Field(default=None, description="OpenMates route optimization metadata")
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +208,8 @@ class BaseTransportProvider(ABC):
         owned_passes: Optional[List[str]] = None,
         pass_only: bool = False,
         rail_products: Optional[List[str]] = None,
+        min_transfer_minutes: Optional[int] = None,
+        cache_service: Any = None,
     ) -> List[ConnectionResult]:
         """
         Search for transport connections matching the given criteria.
