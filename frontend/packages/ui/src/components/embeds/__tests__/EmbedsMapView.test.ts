@@ -57,6 +57,7 @@ describe("EmbedsMapView", () => {
         "events-search-abcdef": "source-embed-id",
         "travel-search-routes": "travel-source-id",
         "event-one-111111": "event-one-id",
+        "event-two-222222": "event-two-id",
         "place-two-222222": "place-two-id",
         "train-one-111111": "train-one-id",
         "train-two-222222": "train-two-id",
@@ -93,6 +94,16 @@ describe("EmbedsMapView", () => {
           type: "events-event",
           status: "finished",
           content: "event-content",
+          createdAt: 1,
+          updatedAt: 1,
+        };
+      }
+      if (embedId === "event-two-id") {
+        return {
+          embed_id: embedId,
+          type: "events-event",
+          status: "finished",
+          content: "event-two-content",
           createdAt: 1,
           updatedAt: 1,
         };
@@ -141,6 +152,17 @@ describe("EmbedsMapView", () => {
           date_start: "2026-08-01T18:00:00Z",
           venue_lat: 52.530247,
           venue_lon: 13.411047,
+          venue: { address: "Berlin" },
+        };
+      }
+      if (content === "event-two-content") {
+        return {
+          app_id: "events",
+          skill_id: "event",
+          title: "AI Builders Night",
+          date_start: "2026-08-01T20:00:00Z",
+          venue_lat: 52.5004,
+          venue_lon: 13.4252,
           venue: { address: "Berlin" },
         };
       }
@@ -289,6 +311,37 @@ describe("EmbedsMapView", () => {
     cards[1].dispatchEvent(new Event("pointerleave"));
     await tick();
     expect(cards[0].dataset.dimmed).toBe("false");
+
+    unmount(component);
+    target.remove();
+  });
+
+  it("labels event and appointment start filters as time, not departure time", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-event-times",
+        title: "Berlin AI events",
+        embedRefs: ["event-one-111111", "event-two-222222"],
+        sourceRefs: [],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+
+    const filterButton = target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]');
+    expect(filterButton).not.toBeNull();
+    filterButton!.click();
+    await tick();
+
+    const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
+    expect(filterMenu?.textContent).toContain("Time");
+    expect(filterMenu?.textContent).not.toContain("Departure time");
+    expect(filterMenu?.textContent).not.toContain("Arrival time");
 
     unmount(component);
     target.remove();

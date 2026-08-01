@@ -362,10 +362,26 @@
     return { key, label, type, min, max, values, unit };
   }
 
+  function entriesWithNumberFacet(entriesToInspect: MapViewEntry[], key: keyof EntryFacets & string): MapViewEntry[] {
+    return entriesToInspect.filter((entry) => entry.status === 'ready' && numberFacet(entry, key) != null);
+  }
+
+  function rangeTimeLabel(entriesToInspect: MapViewEntry[], key: 'departureMinutes' | 'arrivalMinutes'): string {
+    const timedEntries = entriesWithNumberFacet(entriesToInspect, key);
+    const routeOnly = timedEntries.length > 0 && timedEntries.every((entry) => entry.category === 'route');
+    const scheduleOnly = timedEntries.length > 0 && timedEntries.every((entry) => entry.category === 'event' || entry.category === 'appointment');
+    if (key === 'departureMinutes') {
+      if (routeOnly) return 'Departure time';
+      if (scheduleOnly) return 'Time';
+      return 'Start time';
+    }
+    return routeOnly ? 'Arrival time' : 'End time';
+  }
+
   function deriveRangeControls(entriesToInspect: MapViewEntry[]): RangeFilterControl[] {
     return [
-      makeRangeControl(entriesToInspect, 'departureMinutes', 'Departure time', 'time'),
-      makeRangeControl(entriesToInspect, 'arrivalMinutes', 'Arrival time', 'time'),
+      makeRangeControl(entriesToInspect, 'departureMinutes', rangeTimeLabel(entriesToInspect, 'departureMinutes'), 'time'),
+      makeRangeControl(entriesToInspect, 'arrivalMinutes', rangeTimeLabel(entriesToInspect, 'arrivalMinutes'), 'time'),
       makeRangeControl(entriesToInspect, 'dateOrdinal', 'Date', 'date'),
       makeRangeControl(entriesToInspect, 'durationMinutes', 'Duration', 'number', 'min'),
       makeRangeControl(entriesToInspect, 'stops', 'Stops', 'number'),
