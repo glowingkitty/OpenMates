@@ -114,7 +114,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 836b233962cff06172196f81f710f7deaa316461
+  subject_commit: 5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2
 
 approvals:
   product_contract:
@@ -176,14 +176,26 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-01T08:45:47Z"
     reason: Initial plan smoke exposed that CLI plan completion omitted updated_at and plans ask JSON emitted encrypted internals; both were fixed before the live gates passed.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Rerun final deployed Playwright, CLI, SDK, static validation, and deterministic-audit evidence against commit 5ec7675b6 after mobile task completion exposed a hidden-checkbox touch target issue.
+    outcome: succeeded
+    recorded_at: "2026-08-01T12:39:01Z"
+    reason: Final commit 5ec7675b6 made the task done control a visible 44px label target, then all targeted deployed Playwright specs and live CLI/SDK gates passed.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Run Firecrawl visual smoke for deployed /tasks and /plans in laptop and mobile viewports after Playwright passed.
+    outcome: blocked
+    recorded_at: "2026-08-01T12:40:00Z"
+    reason: Firecrawl returned Insufficient credits for all requested visual-smoke scrapes before screenshots or markdown could be captured.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Build the shared /tasks and /plans workspace shells, then add Playwright coverage for route distinction, plan Done mapping, composer management, and responsive board scrolling.
-  command: python3 scripts/verify_plans_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build
-  expected_outcome: Plan CLI smoke passes against the real dev API before web implementation starts.
+  current_task_id: TASK-5
+  next_action: Retry Firecrawl visual smoke when credits are available, then request user confirmation for deployed /tasks and /plans.
+  command: python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675
+  expected_outcome: Final deployed Playwright remains green while Firecrawl/user-confirmation gates are completed.
   blocker: null
-  last_verified_commit: 836b233962cff06172196f81f710f7deaa316461
+  last_verified_commit: 5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2
 
 scenarios:
   - id: S-1
@@ -283,7 +295,7 @@ acceptance_criteria:
     scenario: S-1
     text: /tasks uses the shared workspace shell/composer pattern with surface="tasks", task-specific inspiration, task greeting copy, search/filter controls, Report Issue, and a task Kanban board.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -294,7 +306,7 @@ acceptance_criteria:
     scenario: S-2
     text: /plans uses the shared workspace shell/composer pattern with surface="plans" and plan-specific greeting, composer, board, cards, empty/loading/error states, and no task transcript-extraction form as primary content.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -305,7 +317,7 @@ acceptance_criteria:
     scenario: S-2
     text: "Plan board column mapping is deterministic: draft maps to Backlog, awaiting_confirmation and active map to Todo, executing maps to In progress, blocked maps to Blocked, completed maps to Done, and archived is hidden from the default board."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -315,7 +327,7 @@ acceptance_criteria:
     scenario: S-3
     text: Short composer submissions can create encrypted tasks or draft plans, and longer plan prompts can create or start a richer plan draft through the existing plan ask/planner contract where available.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids:
@@ -329,7 +341,7 @@ acceptance_criteria:
     scenario: S-4
     text: Web can update/manage existing tasks and plans at parity with supported CLI actions where practical, including title/summary/description/status updates, block/unblock/done actions, activate/start/resume/complete actions, and ask-based management.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids:
@@ -344,7 +356,7 @@ acceptance_criteria:
     scenario: S-4
     text: Destructive, ambiguous, and bulk natural-language management requests show a preview, require explicit confirmation, expose Undo when safe, and never silently mutate encrypted records.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -354,7 +366,7 @@ acceptance_criteria:
     scenario: S-5
     text: Task and plan boards support horizontal and vertical scrolling on desktop and mobile; all columns and controls remain reachable with pointer, keyboard, and touch.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -366,7 +378,7 @@ acceptance_criteria:
     scenario: S-6
     text: Stable task and plan detail routes plus project/chat embedded surfaces continue to load the same encrypted records and refresh after central workspace mutations without duplicates.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -377,7 +389,7 @@ acceptance_criteria:
     scenario: S-7
     text: Disabled, unauthenticated, empty, loading, and API/decryption error states are visible, logged, and testable through stable locators.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -387,7 +399,7 @@ acceptance_criteria:
     scenario: S-3
     text: Durable task and plan private fields remain client-side encrypted; web tests, CLI/SDK tests, logs, and request assertions do not expose plaintext private content outside local UI/test assertions.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids:
@@ -401,7 +413,7 @@ acceptance_criteria:
     scenario: S-7
     text: New Playwright coverage uses data-testid, getByRole, or stable accessible locators and avoids CSS-class selectors and one-off sleeps.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -434,10 +446,12 @@ assumptions:
     text: A live CLI plan smoke should exist before web implementation relies on plans edit/update/ask parity.
     category: verification
     required_before: implementation
-    status: unchecked
+    status: confirmed
     evidence:
       - source: scripts/verify_sdk_plans_live_smoke.mjs
         summary: Live SDK smoke exists for npm and pip plans, but discovery did not find a matching real CLI plans smoke script.
+      - source: scripts/verify_plans_cli_smoke.py
+        summary: Added and passed a real CLI plans smoke against https://api.dev.openmates.org, covering create/list/show/edit/update/attach/start/resume/complete/ask behavior where supported.
 
   - id: A-4
     text: WorkspaceHomeShell and WorkspacePromptComposer can support Tasks and Plans without importing chat-message composer state or leaking private text.
@@ -519,11 +533,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local-2026-08-01T08:45:47Z"
-        command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build"
-        timestamp: "2026-08-01T08:45:47Z"
-        subject_commit: "working-tree"
-        summary: "Passed against https://api.dev.openmates.org after rebuilding the CLI once for TASK-2."
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/spec_validate.py docs/specs/tasks-plans-workspace/spec.yml"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Spec validation passed for schema_version 2 while status remained implementing."
 
   - id: T-CLI-TASKS-LIVE
     type: unit
@@ -546,11 +560,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local-2026-08-01T08:45:47Z"
-        command: "python3 scripts/verify_plans_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build"
-        timestamp: "2026-08-01T08:45:47Z"
-        subject_commit: "working-tree"
-        summary: "Passed against https://api.dev.openmates.org after adding the live plans CLI smoke, fixing CLI complete updated_at, and sanitizing ask JSON output."
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Passed against https://api.dev.openmates.org; output reported success=true and commands=real-cli-local-api."
 
   - id: T-CLI-PLANS-LIVE
     type: unit
@@ -576,11 +590,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local-2026-08-01T08:45:47Z"
-        command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs"
-        timestamp: "2026-08-01T08:45:47Z"
-        subject_commit: "working-tree"
-        summary: "npm and pip task SDK live smokes passed against https://api.dev.openmates.org; temporary API key was revoked."
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/verify_plans_cli_smoke.py --api-url https://api.dev.openmates.org"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Passed against https://api.dev.openmates.org; output reported success=true and commands=real-cli-local-api."
 
   - id: T-SDK-TASKS-LIVE
     type: unit
@@ -603,12 +617,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local-2026-08-01T08:45:47Z"
-        command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_plans_live_smoke.mjs"
-        timestamp: "2026-08-01T08:45:47Z"
-        subject_commit: "working-tree"
-        summary: "npm and pip plan SDK live smokes passed against https://api.dev.openmates.org; temporary API key was revoked."
-
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "npm and pip task SDK live smokes passed against https://api.dev.openmates.org; temporary API key was revoked."
   - id: T-SDK-PLANS-LIVE
     type: unit
     file: scripts/verify_sdk_plans_live_smoke.mjs
@@ -629,7 +642,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_plans_live_smoke.mjs"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "npm and pip plan SDK live smokes passed against https://api.dev.openmates.org; temporary API key was revoked."
 
   - id: T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
     type: playwright
@@ -651,12 +669,20 @@ tests:
       expected: fail_or_missing
       evidence:
         status: missing_test
+        reason: The combined /tasks and /plans shared-workspace regression did not exist before this spec.
         timestamp: "2026-07-31T00:00:00Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        run_id: "gha-30699609392"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; verified /tasks and /plans route-specific workspace shells, daily inspiration areas, greetings, composers, boards, auth/storage guardrails, and route distinction."
 
   - id: T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
     type: playwright
@@ -676,12 +702,20 @@ tests:
       expected: fail_or_missing
       evidence:
         status: missing_test
+        reason: Plan status-to-board mapping coverage did not exist before this spec.
         timestamp: "2026-07-31T00:00:00Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        run_id: "gha-30699609392"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; plan board coverage verified deterministic status buckets including completed plans in Done and archived plans hidden by default."
 
   - id: T-PLAYWRIGHT-COMPOSER-MANAGEMENT
     type: playwright
@@ -704,12 +738,20 @@ tests:
       expected: fail_or_missing
       evidence:
         status: missing_test
+        reason: Shared workspace composer create/update/manage coverage did not exist before this spec.
         timestamp: "2026-07-31T00:00:00Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        run_id: "gha-30699609392"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; composer coverage verified encrypted task/plan create/update/manage paths and confirmation behavior for destructive plan requests."
 
   - id: T-PLAYWRIGHT-RESPONSIVE-SCROLLING
     type: playwright
@@ -728,12 +770,20 @@ tests:
       expected: fail_or_missing
       evidence:
         status: missing_test
+        reason: Desktop/mobile board overflow and touch-control coverage for the new shared workspaces did not exist before this spec.
         timestamp: "2026-07-31T00:00:00Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        run_id: "gha-30699609392, gha-30699294055"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; workspace spec covered horizontal/vertical board scrolling and task parity run confirmed touch-safe mobile done action after the 44px toggle fix."
 
   - id: T-PLAYWRIGHT-EXISTING-PLAN-TASK-FLOWS
     type: playwright
@@ -754,7 +804,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        run_id: "gha-30699753874, gha-30699917406, gha-30699294055, gha-30700051298"
+        command: "python3 scripts/tests.py run --spec plans-flow.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec project-plans-flow.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec tasks-chat-settings-parity.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:39:01Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Existing deployed plan, project-plan, task workspace parity, and chat-settings task parity specs all passed on account 2 against the final commit."
 
   - id: T-AUDIT-PLAYWRIGHT-DETERMINISM
     type: unit
@@ -773,7 +830,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/audit_playwright_determinism.py frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts frontend/apps/web_app/tests/plans-flow.spec.ts frontend/apps/web_app/tests/project-plans-flow.spec.ts"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Audit exited successfully with no output, indicating no deterministic Playwright guard violations in the touched specs."
 
 verifications:
   - id: V-FIGMA-ARTIFACT-REVIEW
@@ -783,11 +845,17 @@ verifications:
     covers:
       - AC-1
       - AC-2
-    status: pending
+    status: blocked
     evidence:
-      status: pending
-      summary: "Compare deployed /tasks and /plans laptop/mobile artifacts against test-results/figma/tasks-plans-workspace/figma-web-app-tasks.png and figma-web-app-plans.png."
-      timestamp: ""
+      status: blocked
+      run_id: "firecrawl-insufficient-credits-2026-08-01T12:40Z"
+      command: "firecrawl_scrape https://app.dev.openmates.org/tasks and /plans with laptop/mobile screenshots"
+      timestamp: "2026-08-01T12:40:00Z"
+      actor: OpenCode
+      subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+      summary: "Figma references are available at test-results/figma/tasks-plans-workspace/figma-web-app-tasks.png and figma-web-app-plans.png, but deployed laptop/mobile visual artifact capture was blocked because Firecrawl returned Insufficient credits for all requested scrapes."
+      reason: "Firecrawl account has insufficient credits; retry this visual artifact review when credits are available."
+      next_action: "Retry Firecrawl or another approved deployed visual artifact capture for /tasks and /plans in laptop and mobile viewports, then compare against the saved Figma references."
 
   - id: V-FIRECRAWL-VISUAL-SMOKE
     kind: artifact_review
@@ -795,11 +863,17 @@ verifications:
     required_for_done: true
     covers:
       - AC-7
-    status: pending
+    status: blocked
     evidence:
-      status: pending
-      summary: "After deploy and Playwright, inspect https://app.dev.openmates.org/tasks and /plans in laptop and mobile viewports for rendering defects, implementation error text, loading stalls, and basic primary-control responsiveness."
-      timestamp: ""
+      status: blocked
+      run_id: "firecrawl-insufficient-credits-2026-08-01T12:40Z"
+      command: "firecrawl_scrape https://app.dev.openmates.org/tasks and /plans with laptop/mobile screenshots"
+      timestamp: "2026-08-01T12:40:00Z"
+      actor: OpenCode
+      subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+      summary: "Attempted deployed Firecrawl visual smoke for /tasks and /plans in laptop and mobile viewports after Playwright passed; Firecrawl returned Insufficient credits before screenshots or markdown could be captured. Recorded the blocked smoke in session 410f."
+      reason: "Firecrawl account returned Insufficient credits for all requested visual-smoke scrapes."
+      next_action: "Retry Firecrawl visual smoke for https://app.dev.openmates.org/tasks and /plans in laptop and mobile viewports once credits are available."
 
   - id: V-USER-WEB-CONFIRMATION
     kind: user_confirmation
@@ -810,18 +884,22 @@ verifications:
     status: pending
     evidence:
       status: pending
+      actor: OpenCode
       summary: "User confirms deployed dev /tasks and /plans workspace behavior and visual quality after automated evidence is green."
-      timestamp: ""
+      timestamp: "2026-08-01T12:40:00Z"
+      reason: "User confirmation has not been requested yet because the Firecrawl visual-smoke gate is blocked by insufficient credits."
+      next_action: "After visual smoke is captured or explicitly waived, ask the user to confirm deployed /tasks and /plans visual quality and behavior."
 
   - id: V-APPLE-DEFERRED-RECORD
     kind: manual_check
     phase: final
     required_for_done: false
-    status: pending
+    status: passed
     evidence:
-      status: pending
-      summary: "Record whether Apple task/plan workspace parity is deferred, waived, or scheduled after web user confirmation."
-      timestamp: ""
+      status: passed
+      timestamp: "2026-08-01T12:40:00Z"
+      subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+      summary: "Apple task/plan workspace parity is deferred because this slice touched web/CLI/SDK files only. Resume native parity after web visual smoke and user confirmation."
 
 implementation_plan:
   spec_path: docs/specs/tasks-plans-workspace/spec.yml
@@ -1008,7 +1086,7 @@ tasks:
 
   - id: TASK-3
     title: Build shared Tasks and Plans workspace shells and boards
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -1026,6 +1104,7 @@ tasks:
       - frontend/apps/web_app/src/routes/tasks/+page.svelte
       - frontend/apps/web_app/src/routes/plans/+page.svelte
       - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      - frontend/packages/ui/src/components/tasks/TaskCard.svelte
       - frontend/packages/ui/src/components/plans/PlanBoard.svelte
       - frontend/packages/ui/src/components/plans/PlanCard.svelte
       - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
@@ -1048,6 +1127,7 @@ tasks:
         - frontend/apps/web_app/src/routes/tasks/+page.svelte
         - frontend/apps/web_app/src/routes/plans/+page.svelte
         - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+        - frontend/packages/ui/src/components/tasks/TaskCard.svelte
         - frontend/packages/ui/src/components/plans/PlanBoard.svelte
         - frontend/packages/ui/src/components/plans/PlanCard.svelte
         - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
@@ -1061,7 +1141,7 @@ tasks:
 
   - id: TASK-4
     title: Implement composer create/update/manage parity
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -1167,6 +1247,7 @@ tasks:
         - docs/specs/tasks-plans-workspace/spec.yml
       shared_files: []
     blockers:
+      - Firecrawl visual smoke is blocked until Firecrawl credits are available; all requested /tasks and /plans laptop/mobile scrapes returned Insufficient credits on 2026-08-01.
       - User confirmation required after deployed Playwright and visual smoke evidence.
     follow_up_tasks:
       - Schedule or resume Apple task/plan workspace parity after web confirmation.
