@@ -15,7 +15,6 @@
   import WorkspaceDetailHeader from '../workspace/WorkspaceDetailHeader.svelte';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
-  import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { notificationStore } from '../../stores/notificationStore';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -725,7 +724,6 @@
   </aside>
 {:else}
   <section class="projects-page" data-testid="projects-page">
-    <div class="workspace-report-action"><WorkspaceReportIssueButton /></div>
     {#if selectedProject}
       <main class="project-main" data-testid="project-management">
         {@render selectedProjectDetails()}
@@ -739,6 +737,7 @@
         actionItems={projectLandingItems}
         actionItemsTestId="project-mixed-row"
         itemTestId="project-landing-card"
+        showReportIssue
         onActionItem={openProjectFromCard}
         onContinueItem={openProjectFromCard}
         onStartInspiration={handleStartProjectInspiration}
@@ -921,13 +920,6 @@
     display: grid;
     place-items: center;
     color: var(--color-font-primary);
-  }
-
-  .workspace-report-action {
-    position: absolute;
-    z-index: var(--z-index-raised-3);
-    top: var(--spacing-5);
-    right: var(--spacing-5);
   }
 
   .project-card.active {

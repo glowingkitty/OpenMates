@@ -11,7 +11,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
-  import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
+  import { Header, Settings, Notification, WorkspaceHomeShell, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
   import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
   import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
   import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
@@ -100,16 +100,10 @@
       source: 'example',
     },
   ];
-  let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(recentWorkflows.map((workflow) => ({
-    id: workflow.id,
-    title: workflow.title,
-    summary: `${workflow.trigger_summary ?? 'Manual'} - ${retentionLabel(workflow.run_content_retention)}`,
-    badge: workflow.enabled ? 'Enabled' : 'Paused',
-    category: 'productivity',
-    appId: 'workflows',
-    icon: 'workflow',
-    source: 'recent',
-  })));
+  let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(recentWorkflows.map(workflowSummaryToContinueItem));
+  let allWorkflowContinueItems = $derived<WorkflowContinueItem[]>([...workflows]
+    .sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0))
+    .map(workflowSummaryToContinueItem));
   let workflowLandingItems = $derived<WorkflowContinueItem[]>([
     ...recentWorkflowContinueItems,
     ...workflowStarterItems,
@@ -318,6 +312,31 @@
 
   function showWorkflowVoiceInputUnavailable(): void {
     notificationStore.info('Voice input for workflows is coming soon.', 4000, true, 'workflows-voice-input');
+  }
+
+  function showWorkflowSearchUnavailable(): void {
+    notificationStore.info('Workflow search is coming soon.', 4000, true, 'workflows-search');
+  }
+
+  function showAllWorkflowCards(): void {
+    showAllWorkflows = true;
+  }
+
+  function showRecentWorkflowCards(): void {
+    showAllWorkflows = false;
+  }
+
+  function workflowSummaryToContinueItem(workflow: WorkflowSummary): WorkflowContinueItem {
+    return {
+      id: workflow.id,
+      title: workflow.title,
+      summary: `${workflow.trigger_summary ?? 'Manual'} - ${retentionLabel(workflow.run_content_retention)}`,
+      badge: workflow.enabled ? 'Enabled' : 'Paused',
+      category: 'productivity',
+      appId: 'workflows',
+      icon: 'workflow',
+      source: 'recent',
+    };
   }
 
   async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
@@ -786,23 +805,39 @@
         }} />
       </div>
       <main class="active-chat-container workflows-start" class:management-view={showManageView} data-testid="workflows-page">
-        {#if !showManageView}<div class="workspace-report-action"><WorkspaceReportIssueButton /></div>{/if}
         {#if error}
           <div class="error-banner" data-testid="workflows-error">{error}</div>
         {/if}
 
         {#if !showManageView}
-          {#if showAllWorkflows}
-            <section class="workflow-home-all" data-testid="workflows-start-screen">
-              <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = false}>Show recent</button>
-              <div class="all-workflows-grid" data-testid="all-workflows-grid">
-                {#each workflows as workflow (workflow.id)}
-                  <button type="button" class="workflow-mini-card" onclick={() => continueWorkflowFromCard(workflow)}>
-                    <strong>{workflow.title}</strong>
-                    <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'}</span>
-                  </button>
-                {/each}
-              </div>
+          <WorkspaceHomeShell
+            surface="workflows"
+            testId="workflows-start-screen"
+            heading={`Hey ${visibleWorkflowGreetingName}!`}
+            subtitle="What do you want to automate next?"
+            actionItems={visibleWorkflowLandingItems}
+            actionItemsTestId="workflow-mixed-row"
+            itemTestId="workflow-landing-card"
+            showReportIssue
+            showAllMode={showAllWorkflows}
+            showAllLabel={workflows.length > 0 ? `Show all ${workflows.length}` : ''}
+            showAllTestId="workflows-show-all"
+            allItems={allWorkflowContinueItems}
+            allItemsViewTestId="all-workflows-view"
+            allItemsGridTestId="all-workflows-grid"
+            allItemsToolbarTestId="workflows-all-toolbar"
+            allItemTestId="workflow-landing-card"
+            backTestId="workflows-back-to-recent"
+            searchTestId="workflows-search"
+            onShowAll={workflows.length > 0 ? showAllWorkflowCards : undefined}
+            onBackToRecent={showRecentWorkflowCards}
+            onSearchAll={showWorkflowSearchUnavailable}
+            onContinueItem={continueWorkflowFromCard}
+            onActionItem={startWorkflowFromCard}
+            onAllItem={continueWorkflowFromCard}
+            onStartInspiration={startWorkflowFromInspiration}
+          >
+            <svelte:fragment slot="composer">
               <WorkspacePromptComposer
                 surface="workflows"
                 bind:value={workflowInputText}
@@ -818,45 +853,8 @@
                 onSubmit={submitWorkflowInput}
                 onMicClick={showWorkflowVoiceInputUnavailable}
               />
-            </section>
-          {:else}
-              <div class="workflow-home-toolbar">
-                {#if workflows.length > 0}
-                  <button type="button" class="show-all-button workflow-home-show-all" data-testid="workflows-show-all" onclick={() => showAllWorkflows = true}>Show all {workflows.length}</button>
-                {/if}
-                <button type="button" class="show-all-button workflow-home-search" data-testid="workflows-search" disabled>Search</button>
-              </div>
-              <WorkspaceHomeShell
-              surface="workflows"
-              testId="workflows-start-screen"
-              heading={`Hey ${visibleWorkflowGreetingName}!`}
-              subtitle="What do you want to automate next?"
-              actionItems={visibleWorkflowLandingItems}
-              actionItemsTestId="workflow-mixed-row"
-              itemTestId="workflow-landing-card"
-              onContinueItem={continueWorkflowFromCard}
-              onActionItem={startWorkflowFromCard}
-              onStartInspiration={startWorkflowFromInspiration}
-            >
-              <svelte:fragment slot="composer">
-                <WorkspacePromptComposer
-                  surface="workflows"
-                  bind:value={workflowInputText}
-                  placeholder="Name a new workflow"
-                  submitLabel="Create workflow"
-                  submittingLabel="Creating..."
-                  disabled={saving || !canRenderWorkflowData}
-                  submitting={saving}
-                  testId="workflow-input-composer"
-                  inputTestId="workflow-input-textarea"
-                  submitTestId="workflow-input-submit"
-                  micTestId="workflow-input-mic"
-                  onSubmit={submitWorkflowInput}
-                  onMicClick={showWorkflowVoiceInputUnavailable}
-                />
-              </svelte:fragment>
-            </WorkspaceHomeShell>
-          {/if}
+            </svelte:fragment>
+          </WorkspaceHomeShell>
         {/if}
 
         {#if showManageView}
@@ -1107,12 +1105,6 @@
 </div>
 
 <style>
-  .workspace-report-action {
-    position: absolute;
-    z-index: var(--z-index-raised-3);
-    top: var(--spacing-5);
-    right: var(--spacing-5);
-  }
   .workflows-route-state {
     min-height: calc(100vh - 90px);
     display: grid;
@@ -1180,23 +1172,6 @@
     overflow: hidden;
   }
 
-  .workflow-home-toolbar {
-    position: absolute;
-    top: calc(max(35vh, 240px) + 14px);
-    left: 10px;
-    right: 10px;
-    z-index: var(--z-index-raised-3);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    pointer-events: none;
-  }
-
-  .workflow-home-toolbar .show-all-button {
-    pointer-events: auto;
-  }
-
   .workflow-management {
     display: grid;
     gap: 16px;
@@ -1246,47 +1221,8 @@
     cursor: wait;
   }
 
-  .show-all-button {
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-  }
-
-  @media (max-width: 730px) {
-    .workflow-home-toolbar {
-      top: 202px;
-    }
-  }
-
   .workflow-detail {
     padding: 0;
-  }
-
-  .workflow-mini-card {
-    display: grid;
-    gap: 6px;
-    text-align: start;
-    color: var(--color-font-primary);
-    background: color-mix(in srgb, var(--color-grey-0) 86%, transparent);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
-  }
-
-  .all-workflows-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 12px;
-  }
-
-  .workflow-mini-card {
-    display: grid;
-    gap: 6px;
-    min-height: 116px;
-    align-content: center;
-    text-align: start;
-  }
-
-  .workflow-mini-card span {
-    color: var(--color-font-secondary);
-    font-size: 0.86rem;
   }
 
   .workflow-editor {

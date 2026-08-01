@@ -9,13 +9,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
+  import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
   import { getContinueGradientColors, getResumeCardGradientStyle, getResumeLargeCardStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
   type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans';
-
 
   type ContinueItem = {
     id: string;
@@ -41,9 +41,26 @@
     itemTestId?: string;
     continueSectionTestId?: string;
     centerTestId?: string;
+    showReportIssue?: boolean;
+    showAllMode?: boolean;
+    showAllLabel?: string;
+    showAllTestId?: string;
+    allItems?: ContinueItem[];
+    allItemsViewTestId?: string;
+    allItemsGridTestId?: string;
+    allItemsToolbarTestId?: string;
+    allItemTestId?: string;
+    backLabel?: string;
+    backTestId?: string;
+    searchLabel?: string;
+    searchTestId?: string;
     onContinueItem?: (item: ContinueItem) => void;
     onActionItem?: (item: ContinueItem) => void;
+    onAllItem?: (item: ContinueItem) => void;
     onStartInspiration?: (inspiration: DailyInspiration) => void;
+    onShowAll?: () => void;
+    onBackToRecent?: () => void;
+    onSearchAll?: () => void;
   };
 
   let {
@@ -59,16 +76,38 @@
     itemTestId = 'resume-chat-card',
     continueSectionTestId = `${surface}-workspace-continue`,
     centerTestId = `${surface}-workspace-center`,
+    showReportIssue = false,
+    showAllMode = false,
+    showAllLabel = '',
+    showAllTestId = `${surface}-show-all`,
+    allItems = [],
+    allItemsViewTestId = `${surface}-all-items-view`,
+    allItemsGridTestId = `${surface}-all-items-grid`,
+    allItemsToolbarTestId = `${surface}-all-items-toolbar`,
+    allItemTestId = itemTestId,
+    backLabel = 'Back to recent',
+    backTestId = `${surface}-back-to-recent`,
+    searchLabel = 'Search',
+    searchTestId = `${surface}-search`,
     onContinueItem,
     onActionItem,
+    onAllItem,
     onStartInspiration,
+    onShowAll,
+    onBackToRecent,
+    onSearchAll,
   }: Props = $props();
 
   let containerWidth = $state(0);
   let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
   let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
   let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
+  let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
+  let hasAllItemsToolbar = $derived(showAllMode && (!!onBackToRecent || !!onSearchAll));
+  let showTopButtons = $derived(showReportIssue || hasAllItemsToolbar);
   const ChevronRight = getLucideIcon('chevron-right');
+  const AllItemsBackIcon = getLucideIcon('grid-2x2');
+  const AllItemsSearchIcon = getLucideIcon('search');
 
   onMount(() => {
     void loadDefaultInspirations({ surface, allowIndexedDB: false });
@@ -92,6 +131,22 @@
     onActionItem?.(item);
   }
 
+  function handleAllItem(item: ContinueItem): void {
+    onAllItem?.(item);
+  }
+
+  function handleShowAll(): void {
+    onShowAll?.();
+  }
+
+  function handleBackToRecent(): void {
+    onBackToRecent?.();
+  }
+
+  function handleSearchAll(): void {
+    onSearchAll?.();
+  }
+
   function continueCardStyle(item: ContinueItem): string {
     return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', item.appId));
   }
@@ -101,16 +156,87 @@
   }
 </script>
 
-<section class="workspace-home-shell" data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
-  <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`}>
-    <DailyInspirationBanner
-      {surface}
-      onStartChat={handleStartInspiration}
-      containerWidth={containerWidth}
-    />
-  </div>
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
+  {#if !showAllMode}
+    <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`}>
+      <DailyInspirationBanner
+        {surface}
+        onStartChat={handleStartInspiration}
+        containerWidth={containerWidth}
+      />
+    </div>
+  {/if}
+
+  {#if showTopButtons}
+    <div class="workspace-top-buttons" class:workspace-all-items-top-buttons={showAllMode}>
+      <div class="workspace-left-buttons">
+        {#if showReportIssue}
+          <WorkspaceReportIssueButton />
+        {/if}
+      </div>
+      {#if hasAllItemsToolbar}
+        <div class="workspace-all-items-toolbar" data-testid={allItemsToolbarTestId}>
+          {#if onBackToRecent}
+            <button type="button" class="workspace-all-items-action" data-testid={backTestId} onclick={handleBackToRecent}>
+              <AllItemsBackIcon size={18} color="currentColor" />
+              <span>{backLabel}</span>
+            </button>
+          {/if}
+          {#if onSearchAll}
+            <button type="button" class="workspace-all-items-action" data-testid={searchTestId} onclick={handleSearchAll}>
+              <AllItemsSearchIcon size={18} color="currentColor" />
+              <span>{searchLabel}</span>
+            </button>
+          {/if}
+        </div>
+      {/if}
+      <div class="workspace-right-buttons"></div>
+    </div>
+  {/if}
 
   <div class="center-content workspace-center-content" data-testid={centerTestId}>
+    {#if showAllMode}
+      <div class="workspace-all-items-view" data-testid={allItemsViewTestId}>
+        <div class="workspace-all-items-grid" data-testid={allItemsGridTestId}>
+          {#each allItems as item (item.id)}
+            {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
+            {@const IconComponent = getLucideIcon(iconName)}
+            <button
+              type="button"
+              class="resume-chat-large-card"
+              data-testid={allItemTestId}
+              data-card-source={item.source ?? undefined}
+              style={continueLargeCardStyle(item)}
+              onclick={() => handleAllItem(item)}
+            >
+              <div class="resume-large-orbs" aria-hidden="true">
+                <div class="resume-orb resume-orb-1"></div>
+                <div class="resume-orb resume-orb-2"></div>
+                <div class="resume-orb resume-orb-3"></div>
+              </div>
+              <div class="resume-large-deco resume-large-deco-left">
+                <IconComponent size={80} color="white" />
+              </div>
+              <div class="resume-large-deco resume-large-deco-right">
+                <IconComponent size={80} color="white" />
+              </div>
+              <div class="resume-large-content">
+                {#if item.badge}
+                  <span class="resume-chat-kind-badge">{item.badge}</span>
+                {/if}
+                <div class="resume-large-icon">
+                  <IconComponent size={32} color="white" />
+                </div>
+                <span class="resume-large-title">{item.title}</span>
+                {#if item.summary}
+                  <p class="resume-large-summary">{item.summary}</p>
+                {/if}
+              </div>
+            </button>
+          {/each}
+        </div>
+      </div>
+    {:else}
     <div class="team-profile">
       <div class="welcome-text">
         {#if eyebrow}
@@ -189,6 +315,14 @@
           {/if}
         {/each}
       </div>
+      {#if hasShowAllLink}
+        <div class="workspace-link-row" data-testid={`${surface}-workspace-link-row`}>
+          <button type="button" class="workspace-show-all-link" data-testid={showAllTestId} data-surface={surface} onclick={handleShowAll}>
+            <span class="workspace-link-icon workspace-link-icon-surface" aria-hidden="true"></span>
+            <span>{showAllLabel}</span>
+          </button>
+        </div>
+      {/if}
     {:else if continueItems.length > 0}
       <div class="workspace-continue-section" data-testid={continueSectionTestId}>
         <div class="workspace-continue-label">{continueLabel}</div>
@@ -292,6 +426,7 @@
         </div>
       </div>
     {/if}
+    {/if}
   </div>
 
   <div class="workspace-composer-slot">
@@ -318,6 +453,71 @@
     flex-shrink: 0;
   }
 
+  .workspace-top-buttons {
+    position: static;
+    z-index: var(--z-index-raised-3);
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px 0;
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  .workspace-left-buttons,
+  .workspace-right-buttons {
+    display: flex;
+    min-width: 44px;
+    align-items: center;
+    gap: var(--spacing-3);
+    pointer-events: auto;
+  }
+
+  .workspace-right-buttons {
+    justify-content: flex-end;
+  }
+
+  .workspace-all-items-top-buttons {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    column-gap: var(--spacing-6);
+  }
+
+  .workspace-all-items-toolbar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-8);
+    color: var(--color-grey-60);
+    pointer-events: auto;
+  }
+
+  .workspace-all-items-action {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--font-size-p);
+    font-weight: 800;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: none;
+    text-shadow: none;
+    filter: none;
+  }
+
+  .workspace-all-items-action:hover {
+    color: var(--color-primary);
+    box-shadow: none;
+    text-shadow: none;
+    filter: none;
+  }
+
   .workspace-center-content.center-content {
     position: absolute;
     top: calc(50% + 17.5vh);
@@ -331,6 +531,50 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+
+  .workspace-home-shell.all-items-mode .workspace-center-content.center-content {
+    top: 50%;
+  }
+
+  .workspace-all-items-view {
+    width: min(100% - 32px, 1120px);
+    max-height: min(68vh, 760px);
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+  }
+
+  .workspace-all-items-grid {
+    --workspace-all-items-fade-size: 34px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 300px));
+    justify-content: center;
+    gap: var(--spacing-8);
+    max-height: min(58vh, 620px);
+    overflow-y: auto;
+    padding: var(--workspace-all-items-fade-size) var(--spacing-4);
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black var(--workspace-all-items-fade-size),
+      black calc(100% - var(--workspace-all-items-fade-size)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black var(--workspace-all-items-fade-size),
+      black calc(100% - var(--workspace-all-items-fade-size)),
+      transparent 100%
+    );
+  }
+
+  .workspace-all-items-grid .resume-chat-large-card {
+    width: 300px;
+    min-width: 300px;
   }
 
   .workspace-center-content .team-profile {
@@ -373,6 +617,76 @@
 
   .workspace-continue-section {
     width: 100%;
+  }
+
+  .workspace-link-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-1);
+    pointer-events: auto;
+  }
+
+  .workspace-show-all-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    border: none;
+    background: transparent;
+    padding: var(--spacing-1) 0 0;
+    color: var(--color-grey-60);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 720;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: none;
+    filter: none;
+  }
+
+  .workspace-show-all-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .workspace-link-icon {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    flex-shrink: 0;
+    background: currentColor;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  .workspace-link-icon-surface {
+    -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
+    mask-image: url('@openmates/ui/static/icons/chat.svg');
+  }
+
+  .workspace-show-all-link[data-surface='projects'] .workspace-link-icon-surface {
+    -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
+    mask-image: url('@openmates/ui/static/icons/project.svg');
+  }
+
+  .workspace-show-all-link[data-surface='workflows'] .workspace-link-icon-surface {
+    -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
+    mask-image: url('@openmates/ui/static/icons/workflow.svg');
+  }
+
+  .workspace-show-all-link[data-surface='tasks'] .workspace-link-icon-surface {
+    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+    mask-image: url('@openmates/ui/static/icons/task.svg');
+  }
+
+  .workspace-show-all-link[data-surface='plans'] .workspace-link-icon-surface {
+    -webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
+    mask-image: url('@openmates/ui/static/icons/planning.svg');
   }
 
   .recent-chats-scroll-container {
@@ -733,6 +1047,33 @@
 
     .workspace-home-shell[data-surface='workflows'] .workspace-center-content.center-content {
       top: 32%;
+    }
+
+    .workspace-home-shell.all-items-mode .workspace-center-content.center-content {
+      top: 50%;
+    }
+
+    .workspace-all-items-view {
+      width: min(100% - 20px, 1120px);
+      max-height: min(64vh, 680px);
+    }
+
+    .workspace-all-items-toolbar {
+      gap: var(--spacing-5);
+    }
+
+    .workspace-all-items-action {
+      font-size: var(--font-size-small);
+    }
+
+    .workspace-all-items-grid {
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      max-height: min(56vh, 560px);
+    }
+
+    .workspace-all-items-grid .resume-chat-large-card {
+      width: min(100%, 300px);
+      min-width: 0;
     }
 
     .recent-chats-scroll-container {

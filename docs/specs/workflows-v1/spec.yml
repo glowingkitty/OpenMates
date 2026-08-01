@@ -1537,8 +1537,8 @@ contracts:
     - Manual run input form when a webhook/event-triggered workflow or reusable workflow requires start payload fields.
     - Chat-like Workflow landing with Daily Inspiration followed by one horizontal row containing recent user workflows by updated_at newest first and curated examples after them.
     - No separate recent/continue section; cards render Next run, Last run, Draft, or Manual only as appropriate.
-    - Visible non-functional Search affordance that makes no search-result claim in the core milestone.
-    - Show all browsing mode hides Daily Inspiration and the mixed row, renders a vertical scrollable grid of all workflows, and keeps the bottom workflow input visible.
+    - Chat-style Show all text/link action below the landing row; no route-level pill toolbar.
+    - Show all browsing mode hides Daily Inspiration and the mixed row, renders a vertical scrollable grid of all workflows, shows Back to recent and Search as transparent text/icon actions, and keeps the bottom workflow input visible.
     - Workflow input running state with stop button, transcript progress, streamed assumptions, draft nodes appearing step by step, validation markers, commit result, follow-up input, and undo affordance.
     - Workflow input clarification state with inline question, Try again, and Start chat to clarify options when the request is too broad for the workflow surface.
     - Workflow input stopped state with partial draft visible, plus Continue, Discard, and follow-up controls.
@@ -2266,7 +2266,7 @@ tests:
       - no separate Continue where you left off or recent-workflows section is rendered
       - recent workflow cards are ordered by updated_at newest first before examples
       - Show all hides Daily Inspiration/the mixed row and renders the all-workflows grid while preserving the bottom workflow input
-      - Search is visible but does not claim functional results in the core milestone
+      - Search is a Chat-style all-items toolbar action, not a disabled landing pill
       - workflow composer remains fixed to the bottom without covering home cards or Show all results
       - workflow composer centers its placeholder and reveals submit only when focused with valid non-empty input
       - submitting Daily school weather creates a disabled empty draft with that exact title and opens the focused editor
@@ -2286,15 +2286,23 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed_after_deploy
-        command: python3 scripts/tests.py run --spec workflows-input.spec.ts --gate-deploy --expected-commit d0c26bd8ef3750af6e5b111d5c6a05ff6b45f13e
-        run_id: github-actions-30641535252
-        subject_commit: 94b9ab788dd0be01387cd557b1c3d26dabb23a35
-        timestamp: "2026-07-31T15:09:47Z"
-        deployment_reference: dpl_Hanpj7jtjTvT98UD2BMNcxaENVRy
+        status: pending_after_contract_update
+        command: python3 scripts/tests.py run --spec workflows-input.spec.ts --gate-deploy --expected-commit <next-deploy-commit>
+        run_id: pending-workflows-input-chat-controls
+        subject_commit: working-tree
+        timestamp: "2026-08-01T00:00:00Z"
+        deployment_reference: pending
         target: app.dev.openmates.org
-        summary: workflows-input.spec.ts passed with hash-based draft detail navigation, Daily Inspiration/mixed row, Show all, centered composer, focus/non-empty submit behavior, and canonical title-only draft opening.
+        summary: Chat-source Show all/Search assertions now require no disabled landing Search pill, an all-workflows Back to recent/Search toolbar, and hidden Daily Inspiration in all mode; prior green evidence is historical until this updated spec is deployed and rerun.
       history:
+        - status: invalidated_by_contract_change
+          command: python3 scripts/tests.py run --spec workflows-input.spec.ts --gate-deploy --expected-commit d0c26bd8ef3750af6e5b111d5c6a05ff6b45f13e
+          run_id: github-actions-30641535252
+          subject_commit: 94b9ab788dd0be01387cd557b1c3d26dabb23a35
+          timestamp: "2026-07-31T15:09:47Z"
+          deployment_reference: dpl_Hanpj7jtjTvT98UD2BMNcxaENVRy
+          target: app.dev.openmates.org
+          summary: Previous green run covered the old Show all/Search contract before the Chat-source text-link/all-items toolbar assertions were added.
         - status: passed_after_deploy
           run_id: github-actions-28747669761
           timestamp: "2026-07-05T16:42:26Z"

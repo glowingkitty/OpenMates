@@ -521,7 +521,9 @@
 
   onMount(() => {
     void initializeFeatureAvailability();
-    void loadDefaultInspirations({ surface: 'tasks', allowIndexedDB: false });
+    if (!isCentralTasksWorkspace) {
+      void loadDefaultInspirations({ surface: 'tasks', allowIndexedDB: false });
+    }
   });
 
   $effect(() => {
@@ -544,7 +546,7 @@
   </section>
 {:else}
 <section class="tasks-page" class:compact class:figma-layout={isCentralTasksWorkspace} data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
-  {#if !compact}
+  {#if !compact && !isCentralTasksWorkspace}
     <div class="daily-inspiration-area tasks-daily-inspiration-area" data-testid="tasks-daily-inspiration-area">
       <DailyInspirationBanner
         surface="tasks"
@@ -553,7 +555,7 @@
       />
     </div>
 
-    {#if !isCentralTasksWorkspace}<header class="tasks-hero">
+    <header class="tasks-hero">
       <div>
         <p class="eyebrow">{focus === 'plans' ? 'Plans' : 'Tasks'}</p>
         <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Manage tasks for you and your AI mates.'}</h1>
@@ -570,7 +572,7 @@
           <span><strong>{doneCount}</strong> done</span>
         {/if}
       </div>
-    </header>{/if}
+    </header>
   {/if}
 
   {#if isCentralTasksWorkspace}

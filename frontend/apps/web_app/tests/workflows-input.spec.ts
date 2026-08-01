@@ -108,7 +108,7 @@ test.describe('Workflows input home', () => {
 			await expect(mixedCards.first()).toHaveAttribute('data-card-source', 'recent');
 			await expect(mixedCards.last()).toHaveAttribute('data-card-source', 'example');
 			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
-			await expect(page.getByTestId('workflows-search')).toBeDisabled();
+			await expect(page.getByTestId('workflows-search')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-mic')).toBeVisible();
@@ -126,10 +126,20 @@ test.describe('Workflows input home', () => {
 			await page.getByTestId('workflows-show-all').click();
 			await expect(page.getByTestId('workflow-mixed-row')).toHaveCount(0);
 			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-all-toolbar')).toBeVisible();
+			await expect(page.getByTestId('workflows-back-to-recent')).toBeVisible();
+			await expect(page.getByTestId('workflows-search')).toBeVisible();
+			await expect(page.getByTestId('workflows-search')).toBeEnabled();
 			await expect(page.getByTestId('all-workflows-grid')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
+			await expect.poll(async () => page.getByTestId('all-workflows-grid').evaluate((element: HTMLElement) => element.scrollHeight > element.clientHeight), { timeout: 15000 }).toBe(true);
+			const allGridBox = await page.getByTestId('all-workflows-grid').boundingBox();
+			const allComposerBox = await page.getByTestId('workflow-input-composer').boundingBox();
+			if (!allGridBox || !allComposerBox) throw new Error('All workflows grid and composer must be measurable.');
+			expect(allGridBox.y + allGridBox.height).toBeLessThan(allComposerBox.y);
 
-			await page.getByTestId('workflows-show-all').click();
+			await page.getByTestId('workflows-back-to-recent').click();
 			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
 			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
 			await expect(page.getByTestId('all-workflows-grid')).toHaveCount(0);
