@@ -2286,14 +2286,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending_after_contract_update
-        command: python3 scripts/tests.py run --spec workflows-input.spec.ts --gate-deploy --expected-commit <next-deploy-commit>
-        run_id: pending-workflows-input-chat-controls
-        subject_commit: working-tree
-        timestamp: "2026-08-01T00:00:00Z"
-        deployment_reference: pending
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec workflows-input.spec.ts --gate-deploy --account 14 --expected-commit 57634802ebafe863782d0a395ccd37743d57405c
+        run_id: github-actions-30694817557
+        subject_commit: b91c447bb
+        timestamp: "2026-08-01T10:01:28Z"
+        deployment_reference: dpl_5r1JaKHu3zKUma8pV4k65Rbn8dw1
         target: app.dev.openmates.org
-        summary: Chat-source Show all/Search assertions now require no disabled landing Search pill, an all-workflows Back to recent/Search toolbar, and hidden Daily Inspiration in all mode; prior green evidence is historical until this updated spec is deployed and rerun.
+        summary: workflows-input.spec.ts passed on account 14 with Chat-source Show all/Search assertions requiring no disabled landing Search pill, an all-workflows Back to recent/Search toolbar, hidden Daily Inspiration in all mode, and all-workflows grid geometry above the composer. The requested deploy gate first proved 57634802e Ready, then the control plane dispatched on descendant b91c447bb after a later dev commit landed.
       history:
         - status: invalidated_by_contract_change
           command: python3 scripts/tests.py run --spec workflows-input.spec.ts --gate-deploy --expected-commit d0c26bd8ef3750af6e5b111d5c6a05ff6b45f13e
