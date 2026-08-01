@@ -81,8 +81,8 @@
     grid-template-columns: repeat(5, minmax(260px, 280px));
     gap: 14px;
     align-items: start;
-    min-width: max-content;
-    max-width: 100%;
+    width: 100%;
+    min-width: 0;
     max-height: min(62vh, 720px);
     overflow: auto;
     padding-bottom: 6px;
