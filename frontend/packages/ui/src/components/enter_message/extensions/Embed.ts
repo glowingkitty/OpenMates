@@ -711,7 +711,7 @@ export const Embed = Node.create<EmbedOptions>({
         "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
         "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
         "maps", // MapLocationEmbedPreview renders Leaflet map inline
-        "embeds-map-view", // Virtual message-level map/list view over existing embeds
+        "embeds-map-view", // Virtual message-level results view over existing embeds
         "sub-chat-batch", // Virtual inline sub-chat card batch anchored in message content
         "pdf", // PDFEmbedPreview renders the PDF upload status card
         "recording", // RecordingEmbedPreview uses UnifiedEmbedPreview — must be here so

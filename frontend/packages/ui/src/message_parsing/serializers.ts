@@ -539,8 +539,8 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
     case "embeds-map-view":
       return (
-        "```embeds_map_view\n" +
-        `title: ${attrs.title || "Map view"}\n` +
+        "```embeds_results_view\n" +
+        `title: ${attrs.title || "Results view"}\n` +
         refLine("embeds", attrs.mapEmbedRefs) +
         refLine("sources", attrs.mapSourceRefs) +
         refLine("highlight", attrs.mapHighlightRefs) +

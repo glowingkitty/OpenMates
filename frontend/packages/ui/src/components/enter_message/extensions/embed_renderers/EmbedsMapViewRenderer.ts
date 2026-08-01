@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
 // Renderer for the virtual `embeds-map-view` message node.
-// This mounts a Svelte map/list component over existing embed refs and does not
+// This mounts a Svelte results-view component over existing embed refs and does not
 // create, update, or enrich persisted embeds.
 // Spec: docs/specs/embeds-map-view/spec.yml
 
@@ -30,7 +30,7 @@ export class EmbedsMapViewRenderer implements EmbedRenderer {
       target: content,
       props: {
         id: attrs.id,
-        title: attrs.title || "Map view",
+        title: attrs.title || "Results view",
         embedRefs: attrs.mapEmbedRefs || [],
         sourceRefs: attrs.mapSourceRefs || [],
         highlightRefs: attrs.mapHighlightRefs || [],
@@ -41,8 +41,8 @@ export class EmbedsMapViewRenderer implements EmbedRenderer {
 
   toMarkdown(attrs: EmbedNodeAttributes): string {
     return (
-      "```embeds_map_view\n" +
-      `title: ${attrs.title || "Map view"}\n` +
+      "```embeds_results_view\n" +
+      `title: ${attrs.title || "Results view"}\n` +
       refsToLine("embeds", attrs.mapEmbedRefs) +
       refsToLine("sources", attrs.mapSourceRefs) +
       refsToLine("highlight", attrs.mapHighlightRefs) +

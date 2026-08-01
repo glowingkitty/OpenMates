@@ -113,7 +113,7 @@ export interface EmbedNodeAttributes {
   // resolution assets without changing the standard inline card layout.
   previewVariant?: "small" | "large";
 
-  // Virtual message-level map/list views over existing embeds. These refs are
+  // Virtual message-level results views over existing embeds. These refs are
   // intentionally lightweight and do not create a persisted embed record.
   mapEmbedRefs?: string[];
   mapSourceRefs?: string[];

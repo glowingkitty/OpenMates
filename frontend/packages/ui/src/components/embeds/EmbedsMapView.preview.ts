@@ -1,5 +1,5 @@
 // frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
-// Static preview data for the virtual in-chat map/list renderer.
+// Static preview data for the virtual in-chat results-view renderer.
 // The fixture seeds local cleartext embeds only; it does not call app skills,
 // providers, chat APIs, or enrichment endpoints. Playwright uses this preview to
 // verify deployed browser rendering without private share URLs or auth state.

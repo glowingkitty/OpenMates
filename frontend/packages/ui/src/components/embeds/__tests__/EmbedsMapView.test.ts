@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-// Component-level tests for the virtual embeds map/list view.
+// Component-level tests for the virtual embeds results view.
 // These use mocked local embed data only, proving the component derives list
 // filters and bounded source children without provider/app-skill calls.
 // Spec: docs/specs/embeds-map-view/spec.yml
@@ -311,6 +311,43 @@ describe("EmbedsMapView", () => {
     cards[1].dispatchEvent(new Event("pointerleave"));
     await tick();
     expect(cards[0].dataset.dimmed).toBe("false");
+
+    unmount(component);
+    target.remove();
+  });
+
+  it("switches map and calendar visual tabs while keeping the result list", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-tabs",
+        title: "Berlin AI events",
+        embedRefs: [],
+        sourceRefs: ["events-search-abcdef"],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+
+    expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Map");
+    expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Calendar");
+    expect(target.querySelector('[data-testid="embeds-results-view-tab-list"]')).toBeNull();
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')).not.toBeNull();
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-results-view-tab-calendar"]')?.click();
+    await tick();
+
+    expect(target.querySelector('[data-testid="embeds-results-view-pane"]')?.getAttribute("data-active-tab")).toBe("calendar");
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
+    const calendarItems = target.querySelectorAll('[data-testid="embeds-results-view-calendar-item"]');
+    expect(calendarItems).toHaveLength(1);
+    expect(calendarItems[0].textContent).toContain("AI Founders Meetup");
 
     unmount(component);
     target.remove();

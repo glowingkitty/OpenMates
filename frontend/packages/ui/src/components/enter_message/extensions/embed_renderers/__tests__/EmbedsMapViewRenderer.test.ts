@@ -1,5 +1,5 @@
 // frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/EmbedsMapViewRenderer.test.ts
-// Renderer contract for the virtual in-chat embeds map view.
+// Renderer contract for the virtual in-chat embeds results view.
 // The renderer must mount a local Svelte component and must not trigger provider
 // or app-skill work while rendering message refs.
 // Spec: docs/specs/embeds-map-view/spec.yml
@@ -79,7 +79,7 @@ describe("EmbedsMapViewRenderer", () => {
         mapHighlightRefs: ["nightjet-7abc12"],
       }),
     ).toBe(
-      "```embeds_map_view\n" +
+      "```embeds_results_view\n" +
         "title: Munich to Zurich options\n" +
         "sources: travel-search-connections-12ab34\n" +
         "highlight: nightjet-7abc12\n" +

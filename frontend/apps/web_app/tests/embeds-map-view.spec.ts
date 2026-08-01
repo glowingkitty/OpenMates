@@ -66,6 +66,18 @@ test.describe('Embeds map view preview', () => {
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(cards.first()).toHaveAttribute('data-entry-category', 'place');
 
+		const visualTabs = mapView.getByTestId('embeds-results-view-tabs');
+		await expect(visualTabs).toBeVisible();
+		await expect(visualTabs).toContainText('Map');
+		await expect(visualTabs).toContainText('Calendar');
+		await expect(mapView.getByTestId('embeds-results-view-tab-list')).toHaveCount(0);
+		await mapView.getByTestId('embeds-results-view-tab-calendar').click();
+		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
+		await expect(mapView.getByTestId('embeds-results-view-calendar-item')).toContainText('AI Founders Meetup');
+		await expect(cards).toHaveCount(3);
+		await mapView.getByTestId('embeds-results-view-tab-map').click();
+		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'map');
+
 		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
 		await expect(filterButton).toBeVisible();
 		await filterButton.click();

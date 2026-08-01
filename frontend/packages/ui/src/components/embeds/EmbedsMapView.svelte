@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
 
-  Virtual in-chat map/list view over existing location-capable embeds.
+  Virtual in-chat results view over existing location/schedule-capable embeds.
   It resolves refs from local embed data and never calls provider/app-skill
   enrichment endpoints. Missing refs stay visible as loading/unavailable rows.
   Spec: docs/specs/embeds-map-view/spec.yml
@@ -82,6 +82,25 @@
     options: { value: string; label: string; count: number }[];
   }
 
+  type VisualTabId = 'map' | 'calendar';
+
+  interface VisualTab {
+    id: VisualTabId;
+    label: string;
+  }
+
+  interface CalendarEntry {
+    entry: MapViewEntry;
+    dateOrdinal: number;
+    startMinutes: number;
+    endMinutes?: number;
+  }
+
+  interface CalendarDayGroup {
+    dateOrdinal: number;
+    entries: CalendarEntry[];
+  }
+
   let {
     id,
     title,
@@ -94,6 +113,7 @@
   let isLoading = $state(true);
   let hoveredRef = $state<string | null>(null);
   let activeCategory = $state<string>('all');
+  let activeVisualTab = $state<VisualTabId>('map');
   let rangeFilters = $state<Record<string, { min: number; max: number }>>({});
   let optionFilters = $state<Record<string, string[]>>({});
   let filtersOpen = $state(false);
@@ -146,6 +166,11 @@
       ref: entry.ref,
       testId: 'embeds-map-view-route-path',
     })));
+  const calendarEntries = $derived<CalendarEntry[]>(visibleEntries
+    .map(calendarEntryFromMapEntry)
+    .filter((entry): entry is CalendarEntry => entry != null)
+    .sort((a, b) => a.dateOrdinal - b.dateOrdinal || a.startMinutes - b.startMinutes || a.entry.title.localeCompare(b.entry.title)));
+  const calendarDayGroups = $derived<CalendarDayGroup[]>(groupCalendarEntries(calendarEntries));
   const mapCenter = $derived.by(() => {
     const points = [
       ...mapEntries.map((entry) => ({ lat: entry.lat!, lon: entry.lon! })),
@@ -159,6 +184,12 @@
       lon: (Math.min(...lons) + Math.max(...lons)) / 2,
     };
   });
+  const visualTabs = $derived<VisualTab[]>(deriveVisualTabs(Boolean(mapCenter), calendarEntries.length > 0));
+  const selectedVisualTab = $derived.by(() => {
+    if (visualTabs.some((tab) => tab.id === activeVisualTab)) return activeVisualTab;
+    return visualTabs[0]?.id ?? 'map';
+  });
+  const showVisualTabs = $derived(visualTabs.length > 1);
 
   function uniqueRefs(refs: string[]): string[] {
     const seen = new Set<string>();
@@ -484,20 +515,65 @@
     hoveredRef = null;
   }
 
+  function deriveVisualTabs(hasMap: boolean, hasCalendar: boolean): VisualTab[] {
+    const tabs: VisualTab[] = [];
+    if (hasMap) tabs.push({ id: 'map', label: 'Map' });
+    if (hasCalendar) tabs.push({ id: 'calendar', label: 'Calendar' });
+    return tabs;
+  }
+
+  function calendarEntryFromMapEntry(entry: MapViewEntry): CalendarEntry | null {
+    if (entry.status !== 'ready') return null;
+    const dateOrdinal = numberFacet(entry, 'dateOrdinal');
+    const startMinutes = numberFacet(entry, 'departureMinutes');
+    if (dateOrdinal == null || startMinutes == null) return null;
+    const rawEndMinutes = numberFacet(entry, 'arrivalMinutes');
+    const endMinutes = rawEndMinutes != null && rawEndMinutes !== startMinutes ? rawEndMinutes : undefined;
+    return { entry, dateOrdinal, startMinutes, endMinutes };
+  }
+
+  function groupCalendarEntries(items: CalendarEntry[]): CalendarDayGroup[] {
+    const groups = new Map<number, CalendarEntry[]>();
+    for (const item of items) {
+      groups.set(item.dateOrdinal, [...(groups.get(item.dateOrdinal) ?? []), item]);
+    }
+    return Array.from(groups.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([dateOrdinal, entriesForDay]) => ({ dateOrdinal, entries: entriesForDay }));
+  }
+
   function formatOptionLabel(value: string): string {
     return value
       .replace(/[_-]+/g, ' ')
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  function formatTimeMinutes(value: number): string {
+    const hours = Math.floor(value / 60).toString().padStart(2, '0');
+    const minutes = Math.round(value % 60).toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
   function formatRangeValue(control: RangeFilterControl, value: number): string {
     if (control.type === 'time') {
-      const hours = Math.floor(value / 60).toString().padStart(2, '0');
-      const minutes = Math.round(value % 60).toString().padStart(2, '0');
-      return `${hours}:${minutes}`;
+      return formatTimeMinutes(value);
     }
     if (control.type === 'date') return dateFromOrdinal(value);
     return `${Math.round(value)}${control.unit ? ` ${control.unit}` : ''}`;
+  }
+
+  function formatCalendarTime(item: CalendarEntry): string {
+    if (item.endMinutes == null) return formatTimeMinutes(item.startMinutes);
+    return `${formatTimeMinutes(item.startMinutes)} - ${formatTimeMinutes(item.endMinutes)}`;
+  }
+
+  function formatCalendarDate(value: number): string {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'UTC',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date(value * 86400000));
   }
 
   function dateFromOrdinal(value: number): string {
@@ -873,11 +949,34 @@
   $effect(() => {
     if (mapShellElement && mapCenter && !shouldHydrateMap) setupMapHydrationObserver();
   });
+
+  $effect(() => {
+    if (visualTabs.length > 0 && !visualTabs.some((tab) => tab.id === activeVisualTab)) {
+      activeVisualTab = visualTabs[0].id;
+    }
+  });
 </script>
 
-<section class="embeds-map-view" data-testid="embeds-map-view" data-map-view-id={id} aria-label={title}>
+<section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
+    {#if showVisualTabs}
+      <div class="results-view-tabs" data-testid="embeds-results-view-tabs" role="tablist" aria-label="Result views">
+        {#each visualTabs as tab}
+          <button
+            type="button"
+            class:active={selectedVisualTab === tab.id}
+            data-testid={`embeds-results-view-tab-${tab.id}`}
+            role="tab"
+            aria-selected={selectedVisualTab === tab.id}
+            aria-controls={`embeds-results-view-panel-${tab.id}`}
+            onclick={() => (activeVisualTab = tab.id)}
+          >
+            {tab.label}
+          </button>
+        {/each}
+      </div>
+    {/if}
     {#if hasAvailableFilters}
       <div class="filter-menu-wrapper">
         <button
@@ -1044,30 +1143,80 @@
       {/if}
     </div>
 
-    <div
-      class="map-view-map"
-      data-testid="embeds-map-view-map"
-      data-route-count={routePaths.length}
-      data-map-hydrated={shouldHydrateMap ? 'true' : 'false'}
-      bind:this={mapShellElement}
-    >
-      {#if mapCenter}
-        {#if shouldHydrateMap}
-          <EmbedLeafletMap
-            center={mapCenter}
-            zoom={12}
-            markers={mapMarkers}
-            paths={routePaths}
-            height="100%"
-            minHeight="260px"
-            fitBounds={true}
-            scrollWheelZoom={false}
-          />
-        {:else}
-          <div class="map-hydration-placeholder">Map loading when visible...</div>
-        {/if}
+    <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
+      {#if selectedVisualTab === 'calendar'}
+        <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
+          {#if calendarDayGroups.length > 0}
+            {#each calendarDayGroups as dayGroup}
+              <section class="calendar-day" data-testid="embeds-results-view-calendar-day">
+                <header class="calendar-day-header">
+                  <strong>{formatCalendarDate(dayGroup.dateOrdinal)}</strong>
+                  <span>{dayGroup.entries.length} {dayGroup.entries.length === 1 ? 'result' : 'results'}</span>
+                </header>
+                <div class="calendar-items">
+                  {#each dayGroup.entries as item}
+                    <button
+                      type="button"
+                      class="calendar-item"
+                      class:highlighted={item.entry.highlighted}
+                      class:hovered={item.entry.ref === hoveredRef}
+                      data-testid="embeds-results-view-calendar-item"
+                      data-entry-category={item.entry.category}
+                      onclick={() => openEntry(item.entry)}
+                      onpointerenter={() => (hoveredRef = item.entry.ref)}
+                      onpointerleave={() => {
+                        if (hoveredRef === item.entry.ref) hoveredRef = null;
+                      }}
+                      onfocus={() => (hoveredRef = item.entry.ref)}
+                      onblur={() => {
+                        if (hoveredRef === item.entry.ref) hoveredRef = null;
+                      }}
+                    >
+                      <span class="calendar-time">{formatCalendarTime(item)}</span>
+                      <span class="calendar-copy">
+                        <span class="category-pill">{item.entry.category}</span>
+                        <strong>{item.entry.title}</strong>
+                        <span>{item.entry.subtitle}</span>
+                      </span>
+                    </button>
+                  {/each}
+                </div>
+              </section>
+            {/each}
+          {:else}
+            <div class="empty-map">Referenced embeds do not expose date and time yet.</div>
+          {/if}
+        </div>
       {:else}
-        <div class="empty-map">Referenced embeds do not expose coordinates yet.</div>
+        <div
+          class="map-view-map"
+          data-testid="embeds-map-view-map"
+          data-route-count={routePaths.length}
+          data-map-hydrated={shouldHydrateMap ? 'true' : 'false'}
+          id="embeds-results-view-panel-map"
+          role="tabpanel"
+          aria-label="Mapped results"
+          bind:this={mapShellElement}
+        >
+          {#if mapCenter}
+            {#if shouldHydrateMap}
+              <EmbedLeafletMap
+                center={mapCenter}
+                zoom={12}
+                markers={mapMarkers}
+                paths={routePaths}
+                height="100%"
+                minHeight="260px"
+                fitBounds={true}
+                scrollWheelZoom={false}
+              />
+            {:else}
+              <div class="map-hydration-placeholder">Map loading when visible...</div>
+            {/if}
+          {:else}
+            <div class="empty-map">Referenced embeds do not expose coordinates yet.</div>
+          {/if}
+        </div>
       {/if}
     </div>
   </div>
@@ -1098,6 +1247,47 @@
     color: var(--color-font-secondary, #666666);
     font-size: var(--font-size-xxs);
     white-space: nowrap;
+  }
+
+  .results-view-tabs {
+    position: absolute;
+    left: 50%;
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: 999px;
+    background: var(--color-grey-10, #f9f9f9);
+    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
+    transform: translateX(-50%);
+  }
+
+  .results-view-tabs button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-font-secondary, #666666);
+    padding: 6px 12px;
+    font: inherit;
+    font-size: var(--font-size-xxs, 0.75rem);
+    font-weight: 650;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--duration-fast, 0.15s) ease, color var(--duration-fast, 0.15s) ease;
+  }
+
+  .results-view-tabs button.active,
+  .results-view-tabs button:hover {
+    background: linear-gradient(135deg, var(--color-primary-start, #6c63ff), var(--color-primary-end, #8a63ff));
+    color: var(--color-grey-0, #ffffff);
+  }
+
+  .results-view-tabs button:focus-visible {
+    outline: 2px solid var(--color-primary, #6c63ff);
+    outline-offset: 2px;
   }
 
   .filter-menu-wrapper {
@@ -1264,6 +1454,12 @@
     border-top: 1px solid var(--color-grey-20, #f3f3f3);
   }
 
+  .results-view-pane {
+    min-width: 0;
+    min-height: 360px;
+    background: var(--color-grey-20, #f3f3f3);
+  }
+
   .map-view-list {
     display: flex;
     flex-direction: column;
@@ -1339,7 +1535,107 @@
   .map-view-map {
     min-width: 0;
     min-height: 360px;
+    height: 100%;
     background: var(--color-grey-20, #f3f3f3);
+  }
+
+  .results-view-calendar {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    min-height: 360px;
+    max-height: 420px;
+    overflow: auto;
+    padding: 14px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--color-primary, #6c63ff) 8%, transparent), transparent 160px),
+      var(--color-grey-20, #f3f3f3);
+  }
+
+  .calendar-day {
+    display: grid;
+    gap: 8px;
+  }
+
+  .calendar-day-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--color-font-secondary, #666666);
+    font-size: var(--font-size-xxs, 0.75rem);
+  }
+
+  .calendar-day-header strong {
+    color: var(--color-font-primary, #222222);
+    font-size: var(--font-size-small, 0.875rem);
+  }
+
+  .calendar-items {
+    display: grid;
+    gap: 8px;
+  }
+
+  .calendar-item {
+    display: grid;
+    grid-template-columns: minmax(54px, auto) minmax(0, 1fr);
+    gap: 10px;
+    width: 100%;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: var(--radius-6, 14px);
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
+    padding: 10px;
+    text-align: left;
+    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
+    cursor: pointer;
+    transition: border-color var(--duration-fast, 0.15s) ease, transform var(--duration-fast, 0.15s) ease;
+  }
+
+  .calendar-item.highlighted,
+  .calendar-item.hovered {
+    border-color: var(--color-primary, #6c63ff);
+  }
+
+  .calendar-item:hover {
+    transform: translateY(-1px);
+  }
+
+  .calendar-time {
+    align-self: start;
+    border-radius: 999px;
+    background: var(--color-grey-blue, #e6eaff);
+    color: var(--color-font-primary, #222222);
+    padding: 5px 7px;
+    font-size: var(--font-size-tiny, 0.6875rem);
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .calendar-copy {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .calendar-copy strong {
+    overflow: hidden;
+    color: var(--color-font-primary, #222222);
+    font-size: var(--font-size-small, 0.875rem);
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .calendar-copy > span:last-child {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-font-secondary, #666666);
+    font-size: var(--font-size-xxs, 0.75rem);
+    line-height: 1.3;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   .empty-state,
@@ -1374,10 +1670,27 @@
       flex-wrap: wrap;
     }
 
+    .entry-count {
+      order: 1;
+    }
+
+    .results-view-tabs {
+      position: static;
+      order: 3;
+      width: 100%;
+      transform: none;
+    }
+
+    .results-view-tabs button {
+      flex: 1 1 0;
+      justify-content: center;
+    }
+
     .filter-menu-wrapper {
       display: grid;
       justify-items: end;
       width: 100%;
+      order: 2;
       position: static;
       z-index: auto;
     }
@@ -1447,6 +1760,23 @@
 
     .map-view-map {
       min-height: 280px;
+    }
+
+    .results-view-pane,
+    .results-view-calendar {
+      min-height: 280px;
+    }
+
+    .results-view-calendar {
+      max-height: 360px;
+    }
+
+    .calendar-item {
+      grid-template-columns: 1fr;
+    }
+
+    .calendar-copy strong {
+      white-space: normal;
     }
   }
 </style>

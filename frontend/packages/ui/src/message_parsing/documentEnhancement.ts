@@ -421,6 +421,9 @@ function findMatchingEmbedForCodeBlock(
   // Extract text content from the code block
   const codeText = codeBlockNode.content?.[0]?.text || "";
   const codeBlockLanguage = codeBlockNode.attrs?.language;
+  const normalizedCodeBlockLanguage = typeof codeBlockLanguage === "string"
+    ? codeBlockLanguage.trim().split(/\s+/, 1)[0].toLowerCase()
+    : "";
 
   console.debug("[findMatchingEmbedForCodeBlock] Checking code block:", {
     codeText: codeText.substring(0, 100),
@@ -432,7 +435,7 @@ function findMatchingEmbedForCodeBlock(
     return null;
   }
 
-  if (codeBlockLanguage === "embeds_map_view") {
+  if (normalizedCodeBlockLanguage === "embeds_map_view" || normalizedCodeBlockLanguage === "embeds_results_view") {
     const matchingMapView = embedNodes.find(
       (node) => node.type === "embeds-map-view",
     );

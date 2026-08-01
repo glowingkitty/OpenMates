@@ -138,12 +138,13 @@ class TestRealCodeFenceDetection:
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=True)
         assert result is False
 
-    def test_embeds_map_view_fence_is_not_code_embed(self):
-        """Map-view fences stay as message text for the frontend renderer."""
-        chunk = "```embeds_map_view\ntitle: Berlin AI events\nembeds: event-one-111111\n```"
+    def test_embeds_results_view_fence_is_not_code_embed(self):
+        """Results-view fences stay as message text for the frontend renderer."""
         aggregated = "Here are the mapped results:\n\n"
-        result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
-        assert result is False
+        for language in ("embeds_results_view", "embeds_map_view"):
+            chunk = f"```{language}\ntitle: Berlin AI events\nembeds: event-one-111111\n```"
+            result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
+            assert result is False
 
 
 class TestGeneratedApplicationManifestDetection:

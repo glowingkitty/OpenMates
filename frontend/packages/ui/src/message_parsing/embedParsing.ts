@@ -11,7 +11,13 @@ import {
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 
 const EMBEDS_MAP_VIEW_LANGUAGE = "embeds_map_view";
+const EMBEDS_RESULTS_VIEW_LANGUAGE = "embeds_results_view";
 const MAP_VIEW_ALLOWED_FIELDS = new Set(["title", "embeds", "sources", "highlight"]);
+
+function isResultsViewLanguage(language: string): boolean {
+  const fenceLanguage = language.trim().split(/\s+/, 1)[0].toLowerCase();
+  return fenceLanguage === EMBEDS_MAP_VIEW_LANGUAGE || fenceLanguage === EMBEDS_RESULTS_VIEW_LANGUAGE;
+}
 
 function normalizeRefList(value: string | undefined): string[] {
   if (!value) return [];
@@ -44,7 +50,7 @@ function parseEmbedsMapViewBlock(content: string): EmbedNodeAttributes | null {
     if (value) fields.set(key, value);
   }
 
-  const title = fields.get("title") || "Map view";
+  const title = fields.get("title") || "Results view";
   const mapEmbedRefs = normalizeRefList(fields.get("embeds"));
   const mapSourceRefs = normalizeRefList(fields.get("sources"));
   const mapHighlightRefs = normalizeRefList(fields.get("highlight"));
@@ -508,7 +514,7 @@ export function parseEmbedNodes(
           const language = event.language || pendingCodeLanguage;
           const filename = event.filename || pendingCodeFilename;
 
-          if ((language || "").toLowerCase() === EMBEDS_MAP_VIEW_LANGUAGE) {
+          if (isResultsViewLanguage(language || "")) {
             const embed = parseEmbedsMapViewBlock(content);
             if (embed) {
               embedNodes.push(embed);

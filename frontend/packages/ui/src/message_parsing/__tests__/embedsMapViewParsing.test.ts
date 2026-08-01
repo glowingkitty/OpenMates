@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
-// Parser contract for the virtual `embeds_map_view` message block.
-// The map view is a lightweight presentation over existing embeds, not a
+// Parser contract for the virtual `embeds_results_view` message block.
+// The results view is a lightweight presentation over existing embeds, not a
 // persisted embed type, so these tests guard ref-only parsing and round trips.
 // Spec: docs/specs/embeds-map-view/spec.yml
 
@@ -8,12 +8,12 @@ import { describe, expect, it } from "vitest";
 import { parseEmbedNodes } from "../embedParsing";
 import { parse_message } from "../parse_message";
 
-describe("embeds_map_view parsing", () => {
+describe("embeds_results_view parsing", () => {
   it("parses curated child refs and preserves order", () => {
     const markdown = `Here are the strongest matches:
 
 
-\`\`\`embeds_map_view
+\`\`\`embeds_results_view
 title: Berlin AI events
 embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
 \`\`\``;
@@ -30,8 +30,21 @@ embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
     });
   });
 
+  it("keeps parsing legacy embeds_map_view fences", () => {
+    const [mapView] = parseEmbedNodes(
+      "```embeds_map_view\ntitle: Legacy map\nembeds: event-one-111111\n```",
+      "read",
+    );
+
+    expect(mapView).toMatchObject({
+      type: "embeds-map-view",
+      title: "Legacy map",
+      mapEmbedRefs: ["event-one-111111"],
+    });
+  });
+
   it("parses source refs with highlighted child refs", () => {
-    const markdown = `\`\`\`embeds_map_view
+    const markdown = `\`\`\`embeds_results_view
 title: Munich to Zurich options
 sources: travel-search-connections-12ab34
 highlight: nightjet-munich-zurich-7abc12, db-ice-basel-9def34
@@ -49,7 +62,7 @@ highlight: nightjet-munich-zurich-7abc12, db-ice-basel-9def34
   });
 
   it("drops unsupported fields and duplicate refs", () => {
-    const markdown = `\`\`\`embeds_map_view
+    const markdown = `\`\`\`embeds_results_view
 title: Clinics near me
 provider: paid-provider
 filters: specialty=dermatology
@@ -67,7 +80,7 @@ enrichment: travel.flight_details
 
   it("turns the fenced block into a virtual embed node in unified parsing", () => {
     const doc = parse_message(
-      `Intro\n\n\`\`\`embeds_map_view\ntitle: Berlin AI events\nembeds: one-111111\n\`\`\``,
+      `Intro\n\n\`\`\`embeds_results_view\ntitle: Berlin AI events\nembeds: one-111111\n\`\`\``,
       "read",
       { unifiedParsingEnabled: true, role: "assistant" },
     );
