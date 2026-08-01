@@ -50,13 +50,12 @@
   data-task-id={task.task_id}
 >
   <div class="task-card-main">
-    {#if !workflowRun}<label class="done-toggle">
+    {#if !workflowRun}<label class="done-toggle" data-testid="task-done-toggle">
       <input
         type="checkbox"
         checked={task.status === 'done'}
         onchange={() => onMove(task, task.status === 'done' ? 'todo' : 'done')}
         aria-label={`Mark ${task.title || 'task'} done`}
-        data-testid="task-done-toggle"
       />
       <span></span>
     </label>{/if}
@@ -137,9 +136,22 @@
     gap: 12px;
   }
 
+  .done-toggle {
+    position: relative;
+    display: inline-grid;
+    flex: 0 0 44px;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+  }
+
   .done-toggle input {
     position: absolute;
+    width: 1px;
+    height: 1px;
     opacity: 0;
+    pointer-events: none;
   }
 
   .done-toggle span {
