@@ -231,6 +231,36 @@
     onNavigateNext,
   }: Props = $props();
 
+  function readTransferQuality(content: Record<string, unknown>): TransferQuality | undefined {
+    if (typeof content.transfer_quality === 'object' && content.transfer_quality !== null) {
+      return content.transfer_quality as TransferQuality;
+    }
+
+    const hasFlatQuality = content.transfer_quality_min_transfer_minutes !== undefined || content.transfer_quality_has_transfers !== undefined;
+    if (!hasFlatQuality) return undefined;
+
+    const readNumber = (value: unknown): number | undefined => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value !== 'string' || value.trim() === '') return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const readBoolean = (value: unknown): boolean | undefined => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value !== 'string') return undefined;
+      if (value.toLowerCase() === 'true') return true;
+      if (value.toLowerCase() === 'false') return false;
+      return undefined;
+    };
+
+    return {
+      min_transfer_minutes: readNumber(content.transfer_quality_min_transfer_minutes),
+      has_transfers: readBoolean(content.transfer_quality_has_transfers),
+      short_transfer_count: readNumber(content.transfer_quality_short_transfer_count),
+      unknown_transfer_count: readNumber(content.transfer_quality_unknown_transfer_count),
+    };
+  }
+
   // Build the connection object from data.decodedContent
   // The decodedContent fields map directly to ConnectionData since ActiveChat
   // previously passed the whole decodedContent as-is to construct the connection prop
@@ -273,7 +303,7 @@
     co2_kg: typeof dc.co2_kg === 'number' ? dc.co2_kg : undefined,
     co2_typical_kg: typeof dc.co2_typical_kg === 'number' ? dc.co2_typical_kg : undefined,
     co2_difference_percent: typeof dc.co2_difference_percent === 'number' ? dc.co2_difference_percent : undefined,
-    transfer_quality: (typeof dc.transfer_quality === 'object' && dc.transfer_quality !== null) ? dc.transfer_quality as TransferQuality : undefined,
+    transfer_quality: readTransferQuality(dc as Record<string, unknown>),
     optimization: (typeof dc.optimization === 'object' && dc.optimization !== null) ? dc.optimization as OptimizationData : undefined,
     flight_track: (typeof dc.flight_track === 'object' && dc.flight_track !== null) ? dc.flight_track as ConnectionData['flight_track'] : undefined,
   }));

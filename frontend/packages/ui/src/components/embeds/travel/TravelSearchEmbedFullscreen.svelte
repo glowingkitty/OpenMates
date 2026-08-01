@@ -333,6 +333,36 @@
     return found ? ctx : undefined;
   }
 
+  function readTransferQuality(content: Record<string, unknown>): TransferQuality | undefined {
+    if (typeof content.transfer_quality === 'object' && content.transfer_quality !== null) {
+      return content.transfer_quality as TransferQuality;
+    }
+
+    const hasFlatQuality = content.transfer_quality_min_transfer_minutes !== undefined || content.transfer_quality_has_transfers !== undefined;
+    if (!hasFlatQuality) return undefined;
+
+    const readNumber = (value: unknown): number | undefined => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value !== 'string' || value.trim() === '') return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const readBoolean = (value: unknown): boolean | undefined => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value !== 'string') return undefined;
+      if (value.toLowerCase() === 'true') return true;
+      if (value.toLowerCase() === 'false') return false;
+      return undefined;
+    };
+
+    return {
+      min_transfer_minutes: readNumber(content.transfer_quality_min_transfer_minutes),
+      has_transfers: readBoolean(content.transfer_quality_has_transfers),
+      short_transfer_count: readNumber(content.transfer_quality_short_transfer_count),
+      unknown_transfer_count: readNumber(content.transfer_quality_unknown_transfer_count),
+    };
+  }
+
   function extractStringArray(content: Record<string, unknown>, fieldName: string, maxItems = 20): string[] {
     const direct = content[fieldName];
     if (Array.isArray(direct)) return direct.filter((value): value is string => typeof value === 'string' && value.length > 0);
@@ -574,7 +604,7 @@
       co2_kg: content.co2_kg as number | undefined,
       co2_typical_kg: content.co2_typical_kg as number | undefined,
       co2_difference_percent: content.co2_difference_percent as number | undefined,
-      transfer_quality: content.transfer_quality as TransferQuality | undefined,
+      transfer_quality: readTransferQuality(content),
       optimization: content.optimization as OptimizationData | undefined,
     };
   }
