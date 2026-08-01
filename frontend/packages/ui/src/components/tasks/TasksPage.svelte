@@ -895,7 +895,7 @@
   }
 
   .tasks-shell-frame :global(.workspace-center-content.center-content) {
-    top: calc(50% + 5vh);
+    top: calc(50% + 8vh);
   }
 
   .tasks-shell-frame :global(.workspace-composer-slot) {
