@@ -644,7 +644,16 @@
 
   @media (max-width: 730px) {
     .chat-settings-page {
-      padding-inline: var(--spacing-2);
+      padding-inline: var(--spacing-1);
+    }
+
+    .chat-settings-page :global(.settings-card) {
+      margin-inline: var(--spacing-1);
+      padding-inline: var(--spacing-3);
+    }
+
+    .chat-settings-page :global(.settings-tabs-wrapper) {
+      padding-inline: var(--spacing-1);
     }
   }
 </style>

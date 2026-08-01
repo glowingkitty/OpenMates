@@ -3525,7 +3525,6 @@ changes to the documentation (to keep the documentation up to date).
 
     @media (max-width: 730px) {
         .settings-menu {
-            --settings-panel-width: calc(100vw - var(--spacing-2) - var(--spacing-2));
             inset-inline-end: 10px;
             bottom: 10px;
             transform: translateX(calc(100% + 20px));
