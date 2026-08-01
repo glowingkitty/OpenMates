@@ -427,6 +427,7 @@
 
   .plans-shell-frame :global(.workspace-composer-slot) {
     bottom: 10px;
+    z-index: var(--z-index-dropdown);
   }
 
   .plans-board-panel {
