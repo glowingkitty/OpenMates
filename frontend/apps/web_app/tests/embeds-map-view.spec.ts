@@ -73,7 +73,10 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView.getByTestId('embeds-results-view-tab-list')).toHaveCount(0);
 		await mapView.getByTestId('embeds-results-view-tab-calendar').click();
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
-		await expect(mapView.getByTestId('embeds-results-view-calendar-item')).toContainText('AI Founders Meetup');
+		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
+		await expect(calendarItems).toHaveCount(2);
+		await expect(calendarItems.filter({ hasText: 'AI Founders Meetup' })).toBeVisible();
+		await expect(calendarItems.filter({ hasText: 'Berlin Hbf' })).toBeVisible();
 		await expect(cards).toHaveCount(3);
 		await mapView.getByTestId('embeds-results-view-tab-map').click();
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'map');
