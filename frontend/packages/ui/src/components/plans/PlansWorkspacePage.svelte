@@ -416,6 +416,11 @@
     background: var(--color-grey-0);
   }
 
+  .plans-shell-frame :global(.daily-inspiration-banner) {
+    --daily-inspiration-regular-height: clamp(150px, 20vh, 190px);
+    min-height: 0;
+  }
+
   .plans-shell-frame :global(.workspace-center-content.center-content) {
     top: calc(50% + 5vh);
   }
