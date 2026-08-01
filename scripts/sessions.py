@@ -20,6 +20,7 @@ Usage:
     python3 scripts/sessions.py track   --session a3f2 --file path/to/file.py
     python3 scripts/sessions.py claim   --session a3f2 --file path/to/file.py
     python3 scripts/sessions.py release --session a3f2 --file path/to/file.py
+    python3 scripts/sessions.py edit-lease acquire --opencode-session ses_... --file path/to/file.py
 
     # On-demand doc loading
     python3 scripts/sessions.py context --doc debugging
@@ -506,6 +507,7 @@ def _default_sessions() -> dict:
             "docker_rebuild": {"status": "NONE"},
             "vercel_deploy": {"status": "NONE"},
         },
+        "edit_leases": {},
         "deploy_queue": [],
         "worktree_archive": [],
         "sessions": {},
@@ -653,6 +655,193 @@ def _relative_repo_path_for_session(path_value: str | Path, session: dict | None
     return str(path_value)
 
 
+def _resolve_session_id(data: dict, *, session_id: str = "", opencode_session_id: str = "") -> str:
+    """Resolve a short sessions.py id from either explicit or OpenCode identity."""
+    sessions = data.get("sessions", {})
+    if session_id:
+        if session_id not in sessions:
+            raise RuntimeError(f"Session {session_id} not found")
+        return session_id
+    if opencode_session_id:
+        matches = [sid for sid, info in sessions.items() if info.get("opencode_session_id") == opencode_session_id]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple sessions")
+    raise RuntimeError("No active sessions.py session found for this OpenCode chat. Run: python3 scripts/sessions.py start --mode feature --task \"...\"")
+
+
+def _normalize_edit_lease_path(path_value: str | Path, session: dict | None = None) -> str | None:
+    """Return a repo-relative file key for root/worktree paths, or None outside the repo."""
+    candidate = Path(path_value)
+    try:
+        resolved = (candidate if candidate.is_absolute() else PROJECT_ROOT / candidate).resolve()
+    except OSError:
+        resolved = candidate if candidate.is_absolute() else PROJECT_ROOT / candidate
+    try:
+        return resolved.relative_to(PROJECT_ROOT.resolve()).as_posix()
+    except ValueError:
+        pass
+    metadata = session.get("worktree") if isinstance(session, dict) else None
+    worktree_path = metadata.get("path") if isinstance(metadata, dict) else None
+    if worktree_path:
+        try:
+            return resolved.relative_to(Path(worktree_path).resolve()).as_posix()
+        except ValueError:
+            pass
+    return None
+
+
+def _edit_lease_is_active(lease: dict) -> bool:
+    """Return whether an edit lease is still active under the normal lock TTL."""
+    last_updated = str(lease.get("last_updated") or lease.get("since") or "")
+    try:
+        return bool(last_updated and _minutes_since(last_updated) < STALE_LOCK_MINUTES)
+    except (TypeError, ValueError):
+        return False
+
+
+def _lease_owner_matches(lease: dict, *, session_id: str = "", opencode_session_id: str = "") -> bool:
+    return bool(
+        (session_id and lease.get("session_id") == session_id)
+        or (opencode_session_id and lease.get("opencode_session_id") == opencode_session_id)
+    )
+
+
+def _prune_stale_edit_leases(data: dict) -> list[str]:
+    """Remove expired OpenCode edit leases and return the released file keys."""
+    leases = data.setdefault("edit_leases", {})
+    released: list[str] = []
+    for filepath, lease in list(leases.items()):
+        if not isinstance(lease, dict) or not _edit_lease_is_active(lease):
+            released.append(filepath)
+            leases.pop(filepath, None)
+    return released
+
+
+def _format_edit_lease_conflict(filepath: str, lease: dict, sessions: dict) -> str:
+    owner = str(lease.get("session_id") or "unknown")
+    info = sessions.get(owner, {}) if isinstance(sessions, dict) else {}
+    task = info.get("task") or "No task description recorded"
+    opencode = lease.get("opencode_session_id") or info.get("opencode_session_id") or "unknown"
+    last_updated = lease.get("last_updated") or lease.get("since") or ""
+    try:
+        age = f"{_minutes_since(str(last_updated)):.1f} minutes ago" if last_updated else "unknown"
+    except (TypeError, ValueError):
+        age = "unknown"
+    return (
+        f"BLOCKED: Another live agent has an edit lease on '{filepath}'.\n"
+        f"Task: {task}\n"
+        f"Last active: {age}; OpenCode session: {opencode}; diagnostic id: {owner}.\n"
+        "Agent next step: do not ask the user to interpret this id. Work on non-conflicting files, "
+        "check `python3 scripts/sessions.py status`, or retry after the lease expires/releases. "
+        "Ask the user only if this exact file blocks all useful progress."
+    )
+
+
+def _manual_write_claim_conflict(filepath: str, session_id: str, sessions: dict) -> str | None:
+    """Return a conflict message when another session has a live manual claim."""
+    for other_sid, other_info in sessions.items():
+        if other_sid == session_id:
+            continue
+        if other_info.get("writing") != filepath:
+            continue
+        last_active = other_info.get("last_active", "")
+        try:
+            if last_active and _minutes_since(last_active) > STALE_LOCK_MINUTES:
+                other_info["writing"] = None
+                continue
+        except (TypeError, ValueError):
+            other_info["writing"] = None
+            continue
+        return _format_write_claim_conflict(filepath, other_sid, other_info)
+    return None
+
+
+def acquire_edit_leases(*, session_id: str = "", opencode_session_id: str = "", files: list[str]) -> dict:
+    """Acquire short-lived multi-file edit leases for one OpenCode edit tool call."""
+    now = _now_iso()
+
+    def mutate(data: dict) -> dict:
+        sid = _resolve_session_id(data, session_id=session_id, opencode_session_id=opencode_session_id)
+        sessions = data.setdefault("sessions", {})
+        session = sessions[sid]
+        _prune_stale_edit_leases(data)
+        normalized_files = sorted(
+            {
+                normalized
+                for raw_file in files
+                if (normalized := _normalize_edit_lease_path(raw_file, session))
+            }
+        )
+        if not normalized_files:
+            session["last_active"] = now
+            return {"session_id": sid, "files": []}
+
+        leases = data.setdefault("edit_leases", {})
+        for filepath in normalized_files:
+            manual_conflict = _manual_write_claim_conflict(filepath, sid, sessions)
+            if manual_conflict:
+                raise RuntimeError(manual_conflict)
+            existing = leases.get(filepath)
+            if isinstance(existing, dict) and _edit_lease_is_active(existing) and not _lease_owner_matches(
+                existing,
+                session_id=sid,
+                opencode_session_id=opencode_session_id,
+            ):
+                raise RuntimeError(_format_edit_lease_conflict(filepath, existing, sessions))
+
+        for filepath in normalized_files:
+            leases[filepath] = {
+                "session_id": sid,
+                "opencode_session_id": opencode_session_id,
+                "since": now,
+                "last_updated": now,
+            }
+            if filepath not in session.get("modified_files", []):
+                session.setdefault("modified_files", []).append(filepath)
+        session["last_active"] = now
+        return {"session_id": sid, "files": normalized_files}
+
+    return _mutate_sessions(mutate)
+
+
+def release_edit_leases(*, session_id: str = "", opencode_session_id: str = "", files: list[str] | None = None) -> dict:
+    """Release matching edit leases. Missing sessions are tolerated for cleanup."""
+    def mutate(data: dict) -> dict:
+        sid = ""
+        session = None
+        try:
+            sid = _resolve_session_id(data, session_id=session_id, opencode_session_id=opencode_session_id)
+            session = data.get("sessions", {}).get(sid)
+        except RuntimeError:
+            sid = session_id
+        normalized_files = None
+        if files:
+            normalized_files = {
+                normalized
+                for raw_file in files
+                if (normalized := _normalize_edit_lease_path(raw_file, session))
+            }
+        leases = data.setdefault("edit_leases", {})
+        released: list[str] = []
+        for filepath, lease in list(leases.items()):
+            if normalized_files is not None and filepath not in normalized_files:
+                continue
+            if not isinstance(lease, dict):
+                leases.pop(filepath, None)
+                released.append(filepath)
+                continue
+            if _lease_owner_matches(lease, session_id=sid, opencode_session_id=opencode_session_id):
+                leases.pop(filepath, None)
+                released.append(filepath)
+        if session is not None:
+            session["last_active"] = _now_iso()
+        return {"session_id": sid, "files": sorted(released)}
+
+    return _mutate_sessions(mutate)
+
+
 def _worktree_patch_id(metadata: dict) -> str:
     """Return a stable identifier for the current worktree diff."""
     worktree_path = metadata.get("path")
@@ -793,7 +982,7 @@ def evaluate_root_guard(action: str, target_path: str | Path, *, session_id: str
     """Return allow/warn/block for source operations attempted from root."""
     if action == "control-plane":
         return {"decision": "allow", "message": "control-plane operation allowed"}
-    mode = os.environ.get("OPENMATES_ROOT_GUARD", "warn").strip().lower()
+    mode = os.environ.get("OPENMATES_ROOT_GUARD", "strict").strip().lower()
     if mode in {"off", "0", "false"}:
         return {"decision": "allow", "message": "root guard disabled"}
     target = Path(target_path)
@@ -3355,15 +3544,17 @@ def cmd_status(args: argparse.Namespace) -> None:
     data = _load_sessions()
     _prune_stale(data)
     _prune_stale_locks(data)
+    _prune_stale_edit_leases(data)
     _save_sessions(data)
 
     sessions = data.get("sessions", {})
     locks = data.get("locks", {})
+    edit_leases = data.get("edit_leases", {})
 
     # --json: emit raw sessions dict for machine consumers (e.g. opencode plugin)
     if getattr(args, "json", False):
         dirty_files = _get_dirty_files()
-        output = {"sessions": {}, "locks": locks}
+        output = {"sessions": {}, "locks": locks, "edit_leases": edit_leases}
         for sid, info in sessions.items():
             modified = info.get("modified_files", [])
             uncommitted = [f for f in modified if f in dirty_files]
@@ -3391,6 +3582,17 @@ def cmd_status(args: argparse.Namespace) -> None:
         else:
             print(f"  {lt}: NONE")
     print()
+
+    if edit_leases:
+        print("Edit leases:")
+        for filepath, lease in sorted(edit_leases.items()):
+            if not isinstance(lease, dict):
+                continue
+            print(
+                f"  {filepath}: held by {lease.get('session_id', '?')} "
+                f"(since {lease.get('since', '?')})"
+            )
+        print()
 
     # Sessions
     if not sessions:
@@ -3525,11 +3727,13 @@ def cmd_claim(args: argparse.Namespace) -> None:
     """Claim a file for writing (prevents concurrent edits)."""
     data = _load_sessions()
     sid = args.session
-    filepath = args.file
 
     if sid not in data.get("sessions", {}):
         print(f"Error: Session {sid} not found.", file=sys.stderr)
         sys.exit(1)
+
+    filepath = _normalize_edit_lease_path(args.file, data["sessions"][sid]) or args.file
+    _prune_stale_edit_leases(data)
 
     stale_claims_cleared = False
     # Check if another session is writing to this file
@@ -3543,6 +3747,13 @@ def cmd_claim(args: argparse.Namespace) -> None:
                 stale_claims_cleared = True
                 continue
             print(_format_write_claim_conflict(filepath, other_sid, other_info), file=sys.stderr)
+            sys.exit(2)
+
+    for lease_file, lease in data.get("edit_leases", {}).items():
+        if lease_file != filepath:
+            continue
+        if isinstance(lease, dict) and _edit_lease_is_active(lease) and not _lease_owner_matches(lease, session_id=sid):
+            print(_format_edit_lease_conflict(filepath, lease, data.get("sessions", {})), file=sys.stderr)
             sys.exit(2)
 
     if stale_claims_cleared:
@@ -3856,11 +4067,8 @@ def cmd_check_write(args: argparse.Namespace) -> None:
     if not filepath:
         sys.exit(0)
 
-    # Make relative
-    try:
-        filepath = str(Path(filepath).relative_to(PROJECT_ROOT))
-    except ValueError:
-        pass
+    filepath = _normalize_edit_lease_path(filepath) or filepath
+    _prune_stale_edit_leases(data)
 
     # Check if another session is writing to this file
     sessions = data.get("sessions", {})
@@ -3873,7 +4081,38 @@ def cmd_check_write(args: argparse.Namespace) -> None:
             print(_format_write_claim_conflict(filepath, sid, info), file=sys.stderr)
             sys.exit(2)  # Exit 2 = blocking error for Claude hooks
 
+    for lease_file, lease in data.get("edit_leases", {}).items():
+        if lease_file == filepath and isinstance(lease, dict) and _edit_lease_is_active(lease):
+            print(_format_edit_lease_conflict(filepath, lease, sessions), file=sys.stderr)
+            sys.exit(2)
+
     sys.exit(0)  # Allow
+
+
+def cmd_edit_lease(args: argparse.Namespace) -> None:
+    """Acquire or release OpenCode edit leases around one edit tool call."""
+    try:
+        if args.edit_lease_action == "acquire":
+            result = acquire_edit_leases(
+                session_id=getattr(args, "session", None) or "",
+                opencode_session_id=getattr(args, "opencode_session", None) or "",
+                files=args.file or [],
+            )
+            print(json.dumps(result, sort_keys=True))
+            return
+        if args.edit_lease_action == "release":
+            result = release_edit_leases(
+                session_id=getattr(args, "session", None) or "",
+                opencode_session_id=getattr(args, "opencode_session", None) or "",
+                files=args.file or None,
+            )
+            print(json.dumps(result, sort_keys=True))
+            return
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(2)
+    print("Error: unknown edit-lease action", file=sys.stderr)
+    sys.exit(1)
 
 
 def cmd_stale_read(args: argparse.Namespace) -> None:
@@ -6986,6 +7225,17 @@ def main() -> None:
         "--file", "-f", help="File path (optional; falls back to stdin JSON)"
     )
 
+    p_edit_lease = sub.add_parser("edit-lease", help="Manage OpenCode multi-file edit leases")
+    p_edit_lease_sub = p_edit_lease.add_subparsers(dest="edit_lease_action", required=True)
+    p_edit_lease_acquire = p_edit_lease_sub.add_parser("acquire", help="Acquire edit leases before an edit tool call")
+    p_edit_lease_acquire.add_argument("--session", "-s", help="Short sessions.py ID")
+    p_edit_lease_acquire.add_argument("--opencode-session", help="OpenCode session ID")
+    p_edit_lease_acquire.add_argument("--file", "-f", nargs="+", required=True, help="File path(s) to lease")
+    p_edit_lease_release = p_edit_lease_sub.add_parser("release", help="Release edit leases after an edit tool call")
+    p_edit_lease_release.add_argument("--session", "-s", help="Short sessions.py ID")
+    p_edit_lease_release.add_argument("--opencode-session", help="OpenCode session ID")
+    p_edit_lease_release.add_argument("--file", "-f", nargs="+", help="File path(s) to release; omit to release all held leases")
+
     p_stale_read = sub.add_parser("stale-read", help="Manage OpenCode stale-read hash protection")
     p_stale_read_sub = p_stale_read.add_subparsers(dest="stale_read_action", required=True)
     for action in ("record", "check", "sync"):
@@ -7441,6 +7691,7 @@ def main() -> None:
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
         "check-write": cmd_check_write,
+        "edit-lease": cmd_edit_lease,
         "stale-read": cmd_stale_read,
         "worktree": cmd_worktree,
         "lock": cmd_lock,

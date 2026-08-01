@@ -62,4 +62,4 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
 
 Verification has two modes. Fast latest-ready checks may use the newest Ready dev deployment when exact proof is unnecessary. Exact-SHA checks must wait for the deployment or test run tied to the requested commit and must not treat a stale Ready deployment as proof for a different commit.
 
-Root guards are transitional by default. OpenCode warns on root source edits and can switch to strict blocking with `OPENMATES_ROOT_GUARD=strict`; Codex continues to block raw `git worktree` while allowing orchestrated `sessions.py worktree ensure` and `sessions.py worktree cleanup` commands.
+Root guards are strict by default. OpenCode blocks root source edits unless `OPENMATES_ROOT_GUARD=off` is set for an explicit emergency, protects overlapping execute-mode file edits with short-lived `sessions.py edit-lease` records, and blocks raw Docker Compose mutations unless the current session holds the Docker lock. Codex continues to block raw `git worktree` while allowing orchestrated `sessions.py worktree ensure` and `sessions.py worktree cleanup` commands.

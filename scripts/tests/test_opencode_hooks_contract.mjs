@@ -35,21 +35,23 @@ async function runAfterShell(command, text) {
 }
 
 test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "editedFilesForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest"]);
+  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
 });
 
-test("concurrent edit coordination is warning-only", () => {
+test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
   assert.match(preEditGuard, /additionalContext/);
   assert.match(preEditGuard, /WARNING: File/);
   assert.match(preEditGuard, /exit 0/);
+  assert.match(source, /edit-lease/);
   assert.doesNotMatch(source, /createFileLeaseCoordinator|opencode_file_leases\.py|Waiting for file lease/);
 });
 
-test("loaded hook preserves chat identity without blocking file leases", () => {
+test("loaded hook preserves chat identity for blocking edit leases", () => {
   assert.match(source, /env: sessionID \? \{ \.\.\.process\.env, OPENCODE_SESSION_ID: sessionID \}/);
   assert.doesNotMatch(source, /createSpecAutoContinue|session\.idle|opencode-spec-continuation|createFileLeaseCoordinator/);
   assert.match(source, /stale-read/);
+  assert.match(source, /edit-lease/);
 });
 
 test("canonical pre-edit guard prefers exact OpenCode identity", () => {
@@ -78,6 +80,28 @@ test("bash guard allows temp writes even when a repo script and source extension
 
 test("bash guard allows source file references that are not writes", async () => {
   await assert.doesNotReject(() => runBeforeShell("docker compose -f backend/core/docker-compose.yml ps"));
+});
+
+test("bash guard blocks Docker Compose mutations without the Docker lock", async () => {
+  await assert.rejects(
+    () => runBeforeShell("docker compose -f backend/core/docker-compose.yml restart api"),
+    /Docker Compose mutations require the sessions\.py Docker lock/,
+  );
+});
+
+test("Docker mutation decision allows the current session's Docker lock", () => {
+  const data = {
+    locks: { docker_rebuild: { status: "IN_PROGRESS", claimed_by: "abcd" } },
+    sessions: { abcd: { opencode_session_id: "test-session" } },
+  };
+  assert.deepEqual(
+    pluginModule.dockerMutationDecisionForTest({
+      command: "docker compose --env-file .env -f backend/core/docker-compose.yml build api",
+      sessionID: "test-session",
+      data,
+    }),
+    { decision: "allow", message: "Docker lock held by this session" },
+  );
 });
 
 test("bash guard allows programmatic source reads", async () => {

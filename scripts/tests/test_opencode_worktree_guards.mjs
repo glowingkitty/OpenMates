@@ -31,6 +31,15 @@ test("root guard blocks strict root edits", () => {
   assert.equal(decision.decision, "block");
 });
 
+test("root guard blocks root edits by default", () => {
+  const decision = rootGuardDecisionForTest({
+    cwd: "/home/superdev/projects/OpenMates",
+    target: "/home/superdev/projects/OpenMates/scripts/sessions.py",
+    sessionID: "ses_test",
+  });
+  assert.equal(decision.decision, "block");
+});
+
 test("root guard blocks root edits whenever an active worktree exists", () => {
   const decision = rootGuardDecisionForTest({
     mode: "warn",

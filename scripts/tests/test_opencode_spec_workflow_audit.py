@@ -16,6 +16,15 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 AUDIT_PATH = ROOT / "scripts/audit_opencode_spec_workflow.py"
+COORDINATION_PLUGIN_FIXTURE = " ".join(
+    [
+        "OPENCODE_SESSION_ID",
+        'runBridge("PreToolUse"',
+        "edit-lease",
+        'OPENMATES_ROOT_GUARD || "strict"',
+        "Docker Compose mutations require",
+    ]
+)
 
 
 def load_audit_module():
@@ -113,7 +122,7 @@ def test_opencode_spec_workflow_audit_rejects_blocking_lease_coordinator(tmp_pat
     audit = load_audit_module()
     plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
     plugin.parent.mkdir(parents=True)
-    plugin.write_text('OPENCODE_SESSION_ID runBridge("PreToolUse"', encoding="utf-8")
+    plugin.write_text(COORDINATION_PLUGIN_FIXTURE, encoding="utf-8")
     warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
     warning_guard.parent.mkdir(parents=True)
     warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
@@ -131,7 +140,7 @@ def test_opencode_spec_workflow_audit_rejects_idle_spec_continuation(tmp_path):
     plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
     plugin.parent.mkdir(parents=True)
     plugin.write_text(
-        'OPENCODE_SESSION_ID runBridge("PreToolUse" session.idle',
+        f"{COORDINATION_PLUGIN_FIXTURE} session.idle",
         encoding="utf-8",
     )
     warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
@@ -141,3 +150,19 @@ def test_opencode_spec_workflow_audit_rejects_idle_spec_continuation(tmp_path):
     failures = audit.audit_opencode_coordination(tmp_path)
 
     assert any("forbidden blocking term" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_requires_modern_edit_lease_contract(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text('OPENCODE_SESSION_ID runBridge("PreToolUse"', encoding="utf-8")
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert any("edit-lease" in failure for failure in failures)
+    assert any("OPENMATES_ROOT_GUARD" in failure for failure in failures)
+    assert any("Docker Compose mutations require" in failure for failure in failures)

@@ -122,4 +122,5 @@ quickstart:
     - audit_opencode_output_quality.py
     - audit_agent_tooling_parity.py
     - sessions.py worktree ensure
+    - sessions.py edit-lease
     - sessions.py deploy

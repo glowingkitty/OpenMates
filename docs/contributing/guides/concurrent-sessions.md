@@ -71,14 +71,16 @@ This command:
 
 ## File Tracking
 
-### Advisory Tracking (via hooks)
+### Tracking And OpenCode Edit Leases
 
 The `.claude/settings.json` configures two hooks:
 
 - **PostToolUse** on `Edit|Write`: Automatically records every file you edit to your session's `modified_files` list (async, non-blocking)
 - **PreToolUse**: warns when another session has touched the file.
 
-Tracking is advisory. Re-read the file immediately before editing and resolve an actual diff if one exists. Do not wait merely because another session touched it earlier.
+Tracking remains advisory for historical `modified_files` ownership. Re-read the file immediately before editing and resolve an actual diff if one exists. Do not wait merely because another session touched it earlier.
+
+OpenCode execute-mode source edits add a stricter guard: before an edit tool writes a repository file, `.opencode/plugins/openmates-hooks.js` acquires a short-lived `sessions.py edit-lease` for every edited file. A live lease blocks other OpenCode sessions from editing the same file until the first edit finishes or the stale 5-minute window expires. Use `python3 scripts/sessions.py status` to inspect active edit leases.
 
 ### Manual Tracking
 
@@ -100,7 +102,7 @@ python3 scripts/sessions.py claim --session <ID> --file path/to/file.py
 python3 scripts/sessions.py release --session <ID> --file path/to/file.py
 ```
 
-If another session has an active manual claim, `claim` exits with code 2. Normal edits never acquire these claims automatically.
+If another session has an active manual claim or OpenCode edit lease, `claim` exits with code 2. OpenCode edit tools acquire short-lived leases automatically; manual claims are still only for unusually long human-coordinated edits.
 
 **Note:** `modified_files` tracks all files touched in a session for deployment selection. It is not ownership and must not block another session's edit.
 

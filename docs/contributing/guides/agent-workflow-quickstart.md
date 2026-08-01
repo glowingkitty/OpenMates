@@ -18,6 +18,10 @@ context small and run `python3 scripts/audit_opencode_output_quality.py`.
 Use `python3 scripts/sessions.py worktree ensure --session <id>` for orchestrated
 agent worktrees when needed. Use `python3 scripts/sessions.py deploy --session
 <id> --title "..." --message "..."` instead of raw git commit or push.
+OpenCode source edits in execute mode are blocked outside the session worktree,
+and overlapping file edits are protected by short-lived `sessions.py edit-lease`
+records. Raw Docker Compose mutations require the current session to hold the
+Docker lock.
 
 Deeper references:
 

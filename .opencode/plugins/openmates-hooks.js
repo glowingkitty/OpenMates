@@ -19,6 +19,9 @@ const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
+const DOCKER_LOCK_MARKER = "[OpenMates Docker lock guard]";
+const DOCKER_COMPOSE_MUTATIONS = new Set(["build", "down", "kill", "restart", "rm", "start", "stop", "up"]);
+const COMPOSE_OPTIONS_WITH_VALUES = new Set(["-f", "--file", "--env-file", "-p", "--project-name", "--profile", "--project-directory"]);
 const CLI_AUTH_ERROR_PATTERNS = [
   /Authentication failed\. Run [`']openmates login[`'] to re-authenticate\./i,
   /Session expired or invalid\. Please run [`']openmates login[`'] to re-authenticate\./i,
@@ -175,18 +178,26 @@ function bindSessionStart(input, output) {
   output.args.command = `${command} --opencode-session ${input.sessionID}`;
 }
 
-function activeWorktreePath(sessionID) {
-  if (!sessionID) return "";
+function sessionsData() {
   try {
-    const data = JSON.parse(readFileSync(SESSIONS_FILE, "utf8"));
-    for (const session of Object.values(data.sessions || {})) {
-      if (session?.opencode_session_id !== sessionID) continue;
-      const worktree = session?.worktree;
-      if (worktree?.status === "active" && typeof worktree.path === "string") return worktree.path;
-    }
+    return JSON.parse(readFileSync(SESSIONS_FILE, "utf8"));
   } catch {
-    return "";
+    return {};
   }
+}
+
+function activeSessionRecord(sessionID, data = sessionsData()) {
+  if (!sessionID) return null;
+  for (const [id, session] of Object.entries(data.sessions || {})) {
+    if (session?.opencode_session_id === sessionID) return { id, session, data };
+  }
+  return null;
+}
+
+function activeWorktreePath(sessionID) {
+  const record = activeSessionRecord(sessionID);
+  const worktree = record?.session?.worktree;
+  if (worktree?.status === "active" && typeof worktree.path === "string") return worktree.path;
   return "";
 }
 
@@ -236,8 +247,65 @@ export function rewriteEditArgsForTest(args, worktreePath) {
   return rewritten;
 }
 
-function guardBash(command) {
+function composeActionFromArgs(args, startIndex) {
+  let index = startIndex;
+  while (index < args.length) {
+    const arg = args[index];
+    if (arg === "--") {
+      index += 1;
+      continue;
+    }
+    if (isOption(arg)) {
+      index = skipOption(args, index, COMPOSE_OPTIONS_WITH_VALUES);
+      continue;
+    }
+    return basename(arg);
+  }
+  return "";
+}
+
+function dockerComposeMutation(command) {
+  for (const tokens of commandSegmentTokens(command.replace(/\\\s*\n/g, " "))) {
+    const invocation = normalizedInvocation(tokens);
+    const { command: commandName, args } = invocation;
+    if (commandName === "docker-compose") {
+      if (DOCKER_COMPOSE_MUTATIONS.has(composeActionFromArgs(args, 0))) return true;
+      continue;
+    }
+    if (commandName !== "docker") continue;
+    const composeIndex = args.findIndex((arg) => basename(arg) === "compose");
+    if (composeIndex === -1) continue;
+    if (DOCKER_COMPOSE_MUTATIONS.has(composeActionFromArgs(args, composeIndex + 1))) return true;
+  }
+  return false;
+}
+
+function sessionHasDockerLock(sessionID, data = sessionsData()) {
+  const record = activeSessionRecord(sessionID, data);
+  const shortID = record?.id || sessionID || "";
+  const lock = data?.locks?.docker_rebuild || {};
+  return lock.status === "IN_PROGRESS" && lock.claimed_by === shortID;
+}
+
+export function dockerMutationDecisionForTest({ command = "", sessionID = "", data = null } = {}) {
+  if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
+  if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
+  const record = activeSessionRecord(sessionID, data || sessionsData());
+  const shortID = record?.id || "<id>";
+  return {
+    decision: "block",
+    message: `${DOCKER_LOCK_MARKER} Docker Compose mutations require the sessions.py Docker lock. Run: python3 scripts/sessions.py lock --session ${shortID} --type docker; release immediately after with: python3 scripts/sessions.py unlock --session ${shortID} --type docker`,
+  };
+}
+
+function guardDockerMutation(command, sessionID) {
+  const decision = dockerMutationDecisionForTest({ command, sessionID });
+  if (decision.decision === "block") throw new Error(decision.message);
+}
+
+function guardBash(command, sessionID) {
   guardForbiddenLocalTests(command);
+  guardDockerMutation(command, sessionID);
   const repositoryMutation = /\bgit\s+apply\b/.test(command);
   const writesRepositoryFile = extractWriteTargets(command).some(isRepositoryWritePath);
   if (repositoryMutation || writesRepositoryFile) {
@@ -457,8 +525,8 @@ function worktreeGuardMessage(sessionID, worktreePath = "") {
   return `${ROOT_GUARD_MARKER} Root checkout is the OpenMates control plane.${target} Use the session worktree for source edits: python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}`;
 }
 
-export function rootGuardDecisionForTest({ mode = "warn", cwd = PROJECT_ROOT, target = "", sessionID = "", worktreePath = "" } = {}) {
-  const normalized = String(mode || "warn").toLowerCase();
+export function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target = "", sessionID = "", worktreePath = "" } = {}) {
+  const normalized = String(mode || "strict").toLowerCase();
   if (["off", "0", "false"].includes(normalized)) return { decision: "allow", message: "root guard disabled" };
   if (!isInsideProjectRoot(target) || isInsideAgentWorktree(cwd, target)) return { decision: "allow", message: "target is not a root checkout source edit" };
   const message = worktreeGuardMessage(sessionID, worktreePath);
@@ -469,7 +537,7 @@ export function rootGuardDecisionForTest({ mode = "warn", cwd = PROJECT_ROOT, ta
 function guardRootEdit(files, sessionID, worktreePath = "") {
   for (const file of files) {
     const decision = rootGuardDecisionForTest({
-      mode: process.env.OPENMATES_ROOT_GUARD || "warn",
+      mode: process.env.OPENMATES_ROOT_GUARD || "strict",
       cwd: process.cwd(),
       target: file,
       sessionID,
@@ -515,6 +583,20 @@ function runStaleRead(action, files, sessionID) {
   }
 }
 
+function runEditLease(action, files, sessionID) {
+  if (!sessionID || !files.length) return;
+  const result = spawnSync("python3", ["scripts/sessions.py", "edit-lease", action, "--opencode-session", sessionID, "--file", ...files], {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+  });
+  const stdout = (result.stdout || "").trim();
+  const stderr = (result.stderr || "").trim();
+  if (stdout) console.log(stdout);
+  if (stderr) console.error(stderr);
+  if (result.status === 2) throw new Error(stderr || stdout || "OpenCode edit lease blocked edit");
+  if (result.status !== 0) throw new Error(stderr || stdout || `OpenCode edit lease failed with exit ${result.status}`);
+}
+
 export const OpenMatesHooks = async () => ({
   "shell.env": async (input, output) => {
     if (!input?.sessionID) return;
@@ -525,7 +607,7 @@ export const OpenMatesHooks = async () => ({
     const tool = input.tool || "";
     if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool)) return;
 
-    if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args));
+    if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
     bindSessionStart(input, output);
     if (READ_TOOLS.has(tool)) {
       const worktreePath = activeWorktreePath(input.sessionID);
@@ -537,6 +619,9 @@ export const OpenMatesHooks = async () => ({
       const files = editedFilesForTest(output?.args || input?.args);
       runStaleRead("check", files, input.sessionID);
       guardRootEdit(files, input.sessionID, worktreePath);
+      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
+      runEditLease("acquire", files, input.sessionID);
+      return;
     }
     runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
   },
@@ -551,7 +636,11 @@ export const OpenMatesHooks = async () => ({
     if (READ_TOOLS.has(tool)) runStaleRead("record", explicitFilesForTest(toolArgs(input, output)), input.sessionID);
     if (!EDIT_TOOLS.has(tool)) return;
     const files = editedFilesForTest(toolArgs(input, output));
-    runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output)), input.sessionID);
-    runStaleRead("sync", files, input.sessionID);
+    try {
+      runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output)), input.sessionID);
+      runStaleRead("sync", files, input.sessionID);
+    } finally {
+      runEditLease("release", files, input.sessionID);
+    }
   },
 });

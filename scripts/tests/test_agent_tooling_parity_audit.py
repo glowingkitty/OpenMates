@@ -63,6 +63,7 @@ quickstart:
     - audit_opencode_output_quality.py
     - audit_agent_tooling_parity.py
     - sessions.py worktree ensure
+    - sessions.py edit-lease
     - sessions.py deploy
 """.strip(),
     )
@@ -96,8 +97,8 @@ quickstart:
 # Agent Workflow Quickstart
 
 Run sync_agent_parity.py --check, audit_opencode_output_quality.py, and
-audit_agent_tooling_parity.py. Use sessions.py worktree ensure before edits and
-sessions.py deploy for commits.
+audit_agent_tooling_parity.py. Use sessions.py worktree ensure before edits,
+sessions.py edit-lease for overlapping execute edits, and sessions.py deploy for commits.
 """.strip(),
     )
 

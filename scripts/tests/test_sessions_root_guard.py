@@ -46,6 +46,15 @@ def test_root_guard_blocks_strict_source_edit(monkeypatch):
     assert result["decision"] == "block"
 
 
+def test_root_guard_blocks_source_edit_by_default(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.delenv("OPENMATES_ROOT_GUARD", raising=False)
+
+    result = sessions.evaluate_root_guard("edit", PROJECT_ROOT / "scripts" / "sessions.py", session_id="abcd")
+
+    assert result["decision"] == "block"
+
+
 def test_root_guard_allows_control_plane_command(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setenv("OPENMATES_ROOT_GUARD", "strict")

@@ -89,6 +89,9 @@ INSTRUCTION_TERMS = {
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",
     'runBridge("PreToolUse"',
+    "edit-lease",
+    'OPENMATES_ROOT_GUARD || "strict"',
+    "Docker Compose mutations require",
 }
 OPENCODE_WARNING_TERMS = {"additionalContext", "WARNING: File", "exit 0"}
 FORBIDDEN_COORDINATION_TERMS = {
