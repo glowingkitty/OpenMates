@@ -1,6 +1,6 @@
-"""Contract tests for the virtual embeds_map_view assistant block.
+"""Contract tests for the virtual embeds_results_view assistant block.
 
-The map view is a rendering instruction over existing embeds. These tests keep
+The results view is a rendering instruction over existing embeds. These tests keep
 the AI instructions and deterministic guard aligned with the product contract in
 docs/specs/embeds-map-view/spec.yml.
 """
@@ -22,8 +22,8 @@ from backend.apps.ai.utils.embeds_map_view import (
 
 def test_instruction_limits_fields_and_forbids_paid_enrichment() -> None:
     assert ALLOWED_EMBEDS_MAP_VIEW_FIELDS == {"title", "embeds", "sources", "highlight"}
-    assert "```embeds_map_view" in EMBEDS_MAP_VIEW_INSTRUCTION
-    assert "When location-capable or route-capable embed refs are available" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "```embeds_results_view" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "When location-capable, route-capable, or schedule-capable embed refs are" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "include exactly" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "by default" in EMBEDS_MAP_VIEW_INSTRUCTION
     assert "title" in EMBEDS_MAP_VIEW_INSTRUCTION
@@ -41,6 +41,8 @@ def test_instruction_limits_fields_and_forbids_paid_enrichment() -> None:
 def test_map_view_fence_language_is_reserved_for_client_renderer() -> None:
     assert is_embeds_map_view_fence_language("embeds_map_view") is True
     assert is_embeds_map_view_fence_language("embeds_map_view title=Berlin") is True
+    assert is_embeds_map_view_fence_language("embeds_results_view") is True
+    assert is_embeds_map_view_fence_language("embeds_results_view title=Berlin") is True
     assert is_embeds_map_view_fence_language("") is False
     assert is_embeds_map_view_fence_language("   ") is False
     assert is_embeds_map_view_fence_language("json") is False
@@ -51,6 +53,7 @@ def test_map_view_hint_defaults_to_capable_skills_unless_suppressed() -> None:
     assert is_map_view_request(["Find Berlin AI events and show them on a map."]) is True
     assert is_map_view_request(["Find Berlin AI events."]) is False
     assert is_map_view_suppressed_request(["Find Berlin AI events, but no map."]) is True
+    assert is_map_view_suppressed_request(["Find Berlin AI events, but no calendar."]) is True
     assert is_map_view_suppressed_request(["Find Berlin AI events, text only."]) is True
     assert should_include_embeds_map_view_hint(
         "events",
@@ -106,7 +109,7 @@ def test_append_missing_map_view_uses_existing_inline_refs_only() -> None:
 
     assert changed is True
     assert extract_inline_embed_refs(content) == ["event-one-111111", "event-two-222222"]
-    assert "```embeds_map_view" in repaired
+    assert "```embeds_results_view" in repaired
     assert "title: Berlin AI events" in repaired
     assert "embeds: event-one-111111, event-two-222222" in repaired
 
@@ -144,10 +147,25 @@ embeds: event-one-111111
     assert repaired == content
 
 
+def test_append_missing_results_view_is_noop_when_new_block_exists() -> None:
+    content = """[One](embed:event-one-111111)
+
+```embeds_results_view
+title: Existing
+embeds: event-one-111111
+```
+"""
+
+    repaired, changed = append_missing_embeds_map_view_block(content)
+
+    assert changed is False
+    assert repaired == content
+
+
 def test_normalizer_drops_extra_fields_and_deduplicates_refs() -> None:
     content = """Results:
 
-```embeds_map_view
+```embeds_results_view
 title: Berlin AI events
 provider: paid-provider
 filters: type=event
@@ -166,7 +184,7 @@ enrichment: travel.flight_details
 
 
 def test_normalizer_accepts_source_and_highlight_fields_only() -> None:
-    content = """```embeds_map_view
+    content = """```embeds_results_view
 title: Munich to Zurich options
 sources: travel-search-connections-12ab34
 highlight: nightjet-7abc12, db-ice-9def34
@@ -180,7 +198,7 @@ highlight: nightjet-7abc12, db-ice-9def34
 
 
 def test_normalizer_removes_json_like_map_blocks() -> None:
-    content = """```embeds_map_view
+    content = """```embeds_results_view
 {"title":"Bad block","provider":"paid","embeds":["one-111111"]}
 ```
 """
@@ -188,6 +206,6 @@ def test_normalizer_removes_json_like_map_blocks() -> None:
     normalized, changed = normalize_embeds_map_view_blocks(content)
 
     assert changed is True
-    assert "```embeds_map_view" not in normalized
+    assert "```embeds_results_view" not in normalized
     assert "Bad block" in normalized
     assert "provider" not in normalized

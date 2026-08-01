@@ -206,6 +206,10 @@ test.describe('Code notebook flow', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, notebookPreview);
 		await expect(fullscreenOverlay.getByTestId('notebook-fullscreen')).toBeVisible({ timeout: 15_000 });
+		const downloadPromise = page.waitForEvent('download');
+		await fullscreenOverlay.getByTestId('embed-download-button').click();
+		const download = await downloadPromise;
+		expect(download.suggestedFilename()).toMatch(/\.ipynb$/);
 
 		const cells = fullscreenOverlay.getByTestId('notebook-cell');
 		const firstCodeCell = cells.nth(1);

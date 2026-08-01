@@ -76,6 +76,10 @@
   let sourceVersion = $derived(normalized.sourceVersion ?? (data.embedData?.version_number ? `v${data.embedData.version_number}` : null));
 
   const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
+  const MAX_RUN_EVENT_COUNT = 400;
+  const MAX_RUN_EVENT_TEXT_CHARS = 2_000_000;
+  const MAX_VISIBLE_RUN_LOG_LINES = 80;
+  const OBJECT_URL_REVOKE_DELAY_MS = 1000;
   const OUTPUT_HTML_SANITIZE_OPTIONS: DOMPurify.Config = {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'ul', 'ol', 'li', 'span', 'div'],
     ALLOWED_ATTR: ['class', 'title'],
@@ -92,6 +96,9 @@
   let runPollTimer: ReturnType<typeof setTimeout> | null = null;
   let runSocket: WebSocket | null = null;
   let persistedRunExecutionId = $state<string | null>(null);
+  let activeRunCellIndex = $state<number | null>(null);
+  let runSelectedCellIndices = $state<number[]>([]);
+  let runLogElement = $state<HTMLPreElement | null>(null);
 
   let runActive = $derived(runStatus !== 'idle' && !TERMINAL_RUN_STATUSES.has(runStatus));
   let canRunNotebook = $derived(normalized.isPython && !!embedId && !!normalized.notebook);
@@ -102,6 +109,7 @@
   });
   let hasStaleOutput = $derived(Boolean(savedRunOutput?.source_version && sourceVersion && savedRunOutput.source_version !== sourceVersion));
   let visibleRunEvents = $derived(runEvents.map((event) => ({ ...event, text: stripNotebookOutputEnvelope(event.text) })).filter((event) => event.text));
+  let visibleRunLogText = $derived(tailLines(visibleRunEvents.map((event) => event.text).join('').trimEnd(), MAX_VISIBLE_RUN_LOG_LINES));
 
   function codeCellIndices(): number[] {
     return cells
@@ -117,6 +125,36 @@
     return text
       .replace(/OPENMATES_NOTEBOOK_OUTPUT_JSON_START[\s\S]*?OPENMATES_NOTEBOOK_OUTPUT_JSON_END/g, '')
       .trimEnd();
+  }
+
+  function tailLines(text: string, maxLines: number): string {
+    if (!text) return '';
+    const lines = text.split(/\r?\n/);
+    if (lines.length <= maxLines) return text;
+    return `[earlier output truncated]\n${lines.slice(-maxLines).join('\n')}`;
+  }
+
+  function trimRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
+    const recentEvents = events.slice(-MAX_RUN_EVENT_COUNT);
+    const keptEvents: CodeRunEvent[] = [];
+    let remainingChars = MAX_RUN_EVENT_TEXT_CHARS;
+
+    for (let index = recentEvents.length - 1; index >= 0 && remainingChars > 0; index -= 1) {
+      const event = recentEvents[index];
+      if (event.text.length <= remainingChars) {
+        keptEvents.unshift(event);
+        remainingChars -= event.text.length;
+        continue;
+      }
+
+      keptEvents.unshift({
+        ...event,
+        text: `[earlier output truncated]\n${event.text.slice(-remainingChars)}`,
+      });
+      break;
+    }
+
+    return keptEvents;
   }
 
   function outputText(value: unknown): string {
@@ -169,7 +207,34 @@
   }
 
   function runOutputText(): string {
-    return visibleRunEvents.map((event) => event.text).join('').trimEnd();
+    return visibleRunLogText;
+  }
+
+  function scrollActiveRunOutputIntoView() {
+    if (activeRunCellIndex === null) return;
+    window.setTimeout(() => {
+      const cell = document.querySelector<HTMLElement>(`[data-testid="notebook-cell"][data-cell-index="${activeRunCellIndex}"]`);
+      const output = cell?.querySelector<HTMLElement>('[data-testid="notebook-live-run-output"]');
+      output?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (runLogElement) runLogElement.scrollTop = runLogElement.scrollHeight;
+    });
+  }
+
+  function downloadNotebook() {
+    if (!normalized.notebook) return;
+    try {
+      const blob = new Blob([JSON.stringify(normalized.notebook, null, 2)], { type: 'application/x-ipynb+json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = normalized.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), OBJECT_URL_REVOKE_DELAY_MS);
+    } catch (error) {
+      console.error('[NotebookEmbedFullscreen] Failed to download notebook:', error);
+    }
   }
 
   function translate(key: string, vars: Record<string, unknown> = {}): string {
@@ -233,7 +298,7 @@
   function syncRunStatus(status: CodeRunStatus) {
     runStatus = status.status;
     runCancelRequested = status.status === 'cancelling';
-    runEvents = status.events || [];
+    runEvents = trimRunEvents(status.events || []);
     runError = status.error || null;
   }
 
@@ -245,7 +310,7 @@
   }
 
   function appendRunEvent(event: CodeRunEvent) {
-    runEvents = [...runEvents, event];
+    runEvents = trimRunEvents([...runEvents, event]);
   }
 
   function openRunStream(executionId: string) {
@@ -293,11 +358,14 @@
     if (selected.length === 0) return;
     clearRunPollTimer();
     closeRunSocket();
+    activeRunCellIndex = selected[0];
+    runSelectedCellIndices = selected;
     runPanelOpen = true;
     runStatus = 'queued';
     runError = null;
     runCancelRequested = false;
     runEvents = [{ kind: 'status', text: `${translate('embeds.notebook_running')}\n`, timestamp: Date.now() / 1000 }];
+    scrollActiveRunOutputIntoView();
     try {
       const started = await startNotebookRun(chatId, embedId, normalized.notebook as unknown as Record<string, unknown>, {
         runScope: cellIndex === undefined ? 'all' : 'cells',
@@ -313,8 +381,10 @@
       openRunStream(started.execution_id);
     } catch (error) {
       runStatus = 'failed';
-      runError = error instanceof Error ? error.message : 'Notebook run failed to start';
+      const message = error instanceof Error ? error.message : 'Notebook run failed to start';
+      runError = message.toLowerCase().includes('notebook run failed') ? message : `Notebook run failed: ${message}`;
       runEvents = [{ kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+      scrollActiveRunOutputIntoView();
     }
   }
 
@@ -379,6 +449,14 @@
   });
 
   $effect(() => {
+    const currentRunLogText = visibleRunLogText;
+    if (!runLogElement || currentRunLogText === undefined) return;
+    queueMicrotask(() => {
+      if (runLogElement) runLogElement.scrollTop = runLogElement.scrollHeight;
+    });
+  });
+
+  $effect(() => {
     return () => {
       clearRunPollTimer();
       closeRunSocket();
@@ -392,6 +470,7 @@
   embedHeaderTitle={skillName}
   embedHeaderSubtitle={cellCountText}
   skillIconName="coding"
+  onDownload={normalized.notebook ? downloadNotebook : undefined}
   {onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
@@ -414,26 +493,6 @@
     <div class="notebook-fullscreen" data-testid="notebook-fullscreen">
       {#if hasStaleOutput}
         <div class="notebook-stale-output" data-testid="notebook-stale-output">{$text('embeds.notebook_stale_outputs')}</div>
-      {/if}
-
-      {#if runPanelOpen}
-        <section class="notebook-run-panel" data-testid="notebook-run-panel" aria-live="polite">
-          <div class="notebook-run-panel-header">
-            <div class="notebook-run-panel-title">{$text('embeds.notebook_run')}</div>
-            <div class="notebook-run-panel-status">{runStatus}</div>
-          </div>
-          <pre class="notebook-run-log">{#each visibleRunEvents as event}<span class={`notebook-run-line notebook-run-${event.kind}`}>{event.text}</span>{/each}</pre>
-          <div class="notebook-run-actions">
-            {#if runActive}
-              <button type="button" data-testid="notebook-cancel-run" onclick={handleCancelRun} disabled={runCancelRequested}>
-                {$text('embeds.notebook_cancel')}
-              </button>
-            {/if}
-            <button type="button" data-testid="notebook-copy-run-log" onclick={copyRunLog} disabled={!runOutputText()}>
-              {$text('app_skills.code.run.copy_output')}
-            </button>
-          </div>
-        </section>
       {/if}
 
       {#if cells.length === 0}
@@ -493,6 +552,26 @@
                   {/each}
                 </div>
               {/if}
+
+              {#if runPanelOpen && activeRunCellIndex === index}
+                <section class="notebook-live-run-output" data-testid="notebook-live-run-output" data-selected-cells={runSelectedCellIndices.join(',')} aria-live="polite">
+                  <div class="notebook-run-panel-header">
+                    <div class="notebook-run-panel-title">{$text('embeds.notebook_run')}</div>
+                    <div class="notebook-run-panel-status">{runStatus}</div>
+                  </div>
+                  <pre class="notebook-run-log" bind:this={runLogElement}>{visibleRunLogText}</pre>
+                  <div class="notebook-run-actions">
+                    {#if runActive}
+                      <button type="button" data-testid="notebook-cancel-run" onclick={handleCancelRun} disabled={runCancelRequested}>
+                        {$text('embeds.notebook_cancel')}
+                      </button>
+                    {/if}
+                    <button type="button" data-testid="notebook-copy-run-log" onclick={copyRunLog} disabled={!runOutputText()}>
+                      {$text('app_skills.code.run.copy_output')}
+                    </button>
+                  </div>
+                </section>
+              {/if}
             </section>
           {/each}
         </div>
@@ -525,14 +604,13 @@
     background: var(--color-grey-20);
   }
 
-  .notebook-run-panel {
+  .notebook-live-run-output {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-4);
     padding: var(--spacing-5);
-    border-radius: var(--radius-4);
+    border-top: 1px solid var(--color-grey-20);
     background: var(--color-grey-0);
-    box-shadow: var(--shadow-md);
   }
 
   .notebook-run-panel-header,
@@ -559,7 +637,7 @@
 
   .notebook-run-log {
     min-height: 5rem;
-    max-height: 18rem;
+    max-height: 14rem;
     overflow: auto;
     margin: 0;
     padding: var(--spacing-4);
@@ -568,6 +646,7 @@
     color: var(--color-grey-90);
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: var(--font-size-small);
+    line-height: 1.35;
     white-space: pre-wrap;
   }
 

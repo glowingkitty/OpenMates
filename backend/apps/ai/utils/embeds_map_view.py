@@ -1,4 +1,4 @@
-"""Helpers for the virtual ``embeds_map_view`` assistant block.
+"""Helpers for the virtual ``embeds_results_view`` assistant block.
 
 The block is a message-level rendering instruction over existing embeds. These
 helpers intentionally operate on text only; they never dispatch app skills,
@@ -13,7 +13,13 @@ from collections.abc import Iterable
 
 
 ALLOWED_EMBEDS_MAP_VIEW_FIELDS = {"title", "embeds", "sources", "highlight"}
-EMBEDS_MAP_VIEW_FENCE_LANGUAGE = "embeds_map_view"
+EMBEDS_RESULTS_VIEW_FENCE_LANGUAGE = "embeds_results_view"
+LEGACY_EMBEDS_MAP_VIEW_FENCE_LANGUAGE = "embeds_map_view"
+EMBEDS_MAP_VIEW_FENCE_LANGUAGE = EMBEDS_RESULTS_VIEW_FENCE_LANGUAGE
+EMBEDS_RESULTS_VIEW_FENCE_LANGUAGES = {
+    EMBEDS_RESULTS_VIEW_FENCE_LANGUAGE,
+    LEGACY_EMBEDS_MAP_VIEW_FENCE_LANGUAGE,
+}
 MAP_VIEW_CAPABLE_SKILLS = {
     ("events", "search"),
     ("health", "search_appointments"),
@@ -24,20 +30,21 @@ MAP_VIEW_CAPABLE_SKILLS = {
 _MAP_VIEW_REQUEST_RE = re.compile(r"\b(map|map/list|mapped|route|routes|locations?|nearby)\b", re.IGNORECASE)
 _INLINE_EMBED_REF_RE = re.compile(r"\]\(embed:([^\s)]+)\)")
 _MAP_VIEW_SUPPRESS_RE = re.compile(
-    r"\b(?:no|without|skip|hide|exclude|don't|dont|do not)\s+(?:a\s+)?(?:map|map/list|mapped\s+view)\b"
+    r"\b(?:no|without|skip|hide|exclude|don't|dont|do not)\s+(?:a\s+)?(?:map|calendar|map/list|mapped\s+view|results\s+view)\b"
     r"|\b(?:text|list)\s+only\b"
     r"|\bcompact\s+answer\s+only\b",
     re.IGNORECASE,
 )
 
-EMBEDS_MAP_VIEW_INSTRUCTION = """**Embeds Map View**
+EMBEDS_MAP_VIEW_INSTRUCTION = """**Embeds Results View**
 
-When location-capable or route-capable embed refs are available, include exactly
-one compact map/list block by default unless a map would clearly not make sense
-for the user's request or the user explicitly asks for text/list-only output. Use
-direct child refs when those are the only refs available:
+When location-capable, route-capable, or schedule-capable embed refs are
+available, include exactly one compact results-view block by default unless the
+view would clearly not make sense for the user's request or the user explicitly
+asks for text/list-only output. Use direct child refs when those are the only
+refs available:
 
-```embeds_map_view
+```embeds_results_view
 title: Berlin AI events
 embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
 ```
@@ -45,7 +52,7 @@ embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
 For full app-skill source results, prefer referencing the parent source and
 optionally highlight selected child refs:
 
-```embeds_map_view
+```embeds_results_view
 title: Berlin AI events
 sources: events-search-12ab34
 highlight: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
@@ -56,12 +63,12 @@ Rules:
 - Do not include filters, provider, enrichment, route geometry, prices, or JSON in the block.
 - Do not call or imply automatic paid enrichment such as travel.flight_details, booking details, Flightradar24, or FlightAware.
 - Only use embed_ref values that already appear in the conversation context.
-- Prefer adding this block for map-capable app-skill results even when the user did not explicitly ask for a map.
-- Omit it only when the request explicitly asks for no map, text-only/list-only output, or the result has no usable spatial data.
+- Prefer adding this block for map-capable or schedule-capable app-skill results even when the user did not explicitly ask for a map or calendar.
+- Omit it only when the request explicitly asks for no map/calendar, text-only/list-only output, or the result has no usable spatial or schedule data.
 """
 
 _MAP_VIEW_FENCE_RE = re.compile(
-    r"```embeds_map_view\s*\n(?P<body>.*?)\n?```",
+    r"```(?P<language>embeds_results_view|embeds_map_view)\s*\n(?P<body>.*?)\n?```",
     re.DOTALL,
 )
 _JSON_FENCE_RE = re.compile(
@@ -91,11 +98,11 @@ def is_embeds_map_view_fence_language(language: str | None) -> bool:
     if not stripped_language:
         return False
     fence_language = stripped_language.split(maxsplit=1)[0].lower()
-    return fence_language == EMBEDS_MAP_VIEW_FENCE_LANGUAGE
+    return fence_language in EMBEDS_RESULTS_VIEW_FENCE_LANGUAGES
 
 
 def should_include_embeds_map_view_hint(app_id: str, skill_id: str, user_texts: Iterable[str]) -> bool:
-    """Return whether a tool result should remind the model to emit a map view."""
+    """Return whether a tool result should remind the model to emit a results view."""
 
     if (app_id, skill_id) not in MAP_VIEW_CAPABLE_SKILLS:
         return False
@@ -109,7 +116,7 @@ def is_map_view_request(user_texts: Iterable[str]) -> bool:
 
 
 def is_map_view_suppressed_request(user_texts: Iterable[str]) -> bool:
-    """Return whether user text explicitly opts out of a map/list view."""
+    """Return whether user text explicitly opts out of a map/calendar results view."""
 
     return any(_MAP_VIEW_SUPPRESS_RE.search(text) for text in user_texts if isinstance(text, str))
 
@@ -182,7 +189,7 @@ def extract_inline_embed_refs(content: str) -> list[str]:
 def append_missing_embeds_map_view_block(content: str, *, title: str = "Mapped results") -> tuple[str, bool]:
     """Append a minimal map-view block from existing source or inline refs."""
 
-    if not content or f"```{EMBEDS_MAP_VIEW_FENCE_LANGUAGE}" in content:
+    if not content or any(f"```{language}" in content for language in EMBEDS_RESULTS_VIEW_FENCE_LANGUAGES):
         return content, False
     source_refs = extract_map_capable_source_refs(content)
     inline_refs = extract_inline_embed_refs(content)
@@ -190,7 +197,7 @@ def append_missing_embeds_map_view_block(content: str, *, title: str = "Mapped r
         return content, False
 
     block_lines = [
-        f"```{EMBEDS_MAP_VIEW_FENCE_LANGUAGE}",
+        f"```{EMBEDS_RESULTS_VIEW_FENCE_LANGUAGE}",
         f"title: {title}",
     ]
     if source_refs:
@@ -250,7 +257,8 @@ def _normalize_single_map_view_block(match: re.Match[str]) -> tuple[str, bool]:
     if not embed_refs and not source_refs:
         return fields.get("title", "").strip(), True
 
-    lines = ["```embeds_map_view", f"title: {fields.get('title', 'Map view').strip() or 'Map view'}"]
+    title = fields.get('title', 'Results view').strip() or 'Results view'
+    lines = [f"```{EMBEDS_RESULTS_VIEW_FENCE_LANGUAGE}", f"title: {title}"]
     if embed_refs:
         lines.append(f"embeds: {_join_refs(embed_refs)}")
     if source_refs:
@@ -263,7 +271,7 @@ def _normalize_single_map_view_block(match: re.Match[str]) -> tuple[str, bool]:
 
 
 def normalize_embeds_map_view_blocks(content: str) -> tuple[str, bool]:
-    """Normalize all ``embeds_map_view`` fences in assistant-visible text.
+    """Normalize all results-view fences in assistant-visible text.
 
     Returns the normalized content and whether any block changed. Unsupported
     fields are dropped, duplicate refs are removed, and JSON-like attempts are
