@@ -659,6 +659,7 @@
   let landingIntroPrimaryRailStyle = $derived([
     `--landing-intro-primary-rail-offset: ${landingIntroPrimaryRailOffsetPx}px`,
     `--landing-intro-primary-rail-duration: ${LANDING_INTRO_PRIMARY_RAIL_DURATION_MS}ms`,
+    `--landing-intro-primary-rail-sync-duration: ${LANDING_INTRO_REQUEST_INTERVAL_MS}ms`,
   ].join(';'));
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
@@ -2104,7 +2105,7 @@
   .landing-intro-app-rail-primary {
     translate: var(--landing-intro-primary-rail-offset, 0px) 0;
     animation: landingIntroRailLeft var(--landing-intro-primary-rail-duration, 84000ms) linear infinite;
-    transition: translate 760ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: translate var(--landing-intro-primary-rail-sync-duration, 2100ms) linear;
     will-change: transform, translate;
   }
 
