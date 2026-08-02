@@ -94,6 +94,7 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
   - Acceptable non-class selectors: `#id`, `[data-action="..."]`, `[data-authenticated="..."]`, `getByRole()`, `getByText()`
 - **NEVER run vitest, pnpm test, or npx vitest locally.** It crashes the server. Always use `python3 scripts/tests.py run --suite vitest` which dispatches through the unified test control plane and records status/history.
 - **NEVER run Playwright specs locally or via docker compose.** Always use `python3 scripts/tests.py run --spec <name>.spec.ts` or `python3 scripts/tests.py run --suite playwright`. This dispatches specs to GitHub Actions where they run with proper test accounts and infrastructure, and records status/history through the unified control plane. The docker compose commands in the testing doc are reference only — they describe what the CI runner executes, not what you should run.
+- **Playwright deployed-code loop:** If any `*.spec.ts` verification needs local code or spec changes, deploy the scoped session changes to `dev` through `python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch `python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <commit-sha>` against `https://app.dev.openmates.org`. Do not stop with a missing explicit deploy/commit request for this scoped verification deploy; the repo/session rules authorize it. Ask only for the exceptions listed in session lifecycle rules.
 - **New features require E2E test proposal:** After implementing any auth flow, payment flow, or user-facing feature, propose an E2E test plan (user flow, assertions, which spec to extend). Wait for user confirmation before writing test code.
 - **Sidebar-closed as default:** Always test chat features with sidebar closed (default <=1440px).
 - **Cold-boot verification:** After fixing chat/nav/sync bugs, verify by clearing IndexedDB + localStorage, then reload.
@@ -107,10 +108,10 @@ Every bug fix and feature MUST follow this test-first workflow. No exceptions un
 ### Bug Fixes
 
 1. **Check for existing spec:** Run `sessions.py check-tests --session <id>` immediately after reading the issue.
-2. **Spec exists → run it first:** Run `python3 scripts/tests.py run --spec <name>.spec.ts` to confirm the spec reproduces the bug (expect red/failure). If the spec passes, the bug may not be covered — extend the spec or create a targeted one.
+2. **Spec exists → run it first:** Run `python3 scripts/tests.py run --spec <name>.spec.ts` against the current deployed dev app to confirm the spec reproduces the bug (expect red/failure). If the spec passes, the bug may not be covered — extend the spec or create a targeted one.
 3. **No spec exists → propose a test plan:** Before writing any fix code, propose a minimal E2E test that would reproduce the bug (user flow, assertions, which spec to create or extend). Wait for user confirmation.
 4. **Fix the bug.**
-5. **Run the spec again:** Confirm it passes (green). This is the proof the fix works.
+5. **Deploy and run the spec again:** Deploy the scoped fix to `dev` with `sessions.py deploy`, wait for Vercel Ready, then run `python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <commit-sha>`. Confirm it passes (green). This is the proof the fix works.
 
 ### Features
 
@@ -133,4 +134,4 @@ Every bug fix and feature MUST follow this test-first workflow. No exceptions un
 
 ### Deploy Gate
 
-`sessions.py deploy` will warn when source files have related specs that weren't run during the session. Use `--skip-tests "reason"` to bypass with an explicit justification logged to the commit.
+`sessions.py deploy` will warn when source files have related specs that weren't run during the session. For deploy-gated Playwright fixes, do not treat this warning as a blocker; deploy the scoped change and immediately run the related `*.spec.ts` with `--gate-deploy --expected-commit <commit-sha>`. Use `--skip-tests "reason"` only when verification is intentionally bypassed, with an explicit justification logged to the commit.

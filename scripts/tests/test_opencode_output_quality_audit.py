@@ -61,10 +61,19 @@ def test_accepts_concise_core_with_lazy_loading_and_quality_guidance(tmp_path: P
 Keep default context concise. Lazy-load frontend, backend, testing, privacy,
 Apple, and spec rules only when relevant. Final responses should cite evidence,
 changed files, verification commands, failed checks, uncertainty, and next steps.
-Use exact commands and state when verification was not run.
+Use exact commands and state when verification was not run. Firecrawl is a
+quota-backed fallback only.
+Playwright `*.spec.ts` verification is deployed-code verification. If local UI,
+embed, or spec changes are needed, perform a scoped `dev` deploy with
+`python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch
+`python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <sha>`
+against `https://app.dev.openmates.org`.
 """.strip(),
     )
-    config = {"instructions": ["docs/contributing/guides/agent-workflow-core.md"]}
+    config = {
+        "instructions": ["docs/contributing/guides/agent-workflow-core.md"],
+        "permission": {tool: "ask" for tool in audit.FIRECRAWL_TOOL_PERMISSIONS},
+    }
 
     issues = audit.audit_instruction_surface(tmp_path, config)
 

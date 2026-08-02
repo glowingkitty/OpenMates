@@ -13,6 +13,14 @@ Use the smallest correct change. Prefer deterministic audits or focused tests
 when repeated mistakes, flaky behavior, safety risks, or workflow drift are
 found.
 
+Playwright `*.spec.ts` verification is deployed-code verification. If local UI,
+embed, or spec changes are needed, perform a scoped `dev` deploy with
+`python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch
+`python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <sha>`
+against `https://app.dev.openmates.org`. This repo instruction authorizes that
+scoped deploy; do not stop with a generic "no explicit deploy/commit request"
+blocker unless a session-lifecycle safety exception applies.
+
 Final responses should be evidence-based and concise. Name changed files, exact
 verification commands, failed checks, skipped checks, and any uncertainty. For
 larger deployed UI work, include the Playwright visual-smoke route(s), laptop and

@@ -34,7 +34,45 @@ REQUIRED_CORE_TERMS = {
     "verification guidance": ("verification",),
     "uncertainty guidance": ("uncertainty",),
     "command guidance": ("command",),
+    "Firecrawl fallback guidance": ("firecrawl", "fallback", "quota-backed"),
 }
+REQUIRED_CORE_PHRASES = {
+    "deployed Playwright guidance": (
+        "Playwright `*.spec.ts` verification is deployed-code verification",
+        "python3 scripts/sessions.py deploy",
+        "--gate-deploy --expected-commit",
+        "https://app.dev.openmates.org",
+    ),
+}
+FIRECRAWL_TOOL_PERMISSIONS = {
+    "firecrawl_firecrawl_agent",
+    "firecrawl_firecrawl_agent_status",
+    "firecrawl_firecrawl_check_crawl_status",
+    "firecrawl_firecrawl_crawl",
+    "firecrawl_firecrawl_extract",
+    "firecrawl_firecrawl_feedback",
+    "firecrawl_firecrawl_interact",
+    "firecrawl_firecrawl_interact_stop",
+    "firecrawl_firecrawl_map",
+    "firecrawl_firecrawl_monitor_check",
+    "firecrawl_firecrawl_monitor_checks",
+    "firecrawl_firecrawl_monitor_create",
+    "firecrawl_firecrawl_monitor_delete",
+    "firecrawl_firecrawl_monitor_get",
+    "firecrawl_firecrawl_monitor_list",
+    "firecrawl_firecrawl_monitor_run",
+    "firecrawl_firecrawl_monitor_update",
+    "firecrawl_firecrawl_parse",
+    "firecrawl_firecrawl_research_inspect_paper",
+    "firecrawl_firecrawl_research_read_paper",
+    "firecrawl_firecrawl_research_related_papers",
+    "firecrawl_firecrawl_research_search_github",
+    "firecrawl_firecrawl_research_search_papers",
+    "firecrawl_firecrawl_scrape",
+    "firecrawl_firecrawl_search",
+    "firecrawl_firecrawl_search_feedback",
+}
+FIRECRAWL_SAFE_PERMISSION_ACTIONS = {"ask", "deny"}
 
 
 @dataclass(frozen=True)
@@ -76,6 +114,19 @@ def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[Audi
                 f"always-loaded instruction budget exceeded: {len(instructions)} > {MAX_ALWAYS_LOADED_INSTRUCTIONS}",
             )
         )
+    permission = config.get("permission")
+    if not isinstance(permission, dict):
+        issues.append(AuditIssue("opencode.json", "permission config must explicitly ask-gate Firecrawl MCP tools"))
+    else:
+        for tool in sorted(FIRECRAWL_TOOL_PERMISSIONS):
+            action = permission.get(tool)
+            if action not in FIRECRAWL_SAFE_PERMISSION_ACTIONS:
+                issues.append(
+                    AuditIssue(
+                        "opencode.json",
+                        f"{tool} must be set to ask or deny so Firecrawl credits are not spent silently",
+                    )
+                )
     return issues
 
 
@@ -112,6 +163,11 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         for label, terms in REQUIRED_CORE_TERMS.items():
             if not _contains_any(core, terms):
                 issues.append(AuditIssue(CORE_INSTRUCTION, f"core instruction missing {label}"))
+        lower_core = core.lower()
+        for label, phrases in REQUIRED_CORE_PHRASES.items():
+            missing = [phrase for phrase in phrases if phrase.lower() not in lower_core]
+            if missing:
+                issues.append(AuditIssue(CORE_INSTRUCTION, f"core instruction missing {label}: {missing[0]}"))
         if not (_contains_any(core, ("final response", "final responses")) and "evidence" in core.lower()):
             issues.append(AuditIssue(CORE_INSTRUCTION, "core instruction missing final-answer evidence guidance"))
     return issues
