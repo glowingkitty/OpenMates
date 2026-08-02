@@ -3,8 +3,8 @@
  *
  * Purpose: verify source-root bounds, default cache layout, deterministic
  * high-risk path policy, and capped rg search before CLI bridge wiring.
- * Security: uses injected rg output only; no shell commands or repository files
- * are read by these tests.
+ * Security: temporary repositories prove both injected rg output and the
+ * bounded no-rg fallback without reading the real workspace.
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/remoteAccess.test.ts
  */
 
@@ -142,6 +142,28 @@ describe("Project remote-access bridge primitives", () => {
       assert.equal(await runRgCommand(["missing"], repo), "");
     } finally {
       process.env.PATH = originalPath;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to bounded safe text search when rg is unavailable", async () => {
+    const home = join(tmpdir(), `openmates-remote-access-no-rg-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const repo = join(home, "repo");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "match.ts"), "first line\nremoteDemo value\n");
+    writeFileSync(join(repo, ".env"), "remoteDemo=secret\n");
+    try {
+      const missingExecutable = Object.assign(new Error("spawn rg ENOENT"), { code: "ENOENT" });
+      const result = await searchRemoteSource({
+        query: "remoteDemo",
+        sourceRoot: repo,
+        runRg: async () => { throw missingExecutable; },
+      });
+
+      assert.deepEqual(result.matches, [{ path: "src/match.ts", line: 2, snippet: "remoteDemo value\n" }]);
+      assert.equal(result.omitted, 0);
+      assert.ok(result.excluded >= 1);
+    } finally {
       rmSync(home, { recursive: true, force: true });
     }
   });

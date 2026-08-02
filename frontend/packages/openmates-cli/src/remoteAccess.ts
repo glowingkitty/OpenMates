@@ -96,6 +96,7 @@ export interface StoredRemoteAccessSearchOptions {
 const DEFAULT_MAX_SEARCH_RESULTS = 20;
 const MAX_SEARCH_SNIPPET_CHARS = 500;
 const SEARCH_TIMEOUT_MS = 10_000;
+const MAX_FALLBACK_SEARCH_FILES = 10_000;
 const MAX_APPROVED_ROOTS = 16;
 const DEFAULT_MAX_DIRECTORY_ENTRIES = 500;
 const DEFAULT_MAX_READ_BYTES = 200 * 1024;
@@ -556,11 +557,17 @@ export async function searchStoredRemoteAccessSource(options: StoredRemoteAccess
 export async function searchRemoteSource(options: RemoteAccessSearchOptions): Promise<RemoteAccessSearchResult> {
   const sourceRoot = resolve(options.sourceRoot);
   const maxResults = normalizeMaxResults(options.maxResults);
-  const output = await options.runRg(
-    buildRgSearchArgs(options.query, options.userProtectedPatterns ?? []),
-    sourceRoot,
-    maxResults + 1,
-  );
+  let output: string;
+  try {
+    output = await options.runRg(
+      buildRgSearchArgs(options.query, options.userProtectedPatterns ?? []),
+      sourceRoot,
+      maxResults + 1,
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return searchRemoteSourceWithoutRg(options.query, sourceRoot, maxResults, options.userProtectedPatterns ?? []);
+  }
   const matches: RemoteAccessSearchMatch[] = [];
   let omitted = 0;
   let excluded = 0;
@@ -580,6 +587,80 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
     matches.push(match);
   }
 
+  return { matches, omitted, excluded };
+}
+
+function searchRemoteSourceWithoutRg(
+  query: string,
+  sourceRoot: string,
+  maxResults: number,
+  userProtectedPatterns: string[],
+): RemoteAccessSearchResult {
+  const root = realpathSync(sourceRoot);
+  const deadline = Date.now() + SEARCH_TIMEOUT_MS;
+  const directories = [root];
+  const matches: RemoteAccessSearchMatch[] = [];
+  let inspectedFiles = 0;
+  let omitted = 0;
+  let excluded = 0;
+
+  while (directories.length > 0) {
+    if (Date.now() >= deadline) throw new Error("Remote source search timed out");
+    const directory = directories.pop()!;
+    let entries;
+    try {
+      entries = readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name));
+    } catch {
+      excluded += 1;
+      continue;
+    }
+    for (const entry of entries) {
+      const absolutePath = join(directory, entry.name);
+      const relativePath = relative(root, absolutePath).replace(/\\/g, "/");
+      if (
+        entry.name === ".git"
+        || entry.isSymbolicLink()
+        || isGitIgnoredPath(root, relativePath)
+        || classifyProjectFileRisk(relativePath, userProtectedPatterns).isHighRisk
+      ) {
+        excluded += 1;
+        continue;
+      }
+      if (entry.isDirectory()) {
+        directories.push(absolutePath);
+        continue;
+      }
+      if (!entry.isFile() || isBinaryFile(absolutePath)) {
+        excluded += 1;
+        continue;
+      }
+      inspectedFiles += 1;
+      if (inspectedFiles > MAX_FALLBACK_SEARCH_FILES) {
+        omitted += 1;
+        return { matches, omitted, excluded };
+      }
+      let content: string;
+      try {
+        content = readRemoteAccessTextFile({
+          sourceRoot: root,
+          relativePath,
+          userProtectedPatterns,
+        }).content;
+      } catch {
+        excluded += 1;
+        continue;
+      }
+      const lines = content.split(/(?<=\n)/);
+      for (let index = 0; index < lines.length; index += 1) {
+        if (!lines[index].includes(query)) continue;
+        if (matches.length >= maxResults) {
+          omitted += 1;
+          return { matches, omitted, excluded };
+        }
+        matches.push({ path: relativePath, line: index + 1, snippet: lines[index].slice(0, MAX_SEARCH_SNIPPET_CHARS) });
+      }
+    }
+  }
   return { matches, omitted, excluded };
 }
 
