@@ -847,6 +847,61 @@ async def test_transfer_amenity_enrichment_uses_travel_timeout(
 
 
 @pytest.mark.anyio
+async def test_transfer_amenity_enrichment_resolves_missing_station_coordinates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.apps.travel.skills import search_connections as travel_search
+
+    location_queries: list[str] = []
+    place_filters: list[Optional[str]] = []
+
+    async def fake_search_locations(query: str, max_results: int = 5) -> list[dict[str, Any]]:
+        location_queries.append(query)
+        assert max_results == 5
+        return [{
+            "name": "Schwerin Süd",
+            "coordinates": {"latitude": 53.5743, "longitude": 11.376712},
+        }]
+
+    class FakeGeoapifyPlacesProvider:
+        def __init__(self, **_kwargs: Any) -> None:
+            pass
+
+        async def search_places(self, **kwargs: Any) -> Any:
+            place_filters.append(kwargs.get("geo_filter"))
+            return types.SimpleNamespace(status="ok", places=[])
+
+    monkeypatch.setattr(travel_search, "search_locations", fake_search_locations)
+    monkeypatch.setattr(travel_search, "GeoapifyPlacesProvider", FakeGeoapifyPlacesProvider)
+
+    results = [{
+        "transport_method": "train",
+        "transfer_quality": {"min_transfer_minutes": 15},
+        "legs": [{
+            "layovers": [{
+                "airport": "Schwerin Süd",
+                "duration_minutes": 16,
+                "latitude": None,
+                "longitude": None,
+            }],
+        }],
+    }]
+
+    enriched = await make_skill()._enrich_transfer_amenities(
+        results,
+        secrets_manager=object(),
+        cache_service=None,
+    )
+
+    layover = enriched[0]["legs"][0]["layovers"][0]
+    assert location_queries == ["Schwerin Süd"]
+    assert layover["latitude"] == 53.5743
+    assert layover["longitude"] == 11.376712
+    assert place_filters == ["circle:11.376712,53.5743,350"] * 3
+    assert layover["amenities"]["status"] == "no_match"
+
+
+@pytest.mark.anyio
 async def test_transfer_amenity_summary_skips_provider_without_coordinates() -> None:
     class FailingGeoapifyProvider:
         async def search_places(self, **_kwargs: Any) -> Any:

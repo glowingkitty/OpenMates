@@ -29,6 +29,7 @@ from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
 from backend.apps.travel.providers.flix_provider import FlixProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
+from backend.shared.providers.deutsche_bahn import search_locations
 from backend.shared.providers.geoapify.places import GeoapifyPlacesProvider, GEOAPIFY_SOURCE_LABEL
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ MAX_RESULTS_LIMIT = 50
 FILTER_OVERFETCH_MULTIPLIER = 3
 DEFAULT_MIN_TRANSFER_MINUTES = 10
 TRANSFER_AMENITY_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
+TRANSFER_STATION_COORDINATE_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60
 TRANSFER_AMENITY_SEARCH_RADIUS_METERS = 350
 TRANSFER_AMENITY_TIMEOUT_SECONDS = 3.0
 TRANSFER_AMENITY_GROUPS = {
@@ -1114,6 +1116,15 @@ class SearchConnectionsSkill(BaseSkill):
                     duration = layover.get("duration_minutes")
                     if duration is not None and min_transfer is not None and int(duration) < int(min_transfer):
                         continue
+                    coordinates = await self._resolve_transfer_coordinates(
+                        cache_service=cache_service,
+                        station=str(layover.get("airport") or ""),
+                        latitude=layover.get("latitude"),
+                        longitude=layover.get("longitude"),
+                    )
+                    if coordinates:
+                        layover["latitude"] = coordinates["latitude"]
+                        layover["longitude"] = coordinates["longitude"]
                     provider = provider or GeoapifyPlacesProvider(
                         secrets_manager=secrets_manager,
                         cache_service=cache_service,
@@ -1188,6 +1199,96 @@ class SearchConnectionsSkill(BaseSkill):
         await self._cache_set(cache_service, cache_key, summary, TRANSFER_AMENITY_CACHE_TTL_SECONDS)
         return summary
 
+    async def _resolve_transfer_coordinates(
+        self,
+        *,
+        cache_service: Any,
+        station: str,
+        latitude: Any,
+        longitude: Any,
+    ) -> Optional[Dict[str, float]]:
+        coordinates = self._coerce_coordinates(latitude, longitude)
+        if coordinates:
+            lat, lon = coordinates
+            return {"latitude": lat, "longitude": lon}
+
+        station = station.strip()
+        if not station:
+            return None
+
+        cache_key = self._transfer_coordinate_cache_key(station)
+        cached = await self._cache_get(cache_service, cache_key)
+        if isinstance(cached, dict):
+            coordinates = self._coerce_coordinates(cached.get("latitude"), cached.get("longitude"))
+            if coordinates:
+                lat, lon = coordinates
+                return {"latitude": lat, "longitude": lon}
+
+        try:
+            candidates = await search_locations(station, max_results=5)
+        except Exception as exc:
+            logger.info("DB transfer coordinate lookup failed for %s: %s", station, exc)
+            return None
+
+        match = self._pick_transfer_location(station, candidates)
+        if not match:
+            return None
+        location_coordinates = match.get("coordinates") if isinstance(match, dict) else None
+        if not isinstance(location_coordinates, dict):
+            return None
+        latitude_value = location_coordinates.get("latitude")
+        if latitude_value is None:
+            latitude_value = location_coordinates.get("lat")
+        longitude_value = location_coordinates.get("longitude")
+        if longitude_value is None:
+            longitude_value = location_coordinates.get("lon")
+        if longitude_value is None:
+            longitude_value = location_coordinates.get("lng")
+        coordinates = self._coerce_coordinates(
+            latitude_value,
+            longitude_value,
+        )
+        if not coordinates:
+            return None
+
+        lat, lon = coordinates
+        value = {"latitude": lat, "longitude": lon}
+        await self._cache_set(cache_service, cache_key, value, TRANSFER_STATION_COORDINATE_CACHE_TTL_SECONDS)
+        return value
+
+    @classmethod
+    def _pick_transfer_location(cls, station: str, candidates: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        normalized_station = cls._normalize_transfer_station_name(station)
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            normalized_name = cls._normalize_transfer_station_name(str(candidate.get("name") or ""))
+            if normalized_name == normalized_station:
+                return candidate
+        return None
+
+    @staticmethod
+    def _normalize_transfer_station_name(value: str) -> str:
+        normalized = value.lower().strip()
+        replacements = {
+            "ä": "ae",
+            "ö": "oe",
+            "ü": "ue",
+            "ß": "ss",
+            "-": " ",
+            "(": " ",
+            ")": " ",
+            ",": " ",
+        }
+        for old, new in replacements.items():
+            normalized = normalized.replace(old, new)
+        words = [
+            word
+            for word in normalized.split()
+            if word not in {"bf", "bhf", "bahnhof", "hbf", "hauptbahnhof"}
+        ]
+        return " ".join(words)
+
     @staticmethod
     def _transfer_amenity_status_summary(status: str) -> Dict[str, Any]:
         return {
@@ -1215,18 +1316,34 @@ class SearchConnectionsSkill(BaseSkill):
 
     @staticmethod
     def _geoapify_circle_filter(latitude: Any, longitude: Any) -> Optional[str]:
+        coordinates = SearchConnectionsSkill._coerce_coordinates(latitude, longitude)
+        if not coordinates:
+            return None
+        lat, lon = coordinates
+        return f"circle:{lon},{lat},{TRANSFER_AMENITY_SEARCH_RADIUS_METERS}"
+
+    @staticmethod
+    def _coerce_coordinates(latitude: Any, longitude: Any) -> Optional[tuple[float, float]]:
         try:
             lat = float(latitude)
             lon = float(longitude)
         except (TypeError, ValueError):
             return None
-        return f"circle:{lon},{lat},{TRANSFER_AMENITY_SEARCH_RADIUS_METERS}"
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return None
+        return lat, lon
 
     @staticmethod
     def _transfer_amenity_cache_key(station: str, latitude: Any, longitude: Any) -> str:
         raw = json.dumps({"station": station, "lat": latitude, "lon": longitude}, sort_keys=True)
         digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
         return f"travel:transfer_amenities:v1:{digest}"
+
+    @staticmethod
+    def _transfer_coordinate_cache_key(station: str) -> str:
+        raw = json.dumps({"station": station.strip().lower()}, sort_keys=True)
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+        return f"travel:transfer_coordinates:v1:{digest}"
 
     @staticmethod
     async def _cache_get(cache_service: Any, key: str) -> Any:
