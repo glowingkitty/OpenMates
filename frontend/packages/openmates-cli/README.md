@@ -144,14 +144,23 @@ review the spend confirmation before live runs.
 ### Local source bridge
 
 ```bash
-openmates remote-access start --path ./my-repo --source-id repo-1 --local-only
-openmates remote-access status --json
-openmates remote-access search --source repo-1 "TODO" --limit 20
+openmates remote-access
+openmates remote-access --path ./my-repo --path ../shared
+openmates remote-access --path ./my-repo --json
 ```
 
-`openmates remote-access` stores source metadata under
-`~/.openmates/remote-sources.json`, searches with `rg` inside the approved root,
-and does not upload repository files by default.
+The command discovers Git repositories below the current folder by default;
+explicit `--path` values replace that scope. It remains in the foreground,
+reconnects after temporary network loss, and marks sources offline when it
+stops. OpenMates can request bounded directory listings, text search, and
+selected text previews. The bridge is read-only, excludes ignored, protected,
+binary, and out-of-root files, and never uploads a preview unless you explicitly
+choose to upload it.
+
+Project keys authenticate end-to-end encryption between trusted clients. The
+backend receives routing metadata and opaque ciphertext, not filesystem paths,
+queries, snippets, file contents, or encryption keys. Local source associations
+are stored with owner-only permissions under `~/.openmates/remote-sources.json`.
 
 ## Self-Host Server Management
 

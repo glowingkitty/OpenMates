@@ -16,8 +16,71 @@ import {
   buildVirtualRemoteFullscreenDetail,
   normalizeRemoteFilePreview,
 } from "../projectRemoteSources.ts";
+import {
+  ProjectRemoteAccessReplayGuard,
+  createProjectRemoteAccessHandshake,
+  deriveProjectRemoteAccessSessionKey,
+  openProjectRemoteAccessEnvelope,
+} from "../projectRemoteAccessCrypto.ts";
+
+const cryptoIdentity = {
+  ownerId: "owner-1",
+  projectId: "project-1",
+  sourceId: "source-1",
+  sourceSessionId: "session-1",
+  requestingClientId: "browser-1",
+  keyEpoch: 1,
+};
 
 describe("Project remote source helpers", () => {
+  it("derives the same authenticated browser and CLI peer key", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requester = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "requester");
+    const source = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "source");
+    const requesterKey = await deriveProjectRemoteAccessSessionKey(
+      projectKey,
+      cryptoIdentity,
+      "requester",
+      requester.privateKey,
+      requester.handshake,
+      source.handshake,
+    );
+    const sourceKey = await deriveProjectRemoteAccessSessionKey(
+      projectKey,
+      cryptoIdentity,
+      "source",
+      source.privateKey,
+      source.handshake,
+      requester.handshake,
+    );
+    assert.deepEqual(requesterKey, sourceKey);
+  });
+
+  it("rejects tampered remote result envelopes", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requester = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "requester");
+    const source = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "source");
+    const requesterKey = await deriveProjectRemoteAccessSessionKey(
+      projectKey,
+      cryptoIdentity,
+      "requester",
+      requester.privateKey,
+      requester.handshake,
+      source.handshake,
+    );
+    await assert.rejects(
+      () => openProjectRemoteAccessEnvelope(
+        requesterKey,
+        cryptoIdentity,
+        "request-1",
+        "result",
+        { version: 1, nonce: "invalid", ciphertext: "invalid" },
+        new ProjectRemoteAccessReplayGuard(),
+      ),
+      /invalid remote-access key or envelope field|envelope authentication failed/,
+    );
+  });
+
   it("builds non-mutating encrypted source payloads", () => {
     const payload = buildProjectSourceCreatePayload({
       sourceId: "source-1",

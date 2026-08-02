@@ -3,31 +3,56 @@ status: draft
 doc_type: reference
 audience:
   - technical-users
-last_verified: 2026-06-30
+last_verified: 2026-08-02
 ---
 
-# Remote Access Commands
+# Remote Access
 
-`openmates remote-access` attaches a local folder or repository as a Project source and searches it from the CLI. Source metadata is stored locally under `~/.openmates/remote-sources.json`; source contents are not uploaded by `start`.
+`openmates remote-access` keeps a read-only connection open between your local
+project files and OpenMates. The command runs in the foreground until you press
+Ctrl+C, so closing it makes its sources unavailable in OpenMates.
 
 ## Commands
 
 ```bash
-openmates remote-access start --path <folder> [--source-id <id>] [--project <id>] [--type <type>] [--local-only] [--json]
-openmates remote-access status [--json]
-openmates remote-access search --source <id> <query> [--limit <n>] [--json]
+openmates remote-access [--path <folder>]... [--json]
 ```
 
-Source types for this local bridge are `local_folder` and `local_git_repository`. The default is `local_folder`.
+Without `--path`, the CLI discovers accessible Git repositories below the
+current folder, reconnects existing Project associations, and asks before
+creating or binding missing Projects. Repeating `--path` replaces that default
+discovery scope; only those folders are connected. The CLI warns and asks for
+additional confirmation before exposing a broad root such as your home folder.
+
+OpenMates can browse bounded directory listings, search safe text files, and
+preview a selected text file while the source is connected. A preview remains
+ephemeral unless you explicitly choose **Upload to OpenMates**.
+
+The CLI reconnects automatically after temporary network interruptions with a
+bounded backoff. OpenMates marks the source offline after missed heartbeats and
+blocks new reads until the foreground command reconnects.
 
 ## Safety
 
-Search is read-only and runs `rg` inside the approved source root. Results exclude high-risk, binary, and out-of-root paths by default. If the local metadata store is corrupt, the CLI fails visibly instead of treating it as an empty source list.
+Remote access cannot create, edit, delete, rename, or execute files. Every
+operation stays inside the approved real path and excludes symlink escapes,
+Git-ignored files, protected paths such as `.env`, binary files, and oversized
+results. Source associations are stored with owner-only permissions under
+`~/.openmates/remote-sources.json`.
+
+Paths, queries, snippets, and file previews are encrypted end to end between
+the OpenMates client and CLI. The backend routes opaque ciphertext and live
+status only; encryption keys and filesystem plaintext are not sent to it.
 
 ## Examples
 
 ```bash
-openmates remote-access start --path ./my-repo --source-id repo-1 --local-only
-openmates remote-access status
-openmates remote-access search --source repo-1 "Project settings"
+# Discover repositories below the current folder
+openmates remote-access
+
+# Connect only these approved roots
+openmates remote-access --path ./web --path ../api
+
+# Emit structured lifecycle events while remaining in the foreground
+openmates remote-access --path ./my-repo --json
 ```

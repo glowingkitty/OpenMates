@@ -28,12 +28,18 @@
     getProjectContents,
     listProjectSources,
     listProjects,
+    requestProjectRemoteAccess,
     updateProjectMetadata,
     uploadFileToProject,
     type ProjectFolderViewModel,
     type ProjectItemViewModel,
     type ProjectSourceViewModel,
     type ProjectViewModel,
+    type ProjectRemoteDirectoryEntry,
+    type ProjectRemoteDirectoryResult,
+    type ProjectRemoteSearchMatch,
+    type ProjectRemoteSearchResult,
+    type ProjectRemoteTextResult,
   } from '../../services/projectService';
   import {
     buildRemoteFileUploadCandidate,
@@ -87,6 +93,14 @@
   let folderHashes = $state(new Map<string, string>());
   let activeRemoteFullscreen = $state<VirtualRemoteFullscreenDetail | null>(null);
   let projectHashId = $state<string | null>(null);
+  let activeRemoteSourceId = $state<string | null>(null);
+  let remotePath = $state('.');
+  let remoteEntries = $state<ProjectRemoteDirectoryEntry[]>([]);
+  let remoteSearchQuery = $state('');
+  let remoteSearchMatches = $state<ProjectRemoteSearchMatch[]>([]);
+  let remotePreviewEntries = $state<RemotePreviewEntry[]>([]);
+  let remoteError = $state('');
+  let isRemoteLoading = $state(false);
 
   let sortedProjects = $derived([...projects].sort((a, b) => (b.encrypted.created_at || 0) - (a.encrypted.created_at || 0)));
   let recentProjects = $derived(sortedProjects.slice(0, 8));
@@ -183,9 +197,11 @@
       folders = [];
       items = [];
       sources = [];
+      resetRemoteBrowser();
       currentFolder = null;
       currentFolderHash = null;
       folderHashes = new Map();
+      resetRemoteBrowser();
       return;
     }
     const [contents, projectSources] = await Promise.all([
@@ -210,12 +226,14 @@
     currentFolder = null;
     currentFolderHash = null;
     folderHashes = new Map();
+    resetRemoteBrowser();
   }
 
   async function selectProject(project: ProjectViewModel, updateHash = true): Promise<void> {
     selectedProject = project;
     currentFolder = null;
     currentFolderHash = null;
+    resetRemoteBrowser();
     broadcastProjectSelected(project);
     if (updateHash) setProjectUrlState(project.project_id);
     if (variant === 'sidebar') panelState.closeChats();
@@ -392,74 +410,139 @@
     closeRemotePreview();
   }
 
-  function getRemotePreviewEntries(source: ProjectSourceViewModel): RemotePreviewEntry[] {
-    const candidates = getRemotePreviewCandidates(source.metadata);
-    return candidates.flatMap((candidate) => {
-      try {
-        const preview = normalizeRemoteFilePreview({
-          sourceId: source.source_id,
-          path: getString(candidate, 'path') || getString(candidate, 'remote_path'),
-          displayName: getString(candidate, 'displayName') || getString(candidate, 'display_name') || getString(candidate, 'path') || source.displayName || source.source_id,
-          remoteItemId: getString(candidate, 'remoteItemId') || getString(candidate, 'remote_item_id'),
-          kind: getPreviewKind(candidate),
-          language: getString(candidate, 'language') || 'text',
-          snippet: getString(candidate, 'snippet'),
-          baseHash: getString(candidate, 'baseHash') || getString(candidate, 'base_hash'),
-          sizeBytes: getNumber(candidate, 'sizeBytes') ?? getNumber(candidate, 'size_bytes'),
-          lineCount: getNumber(candidate, 'lineCount') ?? getNumber(candidate, 'line_count'),
-          mtime: getString(candidate, 'mtime'),
-          contentHash: getString(candidate, 'contentHash') || getString(candidate, 'content_hash'),
-          gitStatus: getString(candidate, 'gitStatus') || getString(candidate, 'git_status'),
-          previewPolicy: getString(candidate, 'previewPolicy') || getString(candidate, 'preview_policy'),
-          safetyFlags: getStringArray(candidate, 'safetyFlags') ?? getStringArray(candidate, 'safety_flags') ?? [],
-        });
-        return [{
-          preview,
-          uploadContent: getUploadContent(candidate),
-          sourceLabel: source.displayName || source.source_id,
-        }];
-      } catch (error) {
-        console.warn('[ProjectsPage] Ignoring invalid remote preview metadata:', error);
-        return [];
+  function resetRemoteBrowser(): void {
+    activeRemoteSourceId = null;
+    remotePath = '.';
+    remoteEntries = [];
+    remoteSearchQuery = '';
+    remoteSearchMatches = [];
+    remotePreviewEntries = [];
+    remoteError = '';
+    isRemoteLoading = false;
+  }
+
+  async function refreshRemoteSourceStatus(): Promise<void> {
+    const project = selectedProject;
+    if (!project) return;
+    try {
+      const refreshed = await listProjectSources(project);
+      if (selectedProject?.project_id !== project.project_id) return;
+      sources = refreshed;
+      const active = refreshed.find((source) => source.source_id === activeRemoteSourceId);
+      if (active && active.status !== 'connected') {
+        remoteEntries = [];
+        remoteSearchMatches = [];
+        remoteError = 'This Project source is offline';
       }
-    });
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to refresh remote source status:', error);
+    }
   }
 
-  function getRemotePreviewCandidates(metadata: Record<string, unknown>): Record<string, unknown>[] {
-    const previewFiles = metadata.preview_files ?? metadata.previewFiles ?? metadata.remote_previews;
-    if (Array.isArray(previewFiles)) return previewFiles.filter(isRecord);
-    const preview = metadata.preview ?? metadata.remote_preview;
-    return isRecord(preview) ? [preview] : [];
+  async function browseRemoteSource(source: ProjectSourceViewModel, path = '.'): Promise<void> {
+    if (!selectedProject || !$userProfile.user_id || isRemoteLoading) return;
+    activeRemoteSourceId = source.source_id;
+    isRemoteLoading = true;
+    remoteError = '';
+    try {
+      const result = await requestProjectRemoteAccess<ProjectRemoteDirectoryResult>(
+        selectedProject,
+        source,
+        $userProfile.user_id,
+        'list',
+        { path },
+      );
+      remotePath = path;
+      remoteEntries = result.entries;
+      remoteSearchMatches = [];
+    } catch (error) {
+      remoteError = error instanceof Error ? error.message : 'Could not browse this source';
+      console.error('[ProjectsPage] Failed to browse remote source:', error);
+    } finally {
+      isRemoteLoading = false;
+    }
   }
 
-  function getPreviewKind(candidate: Record<string, unknown>): 'file' | 'folder' {
-    return getString(candidate, 'kind') === 'folder' ? 'folder' : 'file';
+  function remoteParentPath(path: string): string {
+    if (!path || path === '.') return '.';
+    const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+    parts.pop();
+    return parts.join('/') || '.';
   }
 
-  function getUploadContent(candidate: Record<string, unknown>): string | Blob | null {
-    const content = candidate.full_content ?? candidate.fullContent ?? candidate.content;
-    if (typeof content === 'string') return content;
-    if (typeof Blob !== 'undefined' && content instanceof Blob) return content;
-    return null;
+  async function openRemoteEntry(source: ProjectSourceViewModel, entry: ProjectRemoteDirectoryEntry): Promise<void> {
+    if (entry.kind === 'directory') {
+      await browseRemoteSource(source, entry.path);
+      return;
+    }
+    await openRemoteFile(source, entry.path);
   }
 
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return !!value && typeof value === 'object' && !Array.isArray(value);
+  async function searchRemoteSource(source: ProjectSourceViewModel): Promise<void> {
+    const query = remoteSearchQuery.trim();
+    if (!selectedProject || !$userProfile.user_id || !query || isRemoteLoading) return;
+    activeRemoteSourceId = source.source_id;
+    isRemoteLoading = true;
+    remoteError = '';
+    try {
+      const result = await requestProjectRemoteAccess<ProjectRemoteSearchResult>(
+        selectedProject,
+        source,
+        $userProfile.user_id,
+        'search',
+        { query },
+      );
+      remoteSearchMatches = result.matches;
+    } catch (error) {
+      remoteError = error instanceof Error ? error.message : 'Could not search this source';
+      console.error('[ProjectsPage] Failed to search remote source:', error);
+    } finally {
+      isRemoteLoading = false;
+    }
   }
 
-  function getString(candidate: Record<string, unknown>, key: string): string {
-    const value = candidate[key];
-    return typeof value === 'string' ? value : '';
+  async function openRemoteFile(source: ProjectSourceViewModel, path: string): Promise<void> {
+    if (!selectedProject || !$userProfile.user_id || isRemoteLoading) return;
+    isRemoteLoading = true;
+    remoteError = '';
+    try {
+      const result = await requestProjectRemoteAccess<ProjectRemoteTextResult>(
+        selectedProject,
+        source,
+        $userProfile.user_id,
+        'read_text',
+        { path },
+      );
+      const preview = normalizeRemoteFilePreview({
+        sourceId: source.source_id,
+        path,
+        displayName: path.split('/').filter(Boolean).pop() || path,
+        language: remoteFileLanguage(path),
+        snippet: result.content,
+        sizeBytes: result.sizeBytes,
+        lineCount: result.lineCount,
+        previewPolicy: result.truncated ? 'bounded_truncated_text' : 'bounded_full_text',
+        safetyFlags: result.truncated ? ['truncated'] : [],
+      });
+      const entry = { preview, uploadContent: result.content, sourceLabel: source.displayName || source.source_id };
+      remotePreviewEntries = [entry, ...remotePreviewEntries.filter((candidate) => candidate.preview.embed.embed_id !== preview.embed.embed_id)];
+      openRemotePreview(preview);
+    } catch (error) {
+      remoteError = error instanceof Error ? error.message : 'Could not read this file';
+      console.error('[ProjectsPage] Failed to read remote file:', error);
+    } finally {
+      isRemoteLoading = false;
+    }
   }
 
-  function getNumber(candidate: Record<string, unknown>, key: string): number | undefined {
-    const value = candidate[key];
-    return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : undefined;
-  }
-
-  function getStringArray(candidate: Record<string, unknown>, key: string): string[] | undefined {
-    const value = candidate[key];
-    return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
+  function remoteFileLanguage(path: string): string {
+    const extension = path.split('.').pop()?.toLowerCase() ?? '';
+    const languages: Record<string, string> = {
+      css: 'css', go: 'go', html: 'html', java: 'java', js: 'javascript', json: 'json', jsx: 'javascript',
+      md: 'markdown', py: 'python', rs: 'rust', svelte: 'svelte', swift: 'swift', ts: 'typescript',
+      tsx: 'typescript', txt: 'text', yaml: 'yaml', yml: 'yaml',
+    };
+    return languages[extension] ?? 'text';
   }
 
   async function openFolder(folder: ProjectFolderViewModel): Promise<void> {
@@ -501,6 +584,7 @@
     const handleProjectsChanged = () => {
       void refreshProjects();
     };
+    const sourceStatusTimer = window.setInterval(() => void refreshRemoteSourceStatus(), 15_000);
     window.addEventListener('hashchange', syncProjectHashFromLocation);
     window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
@@ -508,6 +592,7 @@
       window.removeEventListener('hashchange', syncProjectHashFromLocation);
       window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
       window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
+      window.clearInterval(sourceStatusTimer);
     };
   });
 
@@ -667,8 +752,74 @@
                   </div>
                   <span class="source-status">{source.status.replaceAll('_', ' ')}</span>
                 </div>
+                <button
+                  class="source-browse-button"
+                  type="button"
+                  data-testid="project-remote-source-browse"
+                  disabled={source.status !== 'connected' || isRemoteLoading}
+                  onclick={() => void browseRemoteSource(source)}
+                >
+                  {source.status === 'connected' ? 'Browse source' : 'Source offline'}
+                </button>
+                {#if activeRemoteSourceId === source.source_id}
+                  <div class="remote-browser" data-testid="project-remote-browser">
+                    <div class="remote-path-row">
+                      <button
+                        type="button"
+                        data-testid="project-remote-parent"
+                        disabled={remotePath === '.' || isRemoteLoading}
+                        onclick={() => void browseRemoteSource(source, remoteParentPath(remotePath))}
+                      >Up</button>
+                      <code>{remotePath}</code>
+                      <button type="button" disabled={isRemoteLoading} onclick={() => void browseRemoteSource(source, remotePath)}>Refresh</button>
+                    </div>
+                    <form class="remote-search" onsubmit={(event) => { event.preventDefault(); void searchRemoteSource(source); }}>
+                      <input
+                        bind:value={remoteSearchQuery}
+                        data-testid="project-remote-search-input"
+                        placeholder="Search this source"
+                        aria-label="Search this remote source"
+                      />
+                      <button data-testid="project-remote-search-submit" type="submit" disabled={!remoteSearchQuery.trim() || isRemoteLoading}>Search</button>
+                    </form>
+                    {#if remoteError}
+                      <p class="remote-error" data-testid="project-remote-error">{remoteError}</p>
+                    {/if}
+                    {#if isRemoteLoading}
+                      <p class="muted" data-testid="project-remote-loading">Loading from your device...</p>
+                    {:else if remoteSearchMatches.length > 0}
+                      <div class="remote-results" data-testid="project-remote-search-results">
+                        {#each remoteSearchMatches as match (`${match.path}:${match.line}`)}
+                          <button class="remote-result" type="button" onclick={() => void openRemoteFile(source, match.path)}>
+                            <strong>{match.path}</strong>
+                            <small>Line {match.line}</small>
+                            <span>{match.snippet}</span>
+                          </button>
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class="remote-results" data-testid="project-remote-directory-results">
+                        {#each remoteEntries as entry (entry.path)}
+                          <button
+                            class="remote-entry"
+                            type="button"
+                            data-testid="project-remote-entry"
+                            data-kind={entry.kind}
+                            onclick={() => void openRemoteEntry(source, entry)}
+                          >
+                            <span>{entry.kind === 'directory' ? 'Folder' : 'File'}</span>
+                            <strong>{entry.path.split('/').filter(Boolean).pop() || entry.path}</strong>
+                          </button>
+                        {/each}
+                        {#if remoteEntries.length === 0}
+                          <p class="muted">No readable entries in this folder.</p>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
                 <div class="source-previews">
-                  {#each getRemotePreviewEntries(source) as previewEntry (previewEntry.preview.embed.embed_id)}
+                  {#each remotePreviewEntries.filter((entry) => entry.preview.embed.content.source_id === source.source_id) as previewEntry (previewEntry.preview.embed.embed_id)}
                     <ProjectRemotePreviewCard
                       preview={previewEntry.preview}
                       sourceLabel={previewEntry.sourceLabel}
@@ -1146,6 +1297,78 @@
     gap: 14px;
   }
 
+  .source-browse-button {
+    justify-self: start;
+  }
+
+  .remote-browser {
+    display: grid;
+    gap: var(--spacing-8);
+    padding: var(--spacing-8);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+  }
+
+  .remote-path-row,
+  .remote-search {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+  }
+
+  .remote-path-row code {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-font-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remote-search input {
+    background: var(--color-grey-0);
+  }
+
+  .remote-results {
+    display: grid;
+    gap: var(--spacing-4);
+  }
+
+  .remote-entry,
+  .remote-result {
+    display: grid;
+    gap: var(--spacing-2);
+    width: 100%;
+    color: var(--color-font-primary);
+    text-align: start;
+    background: var(--color-grey-0);
+    border: 1px solid var(--color-grey-25);
+  }
+
+  .remote-entry {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
+
+  .remote-entry span,
+  .remote-result small {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xs);
+  }
+
+  .remote-result span {
+    overflow: hidden;
+    color: var(--color-font-secondary);
+    font-family: monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remote-error {
+    margin: 0;
+    color: var(--color-error);
+  }
+
   .source-kind,
   .source-status {
     color: var(--color-font-secondary);
@@ -1185,6 +1408,17 @@
 
     .browser-grid {
       grid-template-columns: 1fr;
+    }
+
+    .remote-path-row,
+    .remote-search {
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .remote-path-row code,
+    .remote-search input {
+      flex-basis: 100%;
     }
   }
 </style>

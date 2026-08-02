@@ -28,6 +28,14 @@ import {
   type ProjectSourceType,
   type ProjectWriteMode,
 } from "./projectRemoteSources";
+import {
+  ProjectRemoteAccessReplayGuard,
+  createProjectRemoteAccessHandshake,
+  deriveProjectRemoteAccessSessionKey,
+  openProjectRemoteAccessEnvelope,
+  type ProjectRemoteAccessEnvelope,
+  type ProjectRemoteAccessHandshake,
+} from "./projectRemoteAccessCrypto";
 
 export type ProjectItemType = "embed" | "chat" | "upload" | "workflow";
 
@@ -92,6 +100,8 @@ export interface ProjectItemViewModel {
 
 export interface ProjectSourceRecord extends ProjectSourceCreatePayload {
   id?: string;
+  source_session_id?: string | null;
+  key_epoch?: number | null;
 }
 
 export interface ProjectSettingsRecord {
@@ -113,7 +123,41 @@ export interface ProjectSourceViewModel {
   metadata: Record<string, unknown>;
   capabilities: ProjectSourceCapability[];
   status: ProjectSourceStatus;
+  sourceSessionId: string | null;
+  keyEpoch: number | null;
   encrypted: ProjectSourceRecord;
+}
+
+export type ProjectRemoteAccessOperation = "list" | "search" | "read_text";
+
+export interface ProjectRemoteDirectoryEntry {
+  path: string;
+  kind: "file" | "directory";
+}
+
+export interface ProjectRemoteDirectoryResult {
+  entries: ProjectRemoteDirectoryEntry[];
+  omitted: number;
+  excluded: number;
+}
+
+export interface ProjectRemoteSearchMatch {
+  path: string;
+  line: number;
+  snippet: string;
+}
+
+export interface ProjectRemoteSearchResult {
+  matches: ProjectRemoteSearchMatch[];
+  omitted: number;
+  excluded: number;
+}
+
+export interface ProjectRemoteTextResult {
+  content: string;
+  truncated: boolean;
+  sizeBytes: number;
+  lineCount: number;
 }
 
 export interface ProjectSourceCreateInput {
@@ -189,6 +233,8 @@ const REMOTE_CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
   yaml: "yaml",
   yml: "yaml",
 };
+const REMOTE_ACCESS_POLL_INTERVAL_MS = 250;
+const REMOTE_ACCESS_TIMEOUT_MS = 45_000;
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
@@ -318,6 +364,138 @@ export async function createProjectSource(
   return decryptProjectSource(data.source, project.projectKey);
 }
 
+export async function requestProjectRemoteAccess<T>(
+  project: ProjectViewModel,
+  source: ProjectSourceViewModel,
+  ownerId: string,
+  operation: ProjectRemoteAccessOperation,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (source.status !== "connected" || !source.sourceSessionId || !source.keyEpoch) {
+    throw new Error("This Project source is offline");
+  }
+  if (!ownerId) throw new Error("Authenticated user identity is unavailable");
+
+  const requestId = crypto.randomUUID();
+  const requestingClientId = crypto.randomUUID();
+  const identity = {
+    ownerId,
+    projectId: project.project_id,
+    sourceId: source.source_id,
+    sourceSessionId: source.sourceSessionId,
+    requestingClientId,
+    keyEpoch: source.keyEpoch,
+  };
+  const requester = await createProjectRemoteAccessHandshake(project.projectKey, identity, "requester");
+  const encryptedEnvelope = await encryptWithEmbedKey(JSON.stringify({
+    requesting_client_id: requestingClientId,
+    requester_handshake: requester.handshake,
+    operation,
+    arguments: args,
+  }), project.projectKey);
+  await requestJson<{ request_id: string; status: "delivered" | "queued" }>(
+    `/v1/projects/${encodeURIComponent(project.project_id)}/sources/${encodeURIComponent(source.source_id)}/requests`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        request_id: requestId,
+        requesting_client_id: requestingClientId,
+        operation,
+        key_epoch: source.keyEpoch,
+        encrypted_envelope: encryptedEnvelope,
+      }),
+      signal,
+    },
+  );
+
+  const deadline = Date.now() + REMOTE_ACCESS_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (signal?.aborted) throw new DOMException("Remote access request aborted", "AbortError");
+    const path = `/v1/projects/${encodeURIComponent(project.project_id)}/sources/${encodeURIComponent(source.source_id)}/requests/${encodeURIComponent(requestId)}?requesting_client_id=${encodeURIComponent(requestingClientId)}`;
+    const response = await fetch(getApiEndpoint(path), { credentials: "include", signal });
+    if (response.ok) {
+      const result = await response.json() as { encrypted_envelope: string };
+      return openProjectRemoteAccessResult<T>(
+        result.encrypted_envelope,
+        project.projectKey,
+        identity,
+        requestId,
+        requester.privateKey,
+        requester.handshake,
+      );
+    }
+    if (response.status !== 404) {
+      throw new Error(`Remote access result failed (${response.status}): ${await response.text()}`);
+    }
+    await waitForRemoteAccessPoll(signal);
+  }
+  throw new Error("Remote access request timed out");
+}
+
+async function openProjectRemoteAccessResult<T>(
+  encryptedEnvelope: string,
+  projectKey: Uint8Array,
+  identity: {
+    ownerId: string;
+    projectId: string;
+    sourceId: string;
+    sourceSessionId: string;
+    requestingClientId: string;
+    keyEpoch: number;
+  },
+  requestId: string,
+  requesterPrivateKey: string,
+  requesterHandshake: ProjectRemoteAccessHandshake,
+): Promise<T> {
+  let payload: { source_handshake: ProjectRemoteAccessHandshake; envelope: ProjectRemoteAccessEnvelope };
+  try {
+    payload = JSON.parse(encryptedEnvelope) as typeof payload;
+  } catch {
+    throw new Error("Remote access result envelope is invalid");
+  }
+  const sessionKey = await deriveProjectRemoteAccessSessionKey(
+    projectKey,
+    identity,
+    "requester",
+    requesterPrivateKey,
+    requesterHandshake,
+    payload.source_handshake,
+  );
+  const plaintext = await openProjectRemoteAccessEnvelope(
+    sessionKey,
+    identity,
+    requestId,
+    "result",
+    payload.envelope,
+    new ProjectRemoteAccessReplayGuard(),
+  );
+  const response = JSON.parse(new TextDecoder().decode(plaintext)) as { ok?: boolean; result?: T; error?: string };
+  if (response.ok !== true) throw new Error(remoteAccessErrorMessage(response.error));
+  return response.result as T;
+}
+
+function waitForRemoteAccessPoll(signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, REMOTE_ACCESS_POLL_INTERVAL_MS);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(new DOMException("Remote access request aborted", "AbortError"));
+    }, { once: true });
+  });
+}
+
+function remoteAccessErrorMessage(code: string | undefined): string {
+  const messages: Record<string, string> = {
+    protected_path: "This file is protected or ignored",
+    unsupported_file: "This file is binary or unsupported",
+    invalid_path: "This source path is unavailable",
+    search_query_required: "Enter a search query",
+    operation_failed: "The remote source could not complete this request",
+  };
+  return messages[code ?? ""] ?? "The remote source rejected this request";
+}
+
 export async function getProjectSettings(project: ProjectViewModel): Promise<ProjectSettingsViewModel> {
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(`/v1/projects/${project.project_id}/settings`);
   return decryptProjectSettings(data.settings, project.projectKey);
@@ -353,6 +531,8 @@ async function decryptProjectSource(source: ProjectSourceRecord, projectKey: Uin
     metadata,
     capabilities: source.capabilities ?? [],
     status: source.status ?? "connected",
+    sourceSessionId: source.source_session_id ?? null,
+    keyEpoch: source.key_epoch ?? null,
     encrypted: source,
   };
 }

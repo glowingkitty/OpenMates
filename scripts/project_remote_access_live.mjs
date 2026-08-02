@@ -34,8 +34,8 @@ const USER_AGENT = `OpenMates CLI/0.1 (${platform()} ${release()})`;
 const mode = process.argv[2];
 const apiUrl = (process.argv[3] || "https://api.dev.openmates.org").replace(/\/$/, "");
 
-if (!new Set(["api", "cli"]).has(mode)) {
-  throw new Error("Usage: project_remote_access_live.mjs <api|cli> <api-url>");
+if (!new Set(["api", "cli", "serve"]).has(mode)) {
+  throw new Error("Usage: project_remote_access_live.mjs <api|cli|serve> <api-url>");
 }
 
 function requireValue(condition, message) {
@@ -348,12 +348,15 @@ async function requestCliOperation(client, fixture, ownerId, source, operation, 
 
 function waitForCliConnected(child) {
   return new Promise((resolvePromise, reject) => {
-    const timeout = setTimeout(() => reject(new Error("Foreground CLI did not connect before the deadline")), 30_000);
     let output = "";
+    const timeout = setTimeout(
+      () => reject(new Error(`Foreground CLI did not connect before the deadline: ${output}`)),
+      30_000,
+    );
     child.stdout.setEncoding("utf-8");
     child.stdout.on("data", (chunk) => {
       output += chunk;
-      if (output.includes('"state":"connected"')) {
+      if (/"state"\s*:\s*"connected"/.test(output)) {
         clearTimeout(timeout);
         resolvePromise();
       }
@@ -399,7 +402,10 @@ async function runCliVerification(client, fixture, ownerId) {
 
     const searched = await requestCliOperation(client, fixture, ownerId, source, "search", { query: "needle" });
     requireValue(searched.ok === true, `Search failed: ${JSON.stringify(searched)}`);
-    requireValue(searched.result.matches.some((match) => match.path === "src/sample.txt"), "Search did not return the expected safe match");
+    requireValue(
+      searched.result.matches.some((match) => match.path.replace(/^\.\//, "") === "src/sample.txt"),
+      `Search did not return the expected safe match: ${JSON.stringify(searched.result)}`,
+    );
 
     const read = await requestCliOperation(client, fixture, ownerId, source, "read_text", { path: "src/sample.txt" });
     requireValue(read.ok === true, `Read failed: ${JSON.stringify(read)}`);
@@ -427,6 +433,58 @@ async function runCliVerification(client, fixture, ownerId) {
   throw new Error("Source did not report offline after foreground CLI shutdown");
 }
 
+async function stopForegroundCli(child) {
+  if (child.exitCode !== null) return;
+  child.kill("SIGINT");
+  await new Promise((resolvePromise) => child.once("exit", resolvePromise));
+}
+
+async function runServeFixture(client, fixture) {
+  const rootPath = join(tmpdir(), `openmates-remote-access-serve-${randomUUID()}`);
+  const sourceStorePath = join(homedir(), ".openmates", "remote-sources.json");
+  const originalSourceStore = existsSync(sourceStorePath) ? readFileSync(sourceStorePath) : null;
+  mkdirSync(join(rootPath, "src"), { recursive: true });
+  writeFileSync(join(rootPath, "src", "remote-demo.ts"), 'export const remoteDemo = "OpenMates live remote preview";\nexport const imported = true;\n');
+  writeFileSync(join(rootPath, ".env"), "REMOTE_ACCESS_SECRET=not-for-server\n");
+  startRemoteAccessSource({
+    sourceId: fixture.sourceId,
+    projectId: fixture.projectId,
+    rootPath,
+    sourceType: "local_folder",
+    displayName: "Live remote source",
+  });
+  const child = spawn("node", ["dist/cli.js", "remote-access", "--path", rootPath, "--json"], {
+    cwd: CLI_DIR,
+    env: { ...process.env, OPENMATES_API_URL: apiUrl },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let bridgeStopped = false;
+  try {
+    await waitForCliConnected(child);
+    await waitForConnectedSource(client, fixture);
+    process.stdout.write(`${JSON.stringify({
+      event: "fixture_ready",
+      project_id: fixture.projectId,
+      source_id: fixture.sourceId,
+    })}\n`);
+    await new Promise((resolvePromise) => {
+      process.once("SIGUSR1", () => {
+        void stopForegroundCli(child).then(() => {
+          bridgeStopped = true;
+          process.stdout.write(`${JSON.stringify({ event: "bridge_stopped" })}\n`);
+        });
+      });
+      process.once("SIGINT", resolvePromise);
+      process.once("SIGTERM", resolvePromise);
+    });
+  } finally {
+    if (!bridgeStopped) await stopForegroundCli(child);
+    if (originalSourceStore) writeFileSync(sourceStorePath, originalSourceStore);
+    else rmSync(sourceStorePath, { force: true });
+    rmSync(rootPath, { recursive: true, force: true });
+  }
+}
+
 const client = OpenMatesClient.load({ apiUrl });
 requireValue(client.hasSession(), "Run the test-account login helper before live verification");
 const ownerId = await refreshOwnerId(client);
@@ -438,7 +496,8 @@ try {
   const decryptedKey = await decryptBytesWithAesGcm(record.encrypted_project_key, client.getMasterKeyBytes());
   requireValue(decryptedKey && Buffer.from(decryptedKey).equals(Buffer.from(fixture.projectKey)), "Created Project key did not round-trip");
   if (mode === "api") await runApiVerification(client, fixture);
-  else await runCliVerification(client, fixture, ownerId);
+  else if (mode === "cli") await runCliVerification(client, fixture, ownerId);
+  else await runServeFixture(client, fixture);
   process.stdout.write(`${JSON.stringify({ success: true, mode, api_url: apiUrl })}\n`);
 } finally {
   await deleteFixture(client, fixture);

@@ -111,6 +111,8 @@ Connect to dev server: `--api-url https://api.dev.openmates.org` or `OPENMATES_A
 | `client.ts` | OpenMatesClient SDK, decryption, memory registry |
 | `crypto.ts` | AES-256-GCM + PBKDF2 (Node.js webcrypto) |
 | `ws.ts` | WebSocket client for chat streaming |
+| `remoteAccess.ts` | Foreground source discovery, lifecycle, and bounded read-only filesystem operations |
+| `remoteAccessCrypto.ts` | Project-authenticated peer handshake and encrypted bridge envelopes |
 | `storage.ts` | `~/.openmates` session/cache persistence |
 | `server.ts` | Server management via git/docker shell-outs |
 | `embedRenderers.ts` | Terminal rendering for all embed types |
@@ -124,9 +126,29 @@ Connect to dev server: `--api-url https://api.dev.openmates.org` or `OPENMATES_A
 - Manual argument parsing (no Commander/yargs)
 - Build: `tsup` (ESM + TypeScript declarations)
 
+## Remote Access Architecture
+
+`openmates remote-access [--path <folder>]... [--json]` is the canonical
+foreground source bridge. Without explicit paths it discovers Git repositories
+below the current folder; repeated paths replace that scope. One authenticated
+WebSocket supervises independently Project-scoped source bindings, heartbeats,
+bounded reconnect, exact-device request delivery, and clean disconnect state.
+
+The backend stores ephemeral owner, Project, source, session, capability, and
+request-correlation metadata in Dragonfly. List, search, and selected text-read
+payloads use a Project-key-authenticated X25519/HKDF/AES-GCM channel between the
+requesting first-party client and CLI, so the backend relays opaque ciphertext
+without receiving filesystem plaintext or keys. The CLI applies realpath,
+no-follow, Git-ignore, protected-path, binary-content, time, concurrency, item,
+line, and byte limits before returning a result.
+
+The current bridge is intentionally read-only and foreground-only. Daemon or OS
+service hosting, filesystem mutation, shell execution, package installation,
+and BYOC model workers are separate future designs and are not implied by source
+registration.
+
 ## Planned Features
 
-- **Remote access** (`openmates remote-access start`) -- planned connected-server workflow, not part of the implemented CLI command set yet.
 - **Secret tokenization** -- reversible secret redaction via Aho-Corasick multi-pattern matching
 - **Python SDK** -- `pip install openmates` with Click-based CLI
 - **Browser setup** -- Docker + Playwright for localhost app testing
