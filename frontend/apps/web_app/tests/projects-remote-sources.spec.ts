@@ -19,8 +19,8 @@ function projectHashUrlPattern(projectId: string): RegExp {
   return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
 }
 
-function runChecked(command: string, args: string[], cwd = REPO_ROOT): void {
-  const result = spawnSync(command, args, { cwd, env: process.env, encoding: 'utf-8' });
+function runChecked(command: string, args: string[], cwd = REPO_ROOT, env = process.env): void {
+  const result = spawnSync(command, args, { cwd, env, encoding: 'utf-8' });
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(' ')} failed:\n${result.stdout}\n${result.stderr}`);
   }
@@ -63,7 +63,18 @@ test.describe('Projects remote sources', () => {
   test('browses a real foreground CLI source and observes offline state', async ({ page }) => {
     test.setTimeout(240000);
     runChecked('npm', ['run', 'build'], CLI_DIR);
-    runChecked('node', ['scripts/openmates_cli_test_account.mjs', 'login', '--api-url', API_BASE_URL]);
+    runChecked(
+      'node',
+      ['scripts/openmates_cli_test_account.mjs', 'login', '--api-url', API_BASE_URL],
+      REPO_ROOT,
+      {
+        ...process.env,
+        OPENMATES_TEST_ACCOUNT_EMAIL: TEST_EMAIL,
+        OPENMATES_TEST_ACCOUNT_PASSWORD: TEST_PASSWORD,
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: TEST_OTP_KEY,
+        OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: '',
+      },
+    );
     const bridge = spawn(
       'node',
       [
