@@ -88,6 +88,12 @@ from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
+from .handlers.websocket_handlers.project_remote_access_handlers import (
+    handle_project_remote_access_complete,
+    handle_project_remote_access_disconnect,
+    handle_project_remote_access_heartbeat,
+    handle_project_remote_access_register,
+)
 from .handlers.websocket_handlers.update_chat_pinned_handler import handle_update_chat_pinned  # Handler for pin/unpin chat (cross-device sync)
 from .handlers.websocket_handlers.key_received_handler import handle_key_received  # Handler for key delivery acknowledgment (SYNC-01)
 from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
@@ -1755,12 +1761,20 @@ async def listen_for_user_updates(app: FastAPI):
 
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
-                await manager.broadcast_to_user_specific_event(
-                    user_id=user_id_uuid,
-                    event_name=event_for_client,
-                    payload=client_payload,
-                    exclude_device_hash=exclude_connection_hash,
-                )
+                target_device_hash = redis_payload.get("target_device_fingerprint_hash")
+                if target_device_hash:
+                    await manager.send_personal_message(
+                        {"type": event_for_client, "payload": client_payload},
+                        user_id_uuid,
+                        target_device_hash,
+                    )
+                else:
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id_uuid,
+                        event_name=event_for_client,
+                        payload=client_payload,
+                        exclude_device_hash=exclude_connection_hash,
+                    )
                 logger.debug(
                     f"User Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
                     f"with payload summary: {_safe_payload_summary(client_payload)}"
@@ -3153,6 +3167,41 @@ async def websocket_endpoint(
                         f"Received update_chat with no recognized fields from "
                         f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
                     )
+
+            elif message_type == "project_remote_access_register":
+                await handle_project_remote_access_register(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "project_remote_access_heartbeat":
+                await handle_project_remote_access_heartbeat(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    payload=payload,
+                )
+
+            elif message_type == "project_remote_access_disconnect":
+                await handle_project_remote_access_disconnect(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    payload=payload,
+                )
+
+            elif message_type == "project_remote_access_complete":
+                await handle_project_remote_access_complete(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
 
             elif message_type == "key_received":
                 # Client ACKs that it received and decrypted a chat encryption key.

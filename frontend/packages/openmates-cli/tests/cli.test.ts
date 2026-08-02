@@ -997,36 +997,30 @@ describe("remote-access command", () => {
     assert.match(runCli(["help"]), /openmates remote-access \[--path <folder>\]/);
     const output = runCli(["remote-access", "--help"]);
     assert.match(output, /openmates remote-access \[--path <folder>\]/);
-    assert.match(output, /Runs in the foreground/);
+    assert.match(output, /remains connected in the foreground/);
     assert.doesNotMatch(output, /remote-access start/);
     assert.doesNotMatch(output, /remote-access status/);
     assert.doesNotMatch(output, /remote-access search/);
+    assert.doesNotMatch(output, /encrypted-display-name/);
+    assert.doesNotMatch(output, /encrypted-metadata/);
+    assert.doesNotMatch(output, /--source-id/);
+    assert.match(output, /Repeated --path values replace default discovery/);
   });
 
-  it("attaches a local source from the canonical foreground command without network access", () => {
+  it("rejects obsolete internal flags and public lifecycle subcommands", () => {
     const tempHome = join(tmpdir(), `openmates-cli-remote-access-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     const repo = join(tempHome, "repo");
     mkdirSync(repo, { recursive: true });
     const env = { HOME: tempHome, USERPROFILE: tempHome };
 
     try {
-      const missingEncryptedMetadata = spawnSync(
+      const obsoleteFlag = spawnSync(
         "node",
-        ["dist/cli.js", "remote-access", "--path", repo, "--source-id", "source-missing", "--project", "project-1"],
+        ["dist/cli.js", "remote-access", "--path", repo, "--encrypted-metadata", "ciphertext"],
         { cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, TERM: "dumb", ...env }, timeout: 15_000 },
       );
-      assert.notEqual(missingEncryptedMetadata.status, 0);
-      assert.match(missingEncryptedMetadata.stderr, /requires --local-only or both --encrypted-display-name and --encrypted-metadata/);
-
-      const startOutput = runCli(
-        ["remote-access", "--path", repo, "--source-id", "source-1", "--project", "project-1", "--local-only", "--json"],
-        env,
-      );
-      const started = JSON.parse(startOutput) as { foreground: boolean; source: { sourceId: string; rootPath: string; cachePath: string } };
-      assert.equal(started.foreground, true);
-      assert.equal(started.source.sourceId, "source-1");
-      assert.equal(started.source.rootPath, repo);
-      assert.equal(started.source.cachePath, join(tempHome, ".openmates", "remote-cache", "source-1"));
+      assert.notEqual(obsoleteFlag.status, 0);
+      assert.match(obsoleteFlag.stderr, /Unsupported remote-access option: --encrypted-metadata/);
 
       for (const legacySubcommand of ["start", "status", "search", "stop"]) {
         const result = spawnSync("node", ["dist/cli.js", "remote-access", legacySubcommand, "--json"], {

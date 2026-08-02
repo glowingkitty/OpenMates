@@ -5,6 +5,7 @@
 
 import hashlib
 import logging
+import time
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -18,6 +19,10 @@ from backend.core.api.app.services.feature_availability_guards import ensure_pro
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.project_remote_access_service import (
+    ProjectRemoteAccessError,
+    ProjectRemoteAccessService,
+)
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
@@ -224,6 +229,14 @@ class ProjectSourceCreateRequest(BaseModel):
     created_at: int
     updated_at: int
     last_indexed_at: Optional[int] = None
+
+
+class ProjectRemoteAccessRequestCreate(BaseModel):
+    request_id: str = Field(min_length=1, max_length=128)
+    requesting_client_id: str = Field(min_length=1, max_length=128)
+    operation: Literal["list", "search", "read_text"]
+    key_epoch: int = Field(ge=1)
+    encrypted_envelope: str = Field(min_length=1, max_length=350_000)
 
 
 class DeletePrecheckRequest(BaseModel):
@@ -507,7 +520,37 @@ async def list_project_sources(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     sources = await directus_service.project.list_sources(project_id, current_user.id)
-    return {"sources": sources}
+    service = ProjectRemoteAccessService(request.app.state.cache_service)
+    now = int(time.time())
+    live_sources: List[Dict[str, Any]] = []
+    for source in sources:
+        status_value = "offline"
+        source_session_id = None
+        key_epoch = None
+        if source.get("status") == "revoked":
+            status_value = "revoked"
+        else:
+            try:
+                binding = await service.get_active_binding(
+                    current_user.id,
+                    project_id,
+                    str(source.get("source_id") or ""),
+                    now=now,
+                )
+                status_value = "connected"
+                source_session_id = binding["source_session_id"]
+                key_epoch = binding["key_epoch"]
+            except ProjectRemoteAccessError:
+                pass
+        live_sources.append(
+            {
+                **source,
+                "status": status_value,
+                "source_session_id": source_session_id,
+                "key_epoch": key_epoch,
+            }
+        )
+    return {"sources": live_sources}
 
 
 @router.post("/{project_id}/sources")
@@ -530,6 +573,72 @@ async def create_project_source(
     if not source:
         raise HTTPException(status_code=500, detail="Failed to create project source")
     return {"source": source}
+
+
+@router.post("/{project_id}/sources/{source_id}/requests", status_code=202)
+@limiter.limit("60/minute")
+async def create_project_remote_access_request(
+    project_id: str,
+    source_id: str,
+    body: ProjectRemoteAccessRequestCreate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Create an opaque request on the first-party encrypted bridge."""
+
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    source = await directus_service.project.get_source(project_id, current_user.id, source_id)
+    if not project or not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    if source.get("status") == "revoked":
+        raise HTTPException(status_code=409, detail="SOURCE_REVOKED")
+    service = ProjectRemoteAccessService(request.app.state.cache_service)
+    try:
+        return await service.create_request(
+            user_id=current_user.id,
+            project_id=project_id,
+            source_id=source_id,
+            request_id=body.request_id,
+            requesting_client_id=body.requesting_client_id,
+            operation=body.operation,
+            key_epoch=body.key_epoch,
+            encrypted_envelope=body.encrypted_envelope,
+            now=int(time.time()),
+        )
+    except ProjectRemoteAccessError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+
+
+@router.get("/{project_id}/sources/{source_id}/requests/{request_id}")
+@limiter.limit("180/minute")
+async def get_project_remote_access_request_result(
+    project_id: str,
+    source_id: str,
+    request_id: str,
+    requesting_client_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Return an opaque result only to its authenticated requesting client."""
+
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    source = await directus_service.project.get_source(project_id, current_user.id, source_id)
+    if not project or not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    service = ProjectRemoteAccessService(request.app.state.cache_service)
+    try:
+        return await service.get_request_result(
+            user_id=current_user.id,
+            project_id=project_id,
+            source_id=source_id,
+            request_id=request_id,
+            requesting_client_id=requesting_client_id,
+            now=int(time.time()),
+        )
+    except ProjectRemoteAccessError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
 
 
 @router.get("/{project_id}/settings")

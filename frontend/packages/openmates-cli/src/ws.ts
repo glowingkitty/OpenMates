@@ -28,6 +28,17 @@ export interface ForceLogoutPayload {
   revoked_session_id?: string | null;
 }
 
+export interface ProjectRemoteAccessRequestFrame {
+  request_id: string;
+  project_id: string;
+  source_id: string;
+  source_session_id: string;
+  requesting_client_id: string;
+  operation: "list" | "search" | "read_text";
+  key_epoch: number;
+  encrypted_envelope: string;
+}
+
 /** Streaming event dispatched for each chunk or lifecycle event. */
 export interface StreamEvent {
   /** Event type. */
@@ -495,6 +506,41 @@ export class OpenMatesWsClient {
     };
     this.socket.on("message", onMessage);
     return () => this.socket.off("message", onMessage);
+  }
+
+  onProjectRemoteAccessRequest(
+    handler: (payload: ProjectRemoteAccessRequestFrame) => void | Promise<void>,
+  ): () => void {
+    const onMessage = (rawData: RawData) => {
+      try {
+        const parsed = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+        if (parsed.type !== "project_remote_access_request") return;
+        const payload = (parsed.payload ?? {}) as Record<string, unknown>;
+        if (
+          typeof payload.request_id !== "string"
+          || typeof payload.project_id !== "string"
+          || typeof payload.source_id !== "string"
+          || typeof payload.source_session_id !== "string"
+          || typeof payload.requesting_client_id !== "string"
+          || !["list", "search", "read_text"].includes(String(payload.operation))
+          || typeof payload.key_epoch !== "number"
+          || typeof payload.encrypted_envelope !== "string"
+        ) return;
+        void handler(payload as unknown as ProjectRemoteAccessRequestFrame);
+      } catch {
+        // Ignore malformed frames.
+      }
+    };
+    this.socket.on("message", onMessage);
+    return () => this.socket.off("message", onMessage);
+  }
+
+  waitForClose(): Promise<{ code: number; reason: string }> {
+    return new Promise((resolve) => {
+      this.socket.once("close", (code: number, reason: Buffer) => {
+        resolve({ code, reason: reason.toString("utf-8") });
+      });
+    });
   }
 
   private bufferPassiveTaskUpdateJobs(rawData: RawData): void {

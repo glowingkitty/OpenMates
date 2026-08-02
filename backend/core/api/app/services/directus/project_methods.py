@@ -209,6 +209,17 @@ class ProjectMethods:
         response = await self.directus_service.get_items("project_sources", params=params, no_cache=True)
         return response if isinstance(response, list) else []
 
+    async def get_source(self, project_id: str, user_id: str, source_id: str) -> Optional[Dict[str, Any]]:
+        params = {
+            "filter[hashed_project_id][_eq]": hash_id(project_id),
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "filter[source_id][_eq]": source_id,
+            "fields": SOURCE_FIELDS,
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("project_sources", params=params, no_cache=True)
+        return rows[0] if isinstance(rows, list) and rows else None
+
     async def create_source(
         self,
         project_id: str,

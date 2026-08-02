@@ -54,7 +54,7 @@ import {
   type DecryptedConnectedAccountForSkill,
 } from "./client.js";
 import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
-import type { PendingTaskUpdateJobFrame, StreamEvent, SubChatEvent, TaskEventFrame } from "./ws.js";
+import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -120,8 +120,13 @@ import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
+  discoverRemoteAccessRepositories,
+  listRemoteAccessSources,
+  resolveRemoteAccessRoots,
+  remoteAccessSourceType,
+  runRemoteAccessBridge,
   startRemoteAccessSource,
-  type RemoteAccessSourceRecord,
+  type LiveRemoteAccessBinding,
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
@@ -2922,35 +2927,67 @@ async function handleRemoteAccess(
       return;
     }
 
-    const rootPath = parseRemoteAccessRootPath(flags);
-    const sourceId = typeof flags["source-id"] === "string" ? flags["source-id"] : randomUUID();
-    const projectId = typeof flags.project === "string" ? flags.project : undefined;
-    validateRemoteSourceRegistrationFlags(projectId, flags);
-    const sourceType = parseRemoteAccessSourceType(flags.type);
-    const displayName = typeof flags.name === "string" ? flags.name : sourceId;
-    const source = startRemoteAccessSource({ sourceId, projectId, rootPath, sourceType, displayName });
-    await maybeRegisterRemoteSource(client, source, flags);
-    if (flags.json === true) {
-      printJson({ source, foreground: true });
-    } else {
-      console.log(`Remote access foreground session started: ${source.sourceId}`);
-      console.log(`Root: ${source.rootPath}`);
-      console.log(`Cache: ${source.cachePath}`);
+    assertRemoteAccessPublicFlags(flags);
+    const roots = resolveRemoteAccessRoots(typeof flags.path === "string" ? flags.path : undefined);
+    const discovery = discoverRemoteAccessRepositories(roots);
+    const candidateRoots = typeof flags.path === "string"
+      ? roots
+      : discovery.repositories.length > 0
+        ? discovery.repositories.map((candidate) => candidate.rootPath)
+        : roots;
+    const masterKey = client.getMasterKeyBytes();
+    const projects = await loadProjects(client, masterKey, flags);
+    const bindings = await resolveRemoteAccessBindings(client, masterKey, projects, candidateRoots, flags);
+    if (bindings.length === 0) throw new Error("No Project folders were approved for remote access.");
+
+    const sourceSessionId = randomUUID();
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+    if (flags.json !== true) {
+      console.log(`Remote access connecting ${bindings.length} Project source${bindings.length === 1 ? "" : "s"}.`);
       console.log("Keep this terminal open. For long-running work, start it inside zellij, tmux, or screen.");
+      if (discovery.permissionDenied.length > 0) {
+        console.warn(`Skipped ${discovery.permissionDenied.length} unreadable folder${discovery.permissionDenied.length === 1 ? "" : "s"}.`);
+      }
+    }
+    try {
+      let confirmedTakeover = false;
+      while (!controller.signal.aborted) {
+        try {
+          await runRemoteAccessBridge({
+            client,
+            sourceSessionId,
+            bindings,
+            signal: controller.signal,
+            confirmedTakeover,
+            onLifecycle: (event) => {
+              if (flags.json === true) printJson({ type: "remote_access_lifecycle", ...event });
+              else if (event.state === "connected") console.log("Remote access connected.");
+              else if (event.state === "reconnecting") console.log(`Remote access reconnecting in ${event.delayMs ?? 0}ms.`);
+              else if (event.state === "disconnected") console.log("Remote access disconnected.");
+            },
+          });
+          break;
+        } catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "takeover_confirmation_required") throw error;
+          if (flags.json === true || !process.stdin.isTTY) {
+            throw new Error("Another remote-access process owns one of these sources; rerun interactively to confirm takeover.");
+          }
+          const answer = (await promptLine("Another process owns one of these sources. Take over? [y/N] ")).trim().toLowerCase();
+          if (answer !== "y" && answer !== "yes") throw new Error("Remote access takeover cancelled.");
+          confirmedTakeover = true;
+        }
+      }
+    } finally {
+      process.off("SIGINT", stop);
+      process.off("SIGTERM", stop);
     }
     return;
   }
 
   throw new Error("openmates remote-access does not accept public subcommands. Run 'openmates remote-access --help'.");
-}
-
-function parseRemoteAccessRootPath(flags: Record<string, string | boolean>): string {
-  const rootPath = flags.path;
-  if (rootPath === undefined) return process.cwd();
-  if (typeof rootPath !== "string") {
-    throw new Error("--path requires a folder value.");
-  }
-  return rootPath;
 }
 
 function parsePositiveIntegerFlag(value: string | boolean | undefined, flagName: string): number | undefined {
@@ -2970,47 +3007,117 @@ function parseResponseTimeoutMs(flags: Record<string, string | boolean>): number
   return seconds === undefined ? undefined : seconds * 1000;
 }
 
-function parseRemoteAccessSourceType(value: string | boolean | undefined): RemoteAccessSourceRecord["sourceType"] {
-  if (value === undefined) return "local_folder";
-  if (value === "local_folder" || value === "local_git_repository") {
-    return value;
+function assertRemoteAccessPublicFlags(flags: Record<string, string | boolean>): void {
+  const internalFlags = ["source-id", "project", "type", "local-only", "encrypted-display-name", "encrypted-metadata"];
+  const supplied = internalFlags.filter((name) => flags[name] !== undefined);
+  if (supplied.length > 0) {
+    throw new Error(`Unsupported remote-access option${supplied.length === 1 ? "" : "s"}: ${supplied.map((name) => `--${name}`).join(", ")}`);
   }
-  throw new Error("--type must be one of local_folder or local_git_repository for the local remote-access bridge");
 }
 
-async function maybeRegisterRemoteSource(
+async function resolveRemoteAccessBindings(
   client: OpenMatesClient,
-  source: RemoteAccessSourceRecord,
+  masterKey: Uint8Array,
+  projects: DecryptedProject[],
+  candidateRoots: string[],
   flags: Record<string, string | boolean>,
-): Promise<void> {
-  if (!source.projectId || flags["local-only"] === true) return;
-  const encryptedDisplayName = flags["encrypted-display-name"];
-  const encryptedMetadata = flags["encrypted-metadata"];
-  if (typeof encryptedDisplayName !== "string" || typeof encryptedMetadata !== "string") {
-    throw new Error("Missing encrypted Project source metadata after registration validation");
+): Promise<LiveRemoteAccessBinding[]> {
+  const stored = listRemoteAccessSources();
+  const resolved: Array<{ rootPath: string; project: DecryptedProject; sourceId: string }> = [];
+  const unresolved: string[] = [];
+  for (const rootPath of candidateRoots) {
+    const existingSource = stored.find((source) => source.rootPath === rootPath && source.projectId);
+    const project = existingSource
+      ? projects.find((item) => item.projectId === existingSource.projectId)
+      : undefined;
+    if (existingSource && project) {
+      resolved.push({ rootPath, project, sourceId: existingSource.sourceId });
+    } else {
+      unresolved.push(rootPath);
+    }
   }
+
+  if (unresolved.length > 0) {
+    if (flags.json === true || !process.stdin.isTTY) {
+      throw new Error(`Remote access needs interactive Project review for: ${unresolved.join(", ")}`);
+    }
+    console.log("The following folders need OpenMates Projects:");
+    unresolved.forEach((rootPath) => console.log(`  - ${rootPath}`));
+    const answer = (await promptLine(`Create ${unresolved.length} missing Project${unresolved.length === 1 ? "" : "s"}? [y/N] `)).trim().toLowerCase();
+    if (answer !== "y" && answer !== "yes") throw new Error("Remote access Project creation cancelled.");
+    for (const rootPath of unresolved) {
+      const project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath));
+      resolved.push({ rootPath, project, sourceId: randomUUID() });
+    }
+  }
+
+  const bindings: LiveRemoteAccessBinding[] = [];
+  for (const item of resolved) {
+    const sourceType = remoteAccessSourceType(item.rootPath);
+    const source = startRemoteAccessSource({
+      sourceId: item.sourceId,
+      projectId: item.project.projectId,
+      rootPath: item.rootPath,
+      sourceType,
+      displayName: basename(item.rootPath),
+    });
+    const remoteSources = await client.listProjectSources(item.project.projectId);
+    const remoteSource = remoteSources.find((entry) => entry.source_id === source.sourceId);
+    if (!remoteSource) {
+      const timestamp = Math.floor(Date.now() / 1000);
+      await client.createProjectSource(item.project.projectId, {
+        source_id: source.sourceId,
+        source_type: sourceType,
+        encrypted_display_name: await encryptWithAesGcmCombined(source.displayName, item.project.projectKey),
+        encrypted_metadata: await encryptWithAesGcmCombined(
+          JSON.stringify({ root: source.rootPath, binding_root: source.rootPath }),
+          item.project.projectKey,
+        ),
+        capabilities: ["read", "search", "import"],
+        status: "offline",
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+    }
+    bindings.push({ source, projectKey: item.project.projectKey, keyEpoch: 1 });
+  }
+  return bindings;
+}
+
+async function createEncryptedRemoteAccessProject(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  name: string,
+): Promise<DecryptedProject> {
+  const projectKey = randomBytes(32);
+  const projectId = randomUUID();
   const timestamp = Math.floor(Date.now() / 1000);
-  await client.createProjectSource(source.projectId, {
-    source_id: source.sourceId,
-    source_type: source.sourceType,
-    encrypted_display_name: encryptedDisplayName,
-    encrypted_metadata: encryptedMetadata,
-    capabilities: ["read", "search", "import"],
-    status: source.status,
+  const payload: ProjectRecord = {
+    project_id: projectId,
+    encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
+    encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
+    encrypted_description: await encryptWithAesGcmCombined("", projectKey),
+    encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
+    encrypted_color: await encryptWithAesGcmCombined("default", projectKey),
+    pinned: false,
+    archived: false,
     created_at: timestamp,
     updated_at: timestamp,
-  });
-}
-
-function validateRemoteSourceRegistrationFlags(
-  projectId: string | undefined,
-  flags: Record<string, string | boolean>,
-): void {
-  if (!projectId || flags["local-only"] === true) return;
-  if (typeof flags["encrypted-display-name"] === "string" && typeof flags["encrypted-metadata"] === "string") return;
-  throw new Error(
-    "remote-access with --project requires --local-only or both --encrypted-display-name and --encrypted-metadata",
-  );
+    last_opened_at: timestamp,
+  };
+  await client.createProject(payload);
+  return {
+    projectId,
+    name,
+    description: "",
+    icon: "folder",
+    color: "default",
+    pinned: false,
+    archived: false,
+    version: 1,
+    projectKey,
+    encrypted: payload,
+  };
 }
 
 function shouldInitializeRedactor(
@@ -11436,21 +11543,20 @@ Options:
 
 function printRemoteAccessHelp(): void {
   console.log(`Remote access command:
-  openmates remote-access [--path <folder>] [--source-id <id>] [--project <id>] [--type <type>] [--local-only] [--json]
+  openmates remote-access [--path <folder>]... [--json]
 
 Behavior:
-  Runs in the foreground and defaults to the current working directory when
-  --path is omitted. Keep the terminal open; use zellij, tmux, or screen for
-  long-running access sessions.
-
-Source types:
-  local_folder, local_git_repository
+  Discovers repository Projects below the current working directory by default.
+  Repeated --path values replace default discovery. Missing Projects are created
+  only after interactive review. The command remains connected in the foreground;
+  keep the terminal open or use zellij, tmux, or screen.
 
 Security:
   Source metadata is stored locally under ~/.openmates/remote-sources.json.
   Preview cache defaults to ~/.openmates/remote-cache/<source-id>.
-  Local searches are internal bridge capability only and run inside the approved
-  source root with high-risk, binary, and out-of-root paths excluded by default.`);
+  Project metadata and bridge payloads are encrypted automatically. List, search,
+  and text preview stay inside approved roots and exclude protected, ignored,
+  binary, symlink-escaped, and out-of-root paths.`);
 }
 
 function printConnectedAccountsHelp(): void {

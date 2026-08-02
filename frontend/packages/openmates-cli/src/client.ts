@@ -8447,6 +8447,18 @@ export class OpenMatesClient {
     return response.data.source;
   }
 
+  async openProjectRemoteAccessWebSocket(): Promise<{
+    ws: OpenMatesWsClient;
+    ownerId: string;
+  }> {
+    const opened = await this.openWsClient({ taskUpdateJobs: false });
+    if (!opened.ownerId) {
+      opened.ws.close();
+      throw new Error("Authenticated user identity unavailable for remote access");
+    }
+    return { ws: opened.ws, ownerId: opened.ownerId };
+  }
+
   async createProjectItem(projectId: string, input: ProjectItemCreateInput): Promise<ProjectItemRecord> {
     this.requireSession();
     const response = await this.http.post<{ item?: ProjectItemRecord }>(
