@@ -41,7 +41,7 @@ current_milestone:
     - Headline `Simply ask your\nAI team mates` with the existing AI/sparkle visual language.
     - User-message style bubble rotating through `Find doctor appointments`, `Find events`, `Build a web app`, and `Explain the news`.
     - About 8.5 seconds total intro timing: roughly 0.6s entrance, 1.7s per request, then about 1.1s collapse.
-    - Two active-app icon rails moving continuously in opposite directions, timed so Health, Events, Code, and News are near center during the matching request.
+    - Two active-app icon rails moving continuously in opposite directions; the top rail moves right-to-left slower than the bottom rail, keeps Health, Events, Code, and News consecutive with no filler icons between them, and remains timed so the matching app is visible near center during its request.
     - Highlighted active app opacity/scale emphasis while non-current icons are muted.
     - Existing-style progress bar and left/right controls.
     - Skip behavior: pressing next during expanded intro collapses immediately and shows slide 2 at regular header size.
@@ -102,7 +102,7 @@ clarification:
     - question: Which icons should appear in the intro app rails?
       answer: Only exact active app icons from the web app. Do not show inactive, non-existing, or future apps. Highlight Health, Events, Code, and News for the matching short request.
     - question: How should app rail movement work?
-      answer: Rails move continuously at the same speed, in opposite directions, and the icon order/timing should align the relevant app near center when its matching request is visible.
+      answer: Rails move continuously in opposite directions. The top rail moves right-to-left at a reduced speed compared with the bottom rail, removes filler icons between Health, Events, Code, and News, and still keeps the relevant app visible near center when its matching request is visible.
     - question: What should happen after the fourth request?
       answer: Auto-collapse immediately and switch to slide 2, showing `Actionable.\nNot just a wall of text.`; keep the progress bar.
     - question: Should slide 2 initially include all mini-animations or one polished example?
@@ -157,6 +157,11 @@ decisions:
     decision: Activate the regular-size Actionable event explainer slide after deployed iPad rail verification.
     reason: User instructed continuation with the other slides once the app rail clipping fix was confirmed working.
     decided_at: "2026-07-23"
+  - id: D-6
+    status: active
+    decision: The primary intro app rail keeps moving right-to-left, slower than the secondary rail, with the highlighted apps consecutive.
+    reason: User explicitly rejected a static top row and asked to remove filler app placeholders between the highlighted apps while preserving near-center highlighted visibility.
+    decided_at: "2026-08-02"
 
 attempts:
   - id: ATTEMPT-1
