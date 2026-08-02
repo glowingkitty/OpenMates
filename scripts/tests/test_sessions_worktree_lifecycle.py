@@ -8,10 +8,13 @@ the lifecycle can be verified safely in a temporary state file.
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import sys
 from pathlib import Path
+
+import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -100,3 +103,21 @@ def test_ensure_session_worktree_reuses_existing_metadata(monkeypatch, tmp_path)
 
     assert metadata["base_commit"] == "abc123def456"
     assert metadata["path"] == str(worktree_path)
+
+
+def test_cmd_worktree_reports_missing_session_without_traceback(monkeypatch, capsys):
+    sessions = load_sessions_module()
+
+    def missing_session(_session_id):
+        raise RuntimeError("Session missing not found")
+
+    monkeypatch.setattr(sessions, "ensure_session_worktree", missing_session)
+
+    with pytest.raises(SystemExit) as exc_info:
+        sessions.cmd_worktree(argparse.Namespace(worktree_action="ensure", session="missing"))
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "Error: Session missing not found\n"
+    assert "Traceback" not in captured.err

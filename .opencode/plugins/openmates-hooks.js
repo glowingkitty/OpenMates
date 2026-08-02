@@ -525,22 +525,25 @@ function worktreeGuardMessage(sessionID, worktreePath = "") {
   return `${ROOT_GUARD_MARKER} Root checkout is the OpenMates control plane.${target} Use the session worktree for source edits: python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}`;
 }
 
-export function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target = "", sessionID = "", worktreePath = "" } = {}) {
+export function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target = "", sessionID = "", opencodeSessionID = "", sessions = null, worktreePath = "" } = {}) {
   const normalized = String(mode || "strict").toLowerCase();
   if (["off", "0", "false"].includes(normalized)) return { decision: "allow", message: "root guard disabled" };
   if (!isInsideProjectRoot(target) || isInsideAgentWorktree(cwd, target)) return { decision: "allow", message: "target is not a root checkout source edit" };
-  const message = worktreeGuardMessage(sessionID, worktreePath);
+  const mappedSessionID = opencodeSessionID ? activeSessionRecord(opencodeSessionID, sessions || sessionsData())?.id : "";
+  const message = worktreeGuardMessage(sessionID || mappedSessionID, worktreePath);
   if (worktreePath) return { decision: "block", message };
   return { decision: normalized === "strict" ? "block" : "warn", message };
 }
 
 function guardRootEdit(files, sessionID, worktreePath = "") {
+  const data = sessionsData();
   for (const file of files) {
     const decision = rootGuardDecisionForTest({
       mode: process.env.OPENMATES_ROOT_GUARD || "strict",
       cwd: process.cwd(),
       target: file,
-      sessionID,
+      opencodeSessionID: sessionID,
+      sessions: data,
       worktreePath,
     });
     if (decision.decision === "block") throw new Error(decision.message);

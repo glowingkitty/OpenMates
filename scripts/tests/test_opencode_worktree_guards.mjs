@@ -21,6 +21,22 @@ test("root guard warns in transitional mode", () => {
   assert.match(decision.message, /worktree/);
 });
 
+test("root guard recommends the mapped sessions.py ID", () => {
+  const decision = rootGuardDecisionForTest({
+    mode: "strict",
+    cwd: "/home/superdev/projects/OpenMates",
+    target: "/home/superdev/projects/OpenMates/scripts/sessions.py",
+    opencodeSessionID: "ses_test",
+    sessions: {
+      sessions: {
+        "4429": { opencode_session_id: "ses_test" },
+      },
+    },
+  });
+  assert.match(decision.message, /worktree ensure --session 4429/);
+  assert.doesNotMatch(decision.message, /worktree ensure --session ses_test/);
+});
+
 test("root guard blocks strict root edits", () => {
   const decision = rootGuardDecisionForTest({
     mode: "strict",

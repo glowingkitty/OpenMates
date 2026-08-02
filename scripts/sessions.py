@@ -5269,7 +5269,11 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 def cmd_worktree(args: argparse.Namespace) -> None:
     """Manage automatic local session worktrees."""
     if args.worktree_action == "ensure":
-        metadata = ensure_session_worktree(args.session)
+        try:
+            metadata = ensure_session_worktree(args.session)
+        except (RuntimeError, OSError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
         print("== SESSION WORKTREE ==")
         print(f"Session: {args.session}")
         print(f"Path: {metadata['path']}")
