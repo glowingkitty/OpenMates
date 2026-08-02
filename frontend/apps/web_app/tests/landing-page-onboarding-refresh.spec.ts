@@ -479,6 +479,7 @@ test.describe('Landing page onboarding refresh', () => {
 			await page.goto(getE2EDebugUrl(`/?landing-layout=${viewport.name}`), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
 			await waitForLandingIntroExamples(page);
+			const requestSamplesPromise = collectLandingIntroCycleMetrics(page);
 			await waitForExpandedIntroToCoverActiveChat(page);
 
 			const metrics = await landingIntroLayoutMetrics(page);
@@ -506,7 +507,7 @@ test.describe('Landing page onboarding refresh', () => {
 				expect(row.bottomGap, `${viewport.name}: app row is below the banner`).toBeGreaterThanOrEqual(0);
 			}
 
-			const requestSamples = await collectLandingIntroCycleMetrics(page);
+			const requestSamples = await requestSamplesPromise;
 			expect(Array.from(requestSamples.keys()), `${viewport.name}: should sample every intro request`).toEqual(LANDING_INTRO_REQUESTS);
 			for (const requestLabel of LANDING_INTRO_REQUESTS) {
 				const sample = requestSamples.get(requestLabel);
