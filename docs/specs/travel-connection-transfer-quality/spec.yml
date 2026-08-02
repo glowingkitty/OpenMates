@@ -104,7 +104,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 25741dd50f1bb018e615a695fd8608b504ba0499
+  subject_commit: 7e87b59fc40db7ec2dcb078e97e8cd1b62711952
 
 approvals:
   product_contract:
@@ -218,6 +218,12 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-02T12:45:00Z"
     evidence: "Commits `e922840` and `25741dd` deployed backend fixes. `python3 scripts/smoke_travel_transfer_quality.py --create-api-key-from-cli-session --min-transfer-minutes 15 --json` passed with 7 results, 9 layovers, 9 amenity layovers, and `optimized_count: 2`. Direct CLI showed two `Optimized by OpenMates` Holthusen -> Schwerin Süd candidates, Stendal Hbf food/drink matched count 4, Uelzen food/drink matched count 3, Holthusen no_match, and Schwerin Süd `missing_coordinates` instead of an invalid Geoapify outage. npm and pip SDK smokes passed with the same result counts."
+  - id: ATTEMPT-13
+    task_id: TASK-4
+    approach: Resolve station coordinates for optimized transfer stops before Geoapify amenity lookup.
+    outcome: succeeded
+    recorded_at: "2026-08-02T13:20:00Z"
+    evidence: "Commit `7e87b59` resolves missing train transfer-stop coordinates through DB station search and caches the station coordinates before running bounded Geoapify category searches. After restarting `api`, REST smoke passed with 7 results, 9 layovers, 9 amenity layovers, and `optimized_count: 2`; direct CLI showed Schwerin Süd with latitude `53.5743`, longitude `11.376712`, and bounded Geoapify `no_match` groups instead of `missing_coordinates`. npm and pip SDK smokes passed with the same result counts."
 
 handoff:
   current_task_id: TASK-6
@@ -230,7 +236,7 @@ handoff:
     reason: Firecrawl returned insufficient credits for required laptop/mobile visual smoke; user confirmation is also required before Apple parity.
     question: Refill/authorize Firecrawl credits or approve skipping/replacing the Firecrawl visual-smoke gate, then confirm the deployed web behavior on dev.
     next_action: Retry Firecrawl visual smoke for https://app.dev.openmates.org/dev/preview/embeds/travel in laptop and mobile viewports.
-  last_verified_commit: 25741dd50f1bb018e615a695fd8608b504ba0499
+  last_verified_commit: 7e87b59fc40db7ec2dcb078e97e8cd1b62711952
 
 scenarios:
   - id: S-1
