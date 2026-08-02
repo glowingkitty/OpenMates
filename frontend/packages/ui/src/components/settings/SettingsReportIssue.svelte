@@ -87,6 +87,7 @@
     let showTitleWarning = $state(false);
     let showEmailWarning = $state(false);
     const RAW_CHAT_ERROR_KEYS = new Set(['chat.an_error_occured', 'chat.an_error_occurred']);
+    const CHAT_INSPECTION_TIMEOUT_MS = 3500;
 
     function normalizeIssueReportText(value: string): string {
         let normalized = value;
@@ -289,10 +290,23 @@
             }
             
             console.debug('[SettingsReportIssue] Generating IndexedDB inspection for chat:', activeChatId);
+
+            const timeoutReport = `Chat inspection skipped: timed out after ${CHAT_INSPECTION_TIMEOUT_MS}ms while preparing issue report.`;
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
             
             // Generate the inspection report (same format as window.inspectChat)
             // This only returns metadata - no plaintext content is included
-            const report = await inspectChat(activeChatId, { verbose: true });
+            const report = await Promise.race([
+                inspectChat(activeChatId, { hideKeys: true, redactText: true, silent: true }).finally(() => {
+                    if (timeoutId) clearTimeout(timeoutId);
+                }),
+                new Promise<string>((resolve) => {
+                    timeoutId = setTimeout(() => {
+                        console.warn('[SettingsReportIssue] IndexedDB inspection timed out; submitting issue without full chat inspection');
+                        resolve(timeoutReport);
+                    }, CHAT_INSPECTION_TIMEOUT_MS);
+                })
+            ]);
             
             console.debug('[SettingsReportIssue] Generated IndexedDB inspection report:', report.length, 'chars');
             return report;
@@ -461,7 +475,10 @@
     /**
      * Handle form submission
      */
-    async function handleSubmit() {
+    async function handleSubmit(event?: Event) {
+        event?.preventDefault();
+        event?.stopPropagation();
+
         // Reset error message from any previous submission attempt
         errorMessage = '';
         
@@ -1538,6 +1555,7 @@
         <!-- Submit Button -->
         <div class="button-container">
             <button
+                type="button"
                 onclick={handleSubmit}
                 disabled={!isFormValid || isSubmitting}
                 aria-label={$text('settings.report_issue.submit_button')}

@@ -50,6 +50,7 @@
 
 <div class="settings-button-wrapper">
     <button
+        type="button"
         class="settings-button {variant} {size}"
         class:full-width={fullWidth}
         class:loading

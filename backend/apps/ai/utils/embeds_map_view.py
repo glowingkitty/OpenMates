@@ -89,6 +89,18 @@ def _normalize_refs(value: str) -> list[str]:
     return refs
 
 
+def _dedupe_refs(refs: Iterable[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for raw_ref in refs:
+        ref = raw_ref.strip() if isinstance(raw_ref, str) else ""
+        if not ref or ref in seen:
+            continue
+        seen.add(ref)
+        deduped.append(ref)
+    return deduped
+
+
 def is_embeds_map_view_fence_language(language: str | None) -> bool:
     """Return whether a markdown fence language targets the map-view renderer."""
 
@@ -186,23 +198,30 @@ def extract_inline_embed_refs(content: str) -> list[str]:
     return refs
 
 
-def append_missing_embeds_map_view_block(content: str, *, title: str = "Mapped results") -> tuple[str, bool]:
+def append_missing_embeds_map_view_block(
+    content: str,
+    *,
+    title: str = "Mapped results",
+    source_refs: Iterable[str] | None = None,
+) -> tuple[str, bool]:
     """Append a minimal map-view block from existing source or inline refs."""
 
     if not content or any(f"```{language}" in content for language in EMBEDS_RESULTS_VIEW_FENCE_LANGUAGES):
         return content, False
-    source_refs = extract_map_capable_source_refs(content)
+    known_source_refs = _dedupe_refs(
+        [*extract_map_capable_source_refs(content), *(source_refs or [])]
+    )
     inline_refs = extract_inline_embed_refs(content)
-    if not source_refs and not inline_refs:
+    if not known_source_refs and not inline_refs:
         return content, False
 
     block_lines = [
         f"```{EMBEDS_RESULTS_VIEW_FENCE_LANGUAGE}",
         f"title: {title}",
     ]
-    if source_refs:
-        block_lines.append(f"sources: {_join_refs(source_refs)}")
-        highlighted_refs = [ref for ref in inline_refs if ref not in source_refs]
+    if known_source_refs:
+        block_lines.append(f"sources: {_join_refs(known_source_refs)}")
+        highlighted_refs = [ref for ref in inline_refs if ref not in known_source_refs]
         if highlighted_refs:
             block_lines.append(f"highlight: {_join_refs(highlighted_refs)}")
     else:
@@ -227,7 +246,10 @@ def _plain_text_fallback_from_json(body: str) -> str:
     return str(title).strip() if isinstance(title, str) else ""
 
 
-def _normalize_single_map_view_block(match: re.Match[str]) -> tuple[str, bool]:
+def _normalize_single_map_view_block(
+    match: re.Match[str],
+    source_parent_refs: set[str],
+) -> tuple[str, bool]:
     body = match.group("body")
     json_fallback = _plain_text_fallback_from_json(body)
     if json_fallback:
@@ -254,6 +276,14 @@ def _normalize_single_map_view_block(match: re.Match[str]) -> tuple[str, bool]:
     embed_refs = _normalize_refs(fields.get("embeds", ""))
     source_refs = _normalize_refs(fields.get("sources", ""))
     highlight_refs = _normalize_refs(fields.get("highlight", ""))
+    promoted_source_refs = [ref for ref in embed_refs if ref in source_parent_refs]
+    if promoted_source_refs:
+        child_refs = [ref for ref in embed_refs if ref not in source_parent_refs]
+        source_refs = _dedupe_refs([*source_refs, *promoted_source_refs])
+        highlight_refs = _dedupe_refs([*highlight_refs, *child_refs])
+        embed_refs = []
+        changed = True
+
     if not embed_refs and not source_refs:
         return fields.get("title", "").strip(), True
 
@@ -270,7 +300,11 @@ def _normalize_single_map_view_block(match: re.Match[str]) -> tuple[str, bool]:
     return normalized, changed or normalized != match.group(0)
 
 
-def normalize_embeds_map_view_blocks(content: str) -> tuple[str, bool]:
+def normalize_embeds_map_view_blocks(
+    content: str,
+    *,
+    source_refs: Iterable[str] | None = None,
+) -> tuple[str, bool]:
     """Normalize all results-view fences in assistant-visible text.
 
     Returns the normalized content and whether any block changed. Unsupported
@@ -280,10 +314,13 @@ def normalize_embeds_map_view_blocks(content: str) -> tuple[str, bool]:
     """
 
     changed = False
+    source_parent_refs = set(extract_map_capable_source_refs(content))
+    if source_refs:
+        source_parent_refs.update(_dedupe_refs(source_refs))
 
     def replace(match: re.Match[str]) -> str:
         nonlocal changed
-        replacement, block_changed = _normalize_single_map_view_block(match)
+        replacement, block_changed = _normalize_single_map_view_block(match, source_parent_refs)
         changed = changed or block_changed
         return replacement
 

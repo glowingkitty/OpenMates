@@ -1837,6 +1837,29 @@ def _request_user_texts(request_data: AskSkillRequest) -> list[str]:
     return texts
 
 
+def _map_view_source_refs_from_tool_calls(
+    tool_calls_info: Optional[List[Dict[str, Any]]],
+    user_texts: list[str],
+) -> list[str]:
+    source_refs: list[str] = []
+    seen: set[str] = set()
+    for tool_call in tool_calls_info or []:
+        if not isinstance(tool_call, dict):
+            continue
+        app_id = str(tool_call.get("app_id") or "")
+        skill_id = str(tool_call.get("skill_id") or "")
+        embed_id = tool_call.get("embed_id")
+        if not isinstance(embed_id, str) or not embed_id.strip():
+            continue
+        if not should_include_embeds_map_view_hint(app_id, skill_id, user_texts):
+            continue
+        if embed_id in seen:
+            continue
+        seen.add(embed_id)
+        source_refs.append(embed_id)
+    return source_refs
+
+
 def _build_sub_chat_batch_marker(
     *,
     parent_chat_id: str,
@@ -8280,8 +8303,14 @@ async def _consume_main_processing_stream(
     # Normalize virtual map/list blocks before persistence. This drops unsupported
     # fields such as filters/provider/enrichment and cannot dispatch paid skills.
     if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        map_view_user_texts = _request_user_texts(request_data)
+        map_view_source_refs = _map_view_source_refs_from_tool_calls(
+            tool_calls_info,
+            map_view_user_texts,
+        )
         map_view_fixed_response, map_view_changed = normalize_embeds_map_view_blocks(
             aggregated_response,
+            source_refs=map_view_source_refs,
         )
         if map_view_changed:
             aggregated_response = map_view_fixed_response
@@ -8454,12 +8483,17 @@ async def _consume_main_processing_stream(
             and content_has_map_capable_app_skill_use(aggregated_response)
         )
         if should_repair_map_view:
+            map_view_source_refs = _map_view_source_refs_from_tool_calls(tool_calls_info, user_texts)
             map_view_repaired_response, map_view_repaired = append_missing_embeds_map_view_block(
                 aggregated_response,
+                source_refs=map_view_source_refs,
             )
             if map_view_repaired:
                 aggregated_response = map_view_repaired_response
-                normalized_map_view_response, _ = normalize_embeds_map_view_blocks(aggregated_response)
+                normalized_map_view_response, _ = normalize_embeds_map_view_blocks(
+                    aggregated_response,
+                    source_refs=map_view_source_refs,
+                )
                 aggregated_response = normalized_map_view_response
                 final_response_chunks = [aggregated_response]
 

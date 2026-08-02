@@ -132,6 +132,17 @@ def test_append_missing_map_view_prefers_source_refs_and_highlights_inline_child
     assert "embeds: source-abc" not in repaired
 
 
+def test_append_missing_map_view_uses_known_source_refs() -> None:
+    repaired, changed = append_missing_embeds_map_view_block(
+        "Here are the matching events.",
+        source_refs=["events-search-12ab34"],
+    )
+
+    assert changed is True
+    assert "sources: events-search-12ab34" in repaired
+    assert "embeds:" not in repaired
+
+
 def test_append_missing_map_view_is_noop_when_block_exists() -> None:
     content = """[One](embed:event-one-111111)
 
@@ -195,6 +206,43 @@ highlight: nightjet-7abc12, db-ice-9def34
 
     assert changed is False
     assert normalized == content
+
+
+def test_normalizer_promotes_map_capable_parent_embed_refs_to_sources() -> None:
+    content = '''```json
+{"type":"app_skill_use","embed_id":"events-search-12ab34","app_id":"events","skill_id":"search"}
+```
+
+```embeds_results_view
+title: Berlin AI events
+embeds: events-search-12ab34, ai-founders-meetup-7f3a91
+```
+'''
+
+    normalized, changed = normalize_embeds_map_view_blocks(content)
+
+    assert changed is True
+    assert "sources: events-search-12ab34" in normalized
+    assert "highlight: ai-founders-meetup-7f3a91" in normalized
+    assert "embeds: events-search-12ab34" not in normalized
+
+
+def test_normalizer_promotes_known_source_refs_without_json_fence() -> None:
+    content = """```embeds_results_view
+title: Berlin AI events
+embeds: events-search-12ab34, ai-founders-meetup-7f3a91
+```
+"""
+
+    normalized, changed = normalize_embeds_map_view_blocks(
+        content,
+        source_refs=["events-search-12ab34"],
+    )
+
+    assert changed is True
+    assert "sources: events-search-12ab34" in normalized
+    assert "highlight: ai-founders-meetup-7f3a91" in normalized
+    assert "embeds:" not in normalized
 
 
 def test_normalizer_removes_json_like_map_blocks() -> None:
