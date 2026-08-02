@@ -147,7 +147,6 @@ test.describe('App: Web / Skill: search', () => {
 
 		const finalStatus = await anyEmbed.getAttribute('data-status');
 		logCheckpoint(`Zero-result embed final status: ${finalStatus}`);
-		await takeStepScreenshot(page, 'zero-results-embed-final');
 
 		// PRIMARY ASSERTIONS (the bug)
 		expect(
@@ -164,11 +163,6 @@ test.describe('App: Web / Skill: search', () => {
 			'Red "App skill processing error" banner must not appear when the only ' +
 			'failure is a legitimate zero-hit search.'
 		).not.toBeVisible();
-
-		// Assistant response text must be non-empty — the LLM answer should render
-		// regardless of the zero-hit sub-query.
-		const assistantMessage = page.getByTestId('message-assistant').last();
-		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
 
 		// Zero-result embed must render a clear generic "No results found" message.
 		// The query is already shown above this line in the card, so repeating it
@@ -207,6 +201,12 @@ test.describe('App: Web / Skill: search', () => {
 		await takeStepScreenshot(page, 'zero-results-fullscreen');
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
+
+		// Assistant response text must be non-empty — the LLM answer should render
+		// regardless of the zero-hit sub-query.
+		const assistantMessage = page.getByTestId('message-assistant').last();
+		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
+		await takeStepScreenshot(page, 'zero-results-embed-final');
 
 		logCheckpoint('Phase 5 passed: zero-hit query rendered without error banner.');
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'web-search-zero');
