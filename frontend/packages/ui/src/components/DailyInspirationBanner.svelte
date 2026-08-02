@@ -71,6 +71,8 @@
   const LANDING_ACTIONABLE_EVENTS_ID = 'openmates-actionable-events';
   const LANDING_SIGNUP_CTA_ID = 'openmates-signup-cta';
   const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 40;
+  const LANDING_INTRO_PRIMARY_RAIL_MAX_BASE_ICON_COUNT = 12;
+  const LANDING_INTRO_PRIMARY_RAIL_DURATION_MS = LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_RAIL_MIN_ICON_COUNT;
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
   const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
@@ -465,6 +467,7 @@
   $effect(() => {
     void containerWidth;
     void landingIntroActiveAppId;
+    void landingIntroRequestIndex;
     void landingIntroFirstRail.length;
     void landingIntroPrimaryRailRowEl;
     void landingIntroPrimaryRailEl;
@@ -650,7 +653,10 @@
   let hasInfoCard = $derived(!isGuestIntroVariant && !hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
-  let landingIntroPrimaryRailStyle = $derived(`--landing-intro-primary-rail-offset: ${landingIntroPrimaryRailOffsetPx}px`);
+  let landingIntroPrimaryRailStyle = $derived([
+    `--landing-intro-primary-rail-offset: ${landingIntroPrimaryRailOffsetPx}px`,
+    `--landing-intro-primary-rail-duration: ${LANDING_INTRO_PRIMARY_RAIL_DURATION_MS}ms`,
+  ].join(';'));
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
     if (current.content_type === 'wiki') return getLucideIcon('book-open');
@@ -1012,17 +1018,12 @@
       .map((appId) => icons.find((icon) => icon.appId === appId))
       .filter((icon): icon is LandingIntroAppIcon => Boolean(icon));
     const otherIcons = icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
-    if (featuredIcons.length === 0) return otherIcons.slice(0, 14);
-    const sequence: LandingIntroAppIcon[] = [];
-    let fillerIndex = 0;
-    for (const featuredIcon of featuredIcons) {
-      sequence.push(featuredIcon);
-      for (let offset = 0; offset < 2 && otherIcons.length > 0; offset += 1) {
-        sequence.push(otherIcons[fillerIndex % otherIcons.length]);
-        fillerIndex += 1;
-      }
-    }
-    return sequence;
+    if (featuredIcons.length === 0) return otherIcons.slice(0, LANDING_INTRO_PRIMARY_RAIL_MAX_BASE_ICON_COUNT);
+    const remainingIconCount = Math.max(0, LANDING_INTRO_PRIMARY_RAIL_MAX_BASE_ICON_COUNT - featuredIcons.length);
+    return [
+      ...featuredIcons,
+      ...otherIcons.slice(0, remainingIconCount),
+    ];
   }
 
   function buildSecondaryLandingIntroIcons(
@@ -2098,9 +2099,10 @@
   }
 
   .landing-intro-app-rail-primary {
-    transform: translateX(var(--landing-intro-primary-rail-offset, 0px));
-    transition: transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
+    translate: var(--landing-intro-primary-rail-offset, 0px) 0;
+    animation: landingIntroRailLeft var(--landing-intro-primary-rail-duration, 84000ms) linear infinite;
+    transition: translate 760ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform, translate;
   }
 
   .landing-intro-app-rail-secondary {

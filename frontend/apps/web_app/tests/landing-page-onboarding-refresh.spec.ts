@@ -22,6 +22,7 @@ const LANDING_INTRO_VIEWPORTS = [
 const ACTIONABLE_STAGE_SETTLE_MS = 520;
 const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 900;
+const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
 const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
 const LANDING_INTRO_REQUESTS = [
 	'Find doctor appointments',
@@ -138,10 +139,17 @@ async function landingIntroActiveRequestMetrics(page: any): Promise<{
 	highlightedCenterDelta: number;
 	primaryVisibleIconCount: number;
 	primaryMinIconGap: number;
+	primaryAnimationName: string;
+	primaryAnimationDurationMs: number;
+	primaryAnimationPlayState: string;
+	primaryHighlightedIndexes: number[];
 	secondaryVisibleIconCount: number;
 	secondaryMinIconGap: number;
+	secondaryAnimationName: string;
+	secondaryAnimationDurationMs: number;
+	secondaryAnimationPlayState: string;
 }> {
-	return page.evaluate((requestAppIds: Record<string, string>) => {
+	return page.evaluate(({ requestAppIds, highlightedAppIds }: { requestAppIds: Record<string, string>; highlightedAppIds: string[] }) => {
 		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 		const headline = document.querySelector<HTMLElement>('[data-testid="landing-intro-headline"]');
 		const request = document.querySelector<HTMLElement>('[data-testid="landing-intro-request"]');
@@ -183,8 +191,21 @@ async function landingIntroActiveRequestMetrics(page: any): Promise<{
 			};
 		}
 
+		function animationDurationMs(value: string): number {
+			const firstDuration = value.split(',')[0]?.trim() || '0s';
+			if (firstDuration.endsWith('ms')) return Number.parseFloat(firstDuration);
+			if (firstDuration.endsWith('s')) return Number.parseFloat(firstDuration) * 1000;
+			return Number.parseFloat(firstDuration) || 0;
+		}
+
 		const primaryMetrics = rowMetrics(primaryRail);
 		const secondaryMetrics = rowMetrics(secondaryRail);
+		const primaryStyle = getComputedStyle(primaryRail);
+		const secondaryStyle = getComputedStyle(secondaryRail);
+		const primaryIcons = Array.from(primaryRail.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-icon"]'));
+		const primaryHighlightedIndexes = highlightedAppIds.map((appId) => (
+			primaryIcons.findIndex((icon) => icon.getAttribute('data-app-id') === appId)
+		));
 		const highlightedCenterDeltas = visibleHighlightedRects.map((rect) => Math.abs((rect.left + rect.width / 2) - requestCenterX));
 		const highlightedWidths = visibleHighlightedRects.map((rect) => rect.width);
 		return {
@@ -201,10 +222,17 @@ async function landingIntroActiveRequestMetrics(page: any): Promise<{
 			highlightedCenterDelta: highlightedCenterDeltas.length > 0 ? Math.min(...highlightedCenterDeltas) : Number.POSITIVE_INFINITY,
 			primaryVisibleIconCount: primaryMetrics.visibleIconCount,
 			primaryMinIconGap: primaryMetrics.minIconGap,
+			primaryAnimationName: primaryStyle.animationName,
+			primaryAnimationDurationMs: animationDurationMs(primaryStyle.animationDuration),
+			primaryAnimationPlayState: primaryStyle.animationPlayState,
+			primaryHighlightedIndexes,
 			secondaryVisibleIconCount: secondaryMetrics.visibleIconCount,
-			secondaryMinIconGap: secondaryMetrics.minIconGap
+			secondaryMinIconGap: secondaryMetrics.minIconGap,
+			secondaryAnimationName: secondaryStyle.animationName,
+			secondaryAnimationDurationMs: animationDurationMs(secondaryStyle.animationDuration),
+			secondaryAnimationPlayState: secondaryStyle.animationPlayState
 		};
-	}, LANDING_INTRO_REQUEST_APP_IDS);
+	}, { requestAppIds: LANDING_INTRO_REQUEST_APP_IDS, highlightedAppIds: LANDING_INTRO_HIGHLIGHTED_APPS });
 }
 
 async function collectLandingIntroCycleMetrics(page: any): Promise<Map<string, Awaited<ReturnType<typeof landingIntroActiveRequestMetrics>>>> {
@@ -222,6 +250,50 @@ async function collectLandingIntroCycleMetrics(page: any): Promise<Map<string, A
 		await page.waitForTimeout(100);
 	}
 	return seen;
+}
+
+async function landingIntroRailPositionSnapshot(page: any): Promise<{
+	requestLabel: string;
+	primaryLeft: number;
+	secondaryLeft: number;
+}> {
+	return page.evaluate(() => {
+		const request = document.querySelector<HTMLElement>('[data-testid="landing-intro-request"]');
+		const rails = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-rail"]'));
+		const primaryRail = rails[0];
+		const secondaryRail = rails[1];
+		if (!request || !primaryRail || !secondaryRail) {
+			throw new Error('Landing intro rail motion elements missing');
+		}
+
+		return {
+			requestLabel: request.textContent?.trim() || '',
+			primaryLeft: primaryRail.getBoundingClientRect().left,
+			secondaryLeft: secondaryRail.getBoundingClientRect().left
+		};
+	});
+}
+
+async function landingIntroRailMotionMetrics(page: any): Promise<{
+	requestLabel: string;
+	primaryDeltaX: number;
+	secondaryDeltaX: number;
+}> {
+	for (let attempt = 0; attempt < 5; attempt += 1) {
+		await page.waitForTimeout(LANDING_INTRO_RAIL_SYNC_SETTLE_MS);
+		const before = await landingIntroRailPositionSnapshot(page);
+		await page.waitForTimeout(LANDING_INTRO_RAIL_MOTION_SAMPLE_MS);
+		const after = await landingIntroRailPositionSnapshot(page);
+		if (before.requestLabel === after.requestLabel) {
+			return {
+				requestLabel: before.requestLabel,
+				primaryDeltaX: after.primaryLeft - before.primaryLeft,
+				secondaryDeltaX: after.secondaryLeft - before.secondaryLeft
+			};
+		}
+	}
+
+	throw new Error('Landing intro request changed during rail motion sampling');
 }
 
 async function landingIntroOverlayMetrics(page: any): Promise<{
@@ -414,6 +486,12 @@ test.describe('Landing page onboarding refresh', () => {
 				const sample = requestSamples.get(requestLabel);
 				expect(sample, `${viewport.name}: missing sample for ${requestLabel}`).toBeTruthy();
 				if (!sample) continue;
+				expect(sample.primaryAnimationName, `${viewport.name}: primary rail should move right-to-left`).toContain('landingIntroRailLeft');
+				expect(sample.secondaryAnimationName, `${viewport.name}: secondary rail should move left-to-right`).toContain('landingIntroRailRight');
+				expect(sample.primaryAnimationPlayState, `${viewport.name}: primary rail animation should run`).toContain('running');
+				expect(sample.secondaryAnimationPlayState, `${viewport.name}: secondary rail animation should run`).toContain('running');
+				expect(sample.primaryAnimationDurationMs, `${viewport.name}: primary rail should be slower than secondary`).toBeGreaterThan(sample.secondaryAnimationDurationMs);
+				expect(sample.primaryHighlightedIndexes, `${viewport.name}: highlighted app placeholders should be removed`).toEqual([0, 1, 2, 3]);
 				expect(sample.headlineText, `${viewport.name}: headline text`).toBe(LANDING_INTRO_HEADLINE_TEXT);
 				expect(sample.headlineVisible, `${viewport.name}: heading visible during ${requestLabel}`).toBe(true);
 				expect(sample.requestVisible, `${viewport.name}: user message visible during ${requestLabel}`).toBe(true);
@@ -430,6 +508,21 @@ test.describe('Landing page onboarding refresh', () => {
 				expect(sample.secondaryMinIconGap, `${viewport.name}: secondary row icons overlap during ${requestLabel}`).toBeGreaterThanOrEqual(1);
 			}
 		}
+	});
+
+	test('expanded intro app rails keep moving with a slower primary row', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.goto(getE2EDebugUrl('/?landing-rail-motion'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+
+		const metrics = await landingIntroRailMotionMetrics(page);
+		expect(metrics.requestLabel, 'motion sample should happen during a visible request').toBeTruthy();
+		expect(metrics.primaryDeltaX, 'primary rail should keep moving right-to-left').toBeLessThan(-1);
+		expect(metrics.secondaryDeltaX, 'secondary rail should keep moving left-to-right').toBeGreaterThan(1);
+		expect(Math.abs(metrics.primaryDeltaX), 'primary rail should move slower than secondary').toBeLessThan(Math.abs(metrics.secondaryDeltaX));
 	});
 
 	test('expanded intro overlays active chat content and reverses when returning to slide one', async ({ page }: { page: any }) => {
