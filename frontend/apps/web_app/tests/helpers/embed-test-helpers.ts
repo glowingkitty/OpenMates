@@ -114,6 +114,7 @@ async function openFullscreen(page: any, embedLocator: any): Promise<any> {
 	const overlayCountBeforeOpen = await overlays.count();
 	await expect(async () => {
 		if (await overlays.count() > overlayCountBeforeOpen) return;
+		await dismissVisibleNotifications(page);
 		await embedLocator.scrollIntoViewIfNeeded();
 		await embedLocator.click();
 		await expect(async () => {
@@ -124,6 +125,16 @@ async function openFullscreen(page: any, embedLocator: any): Promise<any> {
 	const fullscreenOverlay = overlays.nth(overlayCountBeforeOpen);
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
 	return fullscreenOverlay;
+}
+
+async function dismissVisibleNotifications(page: any): Promise<void> {
+	const dismissButtons = page.getByTestId('notification-dismiss');
+	for (let index = await dismissButtons.count() - 1; index >= 0; index -= 1) {
+		const button = dismissButtons.nth(index);
+		if (await button.isVisible({ timeout: 250 }).catch(() => false)) {
+			await button.click({ timeout: 1000 }).catch(() => undefined);
+		}
+	}
 }
 
 /**
