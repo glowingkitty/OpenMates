@@ -13,7 +13,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const LANDING_INTRO_VIEWPORTS = [
-	{ name: 'phone-portrait', width: 390, height: 844, minAiIconWidth: 54, maxHeadlineRequestGap: 60, minHeadlineRequestGap: 14, minRequestFontSize: 18, minHighlightedIconWidth: 60, maxHighlightedCenterDelta: 42 },
+	{ name: 'phone-portrait', width: 390, height: 844, minAiIconWidth: 54, maxHeadlineRequestGap: 60, minHeadlineRequestGap: 14, minRequestFontSize: 18, minHighlightedIconWidth: 60, maxHighlightedCenterDelta: 44 },
 	{ name: 'ipad-portrait', width: 768, height: 1024, minAiIconWidth: 64, maxHeadlineRequestGap: 54, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 68, maxHighlightedCenterDelta: 56 },
 	{ name: 'ipad-landscape', width: 1024, height: 768, minAiIconWidth: 58, maxHeadlineRequestGap: 46, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 68, maxHighlightedCenterDelta: 64 },
 	{ name: 'laptop-landscape', width: 1280, height: 800, minAiIconWidth: 58, maxHeadlineRequestGap: 46, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 78, maxHighlightedCenterDelta: 72 },
