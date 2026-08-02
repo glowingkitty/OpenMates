@@ -342,6 +342,17 @@
     return hours * 60 + minutes;
   }
 
+  function minutesFromTimeRange(value: unknown, index: 0 | 1): number | undefined {
+    if (typeof value !== 'string') return undefined;
+    const matches = Array.from(value.matchAll(/\b(\d{1,2}):(\d{2})\b/g));
+    const match = matches[index];
+    if (!match) return undefined;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours > 23 || minutes > 59) return undefined;
+    return hours * 60 + minutes;
+  }
+
   function dateOrdinalFromValue(value: unknown): number | undefined {
     if (typeof value !== 'string') return undefined;
     const match = value.match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -366,6 +377,37 @@
     return Math.min(...values);
   }
 
+  function dateOrdinalFromContent(content: Record<string, unknown> | null): number | undefined {
+    return dateOrdinalFromValue(firstString(
+      content?.date,
+      content?.slot_datetime,
+      content?.date_start,
+      content?.departure,
+      content?.start_time,
+      content?.check_in_date,
+      content?.check_in,
+    ));
+  }
+
+  function departureMinutesFromContent(content: Record<string, unknown> | null): number | undefined {
+    return minutesFromIsoLike(firstString(
+      content?.departure,
+      content?.scheduled_departure,
+      content?.slot_datetime,
+      content?.start_time,
+      content?.date_start,
+    )) ?? minutesFromTimeRange(content?.time_range, 0);
+  }
+
+  function arrivalMinutesFromContent(content: Record<string, unknown> | null): number | undefined {
+    return minutesFromIsoLike(firstString(
+      content?.arrival,
+      content?.scheduled_arrival,
+      content?.end_time,
+      content?.date_end,
+    )) ?? minutesFromTimeRange(content?.time_range, 1);
+  }
+
   function extractProviders(content: Record<string, unknown> | null, segments: Record<string, unknown>[]): string[] {
     const providerRecords = extractArrayRecords(content?.providers);
     return uniqueStrings([
@@ -383,9 +425,9 @@
     const amenities = arrayFromUnknown(content?.amenities ?? content?.required_amenities);
     return {
       category,
-      dateOrdinal: dateOrdinalFromValue(firstString(content?.date, content?.date_start, content?.departure, content?.start_time, content?.check_in)),
-      departureMinutes: minutesFromIsoLike(firstString(content?.departure, content?.scheduled_departure, content?.start_time, content?.date_start)),
-      arrivalMinutes: minutesFromIsoLike(firstString(content?.arrival, content?.scheduled_arrival, content?.end_time, content?.date_end)),
+      dateOrdinal: dateOrdinalFromContent(content),
+      departureMinutes: departureMinutesFromContent(content),
+      arrivalMinutes: arrivalMinutesFromContent(content),
       durationMinutes: durationMinutesFromValue(content?.duration ?? content?.duration_minutes),
       transferMinutes: shortestTransferMinutes(layovers),
       stops: firstNumber(content?.stops, content?.transfers, content?.transfer_count),
@@ -653,10 +695,12 @@
     const location = getNestedRecord(content, 'location');
     const venue = getNestedRecord(content, 'venue');
     const coordinates = getNestedRecord(content, 'coordinates');
+    const gpsCoordinates = getNestedRecord(content, 'gps_coordinates');
     return {
       lat: firstNumber(
         content?.lat,
         content?.latitude,
+        content?.gps_coordinates_latitude,
         content?.location_lat,
         content?.location_latitude,
         content?.venue_lat,
@@ -667,11 +711,16 @@
         venue?.latitude,
         coordinates?.lat,
         coordinates?.latitude,
+        gpsCoordinates?.lat,
+        gpsCoordinates?.latitude,
       ),
       lon: firstNumber(
         content?.lon,
         content?.lng,
         content?.longitude,
+        content?.gps_coordinates_lon,
+        content?.gps_coordinates_lng,
+        content?.gps_coordinates_longitude,
         content?.location_lon,
         content?.location_lng,
         content?.location_longitude,
@@ -687,6 +736,9 @@
         coordinates?.lon,
         coordinates?.lng,
         coordinates?.longitude,
+        gpsCoordinates?.lon,
+        gpsCoordinates?.lng,
+        gpsCoordinates?.longitude,
       ),
     };
   }

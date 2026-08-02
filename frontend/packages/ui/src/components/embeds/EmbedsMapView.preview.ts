@@ -13,11 +13,15 @@ const SOURCE_REF = 'events-search-preview-abc123';
 const EVENT_REF = 'ai-founders-meetup-111111';
 const PLACE_REF = 'factory-berlin-222222';
 const ROUTE_REF = 'berlin-leipzig-route-333333';
+const HEALTH_APPOINTMENT_REF = 'dr-meyer-appointment-444444';
+const FITNESS_CLASS_REF = 'morning-yoga-class-555555';
 
 const SOURCE_ID = '00000000-0000-4000-8000-000000000001';
 const EVENT_ID = '00000000-0000-4000-8000-000000000002';
 const PLACE_ID = '00000000-0000-4000-8000-000000000003';
 const ROUTE_ID = '00000000-0000-4000-8000-000000000004';
+const HEALTH_APPOINTMENT_ID = '00000000-0000-4000-8000-000000000005';
+const FITNESS_CLASS_ID = '00000000-0000-4000-8000-000000000006';
 
 const CHILD_REFS = [EVENT_REF, PLACE_REF, ROUTE_REF];
 
@@ -27,6 +31,8 @@ function seedPreviewEmbeds(): void {
 	embedStore.registerEmbedRef(EVENT_REF, EVENT_ID, 'events');
 	embedStore.registerEmbedRef(PLACE_REF, PLACE_ID, 'maps');
 	embedStore.registerEmbedRef(ROUTE_REF, ROUTE_ID, 'travel');
+	embedStore.registerEmbedRef(HEALTH_APPOINTMENT_REF, HEALTH_APPOINTMENT_ID, 'health');
+	embedStore.registerEmbedRef(FITNESS_CLASS_REF, FITNESS_CLASS_ID, 'fitness');
 
 	embedStore.registerStaticEmbed({
 		embedId: SOURCE_ID,
@@ -88,6 +94,41 @@ function seedPreviewEmbeds(): void {
 			destination: { lat: 51.3452, lon: 12.3822 }
 		})
 	});
+	embedStore.registerStaticEmbed({
+		embedId: HEALTH_APPOINTMENT_ID,
+		type: 'health-appointment',
+		appId: 'health',
+		skillId: 'search_appointments',
+		content: JSON.stringify({
+			app_id: 'health',
+			skill_id: 'search_appointments',
+			name: 'Dr. Meyer',
+			speciality: 'Cardiology',
+			slot_datetime: '2026-08-01T09:30:00Z',
+			address: 'Invalidenstrasse 20, Berlin',
+			gps_coordinates: {
+				latitude: 52.5324,
+				longitude: 13.3849
+			}
+		})
+	});
+	embedStore.registerStaticEmbed({
+		embedId: FITNESS_CLASS_ID,
+		type: 'fitness-class',
+		appId: 'fitness',
+		skillId: 'search_classes',
+		content: JSON.stringify({
+			app_id: 'fitness',
+			skill_id: 'search_classes',
+			name: 'Morning Yoga Flow',
+			date: '2026-08-01',
+			time_range: '07:30 - 08:30',
+			venue_name: 'Urban Sports Studio Mitte',
+			venue_address: 'Torstrasse 42, Berlin',
+			venue_lat: 52.5282,
+			venue_lon: 13.4015
+		})
+	});
 }
 
 seedPreviewEmbeds();
@@ -95,7 +136,7 @@ seedPreviewEmbeds();
 const previewProps = {
 	id: 'preview-map-view',
 	title: 'Berlin AI events and routes',
-	embedRefs: [],
+	embedRefs: [HEALTH_APPOINTMENT_REF, FITNESS_CLASS_REF],
 	sourceRefs: [SOURCE_REF],
 	highlightRefs: [PLACE_REF]
 } satisfies ComponentProps<typeof EmbedsMapView>;

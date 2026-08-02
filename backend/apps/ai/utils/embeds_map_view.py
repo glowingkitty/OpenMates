@@ -22,6 +22,8 @@ EMBEDS_RESULTS_VIEW_FENCE_LANGUAGES = {
 }
 MAP_VIEW_CAPABLE_SKILLS = {
     ("events", "search"),
+    ("fitness", "search_classes"),
+    ("fitness", "search_locations"),
     ("health", "search_appointments"),
     ("maps", "search"),
     ("travel", "search_connections"),

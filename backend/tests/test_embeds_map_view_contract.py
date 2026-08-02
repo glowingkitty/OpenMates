@@ -71,6 +71,16 @@ def test_map_view_hint_defaults_to_capable_skills_unless_suppressed() -> None:
         ["Find upcoming AI events in Berlin, but no map."],
     ) is False
     assert should_include_embeds_map_view_hint(
+        "fitness",
+        "search_classes",
+        ["Find yoga classes near Kreuzberg tomorrow."],
+    ) is True
+    assert should_include_embeds_map_view_hint(
+        "fitness",
+        "search_locations",
+        ["Find gyms near Friedrichshain."],
+    ) is True
+    assert should_include_embeds_map_view_hint(
         "web",
         "search",
         ["Find AI news and show it on a map."],

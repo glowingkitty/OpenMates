@@ -87,8 +87,35 @@
 
   // Build the stay object from data.decodedContent
   let dc = $derived(data.decodedContent);
+
+  function asNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
+  }
+
+  function parseGpsCoordinates(content: Record<string, unknown>): StayData['gps_coordinates'] {
+    const rawGps = content.gps_coordinates as Record<string, unknown> | undefined;
+    const latitude = asNumber(rawGps?.latitude)
+      ?? asNumber(rawGps?.lat)
+      ?? asNumber(content.latitude)
+      ?? asNumber(content.lat)
+      ?? asNumber(content.gps_coordinates_latitude);
+    const longitude = asNumber(rawGps?.longitude)
+      ?? asNumber(rawGps?.lon)
+      ?? asNumber(rawGps?.lng)
+      ?? asNumber(content.longitude)
+      ?? asNumber(content.lon)
+      ?? asNumber(content.lng)
+      ?? asNumber(content.gps_coordinates_longitude);
+
+    return latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined;
+  }
+
   let stay: StayData = $derived.by(() => {
-    const rawGps = dc.gps_coordinates as Record<string, unknown> | undefined;
     return {
     type: typeof dc.type === 'string' ? dc.type : undefined,
     name: typeof dc.name === 'string' ? dc.name : undefined,
@@ -96,9 +123,7 @@
     property_type: typeof dc.property_type === 'string' ? dc.property_type : undefined,
     link: typeof dc.link === 'string' ? dc.link : undefined,
     property_token: typeof dc.property_token === 'string' ? dc.property_token : undefined,
-    gps_coordinates: (rawGps && typeof rawGps === 'object')
-      ? { latitude: typeof rawGps.latitude === 'number' ? rawGps.latitude : undefined, longitude: typeof rawGps.longitude === 'number' ? rawGps.longitude : undefined }
-      : undefined,
+    gps_coordinates: parseGpsCoordinates(dc),
     hotel_class: typeof dc.hotel_class === 'number' ? dc.hotel_class : undefined,
     overall_rating: typeof dc.overall_rating === 'number' ? dc.overall_rating : undefined,
     reviews: typeof dc.reviews === 'number' ? dc.reviews : undefined,
@@ -388,7 +413,7 @@
     width: 100%;
     border-radius: var(--radius-5);
     overflow: hidden;
-    background: var(--color-grey-15);
+    background: var(--color-grey-10);
   }
   .gallery-image {
     width: 100%;
@@ -445,8 +470,8 @@
     border-radius: 100px;
     font-weight: 500;
   }
-  .badge-cancellation { background: rgba(76, 175, 80, 0.12); color: #4caf50; }
-  .badge-eco { background: rgba(33, 150, 243, 0.12); color: #2196f3; }
+  .badge-cancellation { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); }
+  .badge-eco { background: color-mix(in srgb, var(--color-app-travel) 12%, transparent); color: var(--color-app-travel); }
 
   .description-section {
     padding: var(--spacing-6);
@@ -480,7 +505,7 @@
 
   .nearby-section { display: flex; flex-direction: column; gap: var(--spacing-4); }
   .section-title { font-size: 13px; font-weight: 600; color: var(--color-grey-60); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
-  .nearby-place { padding: 8px 0; border-bottom: 1px solid var(--color-grey-15); }
+  .nearby-place { padding: 8px 0; border-bottom: 1px solid var(--color-grey-20); }
   .nearby-place:last-child { border-bottom: none; }
   .place-name { font-size: 14px; font-weight: 500; color: var(--color-font-primary); }
   .place-transports { display: flex; flex-wrap: wrap; gap: var(--spacing-4); margin-top: 4px; }

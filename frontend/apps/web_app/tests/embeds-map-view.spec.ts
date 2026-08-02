@@ -61,10 +61,12 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView).toHaveAttribute('aria-label', 'Berlin AI events and routes');
 
 		const cards = mapView.getByTestId('embeds-map-view-card');
-		await expect(cards).toHaveCount(3, { timeout: 15_000 });
+		await expect(cards).toHaveCount(5, { timeout: 15_000 });
 		await expect(cards.first()).toContainText('Factory Berlin');
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(cards.first()).toHaveAttribute('data-entry-category', 'place');
+		await expect(cards.filter({ hasText: 'Dr. Meyer' })).toBeVisible();
+		await expect(cards.filter({ hasText: 'Morning Yoga Flow' })).toBeVisible();
 
 		const visualTabs = mapView.getByTestId('embeds-results-view-tabs');
 		await expect(visualTabs).toBeVisible();
@@ -74,10 +76,12 @@ test.describe('Embeds map view preview', () => {
 		await mapView.getByTestId('embeds-results-view-tab-calendar').click();
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
 		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
-		await expect(calendarItems).toHaveCount(2);
+		await expect(calendarItems).toHaveCount(4);
+		await expect(calendarItems.filter({ hasText: 'Morning Yoga Flow' })).toBeVisible();
+		await expect(calendarItems.filter({ hasText: 'Dr. Meyer' })).toBeVisible();
 		await expect(calendarItems.filter({ hasText: 'AI Founders Meetup' })).toBeVisible();
 		await expect(calendarItems.filter({ hasText: 'Berlin Hbf' })).toBeVisible();
-		await expect(cards).toHaveCount(3);
+		await expect(cards).toHaveCount(5);
 		await mapView.getByTestId('embeds-results-view-tab-map').click();
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'map');
 
@@ -96,7 +100,7 @@ test.describe('Embeds map view preview', () => {
 			.getByTestId('embeds-map-view-filter-menu')
 			.getByRole('menuitemradio', { name: 'All results' })
 			.click();
-		await expect(cards).toHaveCount(3);
+		await expect(cards).toHaveCount(5);
 
 		await cards.nth(1).hover();
 		await expect(cards.nth(1)).toHaveAttribute('data-hovered', 'true');

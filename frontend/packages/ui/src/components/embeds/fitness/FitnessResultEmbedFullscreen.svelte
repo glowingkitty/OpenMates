@@ -10,6 +10,7 @@
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import {
     asNumber,
@@ -59,6 +60,47 @@
     if (skillId === 'search_classes') return [result.date, result.time_range, result.venue_name].map(asText).filter(Boolean).join(' · ');
     return address || 'Urban Sports Club';
   });
+
+  function timeFromRange(value: unknown, index: 0 | 1): string {
+    const matches = Array.from(asText(value).matchAll(/\b(\d{1,2}):(\d{2})\b/g));
+    const match = matches[index];
+    if (!match) return '';
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours > 23 || minutes > 59) return '';
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  function classDateTime(date: unknown, timeRange: unknown, index: 0 | 1): string {
+    const classDate = asText(date);
+    const time = timeFromRange(timeRange, index);
+    return classDate && time ? `${classDate}T${time}:00` : '';
+  }
+
+  let calendarStart = $derived(skillId === 'search_classes' ? classDateTime(result.date, result.time_range, 0) : '');
+  let calendarEnd = $derived(skillId === 'search_classes' ? classDateTime(result.date, result.time_range, 1) : '');
+
+  function buildCalendarDescription(): string {
+    return [
+      result.class_type ? `Class: ${asText(result.class_type)}` : '',
+      result.category ? `Category: ${asText(result.category)}` : '',
+      result.spots_display ? `Spots: ${asText(result.spots_display)}` : '',
+      plans.length > 0 ? `Plans: ${plans.join(', ')}` : '',
+      detailUrl,
+    ].filter(Boolean).join('\n');
+  }
+
+  function handleAddToCalendar() {
+    downloadCalendarFile({
+      title: title || 'Fitness class',
+      start: calendarStart,
+      end: calendarEnd || undefined,
+      location: [result.venue_name, address].map(asText).filter(Boolean).join(', '),
+      description: buildCalendarDescription(),
+      url: detailUrl,
+      filename: sanitizeCalendarFilename([title || 'fitness-class', asText(result.date)].filter(Boolean).join('-')),
+    });
+  }
 </script>
 
 <EntryWithMapTemplate
@@ -75,6 +117,7 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  onCalendar={calendarStart ? handleAddToCalendar : undefined}
   {mapCenter}
   mapMarkers={markers}
 >
