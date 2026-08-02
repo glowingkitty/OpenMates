@@ -10,8 +10,10 @@ from __future__ import annotations
 import sys
 import ssl
 import types
+from urllib.parse import quote
 from typing import Any, List, Optional
 
+import httpx
 import pytest
 from backend.apps.travel.providers.base_provider import (
     BaseTransportProvider,
@@ -770,6 +772,78 @@ async def test_deutsche_bahn_provider_adds_optimized_normal_connection_result(
     assert layover.duration_minutes == 25
     assert optimized.legs[0].segments[0].arrival_station == "Wolfsburg Hbf"
     assert optimized.legs[0].segments[1].departure_station == "Wolfsburg Hbf"
+
+
+@pytest.mark.anyio
+async def test_deutsche_bahn_train_run_request_encodes_reserved_id_characters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.shared.providers import deutsche_bahn
+
+    captured_urls: list[str] = []
+
+    class FakeAsyncClient:
+        def __init__(self, **_kwargs: Any) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *_args: Any) -> None:
+            pass
+
+        async def get(self, url: str, **_kwargs: Any) -> httpx.Response:
+            captured_urls.append(url)
+            return httpx.Response(200, json={"halte": []}, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(deutsche_bahn.httpx, "AsyncClient", FakeAsyncClient)
+
+    zuglauf_id = "2|#VN#1#ZB#            62009#"
+    await deutsche_bahn.get_train_run(zuglauf_id)
+
+    assert captured_urls == [f"{deutsche_bahn.BASE_URL}/zuglauf/{quote(zuglauf_id, safe='')}"]
+    assert "#" not in captured_urls[0]
+
+
+@pytest.mark.anyio
+async def test_transfer_amenity_enrichment_uses_travel_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.apps.travel.skills import search_connections as travel_search
+
+    timeouts: list[float] = []
+
+    class FakeGeoapifyPlacesProvider:
+        def __init__(self, **kwargs: Any) -> None:
+            timeouts.append(kwargs["timeout_seconds"])
+
+        async def search_places(self, **_kwargs: Any) -> Any:
+            return types.SimpleNamespace(status="ok", places=[])
+
+    monkeypatch.setattr(travel_search, "GeoapifyPlacesProvider", FakeGeoapifyPlacesProvider)
+
+    results = [{
+        "transport_method": "train",
+        "transfer_quality": {"min_transfer_minutes": 15},
+        "legs": [{
+            "layovers": [{
+                "airport": "Stendal Hbf",
+                "duration_minutes": 20,
+                "latitude": 52.6069,
+                "longitude": 11.8585,
+            }],
+        }],
+    }]
+
+    enriched = await make_skill()._enrich_transfer_amenities(
+        results,
+        secrets_manager=object(),
+        cache_service=None,
+    )
+
+    assert timeouts == [travel_search.TRANSFER_AMENITY_TIMEOUT_SECONDS]
+    amenities = enriched[0]["legs"][0]["layovers"][0]["amenities"]
+    assert amenities["groups"]["food_drink"]["status"] == "no_match"
 
 
 @pytest.mark.anyio

@@ -39,6 +39,7 @@ FILTER_OVERFETCH_MULTIPLIER = 3
 DEFAULT_MIN_TRANSFER_MINUTES = 10
 TRANSFER_AMENITY_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 TRANSFER_AMENITY_SEARCH_RADIUS_METERS = 350
+TRANSFER_AMENITY_TIMEOUT_SECONDS = 3.0
 TRANSFER_AMENITY_GROUPS = {
     "food_drink": {
         "label": "Food and drinks",
@@ -1116,6 +1117,7 @@ class SearchConnectionsSkill(BaseSkill):
                     provider = provider or GeoapifyPlacesProvider(
                         secrets_manager=secrets_manager,
                         cache_service=cache_service,
+                        timeout_seconds=TRANSFER_AMENITY_TIMEOUT_SECONDS,
                     )
                     layover["amenities"] = await self._transfer_amenity_summary(
                         provider,

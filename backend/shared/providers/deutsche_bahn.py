@@ -12,6 +12,7 @@ Research: docs/architecture/apps/travel-train-api-research.md
 
 import logging
 import ssl
+from urllib.parse import quote
 import uuid
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
@@ -396,9 +397,10 @@ async def search_journeys(
 async def get_train_run(zuglauf_id: str) -> Dict[str, Any]:
     """Fetch a DB train run with the full stop list for overlap checks."""
 
+    encoded_id = quote(zuglauf_id, safe="")
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, transport=_db_http_transport()) as client:
         resp = await client.get(
-            f"{BASE_URL}/zuglauf/{zuglauf_id}",
+            f"{BASE_URL}/zuglauf/{encoded_id}",
             headers=_base_headers(CT_TRAIN_RUN),
         )
         resp.raise_for_status()
