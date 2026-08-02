@@ -179,7 +179,9 @@
   let landingIntroAnimationFrame: number | undefined;
   let landingIntroRevealAnimationFrame: number | undefined;
   let landingIntroRevealTimeout: number | undefined;
+  let landingIntroRailSyncAnimationFrame: number | undefined;
   let lastLandingIntroResetToken = $state(0);
+  let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -187,6 +189,8 @@
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
+  let landingIntroPrimaryRailRowEl = $state<HTMLElement | null>(null);
+  let landingIntroPrimaryRailEl = $state<HTMLElement | null>(null);
 
   // ─── Crossfade when data source changes ─────────────────────────────────────
   // When hardcoded inspirations are replaced by real data (IndexedDB / server /
@@ -245,6 +249,7 @@
     window.clearTimeout(landingIntroRevealTimeout);
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
@@ -273,10 +278,12 @@
     // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
     // to ensure the svelte-i18n locale store is fully settled before re-fetching.
     window.addEventListener('language-changed-complete', handleLanguageChange);
+    window.addEventListener('resize', scheduleLandingIntroRailSync);
 
     return () => {
       pointerQuery.removeEventListener('change', updatePointerCta);
       window.removeEventListener('language-changed-complete', handleLanguageChange);
+      window.removeEventListener('resize', scheduleLandingIntroRailSync);
     };
   });
 
@@ -456,6 +463,19 @@
   });
 
   $effect(() => {
+    void containerWidth;
+    void landingIntroActiveAppId;
+    void landingIntroFirstRail.length;
+    void landingIntroPrimaryRailRowEl;
+    void landingIntroPrimaryRailEl;
+    if (!landingIntroOverlayActive || landingIntroPhase !== 'expanded') {
+      landingIntroPrimaryRailOffsetPx = 0;
+      return;
+    }
+    scheduleLandingIntroRailSync();
+  });
+
+  $effect(() => {
     if (!landingIntroOverlayActive || landingIntroPhase === 'regular') {
       landingIntroRequestIndex = -1;
       return;
@@ -630,6 +650,7 @@
   let hasInfoCard = $derived(!isGuestIntroVariant && !hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
+  let landingIntroPrimaryRailStyle = $derived(`--landing-intro-primary-rail-offset: ${landingIntroPrimaryRailOffsetPx}px`);
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
     if (current.content_type === 'wiki') return getLucideIcon('book-open');
@@ -815,6 +836,7 @@
     window.clearTimeout(landingIntroRevealTimeout);
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
     landingIntroDismissed = false;
     landingIntroRequestIndex = -1;
     landingIntroRevealActive = false;
@@ -926,6 +948,7 @@
     window.clearTimeout(landingIntroRevealTimeout);
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
     landingIntroRevealActive = false;
     landingIntroRevealVisible = false;
     pendingLandingIntroIndex = getResolvedVisibleIndex(currentIndex + direction);
@@ -1038,6 +1061,47 @@
       `--landing-intro-icon-url: var(--icon-url-${icon.iconName})`,
       `--landing-intro-app-bg: var(--color-app-${icon.appId}, rgba(255, 255, 255, 0.16))`,
     ].join(';');
+  }
+
+  function scheduleLandingIntroRailSync(): void {
+    if (typeof window === 'undefined') return;
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
+    landingIntroRailSyncAnimationFrame = window.requestAnimationFrame(() => {
+      landingIntroRailSyncAnimationFrame = window.requestAnimationFrame(() => {
+        landingIntroRailSyncAnimationFrame = undefined;
+        syncLandingIntroPrimaryRail();
+      });
+    });
+  }
+
+  function syncLandingIntroPrimaryRail(): void {
+    const railRow = landingIntroPrimaryRailRowEl;
+    const rail = landingIntroPrimaryRailEl;
+    if (!railRow || !rail || !landingIntroOverlayActive || landingIntroPhase !== 'expanded') return;
+
+    const rowRect = railRow.getBoundingClientRect();
+    const railRect = rail.getBoundingClientRect();
+    const targetCenterX = rowRect.left + rowRect.width / 2;
+    const activeIcons = Array.from(rail.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-icon"]'))
+      .filter((icon) => icon.dataset.appId === landingIntroActiveAppId);
+    if (activeIcons.length === 0) return;
+
+    let bestDelta = 0;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const icon of activeIcons) {
+      const iconRect = icon.getBoundingClientRect();
+      const iconCenterX = iconRect.left + iconRect.width / 2;
+      const delta = targetCenterX - iconCenterX;
+      const railCoversRowAfterMove = railRect.left + delta <= rowRect.left && railRect.right + delta >= rowRect.right;
+      const score = Math.abs(delta) + (railCoversRowAfterMove ? 0 : 100000);
+      if (score < bestScore) {
+        bestScore = score;
+        bestDelta = delta;
+      }
+    }
+
+    if (Math.abs(bestDelta) < 0.5) return;
+    landingIntroPrimaryRailOffsetPx += bestDelta;
   }
 
   function getVisibleIndexForStoreIndex(items: DailyInspiration[], storeIndex: number): number {
@@ -1283,8 +1347,14 @@
                       {/key}
                     </div>
                     <div class="landing-intro-app-rails" aria-hidden="true">
-                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary">
-                        <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
+                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary" bind:this={landingIntroPrimaryRailRowEl}>
+                        <div
+                          class="landing-intro-app-rail landing-intro-app-rail-primary"
+                          data-testid="landing-intro-app-rail"
+                          data-active-app-id={landingIntroActiveAppId}
+                          style={landingIntroPrimaryRailStyle}
+                          bind:this={landingIntroPrimaryRailEl}
+                        >
                           {#each [...landingIntroFirstRail, ...landingIntroFirstRail] as icon, index (`primary-${icon.appId}-${index}`)}
                             <span
                               class="landing-intro-app-icon"
@@ -2028,7 +2098,9 @@
   }
 
   .landing-intro-app-rail-primary {
-    animation: landingIntroRailLeft 36s linear infinite;
+    transform: translateX(var(--landing-intro-primary-rail-offset, 0px));
+    transition: transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
   }
 
   .landing-intro-app-rail-secondary {
@@ -3051,6 +3123,10 @@
       animation: none !important;
     }
 
+    .landing-intro-app-rail-primary {
+      transition: none !important;
+    }
+
     .guest-signup-benefits-list li {
       opacity: 1;
       transform: none;
@@ -3184,11 +3260,12 @@
     }
 
     .landing-intro-request {
-      max-width: min(100%, 280px);
-      min-height: 38px;
-      margin-top: 8px;
-      padding: 0 16px;
-      font-size: clamp(1rem, 4.8vw, 1.32rem);
+      max-width: min(calc(100% - 32px), 360px);
+      min-height: 44px;
+      margin-top: 18px;
+      padding: 0 18px;
+      font-size: clamp(1.12rem, 5.4vw, 1.5rem);
+      line-height: 1.08;
       white-space: normal;
     }
 
@@ -3206,8 +3283,8 @@
     }
 
     .landing-intro-app-icon {
-      width: clamp(44px, 12vw, 56px);
-      height: clamp(44px, 12vw, 56px);
+      width: clamp(54px, 14vw, 66px);
+      height: clamp(54px, 14vw, 66px);
       border-radius: 12px;
     }
 

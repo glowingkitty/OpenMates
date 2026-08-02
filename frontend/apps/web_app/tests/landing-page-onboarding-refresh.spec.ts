@@ -13,14 +13,26 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const LANDING_INTRO_VIEWPORTS = [
-	{ name: 'iphone', width: 390, height: 844, minAiIconWidth: 54, maxHeadlineRequestGap: 42 },
-	{ name: 'ipad-portrait', width: 768, height: 1024, minAiIconWidth: 64, maxHeadlineRequestGap: 54 },
-	{ name: 'ipad-landscape', width: 1024, height: 768, minAiIconWidth: 58, maxHeadlineRequestGap: 46 },
-	{ name: 'macbook-landscape', width: 1280, height: 800, minAiIconWidth: 58, maxHeadlineRequestGap: 46 },
-	{ name: 'full-hd', width: 1920, height: 1080, minAiIconWidth: 74, maxHeadlineRequestGap: 64 }
+	{ name: 'phone-portrait', width: 390, height: 844, minAiIconWidth: 54, maxHeadlineRequestGap: 60, minHeadlineRequestGap: 14, minRequestFontSize: 18, minHighlightedIconWidth: 60, maxHighlightedCenterDelta: 42 },
+	{ name: 'ipad-portrait', width: 768, height: 1024, minAiIconWidth: 64, maxHeadlineRequestGap: 54, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 68, maxHighlightedCenterDelta: 56 },
+	{ name: 'ipad-landscape', width: 1024, height: 768, minAiIconWidth: 58, maxHeadlineRequestGap: 46, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 68, maxHighlightedCenterDelta: 64 },
+	{ name: 'laptop-landscape', width: 1280, height: 800, minAiIconWidth: 58, maxHeadlineRequestGap: 46, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 78, maxHighlightedCenterDelta: 72 },
+	{ name: 'full-hd', width: 1920, height: 1080, minAiIconWidth: 74, maxHeadlineRequestGap: 64, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 100, maxHighlightedCenterDelta: 90 }
 ];
 const ACTIONABLE_STAGE_SETTLE_MS = 520;
 const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
+const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 900;
+const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
+const LANDING_INTRO_REQUESTS = [
+	'Find doctor appointments',
+	'Find events',
+	'Build a web app',
+	'Explain the news'
+];
+const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
+const LANDING_INTRO_REQUEST_APP_IDS = Object.fromEntries(
+	LANDING_INTRO_REQUESTS.map((request, index) => [request, LANDING_INTRO_HIGHLIGHTED_APPS[index]])
+);
 
 type ActionableStage = 'user-request' | 'assistant-response' | 'event-preview' | 'luma-cta';
 
@@ -110,6 +122,106 @@ async function landingIntroLayoutMetrics(page: any): Promise<{
 			})
 		};
 	});
+}
+
+async function landingIntroActiveRequestMetrics(page: any): Promise<{
+	requestLabel: string;
+	expectedAppId: string;
+	headlineText: string;
+	headlineVisible: boolean;
+	requestVisible: boolean;
+	requestFontSize: number;
+	headlineRequestGap: number;
+	highlightedMatchesExpected: boolean;
+	highlightedIconVisible: boolean;
+	highlightedIconWidth: number;
+	highlightedCenterDelta: number;
+	primaryVisibleIconCount: number;
+	primaryMinIconGap: number;
+	secondaryVisibleIconCount: number;
+	secondaryMinIconGap: number;
+}> {
+	return page.evaluate((requestAppIds: Record<string, string>) => {
+		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+		const headline = document.querySelector<HTMLElement>('[data-testid="landing-intro-headline"]');
+		const request = document.querySelector<HTMLElement>('[data-testid="landing-intro-request"]');
+		const rails = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-rail"]'));
+		const primaryRail = rails[0];
+		const secondaryRail = rails[1];
+		if (!banner || !headline || !request || !primaryRail || !secondaryRail) {
+			throw new Error('Landing intro active request elements missing');
+		}
+
+		const bannerRect = banner.getBoundingClientRect();
+		const headlineRect = headline.getBoundingClientRect();
+		const requestRect = request.getBoundingClientRect();
+		const requestLabel = request.textContent?.trim() || '';
+		const expectedAppId = requestAppIds[requestLabel] || '';
+		const requestCenterX = requestRect.left + requestRect.width / 2;
+		const primaryHighlightedIcons = Array.from(primaryRail.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-icon"][data-highlighted="true"]'));
+		const expectedHighlightedIcons = primaryHighlightedIcons.filter((icon) => icon.getAttribute('data-app-id') === expectedAppId);
+		const highlightedRects = expectedHighlightedIcons.map((icon) => icon.getBoundingClientRect());
+		const visibleHighlightedRects = highlightedRects.filter((rect) => (
+			rect.left >= bannerRect.left - 1
+			&& rect.right <= bannerRect.right + 1
+			&& rect.top >= bannerRect.top - 1
+			&& rect.bottom <= bannerRect.bottom + 1
+		));
+
+		function rowMetrics(rail: HTMLElement): { visibleIconCount: number; minIconGap: number } {
+			const visibleRects = Array.from(rail.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-icon"]'))
+				.map((icon) => icon.getBoundingClientRect())
+				.filter((rect) => rect.right > bannerRect.left && rect.left < bannerRect.right)
+				.sort((a, b) => a.left - b.left);
+			let minIconGap = Number.POSITIVE_INFINITY;
+			for (let index = 1; index < visibleRects.length; index += 1) {
+				minIconGap = Math.min(minIconGap, visibleRects[index].left - visibleRects[index - 1].right);
+			}
+			return {
+				visibleIconCount: visibleRects.length,
+				minIconGap: Number.isFinite(minIconGap) ? minIconGap : 999
+			};
+		}
+
+		const primaryMetrics = rowMetrics(primaryRail);
+		const secondaryMetrics = rowMetrics(secondaryRail);
+		const highlightedCenterDeltas = visibleHighlightedRects.map((rect) => Math.abs((rect.left + rect.width / 2) - requestCenterX));
+		const highlightedWidths = visibleHighlightedRects.map((rect) => rect.width);
+		return {
+			requestLabel,
+			expectedAppId,
+			headlineText: headline.innerText.trim(),
+			headlineVisible: headlineRect.top >= bannerRect.top - 1 && headlineRect.bottom <= bannerRect.bottom + 1,
+			requestVisible: requestRect.top >= bannerRect.top - 1 && requestRect.bottom <= bannerRect.bottom + 1,
+			requestFontSize: Number.parseFloat(getComputedStyle(request).fontSize),
+			headlineRequestGap: requestRect.top - headlineRect.bottom,
+			highlightedMatchesExpected: expectedHighlightedIcons.length > 0,
+			highlightedIconVisible: visibleHighlightedRects.length > 0,
+			highlightedIconWidth: highlightedWidths.length > 0 ? Math.max(...highlightedWidths) : 0,
+			highlightedCenterDelta: highlightedCenterDeltas.length > 0 ? Math.min(...highlightedCenterDeltas) : Number.POSITIVE_INFINITY,
+			primaryVisibleIconCount: primaryMetrics.visibleIconCount,
+			primaryMinIconGap: primaryMetrics.minIconGap,
+			secondaryVisibleIconCount: secondaryMetrics.visibleIconCount,
+			secondaryMinIconGap: secondaryMetrics.minIconGap
+		};
+	}, LANDING_INTRO_REQUEST_APP_IDS);
+}
+
+async function collectLandingIntroCycleMetrics(page: any): Promise<Map<string, Awaited<ReturnType<typeof landingIntroActiveRequestMetrics>>>> {
+	const seen = new Map<string, Awaited<ReturnType<typeof landingIntroActiveRequestMetrics>>>();
+	const deadline = Date.now() + 13000;
+	while (seen.size < LANDING_INTRO_REQUESTS.length && Date.now() < deadline) {
+		const currentLabel = (await page.getByTestId('landing-intro-request').textContent())?.trim() || '';
+		if (LANDING_INTRO_REQUESTS.includes(currentLabel) && !seen.has(currentLabel)) {
+			await page.waitForTimeout(LANDING_INTRO_RAIL_SYNC_SETTLE_MS);
+			const metrics = await landingIntroActiveRequestMetrics(page);
+			if (metrics.requestLabel === currentLabel) {
+				seen.set(currentLabel, metrics);
+			}
+		}
+		await page.waitForTimeout(100);
+	}
+	return seen;
 }
 
 async function landingIntroOverlayMetrics(page: any): Promise<{
@@ -262,7 +374,7 @@ async function mobileActionableSlideState(page: any): Promise<{
 
 test.describe('Landing page onboarding refresh', () => {
 	test('expanded intro fits all target device viewports', async ({ page }: { page: any }) => {
-		test.setTimeout(120000);
+		test.setTimeout(180000);
 
 		for (const viewport of LANDING_INTRO_VIEWPORTS) {
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -294,6 +406,28 @@ test.describe('Landing page onboarding refresh', () => {
 				expect(row.rowBottomVisible, `${viewport.name}: app row bottom clipped`).toBe(true);
 				expect(row.visibleIconCount, `${viewport.name}: app row needs visible icons`).toBeGreaterThanOrEqual(5);
 				expect(row.bottomGap, `${viewport.name}: app row is below the banner`).toBeGreaterThanOrEqual(0);
+			}
+
+			const requestSamples = await collectLandingIntroCycleMetrics(page);
+			expect(Array.from(requestSamples.keys()), `${viewport.name}: should sample every intro request`).toEqual(LANDING_INTRO_REQUESTS);
+			for (const requestLabel of LANDING_INTRO_REQUESTS) {
+				const sample = requestSamples.get(requestLabel);
+				expect(sample, `${viewport.name}: missing sample for ${requestLabel}`).toBeTruthy();
+				if (!sample) continue;
+				expect(sample.headlineText, `${viewport.name}: headline text`).toBe(LANDING_INTRO_HEADLINE_TEXT);
+				expect(sample.headlineVisible, `${viewport.name}: heading visible during ${requestLabel}`).toBe(true);
+				expect(sample.requestVisible, `${viewport.name}: user message visible during ${requestLabel}`).toBe(true);
+				expect(sample.requestFontSize, `${viewport.name}: user message too small during ${requestLabel}`).toBeGreaterThanOrEqual(viewport.minRequestFontSize);
+				expect(sample.headlineRequestGap, `${viewport.name}: heading/message gap too small during ${requestLabel}`).toBeGreaterThanOrEqual(viewport.minHeadlineRequestGap);
+				expect(sample.expectedAppId, `${viewport.name}: expected app mapping for ${requestLabel}`).toBeTruthy();
+				expect(sample.highlightedMatchesExpected, `${viewport.name}: highlighted app id should match ${requestLabel}`).toBe(true);
+				expect(sample.highlightedIconVisible, `${viewport.name}: highlighted ${sample.expectedAppId} icon should be visible during ${requestLabel}`).toBe(true);
+				expect(sample.highlightedIconWidth, `${viewport.name}: highlighted ${sample.expectedAppId} icon too small during ${requestLabel}`).toBeGreaterThanOrEqual(viewport.minHighlightedIconWidth);
+				expect(sample.highlightedCenterDelta, `${viewport.name}: highlighted ${sample.expectedAppId} icon should sit under the user message during ${requestLabel}`).toBeLessThanOrEqual(viewport.maxHighlightedCenterDelta);
+				expect(sample.primaryVisibleIconCount, `${viewport.name}: primary row visible icon count during ${requestLabel}`).toBeGreaterThanOrEqual(5);
+				expect(sample.secondaryVisibleIconCount, `${viewport.name}: secondary row visible icon count during ${requestLabel}`).toBeGreaterThanOrEqual(5);
+				expect(sample.primaryMinIconGap, `${viewport.name}: primary row icons overlap during ${requestLabel}`).toBeGreaterThanOrEqual(1);
+				expect(sample.secondaryMinIconGap, `${viewport.name}: secondary row icons overlap during ${requestLabel}`).toBeGreaterThanOrEqual(1);
 			}
 		}
 	});
