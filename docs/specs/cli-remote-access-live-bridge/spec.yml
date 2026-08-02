@@ -115,7 +115,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 0bbaa0c25989d7ee1ce90b6d57bef5a6291f7ab4
+  subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
 
 approvals:
   product_contract:
@@ -195,12 +195,18 @@ attempts:
     reason: Users must provide and receive cleartext while trusted clients handle encryption and decryption automatically.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write backend bridge contract tests and record red evidence before implementing the Redis-authoritative source-session service.
-  command: docker exec api python -m pytest /app/backend/tests/test_project_remote_access_bridge.py
-  expected_outcome: The red backend contract fails because the source-session service and handlers do not exist yet.
-  blocker: null
-  last_verified_commit: 0bbaa0c25989d7ee1ce90b6d57bef5a6291f7ab4
+  current_task_id: TASK-6
+  next_action: Ask the user to confirm the deployed Projects remote-source flow before running the required Apple build.
+  command: python3 scripts/spec_verify.py docs/specs/cli-remote-access-live-bridge/spec.yml --json
+  expected_outcome: Automated API, CLI, SDK, web, and visual gates remain green while completion waits for user confirmation and the subsequent Apple build.
+  blocker:
+    id: V-USER-CONFIRMATION
+    task_id: TASK-6
+    requires_user_input: true
+    reason: The approved cross-client verification order requires user confirmation of the deployed web behavior before Apple verification starts.
+    question: Does the deployed Projects remote-source flow at https://app.dev.openmates.org/projects work and look correct to you, including connected/offline status, browsing, search, preview, and explicit upload?
+    next_action: If confirmed, record user-confirmed evidence and run python3 scripts/apple_remote.py status followed by python3 scripts/apple_remote.py build-ios; if rejected, patch and reverify the reported mismatch first.
+  last_verified_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
 
 scenarios:
   - id: S-1
@@ -311,7 +317,7 @@ acceptance_criteria:
     scenario: S-1
     text: The canonical command discovers repository Projects beneath the starting folder, reconnects existing associations, reviews missing Project creation once, preserves ordinary folders in the owner-only workspace tree without cross-Project access, and remains running.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-UNIT, T-CLI-LIVE]
@@ -319,7 +325,7 @@ acceptance_criteria:
     scenario: S-2
     text: Repeated explicit paths replace default discovery, are realpath-resolved, and require clear local review for outside-current-folder or broad roots.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-UNIT, T-CLI-LIVE]
@@ -327,7 +333,7 @@ acceptance_criteria:
     scenario: S-3
     text: The live bridge serves capped directory listing, search, and selected text-file preview only within the deterministic always_ask, ask_for_broad_access, or allow_for_mentions grant scope, while failing closed for ignored, secret/high-risk, binary, race-swapped, symlink-escaped, outside-root, and cross-Project paths.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND-CONTRACT, T-CLI-UNIT, T-CLI-LIVE, T-PLAYWRIGHT-REMOTE-SOURCES]
@@ -335,7 +341,7 @@ acceptance_criteria:
     scenario: S-4
     text: User-facing remote access accepts and returns cleartext only, performs Project and ephemeral source-session encryption, decryption, and key handling internally, exposes no public ciphertext flags, keeps bridge payloads opaque to the backend, and prevents decrypted file content or keys from entering logs or persistence.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-BACKEND-CONTRACT, T-CRYPTO-UNIT, T-CLI-UNIT, T-CLI-LIVE, T-PRIVACY-AUDIT]
@@ -343,7 +349,7 @@ acceptance_criteria:
     scenario: S-5
     text: Temporary network loss uses bounded reconnect behavior, heartbeat expiry produces offline state, and only successfully restored sources return to connected state.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-BACKEND-CONTRACT, T-CLI-UNIT, T-CLI-LIVE]
@@ -351,7 +357,7 @@ acceptance_criteria:
     scenario: S-6
     text: Ctrl+C, process failure, heartbeat expiry, forced logout, source revocation, Project deletion, access removal, unbinding, and source-session key replacement terminate affected filesystem availability and in-flight requests without leaving a hidden serving process.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-BACKEND-CONTRACT, T-CLI-UNIT, T-CLI-LIVE]
@@ -359,7 +365,7 @@ acceptance_criteria:
     scenario: S-7
     text: CLI help, package README, user guide, architecture docs, and VS Code guidance describe only the implemented canonical foreground behavior and clearly distinguish deferred features.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-DOCS-AUDIT]
@@ -367,7 +373,7 @@ acceptance_criteria:
     scenario: S-8
     text: Completion evidence proves list, search, read/preview, status, reconnect, and shutdown through a real authenticated CLI process and real dev API/WebSocket path rather than synthetic source metadata alone.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-API-LIVE, T-CLI-LIVE, T-PLAYWRIGHT-REMOTE-SOURCES, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
@@ -523,7 +529,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_project_remote_access_bridge.py
+        run_id: local-9-passed-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
   - id: T-API-LIVE
     type: manual
     file: scripts/verify_project_remote_access_api.py
@@ -537,11 +548,20 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending}
+      evidence:
+        status: skipped_with_reason
+        reason: The real dev-server wrapper was created only after the missing backend route and WebSocket contract had already been proven red by T-BACKEND-CONTRACT; no historical dev deployment was retained for a second live red run.
+        timestamp: "2026-08-02T23:28:41Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/project_remote_access_live.mjs api https://api.dev.openmates.org
+        run_id: local-real-dev-api-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        reason: Authenticated first-party dev API and WebSocket lifecycle, opaque routing, unrelated-Project, wrong-requester, replay, exact-device delivery, completion, and disconnect probes passed.
   - id: T-CRYPTO-UNIT
     type: unit
     file: frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
@@ -564,7 +584,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access-crypto
+        run_id: local-5-passed-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
   - id: T-CLI-UNIT
     type: unit
     file: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
@@ -594,7 +619,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+        run_id: local-16-passed-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
   - id: T-CLI-LIVE
     type: manual
     file: scripts/verify_project_remote_access_cli.py
@@ -612,11 +642,20 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending}
+      evidence:
+        status: skipped_with_reason
+        reason: The live foreground CLI wrapper was added after unit red evidence had already established the missing discovery and operation exports; no historical dev deployment was retained for a second live red run.
+        timestamp: "2026-08-02T23:28:41Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/project_remote_access_live.mjs cli https://api.dev.openmates.org
+        run_id: local-real-dev-cli-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        reason: A real foreground CLI process passed encrypted list, search, read, protected-file rejection, SIGINT shutdown, and offline projection against api.dev.openmates.org.
   - id: T-PLAYWRIGHT-REMOTE-SOURCES
     type: playwright
     file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
@@ -631,11 +670,25 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts --gate-deploy --expected-commit 3e0f6ee33b8dd6366301142f8ad56cf28298eff8
+        run_id: "30771410376"
+        timestamp: "2026-08-02T23:06:40Z"
+        subject_commit: 3e0f6ee33b8dd6366301142f8ad56cf28298eff8
+        target: https://app.dev.openmates.org/projects
+        deployment_reference: dpl_GGQnG4CyKn3V1Z6onAJT25nj92T6
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: pending}
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts --gate-deploy --expected-commit 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        run_id: "30772177272"
+        timestamp: "2026-08-02T23:26:48Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        target: https://app.dev.openmates.org/projects
+        deployment_reference: dpl_HK9Rh1EBiftAUCett5bAkcNrqWSh
   - id: T-DOCS-AUDIT
     type: lint
     file: scripts/audit_cli_remote_access_docs.py
@@ -648,11 +701,19 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending}
+      evidence:
+        status: skipped_with_reason
+        reason: Obsolete lifecycle commands were found during source discovery before the deterministic audit script existed, so there is no separately recorded command run for that pre-implementation state.
+        timestamp: "2026-08-02T23:28:41Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_cli_remote_access_docs.py
+        run_id: local-docs-audit-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
   - id: T-PRIVACY-AUDIT
     type: lint
     file: scripts/audit_cli_remote_access_privacy.py
@@ -665,11 +726,19 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending}
+      evidence:
+        status: skipped_with_reason
+        reason: The privacy audit was introduced after crypto and CLI unit red runs had already proven the missing boundary; no separate pre-audit command run was recorded.
+        timestamp: "2026-08-02T23:28:41Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_cli_remote_access_privacy.py
+        run_id: local-privacy-audit-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
 
 verifications:
   - id: V-SDK-PARITY
@@ -677,8 +746,13 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-4]
-    status: pending
-    evidence: {status: pending}
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/audit_sdk_cli_parity.py
+      run_id: local-sdk-cli-parity-2026-08-02T23:28:41Z
+      timestamp: "2026-08-02T23:28:41Z"
+      subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
     command: python3 scripts/audit_sdk_cli_parity.py
     expected: Remote access remains an explicitly documented CLI-only exclusion with no accidental npm/pip source-management API.
   - id: V-UI-VISUAL-SMOKE
@@ -686,8 +760,17 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-8]
-    status: pending
-    evidence: {status: pending}
+    status: passed
+    evidence:
+      status: passed
+      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/projects --session 4429
+      run_id: test-results/visual-smoke/2026-08-02T23-27-11-617Z/summary.json
+      timestamp: "2026-08-02T23:27:22Z"
+      subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+      target: https://app.dev.openmates.org/projects
+      viewports: [laptop, mobile]
+      reason: Reviewed the standalone laptop/mobile screenshots and authenticated Playwright completion screenshot after the live source flow passed.
+      summary: "Reviewed laptop and mobile screenshots plus the authenticated Playwright completion screenshot. Defects: none; no clipping, overlap, horizontal overflow, broken media, error text, or stuck loading was visible, and live controls completed responsively. Accepted differences: standalone smoke is unauthenticated and validates route chrome; authenticated connected, preview/upload, and offline states were exercised by run 30772177272, whose retained completion screenshot is laptop-sized."
     target: https://app.dev.openmates.org/projects
     viewports: [laptop, mobile]
     required_review:
@@ -808,8 +891,8 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Implement and prove backend live bridge contract
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-4, S-5, S-6, S-8]
       acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-8]
@@ -832,8 +915,8 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Implement and prove foreground CLI discovery and read-only operations
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-8]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8]
@@ -866,8 +949,8 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Replace synthetic-only web evidence with live bridge verification
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-5, S-6, S-8]
       acceptance_criteria: [AC-3, AC-5, AC-6, AC-8]
@@ -887,8 +970,8 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Correct and guard all remote-access documentation
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-4, S-7]
       acceptance_criteria: [AC-4, AC-7]
@@ -917,7 +1000,7 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Complete deployed, user, and Apple verification gates
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios: [S-5, S-6, S-8]
