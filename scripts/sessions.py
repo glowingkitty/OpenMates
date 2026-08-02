@@ -69,6 +69,7 @@ SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
 TASKS_DIR = PROJECT_ROOT / ".claude" / "tasks"
 TASKS_META_FILE = TASKS_DIR / ".meta.json"
 AGENT_WORKTREES_DIR = PROJECT_ROOT / ".openmates-agent-worktrees"
+WORKTREE_PATH_PREFIX_RE = re.compile(r"^(?:\.openmates-agent-worktrees|\.agent-worktrees)/agent-[^/]+/")
 PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
 OPENCODE_STALE_READ_STATE_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.json"
 OPENCODE_STALE_READ_LOCK_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.lock"
@@ -473,7 +474,9 @@ def _load_sessions() -> dict:
         return data
     try:
         with open(SESSIONS_FILE) as f:
-            return json.load(f)
+            data = json.load(f)
+        _normalize_session_state_paths(data)
+        return data
     except (json.JSONDecodeError, OSError):
         # Corrupted file — reinitialize
         data = _default_sessions()
@@ -524,6 +527,7 @@ def _mutate_sessions(callback):
                     data = _default_sessions()
             else:
                 data = _default_sessions()
+            _normalize_session_state_paths(data)
             result = callback(data)
             tmp = SESSIONS_FILE.with_suffix(".tmp")
             with open(tmp, "w") as sessions_file:
@@ -661,7 +665,7 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
         changed = set(_worktree_changed_files(metadata))
-        tracked = set(session.get("modified_files") or [])
+        tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
         if tracked:
             changed &= tracked
         return sorted(f for f in changed if f not in exclude)
@@ -671,7 +675,10 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
 
 def _relative_repo_path_for_session(path_value: str | Path, session: dict | None = None) -> str:
     """Normalize a root or worktree path to a repository-relative file path."""
-    candidate = Path(path_value)
+    stored_path = _canonical_stored_repo_path(path_value)
+    if stored_path != str(path_value):
+        return stored_path
+    candidate = Path(stored_path)
     try:
         resolved = candidate.resolve()
     except OSError:
@@ -687,7 +694,44 @@ def _relative_repo_path_for_session(path_value: str | Path, session: dict | None
         return resolved.relative_to(PROJECT_ROOT.resolve()).as_posix()
     except ValueError:
         pass
-    return str(path_value)
+    return stored_path
+
+
+def _canonical_stored_repo_path(path_value: str | Path) -> str:
+    """Strip legacy internal worktree prefixes from a stored repository path."""
+    normalized = str(path_value).replace("\\", "/")
+    while match := WORKTREE_PATH_PREFIX_RE.match(normalized):
+        normalized = normalized[match.end():]
+    return normalized
+
+
+def _normalize_session_state_paths(data: dict) -> None:
+    """Canonicalize persisted path keys created by legacy nested-worktree hooks."""
+    sessions = data.setdefault("sessions", {})
+    for session in sessions.values():
+        if not isinstance(session, dict):
+            continue
+        normalized_files: list[str] = []
+        for path_value in session.get("modified_files") or []:
+            normalized = _relative_repo_path_for_session(path_value, session)
+            if normalized not in normalized_files:
+                normalized_files.append(normalized)
+        session["modified_files"] = normalized_files
+        if session.get("writing"):
+            session["writing"] = _relative_repo_path_for_session(session["writing"], session)
+
+    normalized_leases: dict[str, dict] = {}
+    for path_value, lease in data.setdefault("edit_leases", {}).items():
+        if not isinstance(lease, dict):
+            continue
+        session = sessions.get(lease.get("session_id"))
+        normalized = _relative_repo_path_for_session(path_value, session)
+        existing = normalized_leases.get(normalized)
+        existing_updated = str((existing or {}).get("last_updated") or (existing or {}).get("since") or "")
+        lease_updated = str(lease.get("last_updated") or lease.get("since") or "")
+        if existing is None or lease_updated >= existing_updated:
+            normalized_leases[normalized] = lease
+    data["edit_leases"] = normalized_leases
 
 
 def _resolve_session_id(data: dict, *, session_id: str = "", opencode_session_id: str = "") -> str:
@@ -713,10 +757,6 @@ def _normalize_edit_lease_path(path_value: str | Path, session: dict | None = No
         resolved = (candidate if candidate.is_absolute() else PROJECT_ROOT / candidate).resolve()
     except OSError:
         resolved = candidate if candidate.is_absolute() else PROJECT_ROOT / candidate
-    try:
-        return resolved.relative_to(PROJECT_ROOT.resolve()).as_posix()
-    except ValueError:
-        pass
     metadata = session.get("worktree") if isinstance(session, dict) else None
     worktree_path = metadata.get("path") if isinstance(metadata, dict) else None
     if worktree_path:
@@ -724,6 +764,10 @@ def _normalize_edit_lease_path(path_value: str | Path, session: dict | None = No
             return resolved.relative_to(Path(worktree_path).resolve()).as_posix()
         except ValueError:
             pass
+    try:
+        return _canonical_stored_repo_path(resolved.relative_to(PROJECT_ROOT.resolve()).as_posix())
+    except ValueError:
+        pass
     return None
 
 
@@ -877,22 +921,189 @@ def release_edit_leases(*, session_id: str = "", opencode_session_id: str = "", 
     return _mutate_sessions(mutate)
 
 
-def _worktree_patch_id(metadata: dict) -> str:
+def _worktree_patch_id(metadata: dict, files: list[str] | None = None) -> str:
     """Return a stable identifier for the current worktree diff."""
     worktree_path = metadata.get("path")
     base_commit = metadata.get("base_commit") or "HEAD"
     if not worktree_path:
         return ""
-    rc, stdout, stderr = _run_cmd(["git", "diff", "--binary", str(base_commit), "--"], cwd=str(worktree_path))
-    if rc != 0:
-        raise RuntimeError(f"Failed to hash worktree diff: {stderr}")
+    untracked_files = _worktree_untracked_files(metadata)
+    selected_files = set(files) if files is not None else None
+    if selected_files is not None:
+        untracked_files &= selected_files
+        tracked_files = sorted(selected_files - untracked_files)
+    else:
+        tracked_files = []
+    diff_command = ["git", "diff", "--binary", str(base_commit), "--"]
+    if files is None or tracked_files:
+        rc, stdout, stderr = _run_cmd(diff_command + tracked_files, cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError(f"Failed to hash worktree diff: {stderr}")
+    else:
+        stdout = ""
     digest = hashlib.sha256(stdout.encode("utf-8"))
-    for relative_path in sorted(_worktree_untracked_files(metadata)):
+    for relative_path in sorted(untracked_files):
         path = Path(worktree_path) / relative_path
         digest.update(relative_path.encode("utf-8"))
         if path.is_file():
             digest.update(path.read_bytes())
     return digest.hexdigest()
+
+
+def _worktree_root_patch_is_applied(session_id: str, patch_id: str, files: list[str] | None = None) -> bool:
+    """Return whether this exact worktree patch was already integrated into root."""
+    if files is not None:
+        return _worktree_root_patch_action(session_id, patch_id, files) == "applied"
+    metadata = _load_sessions().get("sessions", {}).get(session_id, {}).get("worktree")
+    return bool(patch_id and isinstance(metadata, dict) and metadata.get("root_applied_patch_id") == patch_id)
+
+
+def _snapshot_file_states(base_path: Path, files: list[str]) -> dict[str, dict]:
+    """Return content and executable-bit state for selected repository files."""
+    states: dict[str, dict] = {}
+    for relative_path in files:
+        path = base_path / relative_path
+        if not path.exists():
+            states[relative_path] = {"exists": False}
+            continue
+        if not path.is_file():
+            raise RuntimeError(f"Unsupported non-file deploy path: {relative_path}")
+        states[relative_path] = {
+            "exists": True,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "executable": bool(path.stat().st_mode & 0o111),
+        }
+    return states
+
+
+def _worktree_root_patch_action(session_id: str, patch_id: str, files: list[str]) -> str:
+    """Return apply, applied, refresh, or conflict for a worktree integration retry."""
+    metadata = _load_sessions().get("sessions", {}).get(session_id, {}).get("worktree")
+    if not isinstance(metadata, dict) or not metadata.get("root_applied_patch_id"):
+        return "apply"
+    if metadata.get("root_applied_patch_id") == patch_id:
+        return "applied" if _root_files_match_worktree(metadata, files) else "conflict"
+    recorded_states = metadata.get("root_applied_files")
+    if not isinstance(recorded_states, dict) or not set(files).issubset(recorded_states):
+        return "conflict"
+    expected = {relative_path: recorded_states[relative_path] for relative_path in files}
+    return "refresh" if _snapshot_file_states(PROJECT_ROOT, files) == expected else "conflict"
+
+
+def _record_worktree_root_patch(session_id: str, patch_id: str, files: list[str] | None = None) -> None:
+    """Persist successful root integration so deploy retries are idempotent."""
+    if not patch_id:
+        raise ValueError("worktree patch id is required")
+
+    def record(data: dict) -> None:
+        metadata = data.get("sessions", {}).get(session_id, {}).get("worktree")
+        if not isinstance(metadata, dict):
+            raise RuntimeError(f"Session {session_id} worktree not found")
+        metadata["root_applied_patch_id"] = patch_id
+        metadata["root_applied_at"] = _now_iso()
+        if files is not None:
+            metadata["root_applied_files"] = _snapshot_file_states(PROJECT_ROOT, files)
+
+    _mutate_sessions(record)
+
+
+def _sync_worktree_files_to_root(metadata: dict, files: list[str]) -> None:
+    """Refresh selected root files after a safely verified amended worktree retry."""
+    worktree_path = metadata.get("path")
+    if not worktree_path:
+        raise RuntimeError("Session worktree path is missing")
+    for relative_path in files:
+        source = Path(worktree_path) / relative_path
+        destination = PROJECT_ROOT / relative_path
+        if source.exists():
+            if not source.is_file():
+                raise RuntimeError(f"Unsupported non-file deploy path: {relative_path}")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+        elif destination.exists() or destination.is_symlink():
+            if not destination.is_file() and not destination.is_symlink():
+                raise RuntimeError(f"Unsupported non-file deploy path: {relative_path}")
+            destination.unlink()
+
+
+def _mark_worktree_deployed(session_id: str, patch_id: str, commit_hash: str) -> None:
+    """Mark a worktree merged and clear its matching blocked deploy record."""
+    def mark(data: dict) -> None:
+        metadata = data.get("sessions", {}).get(session_id, {}).get("worktree")
+        if isinstance(metadata, dict):
+            metadata["status"] = "merged"
+            metadata["merged_commit"] = commit_hash
+            metadata["last_active"] = _now_iso()
+            metadata.pop("pending_commit", None)
+            metadata.pop("pending_commit_patch_id", None)
+        if patch_id:
+            data["deploy_queue"] = [
+                item
+                for item in data.setdefault("deploy_queue", [])
+                if item.get("session_id") != session_id
+            ]
+
+    _mutate_sessions(mark)
+
+
+def _record_worktree_pending_commit(session_id: str, patch_id: str, commit_hash: str) -> None:
+    """Record a local deploy commit so a failed push can resume safely."""
+    if not patch_id or not commit_hash:
+        return
+
+    def record(data: dict) -> None:
+        metadata = data.get("sessions", {}).get(session_id, {}).get("worktree")
+        if not isinstance(metadata, dict) or metadata.get("root_applied_patch_id") != patch_id:
+            raise RuntimeError(f"Session {session_id} worktree integration state changed before commit")
+        metadata["pending_commit"] = commit_hash
+        metadata["pending_commit_patch_id"] = patch_id
+
+    _mutate_sessions(record)
+
+
+def _pending_worktree_push_commit(
+    session_id: str,
+    patch_id: str,
+    files: list[str],
+    dirty_files: list[str],
+) -> str:
+    """Return an exact clean local commit that should be pushed on deploy retry."""
+    metadata = _load_sessions().get("sessions", {}).get(session_id, {}).get("worktree")
+    if not isinstance(metadata, dict) or metadata.get("pending_commit_patch_id") != patch_id:
+        return ""
+    pending_commit = str(metadata.get("pending_commit") or "")
+    if not pending_commit or set(files) & set(dirty_files):
+        return ""
+    rc, head_commit, _stderr = _run_cmd(["git", "rev-parse", "HEAD"])
+    if rc != 0:
+        return ""
+    head_commit = head_commit.strip()
+    if head_commit != pending_commit and not _root_files_match_worktree(metadata, files):
+        return ""
+    if _get_git_status_summary().get("unpushed", 0) <= 0:
+        return ""
+    return head_commit
+
+
+def _root_files_match_worktree(metadata: dict, files: list[str]) -> bool:
+    """Return whether selected root files exactly match their worktree versions."""
+    worktree_path = metadata.get("path")
+    if not worktree_path:
+        return False
+    for relative_path in files:
+        source = Path(worktree_path) / relative_path
+        destination = PROJECT_ROOT / relative_path
+        if source.exists() != destination.exists():
+            return False
+        if not source.exists():
+            continue
+        if not source.is_file() or not destination.is_file():
+            return False
+        if source.read_bytes() != destination.read_bytes():
+            return False
+        if (source.stat().st_mode & 0o111) != (destination.stat().st_mode & 0o111):
+            return False
+    return True
 
 
 def _apply_worktree_diff_to_root(metadata: dict, files: list[str]) -> None:
@@ -906,25 +1117,26 @@ def _apply_worktree_diff_to_root(metadata: dict, files: list[str]) -> None:
     untracked = _worktree_untracked_files(metadata) & set(files)
     tracked_files = [f for f in files if f not in untracked]
     diff_cmd = ["git", "diff", "--binary", str(base_commit), "--"] + tracked_files
-    diff_result = subprocess.run(
-        diff_cmd,
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=False,
-        timeout=120,
-    )
-    if diff_result.returncode != 0:
-        raise RuntimeError(diff_result.stderr.decode("utf-8", errors="replace").strip())
-    if diff_result.stdout:
-        apply_result = subprocess.run(
-            ["git", "apply", "--whitespace=nowarn", "-"],
-            cwd=str(PROJECT_ROOT),
-            input=diff_result.stdout,
+    if tracked_files:
+        diff_result = subprocess.run(
+            diff_cmd,
+            cwd=str(worktree_path),
             capture_output=True,
+            text=False,
             timeout=120,
         )
-        if apply_result.returncode != 0:
-            raise RuntimeError(apply_result.stderr.decode("utf-8", errors="replace").strip())
+        if diff_result.returncode != 0:
+            raise RuntimeError(diff_result.stderr.decode("utf-8", errors="replace").strip())
+        if diff_result.stdout:
+            apply_result = subprocess.run(
+                ["git", "apply", "--whitespace=nowarn", "-"],
+                cwd=str(PROJECT_ROOT),
+                input=diff_result.stdout,
+                capture_output=True,
+                timeout=120,
+            )
+            if apply_result.returncode != 0:
+                raise RuntimeError(apply_result.stderr.decode("utf-8", errors="replace").strip())
     for relative_path in sorted(untracked):
         source = Path(worktree_path) / relative_path
         destination = PROJECT_ROOT / relative_path
@@ -1038,6 +1250,13 @@ def _prune_stale(data: dict) -> list[str]:
     pruned = []
     to_remove = []
     for sid, session in data.get("sessions", {}).items():
+        worktree = session.get("worktree")
+        if (
+            isinstance(worktree, dict)
+            and worktree.get("path")
+            and worktree.get("status") in {"active", "merged"}
+        ):
+            continue
         last_active = session.get("last_active", session.get("started", ""))
         if last_active and _hours_since(last_active) > STALE_SESSION_HOURS:
             to_remove.append(sid)
@@ -4859,6 +5078,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         to_commit = sorted(f for f in staged_files_for_deploy if f not in exclude)
         modified = sorted(set(modified) | set(to_commit))
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
+    worktree_patch_id = _worktree_patch_id(worktree_metadata, to_commit) if worktree_metadata and to_commit else ""
+    pending_worktree_commit = _pending_worktree_push_commit(
+        sid,
+        worktree_patch_id,
+        to_commit,
+        dirty_files,
+    ) if worktree_patch_id else ""
 
     # Session file lists are advisory and may include already-finished work.
     file_tracking: dict[str, str] = {}
@@ -4868,7 +5094,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         for of in other_info.get("modified_files", []):
             file_tracking[of] = other_sid
 
-    if not to_commit:
+    if not to_commit or pending_worktree_commit:
         git_summary = _get_git_status_summary()
         if git_summary.get("unpushed", 0) > 0:
             rc, commit_hash_full, _ = _run_cmd(["git", "rev-parse", "HEAD"])
@@ -4915,6 +5141,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
             if commit_hash_full:
                 _save_last_deploy_sha(commit_hash_full)
+            if pending_worktree_commit:
+                _mark_worktree_deployed(sid, worktree_patch_id, commit_hash_full)
 
             print()
             print("== DEPLOYED ==")
@@ -4978,19 +5206,31 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             sys.exit(1)
         print("Dev deploy integration lock acquired for worktree diff application.")
 
-        print(f"Applying session worktree diff from {worktree_metadata.get('path')}...")
         try:
-            _apply_worktree_diff_to_root(worktree_metadata, to_commit)
-        except RuntimeError as exc:
-            patch_id = _worktree_patch_id(worktree_metadata)
-            item = enqueue_worktree_deploy(sid, args.title, patch_id, reason=str(exc))
-            if deploy_lock_held:
-                _release_session_lock("vercel_deploy", released_by=sid)
+            patch_action = _worktree_root_patch_action(sid, worktree_patch_id, to_commit)
+            if patch_action == "applied":
+                print("Session worktree diff is already integrated; continuing deploy retry.")
+            else:
+                if patch_action == "conflict":
+                    raise RuntimeError(
+                        "Selected root files changed after the previous worktree integration; "
+                        "resolve the root conflict before retrying."
+                    )
+                if patch_action == "refresh":
+                    print("Refreshing safely amended session worktree files in root...")
+                    _sync_worktree_files_to_root(worktree_metadata, to_commit)
+                else:
+                    print(f"Applying session worktree diff from {worktree_metadata.get('path')}...")
+                    _apply_worktree_diff_to_root(worktree_metadata, to_commit)
+                _record_worktree_root_patch(sid, worktree_patch_id, to_commit)
+        except (RuntimeError, OSError) as exc:
+            item = enqueue_worktree_deploy(sid, args.title, worktree_patch_id, reason=str(exc))
             print(f"WORKTREE INTEGRATION BLOCKED — {item['id']}: {exc}", file=sys.stderr)
             print("Resolve the root conflict, then rerun the same sessions.py deploy command.", file=sys.stderr)
             sys.exit(1)
-        if deploy_lock_held:
-            _release_session_lock("vercel_deploy", released_by=sid)
+        finally:
+            if deploy_lock_held:
+                _release_session_lock("vercel_deploy", released_by=sid)
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
@@ -5202,6 +5442,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     rc, commit_hash_full, _ = _run_cmd(["git", "rev-parse", "HEAD"])
     commit_hash_full = (commit_hash_full or "").strip()
     commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
+    if worktree_metadata:
+        _record_worktree_pending_commit(sid, worktree_patch_id, commit_hash_full)
 
     # 4. Git push. Vercel/test readiness is commit-scoped via
     # --expected-commit, so this mutex must not outlive the push.
@@ -5229,14 +5471,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     print("Branch: dev")
 
     if worktree_metadata:
-        def mark_worktree_merged(session_data: dict) -> None:
-            metadata = session_data.get("sessions", {}).get(sid, {}).get("worktree")
-            if isinstance(metadata, dict):
-                metadata["status"] = "merged"
-                metadata["merged_commit"] = commit_hash_full
-                metadata["last_active"] = _now_iso()
-
-        _mutate_sessions(mark_worktree_merged)
+        _mark_worktree_deployed(sid, worktree_patch_id, commit_hash_full)
 
     # Check related architecture docs
     related = _find_related_docs(to_commit)
