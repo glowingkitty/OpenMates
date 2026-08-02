@@ -219,7 +219,7 @@ test.describe('App: Events / Skill: search', () => {
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
 
 		logCheckpoint('Waiting for events search embed to finish...');
-		const embed = await waitForEmbedFinished(page, 'events', 'search');
+		await waitForEmbedFinished(page, 'events', 'search');
 		const finishedEmbeds = page.locator(`${EVENT_SEARCH_CARD_SELECTOR}[data-status="finished"]`);
 		await expect(async () => {
 			const count = await finishedEmbeds.count();
@@ -230,6 +230,10 @@ test.describe('App: Events / Skill: search', () => {
 		logCheckpoint('Events search embed finished.');
 		await takeStepScreenshot(page, 'events-search-embed-finished');
 
+		const embed = finishedEmbeds
+			.filter({ has: page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE }) })
+			.last();
+		await expect(embed).toBeVisible({ timeout: 30_000 });
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
 
