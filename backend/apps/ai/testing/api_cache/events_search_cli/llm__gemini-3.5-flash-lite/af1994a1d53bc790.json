@@ -1,0 +1,58 @@
+{
+  "fingerprint": "af1994a1d53bc790",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "events_search_cli",
+  "recorded_at": "2026-08-02T14:41:56.294266+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Find tech events in Berlin this week"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "events-search-e92fc5d9",
+          "function_name": "events-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"tech\", \"start_date\": \"2026-08-02T14:41:55Z\", \"location\": \"Berlin, Germany\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "tech",
+                "start_date": "2026-08-02T14:41:55Z",
+                "location": "Berlin, Germany"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "EjQKMgERTTIPOX4Zx7lujcWWygoPeKLn8WjpPnmLktXvvcMlituBkLABVReYZHfk+gQhBcQA"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15047,
+          "candidates_token_count": 54,
+          "total_token_count": 15101,
+          "user_input_tokens": 9,
+          "system_prompt_tokens": 14068
+        }
+      }
+    ]
+  }
+}
