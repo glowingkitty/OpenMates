@@ -15783,7 +15783,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         .active-chat-container[data-authenticated='false'] .daily-inspiration-area {
-            --daily-inspiration-area-height: 170px;
+            --daily-inspiration-area-height: 190px;
         }
 
         :global(.menu-open) .daily-inspiration-area,
@@ -15793,7 +15793,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         :global(.menu-open) .active-chat-container[data-authenticated='false'] .daily-inspiration-area,
         :global(.side-by-side-active) .active-chat-container[data-authenticated='false'] .daily-inspiration-area {
-            --daily-inspiration-area-height: 170px;
+            --daily-inspiration-area-height: 190px;
         }
     }
 

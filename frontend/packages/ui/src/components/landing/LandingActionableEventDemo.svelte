@@ -113,9 +113,9 @@
     min-height: 210px;
     border-radius: var(--radius-4);
     overflow: visible;
-    background: rgba(12, 18, 48, 0.48);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: var(--shadow-xl);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
     pointer-events: none;
   }
 
@@ -124,7 +124,7 @@
     inset: 0;
     display: grid;
     place-items: center;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .landing-actionable-stage {

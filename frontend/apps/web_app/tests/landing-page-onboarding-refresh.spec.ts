@@ -418,30 +418,54 @@ async function actionableStageState(page: any): Promise<{
 
 async function mobileActionableSlideState(page: any): Promise<{
 	bannerHeight: number;
+	bannerBottom: number;
 	headlineFontSize: number;
 	headlineOpacity: number;
+	headlineStableNode: boolean;
 	headlineBottom: number;
 	demoOpacity: number;
 	demoTop: number;
 	demoHeight: number;
+	demoBackground: string;
+	demoBorderWidth: string;
+	demoBoxShadow: string;
+	demoContentCenterDeltaX: number;
+	demoContentCenterDeltaY: number;
+	reportButtonTop: number;
 }> {
 	return page.evaluate(() => {
 		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 		const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 		const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
-		if (!banner || !headline || !demo) throw new Error('mobile actionable slide elements missing');
+		const stage = document.querySelector<HTMLElement>('[data-testid="landing-actionable-stage"]');
+		const reportButton = document.querySelector<HTMLElement>('[data-testid="report-issue-button"]');
+		if (!banner || !headline || !demo || !stage || !reportButton) throw new Error('mobile actionable slide elements missing');
 
 		const bannerRect = banner.getBoundingClientRect();
 		const headlineRect = headline.getBoundingClientRect();
 		const demoRect = demo.getBoundingClientRect();
+		const stageContentRect = (stage.firstElementChild as HTMLElement | null)?.getBoundingClientRect();
+		const demoCenterX = demoRect.left + demoRect.width / 2;
+		const demoCenterY = demoRect.top + demoRect.height / 2;
+		const contentCenterX = stageContentRect ? stageContentRect.left + stageContentRect.width / 2 : demoCenterX;
+		const contentCenterY = stageContentRect ? stageContentRect.top + stageContentRect.height / 2 : demoCenterY;
+		const demoStyle = getComputedStyle(demo);
 		return {
 			bannerHeight: bannerRect.height,
+			bannerBottom: bannerRect.bottom,
 			headlineFontSize: Number.parseFloat(getComputedStyle(headline).fontSize),
 			headlineOpacity: Number.parseFloat(getComputedStyle(headline).opacity),
+			headlineStableNode: (headline as HTMLElement & { __landingPhraseNodeToken?: string }).__landingPhraseNodeToken === 'mobile-actionable',
 			headlineBottom: headlineRect.bottom,
 			demoOpacity: Number.parseFloat(getComputedStyle(demo).opacity),
 			demoTop: demoRect.top,
-			demoHeight: demoRect.height
+			demoHeight: demoRect.height,
+			demoBackground: demoStyle.backgroundColor,
+			demoBorderWidth: demoStyle.borderTopWidth,
+			demoBoxShadow: demoStyle.boxShadow,
+			demoContentCenterDeltaX: Math.abs(contentCenterX - demoCenterX),
+			demoContentCenterDeltaY: Math.abs(contentCenterY - demoCenterY),
+			reportButtonTop: reportButton.getBoundingClientRect().top
 		};
 	});
 }
@@ -749,14 +773,25 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(initialActionable.bannerHeight, 'regular mobile guest banner should be 20px taller').toBeGreaterThanOrEqual(190);
 		expect(initialActionable.headlineFontSize, 'mobile headline should be large before the demo appears').toBeGreaterThanOrEqual(24);
 		expect(initialActionable.demoOpacity, 'demo should not be visible during the large-heading phase').toBeLessThanOrEqual(0.15);
+		await page.getByTestId('daily-inspiration-phrase').evaluate((headline: HTMLElement & { __landingPhraseNodeToken?: string }) => {
+			headline.__landingPhraseNodeToken = 'mobile-actionable';
+		});
 
 		await page.waitForTimeout(MOBILE_HEADING_COMPACT_SETTLE_MS);
+		await waitForActionableStage(page, 'assistant-response');
 		const compactActionable = await mobileActionableSlideState(page);
+		expect(compactActionable.headlineStableNode, 'mobile compaction should resize the same headline node instead of replacing it').toBe(true);
 		expect(compactActionable.headlineFontSize, 'headline should shrink into the compact top caption').toBeLessThanOrEqual(initialActionable.headlineFontSize * 0.72);
-		expect(compactActionable.headlineOpacity, 'compact headline should be visually secondary').toBeLessThanOrEqual(0.75);
+		expect(compactActionable.headlineOpacity, 'compact headline should stay visibly present instead of fading away').toBeGreaterThanOrEqual(0.88);
 		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
 		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
 		expect(compactActionable.demoHeight, 'demo should keep useful vertical space').toBeGreaterThanOrEqual(80);
+		expect(compactActionable.reportButtonTop, 'report issue button should sit below the mobile banner, not behind it').toBeGreaterThanOrEqual(compactActionable.bannerBottom + 4);
+		expect(compactActionable.demoBackground, 'actionable demo should be transparent inside the gradient banner').toBe('rgba(0, 0, 0, 0)');
+		expect(compactActionable.demoBorderWidth, 'actionable demo should not render a dark boxed border').toBe('0px');
+		expect(compactActionable.demoBoxShadow, 'actionable demo should not render a boxed shadow').toBe('none');
+		expect(compactActionable.demoContentCenterDeltaX, 'actionable demo content should be horizontally centered').toBeLessThanOrEqual(2);
+		expect(compactActionable.demoContentCenterDeltaY, 'actionable demo content should be vertically centered').toBeLessThanOrEqual(2);
 	});
 
 	test('regular guest landing exposes workspace prompt, CTA input links, compact cards, and all examples', async ({ page }: { page: any }) => {
