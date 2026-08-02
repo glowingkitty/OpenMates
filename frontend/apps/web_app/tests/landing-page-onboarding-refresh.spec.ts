@@ -239,7 +239,9 @@ async function collectLandingIntroCycleMetrics(page: any): Promise<Map<string, A
 	const seen = new Map<string, Awaited<ReturnType<typeof landingIntroActiveRequestMetrics>>>();
 	const deadline = Date.now() + 13000;
 	while (seen.size < LANDING_INTRO_REQUESTS.length && Date.now() < deadline) {
-		const currentLabel = (await page.getByTestId('landing-intro-request').textContent())?.trim() || '';
+		const currentLabel = await page.evaluate(() => (
+			document.querySelector<HTMLElement>('[data-testid="landing-intro-request"]')?.textContent?.trim() || ''
+		));
 		if (LANDING_INTRO_REQUESTS.includes(currentLabel) && !seen.has(currentLabel)) {
 			await page.waitForTimeout(LANDING_INTRO_RAIL_SYNC_SETTLE_MS);
 			const metrics = await landingIntroActiveRequestMetrics(page);
