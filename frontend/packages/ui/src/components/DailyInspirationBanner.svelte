@@ -72,9 +72,8 @@
   const LANDING_SIGNUP_CTA_ID = 'openmates-signup-cta';
   const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 40;
   const LANDING_INTRO_PRIMARY_RAIL_MAX_BASE_ICON_COUNT = 12;
-  const LANDING_INTRO_PRIMARY_RAIL_SPEED_REDUCTION = 1.6;
   const LANDING_INTRO_PRIMARY_RAIL_DURATION_MS = Math.round(
-    LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_RAIL_MIN_ICON_COUNT * LANDING_INTRO_PRIMARY_RAIL_SPEED_REDUCTION,
+    LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_RAIL_MIN_ICON_COUNT,
   );
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
@@ -469,7 +468,6 @@
 
   $effect(() => {
     void containerWidth;
-    void landingIntroActiveAppId;
     void landingIntroRequestIndex;
     void landingIntroFirstRail.length;
     void landingIntroPrimaryRailRowEl;
@@ -478,6 +476,7 @@
       landingIntroPrimaryRailOffsetPx = 0;
       return;
     }
+    if (landingIntroRequestIndex >= 0) return;
     scheduleLandingIntroRailSync();
   });
 
@@ -659,7 +658,6 @@
   let landingIntroPrimaryRailStyle = $derived([
     `--landing-intro-primary-rail-offset: ${landingIntroPrimaryRailOffsetPx}px`,
     `--landing-intro-primary-rail-duration: ${LANDING_INTRO_PRIMARY_RAIL_DURATION_MS}ms`,
-    `--landing-intro-primary-rail-sync-duration: ${LANDING_INTRO_REQUEST_INTERVAL_MS}ms`,
   ].join(';'));
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
@@ -1082,7 +1080,7 @@
   function syncLandingIntroPrimaryRail(): void {
     const railRow = landingIntroPrimaryRailRowEl;
     const rail = landingIntroPrimaryRailEl;
-    if (!railRow || !rail || !landingIntroOverlayActive || landingIntroPhase !== 'expanded') return;
+    if (!railRow || !rail || !landingIntroOverlayActive || landingIntroPhase !== 'expanded' || landingIntroRequestIndex >= 0) return;
 
     const rowRect = railRow.getBoundingClientRect();
     const railRect = rail.getBoundingClientRect();
@@ -2105,8 +2103,12 @@
   .landing-intro-app-rail-primary {
     translate: var(--landing-intro-primary-rail-offset, 0px) 0;
     animation: landingIntroRailLeft var(--landing-intro-primary-rail-duration, 84000ms) linear infinite;
-    transition: translate var(--landing-intro-primary-rail-sync-duration, 2100ms) linear;
-    will-change: transform, translate;
+    animation-play-state: paused;
+    will-change: transform;
+  }
+
+  .landing-intro-expanded-content.examples-visible .landing-intro-app-rail-primary {
+    animation-play-state: running;
   }
 
   .landing-intro-app-rail-secondary {
