@@ -104,7 +104,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+  subject_commit: d71ced874560dd403758b177e1957299974daa77
 
 approvals:
   product_contract:
@@ -194,14 +194,31 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-01T22:16:00Z"
     evidence: "`node frontend/packages/openmates-cli/dist/cli.js chats new \"I have a Deutschland Ticket...\" --json --api-url https://api.dev.openmates.org` completed, returned regional Berlin-Hamburg options with 15-20 minute transfers, Deutschland Ticket coverage, and transfer-station amenity descriptions."
+  - id: ATTEMPT-9
+    task_id: TASK-6
+    approach: Deploy the scoped travel transfer-quality implementation and run the deployed train Playwright spec.
+    outcome: succeeded
+    recorded_at: "2026-08-02T00:04:55Z"
+    evidence: "Initial deployed runs failed on stale pass-only fare and flattened transfer-quality assumptions; follow-up commits `41eb041` and `d71ced8` fixed the spec/fixture and UI normalization, then `python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts --gate-deploy --expected-commit d71ced8` passed in run 2026-08-01T23:56:14Z / GitHub Actions 30724447739."
+  - id: ATTEMPT-10
+    task_id: TASK-6
+    approach: Run Firecrawl visual smoke for the deployed travel preview route in laptop and mobile viewports.
+    outcome: blocked
+    recorded_at: "2026-08-02T00:04:55Z"
+    evidence: "Both Firecrawl screenshot requests for `https://app.dev.openmates.org/dev/preview/embeds/travel` failed before inspection with `Insufficient credits to perform this request`; `sessions.py visual-smoke` recorded a blocked smoke for session 833f and commit d71ced8."
 
 handoff:
   current_task_id: TASK-6
-  next_action: Run the remaining natural-language CLI chat gate, then perform a scoped dev deploy and run deployed Playwright plus Firecrawl visual smoke.
-  command: OPENMATES_API_URL=https://api.dev.openmates.org openmates chats new "I have a Deutschland Ticket. Find regional trains from Berlin to Hamburg next week with at least 15 minutes to change and tell me what is at the transfer station." --json
-  expected_outcome: CLI chat reaches the real dev API, triggers travel search, and includes transfer-quality/amenity output without implementation error text.
-  blocker: null
-  last_verified_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+  next_action: Resolve the Firecrawl credit blocker or use an approved alternate visual-smoke path, then request user confirmation and run Apple parity verification.
+  command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+  expected_outcome: Apple build or targeted travel embed parity check succeeds after web/user approval.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: true
+    reason: Firecrawl returned insufficient credits for required laptop/mobile visual smoke; user confirmation is also required before Apple parity.
+    question: Refill/authorize Firecrawl credits or approve skipping/replacing the Firecrawl visual-smoke gate, then confirm the deployed web behavior on dev.
+    next_action: Retry Firecrawl visual smoke for https://app.dev.openmates.org/dev/preview/embeds/travel in laptop and mobile viewports.
+  last_verified_commit: d71ced874560dd403758b177e1957299974daa77
 
 scenarios:
   - id: S-1
@@ -487,9 +504,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_travel_search_connections.py backend/tests/test_travel_skill_constraints.py
-        run_id: local-pytest-2026-08-01T21:55Z
-        subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
-        timestamp: "2026-08-01T21:55:00Z"
+        run_id: local-pytest-2026-08-02T00:07Z
+        subject_commit: d71ced874560dd403758b177e1957299974daa77
+        timestamp: "2026-08-02T00:07:00Z"
+        summary: 33 passed, 3 warnings.
 
   - id: T-PYTEST-GEOAPIFY
     type: pytest
@@ -517,9 +535,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_travel_search_connections.py -k "transfer_amenities or geoapify"
-        run_id: local-pytest-2026-08-01T21:56Z
-        subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
-        timestamp: "2026-08-01T21:56:00Z"
+        run_id: local-pytest-2026-08-02T00:08Z
+        subject_commit: d71ced874560dd403758b177e1957299974daa77
+        timestamp: "2026-08-02T00:08:00Z"
+        summary: 1 passed, 26 deselected, 3 warnings.
 
   - id: T-REST-LIVE
     type: manual
@@ -554,6 +573,7 @@ tests:
         subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
         timestamp: "2026-08-01T22:10:40Z"
         summary: "Passed against dev API with unauthenticated rejection, 5 DB results, transfer_quality on all 5 results, 7 layovers, 7 Geoapify amenity-enriched layovers, and no optimized candidates for this route/date."
+        reason: Manual live REST smoke uses a temporary API key from the local CLI session because no test-account API key was exported in the shell.
 
   - id: T-CLI-DIRECT
     type: manual
@@ -584,6 +604,7 @@ tests:
         subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
         timestamp: "2026-08-01T22:10:40Z"
         summary: "Passed against dev API with successful typed CLI output, transfer_quality.min_transfer_minutes 10, meets_min_transfer true on layovers, and Geoapify amenity groups for food_drink, shops, and toilets."
+        reason: Manual live CLI direct gate verifies the typed command path against the dev API with the local authenticated CLI session.
 
   - id: T-CLI-CHAT
     type: manual
@@ -614,6 +635,7 @@ tests:
         subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
         timestamp: "2026-08-01T22:16:00Z"
         summary: "Passed against dev API; assistant returned regional Berlin-Hamburg options covered by Deutschland Ticket with 16m, 19m, and 20m transfer examples plus transfer-station amenity descriptions."
+        reason: Manual live CLI chat gate verifies natural-language routing through the real dev API and AI/tool pipeline.
 
   - id: T-NPM-SDK
     type: manual
@@ -643,6 +665,7 @@ tests:
         subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
         timestamp: "2026-08-01T22:10:40Z"
         summary: "Passed against dev API with 5 DB results, transfer_quality on all 5 results, 7 layovers, and 7 Geoapify amenity-enriched layovers."
+        reason: Manual live npm SDK gate verifies the generated TypeScript app-skill wrapper against the dev API using a temporary API key from the local CLI session.
 
   - id: T-PIP-SDK
     type: manual
@@ -672,6 +695,7 @@ tests:
         subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
         timestamp: "2026-08-01T22:10:40Z"
         summary: "Passed against dev API with 5 DB results, transfer_quality on all 5 results, 7 layovers, and 7 Geoapify amenity-enriched layovers."
+        reason: Manual live pip SDK gate verifies the generated Python app-skill wrapper against the dev API using a temporary API key from the local CLI session.
 
   - id: T-PLAYWRIGHT-TRAIN
     type: playwright
@@ -700,11 +724,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts --gate-deploy --expected-commit d71ced8
+        run_id: 2026-08-01T23:56:14Z / gha-30724447739
+        subject_commit: d71ced874560dd403758b177e1957299974daa77
+        timestamp: "2026-08-02T00:04:15Z"
+        summary: "Passed after Vercel deployment dpl_GSaL3yhsMU7SM855F94MW4nteyVZ reached Ready; fallback account slot 2 was used because slot 1 preflight failed user lookup."
+        target: https://app.dev.openmates.org
+        deployment_reference: dpl_GSaL3yhsMU7SM855F94MW4nteyVZ
 
   - id: T-APPLE-BUILD
     type: manual
@@ -758,16 +785,20 @@ verifications:
     required_for_done: true
     covers:
       - AC-9
-    status: pending
+    status: blocked
     evidence:
-      status: ""
+      status: blocked
       route: https://app.dev.openmates.org/dev/preview/embeds/travel
       viewports:
         - laptop
         - mobile
-      summary: ""
-      run_id: ""
-      timestamp: ""
+      summary: "Attempted Firecrawl screenshot visual smoke in laptop and mobile viewports after deployed Playwright passed; both requests failed before inspection with insufficient credits."
+      run_id: firecrawl-insufficient-credits-2026-08-02T00:05Z
+      timestamp: "2026-08-02T00:04:55Z"
+      reason: Firecrawl account has insufficient credits for screenshot visual-smoke requests.
+      actor: OpenCode
+      next_action: Refill/authorize Firecrawl credits or explicitly approve an alternate visual-smoke evidence path, then rerun laptop and mobile smoke for the deployed route.
+      blocker: Firecrawl returned `Insufficient credits to perform this request` for both viewport requests.
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
@@ -1051,8 +1082,8 @@ tasks:
 
   - id: TASK-6
     title: Update web rendering and deployed train E2E
-    status: in_progress
-    phase: working_tasks
+    status: blocked
+    phase: running_checks
     covers:
       scenarios:
         - S-3
@@ -1086,7 +1117,9 @@ tasks:
         - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
         - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
       shared_files: []
-    blockers: []
+    blockers:
+      - Firecrawl visual smoke is blocked by insufficient Firecrawl credits for both laptop and mobile screenshot requests.
+      - User confirmation is pending after deployed Playwright passed.
     follow_up_tasks: []
     independently_deployable: false
 
