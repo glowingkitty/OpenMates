@@ -297,6 +297,7 @@
     code?: string;
     language?: string;
     filename?: string;
+    line_count?: number;
     lineCount?: number;
     task_id?: string;
   }
@@ -325,8 +326,9 @@
       }
       
       // Update line count if available
-      if (data.decodedContent.lineCount !== undefined) {
-        localLineCount = data.decodedContent.lineCount || 0;
+      const updatedLineCount = data.decodedContent.lineCount ?? data.decodedContent.line_count;
+      if (updatedLineCount !== undefined) {
+        localLineCount = updatedLineCount || 0;
       }
       
       // Update task ID if available

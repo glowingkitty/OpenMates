@@ -1745,7 +1745,7 @@ export class GroupRenderer implements EmbedRenderer {
             end_date: endDate,
             status,
             results,
-            result_count: resultCount || childEmbedIds.length,
+            result_count: resultCount ?? childEmbedIds.length,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

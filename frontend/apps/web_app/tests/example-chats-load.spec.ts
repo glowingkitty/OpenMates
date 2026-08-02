@@ -293,6 +293,36 @@ test.describe('Example chats loading for new users', () => {
 		});
 
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+
+		const assistantMessage = page.getByTestId('message-assistant').filter({
+			hasText: "Berlin has one of Europe's most active"
+		}).first();
+		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
+
+		const appSkillGroup = assistantMessage.getByTestId('app-skill-embed-group').first();
+		await expect(appSkillGroup, 'Berlin AI workshops example should render its grouped app-skill previews').toBeVisible({ timeout: 15000 });
+		await expect(appSkillGroup.getByText('5 app skills used:', { exact: true })).toBeVisible({
+			timeout: 15000
+		});
+
+		const appSkillItems = appSkillGroup.locator('[data-embed-type="app-skill-use"][data-embed-item-id]');
+		await expect(appSkillItems, 'Berlin AI workshops example should keep all five parent embeds in the group').toHaveCount(5, {
+			timeout: 15000
+		});
+
+		const finishedPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-status="finished"]');
+		await expect(finishedPreviews, 'Berlin AI workshops example should mount all five finished app-skill previews').toHaveCount(5, {
+			timeout: 15000
+		});
+
+		const eventsPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
+		await expect(eventsPreviews, 'Berlin AI workshops example should render three event-search previews').toHaveCount(3);
+		const webPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]');
+		await expect(webPreviews, 'Berlin AI workshops example should render two web-search previews').toHaveCount(2);
+		for (let index = 0; index < 3; index += 1) {
+			await expect(eventsPreviews.nth(index), `event-search preview ${index + 1} should use decoded result_count`).toContainText('+ 10 more');
+		}
+
 		await expect(page.getByTestId('chat-share-button')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('chat-details-button')).toBeVisible({ timeout: 10000 });
 
