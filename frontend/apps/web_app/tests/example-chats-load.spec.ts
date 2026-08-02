@@ -314,6 +314,10 @@ test.describe('Example chats loading for new users', () => {
 		await expect(eventsPreviews, 'Berlin AI workshops example should render three event-search previews').toHaveCount(3);
 		const webPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]');
 		await expect(webPreviews, 'Berlin AI workshops example should render two web-search previews').toHaveCount(2);
+		for (let index = 0; index < 2; index += 1) {
+			await expect(webPreviews.nth(index), `web-search preview ${index + 1} should use decoded result_count`).toContainText('+ 6 more');
+			await expect(webPreviews.nth(index), `web-search preview ${index + 1} should not hide a known result count behind a generic fallback`).not.toContainText('Open to view results');
+		}
 		for (let index = 0; index < 3; index += 1) {
 			await expect(eventsPreviews.nth(index), `event-search preview ${index + 1} should use decoded result_count`).toContainText('+ 10 more');
 		}
