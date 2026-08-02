@@ -34,6 +34,7 @@ Usage:
     # Deployment
     python3 scripts/sessions.py prepare-deploy --session a3f2
     python3 scripts/sessions.py deploy  --session a3f2 --title "fix: msg" --message "body" [--no-verify]
+    python3 scripts/sessions.py visual-smoke --session a3f2 --url https://app.dev.openmates.org/path --viewport laptop --viewport mobile --result passed --method playwright --run-id <artifact> --summary "Reviewed screenshots. Defects: none. Accepted differences: none."
 
     # Query context docs
     python3 scripts/sessions.py context --list       # list all available docs with line counts
@@ -84,6 +85,19 @@ CONTRIBUTING_STANDARDS_DIR = PROJECT_ROOT / "docs" / "contributing" / "standards
 DESIGN_GUIDE_DIR = PROJECT_ROOT / "docs" / "design-guide"
 ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
 ENV_FILE = PROJECT_ROOT / ".env"
+VISUAL_SMOKE_UI_PATH_RE = re.compile(
+    r"^(frontend/packages/ui/src/.+\.(svelte|css|ts)|frontend/apps/web_app/src/routes/.+\.(svelte|css|ts))$"
+)
+VISUAL_SMOKE_SPEC_PATH_RE = re.compile(r"^docs/specs/.+/spec\.yml$")
+VISUAL_SMOKE_HIGH_RISK_RE = re.compile(
+    r"(ActiveChat|Chat|MessageInput|Composer|Settings|Share|Embed|Landing|DailyInspiration|Welcome|Auth|Login|Signup|Billing|Usage|Navigation|Header|Sidebar)",
+    re.IGNORECASE,
+)
+VISUAL_SMOKE_PASS_STATUSES = {"passed", "skipped"}
+VISUAL_SMOKE_REQUIRED_VIEWPORTS = {"laptop", "mobile"}
+VISUAL_SMOKE_REVIEW_RE = re.compile(r"\bscreenshot\w*\b.*\breview\w*\b|\breview\w*\b.*\bscreenshot\w*\b", re.IGNORECASE | re.DOTALL)
+VISUAL_SMOKE_DEFECTS_RE = re.compile(r"\b(defects?|issues?|findings?)\s*:", re.IGNORECASE)
+VISUAL_SMOKE_ACCEPTED_DIFF_RE = re.compile(r"\baccepted differences?\s*:", re.IGNORECASE)
 APPLE_CONTEXT_KEYWORDS = (
     "apple",
     "ios",
@@ -251,6 +265,27 @@ TAG_TO_ARCH_KEYWORDS: dict[str, list[str]] = {
 def _now_iso() -> str:
     """Return current UTC time as ISO string."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _current_head() -> str:
+    rc, stdout, _ = _run_cmd(["git", "rev-parse", "HEAD"])
+    return stdout.strip() if rc == 0 else ""
+
+
+def _normalize_visual_smoke_viewports(value: object) -> set[str]:
+    if isinstance(value, str):
+        return {value.strip().lower()} if value.strip() else set()
+    if isinstance(value, list):
+        return {str(item).strip().lower() for item in value if str(item).strip()}
+    return set()
+
+
+def _visual_smoke_summary_has_review(summary: str) -> bool:
+    return bool(
+        VISUAL_SMOKE_REVIEW_RE.search(summary)
+        and VISUAL_SMOKE_DEFECTS_RE.search(summary)
+        and VISUAL_SMOKE_ACCEPTED_DIFF_RE.search(summary)
+    )
 
 
 def _parse_iso(s: str) -> datetime:
@@ -641,10 +676,6 @@ def _relative_repo_path_for_session(path_value: str | Path, session: dict | None
         resolved = candidate.resolve()
     except OSError:
         resolved = candidate
-    try:
-        return resolved.relative_to(PROJECT_ROOT.resolve()).as_posix()
-    except ValueError:
-        pass
     metadata = session.get("worktree") if isinstance(session, dict) else None
     worktree_path = metadata.get("path") if isinstance(metadata, dict) else None
     if worktree_path:
@@ -652,6 +683,10 @@ def _relative_repo_path_for_session(path_value: str | Path, session: dict | None
             return resolved.relative_to(Path(worktree_path).resolve()).as_posix()
         except ValueError:
             pass
+    try:
+        return resolved.relative_to(PROJECT_ROOT.resolve()).as_posix()
+    except ValueError:
+        pass
     return str(path_value)
 
 
@@ -3512,6 +3547,14 @@ def cmd_end(args: argparse.Namespace) -> None:
                 print(f"  - docs/architecture/{doc}")
             print()
 
+    if not getattr(args, "force", False):
+        _enforce_visual_smoke_end_gate(
+            sid,
+            session,
+            modified,
+            skip_reason=getattr(args, "skip_visual_smoke_reason", None),
+        )
+
     # ── Linear completion ─────────────────────────────────────────────────
     _linear_complete_session(sid, session)
 
@@ -3537,6 +3580,80 @@ def cmd_end(args: argparse.Namespace) -> None:
     _save_sessions(data)
 
     print(f"Session {sid} ended and removed from sessions.json.")
+
+
+def cmd_visual_smoke(args: argparse.Namespace) -> None:
+    """Record deployed UI visual-smoke evidence for a session."""
+    data = _load_sessions()
+    sid = args.session
+    session = data.get("sessions", {}).get(sid)
+    if not session:
+        print(f"Error: Session {sid} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    status = args.result
+    summary = (args.summary or "").strip()
+    if status in {"passed", "failed", "blocked"} and not summary:
+        print("Error: --summary is required for visual smoke records.", file=sys.stderr)
+        sys.exit(1)
+    if status == "passed":
+        if not args.url:
+            print("Error: --url is required when --result passed.", file=sys.stderr)
+            sys.exit(1)
+        if not (args.run_id or args.screenshot):
+            print("Error: --run-id or --screenshot is required when --result passed.", file=sys.stderr)
+            sys.exit(1)
+        viewports = _normalize_visual_smoke_viewports(args.viewport or [])
+        missing = sorted(VISUAL_SMOKE_REQUIRED_VIEWPORTS - viewports)
+        if missing:
+            print(
+                "Error: --viewport laptop and --viewport mobile are required when --result passed.",
+                file=sys.stderr,
+            )
+            print(f"Missing viewport(s): {', '.join(missing)}", file=sys.stderr)
+            sys.exit(1)
+        if not _visual_smoke_summary_has_review(summary):
+            print(
+                "Error: passed visual smoke summary must mention screenshot review, Defects:, and Accepted differences:.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    if status == "skipped" and not (args.reason or summary):
+        print("Error: --reason or --summary is required when --result skipped.", file=sys.stderr)
+        sys.exit(1)
+
+    commit = args.commit or _current_head()
+    method = args.method or "playwright"
+    record = {
+        "status": status,
+        "method": method,
+        "urls": args.url or [],
+        "viewports": sorted(_normalize_visual_smoke_viewports(args.viewport or [])),
+        "run_id": args.run_id or "",
+        "screenshots": args.screenshot or [],
+        "summary": summary or args.reason,
+        "reason": args.reason or "",
+        "subject_commit": commit,
+        "timestamp": _now_iso(),
+    }
+    if status == "passed":
+        problems = _visual_smoke_pass_record_problems(record)
+        if problems:
+            print("Error: visual smoke evidence cannot be recorded as passed:", file=sys.stderr)
+            for problem in problems:
+                print(f"  - {problem}", file=sys.stderr)
+            sys.exit(1)
+    session.setdefault("visual_smoke", []).append(record)
+    _save_sessions(data)
+
+    print("UI visual smoke recorded:")
+    print(f"  session: {sid}")
+    print(f"  result: {status}")
+    print(f"  method: {method}")
+    if commit:
+        print(f"  commit: {commit[:9]}")
+    for url in record["urls"]:
+        print(f"  url: {url}")
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -4317,6 +4434,150 @@ def _has_frontend_files(files: list) -> bool:
     return any(f.startswith("frontend/") for f in files)
 
 
+def _visual_smoke_ui_files(files: list[str]) -> list[str]:
+    """Return changed runtime UI files that may need deployed visual smoke."""
+    return [
+        f for f in files
+        if VISUAL_SMOKE_UI_PATH_RE.search(f)
+        and "/tests/" not in f
+        and "/__tests__/" not in f
+        and not f.endswith((".test.ts", ".spec.ts"))
+    ]
+
+
+def _requires_visual_smoke(files: list[str]) -> bool:
+    """Return whether changed files need deployed laptop/mobile UI review."""
+    ui_files = _visual_smoke_ui_files(files)
+    if not ui_files:
+        return False
+    if any(VISUAL_SMOKE_SPEC_PATH_RE.search(f) for f in files):
+        return True
+    if len(ui_files) >= 2:
+        return True
+    return any(VISUAL_SMOKE_HIGH_RISK_RE.search(Path(f).name) for f in ui_files)
+
+
+def _commit_matches(record_commit: str, expected_commit: str | None) -> bool:
+    if not expected_commit:
+        return True
+    if not record_commit:
+        return False
+    return record_commit.startswith(expected_commit) or expected_commit.startswith(record_commit)
+
+
+def _visual_smoke_artifact_problems(run_id: str) -> list[str]:
+    """Inspect local Playwright visual-smoke summary artifacts when available."""
+    if not run_id or ":" in run_id:
+        return []
+    summary_path = Path(run_id)
+    if not summary_path.is_absolute():
+        summary_path = PROJECT_ROOT / summary_path
+    if not summary_path.is_file() or summary_path.name != "summary.json":
+        return []
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"could not parse Playwright visual-smoke summary {run_id}: {exc}"]
+
+    problems: list[str] = []
+    if summary.get("result") != "passed":
+        problems.append(f"Playwright visual-smoke artifact result is {summary.get('result')!r}")
+    viewports = _normalize_visual_smoke_viewports(summary.get("viewports") or [])
+    if not VISUAL_SMOKE_REQUIRED_VIEWPORTS.issubset(viewports):
+        problems.append("Playwright visual-smoke artifact is missing laptop and mobile viewports")
+    for index, record in enumerate(summary.get("records") or []):
+        if not isinstance(record, dict):
+            continue
+        record_problems = record.get("problems") or []
+        if record_problems:
+            problems.append(f"record {index} problems: {' | '.join(str(item) for item in record_problems[:3])}")
+        console_errors = record.get("consoleErrors") or []
+        if console_errors:
+            problems.append(f"record {index} console errors: {' | '.join(str(item) for item in console_errors[:3])}")
+    return problems
+
+
+def _visual_smoke_pass_record_problems(record: dict) -> list[str]:
+    problems: list[str] = []
+    summary = str(record.get("summary") or "").strip()
+    if not summary:
+        problems.append("missing summary")
+    elif not _visual_smoke_summary_has_review(summary):
+        problems.append("summary must state screenshot review, defects, and accepted differences")
+    if not (record.get("urls") or record.get("url")):
+        problems.append("missing reviewed URL")
+    if not (str(record.get("run_id") or "").strip() or record.get("screenshots")):
+        problems.append("missing run_id or screenshot artifact")
+    if not VISUAL_SMOKE_REQUIRED_VIEWPORTS.issubset(
+        _normalize_visual_smoke_viewports(record.get("viewports") or record.get("viewport"))
+    ):
+        problems.append("missing laptop and mobile viewports")
+    problems.extend(_visual_smoke_artifact_problems(str(record.get("run_id") or "")))
+    return problems
+
+
+def _latest_visual_smoke_record(session: dict, expected_commit: str | None = None) -> dict | None:
+    records = session.get("visual_smoke")
+    if not isinstance(records, list):
+        return None
+    for record in reversed(records):
+        if not isinstance(record, dict):
+            continue
+        status = str(record.get("status") or "").strip()
+        if status not in VISUAL_SMOKE_PASS_STATUSES:
+            continue
+        if status == "skipped" and not str(record.get("reason") or record.get("summary") or "").strip():
+            continue
+        if status == "passed" and _visual_smoke_pass_record_problems(record):
+            continue
+        if _commit_matches(str(record.get("subject_commit") or ""), expected_commit):
+            return record
+    return None
+
+
+def _record_visual_smoke_skip(session: dict, reason: str, commit_sha: str | None = None) -> None:
+    session.setdefault("visual_smoke", []).append(
+        {
+            "status": "skipped",
+            "reason": reason,
+            "summary": reason,
+            "subject_commit": commit_sha or _current_head(),
+            "timestamp": _now_iso(),
+        }
+    )
+
+
+def _enforce_visual_smoke_end_gate(
+    sid: str,
+    session: dict,
+    files: list[str],
+    *,
+    skip_reason: str | None = None,
+    commit_sha: str | None = None,
+) -> None:
+    if not _requires_visual_smoke(files):
+        return
+    expected_commit = commit_sha or _current_head()
+    if skip_reason:
+        _record_visual_smoke_skip(session, skip_reason, expected_commit)
+        print(f"UI visual smoke gate: SKIPPED ({skip_reason})")
+        return
+    if _latest_visual_smoke_record(session, expected_commit):
+        print("UI visual smoke gate: PASSED")
+        return
+
+    print("UI VISUAL SMOKE REQUIRED — session cannot be ended yet.", file=sys.stderr)
+    print("This session touched larger user-visible web UI. Before ending, inspect the deployed dev URL with Playwright for:", file=sys.stderr)
+    print("  - blank/error/loading-only screens, broken media/icons, raw IDs/JSON/Markdown, clipping, overlap, overflow, contrast, or covered controls", file=sys.stderr)
+    print("  - implementation-related error text, console-visible failure states, slow first paint, long spinner states, or unresponsive primary interactions where practical", file=sys.stderr)
+    print("Run the helper, review the screenshots, then record a pass with defects and accepted differences:", file=sys.stderr)
+    print(f"  node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session {sid}", file=sys.stderr)
+    print(f"  python3 scripts/sessions.py visual-smoke --session {sid} --url https://app.dev.openmates.org/<route> --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/visual-smoke/<run>/summary.json --summary \"Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none.\"", file=sys.stderr)
+    print("If this is truly Tier 0/non-visual, rerun with:", file=sys.stderr)
+    print(f"  python3 scripts/sessions.py end --session {sid} --skip-visual-smoke \"reason\"", file=sys.stderr)
+    sys.exit(1)
+
+
 def _should_validate_embed_registry(files: list[str]) -> bool:
     """Return True when changed files can affect generated embed contracts."""
     return any(
@@ -4664,6 +4925,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             if getattr(args, "end_session", False):
                 latest_data = _load_sessions()
                 latest_session = latest_data.get("sessions", {}).get(sid, session)
+                _enforce_visual_smoke_end_gate(
+                    sid,
+                    latest_session,
+                    modified or _get_unpushed_files(),
+                    skip_reason=getattr(args, "skip_visual_smoke_reason", None),
+                    commit_sha=commit_hash_full,
+                )
                 _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
 
                 def remove_session(session_data: dict) -> None:
@@ -4982,6 +5250,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     if getattr(args, "end_session", False):
         latest_data = _load_sessions()
         latest_session = latest_data.get("sessions", {}).get(sid, session)
+        _enforce_visual_smoke_end_gate(
+            sid,
+            latest_session,
+            to_commit,
+            skip_reason=getattr(args, "skip_visual_smoke_reason", None),
+            commit_sha=commit_hash_full,
+        )
         _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
 
         def remove_session(session_data: dict) -> None:
@@ -7144,6 +7419,54 @@ def main() -> None:
         action="store_true",
         help="Force-end even if there are uncommitted tracked files (skips deploy gate)",
     )
+    p_end.add_argument(
+        "--skip-visual-smoke",
+        dest="skip_visual_smoke_reason",
+        metavar="REASON",
+        help="Skip the deployed visual-smoke end gate with an explicit reason.",
+    )
+
+    # visual-smoke
+    p_visual_smoke = sub.add_parser(
+        "visual-smoke",
+        help="Record deployed UI visual-smoke evidence for a session",
+    )
+    p_visual_smoke.add_argument("--session", "-s", required=True, help="Session ID")
+    p_visual_smoke.add_argument(
+        "--url",
+        action="append",
+        help="Deployed app.dev.openmates.org URL inspected; repeat for multiple routes/viewports.",
+    )
+    p_visual_smoke.add_argument(
+        "--viewport",
+        action="append",
+        choices=["laptop", "mobile"],
+        help="Viewport class inspected. Passed smoke requires both: --viewport laptop --viewport mobile.",
+    )
+    p_visual_smoke.add_argument(
+        "--result",
+        required=True,
+        choices=["passed", "failed", "blocked", "skipped"],
+        help="Visual-smoke result.",
+    )
+    p_visual_smoke.add_argument(
+        "--method",
+        default="playwright",
+        choices=["playwright", "firecrawl", "manual", "other"],
+        help="Evidence method. Use playwright by default; firecrawl is an explicit fallback.",
+    )
+    p_visual_smoke.add_argument("--run-id", help="Playwright report path, Firecrawl job ID, screenshot ID, or other artifact ID.")
+    p_visual_smoke.add_argument(
+        "--screenshot",
+        action="append",
+        help="Screenshot artifact ID/path; repeat when useful.",
+    )
+    p_visual_smoke.add_argument(
+        "--summary",
+        help="Must include screenshot review, Defects:, and Accepted differences: for passed evidence.",
+    )
+    p_visual_smoke.add_argument("--reason", help="Required when result is skipped; optional context otherwise.")
+    p_visual_smoke.add_argument("--commit", help="Subject commit SHA. Defaults to current HEAD.")
 
     # status
     p_status = sub.add_parser("status", help="Show current session state")
@@ -7367,6 +7690,12 @@ def main() -> None:
         metavar="REASON",
         help="Skip test enforcement gate with an explicit reason "
         "(e.g., 'hotfix, will add test in follow-up'). Reason is logged.",
+    )
+    p_deploy.add_argument(
+        "--skip-visual-smoke",
+        dest="skip_visual_smoke_reason",
+        metavar="REASON",
+        help="Skip the deployed visual-smoke end gate with an explicit reason. Only applies with --end.",
     )
     p_deploy.add_argument(
         "--require-parity",
@@ -7682,6 +8011,7 @@ def main() -> None:
     commands = {
         "start": cmd_start,
         "end": cmd_end,
+        "visual-smoke": cmd_visual_smoke,
         "status": cmd_status,
         "doctor": cmd_doctor,
         "update": cmd_update,

@@ -506,6 +506,67 @@ def test_spec_verify_rejects_schema_v2_manual_evidence_without_reason(tmp_path):
     assert any("reason" in failure for failure in failures)
 
 
+def ui_visual_smoke_spec(summary: str, viewports: str = "[laptop, mobile]") -> str:
+    return (
+        schema_v2_spec()
+        .replace("verification_scope: related_backend", "verification_scope: ui_visual_smoke", 1)
+        .replace("V-EXAMPLE", "V-UI-VISUAL-SMOKE")
+        .replace("kind: automated_test", "kind: manual_check", 1)
+        .replace(
+            "      command: python3 -m pytest backend/tests/test_example.py\n"
+            "      run_id: local:green\n"
+            "      subject_commit: abc1234\n"
+            "      timestamp: \"2026-07-02T00:00:00Z\"",
+            "      run_id: test-results/visual-smoke/run/summary.json\n"
+            "      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/example --session abcd\n"
+            "      subject_commit: abc123\n"
+            "      reviewed_urls:\n"
+            "        - https://app.dev.openmates.org/example\n"
+            f"      viewports: {viewports}\n"
+            f"      summary: \"{summary}\"\n"
+            "      reason: Manual screenshot review.\n"
+            "      timestamp: \"2026-07-02T00:00:00Z\"",
+            1,
+        )
+    )
+
+
+def test_spec_verify_rejects_ui_visual_smoke_without_screenshot_review_summary(tmp_path):
+    spec_verify = load_module("spec_verify")
+    path = write_spec(tmp_path, ui_visual_smoke_spec("Checked route returned HTTP 200."))
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("screenshot review" in failure for failure in failures)
+
+
+def test_spec_verify_accepts_ui_visual_smoke_evidence(tmp_path):
+    spec_verify = load_module("spec_verify")
+    path = write_spec(
+        tmp_path,
+        ui_visual_smoke_spec("Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."),
+    )
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert failures == []
+
+
+def test_spec_verify_rejects_ui_visual_smoke_without_mobile_viewport(tmp_path):
+    spec_verify = load_module("spec_verify")
+    path = write_spec(
+        tmp_path,
+        ui_visual_smoke_spec(
+            "Reviewed laptop screenshots. Defects: none. Accepted differences: none.",
+            viewports="[laptop]",
+        ),
+    )
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("laptop and mobile" in failure for failure in failures)
+
+
 def test_spec_verify_json_reports_active_handoff_blockers(tmp_path):
     path = write_spec(
         tmp_path,

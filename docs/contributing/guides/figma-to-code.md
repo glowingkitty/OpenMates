@@ -130,8 +130,12 @@ Before editing code, capture the design contract in the session, issue, or
 - Evidence paths for reference PNGs and planned rendered screenshots.
 
 For Figma-referenced UI work, final completion must cite the reference PNGs,
-rendered web screenshots or Playwright artifact, and accepted differences. If no
-visual proof is needed, record `figma-visual-proof: not-required` with the reason.
+rendered web screenshots or Playwright artifact, and accepted differences. This
+is a blocking guard: claiming Figma/design alignment while changing UI source
+requires all three evidence classes, or an explicit `figma-visual-proof:
+not-required` reason. Do not treat intentional carousel clipping, viewport crops,
+or token drift as defects unless the task's approved design brief says they are
+in scope.
 
 ### Step 4 — Map to Existing Design System
 

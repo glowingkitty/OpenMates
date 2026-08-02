@@ -60,3 +60,15 @@ def test_session_deploy_files_ignore_foreign_root_dirty(monkeypatch, tmp_path):
     to_commit = sessions._session_deploy_files(session, exclude={"docs/example.md"})
 
     assert to_commit == ["scripts/sessions.py"]
+
+
+def test_relative_repo_path_prefers_session_worktree(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    repo = tmp_path / "OpenMates"
+    worktree = repo / ".openmates-agent-worktrees" / "agent-abcd"
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", repo)
+
+    session = {"worktree": {"path": str(worktree), "base_commit": "abc123", "status": "active"}}
+
+    assert sessions._relative_repo_path_for_session(worktree / "scripts" / "sessions.py", session) == "scripts/sessions.py"
+    assert sessions._relative_repo_path_for_session(repo / "scripts" / "sessions.py", session) == "scripts/sessions.py"

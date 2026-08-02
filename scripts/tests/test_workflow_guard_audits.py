@@ -163,7 +163,7 @@ def test_figma_visual_evidence_warns_for_figma_claimed_ui_without_artifacts() ->
     )
 
     assert len(issues) == 1
-    assert issues[0].blocking is False
+    assert issues[0].blocking is True
     assert "reference PNGs" in issues[0].message
 
 
@@ -190,7 +190,7 @@ def test_figma_visual_evidence_accepts_spec_artifact_review(tmp_path) -> None:
         spec_path.parent.mkdir(parents=True)
         ui_path.write_text("<div data-testid=\"task-board\"></div>\n", encoding="utf-8")
         spec_path.write_text(
-            "verifications:\n  - id: V-FIGMA-ARTIFACT-REVIEW\n    kind: artifact_review\n    evidence: reference PNG and rendered screenshot\n",
+            "verifications:\n  - id: V-FIGMA-ARTIFACT-REVIEW\n    kind: artifact_review\n    evidence: reference PNG, rendered screenshot, and accepted differences\n",
             encoding="utf-8",
         )
 

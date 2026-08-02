@@ -33,6 +33,8 @@ VALID_VERIFICATION_SCOPES = {
     "npm_sdk",
     "pip_sdk",
     "playwright",
+    "ui_visual_smoke",
+    "firecrawl_visual_smoke",
     "apple",
     "full_ci",
     "manual",

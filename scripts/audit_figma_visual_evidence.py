@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Warn when Figma-referenced UI work lacks visual evidence.
+"""Block Figma-referenced UI work that lacks visual evidence.
 
 The audit is intentionally low-noise: it only triggers when staged content adds a
-Figma/design-reference claim and also changes UI source files. It nudges agents
+Figma/design-reference claim and also changes UI source files. It requires agents
 to record reference PNGs, rendered screenshots, and accepted differences instead
 of shipping subjective visual matches without evidence.
 """
@@ -25,10 +25,9 @@ EVIDENCE_PATH_RE = re.compile(
     r"^(docs/specs/.+/spec\.yml|frontend/apps/web_app/tests/.+\.(spec|test)\.ts|test-results/figma/.+|docs/design-guide/.+\.md)$"
 )
 FIGMA_CLAIM_RE = re.compile(r"\b(figma|mockup|artboard|design reference|design board|visual match|visual fidelity)\b", re.IGNORECASE)
-EVIDENCE_TEXT_RE = re.compile(
-    r"\b(V-FIGMA|artifact_review|reference PNG|rendered screenshot|accepted differences|test-results/figma|visual artifact review)\b",
-    re.IGNORECASE,
-)
+REFERENCE_TEXT_RE = re.compile(r"\b(reference PNG|figma reference|figma export|test-results/figma|V-FIGMA)\b", re.IGNORECASE)
+RENDERED_TEXT_RE = re.compile(r"\b(rendered screenshot|rendered web|playwright artifact|visual-smoke|browser screenshot)\b", re.IGNORECASE)
+ACCEPTED_DIFF_TEXT_RE = re.compile(r"\baccepted differences\b", re.IGNORECASE)
 ALLOW_MARKERS = (
     "figma-visual-proof: not-required",
     "figma-visual-proof: covered",
@@ -104,7 +103,9 @@ def _has_evidence(paths: list[Path]) -> bool:
         if not EVIDENCE_PATH_RE.search(rel_path):
             continue
         text = _path_text(path)
-        if rel_path.startswith("test-results/figma/") or EVIDENCE_TEXT_RE.search(text):
+        if rel_path.startswith("test-results/figma/"):
+            return True
+        if REFERENCE_TEXT_RE.search(text) and RENDERED_TEXT_RE.search(text) and ACCEPTED_DIFF_TEXT_RE.search(text):
             return True
     return False
 
@@ -132,7 +133,7 @@ def audit_paths(
                 rel_path,
                 1,
                 "Figma-referenced UI change lacks visual evidence; record reference PNGs, rendered screenshots, and accepted differences in docs/specs or test-results/figma, or add figma-visual-proof: not-required",
-                blocking=False,
+                blocking=True,
             )
         )
     return issues
@@ -149,7 +150,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     print("[figma-visual-evidence] Issues found:", file=sys.stderr)
     for issue in issues[:40]:
-        print(f"  - WARN {issue.path}:{issue.line}: {issue.message}", file=sys.stderr)
+        level = "BLOCK" if issue.blocking else "WARN"
+        print(f"  - {level} {issue.path}:{issue.line}: {issue.message}", file=sys.stderr)
     if len(issues) > 40:
         print(f"  - ... {len(issues) - 40} more issue(s)", file=sys.stderr)
     return 1

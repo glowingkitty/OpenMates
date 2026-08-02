@@ -368,7 +368,11 @@ def main() -> int:
         added_lines=added_lines_with_numbers,
         evidence_paths=[REPO_ROOT / path for path in staged_files],
     ):
-        warnings.append(f"figma visual evidence: {issue.path}:{issue.line}: {issue.message}")
+        label = f"figma visual evidence: {issue.path}:{issue.line}: {issue.message}"
+        if issue.blocking:
+            blocks.append(label)
+        else:
+            warnings.append(label)
 
     for issue in audit_app_provider_contracts.audit_paths(_paths_matching(staged_files, APP_PROVIDER_PATH_RE)):
         blocks.append(f"app/provider contract: {issue.path}: {issue.message}")

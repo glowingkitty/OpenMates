@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,27 @@ RED_EVIDENCE_STATUSES = {
 }
 FINAL_ACCEPTED_STATUSES = {"passed", "passed_after_deploy", "user_confirmed", "waived", "blocked"}
 EVIDENCE_REASON_STATUSES = {"missing_test", "skipped_with_reason", "waived", "blocked"}
+UI_VISUAL_SMOKE_IDS = {"V-UI-VISUAL-SMOKE", "V-FIRECRAWL-VISUAL-SMOKE"}
+UI_VISUAL_SMOKE_REQUIRED_VIEWPORTS = {"laptop", "mobile"}
+VISUAL_SMOKE_REVIEW_RE = re.compile(r"\bscreenshot\w*\b.*\breview\w*\b|\breview\w*\b.*\bscreenshot\w*\b", re.IGNORECASE | re.DOTALL)
+VISUAL_SMOKE_DEFECTS_RE = re.compile(r"\b(defects?|issues?|findings?)\s*:", re.IGNORECASE)
+VISUAL_SMOKE_ACCEPTED_DIFF_RE = re.compile(r"\baccepted differences?\s*:", re.IGNORECASE)
+
+
+def _normalise_viewports(value: Any) -> set[str]:
+    if isinstance(value, str):
+        return {value.strip().lower()} if value.strip() else set()
+    if isinstance(value, list):
+        return {str(item).strip().lower() for item in value if str(item).strip()}
+    return set()
+
+
+def _visual_smoke_summary_has_review(summary: str) -> bool:
+    return bool(
+        VISUAL_SMOKE_REVIEW_RE.search(summary)
+        and VISUAL_SMOKE_DEFECTS_RE.search(summary)
+        and VISUAL_SMOKE_ACCEPTED_DIFF_RE.search(summary)
+    )
 
 
 def _phase_evidence(test: dict[str, Any], phase: str) -> dict[str, Any] | None:
@@ -92,6 +114,24 @@ def _evidence_contract_failures(
     if not automated:
         if not isinstance(evidence.get("reason"), str) or not evidence["reason"].strip():
             failures.append(f"{record_id}: {phase} manual evidence missing reason")
+        if record_id in UI_VISUAL_SMOKE_IDS and status in PASS_STATUSES:
+            for field in ("command", "run_id", "subject_commit"):
+                if not isinstance(evidence.get(field), str) or not evidence[field].strip():
+                    failures.append(f"{record_id}: {phase} evidence missing {field}")
+            if not any(
+                isinstance(evidence.get(field), str) and evidence[field].strip()
+                or isinstance(evidence.get(field), list) and evidence[field]
+                for field in ("target", "url", "urls", "reviewed_urls")
+            ):
+                failures.append(f"{record_id}: {phase} evidence missing reviewed URL or target")
+            viewports = _normalise_viewports(evidence.get("viewports") or evidence.get("viewport"))
+            if not UI_VISUAL_SMOKE_REQUIRED_VIEWPORTS.issubset(viewports):
+                failures.append(f"{record_id}: {phase} evidence missing laptop and mobile viewports")
+            summary = evidence.get("summary")
+            if not isinstance(summary, str) or not summary.strip():
+                failures.append(f"{record_id}: {phase} evidence missing visual-smoke summary")
+            elif not _visual_smoke_summary_has_review(summary):
+                failures.append(f"{record_id}: {phase} evidence summary missing screenshot review, defects, or accepted differences")
         return failures
 
     for field in ("command", "run_id", "subject_commit"):

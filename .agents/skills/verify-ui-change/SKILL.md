@@ -1,6 +1,6 @@
 ---
 name: verify-ui-change
-description: Deploy a scoped UI or Playwright spec change to dev, wait for Vercel, then dispatch the relevant .spec.ts through the GitHub Actions test control plane.
+description: Deploy a scoped UI or Playwright spec change to dev, wait for Vercel, dispatch the relevant .spec.ts, then run reviewed Playwright visual smoke for larger UI work.
 user-invocable: true
 argument-hint: "<spec-name>.spec.ts [--account N]"
 ---
@@ -67,7 +67,38 @@ integration point only.
 
    If the spec needs a pinned account, include `--account N`.
 
-5. For cross-client work, prefer the parity wrapper after deploy.
+5. For larger user-visible web/UI changes, run a deployed Playwright visual smoke
+   against the affected `app.dev.openmates.org` route(s) after Playwright and
+   before user confirmation or session completion. The helper captures laptop and
+   mobile screenshots and hard-fails console/page/network/layout problems; it
+   intentionally records `blocked` until the screenshots are reviewed:
+   ```bash
+   node frontend/apps/web_app/scripts/visual-smoke.mjs \
+     --url https://app.dev.openmates.org/<route> \
+     --session <SESSION_ID>
+   ```
+
+   Open the generated laptop and mobile PNGs. If objective visual defects appear
+   (clipping, overlap, overflow, hidden controls, broken media, error text, long
+   loading, or unresponsive primary controls), fix, redeploy, rerun Playwright if
+   affected, and rerun visual smoke. If the screenshots are acceptable, record the
+   pass explicitly:
+   ```bash
+   python3 scripts/sessions.py visual-smoke --session <SESSION_ID> \
+     --url https://app.dev.openmates.org/<route> \
+     --viewport laptop \
+     --viewport mobile \
+     --result passed \
+     --method playwright \
+     --run-id test-results/visual-smoke/<run>/summary.json \
+     --summary "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."
+   ```
+
+   Use Firecrawl only as an explicit fallback when Playwright is impractical or
+   blocked; keep calls minimal and record why. Skip only for Tier 0/non-visual
+   work with `--skip-visual-smoke "reason"`.
+
+6. For cross-client work, prefer the parity wrapper after deploy.
    ```bash
    python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
    ```
@@ -81,6 +112,8 @@ integration point only.
 - If Vercel is not Ready, fix the deployment before rerunning browser evidence.
 - If the test fails, use `e2e-test-investigator` or `stabilize-e2e-pattern` for
   root-cause work rather than adding one-off waits.
+- If visual smoke shows objective visual, error, loading, or responsiveness
+  defects, fix them automatically, redeploy, and rerun it before completion.
 
 ## Output
 
@@ -90,6 +123,7 @@ Return a concise verification note:
 Commit: <sha>
 Spec: <name>.spec.ts
 Run: <GitHub Actions run id or test-results run id>
+Visual smoke: <summary path/screenshot paths or skipped reason>
 Result: <passed|failed|blocked>
 Blocker: <only if blocked>
 ```

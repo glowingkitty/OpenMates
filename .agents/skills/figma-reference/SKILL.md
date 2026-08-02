@@ -40,7 +40,9 @@ private design JSON.
    layout matters. Download SVG/image assets only when implementation needs them.
 3. Create or cite a local evidence bundle under `test-results/figma/<slug>/`
    when visual alignment is in scope. Include Figma reference PNGs, rendered web
-   or preview screenshots, and accepted differences in the final evidence.
+   or preview screenshots, and accepted differences in the final evidence. This
+   is blocking when the task claims Figma/design alignment; do not record a pass
+   from node JSON or DOM text alone.
 4. Inspect the current web implementation and its computed rendering before
    deciding what should change.
 5. For Apple UI, treat the rendered web app as the parity source of truth unless

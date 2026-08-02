@@ -54,18 +54,32 @@ order by default:
    browser-specific flow through `python3 scripts/tests.py run --spec
    <name>.spec.ts`. Web specs prove Svelte, TipTap, IndexedDB/localStorage,
    rendering, screenshots, and user interaction behavior.
-5. **User confirmation fifth:** for user-visible web UI or behavior, ask the user
+5. **UI visual smoke fifth:** for larger user-visible web/UI changes, inspect the
+   deployed `app.dev.openmates.org` route with Playwright after Playwright specs
+   in both laptop and mobile viewports. Run
+   `node frontend/apps/web_app/scripts/visual-smoke.mjs --url <url> --session <id>`
+   to capture screenshots and automated hard-failure checks. Then open/review the
+   laptop and mobile screenshots and record a pass only with a summary that states
+   `Defects:` and `Accepted differences:`. Fix, redeploy, and rerun if the review
+   finds objective clipping, overlap, overflow, hidden controls, broken media,
+   console-visible errors, stuck loading states, or unresponsive primary controls.
+   Use Firecrawl only as a recorded fallback when Playwright is impractical or
+   blocked; keep calls minimal and record why.
+6. **User confirmation sixth:** for user-visible web UI or behavior, ask the user
    to confirm the deployed dev web app works and looks correct. A passing
-   `*.spec.ts` is necessary but not sufficient to start Apple parity.
-6. **Apple app last:** after REST/API, CLI, SDK, web, and required user-confirmation
-   evidence are green, run or attempt the Apple app test through
+   `*.spec.ts` plus reviewed UI visual-smoke evidence is necessary but not
+   sufficient to start Apple parity.
+7. **Apple app last:** after REST/API, CLI, SDK, web, required UI visual-smoke,
+   and required user-confirmation evidence are green, run or attempt the Apple app test through
    `scripts/apple_remote.py` when the feature has an Apple counterpart. Use
    `test-ios` for native tests, `build-ios` when no targeted test exists, and
    `cleanup` after simulator verification.
 
 Do not skip directly to Playwright for shared product behavior unless the change
 is clearly browser-only, such as selector changes, layout/screenshot diffs,
-pointer-event overlays, or Svelte-only rendering. Do not mark Apple
+pointer-event overlays, or Svelte-only rendering. Do not skip UI visual smoke for
+larger deployed UI work unless the change is Tier 0/non-visual or a documented
+waiver explains why browser review would add no signal. Do not mark Apple
 `not affected` unless there is no native counterpart. Do not start a later client
 while an earlier phase is unimplemented, untested, or blocked unless the spec or
 session contract records an explicit user-approved waiver or accepted external
@@ -93,7 +107,10 @@ python3 scripts/verify_parity.py --check --no-skips
 The verifier runs static CLI/npm SDK/pip SDK parity first and can record/check
 phase evidence, but it does not replace the required local dev-server CLI and
 SDK proof. GitHub Actions reproduction for CLI/SDK coverage happens only after
-those local checks are green. Web checks still go through `scripts/tests.py`, and
+those local checks are green. Web checks still go through `scripts/tests.py`, UI
+visual smoke is recorded through `scripts/sessions.py visual-smoke` with
+`--method playwright`, both `--viewport laptop` and `--viewport mobile`, screenshot
+artifacts, and a reviewed summary with `Defects:` plus `Accepted differences:`.
 Apple verification goes through `scripts/apple_remote.py`. It writes JSON
 evidence to `test-results/parity/` and never runs local Playwright or Vitest
 directly. It does not replace the required user confirmation gate for
@@ -106,8 +123,8 @@ For chat, AI pipeline, settings-backed chat behavior, app skills, focus modes,
 embeds, memory types, provider-backed behavior, sync, billing, notifications,
 benchmark behavior, or any feature that exists across clients, implementation and
 tests must prove parity in this order: REST API/WebSocket contract first,
-OpenMates CLI second, npm SDK and pip SDK third, web app fourth, user
-confirmation fifth, Apple app last.
+OpenMates CLI second, npm SDK and pip SDK third, web app fourth, UI visual smoke
+fifth for larger UI, user confirmation sixth, Apple app last.
 
 1. **REST/API contract first:** add or run a direct REST/WebSocket test against
    the dev server that exercises the backend/API/WebSocket contract without CLI,
@@ -132,21 +149,29 @@ confirmation fifth, Apple app last.
    behavior, draft/autosave state, settings UI, embeds, rendering, and user
    interactions. If the CLI contract passes but Playwright fails, debug the web
    app path instead of the backend pipeline first.
-5. **User confirmation fifth:** for user-visible web changes, ask the user to
-   confirm the deployed dev web app works and looks correct. Automated specs are
-   not enough to begin Apple parity.
-6. **Apple parity last:** when the product surface has an Apple counterpart,
+5. **UI visual smoke fifth:** for larger user-visible web changes, inspect the
+   deployed route with Playwright in both laptop and mobile viewports, review the
+   screenshots, and record defects plus accepted differences. Use Firecrawl only
+   as a recorded fallback when Playwright is impractical or blocked. Fix,
+   redeploy, and rerun when the smoke finds an objective issue.
+6. **User confirmation sixth:** for user-visible web changes, ask the user to
+   confirm the deployed dev web app works and looks correct. Automated specs and
+   reviewed visual-smoke artifacts are not enough to begin Apple parity.
+7. **Apple parity last:** when the product surface has an Apple counterpart,
    run or attempt the relevant iOS/macOS verification through
-   `scripts/apple_remote.py` after REST/API, CLI, SDK, web, and required user-confirmation
-   evidence are green. Record Mac/Xcode evidence or a sanitized failure class per
+   `scripts/apple_remote.py` after REST/API, CLI, SDK, web, required UI
+   visual-smoke evidence, and required user-confirmation evidence are green.
+   Record Mac/Xcode evidence or a sanitized failure class per
    the Apple App section below.
 
 Do not clone every Playwright spec into a CLI test. Prefer small reusable real
 CLI contract tests for shared invariants such as message send, default-model
 routing, skill invocation, embed resolution, sub-chat behavior, and sync
 lifecycle. SDK tests remain responsible for programmatic parity. Playwright
-remains responsible for browser UI and local web state; user confirmation remains
-responsible for deployed web feel and visual correctness; Apple tests remain
+remains responsible for browser UI and local web state; UI visual smoke remains
+responsible for obvious deployed laptop/mobile rendering, implementation error
+text, loading/spinner stalls, and basic responsiveness issues; user confirmation remains
+responsible for subjective deployed web feel and visual correctness; Apple tests remain
 responsible for native UI parity.
 
 When fixing a failing chat-related Playwright spec, first check whether a
@@ -348,10 +373,10 @@ Progress tracked in `test-results/progress.txt`.
 
 ### Debug Workflow (When a Spec Fails)
 
-1. Reproduce in Firecrawl browser — walk through user flow manually
+1. Reproduce with Playwright/browser evidence; use Firecrawl only as fallback
 2. Identify root cause (selector changed, timing, backend change, env issue)
 3. Fix app code or spec file
-4. Verify fix in Firecrawl first
+4. Verify fix with Playwright visual smoke first
 5. Re-run: `./scripts/run-tests-sequential.sh --spec <name>`
 6. Continue: `./scripts/run-tests-sequential.sh --next`
 
