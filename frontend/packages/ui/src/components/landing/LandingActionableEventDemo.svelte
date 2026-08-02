@@ -187,6 +187,11 @@
     font-weight: 700;
   }
 
+  .landing-actionable-message-stage :global(.chat-message-text) {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
   .landing-actionable-message-stage :global(.chat-mate-name) {
     margin-bottom: 3px;
     font-size: 0.68rem;
