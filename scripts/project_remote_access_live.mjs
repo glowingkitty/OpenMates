@@ -106,7 +106,7 @@ async function createFixture(client) {
   await client.createProjectSource(projectId, {
     source_id: sourceId,
     source_type: "local_folder",
-    encrypted_display_name: await encryptWithAesGcmCombined("Live verification source", projectKey),
+    encrypted_display_name: await encryptWithAesGcmCombined("Live remote source", projectKey),
     encrypted_metadata: await encryptWithAesGcmCombined("{}", projectKey),
     capabilities: ["read", "search", "import"],
     status: "offline",
