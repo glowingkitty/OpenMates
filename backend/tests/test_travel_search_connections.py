@@ -847,6 +847,24 @@ async def test_transfer_amenity_enrichment_uses_travel_timeout(
 
 
 @pytest.mark.anyio
+async def test_transfer_amenity_summary_skips_provider_without_coordinates() -> None:
+    class FailingGeoapifyProvider:
+        async def search_places(self, **_kwargs: Any) -> Any:
+            raise AssertionError("Geoapify should not be called without coordinates")
+
+    amenities = await make_skill()._transfer_amenity_summary(
+        FailingGeoapifyProvider(),
+        cache_service=None,
+        station="Schwerin Süd",
+        latitude=None,
+        longitude=None,
+    )
+
+    assert amenities["status"] == "missing_coordinates"
+    assert amenities["groups"]["food_drink"]["status"] == "missing_coordinates"
+
+
+@pytest.mark.anyio
 async def test_transitous_provider_maps_plan_to_timetable_only_connection(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.apps.travel.providers.transitous_provider import TransitousProvider
 

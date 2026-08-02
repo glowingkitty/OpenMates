@@ -1146,8 +1146,11 @@ class SearchConnectionsSkill(BaseSkill):
             cached["cache_hit"] = True
             return cached
 
-        groups: Dict[str, Any] = {}
         geo_filter = self._geoapify_circle_filter(latitude, longitude)
+        if not geo_filter:
+            return self._transfer_amenity_status_summary("missing_coordinates")
+
+        groups: Dict[str, Any] = {}
         for group_id, group in TRANSFER_AMENITY_GROUPS.items():
             search_result = await provider.search_places(
                 query=station,
@@ -1184,6 +1187,24 @@ class SearchConnectionsSkill(BaseSkill):
         }
         await self._cache_set(cache_service, cache_key, summary, TRANSFER_AMENITY_CACHE_TTL_SECONDS)
         return summary
+
+    @staticmethod
+    def _transfer_amenity_status_summary(status: str) -> Dict[str, Any]:
+        return {
+            "provider": "Geoapify",
+            "data_source": GEOAPIFY_SOURCE_LABEL,
+            "status": status,
+            "cache_hit": False,
+            "groups": {
+                group_id: {
+                    "label": group["label"],
+                    "status": status,
+                    "count": 0,
+                    "items": [],
+                }
+                for group_id, group in TRANSFER_AMENITY_GROUPS.items()
+            },
+        }
 
     @staticmethod
     def _geoapify_place_label(place: Dict[str, Any]) -> str:
