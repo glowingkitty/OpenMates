@@ -3502,6 +3502,7 @@
       width: min(100%, 560px);
       height: 100%;
       max-height: none;
+      min-height: 0;
       margin: 0 auto;
     }
 

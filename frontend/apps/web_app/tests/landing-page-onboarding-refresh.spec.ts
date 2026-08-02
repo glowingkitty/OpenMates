@@ -425,6 +425,7 @@ async function mobileActionableSlideState(page: any): Promise<{
 	headlineBottom: number;
 	demoOpacity: number;
 	demoTop: number;
+	demoBottom: number;
 	demoHeight: number;
 	demoBackground: string;
 	demoBorderWidth: string;
@@ -459,6 +460,7 @@ async function mobileActionableSlideState(page: any): Promise<{
 			headlineBottom: headlineRect.bottom,
 			demoOpacity: Number.parseFloat(getComputedStyle(demo).opacity),
 			demoTop: demoRect.top,
+			demoBottom: demoRect.bottom,
 			demoHeight: demoRect.height,
 			demoBackground: demoStyle.backgroundColor,
 			demoBorderWidth: demoStyle.borderTopWidth,
@@ -786,6 +788,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(compactActionable.headlineOpacity, 'compact headline should stay visibly present instead of fading away').toBeGreaterThanOrEqual(0.88);
 		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
 		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
+		expect(compactActionable.demoBottom, 'demo must fit inside the banner instead of being clipped by it').toBeLessThanOrEqual(compactActionable.bannerBottom);
 		expect(compactActionable.demoHeight, 'demo should keep useful vertical space').toBeGreaterThanOrEqual(80);
 		expect(compactActionable.reportButtonTop, 'report issue button should sit below the mobile banner, not behind it').toBeGreaterThanOrEqual(compactActionable.bannerBottom + 4);
 		expect(compactActionable.demoBackground, 'actionable demo should be transparent inside the gradient banner').toBe('rgba(0, 0, 0, 0)');
