@@ -298,6 +298,55 @@ async function landingIntroRailMotionMetrics(page: any): Promise<{
 	throw new Error('Landing intro request changed during rail motion sampling');
 }
 
+async function landingIntroRailSwitchMotionMetrics(page: any): Promise<{
+	requestBefore: string;
+	requestAfter: string;
+	primaryRailStable: boolean;
+	primaryDeltaX: number;
+	secondaryDeltaX: number;
+}> {
+	return page.evaluate(async ({ sampleMs, timeoutMs }: { sampleMs: number; timeoutMs: number }) => {
+		const request = document.querySelector<HTMLElement>('[data-testid="landing-intro-request"]');
+		const rails = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-rail"]'));
+		const primaryRail = rails[0];
+		const secondaryRail = rails[1];
+		if (!request || !primaryRail || !secondaryRail) {
+			throw new Error('Landing intro rail switch elements missing');
+		}
+
+		const requestBefore = request.textContent?.trim() || '';
+		const deadline = performance.now() + timeoutMs;
+		await new Promise<void>((resolve, reject) => {
+			const waitForSwitch = () => {
+				const currentRequest = request.textContent?.trim() || '';
+				if (currentRequest && currentRequest !== requestBefore) {
+					resolve();
+					return;
+				}
+				if (performance.now() >= deadline) {
+					reject(new Error('Landing intro request did not switch before timeout'));
+					return;
+				}
+				requestAnimationFrame(waitForSwitch);
+			};
+			requestAnimationFrame(waitForSwitch);
+		});
+
+		const primaryStart = primaryRail.getBoundingClientRect().left;
+		const secondaryStart = secondaryRail.getBoundingClientRect().left;
+		await new Promise<void>((resolve) => window.setTimeout(resolve, sampleMs));
+		const currentRails = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-rail"]'));
+
+		return {
+			requestBefore,
+			requestAfter: request.textContent?.trim() || '',
+			primaryRailStable: currentRails[0] === primaryRail,
+			primaryDeltaX: primaryRail.getBoundingClientRect().left - primaryStart,
+			secondaryDeltaX: secondaryRail.getBoundingClientRect().left - secondaryStart
+		};
+	}, { sampleMs: LANDING_INTRO_RAIL_MOTION_SAMPLE_MS, timeoutMs: 4000 });
+}
+
 async function landingIntroOverlayMetrics(page: any): Promise<{
 	phase: string | null;
 	activeHeight: number;
@@ -552,6 +601,22 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.primaryDeltaX, 'primary rail should keep moving right-to-left').toBeLessThan(-1);
 		expect(metrics.secondaryDeltaX, 'secondary rail should keep moving left-to-right').toBeGreaterThan(1);
 		expect(Math.abs(metrics.primaryDeltaX), 'primary rail should move slower than secondary').toBeLessThan(Math.abs(metrics.secondaryDeltaX));
+	});
+
+	test('expanded intro top app rail stays continuous when the highlighted app switches', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.goto(getE2EDebugUrl('/?landing-rail-switch-motion'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+
+		const metrics = await landingIntroRailSwitchMotionMetrics(page);
+		expect(metrics.requestAfter, 'request should advance to the next app').not.toBe(metrics.requestBefore);
+		expect(metrics.primaryRailStable, 'app switch should preserve the same top rail node').toBe(true);
+		expect(metrics.primaryDeltaX, 'top rail should keep moving right-to-left through the app switch').toBeLessThan(-1);
+		expect(metrics.secondaryDeltaX, 'bottom rail should keep moving left-to-right through the app switch').toBeGreaterThan(1);
+		expect(Math.abs(metrics.primaryDeltaX), 'top rail should not accelerate past the bottom rail during the app switch').toBeLessThanOrEqual(Math.abs(metrics.secondaryDeltaX));
 	});
 
 	test('expanded intro overlays active chat content and reverses when returning to slide one', async ({ page }: { page: any }) => {
