@@ -733,6 +733,17 @@ def _normalize_session_state_paths(data: dict) -> None:
             normalized_leases[normalized] = lease
     data["edit_leases"] = normalized_leases
 
+    active_queue: list[dict] = []
+    for item in data.setdefault("deploy_queue", []):
+        if not isinstance(item, dict) or item.get("status") != "blocked":
+            active_queue.append(item)
+            continue
+        session = sessions.get(item.get("session_id"))
+        worktree = session.get("worktree") if isinstance(session, dict) else None
+        if session is not None and (not isinstance(worktree, dict) or worktree.get("status") != "merged"):
+            active_queue.append(item)
+    data["deploy_queue"] = active_queue
+
 
 def _resolve_session_id(data: dict, *, session_id: str = "", opencode_session_id: str = "") -> str:
     """Resolve a short sessions.py id from either explicit or OpenCode identity."""

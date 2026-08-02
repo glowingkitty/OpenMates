@@ -149,6 +149,29 @@ def test_pending_worktree_commit_accepts_matching_rebased_head(monkeypatch, tmp_
     assert sessions._pending_worktree_push_commit("abcd", "patch123", ["scripts/sessions.py"], []) == ""
 
 
+def test_session_state_removes_orphaned_and_merged_blocked_deploys():
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "active": {"worktree": {"status": "active"}},
+            "merged": {"worktree": {"status": "merged"}},
+        },
+        "deploy_queue": [
+            {"session_id": "missing", "status": "blocked"},
+            {"session_id": "merged", "status": "blocked"},
+            {"session_id": "active", "status": "blocked"},
+            {"session_id": "missing", "status": "resolved"},
+        ],
+    }
+
+    sessions._normalize_session_state_paths(data)
+
+    assert data["deploy_queue"] == [
+        {"session_id": "active", "status": "blocked"},
+        {"session_id": "missing", "status": "resolved"},
+    ]
+
+
 def test_worktree_retry_blocks_root_drift_and_refreshes_safe_amendment(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
