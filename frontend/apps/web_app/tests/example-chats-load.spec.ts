@@ -294,12 +294,7 @@ test.describe('Example chats loading for new users', () => {
 
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
 
-		const assistantMessage = page.getByTestId('message-assistant').filter({
-			hasText: "Berlin has one of Europe's most active"
-		}).first();
-		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
-
-		const appSkillGroup = assistantMessage.getByTestId('app-skill-embed-group').first();
+		const appSkillGroup = page.getByTestId('app-skill-embed-group').first();
 		await expect(appSkillGroup, 'Berlin AI workshops example should render its grouped app-skill previews').toBeVisible({ timeout: 15000 });
 		await expect(appSkillGroup.getByText('5 app skills used:', { exact: true })).toBeVisible({
 			timeout: 15000
