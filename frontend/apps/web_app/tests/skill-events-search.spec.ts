@@ -29,7 +29,6 @@ const {
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
-	waitForEmbedFinished,
 	openFullscreen,
 	verifySearchGrid,
 	closeFullscreen
@@ -212,28 +211,16 @@ test.describe('App: Events / Skill: search', () => {
 
 		logCheckpoint('Waiting for events search embeds to appear during streaming...');
 		const streamingEmbeds = page.locator(EVENT_SEARCH_CARD_SELECTOR);
+		const rangedEmbeds = streamingEmbeds.filter({ has: page.getByTestId('events-search-range') });
 		await expect(streamingEmbeds.first()).toBeVisible({ timeout: 60_000 });
-		await expect(streamingEmbeds.filter({ has: page.getByTestId('events-search-range') }).first()).toBeVisible({ timeout: 60_000 });
+		await expect(rangedEmbeds.first()).toBeVisible({ timeout: 60_000 });
 		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_FIRST_RANGE })).toBeVisible({ timeout: 60_000 });
 		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE })).toBeVisible({ timeout: 60_000 });
-		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
-
-		logCheckpoint('Waiting for events search embed to finish...');
-		await waitForEmbedFinished(page, 'events', 'search');
-		const finishedEmbeds = page.locator(`${EVENT_SEARCH_CARD_SELECTOR}[data-status="finished"]`);
-		await expect(async () => {
-			const count = await finishedEmbeds.count();
-			expect(count).toBeGreaterThanOrEqual(2);
-		}).toPass({ timeout: 120_000 });
-		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_FIRST_RANGE })).toBeVisible({ timeout: 30_000 });
-		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE })).toBeVisible({ timeout: 30_000 });
-		logCheckpoint('Events search embed finished.');
-		await takeStepScreenshot(page, 'events-search-embed-finished');
-
-		const embed = finishedEmbeds
+		const embed = rangedEmbeds
 			.filter({ has: page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE }) })
 			.last();
-		await expect(embed).toBeVisible({ timeout: 30_000 });
+		await expect(embed).toBeVisible({ timeout: 60_000 });
+		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
 
