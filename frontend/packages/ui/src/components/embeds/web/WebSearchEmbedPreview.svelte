@@ -323,8 +323,11 @@
   );
   
   // Get remaining results count (total flat results minus displayed favicons)
+  let knownParentResultCount = $derived(
+    typeof resultCountProp === 'number' && resultCountProp > 0 ? resultCountProp : 0
+  );
   let remainingCount = $derived(
-    Math.max(0, (flatResults?.length || 0) - faviconResults.length)
+    Math.max(0, (knownParentResultCount || flatResults?.length || 0) - faviconResults.length)
   );
 
   let resultState = $derived(getParentPreviewResultState({
@@ -420,6 +423,10 @@
             <!-- Search completed and the parent explicitly says there were zero results. -->
             <span class="no-results-text" data-testid="search-no-results-message">
               {$text('embeds.search_no_results')}
+            </span>
+          {:else if resultState === 'missing_preview_metadata' && knownParentResultCount > 0}
+            <span class="remaining-count">
+              {$text('embeds.more_results').replace('{count}', String(knownParentResultCount))}
             </span>
           {:else if resultState === 'missing_preview_metadata'}
             <span class="no-results-text" data-testid="search-preview-metadata-missing-message">
