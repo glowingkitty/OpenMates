@@ -104,7 +104,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d71ced874560dd403758b177e1957299974daa77
+  subject_commit: 25741dd50f1bb018e615a695fd8608b504ba0499
 
 approvals:
   product_contract:
@@ -206,10 +206,22 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-02T00:04:55Z"
     evidence: "Both Firecrawl screenshot requests for `https://app.dev.openmates.org/dev/preview/embeds/travel` failed before inspection with `Insufficient credits to perform this request`; `sessions.py visual-smoke` recorded a blocked smoke for session 833f and commit d71ced8."
+  - id: ATTEMPT-11
+    task_id: TASK-4
+    approach: Investigate why the live Berlin-Hamburg regional route had no optimized candidates despite DB returning Holthusen/Stendal/Uelzen transfer patterns.
+    outcome: succeeded
+    recorded_at: "2026-08-02T12:45:00Z"
+    evidence: "Live API-container train-run probe reproduced HTTP 422 for raw `/mob/zuglauf/{zuglaufId}` requests because DB train-run IDs include reserved characters (`#`, spaces, `|`). Commit `e922840` percent-encodes the path segment before lookup, allowing overlap discovery to see Schwerin Süd/Holthusen/Stendal options."
+  - id: ATTEMPT-12
+    task_id: TASK-4
+    approach: Fix transfer-amenity false outages for live Berlin-Hamburg regional transfer stations and verify REST, CLI, npm SDK, and pip SDK after restarting the dev API.
+    outcome: succeeded
+    recorded_at: "2026-08-02T12:45:00Z"
+    evidence: "Commits `e922840` and `25741dd` deployed backend fixes. `python3 scripts/smoke_travel_transfer_quality.py --create-api-key-from-cli-session --min-transfer-minutes 15 --json` passed with 7 results, 9 layovers, 9 amenity layovers, and `optimized_count: 2`. Direct CLI showed two `Optimized by OpenMates` Holthusen -> Schwerin Süd candidates, Stendal Hbf food/drink matched count 4, Uelzen food/drink matched count 3, Holthusen no_match, and Schwerin Süd `missing_coordinates` instead of an invalid Geoapify outage. npm and pip SDK smokes passed with the same result counts."
 
 handoff:
   current_task_id: TASK-6
-  next_action: Resolve the Firecrawl credit blocker or use an approved alternate visual-smoke path, then request user confirmation and run Apple parity verification.
+  next_action: Resolve the prior Firecrawl credit blocker or use an approved alternate visual-smoke path, then request user confirmation and run Apple parity verification.
   command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
   expected_outcome: Apple build or targeted travel embed parity check succeeds after web/user approval.
   blocker:
@@ -218,7 +230,7 @@ handoff:
     reason: Firecrawl returned insufficient credits for required laptop/mobile visual smoke; user confirmation is also required before Apple parity.
     question: Refill/authorize Firecrawl credits or approve skipping/replacing the Firecrawl visual-smoke gate, then confirm the deployed web behavior on dev.
     next_action: Retry Firecrawl visual smoke for https://app.dev.openmates.org/dev/preview/embeds/travel in laptop and mobile viewports.
-  last_verified_commit: d71ced874560dd403758b177e1957299974daa77
+  last_verified_commit: 25741dd50f1bb018e615a695fd8608b504ba0499
 
 scenarios:
   - id: S-1
