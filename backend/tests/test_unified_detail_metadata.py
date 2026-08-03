@@ -383,18 +383,22 @@ def test_chat_title_and_summary_mutations_are_owner_only(
     monkeypatch,
     mutation: dict[str, str],
 ) -> None:
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    persistence_calls: list[str] = []
+
+    async def persist_metadata(chat_id: str, *args, **kwargs) -> None:
+        persistence_calls.append(chat_id)
+
     monkeypatch.setattr(
-        encrypted_chat_metadata_handler.celery_app,
-        "send_task",
-        lambda name, args=None, queue=None: queued_tasks.append((name, args or [], queue)),
+        encrypted_chat_metadata_handler,
+        "_async_persist_encrypted_chat_metadata",
+        persist_metadata,
     )
 
     manager = asyncio.run(
         send_chat_metadata(chat_metadata_payload(**mutation), is_owner=False)
     )
 
-    assert queued_tasks == []
+    assert persistence_calls == []
     assert manager.broadcasts == []
     assert manager.personal_messages[0][0]["type"] == "error"
 
@@ -425,29 +429,36 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
     mutation: dict[str, str],
     expected_title_v: int,
 ) -> None:
-    queued_tasks: list[tuple[str, list, str | None, int | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
 
-    def queue_task(
-        name: str,
-        args=None,
-        queue: str | None = None,
-        priority: int | None = None,
-    ):
-        queued_tasks.append((name, args or [], queue, priority))
-        return SimpleNamespace(id="task-1")
+    async def persist_metadata(
+        chat_id: str,
+        metadata: dict,
+        task_id: str,
+        hashed_user_id: str | None = None,
+        user_id: str | None = None,
+    ) -> None:
+        persistence_calls.append(
+            (chat_id, metadata, task_id, hashed_user_id, user_id)
+        )
 
-    monkeypatch.setattr(encrypted_chat_metadata_handler.celery_app, "send_task", queue_task)
+    monkeypatch.setattr(
+        encrypted_chat_metadata_handler,
+        "_async_persist_encrypted_chat_metadata",
+        persist_metadata,
+        raising=False,
+    )
 
     manager = asyncio.run(
         send_chat_metadata(chat_metadata_payload(**mutation), is_owner=True)
     )
 
-    assert len(queued_tasks) == 1
-    task_name, task_args, queue, priority = queued_tasks[0]
-    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
-    assert queue == "persistence"
-    assert priority == 0
-    persisted = task_args[1]
+    assert len(persistence_calls) == 1
+    chat_id, persisted, task_id, hashed_user_id, user_id = persistence_calls[0]
+    assert chat_id == "chat-1"
+    assert task_id == "websocket-direct"
+    assert hashed_user_id == "owner-hash"
+    assert user_id == "owner-1"
     assert persisted["metadata_v"] == 5
     assert persisted["title_v"] == expected_title_v
     assert persisted["messages_v"] == 12

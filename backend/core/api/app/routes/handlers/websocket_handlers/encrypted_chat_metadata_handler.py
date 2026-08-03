@@ -10,10 +10,11 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.persistence_tasks import (
+    _async_persist_encrypted_chat_metadata,
+)
 
 logger = logging.getLogger(__name__)
-
-CHAT_METADATA_PERSISTENCE_PRIORITY = 0
 
 
 def _effective_metadata_version(metadata: Dict[str, Any]) -> int:
@@ -469,16 +470,16 @@ async def handle_encrypted_chat_metadata(
                 chat_update_fields["last_edited_overall_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
                 chat_update_fields["last_message_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
             
-                # Send task to update/create chat metadata
-                # Pass hashed_user_id so the task can create the chat if it doesn't exist
-                # CRITICAL: Pass user_id (not hashed) for cache updates
-                celery_app.send_task(
-                    "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-                    args=[chat_id, chat_update_fields, user_id_hash, user_id],  # Added user_id for cache updates
-                    queue="persistence",
-                    priority=CHAT_METADATA_PERSISTENCE_PRIORITY,
+                # The stored confirmation is a durability boundary used by logout
+                # and cross-device sync, so persist before acknowledging the client.
+                await _async_persist_encrypted_chat_metadata(
+                    chat_id,
+                    chat_update_fields,
+                    "websocket-direct",
+                    user_id_hash,
+                    user_id,
                 )
-                logger.info(f"Queued encrypted chat metadata update task for chat {chat_id}")
+                logger.info(f"Persisted encrypted chat metadata for chat {chat_id}")
 
             # Send message confirmation to client after successful storage
             if message_id:
