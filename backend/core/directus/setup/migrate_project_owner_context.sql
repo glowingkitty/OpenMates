@@ -60,6 +60,30 @@ SET hashed_user_id = parent.hashed_user_id,
 FROM public.projects AS parent
 WHERE child.hashed_project_id = encode(digest(parent.project_id, 'sha256'), 'hex');
 
+UPDATE public.project_folders
+SET created_by_user_hash = hashed_user_id
+WHERE created_by_user_hash IS NULL
+  AND hashed_team_id IS NULL
+  AND hashed_user_id IS NOT NULL;
+
+UPDATE public.project_items
+SET attached_by_user_hash = hashed_user_id
+WHERE attached_by_user_hash IS NULL
+  AND hashed_team_id IS NULL
+  AND hashed_user_id IS NOT NULL;
+
+UPDATE public.project_sources
+SET attached_by_user_hash = hashed_user_id
+WHERE attached_by_user_hash IS NULL
+  AND hashed_team_id IS NULL
+  AND hashed_user_id IS NOT NULL;
+
+UPDATE public.project_settings
+SET updated_by_user_hash = hashed_user_id
+WHERE updated_by_user_hash IS NULL
+  AND hashed_team_id IS NULL
+  AND hashed_user_id IS NOT NULL;
+
 UPDATE public.projects SET hashed_user_id = NULL WHERE hashed_team_id IS NOT NULL;
 UPDATE public.project_folders SET hashed_user_id = NULL WHERE hashed_team_id IS NOT NULL;
 UPDATE public.project_items SET hashed_user_id = NULL WHERE hashed_team_id IS NOT NULL;

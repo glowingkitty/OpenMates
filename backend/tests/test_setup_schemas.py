@@ -351,6 +351,33 @@ def test_project_owner_context_migration_executes_and_verifies_all_indexes(
     assert executed[1][1] == (list(setup_schemas.PROJECT_OWNER_CONTEXT_INDEXES),)
 
 
+def test_project_owner_context_migration_backfills_orphaned_personal_child_actors() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[1]
+        / "core/directus/setup/migrate_project_owner_context.sql"
+    )
+    sql = migration_path.read_text(encoding="utf-8")
+    child_actor_fields = {
+        "project_folders": "created_by_user_hash",
+        "project_items": "attached_by_user_hash",
+        "project_sources": "attached_by_user_hash",
+        "project_settings": "updated_by_user_hash",
+    }
+
+    for table, actor_field in child_actor_fields.items():
+        personal_backfill = f"""UPDATE public.{table}
+SET {actor_field} = hashed_user_id
+WHERE {actor_field} IS NULL
+  AND hashed_team_id IS NULL
+  AND hashed_user_id IS NOT NULL;"""
+        not_null_constraint = (
+            f"ALTER TABLE public.{table} ALTER COLUMN {actor_field} SET NOT NULL;"
+        )
+
+        assert personal_backfill in sql
+        assert sql.index(personal_backfill) < sql.index(not_null_constraint)
+
+
 def test_usage_summary_unique_indexes_are_required() -> None:
     setup_schemas = load_setup_schemas_module()
 
