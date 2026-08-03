@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { classifyProjectFileRisk } from "../src/projectFileRisk.ts";
 import {
   listRemoteAccessSources,
+  projectRemoteAccessCryptoIdentity,
   discoverRemoteAccessRepositories,
   listRemoteAccessDirectory,
   projectRemoteAccessLifecyclePayload,
@@ -32,6 +33,73 @@ import {
 } from "../src/remoteAccess.ts";
 
 describe("Project remote-access bridge primitives", () => {
+  it("uses the authenticated owner for Personal frames even with stray Team routing identity", () => {
+    const frame = {
+      project_id: "project-1",
+      source_id: "source-1",
+      requesting_client_id: "requester-client",
+      key_epoch: 1,
+      routing_identity: {
+        context_type: "team",
+        context_id_hash: "stray-team-hash",
+        host_member_hash: "stray-host",
+        host_device_fingerprint_hash: "stray-host-device",
+        requester_member_hash: "stray-requester",
+        requester_device_fingerprint_hash: "stray-requester-device",
+      },
+    };
+
+    assert.deepEqual(
+      projectRemoteAccessCryptoIdentity("owner-1", "session-1", {}, frame as never),
+      {
+        ownerId: "owner-1",
+        projectId: "project-1",
+        sourceId: "source-1",
+        sourceSessionId: "session-1",
+        requestingClientId: "requester-client",
+        keyEpoch: 1,
+      },
+    );
+  });
+
+  it("uses scoped routing identity for Team v2 frames", () => {
+    const routingIdentity = {
+      context_type: "team",
+      context_id_hash: "team-hash",
+      host_member_hash: "host-hash",
+      host_device_fingerprint_hash: "host-device-hash",
+      requester_member_hash: "requester-hash",
+      requester_device_fingerprint_hash: "requester-device-hash",
+    };
+    const identity = projectRemoteAccessCryptoIdentity(
+      "owner-1",
+      "session-1",
+      { teamId: "team-1" },
+      {
+        project_id: "project-1",
+        source_id: "source-1",
+        requesting_client_id: "requester-client",
+        key_epoch: 2,
+        routing_identity: routingIdentity,
+      } as never,
+    );
+
+    assert.deepEqual(identity, {
+      ownerId: "team-hash",
+      contextType: "team",
+      contextId: "team-hash",
+      hostMemberId: "host-hash",
+      hostDeviceId: "host-device-hash",
+      requesterMemberId: "requester-hash",
+      requesterDeviceId: "requester-device-hash",
+      projectId: "project-1",
+      sourceId: "source-1",
+      sourceSessionId: "session-1",
+      requestingClientId: "requester-client",
+      keyEpoch: 2,
+    });
+  });
+
   it("includes Team context on every source lifecycle message", () => {
     const bindings = [{
       source: { sourceId: "source-1", projectId: "project-1" },

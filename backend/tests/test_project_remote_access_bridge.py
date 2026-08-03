@@ -610,6 +610,36 @@ async def test_personal_and_team_contexts_are_independent_and_bind_both_peer_ide
 
 
 @pytest.mark.anyio
+async def test_personal_request_frame_omits_team_routing_identity() -> None:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    await service.register_session(
+        user_id="owner-1",
+        team_id=None,
+        device_fingerprint_hash="personal-device",
+        source_session_id="personal-session",
+        bindings=[binding()],
+        confirmed_takeover=False,
+        now=8_100,
+    )
+
+    created = await service.create_request(
+        user_id="owner-1",
+        project_id="project-1",
+        source_id="source-1",
+        request_id="personal-request",
+        requesting_client_id="request-client",
+        operation="list",
+        key_epoch=1,
+        encrypted_envelope="opaque-personal-request",
+        now=8_101,
+    )
+
+    assert "routing_identity" not in created
+    assert "routing_identity" not in cache.published[-1][1]["payload"]
+
+
+@pytest.mark.anyio
 async def test_team_offboarding_revokes_host_sessions_and_pending_work() -> None:
     cache = MemoryCache()
     service = ProjectRemoteAccessService(cache)

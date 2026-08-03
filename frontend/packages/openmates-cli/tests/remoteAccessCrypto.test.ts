@@ -23,6 +23,7 @@ import {
   createProjectRemoteAccessHandshake,
   deriveProjectRemoteAccessSessionKey,
 } from "../../ui/src/services/projectRemoteAccessCrypto.ts";
+import { projectRemoteAccessCryptoIdentity } from "../src/remoteAccess.ts";
 
 
 const identity: RemoteAccessCryptoIdentity = {
@@ -46,6 +47,42 @@ const teamIdentity: RemoteAccessCryptoIdentity = {
 
 
 describe("remote-access envelope encryption", () => {
+  it("keeps Personal v1 host and requester keys aligned despite stray routing identity", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requesterIdentity = { ...identity };
+    const hostIdentity = projectRemoteAccessCryptoIdentity(
+      identity.ownerId,
+      identity.sourceSessionId,
+      {},
+      {
+        project_id: identity.projectId,
+        source_id: identity.sourceId,
+        requesting_client_id: identity.requestingClientId,
+        key_epoch: identity.keyEpoch,
+        routing_identity: {
+          context_type: "team",
+          context_id_hash: "stray-team-hash",
+          host_member_hash: "stray-host",
+          host_device_fingerprint_hash: "stray-host-device",
+          requester_member_hash: "stray-requester",
+          requester_device_fingerprint_hash: "stray-requester-device",
+        },
+      } as never,
+    );
+    const requester = await createRemoteAccessHandshake(projectKey, requesterIdentity, "requester");
+    const source = await createRemoteAccessHandshake(projectKey, hostIdentity, "source");
+    const requesterKey = await deriveRemoteAccessSessionKey(
+      projectKey, requesterIdentity, "requester", requester.privateKey, requester.handshake, source.handshake,
+    );
+    const sourceKey = await deriveRemoteAccessSessionKey(
+      projectKey, hostIdentity, "source", source.privateKey, source.handshake, requester.handshake,
+    );
+
+    assert.equal(requester.handshake.version, 1);
+    assert.deepEqual(hostIdentity, requesterIdentity);
+    assert.deepEqual(requesterKey, sourceKey);
+  });
+
   it("derives the same session key from authenticated CLI and requester handshakes", async () => {
     const projectKey = crypto.getRandomValues(new Uint8Array(32));
     const requester = await createRemoteAccessHandshake(projectKey, identity, "requester");

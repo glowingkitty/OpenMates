@@ -678,23 +678,25 @@ class ProjectRemoteAccessService:
             )
 
     async def _publish_request(self, request: dict[str, Any]) -> None:
+        payload: dict[str, Any] = {
+            "request_id": request["request_id"],
+            "project_id": request["project_id"],
+            "source_id": request["source_id"],
+            "source_session_id": request["source_session_id"],
+            "requesting_client_id": request["requesting_client_id"],
+            "operation": request["operation"],
+            "key_epoch": request["key_epoch"],
+            "encrypted_envelope": request["encrypted_envelope"],
+        }
+        if request["context_type"] == "team":
+            payload["routing_identity"] = self._routing_identity(request)
         published = await self.cache.publish_event(
             f"user_updates::{request['host_member_hash']}",
             {
                 "event_for_client": "project_remote_access_request",
                 "user_id_uuid": request["host_user_id"],
                 "target_device_fingerprint_hash": request["device_fingerprint_hash"],
-                "payload": {
-                    "request_id": request["request_id"],
-                    "project_id": request["project_id"],
-                    "source_id": request["source_id"],
-                    "source_session_id": request["source_session_id"],
-                    "requesting_client_id": request["requesting_client_id"],
-                    "operation": request["operation"],
-                    "key_epoch": request["key_epoch"],
-                    "encrypted_envelope": request["encrypted_envelope"],
-                    "routing_identity": self._routing_identity(request),
-                },
+                "payload": payload,
             },
         )
         if not published:

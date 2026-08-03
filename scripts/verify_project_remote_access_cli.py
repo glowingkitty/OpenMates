@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import select
 import signal
 import subprocess
@@ -39,6 +40,7 @@ EXPECTED_MATCH_PATH = "src/remote-demo.ts"
 EXPECTED_READ_MARKER = "OpenMates live remote preview"
 SOURCE_EVENT_TIMEOUT_SECONDS = 30
 CHILD_STOP_TIMEOUT_SECONDS = 30
+STABLE_ERROR_CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 
 def unavailable_account_probes() -> list[dict[str, str]]:
@@ -69,19 +71,15 @@ def _run_cli(
         timeout=60,
         check=False,
     )
+    error_code = _stable_error_code(result.stderr)
     if expected_error:
         if result.returncode == 0:
             raise RuntimeError("Requester CLI unexpectedly accepted a denied operation")
-        try:
-            payload = json.loads(result.stderr)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError("Requester CLI denial was not JSON-safe") from exc
-        error = payload.get("error") if isinstance(payload, dict) else None
-        if not isinstance(error, dict) or error.get("code") != expected_error:
-            raise RuntimeError("Requester CLI returned an unexpected denial code")
+        if error_code != expected_error:
+            raise RuntimeError(f"Requester CLI returned denial code: {error_code}")
         return {"error": {"code": expected_error}}
     if result.returncode != 0:
-        raise RuntimeError(f"Requester CLI failed for {' '.join(arguments[:3])}")
+        raise RuntimeError(f"Requester CLI failed with code: {error_code}")
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
@@ -89,6 +87,16 @@ def _run_cli(
     if not isinstance(payload, dict):
         raise RuntimeError("Requester CLI returned a non-object JSON result")
     return payload
+
+
+def _stable_error_code(stderr: str) -> str:
+    try:
+        payload = json.loads(stderr)
+    except json.JSONDecodeError:
+        return "unknown_error"
+    error = payload.get("error") if isinstance(payload, dict) else None
+    code = error.get("code") if isinstance(error, dict) else None
+    return code if isinstance(code, str) and STABLE_ERROR_CODE_PATTERN.fullmatch(code) else "unknown_error"
 
 
 def _readline_before(stream: Any, deadline: float) -> str | None:

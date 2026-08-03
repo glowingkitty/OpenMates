@@ -368,6 +368,34 @@ export function projectRemoteAccessLifecyclePayload(
   };
 }
 
+export function projectRemoteAccessCryptoIdentity(
+  ownerId: string,
+  sourceSessionId: string,
+  binding: Pick<LiveRemoteAccessBinding, "teamId">,
+  frame: Pick<
+    ProjectRemoteAccessRequestFrame,
+    "project_id" | "source_id" | "requesting_client_id" | "key_epoch" | "routing_identity"
+  >,
+): RemoteAccessCryptoIdentity {
+  const routingIdentity = binding.teamId ? frame.routing_identity : undefined;
+  return {
+    ownerId: routingIdentity?.context_id_hash ?? ownerId,
+    ...(routingIdentity ? {
+      contextType: "team" as const,
+      contextId: routingIdentity.context_id_hash,
+      hostMemberId: routingIdentity.host_member_hash,
+      hostDeviceId: routingIdentity.host_device_fingerprint_hash,
+      requesterMemberId: routingIdentity.requester_member_hash,
+      requesterDeviceId: routingIdentity.requester_device_fingerprint_hash,
+    } : {}),
+    projectId: frame.project_id,
+    sourceId: frame.source_id,
+    sourceSessionId,
+    requestingClientId: frame.requesting_client_id,
+    keyEpoch: frame.key_epoch,
+  };
+}
+
 async function handleLiveRemoteAccessRequest(
   ws: Awaited<ReturnType<OpenMatesClient["openProjectRemoteAccessWebSocket"]>>["ws"],
   ownerId: string,
@@ -420,22 +448,8 @@ async function handleLiveRemoteAccessRequest(
     || bootstrap.operation !== frame.operation
     || !bootstrap.arguments
   ) return;
-  const identity: RemoteAccessCryptoIdentity = {
-    ownerId: frame.routing_identity?.context_id_hash ?? ownerId,
-    ...(binding.teamId && frame.routing_identity ? {
-      contextType: "team" as const,
-      contextId: frame.routing_identity.context_id_hash,
-      hostMemberId: frame.routing_identity.host_member_hash,
-      hostDeviceId: frame.routing_identity.host_device_fingerprint_hash,
-      requesterMemberId: frame.routing_identity.requester_member_hash,
-      requesterDeviceId: frame.routing_identity.requester_device_fingerprint_hash,
-    } : {}),
-    projectId: frame.project_id,
-    sourceId: frame.source_id,
-    sourceSessionId,
-    requestingClientId: bootstrap.requesting_client_id,
-    keyEpoch: binding.keyEpoch,
-  };
+  if (binding.teamId && frame.routing_identity?.context_type !== "team") return;
+  const identity = projectRemoteAccessCryptoIdentity(ownerId, sourceSessionId, binding, frame);
   try {
     const sourceHandshake = await createRemoteAccessHandshake(binding.projectKey, identity, "source");
     const sessionKey = await deriveRemoteAccessSessionKey(

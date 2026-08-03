@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import pytest
 import signal
+import subprocess
 import sys
 from pathlib import Path
 
@@ -178,3 +179,38 @@ def test_context_kills_child_when_graceful_cleanup_times_out(monkeypatch) -> Non
     assert process.signals == [signal.SIGINT]
     assert process.killed is True
     assert process.wait_calls == 2
+
+
+def test_requester_failure_reports_only_stable_parsed_error_code(monkeypatch) -> None:
+    secret = "private remote plaintext"
+    monkeypatch.setattr(
+        verifier.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0],
+            1,
+            stdout="",
+            stderr=json.dumps({"error": {"code": "protocol_timeout", "message": secret}, "debug": secret}),
+        ),
+    )
+
+    with pytest.raises(RuntimeError) as raised:
+        verifier._run_cli(Path("/requester"), "https://api.dev.openmates.org", ["projects", "files", "list"])
+
+    assert "protocol_timeout" in str(raised.value)
+    assert secret not in str(raised.value)
+
+
+def test_requester_failure_never_includes_unparsed_stderr(monkeypatch) -> None:
+    secret = "private remote plaintext"
+    monkeypatch.setattr(
+        verifier.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stdout="", stderr=secret),
+    )
+
+    with pytest.raises(RuntimeError) as raised:
+        verifier._run_cli(Path("/requester"), "https://api.dev.openmates.org", ["projects", "files", "list"])
+
+    assert secret not in str(raised.value)
+    assert "unknown_error" in str(raised.value)
