@@ -4997,6 +4997,40 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 
     let quickTipSlugs = $state<string[]>([]);
+
+    async function hydrateQuickTipSlugs(
+        chatId: string,
+        encryptedSlugs?: string | null,
+    ): Promise<void> {
+        if (isPublicChat(chatId)) {
+            if (currentChat?.chat_id === chatId) quickTipSlugs = [];
+            return;
+        }
+
+        try {
+            const storedChat = await chatDB.getChat(chatId);
+            const ciphertext = encryptedSlugs || storedChat?.encrypted_quick_tip_slugs;
+            if (!ciphertext) {
+                if (currentChat?.chat_id === chatId) quickTipSlugs = [];
+                return;
+            }
+
+            const chatKey = await chatKeyManager.getKey(chatId);
+            if (!chatKey) {
+                console.warn(`[ActiveChat] Quick tip hydration deferred because chat key is unavailable: ${chatId}`);
+                return;
+            }
+
+            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+            const decryptedSlugs = await decryptArrayWithChatKey(ciphertext, chatKey) || [];
+            if (currentChat?.chat_id === chatId) {
+                quickTipSlugs = decryptedSlugs;
+                console.debug(`[ActiveChat] Hydrated ${decryptedSlugs.length} quick tip slug(s) for chat ${chatId}`);
+            }
+        } catch (error) {
+            console.error(`[ActiveChat] Failed to hydrate quick tip slugs for chat ${chatId}:`, error);
+        }
+    }
     
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
@@ -8518,6 +8552,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (incomingChatMetadata && !incomingMetadataIsStale) {
             console.debug("[ActiveChat] handleChatUpdated: Updating currentChat with metadata from event:", incomingChatMetadata);
             currentChat = { ...currentChat, ...incomingChatMetadata }; // Merge, prioritizing incoming. This updates messages_v etc.
+            if (isHeaderMetadataUpdate) {
+                await hydrateQuickTipSlugs(incomingChatId, incomingChatMetadata.encrypted_quick_tip_slugs);
+            }
         } else if (incomingMetadataIsStale) {
             console.debug('[ActiveChat] handleChatUpdated: Ignoring stale encrypted metadata event:', {
                 incomingMetadataVersion,
@@ -9841,27 +9878,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             followUpSuggestions = [];
         }
 
-        let quickTipCiphertext = currentChat.encrypted_quick_tip_slugs;
-        if (!isPublicChat(currentChat.chat_id) && !isProvidedDraftOnlyChat && !quickTipCiphertext) {
-            const freshChat = await chatDB.getChat(currentChat.chat_id).catch(() => null);
-            quickTipCiphertext = freshChat?.encrypted_quick_tip_slugs ?? null;
-        }
-
-        if (!isPublicChat(currentChat.chat_id) && quickTipCiphertext) {
-            try {
-                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
-                if (chatKey) {
-                    const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                    quickTipSlugs = await decryptArrayWithChatKey(quickTipCiphertext, chatKey) || [];
-                } else {
-                    quickTipSlugs = [];
-                }
-            } catch (error) {
-                console.error('[ActiveChat] Failed to load quick tip slugs:', error);
-                quickTipSlugs = [];
-            }
-        } else {
-            quickTipSlugs = [];
+        quickTipSlugs = [];
+        if (!isProvidedDraftOnlyChat) {
+            await hydrateQuickTipSlugs(currentChat.chat_id, currentChat.encrypted_quick_tip_slugs);
         }
 
 
@@ -11648,6 +11667,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
         chatSyncService.addEventListener('syncComplete', syncCompleteHandler);
 
+        const phase1bContentReadyHandler = ((event: CustomEvent<{ chat_id?: string }>) => {
+            const syncedChatId = event.detail?.chat_id;
+            if (syncedChatId && currentChat?.chat_id === syncedChatId) {
+                void hydrateQuickTipSlugs(syncedChatId);
+            }
+        }) as EventListenerCallback;
+        chatSyncService.addEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
+
         // ─── Tab visibility: refresh stale carousel when tab returns from background ──
         // When a tab is backgrounded and later foregrounded, the carousel may show stale
         // data (chats created/deleted/updated on other devices while backgrounded).
@@ -12152,6 +12179,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
             chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
+            chatSyncService.removeEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
             window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
