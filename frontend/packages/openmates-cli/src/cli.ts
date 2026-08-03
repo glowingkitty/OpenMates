@@ -95,7 +95,6 @@ import {
 import {
   parseClaudeImportBuffer,
   parseChatGPTImportBuffer,
-  parseOpenCodeImportBuffer,
   parseOpenMatesImportBuffer,
   type ParsedAccountImport,
 } from "./accountImport.js";
@@ -130,6 +129,7 @@ import {
   type LiveRemoteAccessBinding,
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
+import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
 import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
@@ -179,7 +179,7 @@ import {
   type DecryptedUserPlan,
   type PlanProjectKey,
 } from "./plansCli.js";
-import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
+import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import {
   buildRevolutBusinessConsentUrl,
   exchangeRevolutBusinessAuthorizationCode,
@@ -296,6 +296,10 @@ async function main(): Promise<void> {
     }
     if (command === "plans") {
       printPlansHelp();
+      return;
+    }
+    if (command === "projects") {
+      printProjectsHelp();
       return;
     }
     if (command === "teams") {
@@ -1288,11 +1292,18 @@ async function tryResolveProject(
   masterKey: Uint8Array,
   target: string,
   flags: Record<string, string | boolean>,
+  context = teamContextFromFlags(flags),
 ): Promise<DecryptedProject | null> {
-  const projects = await loadProjects(client, masterKey, flags);
+  const projects = await loadProjects(client, masterKey, flags, context);
   const idMatch = projects.find((project) => project.projectId === target);
   if (idMatch) return idMatch;
-  return singleExactNameMatch(projects, target, (project) => project.name);
+  const shortMatches = target.length >= 8 ? projects.filter((project) => project.projectId.startsWith(target)) : [];
+  if (shortMatches.length > 1) throw new CliContractError("ambiguous_project", `Project '${target}' is ambiguous.`);
+  if (shortMatches.length === 1) return shortMatches[0];
+  const normalized = normalizeAskLookup(target);
+  const nameMatches = projects.filter((project) => normalizeAskLookup(project.name) === normalized);
+  if (nameMatches.length > 1) throw new CliContractError("ambiguous_project", `Project '${target}' is ambiguous.`);
+  return nameMatches[0] ?? null;
 }
 
 async function tryResolveWorkflow(
@@ -1320,20 +1331,26 @@ async function loadProjects(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   flags: Record<string, string | boolean>,
+  context = teamContextFromFlags(flags),
 ): Promise<DecryptedProject[]> {
-  const records = await client.listProjects({ includeArchived: true, ...teamContextFromFlags(flags) });
+  const records = await client.listProjects({ includeArchived: true, ...context });
   const projects: DecryptedProject[] = [];
   for (const record of records) {
-    const decrypted = await decryptProject(record, masterKey);
+    const decrypted = await decryptProject(client, record, masterKey, context);
     if (decrypted) projects.push(decrypted);
   }
   return projects;
 }
 
-async function decryptProject(record: ProjectRecord, masterKey: Uint8Array): Promise<DecryptedProject | null> {
-  if (!record.project_id || typeof record.encrypted_project_key !== "string") return null;
-  const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, masterKey);
-  if (!projectKey) return null;
+async function decryptProject(
+  client: OpenMatesClient,
+  record: ProjectRecord,
+  masterKey: Uint8Array,
+  context = {} as { teamId?: string | null; personal?: boolean },
+): Promise<DecryptedProject | null> {
+  void masterKey;
+  if (!record.project_id) return null;
+  const projectKey = await client.decryptProjectKey(record, context);
   return {
     projectId: record.project_id,
     name: await decryptOptionalProjectField(record.encrypted_name, projectKey) || "(untitled project)",
@@ -1357,8 +1374,9 @@ async function requiredResolvedProject(
   masterKey: Uint8Array,
   target: string,
   flags: Record<string, string | boolean>,
+  context = teamContextFromFlags(flags),
 ): Promise<DecryptedProject> {
-  const project = await tryResolveProject(client, masterKey, target, flags);
+  const project = await tryResolveProject(client, masterKey, target, flags, context);
   if (!project) throw new Error(`Project '${target}' not found.`);
   return project;
 }
@@ -2353,6 +2371,112 @@ async function handleProjects(
     return;
   }
 
+  if (subcommand === "delete" && (flags.json === true || !process.stdin.isTTY) && typeof flags.confirm !== "string") {
+    throw new CliContractError("confirmation_required", "Project deletion requires --confirm <exact-project-id>.");
+  }
+  if (subcommand === "sources" && rest[0] === "remove" && (flags.json === true || !process.stdin.isTTY) && typeof flags.confirm !== "string") {
+    throw new CliContractError("confirmation_required", "Project source removal requires --confirm <source-id>.");
+  }
+  if (subcommand === "items" && rest[0] === "remove" && (flags.json === true || !process.stdin.isTTY) && flags.confirm !== true) {
+    throw new CliContractError("confirmation_required", "Project item removal requires --confirm.");
+  }
+  if (subcommand === "files" && (flags.json === true || !process.stdin.isTTY) && !hasExplicitProjectContext(flags)) {
+    throw new CliContractError("context_confirmation_required", "Live file requests require --personal or --team <team>.");
+  }
+
+  const context = await resolveProjectContext(client, flags, subcommand === "files");
+  const masterKey = client.getMasterKeyBytes();
+
+  if (subcommand === "list") {
+    const projects = await loadProjects(client, masterKey, flags, context);
+    const filtered = flags["include-archived"] === true ? projects : projects.filter((project) => !project.archived);
+    printProjectsOutput(filtered, flags);
+    return;
+  }
+
+  if (subcommand === "show" || subcommand === "open") {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    if (subcommand === "open") {
+      await client.updateProject(project.projectId, { last_opened_at: nowSeconds(), ...(project.version !== null ? { version: project.version } : {}) }, context);
+    }
+    printProjectOutput(project, flags);
+    return;
+  }
+
+  if (subcommand === "create") {
+    const name = requiredStringFlag(rest[0] ?? flags.name, "project name");
+    const projectKey = randomBytes(32);
+    const wrapping = await client.projectWrappingKey(context);
+    const projectId = randomUUID();
+    const timestamp = nowSeconds();
+    const payload: Record<string, unknown> = {
+      project_id: projectId,
+      encrypted_project_key: wrapping.teamId ? null : await encryptBytesWithAesGcm(projectKey, wrapping.key),
+      encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
+      encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : "", projectKey),
+      encrypted_icon: await encryptWithAesGcmCombined(typeof flags.icon === "string" ? flags.icon : "folder", projectKey),
+      encrypted_color: await encryptWithAesGcmCombined(typeof flags.color === "string" ? flags.color : "default", projectKey),
+      pinned: flags.pinned === true,
+      created_at: timestamp,
+      updated_at: timestamp,
+      last_opened_at: timestamp,
+      key_wrappers: wrapping.teamId ? [{
+        key_type: "team",
+        hashed_team_id: createHash("sha256").update(wrapping.teamId).digest("hex"),
+        team_key_epoch: 1,
+        encrypted_project_key: await encryptBytesWithAesGcm(projectKey, wrapping.key),
+        wrapper_version: 1,
+        created_at: timestamp,
+      }] : [],
+    };
+    const result = await client.createProject(payload, context);
+    const record = { ...payload, ...((result.project ?? {}) as Record<string, unknown>) } as ProjectRecord;
+    printProjectOutput(await decryptProject(client, record, masterKey, context), flags);
+    return;
+  }
+
+  if (["update", "archive", "unarchive"].includes(subcommand)) {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    const patch: Record<string, unknown> = { updated_at: nowSeconds(), ...(project.version !== null ? { version: project.version } : {}) };
+    if (subcommand === "archive" || subcommand === "unarchive") patch.archived = subcommand === "archive";
+    if (typeof flags.name === "string") patch.encrypted_name = await encryptWithAesGcmCombined(flags.name, project.projectKey);
+    if (typeof flags.description === "string") patch.encrypted_description = await encryptWithAesGcmCombined(flags.description, project.projectKey);
+    if (typeof flags.icon === "string") patch.encrypted_icon = await encryptWithAesGcmCombined(flags.icon, project.projectKey);
+    if (typeof flags.color === "string") patch.encrypted_color = await encryptWithAesGcmCombined(flags.color, project.projectKey);
+    if (flags.pin === true) patch.pinned = true;
+    if (flags.unpin === true) patch.pinned = false;
+    if (Object.keys(patch).every((key) => ["updated_at", "version"].includes(key))) {
+      throw new CliContractError("nothing_to_update", "Provide a Project field to update.");
+    }
+    const updated = await client.updateProject(project.projectId, patch, context);
+    printProjectOutput(await decryptProject(client, { ...project.encrypted, ...updated }, masterKey, context), flags);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    await requireExactConfirmation("Project deletion", project.projectId, flags);
+    await client.deleteProject(project.projectId, project.projectId, context);
+    if (flags.json === true) printJson({ deleted: true, project_id: project.projectId });
+    else console.log(`Project deleted: ${project.name} (${project.projectId})`);
+    return;
+  }
+
+  if (subcommand === "items") {
+    await handleProjectItems(client, masterKey, rest, flags, context);
+    return;
+  }
+
+  if (subcommand === "sources") {
+    await handleProjectSources(client, masterKey, rest, flags, context);
+    return;
+  }
+
+  if (subcommand === "files") {
+    await handleProjectFiles(client, masterKey, rest, flags, context);
+    return;
+  }
+
   if (subcommand === "history") {
     const projectId = rest[0];
     if (!projectId) throw new Error("Missing project ID. Usage: openmates projects history <project-id>");
@@ -2375,7 +2499,6 @@ async function handleProjects(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates projects ask \"Launch workspace\"");
-    const masterKey = client.getMasterKeyBytes();
     const exactAsk = await buildExactProjectAsk(client, masterKey, instruction, flags);
     if (exactAsk) {
       const result = await client.askProject({ instruction, ...exactAsk });
@@ -2409,6 +2532,319 @@ async function handleProjects(
   }
 
   throw new Error(`Unknown projects command '${subcommand}'. Run 'openmates projects --help'.`);
+}
+
+async function handleProjectItems(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
+  if (action === "list") {
+    const result = await client.listProjectItems(project.projectId, context);
+    const folders = await Promise.all(result.folders.map(async (folder) => ({
+      folder_id: folder.folder_id,
+      parent_folder_id: folder.hashed_parent_folder_id ?? null,
+      name: await decryptOptionalProjectField(folder.encrypted_name as string | undefined, project.projectKey),
+      position: folder.position ?? 0,
+    })));
+    const items = await Promise.all(result.items.map(async (item) => ({
+      project_item_id: item.project_item_id,
+      type: item.item_type,
+      target_id: await decryptOptionalProjectField(item.target_id_encrypted, project.projectKey),
+      display_name: await decryptOptionalProjectField(item.encrypted_display_name, project.projectKey),
+      ownership_label: item.ownership_label ?? null,
+      position: item.position ?? 0,
+    })));
+    if (flags.json === true) printJson({ project_id: project.projectId, folders, items });
+    else printProjectItems(folders, items);
+    return;
+  }
+  if (action === "remove") {
+    const type = requiredStringFlag(flags.type, "--type <embed|chat|workflow>");
+    if (!["embed", "chat", "workflow"].includes(type)) throw new CliContractError("invalid_item_type", "Item type must be embed, chat, or workflow.");
+    const target = requiredStringFlag(flags.target, "--target <id>");
+    if (flags.confirm !== true && (flags.json === true || !process.stdin.isTTY)) {
+      throw new CliContractError("confirmation_required", "Project item removal requires --confirm.");
+    }
+    if (flags.confirm !== true && !await promptConfirmation(`Remove ${type} ${target} from this Project?`)) return;
+    const result = await client.deleteProjectItemByTarget(project.projectId, type as "embed" | "chat" | "workflow", target, context);
+    if (flags.json === true) printJson({ project_id: project.projectId, target_id: target, ...result });
+    else console.log(result.deleted ? "Project item removed." : "Project item was not linked.");
+    return;
+  }
+  throw new CliContractError("unknown_projects_items_command", "Use 'projects items list' or 'projects items remove'.");
+}
+
+async function handleProjectSources(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
+  if (action === "list") {
+    const sources = await safeProjectSources(client, project, context);
+    if (flags.json === true) printJson({ project_id: project.projectId, sources });
+    else printProjectSources(sources);
+    return;
+  }
+  if (action === "remove") {
+    const sourceId = requiredStringFlag(flags.source, "--source <source-id>");
+    await requireExactConfirmation("Project source removal", sourceId, flags);
+    const result = await client.deleteProjectSource(project.projectId, sourceId, sourceId, context);
+    if (flags.json === true) printJson({ project_id: project.projectId, source_id: sourceId, ...result });
+    else console.log(`Project source removed: ${sourceId}`);
+    return;
+  }
+  throw new CliContractError("unknown_projects_sources_command", "Use 'projects sources list' or 'projects sources remove'.");
+}
+
+async function handleProjectFiles(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  if (!action || !["list", "search", "read"].includes(action)) {
+    throw new CliContractError("unknown_projects_files_command", "Use 'projects files list', 'search', or 'read'.");
+  }
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
+  const sources = await client.listProjectSources(project.projectId, context);
+  const source = await selectProjectSource(sources, flags);
+  let operation: "list" | "search" | "read_text";
+  let argumentsValue: Record<string, unknown>;
+  if (action === "list") {
+    operation = "list";
+    const relativePath = safeRelativeProjectPath(typeof flags.path === "string" ? flags.path : ".");
+    const depth = parseBoundedInteger(flags.depth, "--depth", 1, 8, 1);
+    argumentsValue = { path: relativePath, depth };
+  } else if (action === "search") {
+    operation = "search";
+    const query = requiredStringFlag(rest[2], "search query");
+    if (Buffer.byteLength(query, "utf8") > 256) throw new CliContractError("query_too_large", "Search query exceeds 256 bytes.");
+    argumentsValue = { query };
+  } else {
+    operation = "read_text";
+    argumentsValue = { path: safeRelativeProjectPath(requiredStringFlag(rest[2], "relative path")) };
+  }
+  const result = await requestProjectRemoteOperation({
+    client,
+    projectId: project.projectId,
+    projectKey: project.projectKey,
+    source,
+    operation,
+    arguments: argumentsValue,
+    context,
+  });
+  printProjectFileResult(action, project.projectId, source.source_id, result, flags);
+}
+
+class CliContractError extends Error {
+  constructor(public readonly code: string, message: string) {
+    super(message);
+    this.name = "CliContractError";
+  }
+}
+
+function hasExplicitProjectContext(flags: Record<string, string | boolean>): boolean {
+  return flags.personal === true || typeof flags.team === "string" || typeof flags["team-id"] === "string";
+}
+
+async function resolveProjectContext(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  requireExplicit: boolean,
+): Promise<{ teamId?: string; personal?: boolean }> {
+  if (flags.personal === true && (typeof flags.team === "string" || typeof flags["team-id"] === "string")) {
+    throw new CliContractError("context_conflict", "Choose either --personal or --team <team>, not both.");
+  }
+  if (flags.personal === true) return { personal: true };
+  const requested = typeof flags.team === "string" ? flags.team : typeof flags["team-id"] === "string" ? flags["team-id"] : null;
+  if (requested) {
+    const teams = await client.listTeams();
+    const matches = teams.filter((team) => team.team_id === requested || team.slug === requested);
+    if (matches.length !== 1 || !matches[0]?.team_id) {
+      throw new CliContractError(matches.length > 1 ? "ambiguous_team" : "team_not_found", `Team '${requested}' was not found uniquely.`);
+    }
+    return { teamId: matches[0].team_id };
+  }
+  if (requireExplicit) throw new CliContractError("context_confirmation_required", "Live file requests require --personal or --team <team>.");
+  const activeTeamId = client.getActiveTeamId();
+  return activeTeamId ? { teamId: activeTeamId } : { personal: true };
+}
+
+function requiredProjectTarget(rest: string[], action: string): string {
+  return requiredStringFlag(rest[0], `Project for '${action}'`);
+}
+
+function projectToJson(project: DecryptedProject): Record<string, unknown> {
+  return {
+    project_id: project.projectId,
+    short_id: project.projectId.slice(0, 8),
+    name: project.name,
+    description: project.description,
+    icon: project.icon,
+    color: project.color,
+    pinned: project.pinned,
+    archived: project.archived,
+    version: project.version,
+    mutation_permissions: project.encrypted.mutation_permissions ?? null,
+  };
+}
+
+function printProjectsOutput(projects: DecryptedProject[], flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson({ projects: projects.map(projectToJson) });
+    return;
+  }
+  if (projects.length === 0) {
+    console.log("No Projects.");
+    return;
+  }
+  for (const project of projects) {
+    console.log(`${project.projectId.slice(0, 8)}  ${project.name}${project.archived ? "  [archived]" : ""}`);
+  }
+}
+
+function printProjectOutput(project: DecryptedProject | null, flags: Record<string, string | boolean>): void {
+  if (!project) throw new CliContractError("project_decryption_failed", "Project metadata could not be decrypted.");
+  const value = projectToJson(project);
+  if (flags.json === true) printJson({ project: value });
+  else {
+    console.log(`${project.name} (${project.projectId})`);
+    if (project.description) kv("description", project.description);
+    kv("archived", String(project.archived));
+    kv("pinned", String(project.pinned));
+    const permissions = value.mutation_permissions;
+    if (permissions) kv("permissions", JSON.stringify(permissions));
+  }
+}
+
+async function safeProjectSources(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  context: { teamId?: string; personal?: boolean },
+): Promise<Array<Record<string, unknown>>> {
+  return Promise.all((await client.listProjectSources(project.projectId, context)).map(async (source) => ({
+    source_id: source.source_id,
+    source_type: source.source_type,
+    display_name: await decryptOptionalProjectField(source.encrypted_display_name, project.projectKey),
+    capabilities: source.capabilities ?? [],
+    status: source.status ?? "offline",
+    ownership_label: source.ownership_label ?? null,
+  })));
+}
+
+async function selectProjectSource(
+  sources: ProjectSourceRecord[],
+  flags: Record<string, string | boolean>,
+): Promise<ProjectSourceRecord> {
+  const requested = typeof flags.source === "string" ? flags.source : null;
+  if (requested) {
+    const source = sources.find((candidate) => candidate.source_id === requested);
+    if (!source) throw new CliContractError("source_not_found", `Project source '${requested}' was not found.`);
+    return source;
+  }
+  const eligible = sources.filter((source) => source.status === "connected");
+  if (eligible.length === 1) return eligible[0];
+  if (eligible.length === 0) throw new CliContractError("source_offline", "No online Project source is available.");
+  if (flags.json === true || !process.stdin.isTTY) {
+    throw new CliContractError("source_selection_required", "Multiple online Project sources require --source <source-id>.");
+  }
+  console.log("Online Project sources:");
+  eligible.forEach((source, index) => console.log(`  ${index + 1}. ${source.source_id}`));
+  const selected = Number((await promptLine("Select source number: ")).trim());
+  if (!Number.isInteger(selected) || selected < 1 || selected > eligible.length) {
+    throw new CliContractError("source_selection_invalid", "Project source selection was invalid.");
+  }
+  return eligible[selected - 1];
+}
+
+function safeRelativeProjectPath(value: string): string {
+  const normalized = value.replaceAll("\\", "/");
+  if (!normalized || normalized.startsWith("/") || normalized.includes("\0")) {
+    throw new CliContractError("invalid_path", "Project file paths must be source-relative.");
+  }
+  const parts = normalized.split("/");
+  if (parts.some((part) => part === "..")) throw new CliContractError("invalid_path", "Project file paths cannot traverse outside the source.");
+  return normalized;
+}
+
+function parseBoundedInteger(
+  value: string | boolean | undefined,
+  flag: string,
+  minimum: number,
+  maximum: number,
+  fallback: number,
+): number {
+  if (value === undefined) return fallback;
+  if (typeof value !== "string" || !/^\d+$/.test(value)) throw new CliContractError("invalid_limit", `${flag} must be an integer.`);
+  const parsed = Number(value);
+  if (parsed < minimum || parsed > maximum) throw new CliContractError("invalid_limit", `${flag} must be between ${minimum} and ${maximum}.`);
+  return parsed;
+}
+
+export async function requireExactConfirmation(
+  label: string,
+  exactValue: string,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (typeof flags.confirm === "string") {
+    if (flags.confirm !== exactValue) throw new CliContractError("confirmation_mismatch", `${label} confirmation must exactly match '${exactValue}'.`);
+    return;
+  }
+  if (flags.json === true || !process.stdin.isTTY) throw new CliContractError("confirmation_required", `${label} requires --confirm <exact-id>.`);
+  const answer = (await promptLine(`${label}. Type ${exactValue} to continue: `)).trim();
+  if (answer !== exactValue) throw new CliContractError("confirmation_cancelled", `${label} cancelled.`);
+}
+
+async function promptConfirmation(message: string): Promise<boolean> {
+  const answer = (await promptLine(`${message} [y/N] `)).trim().toLowerCase();
+  return answer === "y" || answer === "yes";
+}
+
+function printProjectItems(folders: Array<Record<string, unknown>>, items: Array<Record<string, unknown>>): void {
+  if (folders.length === 0 && items.length === 0) {
+    console.log("No Project items.");
+    return;
+  }
+  for (const folder of folders) console.log(`folder  ${String(folder.name || folder.folder_id)}`);
+  for (const item of items) console.log(`${String(item.type)}  ${String(item.display_name || item.target_id)}`);
+}
+
+function printProjectSources(sources: Array<Record<string, unknown>>): void {
+  if (sources.length === 0) {
+    console.log("No Project sources.");
+    return;
+  }
+  for (const source of sources) console.log(`${String(source.source_id)}  ${String(source.display_name)}  ${String(source.status)}`);
+}
+
+function printProjectFileResult(
+  action: string,
+  projectId: string,
+  sourceId: string,
+  result: unknown,
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson({ project_id: projectId, source_id: sourceId, operation: action, result });
+    return;
+  }
+  if (action === "read" && result && typeof result === "object" && typeof (result as Record<string, unknown>).content === "string") {
+    process.stdout.write(String((result as Record<string, unknown>).content));
+    if (!String((result as Record<string, unknown>).content).endsWith("\n")) process.stdout.write("\n");
+    return;
+  }
+  printJson(result);
 }
 
 async function handleHistory(
@@ -2929,6 +3365,12 @@ async function handleRemoteAccess(
     }
 
     assertRemoteAccessPublicFlags(flags);
+    const hostingContext = await resolveRemoteAccessHostingContext(client, flags);
+    const hostingFlags = {
+      ...flags,
+      personal: hostingContext.personal === true,
+      ...(hostingContext.teamId ? { team: hostingContext.teamId } : {}),
+    };
     const roots = resolveRemoteAccessRoots(typeof flags.path === "string" ? flags.path : undefined);
     const discovery = discoverRemoteAccessRepositories(roots);
     const candidateRoots = typeof flags.path === "string"
@@ -2937,8 +3379,8 @@ async function handleRemoteAccess(
         ? discovery.repositories.map((candidate) => candidate.rootPath)
         : roots;
     const masterKey = client.getMasterKeyBytes();
-    const projects = await loadProjects(client, masterKey, flags);
-    const bindings = await resolveRemoteAccessBindings(client, masterKey, projects, candidateRoots, flags);
+    const projects = await loadProjects(client, masterKey, hostingFlags, hostingContext);
+    const bindings = await resolveRemoteAccessBindings(client, masterKey, projects, candidateRoots, hostingFlags, hostingContext);
     if (bindings.length === 0) throw new Error("No Project folders were approved for remote access.");
 
     const sourceSessionId = randomUUID();
@@ -3016,12 +3458,34 @@ function assertRemoteAccessPublicFlags(flags: Record<string, string | boolean>):
   }
 }
 
+async function resolveRemoteAccessHostingContext(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<{ teamId?: string; personal?: boolean }> {
+  if (hasExplicitProjectContext(flags)) return resolveProjectContext(client, flags, true);
+  if (flags.json === true || !process.stdin.isTTY) {
+    throw new CliContractError("context_confirmation_required", "Remote access hosting requires --personal or --team <team> in non-interactive mode.");
+  }
+  const activeTeamId = client.getActiveTeamId();
+  const currentLabel = activeTeamId ? `Team ${activeTeamId}` : "Personal";
+  const answer = (await promptLine(`Host Project sources in ${currentLabel}? [Y/n/change] `)).trim().toLowerCase();
+  if (!answer || answer === "y" || answer === "yes") return activeTeamId ? { teamId: activeTeamId } : { personal: true };
+  if (answer === "n" || answer === "no" || answer === "cancel") {
+    throw new CliContractError("context_confirmation_cancelled", "Remote access context confirmation cancelled.");
+  }
+  const selected = (await promptLine("Enter 'personal' or a Team ID/slug: ")).trim();
+  return selected.toLowerCase() === "personal"
+    ? { personal: true }
+    : resolveProjectContext(client, { team: selected }, true);
+}
+
 async function resolveRemoteAccessBindings(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   projects: DecryptedProject[],
   candidateRoots: string[],
   flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
 ): Promise<LiveRemoteAccessBinding[]> {
   const stored = listRemoteAccessSources();
   const resolved: Array<{ rootPath: string; project: DecryptedProject; sourceId: string }> = [];
@@ -3047,7 +3511,7 @@ async function resolveRemoteAccessBindings(
     const answer = (await promptLine(`Create ${unresolved.length} missing Project${unresolved.length === 1 ? "" : "s"}? [y/N] `)).trim().toLowerCase();
     if (answer !== "y" && answer !== "yes") throw new Error("Remote access Project creation cancelled.");
     for (const rootPath of unresolved) {
-      const project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath));
+      const project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath), context);
       resolved.push({ rootPath, project, sourceId: randomUUID() });
     }
   }
@@ -3062,7 +3526,7 @@ async function resolveRemoteAccessBindings(
       sourceType,
       displayName: basename(item.rootPath),
     });
-    const remoteSources = await client.listProjectSources(item.project.projectId);
+    const remoteSources = await client.listProjectSources(item.project.projectId, context);
     const remoteSource = remoteSources.find((entry) => entry.source_id === source.sourceId);
     if (!remoteSource) {
       const timestamp = Math.floor(Date.now() / 1000);
@@ -3078,9 +3542,9 @@ async function resolveRemoteAccessBindings(
         status: "offline",
         created_at: timestamp,
         updated_at: timestamp,
-      });
+      }, context);
     }
-    bindings.push({ source, projectKey: item.project.projectKey, keyEpoch: 1 });
+    bindings.push({ source, projectKey: item.project.projectKey, keyEpoch: 1, ...(context.teamId ? { teamId: context.teamId } : {}) });
   }
   return bindings;
 }
@@ -3089,13 +3553,15 @@ async function createEncryptedRemoteAccessProject(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   name: string,
+  context: { teamId?: string; personal?: boolean },
 ): Promise<DecryptedProject> {
   const projectKey = randomBytes(32);
   const projectId = randomUUID();
   const timestamp = Math.floor(Date.now() / 1000);
+  const wrapping = await client.projectWrappingKey(context);
   const payload: ProjectRecord = {
     project_id: projectId,
-    encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
+    encrypted_project_key: wrapping.teamId ? null : await encryptBytesWithAesGcm(projectKey, masterKey),
     encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
     encrypted_description: await encryptWithAesGcmCombined("", projectKey),
     encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
@@ -3105,8 +3571,16 @@ async function createEncryptedRemoteAccessProject(
     created_at: timestamp,
     updated_at: timestamp,
     last_opened_at: timestamp,
+    key_wrappers: wrapping.teamId ? [{
+      key_type: "team",
+      hashed_team_id: createHash("sha256").update(wrapping.teamId).digest("hex"),
+      team_key_epoch: 1,
+      encrypted_project_key: await encryptBytesWithAesGcm(projectKey, wrapping.key),
+      wrapper_version: 1,
+      created_at: timestamp,
+    }] : [],
   };
-  await client.createProject(payload);
+  await client.createProject(payload, context);
   return {
     projectId,
     name,
@@ -6447,7 +6921,6 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "export", "cancel"], description: "Cancel an account export job", examples: ["openmates settings account export cancel <export-id> --json"] },
   { path: ["account", "import", "claude"], description: "Preview a Claude official export import", examples: ["openmates account import claude ./claude-export.zip --dry-run --json"] },
   { path: ["account", "import", "chatgpt"], description: "Preview a ChatGPT official export import", examples: ["openmates account import chatgpt ./chatgpt-export.zip --dry-run --json"] },
-  { path: ["account", "import", "opencode"], description: "Preview an OpenCode CLI transcript import", examples: ["openmates account import opencode ./opencode-session.json --dry-run --json"] },
   { path: ["account", "import", "openmates"], description: "Preview an OpenMates Export V1 import", examples: ["openmates account import openmates ./openmates-export.zip --domain chats --dry-run --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
@@ -6620,14 +7093,13 @@ function printAccountExportBundle(
   if (typeof archive.output === "string") process.stdout.write(`Wrote ${archive.output}\n`);
 }
 
-type AccountImportCliSource = "claude" | "chatgpt" | "opencode" | "openmates";
+type AccountImportCliSource = "claude" | "chatgpt" | "openmates";
 
 async function parseAccountImportFile(source: AccountImportCliSource, file: string, flags: Record<string, string | boolean> = {}): Promise<ParsedAccountImport> {
   const { readFile } = await import("node:fs/promises");
   const payload = await readFile(file);
   if (source === "claude") return parseClaudeImportBuffer(payload, basename(file));
   if (source === "chatgpt") return parseChatGPTImportBuffer(payload, basename(file));
-  if (source === "opencode") return parseOpenCodeImportBuffer(payload, basename(file));
   return parseOpenMatesImportBuffer(payload, basename(file), typeof flags.password === "string" ? flags.password : undefined);
 }
 
@@ -7984,7 +8456,7 @@ async function handleSettings(
     return;
   }
 
-  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "chatgpt"]) || matches(tokens, ["account", "import", "opencode"]) || matches(tokens, ["account", "import", "openmates"])) {
+  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "chatgpt"]) || matches(tokens, ["account", "import", "openmates"])) {
     const source = tokens[2] as AccountImportCliSource;
     const file = rest[2];
     if (!file) throw new Error(`Missing import file. Example: openmates account import ${source} ./export.zip --dry-run`);
@@ -11484,6 +11956,7 @@ Commands:
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates tasks [--help]                   Task commands (list, create, board, ...)
   openmates plans [--help]                   Plan commands (list, create, approve, checks, ...)
+  openmates projects [--help]                Deterministic Project CRUD and encrypted remote files
   openmates teams [--help]                   Team lifecycle, membership, billing, and move commands
   openmates drafts [--help]                  Encrypted draft lifecycle commands
   openmates ideabucket [--help]              IdeaBucket add, audio, status, and process commands
@@ -11963,12 +12436,31 @@ Examples:
 
 function printProjectsHelp(): void {
   console.log(`Projects commands:
+  openmates projects list [--include-archived] [--personal|--team <team>] [--json]
+  openmates projects show <project> [--personal|--team <team>] [--json]
+  openmates projects open <project> [--personal|--team <team>] [--json]
+  openmates projects create <name> [--description <text>] [--icon <name>] [--color <token>] [--pinned] [--personal|--team <team>] [--json]
+  openmates projects update <project> [--name <name>] [--description <text>] [--icon <name>] [--color <token>] [--pin|--unpin] [--personal|--team <team>] [--json]
+  openmates projects archive <project> [--personal|--team <team>] [--json]
+  openmates projects unarchive <project> [--personal|--team <team>] [--json]
+  openmates projects delete <project> [--confirm <exact-project-id>] [--personal|--team <team>] [--json]
+  openmates projects items list <project> [--personal|--team <team>] [--json]
+  openmates projects items remove <project> --type <type> --target <id> [--confirm] [--personal|--team <team>] [--json]
+  openmates projects sources list <project> [--personal|--team <team>] [--json]
+  openmates projects sources remove <project> --source <source-id> [--confirm <source-id>] [--personal|--team <team>] [--json]
+  openmates projects files list <project> [--source <source-id>] [--path <relative-path>] [--depth <n>] [--personal|--team <team>] [--json]
+  openmates projects files search <project> <query> [--source <source-id>] [--personal|--team <team>] [--json]
+  openmates projects files read <project> <relative-path> [--source <source-id>] [--personal|--team <team>] [--json]
   openmates projects ask <name> [--description <text>] [--json]
   openmates projects history <project-id> [--limit <n>] [--json]
   openmates projects restore <project-id> --entry <history-entry-id> [--state before|after] [--json]
 
 Notes:
   Project metadata is encrypted by clients. History and restore operate on opaque encrypted snapshots.
+  Stored Project commands use the persisted Personal/Team context unless an explicit flag is supplied.
+  Non-interactive and JSON live file requests require an explicit context before source discovery.
+  File operations are read-only, bounded, encrypted between CLIs, and never fall back to an AI model.
+  openmates remote-access remains the foreground source-host command.
   Whole-change-set undo remains available through openmates history undo <change-set-id>.`);
 }
 
@@ -12429,7 +12921,16 @@ function isCliEntrypoint(): boolean {
 if (isCliEntrypoint()) {
   main().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`Error: ${message}`);
+    if (process.argv.includes("--json")) {
+      const code = error instanceof CliContractError || error instanceof ProjectRequesterError
+        ? error.code
+        : typeof (error as { code?: unknown })?.code === "string"
+          ? String((error as { code: string }).code).toLowerCase()
+          : "command_failed";
+      process.stderr.write(`${JSON.stringify({ error: { code, message } })}\n`);
+    } else {
+      console.error(`Error: ${message}`);
+    }
     process.exit(1);
   });
 }
