@@ -245,14 +245,12 @@ attempts:
     notes: Existing-data mutation creates unacceptable decryption risk.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Commit the scoped TASK-2 work when authorized, then dispatch Vitest so the frozen cross-client fixture cases run from that commit.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: The committed regression-fixtures test decrypts shared Format A/B/C vectors and the full Vitest suite passes.
-  blocker:
-    reason: The 2026-08-03 Vitest run 30814470024 passed 671 tests from HEAD 107e1d9c0, not the uncommitted worktree, so it is not valid evidence for the new cases.
-    unblock: Obtain explicit commit authorization, create a scoped TASK-2 commit, and rerun the Vitest suite against that commit.
-  last_verified_commit: 107e1d9c05bd8688b2973b3a641090ac6d5bb570
+  current_task_id: TASK-3
+  next_action: Write the synthetic zero-key detector tests before implementing the read-only audit.
+  command: python3 -m pytest backend/tests/test_zero_key_exposure_audit.py
+  expected_outcome: The new test fails until zero-key AES-GCM wrapper and NaCl encrypted-email detection is implemented without writes or sensitive output.
+  blocker: null
+  last_verified_commit: e9db73df6
 
 scenarios:
   - id: S-1
@@ -559,7 +557,7 @@ tests:
     covers: [AC-1, AC-2, AC-12]
     assertions: [A hash manifest freezes chat formats A-D, upload/generated/vector/Remotion media, invoices, six-character short links, recovery v1, CLI session tiers, and domain policy bundles; each applicable backend web CLI pip and Apple reader consumes the shared vectors; command performs no durable writes.]
     red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "task-2-review", timestamp: "2026-08-03T12:30:00Z", reason: "The first shape-only verifier passed without authenticating fixture plaintext; review rejected it before TASK-2 completion."}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_encryption_compatibility.py", run_id: "local-2026-08-03T12:49:33Z", subject_commit: "working-tree@107e1d9c05bd8688b2973b3a641090ac6d5bb570", timestamp: "2026-08-03T12:49:33Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_encryption_compatibility.py && python3 scripts/tests.py run --suite vitest --expected-commit e9db73d", run_id: "30820924322", subject_commit: "e9db73df6", timestamp: "2026-08-03T14:05:10Z", notes: "Authenticated Python fixtures passed locally; commit-scoped CI collected and passed 674/674 tests including frozen web Formats A-D after red runs 30820251241 and 30820542654."}}
   - id: T-BACKEND-MEDIA
     type: pytest
     file: backend/tests/test_media_encryption_compatibility.py
@@ -923,17 +921,17 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Freeze legacy crypto fixtures and no-migration guards
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2]
       acceptance_criteria: [AC-1, AC-2, AC-12]
-    expected_files: [scripts/verify_encryption_compatibility.py, scripts/audit_encryption_migration_scope.py, backend/tests/fixtures, frontend/packages/ui/src/services/encryption/__tests__/regression-fixtures.test.ts, frontend/packages/openmates-cli/src/storage.ts, frontend/packages/openmates-cli/tests/storage.test.ts]
+    expected_files: [scripts/verify_encryption_compatibility.py, scripts/audit_encryption_migration_scope.py, backend/tests/fixtures, frontend/packages/ui/src/services/__tests__/encryptionCompatibilityFixtures.test.ts, frontend/packages/ui/src/services/encryption/__tests__/regression-fixtures.test.ts, frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts, frontend/packages/openmates-cli/src/storage.ts, frontend/packages/openmates-cli/tests/storage.test.ts]
     verification: [python3 scripts/verify_encryption_compatibility.py, python3 scripts/audit_encryption_migration_scope.py]
     verification_ids: [T-LEGACY-FIXTURES, T-NO-MIGRATION-GUARD]
     dependencies: [TASK-1]
-    ownership: {files: [scripts/verify_encryption_compatibility.py, scripts/audit_encryption_migration_scope.py, frontend/packages/openmates-cli/src/storage.ts, frontend/packages/openmates-cli/tests/storage.test.ts], shared_files: [backend/tests/fixtures, frontend/packages/ui/src/services/encryption/__tests__/regression-fixtures.test.ts]}
-    blockers: [Commit-scoped Vitest evidence cannot cover uncommitted work; do not advance TASK-3 until an authorized scoped commit is tested.]
+    ownership: {files: [scripts/verify_encryption_compatibility.py, scripts/audit_encryption_migration_scope.py, frontend/packages/openmates-cli/src/storage.ts, frontend/packages/openmates-cli/tests/storage.test.ts], shared_files: [backend/tests/fixtures, frontend/packages/ui/src/services/__tests__/encryptionCompatibilityFixtures.test.ts, frontend/packages/ui/src/services/encryption/__tests__/regression-fixtures.test.ts, frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts]}
+    blockers: []
     follow_up_tasks: [TASK-3, TASK-8]
     independently_deployable: true
   - id: TASK-3
