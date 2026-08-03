@@ -1185,6 +1185,8 @@
   let effectiveQuickTipSlugs = $derived(
     quickTipSlugs.length > 0 ? quickTipSlugs : hydratedQuickTipSlugs
   );
+  // Persisted tips are a login-recovery fallback only; once live props own a chat,
+  // do not revive its previous tips after a later message clears them.
   let quickTipPropsSeenChatId: string | null = null;
   let quickTipHydrationAttemptKey: string | null = null;
   let quickTipKeyReadyVersion = $state(0);
