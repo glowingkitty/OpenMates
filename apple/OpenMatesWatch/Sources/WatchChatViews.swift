@@ -6,6 +6,7 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
 //          frontend/packages/ui/src/components/ChatMessage.svelte
+//          frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
 //          frontend/packages/ui/src/components/enter_message/MessageInput.svelte
 // CSS:     frontend/packages/ui/src/styles/chat.css
 //          frontend/packages/ui/src/styles/fields.css
@@ -96,18 +97,17 @@ struct WatchChatShellView: View {
     }
 
     var body: some View {
-        TabView(selection: Binding(
-            get: { runtime.selectedChatId == nil ? "list" : "thread" },
-            set: { if $0 == "list" { runtime.selectedChatId = nil } }
-        )) {
-            WatchChatListView(runtime: runtime)
-                .tag("list")
-
-            WatchChatThreadView(runtime: runtime)
-                .environmentObject(phoneBridge)
-                .tag("thread")
+        Group {
+            if runtime.selectedChatId == nil {
+                WatchChatListView(runtime: runtime)
+            } else {
+                WatchChatThreadView(runtime: runtime)
+                    .environmentObject(phoneBridge)
+            }
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey100)
+        .ignoresSafeArea(edges: .bottom)
         .task {
             phoneBridge.start { _ in }
             await runtime.loadCachedSnapshot()
@@ -152,6 +152,7 @@ private struct WatchChatListView: View {
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing5)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.grey100)
         .accessibilityIdentifier("watch-chat-list")
     }
@@ -274,6 +275,7 @@ private struct WatchChatThreadView: View {
             }
         }
         .padding(.bottom, .spacing4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.grey100)
         .accessibilityIdentifier("watch-chat-thread")
     }

@@ -91,7 +91,6 @@ enum WatchEmbedOpenConnectivityPayload {
 }
 
 struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
-    static let cardWidth: Double = 156
     static let cardHeight: Double = 112
 
     let id: String
@@ -435,6 +434,14 @@ enum WatchMessageContentSanitizer {
             }
         }
 
+        let inlineLinkPattern = #"\[[^\]\n]*\]\(embed:([^\)\n]+)\)"#
+        if let inlineLinkRegex = try? NSRegularExpression(pattern: inlineLinkPattern) {
+            for match in inlineLinkRegex.matches(in: content, range: nsRange) {
+                guard let idRange = Range(match.range(at: 1), in: content) else { continue }
+                appendFallbackRef(id: String(content[idRange]), location: match.range.location)
+            }
+        }
+
         return refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
     }
 
@@ -477,7 +484,7 @@ enum WatchMessageContentSanitizer {
             }
 
             guard !isEmbedOnlyLine(line, embedIds: embedIds) else { continue }
-            output.append(line)
+            output.append(replacingInlineEmbedLinks(in: line))
         }
 
         if !fencedBlock.isEmpty, !isEmbedOnlyBlock(fencedBlock.joined(separator: "\n"), embedIds: embedIds) {
@@ -501,6 +508,43 @@ enum WatchMessageContentSanitizer {
         if trimmed.contains("\"embed_id\"") || trimmed.contains("embed_id:") { return true }
         if trimmed.hasPrefix("[[embed:") || trimmed.hasPrefix("[[embedref:") || trimmed.hasPrefix("[!](embed:") { return true }
         return embedIds.contains { trimmed == "embed:\($0)" || trimmed == $0 }
+    }
+
+    private static func replacingInlineEmbedLinks(in line: String) -> String {
+        let pattern = #"\[([^\]\n]*)\]\(embed:([^\)\n]+)\)"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return line }
+        let matches = expression.matches(
+            in: line,
+            range: NSRange(line.startIndex..<line.endIndex, in: line)
+        )
+        var output = line
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range(at: 0), in: output),
+                  let labelRange = Range(match.range(at: 1), in: line),
+                  let refRange = Range(match.range(at: 2), in: line) else { continue }
+            let label = String(line[labelRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let ref = String(line[refRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            output.replaceSubrange(fullRange, with: displayText(label: label, ref: ref))
+        }
+        return output
+    }
+
+    private static func displayText(label: String, ref: String) -> String {
+        if label.count > 3, label != ref { return label }
+        if let domainRange = ref.range(
+            of: #"^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?"#,
+            options: .regularExpression
+        ) {
+            return String(ref[domainRange])
+        }
+        let base = ref.replacingOccurrences(
+            of: #"-[a-zA-Z0-9]{2,4}(?:\s*\(\d+\))?$"#,
+            with: "",
+            options: .regularExpression
+        )
+        let words = base.split(whereSeparator: { $0 == "-" || $0 == "_" })
+        guard !words.isEmpty else { return ref }
+        return words.prefix(4).map { $0.capitalized }.joined(separator: " ")
     }
 }
 

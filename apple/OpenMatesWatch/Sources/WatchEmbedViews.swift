@@ -21,7 +21,7 @@ struct WatchEmbedPreviewCard: View {
             VStack(alignment: .leading, spacing: .spacing2) {
                 HStack(spacing: .spacing2) {
                     Circle()
-                        .fill(LinearGradient.primary)
+                        .fill(CategoryMapping.gradient(for: model.appId))
                         .frame(width: .spacing5, height: .spacing5)
                         .accessibilityHidden(true)
 
@@ -51,8 +51,9 @@ struct WatchEmbedPreviewCard: View {
             }
             .padding(.spacing3)
             .frame(
-                width: CGFloat(WatchEmbedPreviewModel.cardWidth),
-                height: CGFloat(WatchEmbedPreviewModel.cardHeight),
+                maxWidth: .infinity,
+                minHeight: CGFloat(WatchEmbedPreviewModel.cardHeight),
+                maxHeight: CGFloat(WatchEmbedPreviewModel.cardHeight),
                 alignment: .topLeading
             )
             .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius6, style: .continuous))
@@ -62,6 +63,7 @@ struct WatchEmbedPreviewCard: View {
             )
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .disabled(model.state == .processing)
         .accessibilityIdentifier("watch-embed-preview-\(model.family.rawValue)")
     }

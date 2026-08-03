@@ -62,6 +62,7 @@ enum WatchUIContract {
         "List",
         "Form",
         "NavigationStack",
+        "TabView",
         "navigationTitle",
         "toolbar",
     ]
