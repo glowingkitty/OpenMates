@@ -107,3 +107,30 @@ def test_live_script_uses_compiled_crypto_and_truthful_optional_probe_status() -
     assert '"cross_session_polling_denied", "passed"' in source
     assert '"cross_account_denial",\n      "not_run"' in source
     assert '"removed_member_denial",\n      "not_run"' in source
+
+
+def test_takeover_websocket_is_constructed_immediately_before_open() -> None:
+    source = (verifier.ROOT / "scripts" / "project_remote_access_live.mjs").read_text(encoding="utf-8")
+    verification = source[source.index("async function runApiVerification") : source.index("async function requestCliOperation")]
+
+    construction = "takeoverWs = makeWebSocket(requesterClient);"
+    opening = "await takeoverWs.open();"
+    assert "let takeoverWs = null;" in verification
+    assert verification.count(construction) == 1
+    assert verification.index(opening) > verification.index(construction)
+    assert verification[verification.index(construction) : verification.index(opening)].strip() == construction
+    assert "takeoverWs?.close();" in verification
+
+
+def test_fixture_cleanup_retries_only_bounded_transient_statuses() -> None:
+    source = (verifier.ROOT / "scripts" / "project_remote_access_live.mjs").read_text(encoding="utf-8")
+    cleanup = source[source.index("async function deleteFixture") : source.index("async function refreshOwnerId")]
+
+    assert "const FIXTURE_DELETE_MAX_ATTEMPTS = 4;" in source
+    assert "new Set([429, 500, 502, 503, 504])" in source
+    assert "attempt <= FIXTURE_DELETE_MAX_ATTEMPTS" in cleanup
+    assert "response.status === 200 || response.status === 404" in cleanup
+    assert "!FIXTURE_DELETE_RETRYABLE_STATUSES.has(response.status)" in cleanup
+    assert "attempt === FIXTURE_DELETE_MAX_ATTEMPTS" in cleanup
+    assert "setTimeout(resolvePromise, FIXTURE_DELETE_RETRY_DELAY_MS)" in cleanup
+    assert "throw new Error(`Fixture cleanup failed with HTTP ${response.status}`)" in cleanup

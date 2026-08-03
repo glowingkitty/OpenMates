@@ -33,6 +33,9 @@ import { OpenMatesWsClient } from "../frontend/packages/openmates-cli/src/ws.ts"
 const ROOT = resolve(import.meta.dirname, "..");
 const CLI_DIR = join(ROOT, "frontend", "packages", "openmates-cli");
 const USER_AGENT = `OpenMates CLI/0.1 (${platform()} ${release()})`;
+const FIXTURE_DELETE_MAX_ATTEMPTS = 4;
+const FIXTURE_DELETE_RETRY_DELAY_MS = 250;
+const FIXTURE_DELETE_RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 const mode = process.argv[2];
 const apiUrl = (process.argv[3] || "https://api.dev.openmates.org").replace(/\/$/, "");
 
@@ -149,9 +152,13 @@ async function createFixture(client, teamId = null, teamKey = null) {
 async function deleteFixture(client, fixture) {
   if (!fixture) return;
   const query = fixture.teamId ? `?team_id=${encodeURIComponent(fixture.teamId)}` : "";
-  const response = await apiRequest(client, `/v1/projects/${encodeURIComponent(fixture.projectId)}${query}`, { method: "DELETE" });
-  if (response.status !== 200 && response.status !== 404) {
-    throw new Error(`Fixture cleanup failed with HTTP ${response.status}`);
+  for (let attempt = 1; attempt <= FIXTURE_DELETE_MAX_ATTEMPTS; attempt += 1) {
+    const response = await apiRequest(client, `/v1/projects/${encodeURIComponent(fixture.projectId)}${query}`, { method: "DELETE" });
+    if (response.status === 200 || response.status === 404) return;
+    if (!FIXTURE_DELETE_RETRYABLE_STATUSES.has(response.status) || attempt === FIXTURE_DELETE_MAX_ATTEMPTS) {
+      throw new Error(`Fixture cleanup failed with HTTP ${response.status}`);
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, FIXTURE_DELETE_RETRY_DELAY_MS));
   }
 }
 
@@ -238,7 +245,7 @@ async function runApiVerification(hostClient, requesterClient, fixture, ownerId)
   const withContext = (path) => `${path}${path.includes("?") ? "&" : "?"}${teamQuery}`.replace(/[?&]$/, "");
   const sourceSessionId = randomUUID();
   const hostWs = makeWebSocket(hostClient);
-  const takeoverWs = makeWebSocket(requesterClient);
+  let takeoverWs = null;
   await hostWs.open();
   try {
     const registeredMessage = hostWs.waitForMessage("project_remote_access_registered", undefined, 10_000);
@@ -530,6 +537,7 @@ async function runApiVerification(hostClient, requesterClient, fixture, ownerId)
     );
     await pendingDelivered;
 
+    takeoverWs = makeWebSocket(requesterClient);
     await takeoverWs.open();
     const replacementSessionId = randomUUID();
     const conflict = takeoverWs.waitForMessage("project_remote_access_registered", undefined, 10_000);
@@ -603,7 +611,7 @@ async function runApiVerification(hostClient, requesterClient, fixture, ownerId)
     return probes;
   } finally {
     hostWs.close();
-    takeoverWs.close();
+    takeoverWs?.close();
   }
 }
 
