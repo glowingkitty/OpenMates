@@ -98,6 +98,11 @@ decisions:
     decision: Bootstrap through scripts/tests.py run --core-journeys with an exact commit.
     reason: GitHub does not register or trigger a brand-new workflow from a non-default branch.
     decided_at: "2026-08-03T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Allocate core journeys to persistent account slots 2, 3, 5, and 6.
+    reason: Exact-commit preflight proved slots 1 and 4 have stale credentials while 2, 3, 5, and 6 are healthy.
+    decided_at: "2026-08-03T18:35:00Z"
 
 attempts:
   - id: ATTEMPT-1

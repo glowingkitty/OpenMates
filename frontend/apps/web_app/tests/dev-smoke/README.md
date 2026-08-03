@@ -23,6 +23,8 @@ The list is hard-coded in `scripts/run_tests.py` (`CORE_JOURNEY_SPECS`) and also
 drives `.github/workflows/release-core-journeys.yml`. Keep it
 **short** — every spec adds ~2-5 min to the hourly wall time. Anything that is
 not "core user flow that must keep working" belongs in the nightly run, not here.
+The matching `CORE_JOURNEY_ACCOUNT_SLOTS` allocation uses healthy persistent
+accounts 2, 3, 5, and 6; change it only with account-preflight evidence.
 
 ## Required env vars
 

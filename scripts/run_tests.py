@@ -161,6 +161,7 @@ CORE_JOURNEY_SPECS: list[str] = [
     "signup-flow-stripe-managed.spec.ts",
     "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
+CORE_JOURNEY_ACCOUNT_SLOTS = (2, 3, 5, 6)
 HOURLY_DEV_SPECS = CORE_JOURNEY_SPECS
 
 
@@ -168,8 +169,8 @@ def print_core_journey_matrix() -> None:
     """Print the canonical release-gate matrix for GitHub Actions."""
     matrix = {
         "include": [
-            {"spec": spec, "account": str(index)}
-            for index, spec in enumerate(CORE_JOURNEY_SPECS, start=1)
+            {"spec": spec, "account": str(account)}
+            for spec, account in zip(CORE_JOURNEY_SPECS, CORE_JOURNEY_ACCOUNT_SLOTS, strict=True)
         ]
     }
     print(json.dumps(matrix, separators=(",", ":")))
@@ -3953,6 +3954,7 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
         batch_size=len(HOURLY_DEV_SPECS),  # one batch — small list
         fail_fast=False,                    # always run all 4, surface every failure
         use_mocks=True,
+        normal_account_slots=CORE_JOURNEY_ACCOUNT_SLOTS,
     )
     suite_result = runner.run_all_batches()
     duration = time.time() - start

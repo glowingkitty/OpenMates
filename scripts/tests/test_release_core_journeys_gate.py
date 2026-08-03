@@ -48,6 +48,7 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
     run_tests = load_module("release_gate_run_tests", ROOT / "scripts" / "run_tests.py")
 
     assert run_tests.CORE_JOURNEY_SPECS == EXPECTED_SPECS
+    assert run_tests.CORE_JOURNEY_ACCOUNT_SLOTS == (2, 3, 5, 6)
     assert run_tests.HOURLY_DEV_SPECS is run_tests.CORE_JOURNEY_SPECS
     for spec_name in EXPECTED_SPECS:
         assert (ROOT / "frontend" / "apps" / "web_app" / "tests" / spec_name).is_file()
@@ -56,8 +57,8 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
     matrix = json.loads(capsys.readouterr().out)
     assert matrix == {
         "include": [
-            {"spec": spec_name, "account": str(index)}
-            for index, spec_name in enumerate(EXPECTED_SPECS, start=1)
+            {"spec": spec_name, "account": str(account)}
+            for spec_name, account in zip(EXPECTED_SPECS, (2, 3, 5, 6), strict=True)
         ]
     }
 
