@@ -224,8 +224,34 @@ final class WatchEmbedPreviewTests: XCTestCase {
         let refs = WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
         let displayText = WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs)
 
-        XCTAssertEqual(refs.map(\.id), ["csd-deutschland.de-NXT"])
+        XCTAssertTrue(refs.isEmpty, "Inline reference links must not be promoted to generic preview cards")
         XCTAssertEqual(displayText, "See CSD Magdeburg for details.")
+    }
+
+    func testWatchDerivesReadableTravelEmbedReferenceLabels() {
+        XCTAssertEqual(
+            WatchMessageContentSanitizer.displayText(
+                content: "[ice-0800-PsB](embed:ice-0800-PsB)",
+                embedRefs: nil
+            ),
+            "ICE 08:00"
+        )
+        XCTAssertEqual(
+            WatchMessageContentSanitizer.displayText(
+                content: "[](embed:flixtrain-1423-3VT)",
+                embedRefs: nil
+            ),
+            "FlixTrain 14:23"
+        )
+    }
+
+    func testWatchReplacesMultipleUnicodeEmbedReferenceLabels() {
+        let content = "[Café Köln](embed:cafe.example-AbC) and [Zürich HB](embed:ice-1730-XyZ)"
+
+        XCTAssertEqual(
+            WatchMessageContentSanitizer.displayText(content: content, embedRefs: nil),
+            "Café Köln and Zürich HB"
+        )
     }
 
     private static func embed(
