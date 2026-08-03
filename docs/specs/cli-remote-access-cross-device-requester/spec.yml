@@ -1,7 +1,7 @@
 schema_version: 2
 id: cli-remote-access-cross-device-requester
 title: Project CLI CRUD And Cross-Device Remote Access
-status: draft
+status: approved
 
 goal: >
   Make Projects fully navigable and manageable from the OpenMates CLI, let one
@@ -128,13 +128,13 @@ implementation_state:
 
 approvals:
   product_contract:
-    status: pending
-    approved_at: ""
-    reason: The user approved the summarized vision; this validated contract still requires approval.
+    status: approved
+    approved_at: "2026-08-03T13:19:11Z"
+    reason: User explicitly approved the validated product contract and instructed OpenCode to proceed.
   implementation_plan:
-    status: pending
+    status: not_required
     approved_at: ""
-    reason: Refine the initial outline with plan-from-spec after product-contract approval.
+    reason: The refined plan introduces no material architecture, security, privacy, migration, rollout, or dependency decision beyond the approved product contract.
 
 decisions:
   - id: D-1
@@ -187,10 +187,10 @@ attempts:
     reason: Users need production CLI context, source selection, cleartext output, and stable errors.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Present the validated product contract and wait for explicit approval before implementation planning.
-  command: python3 scripts/spec_validate.py docs/specs/cli-remote-access-cross-device-requester/spec.yml
-  expected_outcome: Schema V2 structure and all references pass validation.
+  current_task_id: TASK-2A
+  next_action: Verify the required Teams V1 primitives against the real dev API before writing Project feature tests or source code.
+  command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_membership.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_offboarding.py --api-url https://api.dev.openmates.org
+  expected_outcome: Team lifecycle, active context, membership/key access, role enforcement, and offboarding probes pass so A-1 can be confirmed.
   blocker: null
   last_verified_commit: 51fdd17559765f0d2a127c12702b4a214b3a1ec3
 
@@ -437,6 +437,17 @@ contracts:
     - Viewers/members see `Attached by you` for their own source or `Team source` for another member; owner/admin may see the authorized Team member display label for cleanup. No role sees another host's device ID or absolute path.
 
 tests:
+  - id: T-TEAMS-PREREQUISITE-LIVE
+    type: manual
+    file: scripts/verify_teams_cli_lifecycle.py
+    command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_membership.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_offboarding.py --api-url https://api.dev.openmates.org
+    covers: [AC-5, AC-6, AC-7]
+    assertions:
+      - Real Team lifecycle and persisted Personal/Team context switching work against api.dev.openmates.org.
+      - Membership approval gives an active member the Team key path while viewer/member/admin/owner roles remain distinguishable.
+      - Member removal revokes future Team API/key access and managed client state through the real dev contract.
+    red_phase: {required: false, expected: not_applicable_existing_prerequisite, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-BACKEND-PROJECT-CONTEXT
     type: pytest
     file: backend/tests/test_projects.py
@@ -648,15 +659,44 @@ implementation_plan:
     enforce one Personal/Team authorization path across REST and bridge routing,
     build deterministic CLI CRUD/requester commands, and add stored-data parity to
     npm/pip SDKs. No remote plaintext or raw key crosses backend boundaries.
-  provisional: true
-  provisional_reason: Detailed plan and task ownership remain subject to product-contract approval and plan-from-spec refinement.
+  provisional: false
+  first_slice: Confirm Teams prerequisites, then add context-owned Project persistence and direct REST contract tests without changing CLI or SDK behavior.
   data_flow:
-    - Resolve context and exact Project locally from encrypted list data.
-    - Unwrap Personal or Team Project key through approved client key flows.
-    - Source CLI confirms context, attaches a source, and registers a live session.
-    - Requester and source establish Project-authenticated encryption and relay opaque operation data.
-    - Source applies existing filesystem bounds; requester decrypts bounded results.
-    - Membership/source revocation invalidates runtime bindings before offline/removal persistence.
+    - Alice selects Team `acme`; the client sends opaque team ID `team-acme-id` while the API verifies Alice's active role.
+    - A Team Project row stores hashed_team_id, created_by_user_hash, ciphertext metadata, and a key_type team wrapper for epoch 1; no raw key reaches the API.
+    - Alice's desktop confirms Team Acme before discovering `/work/api`, attaches source `src-api-1`, and registers session `source-session-1`.
+    - Alice's laptop or teammate Bob resolves Project `project-api-1`, unwraps its Project key, and creates request `request-1` through the first-party bridge.
+    - Requester and source establish Project-authenticated encryption and relay opaque list/search/read data through the backend.
+    - The source applies existing filesystem bounds and encrypts the result; the requester decrypts only the bounded response.
+    - Removing the host invalidates `source-session-1` and `request-1` synchronously before the source is projected offline.
+  migration_rollout:
+    - Add nullable owner-context and creator/attacher fields plus context-aware indexes before switching queries.
+    - Run an idempotent backfill that classifies existing child/source/settings rows as Personal from hashed_user_id.
+    - Audit and reject invalid mixed Personal/Team ownership before enabling Team mutation paths.
+    - Restart the local `api` service under the Docker lock before real dev REST/WebSocket verification.
+    - Keep additive fields on rollback; disable Team paths without deleting encrypted rows or wrappers.
+  observability:
+    - Log only opaque Project/source/session/request IDs, owner-context type, role decision, stable error code, duration, and byte/item counts.
+    - Emit counters for denied context/role access, offline requests, stale sessions, takeover, rate limits, and membership-triggered revocation.
+    - Never log Team display names, member emails, device IDs, paths, queries, snippets, file contents, keys, or ciphertext blobs.
+  assumption_checks:
+    - A-1 is checked by T-TEAMS-PREREQUISITE-LIVE before TASK-2; failure keeps TASK-2A active and either repairs Teams V1 or records a user/external blocker.
+    - A-2 is enforced by wrapper unit tests in T-BACKEND-PROJECT-CONTEXT and T-REMOTE-CRYPTO before Team Project creation ships.
+    - A-3 remains guarded by existing remote-access tests plus T-BACKEND-REMOTE-TEAM and T-CLI-TWO-DEVICE-LIVE.
+    - A-4 remains guarded by T-CLI-PROJECTS-UNIT and the privacy audit.
+  acceptance_coverage:
+    - AC-1, AC-2, and AC-6 map to backend pytest, direct dev REST, and real CLI checks.
+    - AC-3 through AC-5, AC-7, and AC-9 map to bridge pytest/crypto, direct dev WebSocket, and real two-CLI checks.
+    - AC-8 maps to real npm/pip dev tests and the parity audit.
+    - AC-10 maps to deployed Playwright regression; AC-11 maps to Apple remote build; AC-12 maps to deterministic docs audit.
+  risks:
+    - Teams V1 deployed evidence may be incomplete; TASK-2A resolves this before feature code.
+    - Context fields can create cross-scope leaks if any child query omits owner context; backend tests enumerate every Project collection and route.
+    - Membership changes can race heartbeats/completions; runtime bindings use session IDs and synchronous invalidation before removal success.
+    - Developer SDK Project CRUD must not accidentally expose first-party remote file routes; parity/privacy audits enforce the split.
+  open_questions:
+    - None for product behavior; failed Teams prerequisite evidence may reveal an implementation blocker but not a new product decision.
+  material_plan_approval_required: false
   affected_files:
     - {path: backend/core/directus/schemas/projects.yml, reason: "Normalize Team Project ownership and creator fields."}
     - {path: backend/core/directus/schemas/project_sources.yml, reason: "Add Team context and source-attacher fields."}
@@ -695,8 +735,8 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Approve and refine the executable contract
-    status: in_progress
-    phase: awaiting_approval
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12]
@@ -705,7 +745,20 @@ tasks:
     dependencies: []
     ownership: {files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml], shared_files: []}
     blockers: []
+    follow_up_tasks: [TASK-2A]
+    independently_deployable: true
+  - id: TASK-2A
+    title: Verify Teams lifecycle and key-access prerequisites
+    status: pending
+    phase: checking_assumptions
+    covers: {scenarios: [S-5, S-6, S-7], acceptance_criteria: [AC-5, AC-6, AC-7]}
+    expected_files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml]
+    verification_ids: [T-TEAMS-PREREQUISITE-LIVE]
+    dependencies: [TASK-1]
+    ownership: {files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml], shared_files: [scripts/verify_teams_cli_lifecycle.py, scripts/verify_teams_cli_membership.py, scripts/verify_teams_cli_offboarding.py]}
+    blockers: []
     follow_up_tasks: [TASK-2]
+    independently_deployable: true
   - id: TASK-2
     title: Add Team-aware Project persistence and authorization
     status: pending
@@ -713,10 +766,11 @@ tasks:
     covers: {scenarios: [S-1, S-2, S-6], acceptance_criteria: [AC-1, AC-2, AC-6]}
     expected_files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py]
     verification_ids: [T-BACKEND-PROJECT-CONTEXT, T-API-PROJECT-CONTEXT-LIVE]
-    dependencies: [TASK-1]
+    dependencies: [TASK-2A]
     ownership: {files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py, scripts/verify_projects_api.py], shared_files: []}
-    blockers: [Confirm A-1 or implement the missing Teams membership/context/key primitives in this task before Team Project code.]
+    blockers: []
     follow_up_tasks: [TASK-3]
+    independently_deployable: true
   - id: TASK-3
     title: Extend bridge routing to Team hosts and requesters
     status: pending
@@ -728,6 +782,7 @@ tasks:
     ownership: {files: [backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/routes/websockets.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/src/remoteAccessCrypto.ts, frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts, scripts/verify_project_remote_access_api.py], shared_files: [backend/core/api/app/routes/projects.py]}
     blockers: []
     follow_up_tasks: [TASK-4]
+    independently_deployable: true
   - id: TASK-4
     title: Implement deterministic Project and requester CLI commands
     status: pending
@@ -739,6 +794,7 @@ tasks:
     ownership: {files: [frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/remoteAccess.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/client.test.ts, scripts/verify_projects_cli.py, scripts/verify_project_remote_access_cli.py, scripts/audit_cli_remote_access_docs.py, docs/user-guide/cli/remote-access.md, docs/architecture/platforms/cli-package.md], shared_files: [frontend/packages/openmates-cli/src/remoteAccessCrypto.ts]}
     blockers: []
     follow_up_tasks: [TASK-5]
+    independently_deployable: true
   - id: TASK-5
     title: Complete npm and pip Project data parity
     status: pending
@@ -750,6 +806,7 @@ tasks:
     ownership: {files: [frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk-projects.test.ts, frontend/packages/openmates-cli/tests/sdk-projects-real-dev.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_projects.py, packages/openmates-python/tests/test_projects_real_dev.py, scripts/audit_sdk_cli_parity.py], shared_files: []}
     blockers: []
     follow_up_tasks: [TASK-6]
+    independently_deployable: true
   - id: TASK-6
     title: Run browser and Apple regression gates
     status: pending
@@ -760,4 +817,5 @@ tasks:
     dependencies: [TASK-5]
     ownership: {files: [frontend/apps/web_app/tests/projects-remote-sources.spec.ts], shared_files: [apple/OpenMates]}
     blockers: []
+    independently_deployable: false
     follow_up_tasks: []
