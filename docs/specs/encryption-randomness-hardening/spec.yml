@@ -276,8 +276,8 @@ attempts:
 
 handoff:
   current_task_id: TASK-10
-  next_action: Implement and verify R1 backend and web media readers while legacy writers remain active, beginning with the direct REST reader contract.
-  command: python3 -m pytest backend/tests/test_media_encryption_compatibility.py
+  next_action: Apply the committed dev Caddyfile with sudo, then rerun the signed generated-asset download against api.dev.openmates.org and close TASK-10.
+  command: sudo deployment/apply-caddy-config.sh deployment/dev_server/Caddyfile
   expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
   blocker: null
   last_verified_commit: 66b6630dd
@@ -594,8 +594,8 @@ tests:
     command: python3 -m pytest backend/tests/test_media_encryption_compatibility.py
     covers: [AC-2, AC-3, AC-4]
     assertions: [Legacy nonce and raw-key fallback decrypts, all new variants have distinct nonces, v2 bytes are nonce then ciphertext and tag, v2 rows store only Vault-wrapped server keys, the explicit marker selects v2, duplicate/RNG/Vault failure persists nothing, premature writer enablement fails.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "task10-backend-red-not-retained", timestamp: "2026-08-03T22:34:00Z", reason: "The backend compatibility tests were authored before implementation, but no durable pre-implementation run identifier was retained."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_generated_model_streaming_storage.py backend/tests/test_encrypted_embed_images.py", run_id: "local-task10-backend-24", subject_commit: "1e7e5d996", timestamp: "2026-08-03T22:41:00Z", notes: "24 focused tests passed for frozen legacy payloads, explicit nonce-prefixed v2, unknown-marker rejection, wrapped-key-only v2 Vault unwrap, direct REST decoding, and worker image decoding."}}
   - id: T-INVOICE-REGEN
     type: pytest
     file: backend/tests/test_invoice_encryption_regeneration.py
@@ -618,8 +618,8 @@ tests:
     command: python3 scripts/tests.py run --suite vitest
     covers: [AC-2, AC-3]
     assertions: [Legacy and v2 media fixtures decrypt, unknown versions fail closed.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --suite vitest --expected-commit 88283ea17", run_id: "30857299314", subject_commit: "88283ea17", timestamp: "2026-08-03T22:28:00Z", reason: "All three collected media reader assertions failed on the intentionally unimplemented web decoder while the other 692 tests passed."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --expected-commit 47e97139e", run_id: "30860164868", subject_commit: "47e97139e", timestamp: "2026-08-03T22:52:01Z", notes: "695/695 tests passed, including frozen legacy media, explicit nonce-prefixed v2, and unknown-marker fail-closed behavior."}}
   - id: T-SHORT-LINK
     type: vitest
     file: frontend/packages/ui/src/services/__tests__/shortUrlRandomness.test.ts
@@ -707,17 +707,17 @@ tests:
     target: app.dev.openmates.org
     covers: [AC-2, AC-3, AC-6]
     assertions: [A frozen legacy media chat renders, a checked-in v2 reader fixture renders while R1 legacy writers remain active, a legacy short link resolves, no decryption error is shown.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "task10-web-e2e-added-with-reader", timestamp: "2026-08-03T22:49:00Z", reason: "The deployed E2E contract was added with the reader implementation after the earlier unit-level red phase; run 30860760857 exposed only test selector defects and is not misrepresented as product red evidence."}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed, command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit 248c72497", run_id: "30861853666", subject_commit: "248c72497", target: "https://app.dev.openmates.org", deployment_reference: "dpl_BLj7xXDZ5aaMVwx7qwNnz1VTBvNN", timestamp: "2026-08-03T23:21:00Z", notes: "The deployed preview rendered deterministic legacy external-nonce and explicit v2 nonce-prefixed PNGs through production browser readers; the deployed six-character legacy shared link also resolved without decryption errors."}}
 
 verifications:
-  - {id: V-REST-MEDIA-READER, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-4], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
+  - {id: V-REST-MEDIA-READER, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-4], status: blocked, target: "https://api.dev.openmates.org", evidence: {status: blocked, command: "sudo deployment/apply-caddy-config.sh deployment/dev_server/Caddyfile", run_id: "task10-rest-reader-caddy-blocked", subject_commit: "8d38e16b3", summary: "The live API process successfully decrypted an existing signed-token legacy PNG as image/png with 193493 plaintext bytes. External api.dev requests still close before FastAPI because the committed generated-assets Caddy allowlist requires an interactive sudo reload.", timestamp: "2026-08-03T23:28:03Z", actor: OpenCode, reason: "The dev host requires an operator password for sudo; the agent cannot reload /etc/caddy/Caddyfile non-interactively.", next_action: "Run sudo deployment/apply-caddy-config.sh deployment/dev_server/Caddyfile, then rerun the redacted signed-token REST probe.", recheck_condition: "Caddy reload completes successfully."}}
   - {id: V-REST-MEDIA-WRITER, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
   - {id: V-REST-INVOICE, kind: automated_test, phase: green, required_for_done: true, covers: [AC-5], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "openmates --api-url https://api.dev.openmates.org settings billing invoices list --json && openmates --api-url https://api.dev.openmates.org settings billing invoices download <stable-invoice-id> --output <temporary-directory>", run_id: "task8-live-overlay-v2-2026-08-03", subject_commit: "6bfa3a793", summary: "The authorized OpenMatesCloud overlay imported with billing enabled; unauthenticated invoice access returned 401. Authenticated CLI list and legacy v1 download passed. A scoped append-only regeneration then Vault-unwrapped the current invoice, published v2 only after authenticated S3 read-back, and left one verified v2 row with complete encrypted metadata. Downloading the same stable logical ID after publication returned a valid 24,218-byte PDF; temporary PDFs were removed.", timestamp: "2026-08-03T21:11:46Z", actor: OpenCode}}
   - {id: V-CLI, kind: automated_test, phase: green, required_for_done: true, covers: [AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "Real authenticated CLI daily, weekly, and monthly usage-overview calls passed against dev; the same session also proved invoice list/download before TASK-9. The verifier used isolated temporary auth state and reported valid period, totals, freshness, and token-coverage contracts.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
   - {id: V-NPM-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8, AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "The locally built npm SDK made a real authenticated usage-overview call against dev and returned the canonical contract in 0.333 seconds. Its temporary API key/device was approved through the first-party session and revoked by the verifier.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
   - {id: V-PIP-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "The source-checkout pip SDK made a real authenticated usage-overview call against dev and returned the canonical contract in 0.305 seconds. Its temporary API key/device was approved through the first-party session and revoked by the verifier.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
-  - {id: V-WEB-DEPLOYED, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: pending, target: "https://app.dev.openmates.org", evidence: {status: "", command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts", run_id: "", subject_commit: "", deployment_reference: "", summary: "", timestamp: ""}}
+  - {id: V-WEB-DEPLOYED, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: passed, target: "https://app.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit 248c72497", run_id: "30861853666", subject_commit: "248c72497", deployment_reference: "dpl_BLj7xXDZ5aaMVwx7qwNnz1VTBvNN", summary: "Deployed production readers rendered checked-in deterministic legacy and explicit v2 encrypted PNGs, and the deployed legacy six-character shared link resolved without decryption errors.", timestamp: "2026-08-03T23:21:00Z", actor: OpenCode}}
   - {id: V-WEB-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, target: "https://app.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", deployment_reference: "", summary: "", timestamp: ""}}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
@@ -1081,7 +1081,7 @@ tasks:
     verification_ids: [T-BACKEND-MEDIA, T-WEB-MEDIA, T-WEB-E2E, V-REST-MEDIA-READER, V-WEB-DEPLOYED]
     dependencies: [TASK-5, TASK-9]
     ownership: {files: [config/media_encryption_rollout.yml, frontend/apps/web_app/tests/media-encryption-compatibility.spec.ts], shared_files: [backend/core/api/app/routes/generated_assets_api.py, frontend/packages/ui/src/components/embeds, frontend/packages/ui/src/services/zipExportService.ts]}
-    blockers: []
+    blockers: [V-REST-MEDIA-READER requires an operator sudo reload of the committed dev Caddyfile before external api.dev proof can pass.]
     follow_up_tasks: [TASK-11]
     independently_deployable: true
   - id: TASK-11
