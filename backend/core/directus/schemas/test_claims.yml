@@ -19,6 +19,14 @@ test_claims:
       type: string
       length: 255
       note: "Claimed deterministic triage group."
+    campaign_key:
+      type: string
+      length: 255
+      note: "Nullable durable debug campaign."
+    debug_group_key:
+      type: string
+      length: 255
+      note: "Nullable durable root-cause group owned by this lease."
     status:
       type: string
       length: 80

@@ -22,7 +22,18 @@ REQUIRED_SCHEMAS = {
     "test_runs.yml": {"run_key", "source", "external_run_id", "status", "requested_tests", "summary"},
     "test_results.yml": {"result_key", "run_key", "test_key", "status", "error_summary", "metadata"},
     "test_current_state.yml": {"test_key", "stable_status", "stable_result_key", "active_status", "active_run_key", "triage_group_id"},
-    "test_claims.yml": {"claim_key", "group_id", "status", "session_id", "worker_id", "expires_at_unix", "completed_commit"},
+    "test_claims.yml": {"claim_key", "group_id", "campaign_key", "debug_group_key", "status", "session_id", "worker_id", "expires_at_unix", "completed_commit"},
+    "test_debug_campaigns.yml": {
+        "campaign_key", "status", "session_id", "source_run_keys", "selected_test_keys",
+        "selected_group_keys", "current_group_key", "completion_policy", "blocker",
+        "created_at", "updated_at", "completed_at",
+    },
+    "test_debug_groups.yml": {
+        "group_key", "campaign_key", "triage_group_id", "parent_group_key", "status",
+        "member_test_keys", "observed_failure", "expected_behavior", "acceptance_criteria",
+        "root_cause", "attempts", "red_evidence", "green_evidence", "blocker",
+        "metadata", "verification_command", "selected_at_unix", "updated_at",
+    },
 }
 
 
@@ -50,6 +61,8 @@ def test_test_control_plane_schemas_have_unique_upsert_keys():
         "test_results.yml": "result_key",
         "test_current_state.yml": "test_key",
         "test_claims.yml": "claim_key",
+        "test_debug_campaigns.yml": "campaign_key",
+        "test_debug_groups.yml": "group_key",
     }
     for filename, field_name in unique_fields.items():
         fields = load_schema(filename)[filename.removesuffix(".yml")]["fields"]

@@ -23,7 +23,12 @@ on:
     paths:
       - "backend/**"
       - "packages/openmates-python/**"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      test_targets_json:
+        description: "Optional JSON array of exact pytest node IDs for campaign verification"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -48,10 +53,14 @@ jobs:
         continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
+          TEST_TARGETS_JSON: ${{ inputs.test_targets_json || '' }}
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd backend
-          pytest tests/ \
+          mapfile -t PYTEST_TARGETS < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_TARGETS_JSON") or "[]"); print("\n".join(v.removeprefix("backend/") for v in values))')
+          if [ ${#PYTEST_TARGETS[@]} -eq 0 ]; then PYTEST_TARGETS=(tests/); fi
+          set +e
+          pytest "${PYTEST_TARGETS[@]}" \
             -m "not integration and not slow and not vault and not benchmark and not provider_contract" \
             -v --tb=short --color=no \
             --ignore=tests/fixtures \
@@ -61,8 +70,12 @@ jobs:
             --ignore=tests/test_status_service_v2.py \
             --continue-on-collection-errors \
             --json-report --json-report-file=$GITHUB_WORKSPACE/test-results/pytest-results.json \
-            2>&1 | tee $GITHUB_WORKSPACE/test-results/pytest-output.txt || true
+            2>&1 | tee $GITHUB_WORKSPACE/test-results/pytest-output.txt
+          PYTEST_EXIT=${PIPESTATUS[0]}
+          set -e
+          if [ -n "$TEST_TARGETS_JSON" ] && [ $PYTEST_EXIT -ne 0 ]; then exit $PYTEST_EXIT; fi
       - name: Run Python SDK account import tests
+        if: ${{ inputs.test_targets_json == '' }}
         id: python_sdk_account_import_tests
         continue-on-error: true
         run: |

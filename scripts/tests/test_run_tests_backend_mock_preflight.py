@@ -85,8 +85,9 @@ def test_only_failed_synthetic_backend_preflight_records_pass_when_env_fixed(
     orchestrator = run_tests.TestOrchestrator(
         SimpleNamespace(
             suite="playwright",
-            spec=None,
-            only_failed=True,
+                spec=None,
+                core_journeys=False,
+                only_failed=True,
             daily=False,
             force=False,
             environment="development",

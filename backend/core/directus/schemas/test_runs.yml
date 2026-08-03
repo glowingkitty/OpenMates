@@ -42,6 +42,14 @@ test_runs:
     requested_tests:
       type: json
       note: "Canonical test keys requested by this run."
+    campaign_key:
+      type: string
+      length: 255
+      note: "Nullable debug campaign that requested this run."
+    debug_group_key:
+      type: string
+      length: 255
+      note: "Nullable debug group verified by this run."
     summary:
       type: json
       note: "Aggregate result counts."

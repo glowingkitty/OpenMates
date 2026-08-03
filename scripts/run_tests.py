@@ -5666,6 +5666,12 @@ class TestOrchestrator:
         self.dry_run = args.dry_run
         self.dot_env = _read_env_file()
         self.only_failed_synthetic_files: tuple[str, ...] = ()
+        selected_labels = os.getenv("OPENMATES_CAMPAIGN_TEST_LABELS_JSON", "")
+        try:
+            decoded_labels = json.loads(selected_labels) if selected_labels else []
+        except json.JSONDecodeError:
+            decoded_labels = []
+        self.campaign_test_labels = [str(label) for label in decoded_labels] if isinstance(decoded_labels, list) else []
 
         self.git_sha, self.git_branch = _git_info()
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -5881,9 +5887,12 @@ class TestOrchestrator:
         # Record pre-dispatch run IDs to find the new one
         pre_ids = client._recent_run_ids(limit=5, workflow=workflow_file)
 
+        dispatch_command = ["gh", "workflow", "run", workflow_file, "--repo", GH_REPO, "--ref", GH_BRANCH]
+        if self.campaign_test_labels and workflow_file in {"pytest-unit.yml", "vitest.yml"}:
+            input_name = "test_targets_json" if workflow_file == "pytest-unit.yml" else "test_files_json"
+            dispatch_command.extend(["-f", f"{input_name}={json.dumps(self.campaign_test_labels, separators=(',', ':'))}"])
         rc = subprocess.run(
-            ["gh", "workflow", "run", workflow_file,
-             "--repo", GH_REPO, "--ref", GH_BRANCH],
+            dispatch_command,
             capture_output=True, text=True,
         )
         if rc.returncode != 0:

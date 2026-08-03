@@ -47,6 +47,7 @@ Use it only for context. Do not start or end a session yourself.
 ## Group Context
 
 Group id: `{{GROUP_ID}}`
+Campaign id: `{{CAMPAIGN_ID}}`
 Run id: `{{RUN_ID}}`
 Attempt: `{{ATTEMPT_NUMBER}}` of `{{MAX_ATTEMPTS}}`
 Verification command the controller will run:
@@ -66,6 +67,18 @@ Previous attempts and verification output:
 ```json
 {{PREVIOUS_ATTEMPTS_JSON}}
 ```
+
+Before editing source, read every selected test and persist its observable
+expected behavior and concrete acceptance criteria:
+
+```bash
+python3 scripts/tests.py campaign prepare --group {{GROUP_ID}} \
+  --expected-behavior "<observable expected behavior>" \
+  --criterion "<concrete assertion>"
+```
+
+If expected behavior is disputed or the fix crosses a must-block boundary,
+write the blocked summary instead of guessing.
 
 If previous attempts are present, do not repeat the same fix. Read the latest
 `verification_output_tail`, inspect the relevant current files, and address the
@@ -88,6 +101,8 @@ Schema:
   "group_id": "{{GROUP_ID}}",
   "session_id": "{{SESSION_ID}}",
   "root_cause": "one concise paragraph",
+  "expected_behavior": "observable behavior derived from the selected tests",
+  "acceptance_criteria": ["concrete assertion verified by the selected tests"],
   "changes_applied": ["concise change summary"],
   "changed_files": ["relative/source/or/test/path"],
   "verification_command": "{{VERIFY_COMMAND}}",

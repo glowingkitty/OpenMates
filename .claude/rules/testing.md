@@ -33,7 +33,7 @@ offline investigation and historical context:
 | `test-results/reports/success/*.md` | Per-test MD reports for each passed test |
 | `test-results/last-run.json` | Last individual run (may be a subset — check `run_id`) |
 
-**When asked to fix test failures:** Use `/fix-tests` or `/fix-next-test`, then lease a failure group through `scripts/tests.py next --lease`. Use `test-results/reports/failed/` and screenshots only as supporting evidence for the leased group.
+**When asked to fix test failures:** Use `/fix-tests` to create or resume a durable Directus campaign, or `/fix-next-test` as its one-group resume wrapper. Lease through `scripts/tests.py campaign next`, persist acceptance criteria before source edits, record every attempt, and verify exact group membership through `scripts/tests.py run --campaign <id> --group <id>`. Use `test-results/reports/failed/` and screenshots only as supporting evidence.
 
 **Do NOT** treat `test-results/*.json` as the source of truth and do not re-download results from GitHub Actions just to see what failed. The unified control plane already records current state.
 

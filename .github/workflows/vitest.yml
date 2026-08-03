@@ -23,7 +23,12 @@ on:
     paths:
       - "frontend/**"
       - "!frontend/apps/web_app/tests/**"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      test_files_json:
+        description: "Optional JSON array of exact Vitest files for campaign verification"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -49,29 +54,47 @@ jobs:
           # Use node environment instead of jsdom — jsdom with crypto.subtle
           # mocks causes process hangs on GHA Ubuntu runners.
           VITEST_ENVIRONMENT: node
+          TEST_FILES_JSON: ${{ inputs.test_files_json || '' }}
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/packages/ui
+          mapfile -t TEST_FILES < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_FILES_JSON") or "[]"); marker="frontend/packages/ui/"; print("\n".join(v.split(marker,1)[1] for v in values if marker in v))')
+          if [ -n "$TEST_FILES_JSON" ] && [ ${#TEST_FILES[@]} -eq 0 ]; then echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json; exit 0; fi
+          set +e
           npx vitest run --reporter=json --environment node \
             --testTimeout 30000 \
             --exclude 'src/services/encryption/**' \
-            2>&1 | tee $GITHUB_WORKSPACE/test-results/vitest-ui.json || true
+            "${TEST_FILES[@]}" \
+            2>&1 | tee $GITHUB_WORKSPACE/test-results/vitest-ui.json
+          VITEST_EXIT=${PIPESTATUS[0]}
+          set -e
           if [ ! -s $GITHUB_WORKSPACE/test-results/vitest-ui.json ]; then
             echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json
           fi
+          if [ -n "$TEST_FILES_JSON" ] && [ $VITEST_EXIT -ne 0 ]; then exit $VITEST_EXIT; fi
       - name: Run web app unit tests
         id: webapp_tests
         continue-on-error: true
         timeout-minutes: 5
+        env:
+          TEST_FILES_JSON: ${{ inputs.test_files_json || '' }}
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
+          mapfile -t TEST_FILES < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_FILES_JSON") or "[]"); marker="frontend/apps/web_app/"; print("\n".join(v.split(marker,1)[1] for v in values if marker in v))')
+          if [ -n "$TEST_FILES_JSON" ] && [ ${#TEST_FILES[@]} -eq 0 ]; then echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json; exit 0; fi
+          set +e
           npx vitest run --reporter=json \
-            2>&1 | tee $GITHUB_WORKSPACE/test-results/vitest-webapp.json || true
+            "${TEST_FILES[@]}" \
+            2>&1 | tee $GITHUB_WORKSPACE/test-results/vitest-webapp.json
+          VITEST_EXIT=${PIPESTATUS[0]}
+          set -e
           if [ ! -s $GITHUB_WORKSPACE/test-results/vitest-webapp.json ]; then
             echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json
           fi
+          if [ -n "$TEST_FILES_JSON" ] && [ $VITEST_EXIT -ne 0 ]; then exit $VITEST_EXIT; fi
       - name: Run CLI account import SDK tests
+        if: ${{ inputs.test_files_json == '' }}
         id: cli_account_import_tests
         continue-on-error: true
         timeout-minutes: 5

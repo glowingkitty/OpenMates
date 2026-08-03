@@ -56,17 +56,30 @@ and manual jobs from using the same persistent account concurrently.
 - `test_results`: per-test result events used for history and triage.
 - `test_claims`: active, completed, released, and expired debug claims so
   parallel workers do not pick the same root-cause group.
+- `test_debug_campaigns`: durable selected scope, lifecycle, blockers, and
+  completion summaries for failed-test work across OpenCode sessions.
+- `test_debug_groups`: complete group membership, expected behavior,
+  acceptance criteria, root-cause attempts, child relationships, and red/green
+  evidence. Claims reference these records but do not replace them.
 - `test_catalog`: canonical suite/test inventory, including Apple tests.
 - `test-results/*.json`: non-authoritative import/export and artifact files only.
   Do not read them as the source of truth for current failures or claims.
 
 ## Debugging Flow
 
-1. Inspect Directus-backed status with `python3 scripts/tests.py status --json`.
-2. Lease the next failure with `python3 scripts/tests.py next --lease --session <id> --json`.
-3. Read only the leased failure details and linked files before editing.
-4. Verify through the returned `verification_command`.
-5. Mark the lease completed or released after deploy or blocker discovery.
+1. Create or resume scope with `python3 scripts/tests.py campaign start --session <id> --json`.
+2. Inspect the durable campaign with `python3 scripts/tests.py campaign status --campaign <id> --json`.
+3. Lease one complete group with `python3 scripts/tests.py campaign next --campaign <id> --lease --session <id> --json`.
+4. Read every member test and persist expected behavior plus concrete acceptance criteria with `campaign prepare` before source edits.
+5. Persist every failed, rejected, blocked, or successful approach with `campaign attempt`.
+6. Verify exact Directus-backed membership with `python3 scripts/tests.py run --campaign <id> --group <id>`.
+7. Complete the group only after every member has passing run/result evidence, then continue until all selected and child groups are green.
+
+New failures exposed by a campaign-bound verification become explicit child
+groups. A required human or external decision leaves the campaign `blocked`
+with a question and exact next action; there is no partially-successful terminal
+state. Campaign completion uses individual group evidence and does not require
+an additional combined selected-set run.
 
 ## Importing Runs
 

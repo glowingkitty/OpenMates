@@ -97,7 +97,7 @@ def test_command_run_invokes_runner_without_env_directus_token(monkeypatch, tmp_
 
     runner_calls = []
 
-    def fake_run(command, check=False, capture_output=False, text=False, timeout=None, cwd=None):
+    def fake_run(command, check=False, capture_output=False, text=False, timeout=None, cwd=None, env=None):
         if command[:3] == ["docker", "exec", "api"]:
             return subprocess.CompletedProcess(command, 0, stdout="short-lived-token\n", stderr="")
         runner_calls.append(command)
@@ -142,6 +142,8 @@ def test_bulk_import_records_started_events_as_running_runs(monkeypatch):
         "git_branch": None,
         "environment": None,
         "requested_tests": ["playwright::x.spec.ts"],
+        "campaign_key": "",
+        "debug_group_key": "",
         "summary": {},
         "record_json": {"events": [{"event": "started", "run_id": "manual-1", "key": "playwright::x.spec.ts", "command": "python3 scripts/tests.py run --spec x.spec.ts"}], "command": "python3 scripts/tests.py run --spec x.spec.ts"},
         "updated_at": "2026-07-17T10:00:00Z",

@@ -287,9 +287,22 @@ python3 scripts/tests.py run --max-concurrent 10       # Override batch size (de
 python3 scripts/tests.py run --no-fail-fast            # Run all batches even on failure
 python3 scripts/tests.py run --dry-run                 # Show what would run
 
+# Durable failed-test debugging campaigns
+python3 scripts/tests.py campaign start --session <id> --json
+python3 scripts/tests.py campaign status --campaign <id> --json
+python3 scripts/tests.py campaign next --campaign <id> --lease --session <id> --json
+python3 scripts/tests.py run --campaign <id> --group <group-id>
+
 `scripts/run_tests.py` remains the underlying execution engine. Agents and humans
 should use `scripts/tests.py run` so current state, history, and failure leases
 stay consistent.
+
+When fixing multiple current failures, use the campaign commands rather than a
+local progress file or an unscoped `--only-failed` rerun. Each durable group must
+record expected behavior and concrete acceptance criteria before source edits,
+preserve failed approaches, and verify all member keys. Campaign-bound reruns
+that expose another failure add a child group instead of silently expanding
+chat-only scope.
 ```
 
 ### Hourly smoke modes (OPE-349)

@@ -157,6 +157,8 @@ class InMemoryTestControlStore:
         self.test_results: dict[str, dict[str, Any]] = {}
         self.current_state: dict[str, dict[str, Any]] = {}
         self.test_claims: dict[str, dict[str, Any]] = {}
+        self.test_debug_campaigns: dict[str, dict[str, Any]] = {}
+        self.test_debug_groups: dict[str, dict[str, Any]] = {}
         self.history: list[dict[str, Any]] = []
         self.state: dict[str, Any] = {"summary": {}, "tests": {}, "updated_at": None}
 
@@ -205,6 +207,8 @@ class InMemoryTestControlStore:
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
             "requested_tests": run_data.get("requested_tests") or [],
+            "campaign_key": run_data.get("campaign_key"),
+            "debug_group_key": run_data.get("debug_group_key"),
             "summary": run_data.get("summary") or {},
             "record_json": _copy_json(run_data),
             "updated_at": state.get("updated_at"),
@@ -223,6 +227,8 @@ class InMemoryTestControlStore:
                 "status": test.get("status") or "unknown",
                 "error_summary": test.get("error"),
                 "metadata": _copy_json(test),
+                "created_at": state.get("updated_at") or utc_now(),
+                "created_at_unix": int(datetime.now(timezone.utc).timestamp() * 1000),
             }
 
     def _upsert_catalog(self, key: str, record: dict[str, Any]) -> None:
@@ -250,6 +256,45 @@ class InMemoryTestControlStore:
         claim["updated_at"] = utc_now()
         claim.update(fields)
         return _copy_json(claim)
+
+    def list_debug_campaigns(self) -> list[dict[str, Any]]:
+        return [_copy_json(campaign) for campaign in self.test_debug_campaigns.values()]
+
+    def create_debug_campaign(self, campaign: dict[str, Any]) -> dict[str, Any]:
+        self.test_debug_campaigns[campaign["campaign_key"]] = _copy_json(campaign)
+        return _copy_json(campaign)
+
+    def update_debug_campaign(self, campaign_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        if campaign_key not in self.test_debug_campaigns:
+            raise RuntimeError(f"Unknown debug campaign: {campaign_key}")
+        self.test_debug_campaigns[campaign_key].update(_copy_json(fields))
+        return _copy_json(self.test_debug_campaigns[campaign_key])
+
+    def list_debug_groups(self, campaign_key: str = "") -> list[dict[str, Any]]:
+        groups = self.test_debug_groups.values()
+        if campaign_key:
+            groups = [group for group in groups if group.get("campaign_key") == campaign_key]
+        return [_copy_json(group) for group in groups]
+
+    def create_debug_group(self, group: dict[str, Any]) -> dict[str, Any]:
+        self.test_debug_groups[group["group_key"]] = _copy_json(group)
+        return _copy_json(group)
+
+    def update_debug_group(self, group_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        if group_key not in self.test_debug_groups:
+            raise RuntimeError(f"Unknown debug group: {group_key}")
+        self.test_debug_groups[group_key].update(_copy_json(fields))
+        return _copy_json(self.test_debug_groups[group_key])
+
+    def list_test_results(self, test_keys: list[str] | None = None) -> list[dict[str, Any]]:
+        results = self.test_results.values()
+        if test_keys:
+            selected = set(test_keys)
+            results = [result for result in results if result.get("test_key") in selected]
+        return [_copy_json(result) for result in results]
+
+    def get_test_run(self, run_key: str) -> dict[str, Any]:
+        return _copy_json(self.test_runs.get(run_key) or {})
 
 
 class DirectusTestControlStore(InMemoryTestControlStore):
@@ -550,6 +595,8 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
             "requested_tests": run_data.get("requested_tests") or [],
+            "campaign_key": run_data.get("campaign_key"),
+            "debug_group_key": run_data.get("debug_group_key"),
             "summary": run_data.get("summary") or {},
             "record_json": run_data,
             "updated_at": state.get("updated_at"),
@@ -598,7 +645,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "error_summary": record.get("error"),
             "metadata": record,
             "created_at": record.get("timestamp"),
-            "created_at_unix": int(datetime.now(timezone.utc).timestamp()),
+            "created_at_unix": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
     def _bulk_local_postgres_import(self, run_data: dict[str, Any] | None, state: dict[str, Any], events: list[dict[str, Any]], source: str = "scripts_tests", external_run_id: str = "", workflow: str = "") -> bool:
@@ -672,6 +719,8 @@ class DirectusTestControlStore(InMemoryTestControlStore):
                 "git_branch": state.get("latest_git_branch"),
                 "environment": state.get("environment"),
                 "requested_tests": [event.get("key") for event in run_events],
+                "campaign_key": "",
+                "debug_group_key": "",
                 "summary": {},
                 "record_json": {"events": run_events, "command": run_events[0].get("command")},
                 "updated_at": timestamp,
@@ -687,6 +736,8 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "git_branch": (run_data or {}).get("git_branch") or state.get("latest_git_branch"),
             "environment": (run_data or {}).get("environment") or state.get("environment"),
             "requested_tests": (run_data or {}).get("requested_tests") or [],
+            "campaign_key": (run_data or {}).get("campaign_key") or "",
+            "debug_group_key": (run_data or {}).get("debug_group_key") or "",
             "summary": (run_data or {}).get("summary") or state.get("summary") or {},
             "record_json": run_data or {"state_snapshot": {"latest_run_id": run_key, "summary": state.get("summary") or {}}},
             "updated_at": timestamp,
@@ -707,10 +758,10 @@ WHERE COALESCE((SELECT (data->>'replace_current_state')::boolean FROM test_contr
     WHERE x.test_key = test_current_state.test_key
   );
 
-INSERT INTO test_runs (id, run_key, source, external_run_id, workflow, status, git_sha, git_branch, environment, requested_tests, summary, record_json, updated_at, updated_at_unix)
-SELECT gen_random_uuid(), run_key, source, external_run_id, workflow, status, git_sha, git_branch, environment, requested_tests::json, summary::json, record_json::json, updated_at, updated_at_unix
-FROM jsonb_to_recordset((SELECT data->'runs' FROM test_control_import_payload)) AS x(run_key text, source text, external_run_id text, workflow text, status text, git_sha text, git_branch text, environment text, requested_tests jsonb, summary jsonb, record_json jsonb, updated_at text, updated_at_unix integer)
-ON CONFLICT (run_key) DO UPDATE SET source=EXCLUDED.source, external_run_id=EXCLUDED.external_run_id, workflow=EXCLUDED.workflow, status=EXCLUDED.status, git_sha=EXCLUDED.git_sha, git_branch=EXCLUDED.git_branch, environment=EXCLUDED.environment, requested_tests=EXCLUDED.requested_tests, summary=EXCLUDED.summary, record_json=EXCLUDED.record_json, updated_at=EXCLUDED.updated_at, updated_at_unix=EXCLUDED.updated_at_unix;
+INSERT INTO test_runs (id, run_key, source, external_run_id, workflow, status, git_sha, git_branch, environment, requested_tests, campaign_key, debug_group_key, summary, record_json, updated_at, updated_at_unix)
+SELECT gen_random_uuid(), run_key, source, external_run_id, workflow, status, git_sha, git_branch, environment, requested_tests::json, campaign_key, debug_group_key, summary::json, record_json::json, updated_at, updated_at_unix
+FROM jsonb_to_recordset((SELECT data->'runs' FROM test_control_import_payload)) AS x(run_key text, source text, external_run_id text, workflow text, status text, git_sha text, git_branch text, environment text, requested_tests jsonb, campaign_key text, debug_group_key text, summary jsonb, record_json jsonb, updated_at text, updated_at_unix integer)
+ON CONFLICT (run_key) DO UPDATE SET source=EXCLUDED.source, external_run_id=EXCLUDED.external_run_id, workflow=EXCLUDED.workflow, status=EXCLUDED.status, git_sha=EXCLUDED.git_sha, git_branch=EXCLUDED.git_branch, environment=EXCLUDED.environment, requested_tests=EXCLUDED.requested_tests, campaign_key=EXCLUDED.campaign_key, debug_group_key=EXCLUDED.debug_group_key, summary=EXCLUDED.summary, record_json=EXCLUDED.record_json, updated_at=EXCLUDED.updated_at, updated_at_unix=EXCLUDED.updated_at_unix;
 
 INSERT INTO test_catalog (id, test_key, suite, test_name, file_path, verification_command, metadata)
 SELECT gen_random_uuid(), test_key, suite, test_name, file_path, verification_command, COALESCE(metadata, '{{}}'::jsonb)::json
@@ -743,6 +794,37 @@ ON CONFLICT (result_key) DO UPDATE SET run_key=EXCLUDED.run_key, test_key=EXCLUD
         claim = {**existing[0], "lease_id": lease_id, "status": status, "updated_at": utc_now(), **fields}
         self._upsert("test_claims", "claim_key", {"claim_key": lease_id, **claim})
         return claim
+
+    def list_debug_campaigns(self) -> list[dict[str, Any]]:
+        return self._items("test_debug_campaigns", params={"limit": -1, "sort": "created_at"})
+
+    def create_debug_campaign(self, campaign: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_campaigns", "campaign_key", campaign)
+
+    def update_debug_campaign(self, campaign_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_campaigns", "campaign_key", {"campaign_key": campaign_key, **fields})
+
+    def list_debug_groups(self, campaign_key: str = "") -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": -1, "sort": "selected_at"}
+        if campaign_key:
+            params["filter"] = json.dumps({"campaign_key": {"_eq": campaign_key}})
+        return self._items("test_debug_groups", params=params)
+
+    def create_debug_group(self, group: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_groups", "group_key", group)
+
+    def update_debug_group(self, group_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_groups", "group_key", {"group_key": group_key, **fields})
+
+    def list_test_results(self, test_keys: list[str] | None = None) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": -1, "sort": "created_at_unix"}
+        if test_keys:
+            params["filter"] = json.dumps({"test_key": {"_in": test_keys}})
+        return self._items("test_results", params=params)
+
+    def get_test_run(self, run_key: str) -> dict[str, Any]:
+        rows = self._items("test_runs", params={"filter": json.dumps({"run_key": {"_eq": run_key}}), "limit": 1})
+        return rows[0] if rows else {}
 
 
 def get_store():
@@ -779,6 +861,8 @@ class ControlRunOptions:
     gate_deploy: bool = False
     lease_required: bool = False
     lease_id: str = ""
+    campaign_key: str = ""
+    debug_group_key: str = ""
 
 
 def parse_control_run_options(args: list[str]) -> ControlRunOptions:
@@ -788,6 +872,8 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
     gate_deploy = False
     lease_required = False
     lease_id = ""
+    campaign_key = ""
+    debug_group_key = ""
     index = 0
     while index < len(args):
         arg = args[index]
@@ -825,6 +911,23 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
             lease_required = True
             index += 1
             continue
+        if arg in {"--campaign", "--group"}:
+            if index + 1 >= len(args):
+                raise RuntimeError(f"{arg} requires an identifier")
+            if arg == "--campaign":
+                campaign_key = args[index + 1]
+            else:
+                debug_group_key = args[index + 1]
+            index += 2
+            continue
+        if arg.startswith("--campaign="):
+            campaign_key = arg.split("=", 1)[1]
+            index += 1
+            continue
+        if arg.startswith("--group="):
+            debug_group_key = arg.split("=", 1)[1]
+            index += 1
+            continue
         forwarded.append(arg)
         index += 1
     return ControlRunOptions(
@@ -833,6 +936,8 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
         gate_deploy=gate_deploy,
         lease_required=lease_required,
         lease_id=lease_id,
+        campaign_key=campaign_key,
+        debug_group_key=debug_group_key,
     )
 
 
@@ -1461,11 +1566,65 @@ def mark_running(suite: str, tests: list[str], command: list[str]) -> None:
     get_store().save_current_state(state, events)
 
 
+def mark_test_keys_running(test_keys: list[str], command: list[str]) -> None:
+    state = load_state()
+    current_tests = dict(state.get("tests") or {})
+    timestamp = utc_now()
+    run_id = f"manual-{timestamp}"
+    events = []
+    for key in test_keys:
+        suite, _, label = key.partition("::")
+        previous = dict(current_tests.get(key) or {})
+        previous_status = str(previous.get("stable_status") or previous.get("status") or "")
+        stable_status = previous_status if previous_status and previous_status != "running" else None
+        record = {
+            **previous,
+            "suite": suite,
+            "test": label,
+            "key": key,
+            "status": stable_status or "running",
+            "stable_status": stable_status,
+            "stable_run_id": previous.get("stable_run_id") or previous.get("run_id"),
+            "stable_result_key": previous.get("stable_result_key"),
+            "active_status": "running",
+            "active_run_id": run_id,
+            "event": "started",
+            "run_id": run_id,
+            "command": " ".join(command),
+            "updated_at": timestamp,
+        }
+        current_tests[key] = record
+        events.append({**record, "timestamp": timestamp, "event_id": f"{run_id}:{key}:started"})
+    state["tests"] = current_tests
+    state["summary"] = summarize_current_tests(current_tests)
+    state["updated_at"] = timestamp
+    get_store().save_current_state(state, events)
+
+
 def normalize_text(value: str) -> str:
     value = re.sub(r"\x1b\[[0-9;]*m", "", value or "")
     value = re.sub(r"[0-9a-f]{8}-[0-9a-f-]{27,}", "<uuid>", value, flags=re.IGNORECASE)
     value = re.sub(r"\b\d+ms\b|\b\d+\.\d+s\b|\b\d{8,}\b", "<var>", value)
     return " ".join(value.split())
+
+
+def sanitize_debug_text(value: str) -> str:
+    sanitized = normalize_text(value)
+    sanitized = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "<REDACTED_EMAIL>", sanitized)
+    sanitized = re.sub(r"(?i)bearer\s+[A-Za-z0-9._~-]+", "Bearer <REDACTED_TOKEN>", sanitized)
+    sanitized = re.sub(r"(?i)(api[_-]?key[=:]\s*)[^\s]+", r"\1<REDACTED_TOKEN>", sanitized)
+    sanitized = re.sub(r"#key=[^\s&]+", "#key=<REDACTED>", sanitized)
+    return sanitized[:MAX_IMPORTED_ERROR_CHARS]
+
+
+def sanitize_debug_path(value: str) -> str:
+    path = Path(value)
+    if not path.is_absolute():
+        return path.as_posix()
+    try:
+        return path.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return f"<EXTERNAL_PATH>/{path.name}"
 
 
 def classify_failure(test: dict[str, Any]) -> str:
@@ -1683,6 +1842,7 @@ def build_triage(days: int = 7, category_filter: str = "", suite_filter: str = "
             "reason": reason,
             "error": failure.get("error"),
             "run_id": failure.get("run_id"),
+            "stable_result_key": failure.get("stable_result_key"),
             "github_run_id": failure.get("github_run_id"),
             "github_run_url": failure.get("github_run_url"),
             "linked_files": linked_files,
@@ -1732,6 +1892,344 @@ def build_group_summary(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         group["count"] = len(group["tests"])
         group["linked_files"] = sorted(set(group["linked_files"]))[:MAX_LINKED_FILES]
     return sorted(groups.values(), key=lambda group: (group["priority"], -group["count"], group["group_id"]))
+
+
+def debug_groups_for_campaign(campaign_key: str) -> list[dict[str, Any]]:
+    return get_store().list_debug_groups(campaign_key=campaign_key)
+
+
+def _debug_campaign(campaign_key: str) -> dict[str, Any]:
+    for campaign in get_store().list_debug_campaigns():
+        if campaign.get("campaign_key") == campaign_key:
+            return campaign
+    raise RuntimeError(f"Unknown debug campaign: {campaign_key}")
+
+
+def _debug_group(group_key: str) -> dict[str, Any]:
+    for group in get_store().list_debug_groups():
+        if group.get("group_key") == group_key:
+            return group
+    raise RuntimeError(f"Unknown debug group: {group_key}")
+
+
+def _active_debug_campaign_for_session(session_id: str) -> dict[str, Any] | None:
+    matching = [
+        campaign
+        for campaign in get_store().list_debug_campaigns()
+        if campaign.get("session_id") == session_id and campaign.get("status") in {"active", "blocked"}
+    ]
+    return sorted(matching, key=lambda campaign: str(campaign.get("created_at") or ""))[-1] if matching else None
+
+
+def _debug_group_key(campaign_key: str, triage_group_id: str, parent_group_key: str = "") -> str:
+    digest = hashlib.sha1(f"{campaign_key}:{triage_group_id}:{parent_group_key}".encode("utf-8")).hexdigest()[:12]
+    return f"debug-group-{digest}"
+
+
+def _group_entries_by_signature(entries: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        grouped.setdefault(str(entry["group_id"]), []).append(entry)
+    return grouped
+
+
+def _create_debug_group(
+    campaign_key: str,
+    triage_group_id: str,
+    entries: list[dict[str, Any]],
+    parent_group_key: str = "",
+    discovery_reason: str = "",
+) -> dict[str, Any]:
+    now = utc_now()
+    selected_at_unix = int(datetime.now(timezone.utc).timestamp() * 1000)
+    member_test_keys = sorted({str(entry["key"]) for entry in entries})
+    run_keys = sorted({str(entry.get("run_id") or "") for entry in entries if entry.get("run_id")})
+    result_keys = sorted({str(entry.get("stable_result_key") or "") for entry in entries if entry.get("stable_result_key")})
+    group_key = _debug_group_key(campaign_key, triage_group_id, parent_group_key)
+    group = {
+        "group_key": group_key,
+        "campaign_key": campaign_key,
+        "triage_group_id": triage_group_id,
+        "parent_group_key": parent_group_key or None,
+        "status": "selected",
+        "member_test_keys": member_test_keys,
+        "observed_failure": "\n".join(dict.fromkeys(sanitize_debug_text(str(entry.get("reason") or entry.get("error") or "")) for entry in entries)),
+        "expected_behavior": "",
+        "acceptance_criteria": [],
+        "root_cause": {"status": "hypothesis", "summary": "", "confidence": "unknown", "suspect_files": []},
+        "attempts": [],
+        "red_evidence": {"run_keys": run_keys, "result_keys": result_keys},
+        "green_evidence": [],
+        "blocker": None,
+        "verification_command": f"python3 scripts/tests.py run --campaign {campaign_key} --group {group_key}",
+        "selected_at": now,
+        "selected_at_unix": selected_at_unix,
+        "updated_at": now,
+        "metadata": {"discovery_reason": discovery_reason} if discovery_reason else {},
+    }
+    return get_store().create_debug_group(group)
+
+
+def start_debug_campaign(
+    session_id: str,
+    selected_test_keys: list[str] | None = None,
+    campaign_key: str = "",
+) -> dict[str, Any]:
+    if campaign_key:
+        campaign = _debug_campaign(campaign_key)
+        if campaign.get("status") == "completed":
+            raise RuntimeError(f"Debug campaign is already completed: {campaign_key}")
+        return get_store().update_debug_campaign(campaign_key, {"session_id": session_id, "updated_at": utc_now()})
+    active = _active_debug_campaign_for_session(session_id)
+    if active:
+        return active
+    triage = build_triage()
+    entries = list(triage.get("entries") or [])
+    if selected_test_keys is not None:
+        selected = set(selected_test_keys)
+        entries = [entry for entry in entries if entry.get("key") in selected]
+    if not entries:
+        raise RuntimeError("No failed tests available for a debug campaign")
+    requested_keys = {str(entry["key"]) for entry in entries}
+    resumable = []
+    for campaign in get_store().list_debug_campaigns():
+        if campaign.get("status") not in {"active", "blocked"}:
+            continue
+        pending_keys = {
+            str(key)
+            for group in debug_groups_for_campaign(str(campaign["campaign_key"]))
+            if group.get("status") != "green"
+            for key in group.get("member_test_keys") or []
+        }
+        if requested_keys.intersection(pending_keys):
+            resumable.append(campaign)
+    if len(resumable) == 1:
+        return get_store().update_debug_campaign(
+            str(resumable[0]["campaign_key"]),
+            {"session_id": session_id, "updated_at": utc_now()},
+        )
+    if len(resumable) > 1:
+        raise RuntimeError("Multiple active campaigns overlap current failures; inspect campaign status and resume one explicitly")
+
+    campaign_key = f"debug-campaign-{uuid.uuid4().hex[:12]}"
+    now = utc_now()
+    campaign = {
+        "campaign_key": campaign_key,
+        "title": f"Debug {len(entries)} failed test(s)",
+        "status": "active",
+        "session_id": session_id,
+        "source_run_keys": sorted({str(entry.get("run_id") or "") for entry in entries if entry.get("run_id")}),
+        "selected_test_keys": sorted({str(entry["key"]) for entry in entries}),
+        "selected_group_keys": [],
+        "current_group_key": None,
+        "completion_policy": {"group_members_must_pass": True, "combined_final_run_required": False},
+        "blocker": None,
+        "metadata": {"scope_amendments": []},
+        "created_at": now,
+        "updated_at": now,
+        "completed_at": None,
+    }
+    get_store().create_debug_campaign(campaign)
+    groups = [
+        _create_debug_group(campaign_key, group_id, group_entries)
+        for group_id, group_entries in _group_entries_by_signature(entries).items()
+    ]
+    return get_store().update_debug_campaign(
+        campaign_key,
+        {"selected_group_keys": [group["group_key"] for group in groups], "updated_at": utc_now()},
+    )
+
+
+def prepare_debug_group(group_key: str, expected_behavior: str, acceptance_criteria: list[str]) -> dict[str, Any]:
+    if not expected_behavior.strip() or not acceptance_criteria:
+        raise RuntimeError("Expected behavior and at least one acceptance criterion are required")
+    return get_store().update_debug_group(group_key, {
+        "status": "ready",
+        "expected_behavior": sanitize_debug_text(expected_behavior),
+        "acceptance_criteria": [sanitize_debug_text(criterion) for criterion in acceptance_criteria if criterion.strip()],
+        "updated_at": utc_now(),
+    })
+
+
+def append_debug_group_attempt(
+    group_key: str,
+    approach: str,
+    outcome: str,
+    summary: str = "",
+    run_keys: list[str] | None = None,
+    changed_files: list[str] | None = None,
+) -> dict[str, Any]:
+    group = _debug_group(group_key)
+    attempts = list(group.get("attempts") or [])
+    attempts.append({
+        "attempt": len(attempts) + 1,
+        "approach": sanitize_debug_text(approach),
+        "outcome": outcome,
+        "summary": sanitize_debug_text(summary),
+        "run_keys": run_keys or [],
+        "changed_files": [sanitize_debug_path(path) for path in changed_files or []],
+        "timestamp": utc_now(),
+    })
+    return get_store().update_debug_group(group_key, {"attempts": attempts, "status": "investigating", "updated_at": utc_now()})
+
+
+def block_debug_group(group_key: str, reason: str, question: str, next_action: str) -> dict[str, Any]:
+    group = _debug_group(group_key)
+    blocker = {
+        "reason": sanitize_debug_text(reason),
+        "question": sanitize_debug_text(question),
+        "next_action": sanitize_debug_text(next_action),
+        "requires_user_input": True,
+        "timestamp": utc_now(),
+    }
+    updated = get_store().update_debug_group(group_key, {"status": "blocked", "blocker": blocker, "updated_at": utc_now()})
+    get_store().update_debug_campaign(group["campaign_key"], {
+        "status": "blocked",
+        "current_group_key": group_key,
+        "blocker": blocker,
+        "updated_at": utc_now(),
+    })
+    return updated
+
+
+def debug_group_test_keys(campaign_key: str, group_key: str) -> list[str]:
+    group = _debug_group(group_key)
+    if group.get("campaign_key") != campaign_key:
+        raise RuntimeError(f"Debug group {group_key} does not belong to campaign {campaign_key}")
+    return sorted({str(key) for key in group.get("member_test_keys") or []})
+
+
+def _passing_evidence_for_group(group: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    members = list(group.get("member_test_keys") or [])
+    red_runs = set((group.get("red_evidence") or {}).get("run_keys") or [])
+    passing_by_test: dict[str, dict[str, Any]] = {}
+    for result in get_store().list_test_results(members):
+        test_key_value = str(result.get("test_key") or "")
+        run_key = str(result.get("run_key") or "")
+        if result.get("status") != "passed" or run_key in red_runs:
+            continue
+        if int(result.get("created_at_unix") or 0) < int(group.get("selected_at_unix") or 0):
+            continue
+        run = get_store().get_test_run(run_key)
+        if run.get("campaign_key") != group.get("campaign_key") or run.get("debug_group_key") != group.get("group_key"):
+            continue
+        if set(run.get("requested_tests") or []) != set(members):
+            continue
+        passing_by_test[test_key_value] = {
+            "test_key": test_key_value,
+            "run_key": run_key,
+            "result_key": result.get("result_key"),
+            "subject_commit": run.get("git_sha") or (result.get("metadata") or {}).get("git_sha"),
+            "timestamp": result.get("created_at") or utc_now(),
+        }
+    missing = [member for member in members if member not in passing_by_test]
+    return [passing_by_test[member] for member in members if member in passing_by_test], missing
+
+
+def complete_debug_group(group_key: str, commit: str = "") -> dict[str, Any]:
+    group = _debug_group(group_key)
+    evidence, missing = _passing_evidence_for_group(group)
+    if missing:
+        raise RuntimeError("Cannot complete debug group; missing green evidence for: " + ", ".join(missing))
+    completed = get_store().update_debug_group(group_key, {
+        "status": "green",
+        "green_evidence": evidence,
+        "fixing_commit": commit,
+        "blocker": None,
+        "updated_at": utc_now(),
+    })
+    debug_campaign_status(str(group["campaign_key"]), persist=True)
+    return completed
+
+
+def add_debug_child_groups(campaign_key: str, parent_group_key: str, run_data: dict[str, Any]) -> list[dict[str, Any]]:
+    campaign = _debug_campaign(campaign_key)
+    known_keys = {
+        str(key)
+        for group in debug_groups_for_campaign(campaign_key)
+        for key in group.get("member_test_keys") or []
+    }
+    entries = []
+    for suite, test in iter_tests(run_data):
+        if not is_problem(str(test.get("status") or "")):
+            continue
+        key = test_key(suite, test)
+        if key in known_keys:
+            continue
+        failure = {
+            **test,
+            "suite": suite,
+            "test": test_label(suite, test),
+            "key": key,
+            "run_id": run_data.get("run_id"),
+        }
+        category = classify_failure(failure)
+        reason = short_reason(str(test.get("error") or ""))
+        entries.append({
+            **failure,
+            "category": category,
+            "reason": reason,
+            "group_id": f"{category}-{root_signature(category, reason)}",
+        })
+    children = [
+        _create_debug_group(
+            campaign_key,
+            group_id,
+            grouped_entries,
+            parent_group_key=parent_group_key,
+            discovery_reason=f"Exposed by verification of {parent_group_key}",
+        )
+        for group_id, grouped_entries in _group_entries_by_signature(entries).items()
+    ]
+    if not children:
+        return []
+    metadata = dict(campaign.get("metadata") or {})
+    amendments = list(metadata.get("scope_amendments") or [])
+    amendments.extend({
+        "parent_group_key": parent_group_key,
+        "child_group_key": child["group_key"],
+        "reason": child.get("metadata", {}).get("discovery_reason"),
+        "timestamp": utc_now(),
+    } for child in children)
+    get_store().update_debug_campaign(campaign_key, {
+        "status": "active",
+        "selected_test_keys": sorted(set(campaign.get("selected_test_keys") or []).union(
+            *(set(child.get("member_test_keys") or []) for child in children)
+        )),
+        "selected_group_keys": list(campaign.get("selected_group_keys") or []) + [child["group_key"] for child in children],
+        "metadata": {**metadata, "scope_amendments": amendments},
+        "updated_at": utc_now(),
+    })
+    return children
+
+
+def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str, Any]:
+    campaign = _debug_campaign(campaign_key)
+    groups = debug_groups_for_campaign(campaign_key)
+    blocked = next((group for group in groups if group.get("status") == "blocked"), None)
+    all_green = bool(groups) and all(group.get("status") == "green" for group in groups)
+    status = "blocked" if blocked else "completed" if all_green else "active"
+    blocker = blocked.get("blocker") if blocked else None
+    next_group = next((group for group in groups if group.get("status") != "green"), None)
+    fields = {
+        "status": status,
+        "current_group_key": next_group.get("group_key") if next_group else None,
+        "blocker": blocker,
+        "completed_at": utc_now() if status == "completed" else None,
+        "updated_at": utc_now(),
+    }
+    if persist or campaign.get("status") != status or campaign.get("current_group_key") != fields["current_group_key"]:
+        campaign = get_store().update_debug_campaign(campaign_key, fields)
+    counts: dict[str, int] = {}
+    for group in groups:
+        group_status = str(group.get("status") or "selected")
+        counts[group_status] = counts.get(group_status, 0) + 1
+    return {
+        "campaign": campaign,
+        "groups": groups,
+        "counts": counts,
+        "next_action": str((blocker or {}).get("next_action") or (next_group or {}).get("verification_command") or ""),
+    }
 
 
 def verification_command(failure: dict[str, Any]) -> str:
@@ -1860,6 +2358,58 @@ def claim_next(session_id: str, worker_id: str = "", days: int = 7) -> dict[str,
             }
             leases.append(lease)
             get_store().create_claim(lease)
+            return lease
+        return None
+    return with_lease_lock(_claim)
+
+
+def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = "") -> dict[str, Any] | None:
+    def _claim() -> dict[str, Any] | None:
+        status = debug_campaign_status(campaign_key)
+        if status["campaign"].get("status") == "blocked":
+            return None
+        existing_claims = load_leases().get("leases") or []
+        now = datetime.now(timezone.utc)
+        active_debug_group_keys = set()
+        for claim in existing_claims:
+            if claim.get("status") != "active":
+                continue
+            expires_at = parse_utc(str(claim.get("expires_at") or ""))
+            if expires_at is not None and expires_at <= now:
+                continue
+            active_debug_group_keys.add(str(claim.get("debug_group_key") or ""))
+        for group in status["groups"]:
+            group_key = str(group["group_key"])
+            if group.get("status") in {"green", "blocked"} or group_key in active_debug_group_keys:
+                continue
+            digest = hashlib.sha1(f"{group_key}:{session_id}:{utc_now()}".encode("utf-8")).hexdigest()[:8]
+            lease_id = f"lease-{group.get('triage_group_id')}-{digest}"
+            entry = {
+                "group_id": group.get("triage_group_id"),
+                "group_key": group_key,
+                "member_test_keys": group.get("member_test_keys") or [],
+                "verification_command": group.get("verification_command"),
+            }
+            lease = {
+                "lease_id": lease_id,
+                "claim_key": lease_id,
+                "group_id": group.get("triage_group_id"),
+                "campaign_key": campaign_key,
+                "debug_group_key": group_key,
+                "status": "active",
+                "session_id": session_id,
+                "worker_id": worker_id,
+                "leased_at": utc_now(),
+                "expires_at": lease_deadline(),
+                "expires_at_unix": int((datetime.now(timezone.utc) + timedelta(hours=LEASE_TTL_HOURS)).timestamp()),
+                "entry": entry,
+            }
+            get_store().create_claim(lease)
+            get_store().update_debug_campaign(campaign_key, {
+                "current_group_key": group_key,
+                "session_id": session_id,
+                "updated_at": utc_now(),
+            })
             return lease
         return None
     return with_lease_lock(_claim)
@@ -2010,6 +2560,32 @@ def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
     return suite, tests
 
 
+def campaign_runner_args(test_keys: list[str], forwarded_args: list[str]) -> tuple[list[str], list[str]]:
+    if any(arg in {"--spec", "--suite", "--only-failed"} or arg.startswith(("--spec=", "--suite=")) for arg in forwarded_args):
+        raise RuntimeError("Campaign group runs cannot combine explicit --spec, --suite, or --only-failed targets")
+    suites = {key.partition("::")[0] for key in test_keys}
+    if len(suites) != 1:
+        raise RuntimeError("A debug group must contain tests from one execution suite")
+    suite = next(iter(suites))
+    labels = [key.partition("::")[2] for key in test_keys]
+    if suite == "playwright":
+        return [*forwarded_args, "--suite", "playwright", "--only-failed"], labels
+    if suite.startswith("pytest"):
+        return [*forwarded_args, "--suite", "pytest"], labels
+    if suite.startswith("vitest"):
+        invalid = [
+            label for label in labels
+            if "frontend/packages/ui/" not in label and "frontend/apps/web_app/" not in label
+        ]
+        if invalid:
+            raise RuntimeError("Vitest campaign keys must identify UI or web-app test files: " + ", ".join(invalid))
+        return [*forwarded_args, "--suite", "vitest"], labels
+    raise RuntimeError(
+        f"Exact campaign selection is not available for suite {suite}; "
+        "record a structured blocker instead of running a broader suite as false group evidence"
+    )
+
+
 def seeded_only_failed_files_from_lease(lease: dict[str, Any] | None, args: list[str]) -> list[str]:
     if not lease or "--only-failed" not in args:
         return []
@@ -2101,7 +2677,13 @@ def reset_store() -> None:
     TEST_STORE = None
 
 
-def record_latest_run_artifact(expected_commit: str = "", since_mtime: float = 0.0) -> str:
+def record_latest_run_artifact(
+    expected_commit: str = "",
+    since_mtime: float = 0.0,
+    requested_test_keys: list[str] | None = None,
+    campaign_key: str = "",
+    debug_group_key: str = "",
+) -> str:
     artifacts = run_recording_artifacts(since_mtime=since_mtime)
     if not artifacts:
         return ""
@@ -2110,6 +2692,12 @@ def record_latest_run_artifact(expected_commit: str = "", since_mtime: float = 0
             reset_store()
         try:
             run_data = read_json(artifact, {})
+            if requested_test_keys is not None:
+                run_data["requested_tests"] = requested_test_keys
+            if campaign_key:
+                run_data["campaign_key"] = campaign_key
+            if debug_group_key:
+                run_data["debug_group_key"] = debug_group_key
             run_git_sha = str(run_data.get("git_sha") or "")
             if expected_commit and not _matches_commit_prefix(run_git_sha, expected_commit):
                 print(
@@ -2144,6 +2732,27 @@ def command_run(runner_args: list[str]) -> int:
             )
             return 2
     active_lease: dict[str, Any] | None = None
+    selected_test_keys: list[str] = []
+    selected_test_labels: list[str] = []
+    if bool(options.campaign_key) != bool(options.debug_group_key):
+        print("Campaign-bound runs require both --campaign and --group.", file=sys.stderr)
+        return 2
+    if options.campaign_key:
+        try:
+            selected_test_keys = debug_group_test_keys(options.campaign_key, options.debug_group_key)
+            forwarded_args, selected_test_labels = campaign_runner_args(selected_test_keys, options.forwarded_args)
+            options = ControlRunOptions(
+                forwarded_args=forwarded_args,
+                expected_commit=options.expected_commit,
+                gate_deploy=options.gate_deploy,
+                lease_required=options.lease_required,
+                lease_id=options.lease_id,
+                campaign_key=options.campaign_key,
+                debug_group_key=options.debug_group_key,
+            )
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
     if options.lease_required:
         try:
             active_lease = require_active_lease(
@@ -2172,15 +2781,32 @@ def command_run(runner_args: list[str]) -> int:
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
     run_env = os.environ.copy()
     seeded_failed_files = seeded_only_failed_files_from_lease(active_lease, options.forwarded_args)
+    if selected_test_labels:
+        run_env["OPENMATES_CAMPAIGN_TEST_LABELS_JSON"] = json.dumps(selected_test_labels)
+        if all(key.startswith("playwright::") for key in selected_test_keys):
+            seeded_failed_files = selected_test_labels
     if seeded_failed_files:
         run_env["OPENMATES_ONLY_FAILED_FILES_JSON"] = json.dumps(seeded_failed_files)
-    suite, tests = infer_run_suite_and_tests(options.forwarded_args)
-    mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
+    if selected_test_keys:
+        mark_test_keys_running(selected_test_keys, command=["python3", "scripts/tests.py", "run", *runner_args])
+    else:
+        suite, tests = infer_run_suite_and_tests(options.forwarded_args)
+        mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
     artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
     result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
-    recorded_commit = record_latest_run_artifact(expected_commit=options.expected_commit, since_mtime=artifact_start_mtime)
+    recorded_commit = record_latest_run_artifact(
+        expected_commit=options.expected_commit,
+        since_mtime=artifact_start_mtime,
+        requested_test_keys=selected_test_keys or None,
+        campaign_key=options.campaign_key,
+        debug_group_key=options.debug_group_key,
+    )
     if not recorded_commit:
         return 2 if options.expected_commit else result.returncode
+    if options.campaign_key:
+        artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
+        if artifacts:
+            add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
     return result.returncode
 
 
@@ -2239,6 +2865,42 @@ def main(argv: list[str] | None = None) -> int:
 
     import_state_parser = sub.add_parser("import-state", help="Import a legacy tests-state.json snapshot into the Directus test control plane")
     import_state_parser.add_argument("path")
+
+    campaign_parser = sub.add_parser("campaign", help="Manage durable failed-test debug campaigns")
+    campaign_sub = campaign_parser.add_subparsers(dest="campaign_command", required=True)
+    campaign_start = campaign_sub.add_parser("start", help="Create or resume a campaign")
+    campaign_start.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_start.add_argument("--campaign", default="")
+    campaign_start.add_argument("--test-key", action="append", default=[])
+    campaign_start.add_argument("--json", action="store_true")
+    campaign_status = campaign_sub.add_parser("status", help="Show campaign groups, evidence, and next action")
+    campaign_status.add_argument("--campaign", required=True)
+    campaign_status.add_argument("--json", action="store_true")
+    campaign_next = campaign_sub.add_parser("next", help="Lease the next durable campaign group")
+    campaign_next.add_argument("--campaign", required=True)
+    campaign_next.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_next.add_argument("--worker", default="")
+    campaign_next.add_argument("--lease", action="store_true")
+    campaign_next.add_argument("--json", action="store_true")
+    campaign_prepare = campaign_sub.add_parser("prepare", help="Record expected behavior and acceptance criteria")
+    campaign_prepare.add_argument("--group", required=True)
+    campaign_prepare.add_argument("--expected-behavior", required=True)
+    campaign_prepare.add_argument("--criterion", action="append", required=True)
+    campaign_attempt = campaign_sub.add_parser("attempt", help="Append a durable investigation attempt")
+    campaign_attempt.add_argument("--group", required=True)
+    campaign_attempt.add_argument("--approach", required=True)
+    campaign_attempt.add_argument("--outcome", required=True, choices=["failed", "blocked", "green", "rejected"])
+    campaign_attempt.add_argument("--summary", default="")
+    campaign_attempt.add_argument("--run-key", action="append", default=[])
+    campaign_attempt.add_argument("--changed-file", action="append", default=[])
+    campaign_block = campaign_sub.add_parser("block", help="Record a structured campaign blocker")
+    campaign_block.add_argument("--group", required=True)
+    campaign_block.add_argument("--reason", required=True)
+    campaign_block.add_argument("--question", required=True)
+    campaign_block.add_argument("--next-action", required=True)
+    campaign_complete = campaign_sub.add_parser("complete-group", help="Complete a group after all members pass")
+    campaign_complete.add_argument("--group", required=True)
+    campaign_complete.add_argument("--commit", default="")
 
     run_parser = sub.add_parser("run", help="Run tests through the unified control plane and record state")
     run_parser.add_argument("runner_args", nargs=argparse.REMAINDER)
@@ -2320,6 +2982,36 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "import-state":
         state = import_state_snapshot(Path(args.path))
         print(json.dumps(state, indent=2, sort_keys=True))
+        return 0
+    if args.command == "campaign":
+        try:
+            if args.campaign_command == "start":
+                payload = start_debug_campaign(args.session, selected_test_keys=args.test_key or None, campaign_key=args.campaign)
+            elif args.campaign_command == "status":
+                payload = debug_campaign_status(args.campaign)
+            elif args.campaign_command == "next":
+                payload = claim_next_debug_group(args.campaign, args.session, worker_id=args.worker)
+                if payload is None:
+                    raise RuntimeError("No available campaign group; inspect campaign status for blockers or completion")
+            elif args.campaign_command == "prepare":
+                payload = prepare_debug_group(args.group, args.expected_behavior, args.criterion)
+            elif args.campaign_command == "attempt":
+                payload = append_debug_group_attempt(
+                    args.group,
+                    args.approach,
+                    args.outcome,
+                    summary=args.summary,
+                    run_keys=args.run_key,
+                    changed_files=args.changed_file,
+                )
+            elif args.campaign_command == "block":
+                payload = block_debug_group(args.group, args.reason, args.question, args.next_action)
+            else:
+                payload = complete_debug_group(args.group, commit=args.commit)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
     if args.command == "run":
         runner_args = list(args.runner_args)
