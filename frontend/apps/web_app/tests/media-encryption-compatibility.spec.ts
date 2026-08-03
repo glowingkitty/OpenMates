@@ -55,7 +55,9 @@ test('renders frozen legacy and explicit v2 encrypted media', async ({ page }: {
 
 	await page.goto(`${BASE_URL}/dev/preview/embeds/images`);
 	for (const accessibleName of ['legacy-encrypted.png', 'v2-encrypted.png']) {
-		const image = page.getByRole('img', { name: accessibleName }).first();
+		const card = page.getByRole('button', { name: new RegExp(accessibleName) }).first();
+		await card.scrollIntoViewIfNeeded();
+		const image = card.getByRole('img', { name: accessibleName });
 		await expect(image).toBeVisible({ timeout: 30000 });
 		await expect(image).toHaveAttribute('src', /^blob:/);
 		await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.complete && node.naturalWidth > 0)).toBe(true);
@@ -68,6 +70,6 @@ test('resolves the deployed six-character legacy shared link', async ({ page }: 
 	test.slow();
 	await page.goto(LEGACY_SHORT_LINK);
 	await expect(page).toHaveURL(/#chat-id=/, { timeout: 60000 });
-	await expect(page.getByTestId('shared-chat-badge')).toContainText('Shared chat');
+	await expect(page.getByTestId('chat-header-banner').getByTestId('shared-chat-badge')).toHaveText('Shared chat');
 	await expect(page.getByText('[Content decryption failed]')).not.toBeVisible();
 });
