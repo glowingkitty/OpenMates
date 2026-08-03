@@ -14629,7 +14629,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         .guest-all-examples-view {
             width: min(100% - 24px, 520px);
-            max-height: 66vh;
+            max-height: 72vh;
         }
 
         .guest-all-examples-toolbar {
