@@ -6869,6 +6869,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Hide follow-up suggestions until new ones are received
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
         followUpSuggestions = [];
+        console.debug('[ActiveChat] Clearing quick tip slugs before chat hydration', currentChat.chat_id);
         quickTipSlugs = [];
         
         // Hide settings/memories suggestions when user sends a new message
