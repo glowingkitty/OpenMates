@@ -95,8 +95,8 @@ decisions:
     decided_at: "2026-08-03T00:00:00Z"
   - id: D-4
     status: active
-    decision: Bootstrap with a manual workflow run from dev.
-    reason: Pull-request workflows must already exist on the base branch.
+    decision: Bootstrap through scripts/tests.py run --core-journeys with an exact commit.
+    reason: GitHub does not register or trigger a brand-new workflow from a non-default branch.
     decided_at: "2026-08-03T00:00:00Z"
 
 attempts:
@@ -106,6 +106,12 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-03T00:00:00Z"
     note: Hourly mode lacks the required commit pinning and normal account preflight behavior.
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Manually dispatch the new aggregate workflow from dev before it exists on main.
+    outcome: rejected
+    recorded_at: "2026-08-03T16:50:00Z"
+    note: GitHub returned 404 because brand-new workflows are not registered from non-default branches; bootstrap now uses the existing single-spec workflow through scripts/tests.py.
 
 handoff:
   current_task_id: TASK-1
@@ -162,7 +168,7 @@ scenarios:
     when:
       - The first promotion is prepared.
     then:
-      - An operator manually runs the workflow from dev for the exact commit.
+      - An operator runs the canonical suite through scripts/tests.py for the exact commit.
       - Automation does not create or merge the PR.
       - Required-check enforcement remains deferred until advisory proof exists.
 
@@ -177,7 +183,7 @@ acceptance_criteria:
     verification_ids: [T-PY-CORE-GATE]
   - id: AC-2
     scenario: S-1
-    text: The release workflow targets main pull requests and supports exact-commit manual bootstrap without path filters.
+    text: The release workflow targets main pull requests without path filters and the existing control plane supports an exact-commit first-promotion bootstrap.
     required: true
     status: pending
     coverage_status: covered
@@ -306,7 +312,7 @@ tests:
   - id: T-LINT-CORE-GATE
     type: lint
     file: .github/workflows/release-core-journeys.yml
-    command: bash scripts/lint_changed.sh --path .github/workflows/release-core-journeys.yml --path .github/workflows/playwright-spec.yml --path scripts/run_tests.py --path scripts/prepare_release_candidate.py --path scripts/tests/test_release_core_journeys_gate.py --path frontend/apps/web_app/tests/dev-smoke/README.md --path docs/specs/release-core-journeys-gate/spec.yml --path docs/architecture/test-orchestration.md --path docs/contributing/guides/git-and-deployment.md
+    command: bash scripts/lint_changed.sh --path .github/workflows/release-core-journeys.yml --path .github/workflows/playwright-spec.yml --path scripts/run_tests.py --path scripts/tests.py --path scripts/prepare_release_candidate.py --path scripts/tests/test_release_core_journeys_gate.py --path frontend/apps/web_app/tests/dev-smoke/README.md --path docs/specs/release-core-journeys-gate/spec.yml --path docs/architecture/test-orchestration.md --path docs/contributing/guides/git-and-deployment.md
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
     assertions:
       - Changed workflow, Python, test, and documentation files pass focused checks.
@@ -370,6 +376,7 @@ implementation_plan:
     - An always-run aggregate job emits the stable gate conclusion.
   affected_files:
     - {path: scripts/run_tests.py, reason: Canonical suite and matrix output.}
+    - {path: scripts/tests.py, reason: Commit-pinned bootstrap suite classification.}
     - {path: .github/workflows/playwright-spec.yml, reason: Reusable exact-SHA runner and account serialization.}
     - {path: .github/workflows/release-core-journeys.yml, reason: Release orchestration and aggregate gate.}
     - {path: scripts/prepare_release_candidate.py, reason: Docker preparation and commit status.}
@@ -397,11 +404,11 @@ tasks:
     status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
-    expected_files: [scripts/run_tests.py, scripts/tests/test_release_core_journeys_gate.py]
+    expected_files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_release_core_journeys_gate.py]
     verification: [T-PY-CORE-GATE]
     verification_ids: [T-PY-CORE-GATE]
     dependencies: []
-    ownership: {files: [scripts/run_tests.py, scripts/tests/test_release_core_journeys_gate.py], shared_files: []}
+    ownership: {files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_release_core_journeys_gate.py], shared_files: []}
     blockers: []
     follow_up_tasks: []
     independently_deployable: false

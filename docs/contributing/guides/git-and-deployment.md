@@ -277,14 +277,15 @@ python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-c
 ```
 
 For the first PR that introduces `.github/workflows/release-core-journeys.yml`
-to `main`, run the advisory workflow manually because GitHub does not trigger a
-new `pull_request` workflow until it already exists on the base branch:
+to `main`, use the existing test control plane because GitHub neither registers
+nor triggers a brand-new workflow from a non-default branch:
 
 ```bash
-gh workflow run release-core-journeys.yml --ref dev -f checkout_ref="$sha"
+python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit "$sha"
 ```
 
-Inspect all four jobs and the aggregate `Release Gate / Core Journeys` result.
+Inspect all four exact-commit single-spec runs. Starting with the next promotion,
+inspect the automatic aggregate `Release Gate / Core Journeys` result.
 Do not add the required status check to the shared main/dev ruleset. After the
 workflow exists on `main` and advisory runs are consistently green, create a
 separate main-only ruleset requiring only the aggregate result.

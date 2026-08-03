@@ -1997,6 +1997,8 @@ def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
         suite = "prod-app-skill"
     elif "--hourly-dev" in args:
         suite = "hourly-dev"
+    elif "--core-journeys" in args:
+        suite = "core-journeys"
     for index, arg in enumerate(args):
         if arg == "--suite" and index + 1 < len(args):
             suite = args[index + 1]
@@ -2022,7 +2024,9 @@ def seeded_only_failed_files_from_lease(lease: dict[str, Any] | None, args: list
 
 def run_targets_playwright(args: list[str]) -> bool:
     suite, tests = infer_run_suite_and_tests(args)
-    return suite in {"playwright", "hourly-dev"} or any(test.endswith(".spec.ts") for test in tests)
+    return suite in {"playwright", "hourly-dev", "core-journeys"} or any(
+        test.endswith(".spec.ts") for test in tests
+    )
 
 
 def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int = 10) -> list[str]:

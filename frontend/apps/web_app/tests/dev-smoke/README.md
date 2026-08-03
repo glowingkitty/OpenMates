@@ -63,10 +63,11 @@ their exact-commit status:
 
 ```bash
 python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_SHA>
-gh workflow run release-core-journeys.yml --ref dev -f checkout_ref=<FULL_SHA>
+python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FULL_SHA>
 ```
 
-The first promotion that introduces the workflow to `main` must use the manual
-dispatch because GitHub only loads `pull_request` workflows already present on
-the base branch. Later dev-to-main PRs run it automatically. The aggregate check
-remains advisory until repeated green runs justify a separate main-only ruleset.
+The first promotion that introduces the workflow to `main` must use this
+control-plane bootstrap because GitHub does not register a brand-new workflow
+from a non-default branch. Later dev-to-main PRs run the aggregate workflow
+automatically. The check remains advisory until repeated green runs justify a
+separate main-only ruleset.

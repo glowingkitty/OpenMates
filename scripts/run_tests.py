@@ -5652,6 +5652,7 @@ class TestOrchestrator:
     def __init__(self, args: argparse.Namespace) -> None:
         self.suite = args.suite
         self.spec = args.spec
+        self.core_journeys = args.core_journeys
         self.only_failed = args.only_failed
         self.daily = args.daily
         self.force = args.force
@@ -6503,6 +6504,9 @@ class TestOrchestrator:
                 raise RuntimeError(validation_error)
             return [self.spec]
 
+        if self.core_journeys:
+            return list(CORE_JOURNEY_SPECS)
+
         if self.only_failed:
             failed = ResultAggregator.load_failed_specs()
             self.only_failed_synthetic_files = tuple(f for f in failed if not f.endswith(".spec.ts"))
@@ -6639,6 +6643,8 @@ def main() -> int:
     parser.add_argument("--hourly-dev", action="store_true",
                         help="Hourly DEV smoke (4 specs, post on failure to "
                              "DISCORD_WEBHOOK_DEV_SMOKE). See OPE-349.")
+    parser.add_argument("--core-journeys", action="store_true",
+                        help="Run the canonical release core journeys through normal commit-pinned orchestration")
     parser.add_argument("--hourly-prod", action="store_true",
                         help="Hourly PROD smoke (dispatches prod-smoke.yml, "
                              "free reachability suite; legacy alias for --prod-free-hourly).")
@@ -6701,13 +6707,17 @@ def main() -> int:
         args.prod_free_hourly,
         args.prod_paid_chat,
         args.prod_app_skill,
+        args.core_journeys,
     ))
     if mode_flags > 1:
         _log(
             "Pass at most one of: --daily, --hourly-dev, --hourly-prod, "
-            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill",
+            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill, --core-journeys",
             "ERROR",
         )
+        return 2
+    if args.core_journeys and args.spec:
+        _log("--core-journeys cannot be combined with --spec", "ERROR")
         return 2
     if args.account is not None and not args.spec:
         _log("--account requires --spec so one GitHub Actions run maps to one explicit test-account slot", "ERROR")
@@ -6715,6 +6725,8 @@ def main() -> int:
     if args.create_account_slot is not None and args.spec != PROVISION_AUTH_ACCOUNTS_SPEC:
         _log("--create-account-slot requires --spec cli-provision-auth-accounts.spec.ts", "ERROR")
         return 2
+    if args.core_journeys:
+        args.suite = "playwright"
     if args.no_mocks and args.record_live_fixtures:
         _log("--record-live-fixtures requires live-mock markers; do not combine it with --no-mocks", "ERROR")
         return 2

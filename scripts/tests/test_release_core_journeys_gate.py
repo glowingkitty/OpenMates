@@ -61,6 +61,12 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
         ]
     }
 
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.spec = None
+    orchestrator.core_journeys = True
+    orchestrator.only_failed = False
+    assert orchestrator._discover_specs() == EXPECTED_SPECS
+
 
 def test_release_workflow_has_stable_fail_closed_gate() -> None:
     workflow = load_workflow("release-core-journeys.yml")
