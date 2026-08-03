@@ -88,7 +88,7 @@ def _normalize_name(value: str) -> str:
 
 def _canonical_input(namespace: str, value: str) -> str:
     normalized = _normalize_name(value)
-    normalized = normalized.replace("chat_gpt", "chatgpt").replace("open_mates", "openmates")
+    normalized = normalized.replace("chat_gpt", "chatgpt").replace("open_code", "opencode").replace("open_mates", "openmates")
     normalized = normalized.replace("recovery_poll_interval_ms", "recovery_poll_interval")
     normalized = normalized.replace("recovery_poll_interval_seconds", "recovery_poll_interval")
     normalized = normalized.replace("recovery_timeout_ms", "recovery_timeout")
@@ -107,7 +107,7 @@ def _canonical_input(namespace: str, value: str) -> str:
 
 def _canonical_method(namespace: str, value: str) -> str:
     normalized = _normalize_name(value)
-    normalized = normalized.replace("chat_gpt", "chatgpt").replace("open_mates", "openmates")
+    normalized = normalized.replace("chat_gpt", "chatgpt").replace("open_code", "opencode").replace("open_mates", "openmates")
     return METHOD_ALIASES.get((namespace, normalized), normalized)
 
 
