@@ -93,6 +93,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
 
         XCTAssertFalse(source.contains("width: CGFloat(WatchEmbedPreviewModel.cardWidth)"))
         XCTAssertTrue(source.contains("maxWidth: .infinity"))
+        XCTAssertTrue(source.contains("gradient(forAppId: model.appId)"))
     }
 
     func testMapsSupportedV1EmbedFamiliesToCompactPreviewModels() throws {
@@ -252,6 +253,31 @@ final class WatchEmbedPreviewTests: XCTestCase {
             WatchMessageContentSanitizer.displayText(content: content, embedRefs: nil),
             "Café Köln and Zürich HB"
         )
+    }
+
+    func testWatchDoesNotRenderApiEmbedRecordAsCardWhenConsumedByInlineReference() {
+        let ref = WatchEmbedRef(
+            id: "embed-uuid",
+            type: EmbedType.webWebsite.rawValue,
+            status: "finished",
+            data: [
+                "embed_ref": AnyCodable("csd-deutschland.de-NXT"),
+                "title": AnyCodable("CSD Magdeburg"),
+            ]
+        )
+        let message = WatchChatMessage(
+            id: "message-1",
+            chatId: "chat-1",
+            role: .assistant,
+            content: "See [CSD Magdeburg](embed:csd-deutschland.de-NXT) for details.",
+            encryptedContent: nil,
+            embedRefs: [ref],
+            createdAt: "2026-08-03T00:00:00Z",
+            isPending: false
+        )
+
+        XCTAssertEqual(message.watchDisplayContent, "See CSD Magdeburg for details.")
+        XCTAssertTrue(message.watchEmbedRecords.isEmpty)
     }
 
     private static func embed(
