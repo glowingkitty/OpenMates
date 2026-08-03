@@ -937,6 +937,8 @@ async def _apply_diff_block_to_existing_embed(
                         decoded.get("code") or
                         decoded.get("diagram_code") or
                         decoded.get("html") or
+                        (json.dumps(decoded.get("notebook"), ensure_ascii=False, indent=2) if decoded.get("notebook") else None) or
+                        (decoded.get("content") if decoded.get("type") == "notebook" else None) or
                         (json.dumps(decoded.get("docx_model"), ensure_ascii=False, indent=2) if decoded.get("docx_model") else None) or
                         decoded.get("table") or
                         ""
@@ -1005,6 +1007,20 @@ async def _apply_diff_block_to_existing_embed(
             version_history_rows=version_history_rows,
             learning_mode_metadata=learning_mode_metadata,
             log_prefix=log_prefix
+        )
+    elif embed_type == "notebook":
+        await embed_service.update_notebook_embed_content(
+            embed_id=target_embed_id,
+            notebook_content=patch_result.new_content,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix,
         )
     elif embed_type == "document":
         capped_current_content, _ = _cap_document_for_learning_mode(request_data, current_content)

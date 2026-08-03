@@ -22,7 +22,7 @@ STREAM_CONSUMER_PATH = Path(__file__).resolve().parents[1] / "apps/ai/tasks/stre
 DIFF_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructions/base_diff_editing_instruction.md"
 APPS_DIR = Path(__file__).resolve().parents[1] / "apps"
 SHARED_EMBED_TYPES_PATH = Path(__file__).resolve().parents[2] / "shared/config/embed_types.yml"
-SUPPORTED_DIFF_UPDATE_TYPES = {"code", "document", "mail", "mindmap", "pcb_schematic", "sheet"}
+SUPPORTED_DIFF_UPDATE_TYPES = {"code", "document", "mail", "mindmap", "notebook", "pcb_schematic", "sheet"}
 
 
 @pytest.mark.anyio
@@ -94,6 +94,14 @@ def test_stream_consumer_does_not_shadow_json_module() -> None:
     assert not shadowing_imports
 
 
+def test_stream_consumer_updates_notebook_diff_targets() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+
+    assert 'decoded.get("content") if decoded.get("type") == "notebook"' in source
+    assert 'elif embed_type == "notebook":' in source
+    assert "update_notebook_embed_content(" in source
+
+
 def test_diff_editable_content_catalog_entries_have_stream_updaters() -> None:
     diff_editable_backend_types: set[str] = set()
     for app_yml in APPS_DIR.glob("*/app.yml"):
@@ -109,5 +117,5 @@ def test_diff_editable_content_catalog_entries_have_stream_updaters() -> None:
         if content_catalog.get("enabled") and content_catalog.get("diff_editable"):
             diff_editable_backend_types.add(embed_type["backend_type"])
 
-    assert {"code", "document", "mail", "mindmap", "pcb_schematic", "sheet"} <= diff_editable_backend_types
+    assert {"code", "document", "mail", "mindmap", "notebook", "pcb_schematic", "sheet"} <= diff_editable_backend_types
     assert diff_editable_backend_types <= SUPPORTED_DIFF_UPDATE_TYPES

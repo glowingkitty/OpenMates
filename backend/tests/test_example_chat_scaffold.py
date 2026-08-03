@@ -158,8 +158,8 @@ def test_scaffold_promotes_app_skill_use_embeds_into_assistant_message(tmp_path:
         )
 
         yaml_source = yaml_path.read_text(encoding="utf-8")
-        assert '{"type":"app_skill_use","embed_id":"nutrition-parent-embed"' in yaml_source
-        assert yaml_source.index('{"type":"app_skill_use"') < yaml_source.index("Here are three recipes.")
+        assert "[!](embed:nutrition-parent-embed)" in yaml_source
+        assert yaml_source.index("[!](embed:nutrition-parent-embed)") < yaml_source.index("Here are three recipes.")
         assert 'app_skill_examples: ["nutrition.search_recipes"]' in data_path.read_text(encoding="utf-8")
     finally:
         registry_path.write_text(original_registry, encoding="utf-8")
