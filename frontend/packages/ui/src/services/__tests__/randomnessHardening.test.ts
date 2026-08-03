@@ -15,11 +15,23 @@ import {
   deriveKeyFromPassword,
   hkdf,
 } from "../cryptoService";
+import {
+  clearCryptoKeyCache,
+  computeKeyFingerprint4Bytes,
+  decryptWithChatKey,
+  encryptWithChatKey,
+} from "../encryption/MessageEncryptor";
 
 const originalCrypto = globalThis.crypto;
 const ZERO_KEY = new Uint8Array(32);
 const KEY_BITS = 256;
 const PBKDF2_ITERATIONS = 100_000;
+const COLLIDING_KEY_ONE = Uint8Array.from(
+  Buffer.from("a7529306441c37f4fb644de0d27096d614ae0b09701eebe522f18e429711f509", "hex"),
+);
+const COLLIDING_KEY_TWO = Uint8Array.from(
+  Buffer.from("4f18ac6fbd4d1478ec38d1c5caf855bb6ce7db8d17e1f5d77cab3111331399af", "hex"),
+);
 
 function setCrypto(value: Crypto | undefined): void {
   Object.defineProperty(globalThis, "crypto", {
@@ -131,5 +143,35 @@ describe("embed persistence key hardening", () => {
 
     expect(source).not.toContain("generateEmbedKey");
     expect(source).not.toContain("using random key for embed");
+  });
+});
+
+describe("chat CryptoKey cache hardening", () => {
+  it("does not share an encryption cache entry between colliding FNV keys", async () => {
+    expect(computeKeyFingerprint4Bytes(COLLIDING_KEY_ONE)).toEqual(
+      computeKeyFingerprint4Bytes(COLLIDING_KEY_TWO),
+    );
+
+    clearCryptoKeyCache();
+    await encryptWithChatKey("first key", COLLIDING_KEY_ONE);
+    const secondCiphertext = await encryptWithChatKey("second key", COLLIDING_KEY_TWO);
+    clearCryptoKeyCache();
+
+    expect(await decryptWithChatKey(secondCiphertext, COLLIDING_KEY_TWO)).toBe("second key");
+  });
+
+  it("does not share a decryption cache entry or change ciphertext headers", async () => {
+    clearCryptoKeyCache();
+    const firstCiphertext = await encryptWithChatKey("first key", COLLIDING_KEY_ONE);
+    clearCryptoKeyCache();
+    const secondCiphertext = await encryptWithChatKey("second key", COLLIDING_KEY_TWO);
+    clearCryptoKeyCache();
+
+    const firstHeader = Buffer.from(firstCiphertext, "base64").subarray(0, 6).toString("hex");
+    const secondHeader = Buffer.from(secondCiphertext, "base64").subarray(0, 6).toString("hex");
+    expect(firstHeader).toBe("4f4d3f1fbc49");
+    expect(secondHeader).toBe(firstHeader);
+    expect(await decryptWithChatKey(firstCiphertext, COLLIDING_KEY_ONE)).toBe("first key");
+    expect(await decryptWithChatKey(secondCiphertext, COLLIDING_KEY_TWO)).toBe("second key");
   });
 });
