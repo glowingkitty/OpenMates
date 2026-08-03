@@ -22,8 +22,10 @@ final class WatchChatLayoutUITests: XCTestCase {
         XCTAssertTrue(layoutShell.waitForExistence(timeout: 12))
 
         let screenFrame = XCUIScreen.main.screenshot().image.size
-        XCTAssertGreaterThanOrEqual(layoutShell.frame.height, screenFrame.height * 0.8)
-        XCTAssertGreaterThanOrEqual(layoutShell.frame.maxY, screenFrame.height - 1)
+        let appWindow = app.windows.firstMatch
+        XCTAssertTrue(appWindow.exists)
+        XCTAssertGreaterThanOrEqual(appWindow.frame.height, screenFrame.height * 0.8)
+        XCTAssertGreaterThanOrEqual(appWindow.frame.maxY, screenFrame.height - 1)
 
         let embed = app.descendants(matching: .any)
             .matching(identifier: "watch-embed-preview-website")
