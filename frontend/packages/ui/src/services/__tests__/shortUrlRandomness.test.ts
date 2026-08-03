@@ -6,12 +6,17 @@
  * without relying on statistical tests.
  */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { webcrypto } from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { generateShortUrlParts, parseShortUrlParts } from "../shortUrlEncryption";
 
 const originalCrypto = globalThis.crypto;
 const BASE62_LENGTH = 62;
+
+beforeEach(() => {
+  Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
+});
 
 afterEach(() => {
   Object.defineProperty(globalThis, "crypto", { value: originalCrypto, configurable: true });
