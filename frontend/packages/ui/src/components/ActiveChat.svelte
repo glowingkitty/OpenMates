@@ -11667,10 +11667,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
         chatSyncService.addEventListener('syncComplete', syncCompleteHandler);
 
-        const phase1bContentReadyHandler = ((event: CustomEvent<{ chat_id?: string }>) => {
-            const syncedChatId = event.detail?.chat_id;
-            if (syncedChatId && currentChat?.chat_id === syncedChatId) {
-                void hydrateQuickTipSlugs(syncedChatId);
+        const phase1bContentReadyHandler = ((event: CustomEvent<{
+            chat_id?: string;
+            chats?: Array<{ chat_id?: string }>;
+        }>) => {
+            const activeChatId = currentChat?.chat_id;
+            const activeChatWasSynced = activeChatId && (
+                event.detail?.chat_id === activeChatId ||
+                event.detail?.chats?.some(chat => chat.chat_id === activeChatId)
+            );
+            if (activeChatWasSynced) {
+                void hydrateQuickTipSlugs(activeChatId);
             }
         }) as EventListenerCallback;
         chatSyncService.addEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
