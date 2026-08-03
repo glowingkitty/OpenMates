@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */; };
 		0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */; };
 		00E9903CB4B266B59E16AB50 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
 		012057623219277299AA30A1 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
@@ -721,6 +722,13 @@
 			remoteGlobalIDString = C0FFEE000000000000047018;
 			remoteInfo = OpenMatesWatch;
 		};
+		C0FFEE000000000000054014 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA6E6E20CD0A094A87EB04A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0FFEE000000000000047018;
+			remoteInfo = OpenMatesWatch;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -989,6 +997,8 @@
 		C0FFEE000000000000001002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000001003 /* OpenMatesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatLayoutUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMacShellParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowRealAccountUITests.swift; sourceTree = "<group>"; };
@@ -1154,6 +1164,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C0FFEE000000000000043007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000054007 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1596,6 +1613,7 @@
 				C0FFEE000000000000002012 /* OpenMatesTests */,
 				C0FFEE000000000000001012 /* OpenMatesUITests */,
 				A11E00000000000000000003 /* OpenMatesMacUITests */,
+				C0FFEE000000000000054004 /* OpenMatesWatchUITests */,
 				5CADB8842432593D9E90CD62 /* OpenMates */,
 				EB8536A31BBD5884C13C3AC6 /* OpenMatesShared */,
 				A1000000000000000000000C /* OpenMatesNotificationService */,
@@ -1651,6 +1669,7 @@
 				C0FFEE000000000000002003 /* OpenMatesTests.xctest */,
 				C0FFEE000000000000001003 /* OpenMatesUITests.xctest */,
 				C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */,
+				C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */,
 				A10000000000000000000009 /* OpenMatesNotificationService.appex */,
 				F376B3E95264F50E89441B25 /* OpenMatesShareExtension_macOS.appex */,
 				8F6573E0E9224234EF13DC13 /* OpenMatesShareExtension.appex */,
@@ -1746,6 +1765,14 @@
 				A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */,
 			);
 			path = OpenMatesMacUITests;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000054004 /* OpenMatesWatchUITests */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */,
+			);
+			path = OpenMatesWatchUITests;
 			sourceTree = "<group>";
 		};
 		C0FFEE000000000000047016 /* OpenMatesWatch */ = {
@@ -2250,6 +2277,26 @@
 			productReference = C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		C0FFEE000000000000054006 /* OpenMatesWatchUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE000000000000054011 /* Build configuration list for PBXNativeTarget "OpenMatesWatchUITests" */;
+			buildPhases = (
+				C0FFEE000000000000054005 /* Sources */,
+				C0FFEE000000000000054008 /* Resources */,
+				C0FFEE000000000000054007 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C0FFEE000000000000054013 /* PBXTargetDependency */,
+			);
+			name = OpenMatesWatchUITests;
+			packageProductDependencies = (
+			);
+			productName = OpenMatesWatchUITests;
+			productReference = C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		C0FFEE000000000000002006 /* OpenMatesTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = C0FFEE000000000000002011 /* Build configuration list for PBXNativeTarget "OpenMatesTests" */;
@@ -2303,6 +2350,9 @@
 					C0FFEE000000000000043006 = {
 						DevelopmentTeam = Z9B2YFKN2X;
 					};
+					C0FFEE000000000000054006 = {
+						DevelopmentTeam = Z9B2YFKN2X;
+					};
 					C0FFEE000000000000002006 = {
 						DevelopmentTeam = Z9B2YFKN2X;
 					};
@@ -2337,6 +2387,7 @@
 				C0FFEE000000000000002006 /* OpenMatesTests */,
 				C0FFEE000000000000001006 /* OpenMatesUITests */,
 				C0FFEE000000000000043006 /* OpenMatesMacUITests */,
+				C0FFEE000000000000054006 /* OpenMatesWatchUITests */,
 				B0B9102F4329EFF5F54A8395 /* OpenMates_macOS */,
 			);
 		};
@@ -2392,6 +2443,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C0FFEE000000000000043008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000054008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -3063,6 +3121,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0FFEE000000000000054005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C0FFEE000000000000002005 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -3153,6 +3219,11 @@
 			isa = PBXTargetDependency;
 			target = C0FFEE000000000000047018 /* OpenMatesWatch */;
 			targetProxy = C0FFEE000000000000049022 /* PBXContainerItemProxy */;
+		};
+		C0FFEE000000000000054013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C0FFEE000000000000047018 /* OpenMatesWatch */;
+			targetProxy = C0FFEE000000000000054014 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -3642,6 +3713,54 @@
 			};
 			name = Release;
 		};
+		C0FFEE000000000000054009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z9B2YFKN2X;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesUITests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watchuitests;
+				PRODUCT_NAME = OpenMatesWatchUITests;
+				SDKROOT = watchos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = OpenMatesWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000054010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z9B2YFKN2X;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesUITests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watchuitests;
+				PRODUCT_NAME = OpenMatesWatchUITests;
+				SDKROOT = watchos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = OpenMatesWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		C0FFEE000000000000002009 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -3781,6 +3900,15 @@
 			buildConfigurations = (
 				C0FFEE000000000000043009 /* Debug */,
 				C0FFEE000000000000043010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C0FFEE000000000000054011 /* Build configuration list for PBXNativeTarget "OpenMatesWatchUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE000000000000054009 /* Debug */,
+				C0FFEE000000000000054010 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
