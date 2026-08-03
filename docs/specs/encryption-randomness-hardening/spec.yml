@@ -243,14 +243,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-02"
     notes: Existing-data mutation creates unacceptable decryption risk.
+  - id: ATTEMPT-3
+    task_id: TASK-6
+    approach: Dispatch commit-scoped Vitest and CLI-unit verification immediately after the generator implementation deploy.
+    outcome: succeeded
+    recorded_at: "2026-08-03"
+    notes: Directus rejected millisecond test-result timestamps as 32-bit integers; a focused red/green control-plane fix shipped in a0128002b, then Vitest passed at 034b62913. The stale cli-unit dispatcher alias was replaced by the focused allowed Node crypto unit command.
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Write focused backend and cross-client generator tests for approved alphabets, unbiased CSPRNG sampling, unchanged issuance shapes, and legacy 0/O acceptance before changing generators.
-  command: python3 -m pytest backend/tests/test_security_random_generators.py
-  expected_outcome: New tests fail until all scoped human-transcribed generators exclude variable 0/O and use unbiased CSPRNG sampling while validators continue accepting historical values.
+  current_task_id: TASK-7
+  next_action: Add failing signed-domain-policy compatibility tests before implementing canonical Ed25519 bundle loading; keep production activation blocked on A-8 signing custody.
+  command: python3 backend/core/api/app/services/test_domain_security.py
+  expected_outcome: New tests fail until legacy fallback, valid signed bundles, malformed inputs, and invalid-signature fail-closed behavior are explicit.
   blocker: null
-  last_verified_commit: ca793f374
+  last_verified_commit: 034b62913
 
 scenarios:
   - id: S-1
@@ -391,7 +397,7 @@ acceptance_criteria:
   - {id: AC-8, scenario: S-8, text: "Production recovery sealing is random-only while v1 vectors remain compatible.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-RECOVERY-PARITY, V-APPLE]}
   - {id: AC-9, scenario: S-9, text: "Legacy CLI session files remain byte-identical and readable; stronger storage uses a separate verified file/slot and preserves the original indefinitely.", required: true, status: pending, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-STORAGE, V-CLI, V-NPM-SDK, V-PIP-SDK]}
   - {id: AC-10, scenario: S-10, text: "Domain policy readers support immutable legacy and new bundles through rollback.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY]}
-  - {id: AC-11, scenario: S-11, text: "Security generators use CSPRNG and unbiased sampling; new human-transcribed variable code characters exclude `0` and `O` while legacy values remain accepted.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-RANDOMNESS-AUDIT, T-SECURITY-CODES]}
+  - {id: AC-11, scenario: S-11, text: "Security generators use CSPRNG and unbiased sampling; new human-transcribed variable code characters exclude `0` and `O` while legacy values remain accepted.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-RANDOMNESS-AUDIT, T-SECURITY-CODES]}
   - {id: AC-12, scenario: S-2, text: "No task mutates, deletes, or bulk re-encrypts existing ciphertext or removes a legacy reader.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-NO-MIGRATION-GUARD, V-SECURITY-REVIEW]}
   - {id: AC-13, scenario: S-12, text: "A conclusive read-only production SSH audit covers every eligible AES-GCM wrapper and NaCl encrypted-email collection without exposure or mutation; any match or incomplete scan requires an approved recovery spec before zero-return removal.", required: true, status: satisfied, coverage_status: covered, verification_scope: manual, verification_ids: [T-ZERO-KEY-AUDIT, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
   - {id: AC-14, scenario: S-13, text: "Backend and workers verify canonical signed domain policy locally while all client response contracts remain unchanged and legacy startup remains rollback-compatible.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY, V-DOMAIN-IMAGES]}
@@ -596,16 +602,16 @@ tests:
     command: python3 scripts/tests.py run --suite vitest
     covers: [AC-6]
     assertions: [Six-character links decrypt, generator uses the approved CSPRNG API and rejection sampling, new alphabet and length encode at least 128 bits, forced RNG failure fails closed, parser accepts old and new lengths.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "short-link-red-not-retained", timestamp: "2026-08-03T18:57:39Z", reason: "The collected test was authored before implementation, but local Vitest is prohibited and no separate test-only deploy was retained; the later 30843195886 failure was a CI WebCrypto harness defect and is not misrepresented as product red evidence."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --expected-commit 034b629", run_id: "30843434028", subject_commit: "034b62913", timestamp: "2026-08-03T18:56:22Z", notes: "691/691 tests passed, including legacy six-character parsing, 22-character 128-bit issuance, deterministic rejection sampling, and RNG failure propagation."}}
   - id: T-RECOVERY-PARITY
     type: unit
     file: backend/tests/test_chat_completion_recovery_crypto.py
     command: python3 -m pytest backend/tests/test_chat_completion_recovery_crypto.py packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
     covers: [AC-8]
     assertions: [V1 vectors open, production APIs reject deterministic overrides, repeated seals use distinct keys and nonces.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "recovery-red-not-retained", timestamp: "2026-08-03T18:57:39Z", reason: "Focused tests were written before implementation and initially failed while the test-only deterministic helper was absent, but the local red output did not retain a durable run identifier."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_chat_completion_recovery_crypto.py packages/openmates-python/tests/test_chat_completion_recovery_crypto.py && node --test --experimental-strip-types frontend/packages/openmates-cli/tests/crypto.test.ts && python3 scripts/tests.py run --suite vitest --expected-commit 99c776223", run_id: "local-recovery-14;local-cli-31;30834723137", subject_commit: "99c776223", timestamp: "2026-08-03T17:00:53Z", notes: "Backend/pip 14 tests, focused CLI 31 tests, and browser 685 tests passed; production APIs reject deterministic overrides while explicit test-only helpers preserve v1 vectors."}}
   - id: T-CLI-STORAGE
     type: unit
     file: frontend/packages/openmates-cli/tests/storage.test.ts
@@ -644,16 +650,16 @@ tests:
     command: python3 -m pytest backend/tests/test_security_random_generators.py
     covers: [AC-11]
     assertions: [New human-transcribed variable characters never include 0 or O, generators preserve issuance shapes, old 0/O values remain accepted, backup/recovery/API-key/referral parity is cross-client, new generation uses CSPRNG and rejection sampling, TOTP and opaque-token exemptions are explicit.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "security-codes-red-not-retained", timestamp: "2026-08-03T18:57:39Z", reason: "The initial focused pytest run failed during collection because security_random.py did not exist, but no durable local run identifier was retained."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_security_random_generators.py", run_id: "local-generator-suite-e6f0a38bf", subject_commit: "e6f0a38bf", timestamp: "2026-08-03T18:07:47Z", notes: "4/4 tests passed before deployment; timestamp is the implementation commit time. Coverage includes canonical alphabets, issuance shapes, exact legacy Argon2 verification, clean cross-client audit, and audit mutation detection."}}
   - id: T-RANDOMNESS-AUDIT
     type: lint
     file: scripts/audit_crypto_randomness.py
     command: python3 scripts/audit_crypto_randomness.py
     covers: [AC-3, AC-4, AC-11]
     assertions: [No insecure RNG in security paths, no nonce reuse loops, no zero-return cryptographic fallback, CommonCrypto/SecRandom failures are checked, no random embed key fallback, human-code alphabet policy is enforced, allowlist is narrow.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "randomness-audit-red-not-retained", timestamp: "2026-08-03T18:57:39Z", reason: "The pre-implementation audit reported eight backend/client findings, but its local output did not retain a durable run identifier."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_crypto_randomness.py", run_id: "local-randomness-audit-e6f0a38bf", subject_commit: "e6f0a38bf", timestamp: "2026-08-03T18:07:47Z", notes: "No findings before deployment; timestamp is the implementation commit time. Required rejection-sampling guards cover web, CLI, settings, and Apple non-power-of-two alphabets."}}
   - id: T-ROLLOUT-GATE
     type: lint
     file: scripts/audit_media_encryption_rollout.py
@@ -699,7 +705,7 @@ verifications:
     viewports: [laptop, mobile]
     evidence: {status: "", summary: "", run_id: "", timestamp: ""}
   - {id: V-USER-CONFIRMATION, kind: user_confirmation, phase: final, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
-  - {id: V-APPLE, kind: automated_test, phase: final, required_for_done: true, covers: [AC-2, AC-4, AC-6, AC-8], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
+  - {id: V-APPLE, kind: automated_test, phase: final, required_for_done: true, covers: [AC-2, AC-4, AC-6, AC-8], status: pending, evidence: {status: partial, command: "python3 scripts/apple_remote.py build-ios --simulator 'iPhone 17'", subject_commit: "034b62913", summary: "Remote iOS simulator build succeeded for checked SecRandom and rejection-sampled issuance. TASK-13 still owns injected PBKDF2/SecRandom failure tests and final Apple media-reader verification.", timestamp: "2026-08-03T18:29:35Z"}}
   - {id: V-APPLE-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
   - {id: V-ZERO-KEY-AUDIT, kind: manual_check, phase: green, required_for_done: true, covers: [AC-13], status: passed, evidence: {status: passed, command: "docker exec -i api python - --env dev --read-only < scripts/audit_zero_key_exposure.py", run_id: "dev-zero-key-2026-08-03T15:54:15Z", subject_commit: "9a6517f5b", summary: "Complete stable read-only scan: 10795 eligible and scanned records across seven categories, zero matches, zero errors, and no findings.", timestamp: "2026-08-03T15:54:15Z"}}
   - id: V-ZERO-KEY-PROD-SSH
@@ -981,8 +987,8 @@ tasks:
     independently_deployable: true
   - id: TASK-6
     title: Harden human codes and security randomness without narrowing legacy validation
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-6, S-8, S-11]
       acceptance_criteria: [AC-6, AC-8, AC-11]
