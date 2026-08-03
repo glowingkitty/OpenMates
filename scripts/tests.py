@@ -645,7 +645,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "error_summary": record.get("error"),
             "metadata": record,
             "created_at": record.get("timestamp"),
-            "created_at_unix": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "created_at_unix": int(datetime.now(timezone.utc).timestamp()),
         }
 
     def _bulk_local_postgres_import(self, run_data: dict[str, Any] | None, state: dict[str, Any], events: list[dict[str, Any]], source: str = "scripts_tests", external_run_id: str = "", workflow: str = "") -> bool:

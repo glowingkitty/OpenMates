@@ -151,6 +151,16 @@ def test_bulk_import_records_started_events_as_running_runs(monkeypatch):
     }]
 
 
+def test_result_item_timestamp_fits_directus_integer(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+
+    item = store._result_item("run:test:started", {"run_id": "run", "event": "started"})
+
+    assert 1_000_000_000 <= item["created_at_unix"] <= 2_147_483_647
+
+
 def test_directus_load_state_repairs_stale_problem_rows(monkeypatch):
     tests_control = load_tests_control()
     monkeypatch.setenv("OPENMATES_DISABLE_FAST_TEST_IMPORT", "1")
