@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   MEDIA_ENCRYPTION_V2,
   decryptMediaPayload,
-} from "../mediaEncryption";
+} from "../encryption/mediaEncryption";
 
 interface LegacyMediaFixture {
   aes_key_b64: string;
@@ -32,7 +32,7 @@ Object.defineProperty(globalThis, "crypto", {
 const frozenFixtures = JSON.parse(
   readFileSync(
     new URL(
-      "../../../../../../../backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
+      "../../../../../../backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
       import.meta.url,
     ),
     "utf-8",
