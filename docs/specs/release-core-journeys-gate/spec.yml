@@ -60,12 +60,12 @@ clarification:
   vision_summary: >
     GitHub exposes one stable core-journey result. The dev host prepares and
     attests the Docker-backed backend because GitHub-hosted runners cannot control
-    it. The workflow starts advisory and the first promotion uses manual dispatch
-    because the new pull-request workflow is not yet present on main.
+    it. The workflow starts advisory and the first promotion uses the existing
+    commit-pinned test control plane because the new workflow is not yet registered on main.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b19f7ae4b0b3ee4e40b298f55e230556edf86274
+  subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
 
 approvals:
   product_contract:
@@ -117,14 +117,31 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-03T16:50:00Z"
     note: GitHub returned 404 because brand-new workflows are not registered from non-default branches; bootstrap now uses the existing single-spec workflow through scripts/tests.py.
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Run the exact-commit bootstrap suite after initial release-candidate preparation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-03T17:39:34Z"
+    note: Reachability passed; chat exposed an authenticated landing overlay regression, while both billing journeys exposed cloud overlay configuration disabled by missing Compose env interpolation.
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Prepare and rerun after fixing billing interpolation, chat overlay state, and unhealthy account allocation.
+    outcome: blocked
+    recorded_at: "2026-08-03T18:44:41Z"
+    note: Active Team/Project work left backend runtime paths dirty, so the corrected preparation command refused to publish a false release attestation.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Add and run red workflow contract tests.
-  command: python3 -m pytest scripts/tests/test_release_core_journeys_gate.py -q
-  expected_outcome: Tests fail because the workflow and preparation command do not exist.
-  blocker: null
-  last_verified_commit: b19f7ae4b0b3ee4e40b298f55e230556edf86274
+  current_task_id: TASK-4
+  next_action: Prepare the latest clean dev SHA, rerun the core journeys bootstrap, and record green evidence before enabling a main-only required check.
+  command: python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_DEV_SHA> && python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FULL_DEV_SHA> --max-concurrent 4 --no-fail-fast
+  expected_outcome: Exact Vercel, hosted billing, backend services, and all four core journeys pass for one SHA.
+  blocker:
+    task_id: TASK-4
+    requires_user_input: true
+    reason: The shared dev host currently has uncommitted backend runtime files from active Team/Project work, and release preparation correctly fails closed.
+    question: Before tomorrow's promotion, can the operator ensure backend runtime paths are clean and run the documented preparation plus bootstrap commands for the then-current dev SHA?
+    next_action: Rerun the handoff command during a clean release window.
+  last_verified_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
 
 scenarios:
   - id: S-1
@@ -182,7 +199,7 @@ acceptance_criteria:
     scenario: S-1
     text: One manifest contains exactly the approved reachability, chat, managed Stripe purchase, and managed Stripe signup specs and feeds hourly smoke and release CI.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PY-CORE-GATE]
@@ -190,7 +207,7 @@ acceptance_criteria:
     scenario: S-1
     text: The release workflow targets main pull requests without path filters and the existing control plane supports an exact-commit first-promotion bootstrap.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-PY-CORE-GATE, V-WORKFLOW]
@@ -198,7 +215,7 @@ acceptance_criteria:
     scenario: S-2
     text: One stable aggregate job fails when any prerequisite or core matrix job fails.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-PY-CORE-GATE, V-WORKFLOW]
@@ -206,7 +223,7 @@ acceptance_criteria:
     scenario: S-3
     text: Dev-host preparation verifies dev alignment, recreates core services with root environment interpolation under the Docker lock, health-checks hosted billing, and publishes status for the exact commit.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PY-CORE-GATE, V-ATTESTATION]
@@ -214,7 +231,7 @@ acceptance_criteria:
     scenario: S-4
     text: PR concurrency cancels superseded runs and account concurrency serializes single-spec runs.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-PY-CORE-GATE]
@@ -222,7 +239,7 @@ acceptance_criteria:
     scenario: S-1
     text: Release jobs require the requested checkout SHA and cannot update repository credentials.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-PY-CORE-GATE]
@@ -230,7 +247,7 @@ acceptance_criteria:
     scenario: S-5
     text: This session creates no dev-to-main PR and changes no required-check ruleset.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [V-NO-PR]
@@ -309,11 +326,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_release_core_journeys_gate.py scripts/tests/test_run_tests_account_policy.py scripts/tests/test_ci_workflow_scope.py -q
+        run_id: local-44-passed
+        subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+        timestamp: "2026-08-03T18:44:41Z"
   - id: T-LINT-CORE-GATE
     type: lint
     file: .github/workflows/release-core-journeys.yml
@@ -334,11 +351,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: bash scripts/lint_changed.sh --path .github/workflows/release-core-journeys.yml --path .github/workflows/playwright-spec.yml --path scripts/run_tests.py --path scripts/tests.py --path scripts/prepare_release_candidate.py --path scripts/tests/test_release_core_journeys_gate.py --path frontend/apps/web_app/tests/dev-smoke/README.md --path docs/specs/release-core-journeys-gate/spec.yml --path docs/architecture/test-orchestration.md --path docs/contributing/guides/git-and-deployment.md
+        run_id: focused-lint-and-actionlint
+        subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+        timestamp: "2026-08-03T18:44:41Z"
 
 verifications:
   - id: V-ATTESTATION
@@ -346,22 +363,48 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-4]
-    status: pending
-    evidence: {status: "", summary: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    status: blocked
+    evidence:
+      status: blocked
+      summary: Initial preparation succeeded at 9fa3763, but the corrected env-interpolation version requires replacement evidence and currently refuses dirty backend runtime paths.
+      command: python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_DEV_SHA>
+      run_id: initial-attestation-9fa3763-invalidated
+      subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+      timestamp: "2026-08-03T18:44:41Z"
+      reason: Active unrelated backend work prevents a truthful release attestation.
+      actor: OpenCode session 263f
+      next_action: Rerun during a clean release window.
   - id: V-WORKFLOW
     kind: manual_check
     phase: green
     required_for_done: true
     covers: [AC-2, AC-3]
-    status: pending
-    evidence: {status: "", summary: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    status: blocked
+    evidence:
+      status: blocked
+      summary: Exact-commit bootstrap ran all four journeys; reachability passed and the three failures drove fixes, but a final post-fix run is blocked by dirty backend runtime paths.
+      command: python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FULL_DEV_SHA> --max-concurrent 4 --no-fail-fast
+      run_id: 2026-08-03T17:08:58Z
+      subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+      timestamp: "2026-08-03T18:44:41Z"
+      reason: Final release preparation cannot proceed while unrelated backend changes are mounted.
+      actor: OpenCode session 263f
+      next_action: Prepare and rerun the current clean dev SHA.
   - id: V-NO-PR
     kind: manual_check
     phase: final
     required_for_done: true
     covers: [AC-7]
-    status: pending
-    evidence: {status: "", summary: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    status: passed
+    evidence:
+      status: passed
+      summary: No open dev-to-main PR exists and Basic protection still has no required status-check rule.
+      reason: The user explicitly reserved PR creation and promotion for tomorrow.
+      actor: OpenCode session 263f
+      command: gh pr list --base main --head dev --state open --json number,url && gh api repos/{owner}/{repo}/rulesets/6180344
+      run_id: repository-state-20260803
+      subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+      timestamp: "2026-08-03T18:44:41Z"
 
 implementation_plan:
   spec_path: docs/specs/release-core-journeys-gate/spec.yml
@@ -406,7 +449,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add canonical suite and red contract tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
     expected_files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_release_core_journeys_gate.py]
@@ -419,7 +462,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Implement reusable Playwright and release workflows
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-4, S-5], acceptance_criteria: [AC-2, AC-3, AC-5, AC-6]}
     expected_files: [.github/workflows/playwright-spec.yml, .github/workflows/release-core-journeys.yml]
@@ -432,7 +475,7 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Implement backend release-candidate attestation
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-3], acceptance_criteria: [AC-4]}
     expected_files: [scripts/prepare_release_candidate.py]
@@ -445,8 +488,8 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Document, deploy, and verify advisory rollout
-    status: pending
-    phase: running_checks
+    status: blocked
+    phase: blocked
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]}
     expected_files: [frontend/apps/web_app/tests/dev-smoke/README.md, docs/architecture/test-orchestration.md, docs/contributing/guides/git-and-deployment.md, docs/specs/release-core-journeys-gate/spec.yml]
     verification: [T-LINT-CORE-GATE, V-ATTESTATION, V-WORKFLOW, V-NO-PR]
