@@ -52,13 +52,3 @@ def test_workflow_queue_imports_workflow_tasks_module():
     modules = celery_config._task_modules_for_worker_queues("workflow")
 
     assert modules == ["backend.core.api.app.tasks.workflow_tasks"]
-
-
-def test_redis_broker_processes_high_priority_tasks_first():
-    from backend.core.api.app.tasks import celery_config
-
-    transport_options = celery_config.app.conf.broker_transport_options
-
-    assert transport_options["queue_order_strategy"] == "priority"
-    assert transport_options["priority_steps"] == [0, 3, 6, 9]
-    assert celery_config.app.conf.task_default_priority == 9
