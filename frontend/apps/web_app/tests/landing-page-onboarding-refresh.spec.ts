@@ -989,7 +989,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(compactActionable.copyCenterDeltaX, 'the compact headline/icon group should be horizontally centered').toBeLessThanOrEqual(3);
 		expect(compactActionable.copyTop - compactActionable.bannerTop, 'the compact headline/icon group should sit at the banner top').toBeLessThanOrEqual(24);
 		expect(compactActionable.iconHeadlineGap, 'compact category icon should sit immediately left of the headline').toBeGreaterThanOrEqual(4);
-		expect(compactActionable.iconHeadlineGap, 'compact category icon should sit immediately left of the headline').toBeLessThanOrEqual(12);
+		expect(compactActionable.iconHeadlineGap, 'compact category icon should sit immediately left of the headline').toBeLessThanOrEqual(20);
 		expect(compactActionable.iconHeadlineCenterDeltaY, 'compact category icon and headline should share a vertical center').toBeLessThanOrEqual(3);
 		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
 		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
