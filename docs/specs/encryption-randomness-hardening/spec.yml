@@ -576,7 +576,7 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-WEB-CRYPTO
     type: vitest
-    file: frontend/packages/ui/src/services/encryption/__tests__/randomness-hardening.test.ts
+    file: frontend/packages/ui/src/services/__tests__/randomnessHardening.test.ts
     command: python3 scripts/tests.py run --suite vitest
     covers: [AC-1, AC-7]
     assertions: [FNV collisions cannot share cached keys, Node or worker WebCrypto derives the same PBKDF2/email SHA-256/passkey HKDF bytes as browser, absent WebCrypto throws typed errors, no derivation returns all-zero bytes, missing chat key aborts embed persistence, ciphertext headers remain unchanged.]
@@ -971,11 +971,11 @@ tasks:
     covers:
       scenarios: [S-1, S-7, S-15]
       acceptance_criteria: [AC-1, AC-7, AC-16]
-    expected_files: [frontend/packages/ui/src/services/cryptoService.ts, frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/services/encryption/__tests__/randomness-hardening.test.ts]
+    expected_files: [frontend/packages/ui/src/services/cryptoService.ts, frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/services/__tests__/randomnessHardening.test.ts]
     verification: [python3 scripts/tests.py run --suite vitest]
     verification_ids: [T-WEB-CRYPTO, T-RANDOMNESS-AUDIT]
     dependencies: [TASK-4]
-    ownership: {files: [frontend/packages/ui/src/services/cryptoService.ts, frontend/packages/ui/src/services/sendersChatMessages.ts], shared_files: [frontend/packages/ui/src/services/encryption/__tests__]}
+    ownership: {files: [frontend/packages/ui/src/services/cryptoService.ts, frontend/packages/ui/src/services/sendersChatMessages.ts], shared_files: [frontend/packages/ui/src/services/__tests__/randomnessHardening.test.ts]}
     blockers: []
     follow_up_tasks: [TASK-10]
     independently_deployable: true
