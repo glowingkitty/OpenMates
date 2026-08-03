@@ -194,11 +194,17 @@ test.describe('Example chats loading for new users', () => {
 		page: any;
 	}) => {
 		test.setTimeout(90000);
-		await page.setViewportSize({ width: 1600, height: 1000 });
+		await page.setViewportSize({ width: 390, height: 844 });
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await expectGuestSlideZeroIntro(page);
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+		const previousSlideId = await page
+			.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')
+			.getAttribute('data-slide-index');
 
 		const showAllExamples = page.getByTestId('guest-show-all-examples');
 		await expect(showAllExamples).toBeVisible({ timeout: 10000 });
@@ -228,10 +234,23 @@ test.describe('Example chats loading for new users', () => {
 
 		const firstCardTop = await allExampleCards.first().evaluate((node: HTMLElement) => node.getBoundingClientRect().top);
 		expect(firstCardTop, 'All examples should start near the visible content top, without the guest intro banner reserve gap.').toBeLessThan(420);
+		const expandedLayout = await page.getByTestId('guest-all-examples-grid').evaluate((grid: HTMLElement) => {
+			const gridRect = grid.getBoundingClientRect();
+			const composer = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
+			const composerRect = composer?.getBoundingClientRect();
+			return {
+				scrollTop: grid.scrollTop,
+				bottomGap: composerRect ? composerRect.top - gridRect.bottom : Number.POSITIVE_INFINITY
+			};
+		});
+		expect(expandedLayout.scrollTop, 'Expanded examples should open at the top of the result list.').toBe(0);
+		expect(expandedLayout.bottomGap, 'Expanded examples should use the available height above the composer.').toBeLessThanOrEqual(24);
 
 		await backToRecent.click();
 		await expect(allExamplesView).toHaveCount(0);
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]'))
+			.toHaveAttribute('data-slide-index', previousSlideId ?? '1');
 
 		await page.getByTestId('guest-show-all-examples').click();
 		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 10000 });
