@@ -1,0 +1,65 @@
+# backend/core/directus/schemas/invoice_ciphertext_versions.yml
+# Immutable verified ciphertext replacements for logical invoice records.
+invoice_ciphertext_versions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    version_id:
+      type: string
+      length: 512
+      unique: true
+      required: true
+      nullable: false
+      note: "Unique invoice_id:version_number publication identity."
+    invoice_id:
+      type: uuid
+      required: true
+      nullable: false
+      note: "Stable parent invoices.id; the parent row is immutable implicit v1."
+    user_id_hash:
+      type: string
+      length: 512
+      required: true
+      nullable: false
+      note: "Hash of the owning user ID for scoped reads."
+    version_number:
+      type: integer
+      required: true
+      nullable: false
+      note: "Monotonic ciphertext version; appended rows begin at v2."
+    encrypted_s3_object_key:
+      type: string
+      length: 512
+      required: true
+      nullable: false
+      note: "Encrypted object key for this immutable version."
+    encrypted_aes_key:
+      type: string
+      length: 512
+      required: true
+      nullable: false
+      note: "Vault-wrapped AES-256 key for this immutable version."
+    aes_nonce:
+      type: string
+      length: 512
+      required: true
+      nullable: false
+      note: "Base64-encoded fresh 12-byte AES-GCM nonce."
+    encrypted_filename:
+      type: string
+      length: 512
+      required: true
+      nullable: false
+      note: "Encrypted download filename for this immutable version."
+    created_at:
+      type: datetime
+      required: true
+      nullable: false
+      note: "Candidate creation timestamp."
+    verified_at:
+      type: datetime
+      required: true
+      nullable: false
+      note: "Authenticated S3 read-back completion timestamp."

@@ -23,6 +23,7 @@ MEDIA_FIELDS = {"aes_key", "aes_nonce", "files_metadata", "vault_wrapped_aes_key
 SCHEMAS = {
     "backend/core/directus/schemas/upload_files.yml": ("aes_key:", "aes_nonce:", "files_metadata:", "vault_wrapped_aes_key:"),
     "backend/core/directus/schemas/invoices.yml": ("encrypted_aes_key:", "encrypted_s3_object_key:", "encrypted_filename:", "aes_nonce:"),
+    "backend/core/directus/schemas/invoice_ciphertext_versions.yml": ("version_id:", "invoice_id:", "version_number:", "encrypted_aes_key:", "encrypted_s3_object_key:", "encrypted_filename:", "aes_nonce:", "verified_at:"),
     "backend/core/directus/schemas/share_short_links.yml": ("encrypted_url:",),
 }
 MIGRATION_NAME = re.compile(r"(?:migrat|backfill|re.?encrypt|rewrite).*(?:cipher|encrypt)|(?:cipher|encrypt).*(?:migrat|backfill|rewrite)", re.I)
@@ -102,7 +103,7 @@ def protected_updates(path: str) -> list[str]:
         if collection_node is None or payload_node is None:
             continue
         collection = literal(collection_node, assignments)
-        protected = INVOICE_FIELDS if collection == "invoices" else MEDIA_FIELDS if collection == "upload_files" else set()
+        protected = INVOICE_FIELDS if collection in {"invoices", "invoice_ciphertext_versions"} else MEDIA_FIELDS if collection == "upload_files" else set()
         rewritten = sorted(dict_keys(payload_node, assignments, mutations) & protected)
         if rewritten:
             errors.append(f"historical {collection} encryption rewrite in {path}:{node.lineno}: {', '.join(rewritten)}")

@@ -19,7 +19,11 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask # Import from n
 
 # Import necessary services and utilities (ensure all needed are here)
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
+from backend.shared.python_utils.invoice_ciphertext_versions import (
+    append_verified_invoice_ciphertext_version,
+)
 
 # Setup loggers
 logger = logging.getLogger(__name__)
@@ -881,36 +885,28 @@ async def _async_process_invoice_and_send_email(
                         logger.error(f"Failed to regenerate invoice PDF in language {user_language} with refund link: {lang_pdf_err}", exc_info=True)
                         # Continue with the English version only
 
-                # CRITICAL: Re-encrypt and re-upload the regenerated PDF to S3 to ensure consistency
-                # The PDF sent via email must be the same as the one stored in S3 and downloaded by users
-                logger.info("Re-encrypting and re-uploading regenerated PDF to S3 to ensure consistency")
+                # Publish only after a fresh candidate decrypts successfully from storage.
                 try:
-                    # Re-encrypt the regenerated PDF using the same AES key and nonce
-                    # This ensures the encryption keys stored in Directus remain valid
-                    aesgcm = AESGCM(aes_key)
-                    encrypted_pdf_payload_updated = aesgcm.encrypt(nonce, pdf_bytes_en, None)  # No associated data
-                    logger.debug("Re-encrypted regenerated PDF payload using AES-GCM")
-
-                    # Re-upload to S3 using the same s3_object_key (overwrites the old file)
-                    logger.info(f"Re-uploading encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link)")
-                    upload_result_updated = await task.s3_service.upload_file(
-                        bucket_key='invoices',
-                        file_key=s3_object_key,  # Use the same key to overwrite
-                        content=encrypted_pdf_payload_updated,  # Upload the re-encrypted regenerated PDF
-                        content_type='application/octet-stream'
+                    await append_verified_invoice_ciphertext_version(
+                        task=task,
+                        invoice_id=invoice_uuid,
+                        user_id_hash=user_id_hash,
+                        vault_key_id=vault_key_id,
+                        bucket_name=get_bucket_name(
+                            "invoices",
+                            task.s3_service.environment,
+                        ),
+                        filename=invoice_filename_en,
+                        pdf_bytes=pdf_bytes_en,
                     )
-                    s3_url_updated = upload_result_updated.get('url')
-                    upload_success_updated = bool(s3_url_updated)
-                    if not upload_success_updated:
-                        logger.error(f"Failed to re-upload regenerated invoice PDF to S3 for invoice {invoice_number}. Upload result: {upload_result_updated}")
-                        # Don't fail the whole task, but log the error - email will still be sent with correct PDF
-                        logger.warning("Email will contain PDF with refund link, but S3 may have outdated version without refund link")
-                    else:
-                        logger.info(f"Successfully re-uploaded encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link). URL (for reference): {s3_url_updated}")
-                except Exception as reupload_err:
-                    logger.error(f"Error re-encrypting/re-uploading regenerated PDF to S3 for invoice {invoice_number}: {reupload_err}", exc_info=True)
-                    # Don't fail the whole task, but log the error - email will still be sent with correct PDF
-                    logger.warning("Email will contain PDF with refund link, but S3 may have outdated version without refund link")
+                    logger.info("Published verified regenerated invoice ciphertext version")
+                except Exception as version_error:
+                    logger.error(
+                        "Failed to publish regenerated invoice ciphertext version: %s",
+                        version_error,
+                        exc_info=True,
+                    )
+                    logger.warning("The immutable original invoice remains available for download")
 
             except Exception as url_err:
                 logger.error(f"Failed to generate refund deep link URL for invoice {invoice_number}: {url_err}", exc_info=True)

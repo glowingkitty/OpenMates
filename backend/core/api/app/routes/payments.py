@@ -40,6 +40,9 @@ from backend.core.api.app.utils.bank_transfer_references import (
     bank_transfer_reference_lookup_variants,
     generate_bank_transfer_reference,
 )
+from backend.shared.python_utils.invoice_ciphertext_versions import (
+    select_latest_invoice_ciphertext,
+)
 from fastapi.responses import StreamingResponse
 import hashlib
 from datetime import datetime, timezone, timedelta
@@ -4805,6 +4808,23 @@ async def get_invoices(
             }
         )
 
+        if invoices_data:
+            invoice_versions = await directus_service.get_items(
+                collection="invoice_ciphertext_versions",
+                params={
+                    "filter": {
+                        "invoice_id": {"_in": [invoice["id"] for invoice in invoices_data]},
+                        "user_id_hash": {"_eq": user_id_hash},
+                        "verified_at": {"_nnull": True},
+                    },
+                    "sort": "-version_number",
+                },
+            )
+            invoices_data = select_latest_invoice_ciphertext(
+                invoices_data,
+                invoice_versions or [],
+            )
+
         bank_transfer_rows = await directus_service.get_items(
             collection="pending_bank_transfers",
             params={
@@ -5017,6 +5037,21 @@ async def download_invoice(
             raise HTTPException(status_code=404, detail="Invoice not found")
 
         invoice = invoice_data[0]
+        invoice_versions = await directus_service.get_items(
+            collection="invoice_ciphertext_versions",
+            params={
+                "filter": {
+                    "invoice_id": {"_eq": invoice_id},
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "verified_at": {"_nnull": True},
+                },
+                "sort": "-version_number",
+            },
+        )
+        invoice = select_latest_invoice_ciphertext(
+            [invoice],
+            invoice_versions or [],
+        )[0]
         vault_key_id = current_user.vault_key_id
         if not vault_key_id:
             logger.error(f"Vault key ID missing for user {current_user.id}")

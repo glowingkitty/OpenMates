@@ -13,7 +13,7 @@
     {"path": "frontend/packages/ui/src/components/embeds/images/imageEmbedCrypto.ts", "required": ["if (nonceBase64 === \"\")", "nonceBuffer = base64ToArrayBuffer(nonceBase64)", "ciphertext = encryptedData"]},
     {"path": "apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift", "required": ["keys: [\"aes_nonce\"]", "AES.GCM.Nonce"]},
     {"path": "backend/core/api/app/routes/payments.py", "required": ["invoice[\"aes_nonce\"]", "invoice[\"encrypted_aes_key\"]", "invoice[\"encrypted_s3_object_key\"]"]},
-    {"path": "frontend/packages/ui/src/services/shortUrlEncryption.ts", "required": ["shortKey: generateBase62(6)", "salt: encoder.encode(SALT_PREFIX + token)", "const iv = combined.slice(0, 12)"]},
+    {"path": "frontend/packages/ui/src/services/shortUrlEncryption.ts", "required": ["shortKey.length < 4 || shortKey.length > MAX_SHORT_KEY_LENGTH", "salt: encoder.encode(SALT_PREFIX + token)", "const iv = combined.slice(0, 12)"]},
     {"path": "backend/shared/python_utils/chat_completion_recovery.py", "required": ["PROTOCOL_VERSION = 1", "ENVELOPE_FIELDS = {\"v\", \"epk\", \"nonce\", \"ciphertext\"}"]},
     {"path": "packages/openmates-python/openmates/chat_completion_recovery.py", "required": ["PROTOCOL_VERSION = 1", "ENVELOPE_FIELDS = {\"v\", \"epk\", \"nonce\", \"ciphertext\"}"]},
     {"path": "frontend/packages/openmates-cli/src/storage.ts", "required": ["if (!onDisk.masterKeyStorage)", "case \"keychain\"", "case \"encrypted\"", "case \"plaintext\""]},

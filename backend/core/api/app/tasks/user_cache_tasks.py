@@ -1604,6 +1604,14 @@ async def _async_delete_user_account(
                 },
             )
             invoices = invoices or []
+            invoice_versions = await directus_service.get_items(
+                "invoice_ciphertext_versions",
+                params={
+                    "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                    "fields": "id,invoice_id,encrypted_s3_object_key",
+                },
+            )
+            invoice_versions = invoice_versions or []
 
             # Delete each PDF from S3 using the user's still-live Vault key to
             # decrypt the encrypted_s3_object_key reference. Failures are logged
@@ -1611,7 +1619,8 @@ async def _async_delete_user_account(
             # 10-year lifecycle policy as a safety net anyway.
             deleted_s3_pdfs = 0
             skipped_s3_pdfs = 0
-            if invoices:
+            invoice_ciphertexts = [*invoices, *invoice_versions]
+            if invoice_ciphertexts:
                 try:
                     from backend.core.api.app.services.s3.service import S3UploadService
                     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -1626,7 +1635,7 @@ async def _async_delete_user_account(
                     )
                     vault_key_id_for_pdfs = (user_data_for_vault or {}).get("vault_key_id")
 
-                    for inv in invoices:
+                    for inv in invoice_ciphertexts:
                         enc_s3_key = inv.get("encrypted_s3_object_key")
                         if not enc_s3_key or not vault_key_id_for_pdfs:
                             skipped_s3_pdfs += 1
@@ -1658,9 +1667,20 @@ async def _async_delete_user_account(
             )
 
             invoice_ids = [i.get("id") for i in invoices if i.get("id")]
+            invoice_version_ids = [
+                version.get("id") for version in invoice_versions if version.get("id")
+            ]
+            if invoice_version_ids:
+                await directus_service.bulk_delete_items(
+                    "invoice_ciphertext_versions",
+                    invoice_version_ids,
+                )
             if invoice_ids:
                 await directus_service.bulk_delete_items("invoices", invoice_ids)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(invoice_ids)} invoices for user {user_id}")
+            logger.info(
+                f"[DELETE_ACCOUNT] Deleted {len(invoice_ids)} invoices and "
+                f"{len(invoice_version_ids)} ciphertext versions for user {user_id}"
+            )
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting invoices for user {user_id}: {e}", exc_info=True)
 

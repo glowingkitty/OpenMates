@@ -15,6 +15,9 @@ import hashlib
 import uuid
 from typing import Any
 
+from backend.shared.python_utils.invoice_ciphertext_versions import (
+    select_latest_invoice_ciphertext,
+)
 
 EXPORT_JOB_TTL_HOURS = 24
 EXPORT_SCHEMA_VERSION = "account-export-v1"
@@ -52,7 +55,6 @@ FILTERABLE_EXPORT_DOMAINS = {"chats", "tasks", "projects", "plans", "workflows_r
 DOMAIN_COLLECTIONS = {
     "chats": ("chats", "hashed_user_id"),
     "usage": ("usage", "user_id_hash"),
-    "billing_invoices": ("invoices", "user_id_hash"),
     "memories_app_settings": ("user_app_settings_and_memories", "hashed_user_id"),
 }
 
@@ -308,6 +310,8 @@ class AccountExportService:
             rows = await self._get_personal_rows(collection="usage", user_field="user_id_hash", user_id=user_id)
             archives = await self._usage_archive_references(user_id=user_id)
             return {"source": "usage+usage_archives", "items": rows, "archives": archives}
+        if domain == "billing_invoices":
+            return await self._billing_invoices_payload(user_id=user_id)
         if domain == "profile_account_settings":
             profile = await self._safe_profile_payload(user_id=user_id)
             return {"source": "directus_users", "items": [profile] if profile else []}
@@ -359,6 +363,20 @@ class AccountExportService:
             item["s3_objects"] = _upload_s3_objects(upload)
             items.append(item)
         return {"source": "upload_files+chatfiles", "items": items}
+
+    async def _billing_invoices_payload(self, *, user_id: str) -> dict[str, Any]:
+        user_id_hash = _hash_id(user_id)
+        params = {"filter": {"user_id_hash": {"_eq": user_id_hash}}, "limit": -1}
+        invoices = await self.directus_service.get_items("invoices", params=params) or []
+        versions = await self.directus_service.get_items(
+            "invoice_ciphertext_versions",
+            params=params,
+        ) or []
+        selected = select_latest_invoice_ciphertext(invoices, versions)
+        return {
+            "source": "invoices+invoice_ciphertext_versions",
+            "items": [_redact_for_export(invoice) for invoice in selected if _is_personal_row(invoice)],
+        }
 
     async def _usage_archive_references(self, *, user_id: str) -> list[dict[str, Any]]:
         archives: list[dict[str, Any]] = []

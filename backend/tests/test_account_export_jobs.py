@@ -69,7 +69,25 @@ class FakeDirectusService:
             "workflow_runs": [{"id": "workflow-run-row-1", "run_id": "run-1", "workflow_id": "workflow-1", "hashed_user_id": _hash("user-1")}],
             "usage": [{"id": "usage-1", "user_id_hash": _hash("user-1"), "hashed_team_id": None, "encrypted_model_used": "usage-ciphertext"}],
             "usage_monthly_chat_summaries": [{"id": "usage-archive-1", "user_id_hash": _hash("user-1"), "year_month": "2026-01", "is_archived": True, "archive_s3_key": "usage-archives/hash/2026-01/usage.json.gz"}],
-            "invoices": [{"id": "invoice-1", "user_id_hash": _hash("user-1")}],
+            "invoices": [{
+                "id": "invoice-1",
+                "user_id_hash": _hash("user-1"),
+                "encrypted_s3_object_key": "v1-object",
+                "encrypted_aes_key": "v1-key",
+                "encrypted_filename": "v1-name",
+                "aes_nonce": "v1-nonce",
+            }],
+            "invoice_ciphertext_versions": [{
+                "id": "invoice-version-2",
+                "invoice_id": "invoice-1",
+                "user_id_hash": _hash("user-1"),
+                "version_number": 2,
+                "verified_at": "2026-08-03T00:00:00Z",
+                "encrypted_s3_object_key": "v2-object",
+                "encrypted_aes_key": "v2-key",
+                "encrypted_filename": "v2-name",
+                "aes_nonce": "v2-nonce",
+            }],
             "user_app_settings_and_memories": [{"id": "memory-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
         }
         self.updated_users: list[tuple[str, dict]] = []
@@ -133,6 +151,24 @@ async def test_manifest_excludes_team_scoped_rows_and_counts_defaults() -> None:
     assert manifest["domains"]["usage"]["count"] == 1
     assert manifest["domains"]["memories_app_settings"]["count"] == 1
     assert manifest["excluded"]["team_data"] == "personal_export_excludes_team_scoped_rows"
+
+
+@pytest.mark.asyncio
+async def test_billing_export_selects_latest_verified_invoice_ciphertext() -> None:
+    service = AccountExportService(directus_service=FakeDirectusService())
+
+    job = await service.start_export(user_id="user-1", domains=["billing_invoices"])
+    chunk = await service.get_chunk(
+        user_id="user-1",
+        export_id=job["export_id"],
+        chunk_id="billing_invoices-0001",
+    )
+
+    assert chunk["payload"]["source"] == "invoices+invoice_ciphertext_versions"
+    assert chunk["payload"]["items"][0]["id"] == "invoice-1"
+    assert chunk["payload"]["items"][0]["ciphertext_version_number"] == 2
+    assert "encrypted_s3_object_key" not in chunk["payload"]["items"][0]
+    assert "encrypted_aes_key" not in chunk["payload"]["items"][0]
 
 
 @pytest.mark.asyncio

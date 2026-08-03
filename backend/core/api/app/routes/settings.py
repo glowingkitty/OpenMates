@@ -45,6 +45,9 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_h
     invalidate_recovery_jobs_for_account_deletion,
     invalidate_recovery_leases_for_device,
 )
+from backend.shared.python_utils.invoice_ciphertext_versions import (
+    select_latest_invoice_ciphertext,
+)
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -4581,6 +4584,22 @@ async def get_export_data(
                         "limit": -1  # No limit - get ALL invoices
                     }
                 )
+                if invoices_data:
+                    invoice_versions = await directus_service.get_items(
+                        collection="invoice_ciphertext_versions",
+                        params={
+                            "filter": {
+                                "invoice_id": {"_in": [invoice["id"] for invoice in invoices_data]},
+                                "user_id_hash": {"_eq": user_id_hash},
+                                "verified_at": {"_nnull": True},
+                            },
+                            "sort": "-version_number",
+                        },
+                    )
+                    invoices_data = select_latest_invoice_ciphertext(
+                        invoices_data,
+                        invoice_versions or [],
+                    )
                 
                 processed_invoices = []
                 invoice_ids_for_download = []
