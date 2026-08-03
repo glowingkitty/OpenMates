@@ -5580,9 +5580,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroResetToken = $state(0);
-    let guestLandingIntroOverlayActive = $derived(guestLandingIntroPhase !== 'regular');
+    let guestLandingIntroOverlayActive = $derived(
+        !$authStore.isAuthenticated && guestLandingIntroPhase !== 'regular'
+    );
     let guestLandingIntroContentCovered = $derived(
-        guestLandingIntroPhase === 'expanded' || guestLandingIntroPhase === 'expanding' || guestLandingIntroPhase === 'fading-out'
+        !$authStore.isAuthenticated && (
+            guestLandingIntroPhase === 'expanded' ||
+            guestLandingIntroPhase === 'expanding' ||
+            guestLandingIntroPhase === 'fading-out'
+        )
     );
     let guestInterestShuffleToken = $state(0);
     let lastGuestInspirationShuffleId = $state('');
@@ -5702,6 +5708,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function handleLandingIntroExpandedChange(phase: LandingIntroPhase) {
+        if ($authStore.isAuthenticated) {
+            guestLandingIntroPhase = 'regular';
+            return;
+        }
         guestLandingIntroPhase = phase;
     }
 
