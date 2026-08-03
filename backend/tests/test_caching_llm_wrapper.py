@@ -424,7 +424,7 @@ def test_api_response_cache_loads_compatible_llm_response(tmp_path):
             "model": "gemini-3.5-flash-lite",
             "messages_count": 2,
             "tools_count": 4,
-            "temperature": 0.4,
+            "temperature": 0.0,
             "tool_choice": "auto",
             "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
         },

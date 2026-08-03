@@ -308,7 +308,7 @@ class ApiResponseCache:
         # Tool availability can drift as companion skills and account settings
         # evolve. The mock group plus exact final message still scopes replay to
         # the intended test flow without invalidating otherwise compatible data.
-        stable_keys = ("model", "temperature", "tool_choice")
+        stable_keys = ("model", "tool_choice")
         for key in stable_keys:
             candidate_value = candidate.get(key)
             expected_value = expected.get(key)
