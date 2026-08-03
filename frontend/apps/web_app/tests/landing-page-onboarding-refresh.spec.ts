@@ -1075,6 +1075,19 @@ test.describe('Landing page onboarding refresh', () => {
 			transitionSamples.some((sample) => sample.phrase.includes('Privacy & safety by design.') && sample.opacity <= 0.05),
 			'new slide content must be swapped only while the previous content is fully transparent'
 		).toBe(true);
+
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'fading-out');
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle', {
+			timeout: MOBILE_SLIDE_FADE_SETTLE_MS
+		});
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 2000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-landing-intro-phase', 'expanded');
+		await expect(page.getByTestId('landing-intro-headline')).toHaveText(LANDING_INTRO_HEADLINE_TEXT);
+		await expect(page.getByTestId('guest-intro-copy')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
 	});
 
 	test('regular guest landing exposes workspace prompt, CTA input links, compact cards, and all examples', async ({ page }: { page: any }) => {

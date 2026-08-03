@@ -449,14 +449,16 @@
   let landingIntroIsCurrentSlide = $derived(
     isGuestIntroVariant && current?.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
   );
-  let landingIntroOverlayActive = $derived(
-    landingIntroIsCurrentSlide && landingIntroPhase !== 'regular',
-  );
+  let landingIntroOverlayActive = $derived(landingIntroIsCurrentSlide);
   let landingIntroUsesFullHeight = $derived(
-    landingIntroOverlayActive && (landingIntroPhase === 'expanded' || landingIntroPhase === 'fading-out'),
+    landingIntroOverlayActive && (
+      landingIntroPhase === 'regular'
+      || landingIntroPhase === 'expanded'
+      || landingIntroPhase === 'fading-out'
+    ),
   );
   let landingIntroParentPhase = $derived(
-    landingIntroOverlayActive ? landingIntroPhase : 'regular',
+    landingIntroOverlayActive && landingIntroPhase === 'regular' ? 'expanded' : landingIntroPhase,
   );
   let landingIntroActiveRequest = $derived(
     LANDING_INTRO_REQUESTS[landingIntroRequestIndex] ?? LANDING_INTRO_REQUESTS[0],
@@ -1263,6 +1265,9 @@
     if (visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
       if (direction > 0) {
         resolvedIndex = getResolvedVisibleIndex(resolvedIndex + direction);
+      } else {
+        goToVisibleIndex(resolvedIndex, { restoreLandingIntro: true });
+        return;
       }
     }
     if (isMobileBannerLayout && resolvedIndex !== currentIndex) {
@@ -1533,18 +1538,13 @@
               {#key current.inspiration_id}
                 <div
                   class="guest-intro-copy"
-                  class:guest-feature-copy={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID || isGuestActionableSlide}
+                  class:guest-feature-copy={true}
                   class:guest-actionable-copy={isGuestActionableSlide}
                   data-actionable-heading-ready={isGuestActionableSlide ? (actionableMobileHeadingReady ? 'true' : 'false') : undefined}
                   data-testid="guest-intro-copy"
                   in:fade={{ duration: 320 }}
                 >
-                  {#if current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
-                    <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
-                    <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
-                    <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
-                    <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
-                  {:else if isGuestSignupCtaSlide}
+                  {#if isGuestSignupCtaSlide}
                     <div class="guest-signup-cta" data-testid="landing-signup-cta">
                       <h2>{current.phrase}</h2>
                       <button class="guest-signup-cta-button" data-testid="landing-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
@@ -3628,7 +3628,6 @@
       transform-origin: top center;
     }
 
-    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy .guest-intro-ai-icon,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy .guest-feature-inline-icon {
       width: 20px;
       height: 20px;

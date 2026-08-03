@@ -470,6 +470,7 @@ scenarios:
       - The event title appears only inside the real event preview; no separate title overlays its date or metadata.
       - The animation plays once, the progress bar reaches 100% at the final clicked state, and the carousel advances to the privacy slide without repeating.
       - On mobile, every post-intro slide transition fades the old content fully out, swaps the slide while hidden without geometry transitions, then fades the new content in.
+      - Navigating backward before the `Actionable` slide restores the full-height intro with its app wheel; the removed compact `AI team mates for everyday tasks` intro is never reachable.
       - The slide does not show the rejected simplified fullscreen/map surface.
       - The animation is visually faithful to real OpenMates chat and events embed styling without mounting a full interactive chat runtime.
 
@@ -660,6 +661,7 @@ tests:
       - visible cursor animation presses the preview, reveals the translated `Open on Luma` CTA, and presses that CTA
       - mobile compaction preserves and animates the same headline and icon nodes to the centered top caption at approximately 0.5 opacity
       - mobile post-intro navigation keeps the old content mounted through fade-out, swaps content only at zero opacity, and fades the new slide in
+      - mobile previous navigation from `Actionable` restores the full-height app-wheel intro and never exposes the stale compact intro copy
       - the preview is centered and fully visible during its center dwell
       - progress duration matches the one-shot timeline and completion advances to the privacy slide without replaying the request
     red_phase:
