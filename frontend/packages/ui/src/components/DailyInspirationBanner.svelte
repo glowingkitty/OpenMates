@@ -47,6 +47,8 @@
   import LandingActionableEventDemo from './landing/LandingActionableEventDemo.svelte';
   import {
     ACTIONABLE_DEMO_DURATION_MS,
+    ACTIONABLE_MOBILE_HEADING_FADE_IN_MS,
+    ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS,
     ACTIONABLE_MOBILE_HEADING_SWAP_MS,
     ACTIONABLE_MOBILE_START_DELAY_MS,
   } from './landing/landingActionableEventTimeline';
@@ -69,6 +71,7 @@
   const LANDING_INTRO_CONTENT_FADE_MS = 360;
   const LANDING_INTRO_REGULAR_REVEAL_MS = 520;
   const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
+  const GUEST_SLIDE_CONTENT_FADE_MS = 320;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
@@ -108,6 +111,8 @@
   }
 
   type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
+  type ActionableMobileHeadingPhase = 'large' | 'fading-out' | 'hidden' | 'fading-in' | 'ready';
+  type GuestSlidePhase = 'idle' | 'fading-out' | 'hidden' | 'fading-in';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -165,6 +170,9 @@
   // of squeezing both into the narrow banner width.
   let showMobileCard = $state(false);
   let actionableMobileHeadingReady = $state(false);
+  let actionableMobileHeadingPhase = $state<ActionableMobileHeadingPhase>('large');
+  let guestSlidePhase = $state<GuestSlidePhase>('idle');
+  let pendingGuestSlideIndex = $state<number | null>(null);
 
   // Touch gesture state for mobile carousel swipes.
   let touchStartX = $state(0);
@@ -172,6 +180,7 @@
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
+  let prefersReducedMotion = $state(false);
   let isUserInteracting = $state(false);
   let isOpeningInspiration = $state(false);
   let directVideoFullscreenOpen = $state(false);
@@ -193,6 +202,8 @@
   let landingIntroRevealAnimationFrame: number | undefined;
   let landingIntroRevealTimeout: number | undefined;
   let landingIntroRailSyncAnimationFrame: number | undefined;
+  let guestSlideTransitionTimeout: number | undefined;
+  let guestSlideTransitionAnimationFrame: number | undefined;
   let lastLandingIntroResetToken = $state(0);
   let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
@@ -263,6 +274,8 @@
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
+    window.clearTimeout(guestSlideTransitionTimeout);
+    window.cancelAnimationFrame(guestSlideTransitionAnimationFrame ?? 0);
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
@@ -273,11 +286,17 @@
   // user's language at creation time — they cannot be retranslated, so we skip.
   onMount(() => {
     const pointerQuery = window.matchMedia('(pointer: coarse)');
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const updatePointerCta = () => {
       prefersTouchCta = pointerQuery.matches || navigator.maxTouchPoints > 0;
     };
+    const updateReducedMotion = () => {
+      prefersReducedMotion = reducedMotionQuery.matches;
+    };
     updatePointerCta();
+    updateReducedMotion();
     pointerQuery.addEventListener('change', updatePointerCta);
+    reducedMotionQuery.addEventListener('change', updateReducedMotion);
 
     const handleLanguageChange = () => {
       const state = get(dailyInspirationStore);
@@ -295,6 +314,7 @@
 
     return () => {
       pointerQuery.removeEventListener('change', updatePointerCta);
+      reducedMotionQuery.removeEventListener('change', updateReducedMotion);
       window.removeEventListener('language-changed-complete', handleLanguageChange);
       window.removeEventListener('resize', scheduleLandingIntroRailSync);
     };
@@ -367,6 +387,7 @@
     if (!shouldCycleMobileCard || landingIntroOverlayActive) {
       showMobileCard = false;
       actionableMobileHeadingReady = false;
+      actionableMobileHeadingPhase = 'large';
       return;
     }
 
@@ -374,18 +395,34 @@
     void mobilePreviewKey;
     showMobileCard = false;
     actionableMobileHeadingReady = false;
+    actionableMobileHeadingPhase = 'large';
 
     if (isGuestIntroVariant) {
-      const headingSwapTimeout = window.setTimeout(() => {
-        showMobileCard = true;
+      const headingFadeOutMs = prefersReducedMotion ? 0 : ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS;
+      const headingFadeInMs = prefersReducedMotion ? 0 : ACTIONABLE_MOBILE_HEADING_FADE_IN_MS;
+      let headingFadeOutTimeout: number | undefined;
+      let headingFadeInTimeout: number | undefined;
+      let headingSwapAnimationFrame: number | undefined;
+      const headingStartTimeout = window.setTimeout(() => {
+        actionableMobileHeadingPhase = 'fading-out';
+        headingFadeOutTimeout = window.setTimeout(() => {
+          actionableMobileHeadingPhase = 'hidden';
+          showMobileCard = true;
+          headingSwapAnimationFrame = window.requestAnimationFrame(() => {
+            actionableMobileHeadingPhase = 'fading-in';
+            headingFadeInTimeout = window.setTimeout(() => {
+              actionableMobileHeadingPhase = 'ready';
+              actionableMobileHeadingReady = true;
+            }, headingFadeInMs);
+          });
+        }, headingFadeOutMs);
       }, ACTIONABLE_MOBILE_START_DELAY_MS);
-      const demoStartTimeout = window.setTimeout(() => {
-        actionableMobileHeadingReady = true;
-      }, ACTIONABLE_MOBILE_START_DELAY_MS + ACTIONABLE_MOBILE_HEADING_SWAP_MS);
 
       return () => {
-        window.clearTimeout(headingSwapTimeout);
-        window.clearTimeout(demoStartTimeout);
+        window.clearTimeout(headingStartTimeout);
+        window.clearTimeout(headingFadeOutTimeout);
+        window.clearTimeout(headingFadeInTimeout);
+        window.cancelAnimationFrame(headingSwapAnimationFrame ?? 0);
       };
     }
 
@@ -722,6 +759,7 @@
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    if (guestSlidePhase !== 'idle') return;
     if (landingIntroOverlayActive) {
       completeLandingIntro(-1);
       return;
@@ -739,6 +777,7 @@
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    if (guestSlidePhase !== 'idle') return;
     if (landingIntroOverlayActive) {
       completeLandingIntro(1);
       return;
@@ -751,7 +790,7 @@
   }
 
   function handleTouchStart(e: TouchEvent) {
-    if (!hasMultiple || e.touches.length !== 1) return;
+    if (!hasMultiple || guestSlidePhase !== 'idle' || e.touches.length !== 1) return;
 
     isUserInteracting = true;
     const touch = e.touches[0];
@@ -892,6 +931,7 @@
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
+    cancelGuestSlideTransition();
     landingIntroDismissed = false;
     landingIntroRequestIndex = -1;
     landingIntroRevealActive = false;
@@ -1225,7 +1265,41 @@
         resolvedIndex = getResolvedVisibleIndex(resolvedIndex + direction);
       }
     }
+    if (isMobileBannerLayout && resolvedIndex !== currentIndex) {
+      startGuestSlideTransition(resolvedIndex);
+      return;
+    }
     goToVisibleIndex(resolvedIndex, { restoreLandingIntro: direction < 0 });
+  }
+
+  function startGuestSlideTransition(resolvedIndex: number): void {
+    if (guestSlidePhase !== 'idle') return;
+    pendingGuestSlideIndex = resolvedIndex;
+    guestSlidePhase = 'fading-out';
+    const fadeDurationMs = prefersReducedMotion ? 0 : GUEST_SLIDE_CONTENT_FADE_MS;
+    guestSlideTransitionTimeout = window.setTimeout(() => {
+      if (pendingGuestSlideIndex === null) return;
+      guestSlidePhase = 'hidden';
+      goToVisibleIndex(pendingGuestSlideIndex);
+      pendingGuestSlideIndex = null;
+      guestSlideTransitionAnimationFrame = window.requestAnimationFrame(() => {
+        guestSlideTransitionAnimationFrame = window.requestAnimationFrame(() => {
+          guestSlidePhase = 'fading-in';
+          guestSlideTransitionTimeout = window.setTimeout(() => {
+            guestSlidePhase = 'idle';
+          }, fadeDurationMs);
+        });
+      });
+    }, fadeDurationMs);
+  }
+
+  function cancelGuestSlideTransition(): void {
+    window.clearTimeout(guestSlideTransitionTimeout);
+    window.cancelAnimationFrame(guestSlideTransitionAnimationFrame ?? 0);
+    guestSlideTransitionTimeout = undefined;
+    guestSlideTransitionAnimationFrame = undefined;
+    pendingGuestSlideIndex = null;
+    guestSlidePhase = 'idle';
   }
 
   // Temporarily disabled with the visit-cycling effect above.
@@ -1325,6 +1399,7 @@
       class:landing-intro-reveal-visible={landingIntroRevealVisible}
       data-landing-intro-phase={landingIntroParentPhase}
       data-landing-intro-revealing-next={landingIntroRevealActive ? 'true' : 'false'}
+      data-guest-slide-phase={guestSlidePhase}
       data-mounted-slide-indexes={reachableSlideIndexes.join(',')}
       data-visible-inspiration-ids={visibleInspirations.map((inspiration) => inspiration.inspiration_id).join(',')}
       data-testid="daily-inspiration-banner"
@@ -1385,7 +1460,16 @@
           class:mobile-card-loop={shouldCycleMobileCard && !landingIntroOverlayActive}
           class:show-mobile-card={shouldCycleMobileCard && !landingIntroOverlayActive && showMobileCard}
           class:guest-actionable-slide={isGuestActionableSlide}
-          style={`--actionable-mobile-heading-swap: ${ACTIONABLE_MOBILE_HEADING_SWAP_MS}ms`}
+          class:actionable-heading-fading-out={actionableMobileHeadingPhase === 'fading-out'}
+          class:actionable-heading-hidden={actionableMobileHeadingPhase === 'hidden'}
+          class:actionable-heading-fading-in={actionableMobileHeadingPhase === 'fading-in'}
+          class:guest-slide-fading-out={guestSlidePhase === 'fading-out'}
+          class:guest-slide-hidden={guestSlidePhase === 'hidden'}
+          class:guest-slide-fading-in={guestSlidePhase === 'fading-in'}
+          data-actionable-heading-phase={isGuestActionableSlide ? actionableMobileHeadingPhase : undefined}
+          data-mobile-heading-phase={shouldCycleMobileCard ? actionableMobileHeadingPhase : undefined}
+          data-testid="guest-slide-content"
+          style={`--actionable-mobile-heading-fade-out: ${ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS}ms; --actionable-mobile-heading-fade-in: ${ACTIONABLE_MOBILE_HEADING_FADE_IN_MS}ms; --guest-slide-content-fade: ${GUEST_SLIDE_CONTENT_FADE_MS}ms`}
         >
 
           {#if isGuestIntroVariant}
@@ -1767,6 +1851,7 @@
             class="carousel-arrow carousel-arrow-left"
             data-testid="daily-inspiration-previous"
             onclick={handlePrevious}
+            disabled={guestSlidePhase !== 'idle'}
             aria-label={$text('daily_inspiration.previous')}
             type="button"
           >
@@ -1779,6 +1864,7 @@
             class="carousel-arrow carousel-arrow-right"
             data-testid="daily-inspiration-next"
             onclick={handleNext}
+            disabled={guestSlidePhase !== 'idle'}
             aria-label={$text('daily_inspiration.next')}
             type="button"
           >
@@ -1974,6 +2060,21 @@
     gap: 14px;
     flex: 1;
     min-height: 0;
+  }
+
+  .banner-content.guest-slide-fading-out {
+    opacity: 0;
+    transition: opacity var(--guest-slide-content-fade) ease;
+  }
+
+  .banner-content.guest-slide-hidden {
+    opacity: 0;
+    transition: none;
+  }
+
+  .banner-content.guest-slide-fading-in {
+    opacity: 1;
+    transition: opacity var(--guest-slide-content-fade) ease;
   }
 
   .guest-intro-variant .banner-content {
@@ -3505,18 +3606,6 @@
       margin-left: 0;
     }
 
-    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy {
-      animation: landingActionableHeadingSwap var(--actionable-mobile-heading-swap) ease both;
-    }
-
-    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-inline-icon {
-      animation: landingActionableIconSwap var(--actionable-mobile-heading-swap) ease both;
-    }
-
-    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-headline {
-      animation: landingActionableHeadlineSwap var(--actionable-mobile-heading-swap) ease both;
-    }
-
     .banner-content.mobile-card-loop.show-mobile-card .banner-left {
       opacity: 0;
       pointer-events: none;
@@ -3594,75 +3683,25 @@
         opacity 520ms ease;
     }
 
-    @keyframes landingActionableHeadingSwap {
-      0% {
-        top: 50%;
-        left: 0;
-        width: 100%;
-        padding-inline: clamp(28px, 7vw, 44px);
-        opacity: 1;
-        transform: translateY(-50%);
-      }
-      28%, 68% {
-        opacity: 0;
-      }
-      29% {
-        top: 50%;
-        left: 0;
-        width: 100%;
-        padding-inline: clamp(28px, 7vw, 44px);
-        transform: translateY(-50%);
-      }
-      30%, 100% {
-        top: 4px;
-        left: 50%;
-        width: min(calc(100% - 88px), 330px);
-        padding-inline: 0;
-        transform: translateX(-50%);
-      }
-      100% {
-        opacity: 1;
-      }
+    .banner-content.mobile-card-loop .guest-feature-copy,
+    .banner-content.mobile-card-loop .guest-feature-copy .guest-feature-inline-icon,
+    .banner-content.mobile-card-loop .guest-feature-copy .guest-feature-headline {
+      transition: none;
     }
 
-    @keyframes landingActionableIconSwap {
-      0%, 29% {
-        top: 0;
-        left: clamp(28px, 7vw, 44px);
-        width: clamp(38px, 3.2vw, 72px);
-        height: clamp(38px, 3.2vw, 72px);
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-      }
-      30%, 100% {
-        top: 50%;
-        left: 0;
-        width: 20px;
-        height: 20px;
-        opacity: 0.5;
-        transform: translate3d(0, -50%, 0);
-      }
+    .banner-content.mobile-card-loop.actionable-heading-fading-out .guest-feature-copy {
+      opacity: 0;
+      transition: opacity var(--actionable-mobile-heading-fade-out) ease;
     }
 
-    @keyframes landingActionableHeadlineSwap {
-      0%, 29% {
-        max-width: 700px;
-        margin-top: clamp(46px, 11vw, 58px);
-        margin-left: 0;
-        font-size: clamp(1.45rem, 7.2vw, 2rem);
-        line-height: 1.08;
-        opacity: 1;
-        text-align: left;
-      }
-      30%, 100% {
-        max-width: calc(100% - 28px);
-        margin-top: 0;
-        margin-left: 28px;
-        font-size: clamp(0.82rem, 3.4vw, 1rem);
-        line-height: 1.08;
-        opacity: 0.5;
-        text-align: center;
-      }
+    .banner-content.mobile-card-loop.actionable-heading-hidden .guest-feature-copy {
+      opacity: 0;
+      transition: none;
+    }
+
+    .banner-content.mobile-card-loop.actionable-heading-fading-in .guest-feature-copy {
+      opacity: 1;
+      transition: opacity var(--actionable-mobile-heading-fade-in) ease;
     }
 
     .banner-embed-wrapper {
@@ -3780,11 +3819,12 @@
     }
   }
 
-  @media (max-width: 730px) and (prefers-reduced-motion: reduce) {
-    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy,
-    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-inline-icon,
-    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-headline {
-      animation-duration: 1ms !important;
+  @media (prefers-reduced-motion: reduce) {
+    .banner-content.guest-slide-fading-out,
+    .banner-content.guest-slide-fading-in,
+    .banner-content.mobile-card-loop.actionable-heading-fading-out .guest-feature-copy,
+    .banner-content.mobile-card-loop.actionable-heading-fading-in .guest-feature-copy {
+      transition-duration: 1ms !important;
     }
   }
 

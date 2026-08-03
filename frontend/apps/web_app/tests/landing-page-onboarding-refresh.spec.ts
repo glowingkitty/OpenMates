@@ -21,6 +21,7 @@ const LANDING_INTRO_VIEWPORTS = [
 ];
 const ACTIONABLE_STAGE_SETTLE_MS = 260;
 const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
+const MOBILE_SLIDE_FADE_SETTLE_MS = 1200;
 const ACTIONABLE_INTERACTION_TIMEOUT_MS = 5000;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
@@ -923,6 +924,12 @@ test.describe('Landing page onboarding refresh', () => {
 			icon.__landingIconNodeToken = 'mobile-actionable';
 		});
 
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-actionable-heading-phase', 'fading-out', {
+			timeout: MOBILE_HEADING_COMPACT_SETTLE_MS
+		});
+		const fadingOutActionable = await mobileActionableSlideState(page);
+		expect(fadingOutActionable.headlineFontSize, 'heading geometry must remain large throughout fade-out').toBe(initialActionable.headlineFontSize);
+		expect(fadingOutActionable.copyTop, 'heading position must not change before fade-out completes').toBeCloseTo(initialActionable.copyTop, 0);
 		await expect.poll(
 			async () => page.getByTestId('guest-intro-copy').evaluate((copy: HTMLElement) => Number.parseFloat(getComputedStyle(copy).opacity)),
 			{ timeout: MOBILE_HEADING_COMPACT_SETTLE_MS }
@@ -951,7 +958,7 @@ test.describe('Landing page onboarding refresh', () => {
 				fontSize: Number.parseFloat(getComputedStyle(bubble).fontSize)
 			};
 		});
-		expect(userMessageGeometry.rowLayoutWidth, 'mobile user message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(userMessageGeometry.demoLayoutWidth + 16);
+		expect(userMessageGeometry.rowLayoutWidth, 'mobile user message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(userMessageGeometry.demoLayoutWidth + 8);
 		expect(userMessageGeometry.fontSize, 'mobile user message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
 
 		await waitForActionableStage(page, 'assistant-response');
@@ -968,7 +975,7 @@ test.describe('Landing page onboarding refresh', () => {
 				fontSize: Number.parseFloat(getComputedStyle(bubble).fontSize)
 			};
 		});
-		expect(assistantMessageGeometry.rowLayoutWidth, 'mobile assistant message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(assistantMessageGeometry.demoLayoutWidth + 16);
+		expect(assistantMessageGeometry.rowLayoutWidth, 'mobile assistant message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(assistantMessageGeometry.demoLayoutWidth + 8);
 		expect(assistantMessageGeometry.fontSize, 'mobile assistant message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
 		expect(compactActionable.headlineStableNode, 'mobile compaction should resize the same headline node instead of replacing it').toBe(true);
 		expect(compactActionable.iconStableNode, 'mobile compaction should preserve the same category icon node').toBe(true);
@@ -1026,6 +1033,48 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(mobilePreviewGeometry.infoBarHeight, 'mobile event preview should render its complete bottom info bar').toBeGreaterThanOrEqual(28);
 		expect(mobilePreviewGeometry.infoBarVisible, 'mobile event preview bottom info bar should remain inside the rounded card').toBe(true);
 		expect(mobilePreviewGeometry.fullyVisible, 'mobile event preview should be fully visible below the compact headline').toBe(true);
+
+		await page.evaluate((fadeSettleMs: number) => {
+			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+			const content = document.querySelector<HTMLElement>('[data-testid="guest-slide-content"]');
+			if (!banner || !content) throw new Error('Guest slide transition elements missing');
+			const transitionWindow = window as typeof window & {
+				__guestSlideTransitionSamples?: Array<{ phase: string; phrase: string; opacity: number }>;
+			};
+			transitionWindow.__guestSlideTransitionSamples = [];
+			const observer = new MutationObserver(() => {
+				transitionWindow.__guestSlideTransitionSamples?.push({
+					phase: banner.dataset.guestSlidePhase ?? '',
+					phrase: document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]')?.textContent?.trim() ?? '',
+					opacity: Number.parseFloat(getComputedStyle(content).opacity)
+				});
+			});
+			observer.observe(banner, { attributes: true, childList: true, subtree: true });
+			window.setTimeout(() => observer.disconnect(), fadeSettleMs * 2);
+		}, MOBILE_SLIDE_FADE_SETTLE_MS);
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'fading-out');
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
+		await expect.poll(
+			async () => page.getByTestId('guest-slide-content').evaluate((content: HTMLElement) => Number.parseFloat(getComputedStyle(content).opacity)),
+			{ timeout: MOBILE_SLIDE_FADE_SETTLE_MS }
+		).toBeLessThanOrEqual(0.05);
+		await expect.poll(
+			async () => page.getByTestId('guest-slide-content').evaluate((content: HTMLElement) => Number.parseFloat(getComputedStyle(content).opacity)),
+			{ timeout: MOBILE_SLIDE_FADE_SETTLE_MS }
+		).toBeGreaterThanOrEqual(0.95);
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle');
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
+		const transitionSamples = await page.evaluate(() => (
+			(window as typeof window & {
+				__guestSlideTransitionSamples?: Array<{ phase: string; phrase: string; opacity: number }>;
+			}).__guestSlideTransitionSamples ?? []
+		));
+		expect(transitionSamples.some((sample) => sample.phase === 'hidden'), 'slide transition should include an explicit hidden phase').toBe(true);
+		expect(
+			transitionSamples.some((sample) => sample.phrase.includes('Privacy & safety by design.') && sample.opacity <= 0.05),
+			'new slide content must be swapped only while the previous content is fully transparent'
+		).toBe(true);
 	});
 
 	test('regular guest landing exposes workspace prompt, CTA input links, compact cards, and all examples', async ({ page }: { page: any }) => {

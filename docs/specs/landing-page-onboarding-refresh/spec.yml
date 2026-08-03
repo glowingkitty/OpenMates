@@ -469,6 +469,7 @@ scenarios:
       - The preview is fully visible and centered during its center dwell at desktop and mobile sizes.
       - The event title appears only inside the real event preview; no separate title overlays its date or metadata.
       - The animation plays once, the progress bar reaches 100% at the final clicked state, and the carousel advances to the privacy slide without repeating.
+      - On mobile, every post-intro slide transition fades the old content fully out, swaps the slide while hidden without geometry transitions, then fades the new content in.
       - The slide does not show the rejected simplified fullscreen/map surface.
       - The animation is visually faithful to real OpenMates chat and events embed styling without mounting a full interactive chat runtime.
 
@@ -527,7 +528,7 @@ acceptance_criteria:
       - V-USER-PHASE1
   - id: AC-4
     scenario: S-4
-    text: The `Actionable` slide uses localized real chat bubble/profile styling, a mobile-only same-node headline/icon morph, scaled center-dwell stage motion, a centered real-image Luma event preview, and visible cursor clicks through the pressed `Open on Luma` CTA; it then advances once with duration-accurate progress without mounting a full interactive chat runtime or showing the rejected fake fullscreen/map surface.
+    text: The `Actionable` slide uses localized real chat bubble/profile styling, a mobile-only same-node headline/icon hidden-state morph, scaled center-dwell stage motion, a centered real-image Luma event preview, and visible cursor clicks through the pressed `Open on Luma` CTA; it then advances once with duration-accurate progress through a fully hidden mobile slide swap without mounting a full interactive chat runtime or showing the rejected fake fullscreen/map surface.
     required: true
     status: pending
     coverage_status: covered
@@ -658,6 +659,7 @@ tests:
       - no simplified fullscreen/map surface is rendered
       - visible cursor animation presses the preview, reveals the translated `Open on Luma` CTA, and presses that CTA
       - mobile compaction preserves and animates the same headline and icon nodes to the centered top caption at approximately 0.5 opacity
+      - mobile post-intro navigation keeps the old content mounted through fade-out, swaps content only at zero opacity, and fades the new slide in
       - the preview is centered and fully visible during its center dwell
       - progress duration matches the one-shot timeline and completion advances to the privacy slide without replaying the request
     red_phase:
@@ -792,7 +794,9 @@ implementation_plan:
     The Actionable subcomponent owns one deterministic phase schedule and reports
     completion to DailyInspirationBanner. The parent delays playback until the
     mobile headline is compact, derives progress from the same shared duration,
-    and advances exactly once without mounting the full chat runtime.
+    and advances exactly once without mounting the full chat runtime. Explicit
+    mobile heading and slide phases ensure geometry and content change only at
+    zero opacity.
   data_flow:
     - ActiveChat renders DailyInspirationBanner with `variant='guest-intro'` for logged-out welcome state.
     - DailyInspirationBanner detects first guest intro slide and starts expanded on mount for logged-out users.
@@ -801,6 +805,7 @@ implementation_plan:
     - Auto completion collapses and advances to slide 2.
     - The Actionable slide starts immediately beside its headline on desktop and after headline compaction on mobile.
     - Actionable completion advances to the privacy slide and its progress bar uses the same desktop/mobile total duration.
+    - Post-intro mobile navigation delays the current slide index update until content opacity reaches zero, then fades the newly mounted slide in.
   affected_files:
     - path: docs/specs/landing-page-onboarding-refresh/spec.yml
       reason: Product contract, implementation plan, and evidence ledger.
@@ -884,6 +889,7 @@ tasks:
     expected_files:
       - docs/specs/landing-page-onboarding-refresh/spec.yml
       - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      - frontend/packages/ui/src/components/landing/landingActionableEventTimeline.ts
       - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
       - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
       - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
@@ -898,6 +904,7 @@ tasks:
     ownership:
       files:
         - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+        - frontend/packages/ui/src/components/landing/landingActionableEventTimeline.ts
         - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
         - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
         - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
