@@ -556,9 +556,9 @@ test.describe('Landing page onboarding refresh', () => {
 		for (const viewport of LANDING_INTRO_VIEWPORTS) {
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
 			await page.goto(getE2EDebugUrl(`/?landing-layout=${viewport.name}`), { waitUntil: 'domcontentloaded' });
+			const requestSamplesPromise = collectLandingIntroCycleMetrics(page);
 			await page.waitForLoadState('networkidle');
 			await waitForLandingIntroExamples(page);
-			const requestSamplesPromise = collectLandingIntroCycleMetrics(page);
 			await waitForExpandedIntroToCoverActiveChat(page);
 
 			const metrics = await landingIntroLayoutMetrics(page);
@@ -822,7 +822,7 @@ test.describe('Landing page onboarding refresh', () => {
 			const previewRect = preview.getBoundingClientRect();
 			return {
 				centerDeltaX: Math.abs((previewRect.left + previewRect.width / 2) - (sceneRect.left + sceneRect.width / 2)),
-				centerDeltaY: Math.abs((previewRect.top + previewRect.height / 2) - (sceneRect.top + sceneRect.height / 2)),
+				centerOffsetY: (previewRect.top + previewRect.height / 2) - (sceneRect.top + sceneRect.height / 2),
 				pointerInsideScene: pointer.getBoundingClientRect().top < sceneRect.bottom,
 				fullyVisible: previewRect.left >= sceneRect.left - 1
 					&& previewRect.right <= sceneRect.right + 1
@@ -831,7 +831,8 @@ test.describe('Landing page onboarding refresh', () => {
 			};
 		});
 		expect(previewGeometry.centerDeltaX, 'event preview should dwell at the horizontal center').toBeLessThanOrEqual(2);
-		expect(previewGeometry.centerDeltaY, 'event preview should dwell at the vertical center').toBeLessThanOrEqual(2);
+		expect(previewGeometry.centerOffsetY, 'event preview should keep drifting upward through center').toBeLessThanOrEqual(-2);
+		expect(previewGeometry.centerOffsetY, 'event preview center drift should remain subtle').toBeGreaterThanOrEqual(-7);
 		expect(previewGeometry.fullyVisible, 'event preview should not be clipped during its center dwell').toBe(true);
 		expect(previewGeometry.pointerInsideScene, 'pointer should move into the scene before clicking the preview').toBe(true);
 
@@ -922,9 +923,53 @@ test.describe('Landing page onboarding refresh', () => {
 			icon.__landingIconNodeToken = 'mobile-actionable';
 		});
 
-		await page.waitForTimeout(MOBILE_HEADING_COMPACT_SETTLE_MS);
+		await expect.poll(
+			async () => page.getByTestId('guest-intro-copy').evaluate((copy: HTMLElement) => Number.parseFloat(getComputedStyle(copy).opacity)),
+			{ timeout: MOBILE_HEADING_COMPACT_SETTLE_MS }
+		).toBeLessThanOrEqual(0.1);
+		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveAttribute('data-playing', 'false');
+		await expect(page.getByTestId('guest-intro-copy')).toHaveAttribute('data-actionable-heading-ready', 'false');
+		await expect.poll(
+			async () => page.getByTestId('guest-intro-copy').getAttribute('data-actionable-heading-ready'),
+			{ timeout: 1500 }
+		).toBe('true');
+		await expect.poll(
+			async () => page.getByTestId('guest-intro-copy').evaluate((copy: HTMLElement) => Number.parseFloat(getComputedStyle(copy).opacity)),
+			{ timeout: 1000 }
+		).toBeGreaterThanOrEqual(0.95);
+
+		await waitForActionableStage(page, 'user-request');
+		await page.waitForTimeout(700);
+		const userMessageGeometry = await page.evaluate(() => {
+			const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
+			const row = document.querySelector<HTMLElement>('[data-testid="landing-actionable-user-row"]');
+			const bubble = document.querySelector<HTMLElement>('[data-testid="landing-actionable-user-message"]');
+			if (!demo || !row || !bubble) throw new Error('Mobile Actionable user message geometry missing');
+			return {
+				rowLayoutWidth: row.offsetWidth,
+				demoLayoutWidth: demo.clientWidth,
+				fontSize: Number.parseFloat(getComputedStyle(bubble).fontSize)
+			};
+		});
+		expect(userMessageGeometry.rowLayoutWidth, 'mobile user message row should extend beyond the narrow demo column').toBeGreaterThanOrEqual(userMessageGeometry.demoLayoutWidth + 40);
+		expect(userMessageGeometry.fontSize, 'mobile user message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
+
 		await waitForActionableStage(page, 'assistant-response');
+		await page.waitForTimeout(700);
 		const compactActionable = await mobileActionableSlideState(page);
+		const assistantMessageGeometry = await page.evaluate(() => {
+			const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
+			const row = document.querySelector<HTMLElement>('[data-testid="landing-actionable-assistant-row"]');
+			const bubble = document.querySelector<HTMLElement>('[data-testid="landing-actionable-assistant-message"]');
+			if (!demo || !row || !bubble) throw new Error('Mobile Actionable assistant message geometry missing');
+			return {
+				rowLayoutWidth: row.offsetWidth,
+				demoLayoutWidth: demo.clientWidth,
+				fontSize: Number.parseFloat(getComputedStyle(bubble).fontSize)
+			};
+		});
+		expect(assistantMessageGeometry.rowLayoutWidth, 'mobile assistant message row should extend beyond the narrow demo column').toBeGreaterThanOrEqual(assistantMessageGeometry.demoLayoutWidth + 40);
+		expect(assistantMessageGeometry.fontSize, 'mobile assistant message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
 		expect(compactActionable.headlineStableNode, 'mobile compaction should resize the same headline node instead of replacing it').toBe(true);
 		expect(compactActionable.iconStableNode, 'mobile compaction should preserve the same category icon node').toBe(true);
 		expect(compactActionable.headlineFontSize, 'headline should shrink into the compact top caption').toBeLessThanOrEqual(initialActionable.headlineFontSize * 0.72);
@@ -959,12 +1004,18 @@ test.describe('Landing page onboarding refresh', () => {
 			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 			const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 			const preview = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-preview"]');
-			if (!banner || !headline || !preview) throw new Error('Mobile Actionable preview geometry elements missing');
+			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
+			const infoBar = preview?.querySelector<HTMLElement>('[data-testid="embed-basic-infos-bar"]');
+			if (!banner || !headline || !preview || !scene || !infoBar) throw new Error('Mobile Actionable preview geometry elements missing');
 			const bannerRect = banner.getBoundingClientRect();
 			const headlineRect = headline.getBoundingClientRect();
 			const previewRect = preview.getBoundingClientRect();
+			const sceneRect = scene.getBoundingClientRect();
+			const infoBarRect = infoBar.getBoundingClientRect();
 			return {
-				centerDeltaX: Math.abs((previewRect.left + previewRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
+				centerDeltaX: Math.abs((previewRect.left + previewRect.width / 2) - (sceneRect.left + sceneRect.width / 2)),
+				infoBarHeight: infoBarRect.height,
+				infoBarVisible: infoBarRect.top >= previewRect.top && infoBarRect.bottom <= previewRect.bottom + 1,
 				fullyVisible: previewRect.left >= bannerRect.left - 1
 					&& previewRect.right <= bannerRect.right + 1
 					&& previewRect.top > headlineRect.bottom
@@ -972,6 +1023,8 @@ test.describe('Landing page onboarding refresh', () => {
 			};
 		});
 		expect(mobilePreviewGeometry.centerDeltaX, 'mobile event preview should remain horizontally centered').toBeLessThanOrEqual(2);
+		expect(mobilePreviewGeometry.infoBarHeight, 'mobile event preview should render its complete bottom info bar').toBeGreaterThanOrEqual(28);
+		expect(mobilePreviewGeometry.infoBarVisible, 'mobile event preview bottom info bar should remain inside the rounded card').toBe(true);
 		expect(mobilePreviewGeometry.fullyVisible, 'mobile event preview should be fully visible below the compact headline').toBe(true);
 	});
 

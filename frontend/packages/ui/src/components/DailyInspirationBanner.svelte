@@ -47,6 +47,7 @@
   import LandingActionableEventDemo from './landing/LandingActionableEventDemo.svelte';
   import {
     ACTIONABLE_DEMO_DURATION_MS,
+    ACTIONABLE_MOBILE_HEADING_SWAP_MS,
     ACTIONABLE_MOBILE_START_DELAY_MS,
   } from './landing/landingActionableEventTimeline';
 
@@ -163,6 +164,7 @@
   // On mobile, alternate between the assistant message and interactive preview instead
   // of squeezing both into the narrow banner width.
   let showMobileCard = $state(false);
+  let actionableMobileHeadingReady = $state(false);
 
   // Touch gesture state for mobile carousel swipes.
   let touchStartX = $state(0);
@@ -364,19 +366,27 @@
   $effect(() => {
     if (!shouldCycleMobileCard || landingIntroOverlayActive) {
       showMobileCard = false;
+      actionableMobileHeadingReady = false;
       return;
     }
 
     void currentIndex;
     void mobilePreviewKey;
     showMobileCard = false;
+    actionableMobileHeadingReady = false;
 
     if (isGuestIntroVariant) {
-      const timeout = window.setTimeout(() => {
+      const headingSwapTimeout = window.setTimeout(() => {
         showMobileCard = true;
       }, ACTIONABLE_MOBILE_START_DELAY_MS);
+      const demoStartTimeout = window.setTimeout(() => {
+        actionableMobileHeadingReady = true;
+      }, ACTIONABLE_MOBILE_START_DELAY_MS + ACTIONABLE_MOBILE_HEADING_SWAP_MS);
 
-      return () => window.clearTimeout(timeout);
+      return () => {
+        window.clearTimeout(headingSwapTimeout);
+        window.clearTimeout(demoStartTimeout);
+      };
     }
 
     const interval = window.setInterval(() => {
@@ -598,13 +608,15 @@
     isGuestActionableSlide
       && isBannerVisible
       && containerWidth > 0
-      && (!isMobileBannerLayout || showMobileCard),
+      && (!isMobileBannerLayout || actionableMobileHeadingReady),
   );
   let carouselProgressDurationMs = $derived(
     landingIntroOverlayActive
       ? LANDING_INTRO_TOTAL_MS
       : isGuestActionableSlide
-        ? ACTIONABLE_DEMO_DURATION_MS + (isMobileBannerLayout ? ACTIONABLE_MOBILE_START_DELAY_MS : 0)
+        ? ACTIONABLE_DEMO_DURATION_MS + (isMobileBannerLayout
+          ? ACTIONABLE_MOBILE_START_DELAY_MS + ACTIONABLE_MOBILE_HEADING_SWAP_MS
+          : 0)
         : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
 
@@ -1372,6 +1384,8 @@
           class="banner-content"
           class:mobile-card-loop={shouldCycleMobileCard && !landingIntroOverlayActive}
           class:show-mobile-card={shouldCycleMobileCard && !landingIntroOverlayActive && showMobileCard}
+          class:guest-actionable-slide={isGuestActionableSlide}
+          style={`--actionable-mobile-heading-swap: ${ACTIONABLE_MOBILE_HEADING_SWAP_MS}ms`}
         >
 
           {#if isGuestIntroVariant}
@@ -1436,6 +1450,8 @@
                 <div
                   class="guest-intro-copy"
                   class:guest-feature-copy={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID || isGuestActionableSlide}
+                  class:guest-actionable-copy={isGuestActionableSlide}
+                  data-actionable-heading-ready={isGuestActionableSlide ? (actionableMobileHeadingReady ? 'true' : 'false') : undefined}
                   data-testid="guest-intro-copy"
                   in:fade={{ duration: 320 }}
                 >
@@ -3458,8 +3474,8 @@
     .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy {
       inset: auto;
       top: 50%;
-      left: 0;
-      width: 100%;
+      left: -48px;
+      width: calc(100% + 96px);
       height: auto;
       padding-inline: clamp(28px, 7vw, 44px);
       box-sizing: border-box;
@@ -3487,6 +3503,18 @@
     .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy .guest-feature-headline {
       margin-top: clamp(46px, 11vw, 58px);
       margin-left: 0;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy {
+      animation: landingActionableHeadingSwap var(--actionable-mobile-heading-swap) ease both;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-inline-icon {
+      animation: landingActionableIconSwap var(--actionable-mobile-heading-swap) ease both;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-headline {
+      animation: landingActionableHeadlineSwap var(--actionable-mobile-heading-swap) ease both;
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .banner-left {
@@ -3564,6 +3592,77 @@
         line-height 520ms cubic-bezier(0.22, 1, 0.36, 1),
         margin 520ms cubic-bezier(0.22, 1, 0.36, 1),
         opacity 520ms ease;
+    }
+
+    @keyframes landingActionableHeadingSwap {
+      0% {
+        top: 50%;
+        left: -48px;
+        width: calc(100% + 96px);
+        padding-inline: clamp(28px, 7vw, 44px);
+        opacity: 1;
+        transform: translateY(-50%);
+      }
+      28%, 68% {
+        opacity: 0;
+      }
+      29% {
+        top: 50%;
+        left: -48px;
+        width: calc(100% + 96px);
+        padding-inline: clamp(28px, 7vw, 44px);
+        transform: translateY(-50%);
+      }
+      30%, 100% {
+        top: 4px;
+        left: 50%;
+        width: min(calc(100% - 88px), 330px);
+        padding-inline: 0;
+        transform: translateX(-50%);
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes landingActionableIconSwap {
+      0%, 29% {
+        top: 0;
+        left: clamp(28px, 7vw, 44px);
+        width: clamp(38px, 3.2vw, 72px);
+        height: clamp(38px, 3.2vw, 72px);
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+      30%, 100% {
+        top: 50%;
+        left: 0;
+        width: 20px;
+        height: 20px;
+        opacity: 0.5;
+        transform: translate3d(0, -50%, 0);
+      }
+    }
+
+    @keyframes landingActionableHeadlineSwap {
+      0%, 29% {
+        max-width: 700px;
+        margin-top: clamp(46px, 11vw, 58px);
+        margin-left: 0;
+        font-size: clamp(1.45rem, 7.2vw, 2rem);
+        line-height: 1.08;
+        opacity: 1;
+        text-align: left;
+      }
+      30%, 100% {
+        max-width: calc(100% - 28px);
+        margin-top: 0;
+        margin-left: 28px;
+        font-size: clamp(0.82rem, 3.4vw, 1rem);
+        line-height: 1.08;
+        opacity: 0.5;
+        text-align: center;
+      }
     }
 
     .banner-embed-wrapper {
@@ -3678,6 +3777,14 @@
       height: 10px !important;
       bottom: -2px !important;
       right: -2px !important;
+    }
+  }
+
+  @media (max-width: 730px) and (prefers-reduced-motion: reduce) {
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-inline-icon,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-copy .guest-feature-headline {
+      animation-duration: 1ms !important;
     }
   }
 
