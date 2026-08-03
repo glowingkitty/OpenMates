@@ -168,6 +168,7 @@ def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():
         "tools_count": 1,
         "temperature": 0.4,
         "tool_choice": "auto",
+        "last_message_hash": "5a3782b74653d86b",
         "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
     }
 
@@ -422,7 +423,7 @@ def test_api_response_cache_loads_compatible_llm_response(tmp_path):
         request_summary={
             "model": "gemini-3.5-flash-lite",
             "messages_count": 2,
-            "tools_count": 3,
+            "tools_count": 4,
             "temperature": 0.4,
             "tool_choice": "auto",
             "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
@@ -447,6 +448,75 @@ def test_api_response_cache_loads_compatible_llm_response(tmp_path):
     assert cached is not None
     assert cached["fingerprint"] == "old-fingerprint"
     assert cached["response"] == response_data
+
+
+def test_api_response_cache_rejects_compatible_llm_response_for_different_prompt(tmp_path):
+    cache = ApiResponseCache(root=tmp_path)
+    cache.save(
+        group_id="embed_diff_code_web",
+        category="llm/gemini-3.5-flash-lite",
+        fingerprint="old-fingerprint",
+        request_summary={
+            "model": "gemini-3.5-flash-lite",
+            "messages_count": 2,
+            "tools_count": 5,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_preview": {"role": "user", "content": "Create average.py"},
+        },
+        response_data={"type": "stream", "body": "cached", "chunk_count": 1},
+    )
+
+    cached = cache.load_compatible_llm_response(
+        "embed_diff_code_web",
+        "llm/gemini-3.5-flash-lite",
+        {
+            "model": "gemini-3.5-flash-lite",
+            "messages_count": 2,
+            "tools_count": 4,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_preview": {"role": "user", "content": "Create totals.py"},
+        },
+        excluded_fingerprint="new-fingerprint",
+    )
+
+    assert cached is None
+
+
+def test_api_response_cache_rejects_matching_previews_with_different_full_message_hashes(tmp_path):
+    cache = ApiResponseCache(root=tmp_path)
+    preview = {"role": "user", "content": "x" * 200 + "..."}
+    cache.save(
+        group_id="long_prompt",
+        category="llm/gemini-3.5-flash-lite",
+        fingerprint="old-fingerprint",
+        request_summary={
+            "model": "gemini-3.5-flash-lite",
+            "tools_count": 5,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_hash": "first-hash",
+            "last_message_preview": preview,
+        },
+        response_data={"type": "stream", "body": "cached", "chunk_count": 1},
+    )
+
+    cached = cache.load_compatible_llm_response(
+        "long_prompt",
+        "llm/gemini-3.5-flash-lite",
+        {
+            "model": "gemini-3.5-flash-lite",
+            "tools_count": 4,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_hash": "second-hash",
+            "last_message_preview": preview,
+        },
+        excluded_fingerprint="new-fingerprint",
+    )
+
+    assert cached is None
 
 
 def test_api_response_cache_loads_compatible_llm_response_with_provider_prefix(tmp_path):

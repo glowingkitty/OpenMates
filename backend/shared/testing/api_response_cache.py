@@ -305,7 +305,10 @@ class ApiResponseCache:
         if not isinstance(candidate, dict):
             return False
 
-        stable_keys = ("model", "tools_count", "temperature", "tool_choice")
+        # Tool availability can drift as companion skills and account settings
+        # evolve. The mock group plus exact final message still scopes replay to
+        # the intended test flow without invalidating otherwise compatible data.
+        stable_keys = ("model", "temperature", "tool_choice")
         for key in stable_keys:
             candidate_value = candidate.get(key)
             expected_value = expected.get(key)
@@ -317,6 +320,10 @@ class ApiResponseCache:
 
         expected_last = expected.get("last_message_preview")
         candidate_last = candidate.get("last_message_preview")
+        expected_last_hash = expected.get("last_message_hash")
+        candidate_last_hash = candidate.get("last_message_hash")
+        if expected_last_hash and candidate_last_hash:
+            return expected_last_hash == candidate_last_hash
         if expected_last is None and candidate_last is None:
             return True
         if not isinstance(expected_last, dict) or not isinstance(candidate_last, dict):
