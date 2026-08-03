@@ -5574,6 +5574,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let guestInterestContinueConfirmed = $state(true);
     let guestInterestSelectorVisible = $state(false);
     let guestAllExamplesVisible = $state(false);
+    let guestAllExamplesGridEl = $state<HTMLElement | null>(null);
     let activeGuestSurface = $state<DailyInspirationSurface>('chats');
     let activeGuestInspirationId = $state(GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID);
     let guestInputLinkIndex = $state(0);
@@ -5618,8 +5619,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 : 'chat.welcome.show_all_chats'
     );
 
-    function handleShowAllGuestExamples() {
+    async function handleShowAllGuestExamples() {
         guestAllExamplesVisible = true;
+        await tick();
+        if (guestAllExamplesGridEl) {
+            guestAllExamplesGridEl.scrollTop = 0;
+        }
     }
 
     function handleBackToRecentGuestExamples() {
@@ -12352,12 +12357,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
-                    {#if showWelcome && !guestAllExamplesVisible}
+                    {#if showWelcome}
                         <div
                             class="daily-inspiration-area"
+                            class:guest-all-examples-hidden={guestAllExamplesVisible && !$authStore.isAuthenticated}
                             class:welcome-hiding={hideWelcomeForKeyboard}
                             class:landing-intro-overlay-active={guestLandingIntroOverlayActive}
-                            inert={hideWelcomeForKeyboard}
+                            inert={hideWelcomeForKeyboard || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
                             data-testid="daily-inspiration-area"
                         >
                             <DailyInspirationBanner
@@ -12534,7 +12540,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         >
                             {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                                 <div class="guest-all-examples-view" data-testid="guest-all-examples-view" transition:fade={fadeParams}>
-                                    <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid">
+                                    <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid" bind:this={guestAllExamplesGridEl}>
                                         {#each guestAllExampleMetas as meta (meta.chat.chat_id)}
                                             {@const category = meta.category || 'general_knowledge'}
                                             {@const gradientColors = getCategoryGradientColors(category)}
@@ -14322,7 +14328,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .center-content.guest-all-examples-content {
-        top: 50%;
+        top: calc(50% - 10px);
+    }
+
+    .daily-inspiration-area.guest-all-examples-hidden {
+        display: none;
     }
 
     .team-profile {
@@ -14497,7 +14507,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .guest-all-examples-view {
         width: min(100% - 32px, 1120px);
-        max-height: min(68vh, 760px);
+        max-height: min(72vh, 800px);
         display: flex;
         flex-direction: column;
         pointer-events: auto;
@@ -14542,6 +14552,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         grid-template-columns: repeat(auto-fill, minmax(280px, 300px));
         justify-content: center;
         gap: var(--spacing-8);
+        min-height: 0;
+        flex: 1;
         overflow-y: auto;
         padding: var(--guest-all-examples-fade-size) var(--spacing-4);
         scrollbar-width: thin;
@@ -14616,7 +14628,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         .guest-all-examples-view {
             width: min(100% - 24px, 520px);
-            max-height: 54vh;
+            max-height: 66vh;
         }
 
         .guest-all-examples-toolbar {
