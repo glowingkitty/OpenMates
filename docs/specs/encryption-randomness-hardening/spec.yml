@@ -255,19 +255,32 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-03T20:41:50Z"
     notes: The public API image fails closed because the private openmatescloud billing overlay package is not mounted; the API was immediately restored to its prior billing-disabled healthy state.
+  - id: ATTEMPT-5
+    task_id: TASK-8
+    approach: Mount the authorized private cloud overlay, publish one verified append-only v2 from an existing dev invoice, and repeat authenticated CLI list/download against api.dev.openmates.org.
+    outcome: succeeded
+    recorded_at: "2026-08-03T21:11:46Z"
+    notes: The overlay loaded without exposing credentials, unauthenticated access remained 401, the v2 S3 read-back completed before publication, the immutable version row passed metadata checks, and the stable logical invoice ID downloaded a valid PDF after v2 publication.
+  - id: ATTEMPT-6
+    task_id: TASK-9
+    approach: Build and run the generic live SDK parity smoke from the managed worktree.
+    outcome: blocked
+    recorded_at: "2026-08-03T21:20:00Z"
+    notes: The managed worktree had no test-account environment and the prior shared CLI session had expired; the command stopped before creating an API key. The existing usage-overview verifier was used instead because it securely loads ignored test-account configuration, isolates HOME, and revokes temporary SDK keys.
+  - id: ATTEMPT-7
+    task_id: TASK-9
+    approach: Run focused storage/recovery compatibility tests, the deterministic parity audit, and the sanctioned real CLI/npm/pip usage verifier against api.dev.openmates.org.
+    outcome: succeeded
+    recorded_at: "2026-08-03T21:24:00Z"
+    notes: CLI storage passed 15 tests, backend/pip recovery passed 14 tests, the audit checked 82 command entries and four workflow transports, and real CLI/npm/pip usage calls passed with isolated temporary auth state and revoked SDK keys.
 
 handoff:
-  current_task_id: TASK-8
-  next_action: Mount the private cloud billing overlay on the dev API, enable it for the verification window, then run real invoice list and download through the authenticated CLI against api.dev.openmates.org.
-  command: openmates --api-url https://api.dev.openmates.org settings billing invoices list --json
-  expected_outcome: The CLI returns the authenticated user's stable logical invoice IDs, and downloading one returns the highest verified ciphertext version while legacy-only invoices remain readable.
-  blocker:
-    task_id: TASK-8
-    requires_user_input: true
-    reason: The dev API intentionally omits payment routes while OPENMATES_CLOUD_OVERLAY_ENABLED is false, and enabling it fails closed because the private openmatescloud package is not mounted in the API image.
-    question: Can the operator mount the authorized private openmatescloud billing overlay on the dev API for a scoped invoice verification window?
-    next_action: Mount the overlay without exposing its repository or credentials, enable cloud billing, recreate api, run authenticated CLI list/download proof, then restore the previous dev runtime configuration.
-  last_verified_commit: 6bfa3a793
+  current_task_id: TASK-10
+  next_action: Implement and verify R1 backend and web media readers while legacy writers remain active, beginning with the direct REST reader contract.
+  command: python3 -m pytest backend/tests/test_media_encryption_compatibility.py
+  expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
+  blocker: null
+  last_verified_commit: 66b6630dd
 
 scenarios:
   - id: S-1
@@ -402,11 +415,11 @@ acceptance_criteria:
   - {id: AC-2, scenario: S-2, text: "Backend, web, and Apple decrypt legacy media fixtures without writes.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-BACKEND-MEDIA, T-WEB-MEDIA, V-APPLE]}
   - {id: AC-3, scenario: S-3, text: "Every new multi-variant media encryption uses a distinct nonce and the exact versioned nonce-prefixed v2 format, proven through actual R2 output in backend, web, and Apple readers.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BACKEND-MEDIA, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
   - {id: AC-4, scenario: S-4, text: "Media v2 writers cannot activate before the checked-in R1 evidence manifest passes, and post-activation rollback cannot target a pre-R1 build.", required: true, status: pending, coverage_status: covered, verification_scope: plan, verification_ids: [T-RANDOMNESS-AUDIT, T-ROLLOUT-GATE, V-REST-MEDIA-READER, V-WEB-DEPLOYED, V-APPLE, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
-  - {id: AC-5, scenario: S-5, text: "Invoice regeneration appends a verified immutable version row/object, never updates the original encrypted row, and leaves unrelated invoices unchanged.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-INVOICE-REGEN, V-REST-INVOICE]}
+  - {id: AC-5, scenario: S-5, text: "Invoice regeneration appends a verified immutable version row/object, never updates the original encrypted row, and leaves unrelated invoices unchanged.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-INVOICE-REGEN, V-REST-INVOICE]}
   - {id: AC-6, scenario: S-6, text: "Legacy short links decrypt while new links use at least 128 bits of unbiased secret entropy with unchanged KDF semantics.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-SHORT-LINK, V-WEB-DEPLOYED, V-APPLE]}
   - {id: AC-7, scenario: S-7, text: "Unsupported password PBKDF2, email SHA-256, and passkey HKDF derivation fail before persistence and none returns all-zero material.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-WEB-CRYPTO, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
-  - {id: AC-8, scenario: S-8, text: "Production recovery sealing is random-only while v1 vectors remain compatible.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-RECOVERY-PARITY, V-APPLE]}
-  - {id: AC-9, scenario: S-9, text: "Legacy CLI session files remain byte-identical and readable; stronger storage uses a separate verified file/slot and preserves the original indefinitely.", required: true, status: pending, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-STORAGE, V-CLI, V-NPM-SDK, V-PIP-SDK]}
+  - {id: AC-8, scenario: S-8, text: "Production recovery sealing is random-only while v1 vectors remain compatible.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-RECOVERY-PARITY, V-APPLE]}
+  - {id: AC-9, scenario: S-9, text: "Legacy CLI session files remain byte-identical and readable; stronger storage uses a separate verified file/slot and preserves the original indefinitely.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-STORAGE, V-CLI, V-NPM-SDK, V-PIP-SDK]}
   - {id: AC-10, scenario: S-10, text: "Domain policy readers support immutable legacy and new bundles through rollback.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY]}
   - {id: AC-11, scenario: S-11, text: "Security generators use CSPRNG and unbiased sampling; new human-transcribed variable code characters exclude `0` and `O` while legacy values remain accepted.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-RANDOMNESS-AUDIT, T-SECURITY-CODES]}
   - {id: AC-12, scenario: S-2, text: "No task mutates, deletes, or bulk re-encrypts existing ciphertext or removes a legacy reader.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-NO-MIGRATION-GUARD, V-SECURITY-REVIEW]}
@@ -630,7 +643,7 @@ tests:
     covers: [AC-9]
     assertions: [All legacy tiers load without changing file bytes, failed load preserves original, explicit save writes and reopens a separate versioned slot, legacy file remains byte-identical.]
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "HOME=/tmp/opencode/encryption-cli-red-home npm run test:unit:storage", run_id: "local-2026-08-03T12:34:00Z", timestamp: "2026-08-03T12:34:00Z", reason: "Legacy load rewrote session.json into encrypted storage instead of preserving bytes."}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "npm run test:unit:storage", run_id: "local-task9-cli-storage-2026-08-03", subject_commit: "3d2221b8f", timestamp: "2026-08-03T21:17:00Z", notes: "15/15 tests passed, including byte-identical legacy read, separate stronger storage, permissions, clear/purge behavior, and keychain-aware round trips."}}
   - id: T-DOMAIN-POLICY
     type: pytest
     file: backend/core/api/app/services/test_domain_security.py
@@ -700,10 +713,10 @@ tests:
 verifications:
   - {id: V-REST-MEDIA-READER, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-4], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
   - {id: V-REST-MEDIA-WRITER, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
-  - {id: V-REST-INVOICE, kind: automated_test, phase: green, required_for_done: true, covers: [AC-5], status: blocked, target: "https://api.dev.openmates.org", evidence: {status: blocked, command: "openmates --api-url https://api.dev.openmates.org settings billing invoices list --json", run_id: "task8-live-overlay-2026-08-03", subject_commit: "6bfa3a793", summary: "Dev billing-disabled mode returns 404 by contract. A scoped billing-enabled restart failed closed because the private openmatescloud overlay package is not mounted; API was restored healthy with billing disabled.", timestamp: "2026-08-03T20:41:50Z", actor: OpenCode, reason: "Authorized private billing overlay is unavailable on the dev API host.", next_action: "Mount the private overlay, enable cloud billing for a verification window, and rerun authenticated invoice list/download proof."}}
-  - {id: V-CLI, kind: automated_test, phase: green, required_for_done: true, covers: [AC-9], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
-  - {id: V-NPM-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8, AC-9], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
-  - {id: V-PIP-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
+  - {id: V-REST-INVOICE, kind: automated_test, phase: green, required_for_done: true, covers: [AC-5], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "openmates --api-url https://api.dev.openmates.org settings billing invoices list --json && openmates --api-url https://api.dev.openmates.org settings billing invoices download <stable-invoice-id> --output <temporary-directory>", run_id: "task8-live-overlay-v2-2026-08-03", subject_commit: "6bfa3a793", summary: "The authorized OpenMatesCloud overlay imported with billing enabled; unauthenticated invoice access returned 401. Authenticated CLI list and legacy v1 download passed. A scoped append-only regeneration then Vault-unwrapped the current invoice, published v2 only after authenticated S3 read-back, and left one verified v2 row with complete encrypted metadata. Downloading the same stable logical ID after publication returned a valid 24,218-byte PDF; temporary PDFs were removed.", timestamp: "2026-08-03T21:11:46Z", actor: OpenCode}}
+  - {id: V-CLI, kind: automated_test, phase: green, required_for_done: true, covers: [AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "Real authenticated CLI daily, weekly, and monthly usage-overview calls passed against dev; the same session also proved invoice list/download before TASK-9. The verifier used isolated temporary auth state and reported valid period, totals, freshness, and token-coverage contracts.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
+  - {id: V-NPM-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8, AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "The locally built npm SDK made a real authenticated usage-overview call against dev and returned the canonical contract in 0.333 seconds. Its temporary API key/device was approved through the first-party session and revoked by the verifier.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
+  - {id: V-PIP-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "The source-checkout pip SDK made a real authenticated usage-overview call against dev and returned the canonical contract in 0.305 seconds. Its temporary API key/device was approved through the first-party session and revoked by the verifier.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
   - {id: V-WEB-DEPLOYED, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: pending, target: "https://app.dev.openmates.org", evidence: {status: "", command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts", run_id: "", subject_commit: "", deployment_reference: "", summary: "", timestamp: ""}}
   - {id: V-WEB-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, target: "https://app.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", deployment_reference: "", summary: "", timestamp: ""}}
   - id: V-UI-VISUAL-SMOKE
@@ -1028,8 +1041,8 @@ tasks:
     independently_deployable: true
   - id: TASK-8
     title: Add append-only invoice ciphertext versions
-    status: blocked
-    phase: blocked
+    status: done
+    phase: complete
     covers:
       scenarios: [S-5]
       acceptance_criteria: [AC-5]
@@ -1038,13 +1051,13 @@ tasks:
     verification_ids: [T-INVOICE-REGEN, V-REST-INVOICE]
     dependencies: [TASK-2]
     ownership: {files: [backend/core/directus/schemas/invoice_ciphertext_versions.yml, backend/tests/test_invoice_encryption_regeneration.py], shared_files: [backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py, backend/core/api/app/routes/payments.py, backend/core/api/app/routes/sdk.py]}
-    blockers: [Real dev list/download proof requires the authorized private openmatescloud billing overlay to be mounted and enabled.]
+    blockers: []
     follow_up_tasks: [TASK-9]
     independently_deployable: true
   - id: TASK-9
     title: Verify CLI npm and pip compatibility gates
-    status: pending
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-8, S-9]
       acceptance_criteria: [AC-8, AC-9]
@@ -1058,7 +1071,7 @@ tasks:
     independently_deployable: false
   - id: TASK-10
     title: Deploy R1 backend and web media readers with legacy writers
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-2, S-4]
