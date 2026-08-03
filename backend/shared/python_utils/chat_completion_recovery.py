@@ -140,13 +140,64 @@ def seal_recovery_payload(
     job_id: str,
     assistant_message_id: str,
     key_version: int,
-    ephemeral_private_key: str | None = None,
-    nonce: str | None = None,
+) -> dict[str, str | int]:
+    return _seal_recovery_payload(
+        payload,
+        recovery_public_key=recovery_public_key,
+        owner_id=owner_id,
+        chat_id=chat_id,
+        turn_id=turn_id,
+        job_id=job_id,
+        assistant_message_id=assistant_message_id,
+        key_version=key_version,
+        ephemeral_bytes=os.urandom(KEY_LENGTH),
+        nonce_bytes=os.urandom(NONCE_LENGTH),
+    )
+
+
+def seal_recovery_payload_for_test(
+    payload: bytes,
+    *,
+    recovery_public_key: str,
+    owner_id: str,
+    chat_id: str,
+    turn_id: str,
+    job_id: str,
+    assistant_message_id: str,
+    key_version: int,
+    ephemeral_private_key: str,
+    nonce: str,
+) -> dict[str, str | int]:
+    """Seal with fixed inputs exclusively for immutable cross-runtime vectors."""
+    return _seal_recovery_payload(
+        payload,
+        recovery_public_key=recovery_public_key,
+        owner_id=owner_id,
+        chat_id=chat_id,
+        turn_id=turn_id,
+        job_id=job_id,
+        assistant_message_id=assistant_message_id,
+        key_version=key_version,
+        ephemeral_bytes=_decode(ephemeral_private_key, "ephemeral_private_key"),
+        nonce_bytes=_decode(nonce, "nonce"),
+    )
+
+
+def _seal_recovery_payload(
+    payload: bytes,
+    *,
+    recovery_public_key: str,
+    owner_id: str,
+    chat_id: str,
+    turn_id: str,
+    job_id: str,
+    assistant_message_id: str,
+    key_version: int,
+    ephemeral_bytes: bytes,
+    nonce_bytes: bytes,
 ) -> dict[str, str | int]:
     if len(payload) > MAX_PAYLOAD_BYTES:
         raise ValueError("recovery payload exceeds 16 MiB")
-    ephemeral_bytes = _decode(ephemeral_private_key, "ephemeral_private_key") if ephemeral_private_key else os.urandom(KEY_LENGTH)
-    nonce_bytes = _decode(nonce, "nonce") if nonce else os.urandom(NONCE_LENGTH)
     if len(ephemeral_bytes) != KEY_LENGTH or len(nonce_bytes) != NONCE_LENGTH:
         raise ValueError("invalid ephemeral key or nonce length")
     associated_data = _associated_data(

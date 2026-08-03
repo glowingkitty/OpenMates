@@ -217,11 +217,41 @@ async function recoveryEnvelopeKey(sharedSecret: Uint8Array, associatedData: Uin
 
 export async function sealChatCompletionRecoveryPayload(
   plaintext: Uint8Array,
+  options: ChatCompletionRecoveryIdentity & { recoveryPublicKey: string },
+): Promise<ChatCompletionRecoveryEnvelope> {
+  const unsafeOptions = options as typeof options & { ephemeralPrivateKey?: string; nonce?: string };
+  if (unsafeOptions.ephemeralPrivateKey !== undefined || unsafeOptions.nonce !== undefined) {
+    throw new Error("deterministic recovery sealing inputs are test-only");
+  }
+  return sealChatCompletionRecoveryPayloadWithInputs(
+    plaintext,
+    options,
+    cryptoApi.getRandomValues(new Uint8Array(CHAT_RECOVERY_KEY_BYTES)),
+    cryptoApi.getRandomValues(new Uint8Array(CHAT_RECOVERY_NONCE_BYTES)),
+  );
+}
+
+export async function sealChatCompletionRecoveryPayloadForTest(
+  plaintext: Uint8Array,
   options: ChatCompletionRecoveryIdentity & {
     recoveryPublicKey: string;
-    ephemeralPrivateKey?: string;
-    nonce?: string;
+    ephemeralPrivateKey: string;
+    nonce: string;
   },
+): Promise<ChatCompletionRecoveryEnvelope> {
+  return sealChatCompletionRecoveryPayloadWithInputs(
+    plaintext,
+    options,
+    base64UrlToBytes(options.ephemeralPrivateKey, "ephemeral_private_key", CHAT_RECOVERY_KEY_BYTES),
+    base64UrlToBytes(options.nonce, "nonce", CHAT_RECOVERY_NONCE_BYTES),
+  );
+}
+
+async function sealChatCompletionRecoveryPayloadWithInputs(
+  plaintext: Uint8Array,
+  options: ChatCompletionRecoveryIdentity & { recoveryPublicKey: string },
+  ephemeralPrivateKey: Uint8Array,
+  nonce: Uint8Array,
 ): Promise<ChatCompletionRecoveryEnvelope> {
   if (plaintext.length > CHAT_RECOVERY_MAX_PAYLOAD_BYTES) {
     throw new Error(`plaintext must be no larger than ${CHAT_RECOVERY_MAX_PAYLOAD_BYTES}`);
@@ -231,12 +261,6 @@ export async function sealChatCompletionRecoveryPayload(
     "recovery_public_key",
     CHAT_RECOVERY_KEY_BYTES,
   );
-  const ephemeralPrivateKey = options.ephemeralPrivateKey
-    ? base64UrlToBytes(options.ephemeralPrivateKey, "ephemeral_private_key", CHAT_RECOVERY_KEY_BYTES)
-    : cryptoApi.getRandomValues(new Uint8Array(CHAT_RECOVERY_KEY_BYTES));
-  const nonce = options.nonce
-    ? base64UrlToBytes(options.nonce, "nonce", CHAT_RECOVERY_NONCE_BYTES)
-    : cryptoApi.getRandomValues(new Uint8Array(CHAT_RECOVERY_NONCE_BYTES));
   const ephemeralPublicKey = nacl.scalarMult.base(ephemeralPrivateKey);
   const sharedSecret = nacl.scalarMult(ephemeralPrivateKey, recoveryPublicKey);
   const associatedData = recoveryAssociatedData(options);

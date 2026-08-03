@@ -30,6 +30,7 @@ import {
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
   sealChatCompletionRecoveryPayload,
+  sealChatCompletionRecoveryPayloadForTest,
 } from "../src/crypto.ts";
 
 const recoveryVectors = JSON.parse(
@@ -51,7 +52,7 @@ describe("chat-completion-recovery shared vectors", () => {
       assert.equal(keypair.publicKey, vector.recovery_public_key);
       assert.equal(buildRecoveryAssociatedData(vector), vector.associated_data);
 
-      const envelope = await sealChatCompletionRecoveryPayload(
+      const envelope = await sealChatCompletionRecoveryPayloadForTest(
         new TextEncoder().encode(vector.plaintext),
         {
           recoveryPublicKey: vector.recovery_public_key,
@@ -77,6 +78,45 @@ describe("chat-completion-recovery shared vectors", () => {
         keyVersion: vector.key_version,
       });
       assert.equal(new TextDecoder().decode(opened), vector.plaintext);
+    });
+
+    it(`rejects deterministic production sealing inputs for ${vector.name}`, async () => {
+      await assert.rejects(
+        () => sealChatCompletionRecoveryPayload(
+          new TextEncoder().encode(vector.plaintext),
+          {
+            recoveryPublicKey: vector.recovery_public_key,
+            ownerId: vector.owner_id,
+            chatId: vector.chat_id,
+            turnId: vector.turn_id,
+            jobId: vector.job_id,
+            assistantMessageId: vector.assistant_message_id,
+            keyVersion: vector.key_version,
+            ephemeralPrivateKey: vector.ephemeral_private_key,
+            nonce: vector.nonce,
+          } as Parameters<typeof sealChatCompletionRecoveryPayload>[1],
+        ),
+        /deterministic recovery sealing inputs are test-only/,
+      );
+    });
+
+    it(`uses fresh production sealing inputs for ${vector.name}`, async () => {
+      const options = {
+        recoveryPublicKey: vector.recovery_public_key,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: vector.turn_id,
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      };
+      const plaintext = new TextEncoder().encode(vector.plaintext);
+
+      const first = await sealChatCompletionRecoveryPayload(plaintext, options);
+      const second = await sealChatCompletionRecoveryPayload(plaintext, options);
+
+      assert.notEqual(first.epk, second.epk);
+      assert.notEqual(first.nonce, second.nonce);
     });
 
     for (const field of ["ciphertext", "nonce", "epk"] as const) {

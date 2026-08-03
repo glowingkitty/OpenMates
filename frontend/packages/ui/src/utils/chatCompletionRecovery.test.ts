@@ -16,6 +16,7 @@ import {
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
   sealChatCompletionRecoveryPayload,
+  sealChatCompletionRecoveryPayloadForTest,
 } from "./chatCompletionRecovery";
 
 const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
@@ -47,7 +48,7 @@ describe("chat completion recovery shared vectors", () => {
       expect(keypair.publicKey).toBe(vector.recovery_public_key);
       expect(buildRecoveryAssociatedData(vector)).toBe(vector.associated_data);
 
-      const envelope = await sealChatCompletionRecoveryPayload(
+      const envelope = await sealChatCompletionRecoveryPayloadForTest(
         new TextEncoder().encode(vector.plaintext),
         {
           recoveryPublicKey: vector.recovery_public_key,
@@ -73,6 +74,42 @@ describe("chat completion recovery shared vectors", () => {
         keyVersion: vector.key_version,
       });
       expect(new TextDecoder().decode(opened)).toBe(vector.plaintext);
+    });
+
+    it(`rejects deterministic production sealing inputs for ${vector.name}`, async () => {
+      await expect(sealChatCompletionRecoveryPayload(
+        new TextEncoder().encode(vector.plaintext),
+        {
+          recoveryPublicKey: vector.recovery_public_key,
+          ownerId: vector.owner_id,
+          chatId: vector.chat_id,
+          turnId: vector.turn_id,
+          jobId: vector.job_id,
+          assistantMessageId: vector.assistant_message_id,
+          keyVersion: vector.key_version,
+          ephemeralPrivateKey: vector.ephemeral_private_key,
+          nonce: vector.nonce,
+        } as Parameters<typeof sealChatCompletionRecoveryPayload>[1],
+      )).rejects.toThrow("deterministic recovery sealing inputs are test-only");
+    });
+
+    it(`uses fresh production sealing inputs for ${vector.name}`, async () => {
+      const options = {
+        recoveryPublicKey: vector.recovery_public_key,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: vector.turn_id,
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      };
+      const plaintext = new TextEncoder().encode(vector.plaintext);
+
+      const first = await sealChatCompletionRecoveryPayload(plaintext, options);
+      const second = await sealChatCompletionRecoveryPayload(plaintext, options);
+
+      expect(first.epk).not.toBe(second.epk);
+      expect(first.nonce).not.toBe(second.nonce);
     });
 
     for (const field of ["ciphertext", "nonce", "epk"] as const) {

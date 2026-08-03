@@ -175,22 +175,46 @@ async function envelopeKey(sharedSecret: Uint8Array, aad: Uint8Array): Promise<U
 
 export async function sealChatCompletionRecoveryPayload(
   plaintext: Uint8Array,
+  options: ChatCompletionRecoveryIdentity & { recoveryPublicKey: string },
+): Promise<ChatCompletionRecoveryEnvelope> {
+  const unsafeOptions = options as typeof options & { ephemeralPrivateKey?: string; nonce?: string };
+  if (unsafeOptions.ephemeralPrivateKey !== undefined || unsafeOptions.nonce !== undefined) {
+    throw new Error("deterministic recovery sealing inputs are test-only");
+  }
+  return sealChatCompletionRecoveryPayloadWithInputs(
+    plaintext,
+    options,
+    crypto.getRandomValues(new Uint8Array(KEY_BYTES)),
+    crypto.getRandomValues(new Uint8Array(NONCE_BYTES)),
+  );
+}
+
+export async function sealChatCompletionRecoveryPayloadForTest(
+  plaintext: Uint8Array,
   options: ChatCompletionRecoveryIdentity & {
     recoveryPublicKey: string;
-    ephemeralPrivateKey?: string;
-    nonce?: string;
+    ephemeralPrivateKey: string;
+    nonce: string;
   },
+): Promise<ChatCompletionRecoveryEnvelope> {
+  return sealChatCompletionRecoveryPayloadWithInputs(
+    plaintext,
+    options,
+    decodeBase64Url(options.ephemeralPrivateKey, "ephemeral_private_key", KEY_BYTES),
+    decodeBase64Url(options.nonce, "nonce", NONCE_BYTES),
+  );
+}
+
+async function sealChatCompletionRecoveryPayloadWithInputs(
+  plaintext: Uint8Array,
+  options: ChatCompletionRecoveryIdentity & { recoveryPublicKey: string },
+  ephemeralPrivateKey: Uint8Array,
+  nonce: Uint8Array,
 ): Promise<ChatCompletionRecoveryEnvelope> {
   if (plaintext.length > MAX_PAYLOAD_BYTES) {
     throw new Error(`plaintext must be no larger than ${MAX_PAYLOAD_BYTES}`);
   }
   const recoveryPublicKey = decodeBase64Url(options.recoveryPublicKey, "recovery_public_key", KEY_BYTES);
-  const ephemeralPrivateKey = options.ephemeralPrivateKey
-    ? decodeBase64Url(options.ephemeralPrivateKey, "ephemeral_private_key", KEY_BYTES)
-    : crypto.getRandomValues(new Uint8Array(KEY_BYTES));
-  const nonce = options.nonce
-    ? decodeBase64Url(options.nonce, "nonce", NONCE_BYTES)
-    : crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
   const ephemeralPublicKey = nacl.scalarMult.base(ephemeralPrivateKey);
   const aad = associatedData(options);
   const key = await crypto.subtle.importKey(

@@ -20,6 +20,7 @@ from openmates.chat_completion_recovery import (
     derive_recovery_keypair,
     open_recovery_envelope,
     seal_recovery_payload,
+    seal_recovery_payload_for_test,
 )
 
 
@@ -47,7 +48,7 @@ def test_python_sdk_matches_shared_recovery_vector(vector: dict) -> None:
     assert public_key == vector["recovery_public_key"]
     assert build_recovery_associated_data(vector) == vector["associated_data"]
 
-    envelope = seal_recovery_payload(
+    envelope = seal_recovery_payload_for_test(
         vector["plaintext"].encode("utf-8"),
         recovery_public_key=public_key,
         owner_id=vector["owner_id"],
@@ -70,6 +71,43 @@ def test_python_sdk_matches_shared_recovery_vector(vector: dict) -> None:
         assistant_message_id=vector["assistant_message_id"],
         key_version=vector["key_version"],
     ) == vector["plaintext"].encode("utf-8")
+
+
+def test_python_sdk_production_sealing_rejects_deterministic_overrides() -> None:
+    vector = _vectors()[0]
+
+    with pytest.raises(TypeError):
+        seal_recovery_payload(
+            vector["plaintext"].encode("utf-8"),
+            recovery_public_key=vector["recovery_public_key"],
+            owner_id=vector["owner_id"],
+            chat_id=vector["chat_id"],
+            turn_id=vector["turn_id"],
+            job_id=vector["job_id"],
+            assistant_message_id=vector["assistant_message_id"],
+            key_version=vector["key_version"],
+            ephemeral_private_key=vector["ephemeral_private_key"],
+            nonce=vector["nonce"],
+        )
+
+
+def test_python_sdk_production_seals_use_distinct_ephemeral_keys_and_nonces() -> None:
+    vector = _vectors()[0]
+    kwargs = {
+        "recovery_public_key": vector["recovery_public_key"],
+        "owner_id": vector["owner_id"],
+        "chat_id": vector["chat_id"],
+        "turn_id": vector["turn_id"],
+        "job_id": vector["job_id"],
+        "assistant_message_id": vector["assistant_message_id"],
+        "key_version": vector["key_version"],
+    }
+
+    first = seal_recovery_payload(vector["plaintext"].encode("utf-8"), **kwargs)
+    second = seal_recovery_payload(vector["plaintext"].encode("utf-8"), **kwargs)
+
+    assert first["epk"] != second["epk"]
+    assert first["nonce"] != second["nonce"]
 
 
 @pytest.mark.parametrize("field", ["ciphertext", "nonce", "epk"])
