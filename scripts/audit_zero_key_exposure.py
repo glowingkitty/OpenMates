@@ -147,12 +147,22 @@ SCANS = (
 
 
 class DirectusReadOnlyRepository:
-    """Directus HTTP adapter that exposes GET-only count and page operations."""
+    """Directus HTTP adapter with a narrowly scoped admin-auth fallback."""
 
-    def __init__(self, base_url: str, token: str, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        *,
+        admin_email: str | None = None,
+        admin_password: str | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
         self._timeout = timeout
+        self._admin_email = admin_email
+        self._admin_password = admin_password
 
     def count(self, collection: str, filters: Mapping[str, str]) -> int:
         params = self._params(filters)
@@ -204,19 +214,48 @@ class DirectusReadOnlyRepository:
     def _request(self, collection: str, params: Mapping[str, str]) -> dict[str, Any]:
         collection_path = "users" if collection == "users" else f"items/{collection}"
         url = f"{self._base_url}/{collection_path}?{urlencode(params)}"
+        try:
+            payload = self._get(url)
+        except HTTPError as exc:
+            if exc.code != 401 or not self._admin_email or not self._admin_password:
+                raise RuntimeError("directus_read_failed") from exc
+            self._token = self._login()
+            try:
+                payload = self._get(url)
+            except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as retry_exc:
+                raise RuntimeError("directus_read_failed") from retry_exc
+        except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError("directus_read_failed") from exc
+        if not isinstance(payload, dict):
+            raise RuntimeError("directus_response_malformed")
+        return payload
+
+    def _get(self, url: str) -> Any:
         request = Request(
             url,
             headers={"Authorization": f"Bearer {self._token}", "Accept": "application/json"},
             method="GET",
         )
+        with urlopen(request, timeout=self._timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def _login(self) -> str:
+        request = Request(
+            f"{self._base_url}/auth/login",
+            data=json.dumps({"email": self._admin_email, "password": self._admin_password}).encode("utf-8"),
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            method="POST",
+        )
         try:
             with urlopen(request, timeout=self._timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError("directus_read_failed") from exc
-        if not isinstance(payload, dict):
-            raise RuntimeError("directus_response_malformed")
-        return payload
+            raise RuntimeError("directus_auth_failed") from exc
+        data = payload.get("data") if isinstance(payload, dict) else None
+        access_token = data.get("access_token") if isinstance(data, dict) else None
+        if not isinstance(access_token, str) or not access_token:
+            raise RuntimeError("directus_auth_failed")
+        return access_token
 
 
 def _strict_base64(value: Any) -> bytes:
@@ -466,7 +505,12 @@ def _repository_from_environment(environment: str) -> DirectusReadOnlyRepository
     token = os.getenv(f"{prefix}_TOKEN") or os.getenv("DIRECTUS_TOKEN")
     if not base_url or not token:
         raise RuntimeError("directus_configuration_missing")
-    return DirectusReadOnlyRepository(base_url, token)
+    return DirectusReadOnlyRepository(
+        base_url,
+        token,
+        admin_email=os.getenv("DATABASE_ADMIN_EMAIL"),
+        admin_password=os.getenv("DATABASE_ADMIN_PASSWORD"),
+    )
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:

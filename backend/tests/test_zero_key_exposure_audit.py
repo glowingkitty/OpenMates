@@ -15,6 +15,7 @@ import ctypes.util
 from io import StringIO
 import json
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -304,10 +305,14 @@ def test_repository_uses_api_container_cms_url(monkeypatch: Any) -> None:
     monkeypatch.delenv("DIRECTUS_URL", raising=False)
     monkeypatch.setenv("CMS_URL", "http://cms:8055")
     monkeypatch.setenv("DIRECTUS_TOKEN", "synthetic-token")
+    monkeypatch.setenv("DATABASE_ADMIN_EMAIL", "admin@example.invalid")
+    monkeypatch.setenv("DATABASE_ADMIN_PASSWORD", "synthetic-password")
 
     repository = audit._repository_from_environment("dev")
 
     assert repository._base_url == "http://cms:8055"
+    assert repository._admin_email == "admin@example.invalid"
+    assert repository._admin_password == "synthetic-password"
 
 
 def test_directus_filters_use_nested_read_only_query_parameters() -> None:
@@ -364,6 +369,84 @@ def test_directus_item_count_uses_aggregate_response(monkeypatch: pytest.MonkeyP
     assert parsed.path == "/items/chats"
     assert query["aggregate[count]"] == ["*"]
     assert "meta" not in query
+
+
+def test_directus_401_logs_in_and_retries_the_same_get_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests = []
+
+    def fake_urlopen(request: Any, *, timeout: int) -> FakeHttpResponse:
+        del timeout
+        requests.append(request)
+        if len(requests) == 1:
+            raise HTTPError(request.full_url, 401, "unauthorized", {}, None)
+        if request.get_method() == "POST":
+            return FakeHttpResponse({"data": {"access_token": "refreshed-token"}})
+        return FakeHttpResponse({"data": [{"count": {"*": "4"}}]})
+
+    monkeypatch.setattr(audit, "urlopen", fake_urlopen)
+    repository = audit.DirectusReadOnlyRepository(
+        "https://directus.invalid",
+        "expired-token",
+        admin_email="admin@example.invalid",
+        admin_password="synthetic-password",
+    )
+
+    assert repository.count("chats", {"encrypted_chat_key[_nnull]": "true"}) == 4
+    assert [(request.get_method(), urlparse(request.full_url).path) for request in requests] == [
+        ("GET", "/items/chats"),
+        ("POST", "/auth/login"),
+        ("GET", "/items/chats"),
+    ]
+    assert requests[0].full_url == requests[2].full_url
+    assert requests[2].get_header("Authorization") == "Bearer refreshed-token"
+
+
+@pytest.mark.parametrize(
+    "auth_result",
+    [
+        FakeHttpResponse({"data": {}}),
+        HTTPError("https://directus.invalid/auth/login", 403, "forbidden", {}, None),
+    ],
+)
+def test_directus_auth_failure_makes_audit_incomplete(
+    monkeypatch: pytest.MonkeyPatch,
+    auth_result: FakeHttpResponse | HTTPError,
+) -> None:
+    requests = []
+
+    def fake_urlopen(request: Any, *, timeout: int) -> FakeHttpResponse:
+        del timeout
+        requests.append(request)
+        if request.get_method() == "POST":
+            if isinstance(auth_result, HTTPError):
+                raise auth_result
+            return auth_result
+        raise HTTPError(request.full_url, 401, "unauthorized", {}, None)
+
+    monkeypatch.setattr(audit, "urlopen", fake_urlopen)
+    repository = audit.DirectusReadOnlyRepository(
+        "https://directus.invalid",
+        "expired-token",
+        admin_email="admin@example.invalid",
+        admin_password="synthetic-password",
+    )
+
+    report = audit.audit_repository(repository, audited_at=AUDITED_AT)
+
+    assert report["status"] == "incomplete"
+    assert report["complete"] is False
+    assert report["incomplete_categories"] == sorted(scan.category for scan in audit.SCANS)
+    assert {(request.get_method(), urlparse(request.full_url).path) for request in requests} <= {
+        ("GET", "/users"),
+        ("GET", "/items/encryption_keys"),
+        ("GET", "/items/chats"),
+        ("GET", "/items/chat_key_wrappers"),
+        ("POST", "/auth/login"),
+    }
+    assert all(
+        request.get_method() == "GET" or urlparse(request.full_url).path == "/auth/login"
+        for request in requests
+    )
 
 
 @pytest.mark.parametrize(
