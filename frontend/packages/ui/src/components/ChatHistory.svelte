@@ -1406,17 +1406,6 @@
     !isCurrentlyStreaming
   );
 
-  $effect(() => {
-    if (quickTipSlugs.length === 0) return;
-    console.debug('[ChatHistory] Quick tip render state', {
-      currentChatId,
-      quickTipSlugs: [...quickTipSlugs],
-      lastAssistantMessageId,
-      isCurrentlyStreaming,
-      showQuickTipsInHistory,
-    });
-  });
-
   let showAssistantFeedback = $derived(
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming

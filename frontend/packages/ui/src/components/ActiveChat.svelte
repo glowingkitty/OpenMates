@@ -5031,6 +5031,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.error(`[ActiveChat] Failed to hydrate quick tip slugs for chat ${chatId}:`, error);
         }
     }
+
+    $effect(() => {
+        const chatId = currentChat?.chat_id;
+        const messageCount = currentMessages.length;
+        if (!chatId || messageCount === 0) return;
+        void hydrateQuickTipSlugs(chatId, currentChat.encrypted_quick_tip_slugs);
+    });
     
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
@@ -6869,7 +6876,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Hide follow-up suggestions until new ones are received
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
         followUpSuggestions = [];
-        console.debug('[ActiveChat] Clearing quick tip slugs before chat hydration', currentChat.chat_id);
         quickTipSlugs = [];
         
         // Hide settings/memories suggestions when user sends a new message

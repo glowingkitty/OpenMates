@@ -32,10 +32,6 @@
     return null;
   });
 
-  $effect(() => {
-    console.debug('[QuickTipsCard] Resolved tip state', JSON.stringify({ slugs, activeSlug: activeTip?.slug ?? null }));
-  });
-
   let gradientStyle = $derived.by(() => {
     const colors = category ? getCategoryGradientColors(category) : null;
     return colors
