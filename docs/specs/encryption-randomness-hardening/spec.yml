@@ -245,12 +245,12 @@ attempts:
     notes: Existing-data mutation creates unacceptable decryption risk.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Write failing web crypto tests for unsupported-runtime derivation and embed-key randomness before removing the zero-key and unsafe random fallbacks.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: Focused tests fail until unsupported derivation paths throw typed errors before persistence and embed keys use cryptographic randomness without fallback.
+  current_task_id: TASK-6
+  next_action: Write focused backend and cross-client generator tests for approved alphabets, unbiased CSPRNG sampling, unchanged issuance shapes, and legacy 0/O acceptance before changing generators.
+  command: python3 -m pytest backend/tests/test_security_random_generators.py
+  expected_outcome: New tests fail until all scoped human-transcribed generators exclude variable 0/O and use unbiased CSPRNG sampling while validators continue accepting historical values.
   blocker: null
-  last_verified_commit: 9a6517f5b
+  last_verified_commit: ca793f374
 
 scenarios:
   - id: S-1
@@ -381,13 +381,13 @@ scenarios:
       - Legacy records containing raw aes_key remain readable and unchanged.
 
 acceptance_criteria:
-  - {id: AC-1, scenario: S-1, text: "Frozen legacy chat and wrapper fixtures decrypt unchanged, and browser cache identity cannot collide at 32 bits.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-WEB-CRYPTO]}
+  - {id: AC-1, scenario: S-1, text: "Frozen legacy chat and wrapper fixtures decrypt unchanged, and browser cache identity cannot collide at 32 bits.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-WEB-CRYPTO]}
   - {id: AC-2, scenario: S-2, text: "Backend, web, and Apple decrypt legacy media fixtures without writes.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-BACKEND-MEDIA, T-WEB-MEDIA, V-APPLE]}
   - {id: AC-3, scenario: S-3, text: "Every new multi-variant media encryption uses a distinct nonce and the exact versioned nonce-prefixed v2 format, proven through actual R2 output in backend, web, and Apple readers.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BACKEND-MEDIA, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
   - {id: AC-4, scenario: S-4, text: "Media v2 writers cannot activate before the checked-in R1 evidence manifest passes, and post-activation rollback cannot target a pre-R1 build.", required: true, status: pending, coverage_status: covered, verification_scope: plan, verification_ids: [T-RANDOMNESS-AUDIT, T-ROLLOUT-GATE, V-REST-MEDIA-READER, V-WEB-DEPLOYED, V-APPLE, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
   - {id: AC-5, scenario: S-5, text: "Invoice regeneration appends a verified immutable version row/object, never updates the original encrypted row, and leaves unrelated invoices unchanged.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-INVOICE-REGEN, V-REST-INVOICE]}
   - {id: AC-6, scenario: S-6, text: "Legacy short links decrypt while new links use at least 128 bits of unbiased secret entropy with unchanged KDF semantics.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-SHORT-LINK, V-WEB-DEPLOYED, V-APPLE]}
-  - {id: AC-7, scenario: S-7, text: "Unsupported password PBKDF2, email SHA-256, and passkey HKDF derivation fail before persistence and none returns all-zero material.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-WEB-CRYPTO, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
+  - {id: AC-7, scenario: S-7, text: "Unsupported password PBKDF2, email SHA-256, and passkey HKDF derivation fail before persistence and none returns all-zero material.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-WEB-CRYPTO, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
   - {id: AC-8, scenario: S-8, text: "Production recovery sealing is random-only while v1 vectors remain compatible.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-RECOVERY-PARITY, V-APPLE]}
   - {id: AC-9, scenario: S-9, text: "Legacy CLI session files remain byte-identical and readable; stronger storage uses a separate verified file/slot and preserves the original indefinitely.", required: true, status: pending, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-STORAGE, V-CLI, V-NPM-SDK, V-PIP-SDK]}
   - {id: AC-10, scenario: S-10, text: "Domain policy readers support immutable legacy and new bundles through rollback.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY]}
@@ -578,10 +578,10 @@ tests:
     type: vitest
     file: frontend/packages/ui/src/services/__tests__/randomnessHardening.test.ts
     command: python3 scripts/tests.py run --suite vitest
-    covers: [AC-1, AC-7]
+    covers: [AC-1, AC-7, AC-16]
     assertions: [FNV collisions cannot share cached keys, Node or worker WebCrypto derives the same PBKDF2/email SHA-256/passkey HKDF bytes as browser, absent WebCrypto throws typed errors, no derivation returns all-zero bytes, missing chat key aborts embed persistence, ciphertext headers remain unchanged.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --suite vitest --expected-commit <red-commit>", run_id: "30830773255,30831724415", timestamp: "2026-08-03T16:21:32Z", reason: "Run 30830773255 collected 681 tests and failed the three typed unsupported-WebCrypto assertions plus random embed-key fallback guard at 5c26e3c56. Run 30831724415 collected 683 tests and failed both deterministic colliding-FNV encrypt/decrypt cache-isolation assertions at 7575f4c3b while the frozen OM header assertion passed."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --expected-commit ca793f374", run_id: "30832947231", subject_commit: "ca793f374", timestamp: "2026-08-03T16:37:48Z", notes: "683/683 tests passed. Implementation commits b19f7ae4b and 23986fa5a provide typed fail-closed derivation, remove the random embed persistence fallback, isolate exact keys inside FNV cache buckets, and preserve legacy ciphertext headers."}}
   - id: T-WEB-MEDIA
     type: vitest
     file: frontend/packages/ui/src/services/encryption/__tests__/mediaEncryptionCompatibility.test.ts
@@ -966,14 +966,14 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Remove web zero fallbacks and unsafe embed-key fallback
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-7, S-15]
       acceptance_criteria: [AC-1, AC-7, AC-16]
     expected_files: [frontend/packages/ui/src/services/cryptoService.ts, frontend/packages/ui/src/services/encryption/MessageEncryptor.ts, frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/services/__tests__/randomnessHardening.test.ts]
     verification: [python3 scripts/tests.py run --suite vitest]
-    verification_ids: [T-WEB-CRYPTO, T-RANDOMNESS-AUDIT]
+    verification_ids: [T-WEB-CRYPTO]
     dependencies: [TASK-4]
     ownership: {files: [frontend/packages/ui/src/services/cryptoService.ts, frontend/packages/ui/src/services/encryption/MessageEncryptor.ts, frontend/packages/ui/src/services/sendersChatMessages.ts], shared_files: [frontend/packages/ui/src/services/__tests__/randomnessHardening.test.ts]}
     blockers: []
