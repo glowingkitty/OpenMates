@@ -9,7 +9,7 @@ import time
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_project_ask_pipeline
@@ -17,13 +17,13 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.project_methods import ProjectMoveError
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.project_remote_access_service import (
     ProjectRemoteAccessError,
     ProjectRemoteAccessService,
 )
-from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
 
@@ -35,6 +35,21 @@ PROJECT_SOURCE_ID_MAX_LENGTH = 128
 PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH = 128_000
 PROJECT_SOURCE_CAPABILITIES_MAX_COUNT = 8
 PROJECT_SETTINGS_DEFAULT_WRITE_MODE = "always_ask"
+TEAM_READ_ROLES = {"owner", "admin", "member", "viewer"}
+TEAM_MUTATE_ROLES = {"owner", "admin", "member"}
+TEAM_ADMIN_ROLES = {"owner", "admin"}
+TEAM_PROJECT_HISTORY_UNSUPPORTED = "TEAM_PROJECT_HISTORY_UNSUPPORTED"
+TEAM_SOURCE_SAFE_FIELDS = {
+    "source_id",
+    "source_type",
+    "encrypted_display_name",
+    "encrypted_metadata",
+    "capabilities",
+    "status",
+    "created_at",
+    "updated_at",
+    "last_indexed_at",
+}
 
 
 def get_directus_service(request: Request) -> DirectusService:
@@ -54,6 +69,48 @@ def get_workspace_history_service(request: Request) -> WorkspaceChangeHistorySer
 
 def hash_id(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+async def _require_project_role(
+    directus_service: DirectusService,
+    team_id: str | None,
+    user_id: str,
+    allowed_roles: set[str],
+) -> dict[str, Any] | None:
+    if not team_id:
+        return None
+    try:
+        return await directus_service.team.require_team_role(team_id, user_id, allowed_roles)
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+
+
+def _require_team_project_wrapper(payload: dict[str, Any], team_id: str | None) -> None:
+    wrappers = payload.get("key_wrappers") or []
+    if not team_id:
+        if any(wrapper.get("key_type") == "team" for wrapper in wrappers):
+            raise HTTPException(status_code=400, detail="PROJECT_KEY_WRAPPER_CONTEXT_MISMATCH")
+        return
+    expected_team_hash = hash_id(team_id)
+    if not wrappers or not all(
+        wrapper.get("key_type") == "team"
+        and wrapper.get("hashed_team_id") == expected_team_hash
+        and wrapper.get("team_key_epoch") == 1
+        for wrapper in wrappers
+    ):
+        raise HTTPException(status_code=400, detail="TEAM_PROJECT_KEY_WRAPPER_REQUIRED")
+
+
+class ProjectKeyWrapperRequest(BaseModel):
+    key_type: Literal["master", "chat", "project", "plan", "team"]
+    hashed_chat_id: Optional[str] = None
+    hashed_plan_id: Optional[str] = None
+    hashed_team_id: Optional[str] = None
+    team_key_epoch: Optional[int] = Field(default=None, ge=1)
+    encrypted_project_key: str = Field(min_length=1)
+    wrapper_version: int = Field(default=1, ge=1)
+    created_at: Optional[int] = None
+    expires_at: Optional[int] = None
 
 
 async def _record_project_history(
@@ -115,7 +172,7 @@ def _project_ask_operation_for_patch(patch: dict[str, Any]) -> str:
 
 class ProjectCreateRequest(BaseModel):
     project_id: str
-    encrypted_project_key: str
+    encrypted_project_key: Optional[str] = None
     encrypted_name: str
     encrypted_description: Optional[str] = None
     encrypted_icon: Optional[str] = None
@@ -124,6 +181,13 @@ class ProjectCreateRequest(BaseModel):
     created_at: int
     updated_at: int
     last_opened_at: int
+    key_wrappers: List[ProjectKeyWrapperRequest] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_encrypted_project_key(self) -> "ProjectCreateRequest":
+        if not self.encrypted_project_key and not self.key_wrappers:
+            raise ValueError("encrypted_project_key or key_wrappers is required")
+        return self
 
 
 class ProjectUpdateRequest(BaseModel):
@@ -170,6 +234,19 @@ class ProjectMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
     moved_at: int | None = None
+    team_project_key_wrapper: ProjectKeyWrapperRequest
+
+    @model_validator(mode="after")
+    def require_matching_team_wrapper(self) -> "ProjectMoveRequest":
+        wrapper = self.team_project_key_wrapper
+        if (
+            wrapper.key_type != "team"
+            or wrapper.hashed_team_id != hash_id(self.team_id)
+            or wrapper.team_key_epoch != 1
+            or wrapper.created_at is None
+        ):
+            raise ValueError("A matching Team epoch-1 Project key wrapper is required")
+        return self
 
 
 class FolderCreateRequest(BaseModel):
@@ -278,11 +355,7 @@ async def list_projects(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    if team_id:
-        try:
-            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
-        except TeamPermissionError as exc:
-            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
     projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
     return {"projects": projects}
 
@@ -292,11 +365,15 @@ async def list_projects(
 async def create_project(
     request: Request,
     body: ProjectCreateRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
-    created = await directus_service.project.create_project(current_user.id, body.model_dump())
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    payload = body.model_dump()
+    _require_team_project_wrapper(payload, team_id)
+    created = await directus_service.project.create_project(current_user.id, payload, team_id=team_id)
     if not created:
         raise HTTPException(status_code=500, detail="Failed to create project")
     history = await _record_project_history(
@@ -332,22 +409,26 @@ async def plan_project_ask_route(
 async def ask_projects(
     request: Request,
     body: ProjectAskRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
-    del request
     encrypted_updates = body.encrypted_updates or ([body.encrypted_update] if body.encrypted_update is not None else [])
     exact_deletes = body.exact_deletes or ([body.exact_delete] if body.exact_delete is not None else [])
     operation_count = sum(bool(items) for items in (([body.encrypted_create] if body.encrypted_create is not None else []), encrypted_updates, exact_deletes))
     if operation_count != 1:
         return _project_ask_fallback("Open or mention an exact project before asking for project edits, archives, or deletes.")
+    allowed_roles = TEAM_ADMIN_ROLES if exact_deletes else TEAM_MUTATE_ROLES
+    await _require_project_role(directus_service, team_id, current_user.id, allowed_roles)
     projects: list[dict[str, Any]] = []
     entries: list[dict[str, Any]] = []
     action_type = "ask_create"
     summary = ""
     if body.encrypted_create is not None:
-        created = await directus_service.project.create_project(current_user.id, body.encrypted_create.model_dump())
+        create_payload = body.encrypted_create.model_dump()
+        _require_team_project_wrapper(create_payload, team_id)
+        created = await directus_service.project.create_project(current_user.id, create_payload, team_id=team_id)
         if not created:
             raise HTTPException(status_code=500, detail="Failed to create project")
         projects.append(created)
@@ -355,8 +436,8 @@ async def ask_projects(
         summary = "Created 1 project."
     for encrypted_update in encrypted_updates:
         patch = encrypted_update.patch.model_dump(exclude_unset=True)
-        before = await directus_service.project.get_project(encrypted_update.project_id, current_user.id)
-        updated = await directus_service.project.update_project(encrypted_update.project_id, current_user.id, patch)
+        before = await directus_service.project.get_project(encrypted_update.project_id, current_user.id, team_id=team_id)
+        updated = await directus_service.project.update_project(encrypted_update.project_id, current_user.id, patch, team_id=team_id)
         if not updated:
             raise HTTPException(status_code=404, detail="Project not found")
         projects.append(updated)
@@ -368,8 +449,17 @@ async def ask_projects(
             "after": updated,
         })
     for exact_delete in exact_deletes:
-        before = await directus_service.project.get_project(exact_delete.project_id, current_user.id)
-        deleted = await directus_service.project.delete_project(exact_delete.project_id, current_user.id)
+        before = await directus_service.project.get_project(exact_delete.project_id, current_user.id, team_id=team_id)
+        if not before:
+            raise HTTPException(status_code=404, detail="Project not found")
+        await _revoke_project_sources(
+            request,
+            directus_service,
+            current_user.id,
+            exact_delete.project_id,
+            team_id=team_id,
+        )
+        deleted = await directus_service.project.delete_project(exact_delete.project_id, current_user.id, team_id=team_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Project not found")
         entries.append({"object_type": "project", "object_id": exact_delete.project_id, "operation": "delete", "before": before})
@@ -407,15 +497,11 @@ async def get_project(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    if team_id:
-        try:
-            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
-        except TeamPermissionError as exc:
-            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    folders, items = await _load_project_children(project_id, current_user.id, directus_service)
+    folders, items = await _load_project_children(project_id, current_user.id, directus_service, team_id=team_id)
     return {"project": project, "folders": folders, "items": items}
 
 
@@ -428,20 +514,19 @@ async def move_project_to_team(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
+    if not body.confirmed:
+        raise HTTPException(status_code=409, detail="PROJECT_MOVE_CONFIRMATION_REQUIRED")
+    await _require_project_role(directus_service, body.team_id, current_user.id, TEAM_MUTATE_ROLES)
     try:
-        project = await move_workspace_record_to_team(
-            directus_service=directus_service,
-            actor_user_id=current_user.id,
-            team_id=body.team_id,
-            workspace_type="project",
-            object_id=project_id,
-            confirmed=body.confirmed,
+        project = await directus_service.project.move_project_to_team(
+            project_id,
+            current_user.id,
+            body.team_id,
+            body.team_project_key_wrapper.model_dump(),
             moved_at=body.moved_at,
         )
-    except TeamPermissionError as exc:
-        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
-    except TeamWorkspaceMoveError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ProjectMoveError as exc:
+        raise HTTPException(status_code=409, detail="PROJECT_MOVE_FAILED") from exc
     return {"project": project}
 
 
@@ -451,10 +536,17 @@ async def list_project_history(
     request: Request,
     project_id: str,
     limit: int = 50,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
     del request
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    if team_id:
+        raise HTTPException(status_code=409, detail=TEAM_PROJECT_HISTORY_UNSUPPORTED)
+    if not await directus_service.project.get_project(project_id, current_user.id, team_id=team_id):
+        raise HTTPException(status_code=404, detail="Project not found")
     entries = await history_service.list_object_history(current_user.id, object_type="project", object_id=project_id, limit=limit)
     return {"entries": entries}
 
@@ -465,10 +557,17 @@ async def restore_project_from_history(
     request: Request,
     project_id: str,
     body: ProjectRestoreRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
     del request
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    if team_id:
+        raise HTTPException(status_code=409, detail=TEAM_PROJECT_HISTORY_UNSUPPORTED)
+    if not await directus_service.project.get_project(project_id, current_user.id, team_id=team_id):
+        raise HTTPException(status_code=404, detail="Project not found")
     try:
         result = await history_service.restore_object_to_entry(
             user_id=current_user.id,
@@ -489,13 +588,15 @@ async def update_project(
     request: Request,
     project_id: str,
     body: ProjectUpdateRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     patch = body.model_dump(exclude_unset=True)
-    before = await directus_service.project.get_project(project_id, current_user.id)
-    updated = await directus_service.project.update_project(project_id, current_user.id, patch)
+    before = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
+    updated = await directus_service.project.update_project(project_id, current_user.id, patch, team_id=team_id)
     if not updated:
         raise HTTPException(status_code=404, detail="Project not found")
     history = await _record_project_history(
@@ -513,43 +614,52 @@ async def update_project(
 async def list_project_sources(
     request: Request,
     project_id: str,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    sources = await directus_service.project.list_sources(project_id, current_user.id)
+    sources = await directus_service.project.list_sources(project_id, current_user.id, team_id=team_id)
     service = ProjectRemoteAccessService(request.app.state.cache_service)
     now = int(time.time())
     live_sources: List[Dict[str, Any]] = []
     for source in sources:
         status_value = "offline"
-        source_session_id = None
-        key_epoch = None
+        binding: Dict[str, Any] = {}
         if source.get("status") == "revoked":
             status_value = "revoked"
         else:
             try:
                 binding = await service.get_active_binding(
-                    current_user.id,
+                    team_id or current_user.id,
                     project_id,
                     str(source.get("source_id") or ""),
                     now=now,
                 )
                 status_value = "connected"
-                source_session_id = binding["source_session_id"]
-                key_epoch = binding["key_epoch"]
             except ProjectRemoteAccessError:
                 pass
-        live_sources.append(
-            {
-                **source,
-                "status": status_value,
-                "source_session_id": source_session_id,
-                "key_epoch": key_epoch,
-            }
-        )
+        if membership:
+            safe_source = {key: value for key, value in source.items() if key in TEAM_SOURCE_SAFE_FIELDS}
+            safe_source["status"] = status_value
+            safe_source["ownership_label"] = (
+                "attached_by_you"
+                if source.get("attached_by_user_hash") == hash_id(current_user.id)
+                else "team_source"
+            )
+            live_sources.append(safe_source)
+        else:
+            live_sources.append(
+                {
+                    **source,
+                    "status": status_value,
+                    "source_session_id": binding.get("source_session_id") if status_value == "connected" else None,
+                    "key_epoch": binding.get("key_epoch") if status_value == "connected" else None,
+                }
+            )
     return {"sources": live_sources}
 
 
@@ -559,20 +669,65 @@ async def create_project_source(
     request: Request,
     project_id: str,
     body: ProjectSourceCreateRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     source = await directus_service.project.create_source(
         project_id,
         current_user.id,
         body.model_dump(),
+        team_id=team_id,
     )
     if not source:
         raise HTTPException(status_code=500, detail="Failed to create project source")
     return {"source": source}
+
+
+@router.delete("/{project_id}/sources/{source_id}")
+@limiter.limit("20/minute")
+async def delete_project_source(
+    request: Request,
+    project_id: str,
+    source_id: str,
+    confirmed: bool = Query(False),
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    if not confirmed:
+        raise HTTPException(status_code=409, detail="SOURCE_REMOVAL_CONFIRMATION_REQUIRED")
+    membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
+    source = await directus_service.project.get_source(
+        project_id,
+        current_user.id,
+        source_id,
+        team_id=team_id,
+    )
+    if not project or not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    if membership and membership.get("role") == "member" and source.get("attached_by_user_hash") != hash_id(current_user.id):
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED")
+
+    service = ProjectRemoteAccessService(request.app.state.cache_service)
+    await service.revoke_source(
+        user_id=team_id or current_user.id,
+        project_id=project_id,
+        source_id=source_id,
+    )
+    if not await directus_service.project.delete_source(
+        project_id,
+        current_user.id,
+        source_id,
+        team_id=team_id,
+    ):
+        raise HTTPException(status_code=404, detail="Source not found")
+    return {"deleted": True}
 
 
 @router.post("/{project_id}/sources/{source_id}/requests", status_code=202)
@@ -646,14 +801,16 @@ async def get_project_remote_access_request_result(
 async def get_project_settings(
     request: Request,
     project_id: str,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    settings = await directus_service.project.get_project_settings(project_id, current_user.id)
+    settings = await directus_service.project.get_project_settings(project_id, current_user.id, team_id=team_id)
     return {"settings": serialize_project_settings(settings)}
 
 
@@ -663,10 +820,12 @@ async def update_project_settings(
     request: Request,
     project_id: str,
     body: ProjectSettingsUpdateRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_ADMIN_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -674,6 +833,7 @@ async def update_project_settings(
         project_id,
         current_user.id,
         body.model_dump(),
+        team_id=team_id,
     )
     if not settings:
         raise HTTPException(status_code=500, detail="Failed to update project settings")
@@ -685,12 +845,17 @@ async def update_project_settings(
 async def delete_project(
     request: Request,
     project_id: str,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
-    before = await directus_service.project.get_project(project_id, current_user.id)
-    deleted = await directus_service.project.delete_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_ADMIN_ROLES)
+    before = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
+    if not before:
+        raise HTTPException(status_code=404, detail="Project not found")
+    await _revoke_project_sources(request, directus_service, current_user.id, project_id, team_id=team_id)
+    deleted = await directus_service.project.delete_project(project_id, current_user.id, team_id=team_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found")
     history = await _record_project_history(
@@ -703,16 +868,38 @@ async def delete_project(
     return {"deleted": True, "history": history}
 
 
+async def _revoke_project_sources(
+    request: Request,
+    directus_service: DirectusService,
+    user_id: str,
+    project_id: str,
+    *,
+    team_id: str | None,
+) -> None:
+    sources = await directus_service.project.list_sources(project_id, user_id, team_id=team_id)
+    service = ProjectRemoteAccessService(request.app.state.cache_service)
+    for source in sources:
+        source_id = str(source.get("source_id") or "")
+        if source_id:
+            await service.revoke_source(
+                user_id=team_id or user_id,
+                project_id=project_id,
+                source_id=source_id,
+            )
+
+
 @router.post("/{project_id}/folders")
 @limiter.limit("30/minute")
 async def create_folder(
     request: Request,
     project_id: str,
     body: FolderCreateRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     payload = body.model_dump()
@@ -721,11 +908,12 @@ async def create_folder(
         project_id,
         parent_folder_id,
         current_user.id,
+        team_id=team_id,
     ):
         raise HTTPException(status_code=400, detail="Parent folder not found in project")
     payload["hashed_project_id"] = hash_id(project_id)
     payload["hashed_parent_folder_id"] = hash_id(parent_folder_id) if parent_folder_id else None
-    folder = await directus_service.project.create_folder(current_user.id, payload)
+    folder = await directus_service.project.create_folder(current_user.id, payload, team_id=team_id)
     if not folder:
         raise HTTPException(status_code=500, detail="Failed to create folder")
     return {"folder": folder}
@@ -737,10 +925,12 @@ async def create_item(
     request: Request,
     project_id: str,
     body: ProjectItemCreateRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     payload = body.model_dump()
@@ -750,13 +940,14 @@ async def create_item(
         project_id,
         folder_id,
         current_user.id,
+        team_id=team_id,
     ):
         raise HTTPException(status_code=400, detail="Folder not found in project")
     await _validate_project_target(payload["item_type"], target_id, current_user.id, directus_service)
     payload["hashed_project_id"] = hash_id(project_id)
     payload["hashed_folder_id"] = hash_id(folder_id) if folder_id else None
     payload["target_id_hash"] = hash_id(target_id)
-    item = await directus_service.project.create_item(current_user.id, payload)
+    item = await directus_service.project.create_item(current_user.id, payload, team_id=team_id)
     if not item:
         raise HTTPException(status_code=500, detail="Failed to add project item")
     return {"item": item}
@@ -769,17 +960,28 @@ async def delete_item(
     project_id: str,
     item_type: Literal["embed", "chat", "workflow"] = Query(...),
     target_id: str = Query(..., min_length=1),
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    if membership and membership.get("role") == "member":
+        matching_items = [
+            item
+            for item in await directus_service.project.list_items(project_id, current_user.id, team_id=team_id)
+            if item.get("item_type") == item_type and item.get("target_id_hash") == hash_id(target_id)
+        ]
+        if any(item.get("attached_by_user_hash") != hash_id(current_user.id) for item in matching_items):
+            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED")
     deleted = await directus_service.project.delete_item_for_project_target(
         project_id,
         item_type,
         target_id,
         current_user.id,
+        team_id=team_id,
     )
     return {"deleted": deleted > 0, "deleted_count": deleted}
 
@@ -790,10 +992,12 @@ async def create_project_upload_embed(
     request: Request,
     project_id: str,
     body: ProjectUploadEmbedRequest,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -807,6 +1011,7 @@ async def create_project_upload_embed(
         project_id,
         body.item.folder_id,
         current_user.id,
+        team_id=team_id,
     ):
         raise HTTPException(status_code=400, detail="Folder not found in project")
     _validate_project_upload_keys(body.embed_keys, embed_id, project_id)
@@ -841,7 +1046,7 @@ async def create_project_upload_embed(
     item_payload["hashed_project_id"] = hash_id(project_id)
     item_payload["hashed_folder_id"] = hash_id(folder_id) if folder_id else None
     item_payload["target_id_hash"] = hash_id(target_id)
-    item = await directus_service.project.create_item(current_user.id, item_payload)
+    item = await directus_service.project.create_item(current_user.id, item_payload, team_id=team_id)
     if not item:
         await _cleanup_failed_upload_embed(directus_service, created_embed, created_key_ids)
         raise HTTPException(status_code=500, detail="Failed to add upload to project")
@@ -853,13 +1058,15 @@ async def create_project_upload_embed(
 async def list_items(
     request: Request,
     project_id: str,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    folders, items = await _load_project_children(project_id, current_user.id, directus_service)
+    folders, items = await _load_project_children(project_id, current_user.id, directus_service, team_id=team_id)
     return {"folders": folders, "items": items}
 
 
@@ -898,9 +1105,10 @@ async def _load_project_children(
     project_id: str,
     user_id: str,
     directus_service: DirectusService,
+    team_id: str | None = None,
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    folders = await directus_service.project.list_folders(project_id, user_id)
-    items = await directus_service.project.list_items(project_id, user_id)
+    folders = await directus_service.project.list_folders(project_id, user_id, team_id=team_id)
+    items = await directus_service.project.list_items(project_id, user_id, team_id=team_id)
     return folders, items
 
 

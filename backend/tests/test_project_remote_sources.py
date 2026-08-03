@@ -14,7 +14,11 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from starlette.requests import Request
 
-from backend.core.api.app.routes.projects import (
+from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+
+install_code_route_import_stubs()
+
+from backend.core.api.app.routes.projects import (  # noqa: E402 - optional dependency stubs precede route imports.
     ProjectSourceCreateRequest,
     ProjectSettingsUpdateRequest,
     create_project_source,
@@ -22,8 +26,8 @@ from backend.core.api.app.routes.projects import (
     list_project_sources,
     update_project_settings,
 )
-from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id
-from backend.shared.python_utils.project_file_risk import classify_project_file_risk
+from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id  # noqa: E402
+from backend.shared.python_utils.project_file_risk import classify_project_file_risk  # noqa: E402
 
 
 def make_request(method: str = "POST") -> Request:
@@ -35,6 +39,11 @@ def make_request(method: str = "POST") -> Request:
             "headers": [],
             "client": ("testclient", 50000),
             "server": ("testserver", 80),
+            "app": SimpleNamespace(
+                state=SimpleNamespace(
+                    cache_service=SimpleNamespace(get=AsyncMock(return_value=None))
+                )
+            ),
         }
     )
 
@@ -89,6 +98,8 @@ async def test_upsert_project_settings_creates_hashed_owned_row() -> None:
                 "id": "settings-row-1",
                 "hashed_project_id": hash_id("project-1"),
                 "hashed_user_id": hash_id("user-1"),
+                "hashed_team_id": None,
+                "updated_by_user_hash": hash_id("user-1"),
                 "write_mode": "always_ask",
             },
         )
@@ -111,6 +122,8 @@ async def test_upsert_project_settings_creates_hashed_owned_row() -> None:
         {
             "hashed_project_id": hash_id("project-1"),
             "hashed_user_id": hash_id("user-1"),
+            "hashed_team_id": None,
+            "updated_by_user_hash": hash_id("user-1"),
             "write_mode": "always_ask",
             "encrypted_settings": "encrypted-settings",
             "updated_at": 123,
@@ -175,6 +188,8 @@ async def test_create_project_source_stores_hashed_owned_encrypted_row() -> None
             "source_id": "source-1",
             "hashed_project_id": hash_id("project-1"),
             "hashed_user_id": hash_id("user-1"),
+            "hashed_team_id": None,
+            "attached_by_user_hash": hash_id("user-1"),
             "source_type": "remote_git_repository",
             "encrypted_display_name": "encrypted-name",
             "encrypted_metadata": "encrypted-metadata",
@@ -246,7 +261,16 @@ async def test_list_project_sources_route_returns_owned_sources() -> None:
         directus_service=directus,
     )
 
-    assert response == {"sources": [{"source_id": "source-1"}]}
+    assert response == {
+        "sources": [
+            {
+                "source_id": "source-1",
+                "status": "offline",
+                "source_session_id": None,
+                "key_epoch": None,
+            }
+        ]
+    }
 
 
 @pytest.mark.anyio

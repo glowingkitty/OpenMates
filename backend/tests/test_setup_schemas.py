@@ -10,8 +10,9 @@ primary-key columns.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import sys
-from types import SimpleNamespace
+from types import ModuleType
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +35,20 @@ class FakeResponse:
 
 
 def load_setup_schemas_module():
-    sys.modules.setdefault("dotenv", SimpleNamespace(load_dotenv=lambda: None))
+    if "requests" not in sys.modules and importlib.util.find_spec("requests") is None:
+        requests_stub = ModuleType("requests")
+
+        def unexpected_request(*_args: Any, **_kwargs: Any) -> None:
+            raise AssertionError("Setup schema unit tests must stub HTTP requests")
+
+        requests_stub.get = unexpected_request
+        requests_stub.post = unexpected_request
+        requests_stub.patch = unexpected_request
+        sys.modules["requests"] = requests_stub
+    if "dotenv" not in sys.modules and importlib.util.find_spec("dotenv") is None:
+        dotenv_stub = ModuleType("dotenv")
+        dotenv_stub.load_dotenv = lambda *_args, **_kwargs: None
+        sys.modules["dotenv"] = dotenv_stub
     return importlib.import_module("backend.core.directus.setup.setup_schemas")
 
 
@@ -291,6 +305,50 @@ def test_usage_overview_migration_executes_and_verifies_all_indexes(
     assert executed[0][0] == migration.read_text(encoding="utf-8")
     assert "FROM pg_indexes" in executed[1][0]
     assert executed[1][1] == (list(setup_schemas.USAGE_OVERVIEW_INDEXES),)
+
+
+def test_project_owner_context_migration_executes_and_verifies_all_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    setup_schemas = load_setup_schemas_module()
+    migration = tmp_path / "migrate_project_owner_context.sql"
+    migration.write_text("CREATE INDEX project_context_test ON projects (id);", encoding="utf-8")
+    executed: list[tuple[str, Any]] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def execute(self, query, params=None):
+            executed.append((str(query), params))
+
+        def fetchall(self):
+            return [(name,) for name in setup_schemas.PROJECT_OWNER_CONTEXT_INDEXES]
+
+    class FakeConnection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup_schemas, "PROJECT_OWNER_CONTEXT_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup_schemas, "connect_database", lambda: FakeConnection())
+
+    setup_schemas.apply_and_verify_project_owner_context()
+
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert "FROM pg_indexes" in executed[1][0]
+    assert executed[1][1] == (list(setup_schemas.PROJECT_OWNER_CONTEXT_INDEXES),)
 
 
 def test_usage_summary_unique_indexes_are_required() -> None:

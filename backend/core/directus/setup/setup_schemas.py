@@ -97,6 +97,17 @@ USAGE_OVERVIEW_INDEXES = (
     'usage_daily_app_user_app_date_uq',
     'usage_daily_api_key_user_api_key_date_uq',
 )
+PROJECT_OWNER_CONTEXT_MIGRATION_PATH = os.getenv(
+    'PROJECT_OWNER_CONTEXT_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_project_owner_context.sql',
+)
+PROJECT_OWNER_CONTEXT_INDEXES = (
+    'project_sources_personal_source_uq',
+    'project_sources_team_source_uq',
+    'project_folders_team_project_idx',
+    'project_items_team_project_idx',
+    'project_settings_team_project_idx',
+)
 EMBED_HASH_INDEXES = ('embeds_hashed_embed_id_idx',)
 EMBED_HASH_BACKFILL_BATCH_SIZE = 500
 
@@ -1145,6 +1156,38 @@ def apply_and_verify_usage_overview_indexes():
     print(f"Verified {len(USAGE_OVERVIEW_INDEXES)} usage overview indexes")
 
 
+def apply_and_verify_project_owner_context():
+    """Backfill exact Project ownership and require context-aware indexes."""
+    if not os.path.isfile(PROJECT_OWNER_CONTEXT_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required Project owner-context migration is missing: {PROJECT_OWNER_CONTEXT_MIGRATION_PATH}"
+        )
+    with open(PROJECT_OWNER_CONTEXT_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(PROJECT_OWNER_CONTEXT_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(PROJECT_OWNER_CONTEXT_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Project owner-context index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(PROJECT_OWNER_CONTEXT_INDEXES)} Project owner-context indexes")
+
+
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -1255,6 +1298,9 @@ def setup_schemas():
 
         print("\n--- Applying usage overview database indexes ---")
         apply_and_verify_usage_overview_indexes()
+
+        print("\n--- Applying Project owner-context migration ---")
+        apply_and_verify_project_owner_context()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

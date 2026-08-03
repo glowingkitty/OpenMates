@@ -23,7 +23,7 @@ scope:
     - Team-key-wrapped Project keys and Project-key-authenticated ephemeral source-session encryption between approved CLI clients.
     - Team role enforcement for Project mutation, source ownership, item ownership, remote reads, and destructive actions.
     - Immediate source-session revocation when a source host loses Team access while retaining the source record as offline.
-    - Team-aware Project, key-wrapper, child-item, source, settings, history, and bridge routing persistence.
+    - Team-aware Project, key-wrapper, child-item, source, settings, and bridge routing persistence; Team Project history list/restore fails with `TEAM_PROJECT_HISTORY_UNSUPPORTED` until history gains owner-context persistence.
     - npm and pip SDK parity for encrypted Project navigation and CRUD; remote filesystem hosting and live file reads remain CLI-only.
     - Real Personal and Team two-CLI dev-server proof before web and Apple regression checks.
     - CLI help, package README, user guide, and architecture documentation for the deterministic Project/requester commands.
@@ -177,6 +177,11 @@ decisions:
     decision: Enable platform:teams only through the local Docker development override while keeping production and self-hosted defaults disabled until Teams V1 is verified.
     reason: The user approved real dev verification without exposing unfinished Teams behavior outside the development stack.
     decided_at: "2026-08-03T13:23:38Z"
+  - id: D-9
+    status: active
+    decision: Reject Team Project history list/restore with `TEAM_PROJECT_HISTORY_UNSUPPORTED` rather than routing Team snapshots through personal history ownership.
+    reason: Workspace history persistence is user-owned today; exposing Team restore would mutate Personal context and leak an incomplete contract. Full Team history is deferred to a context-owned history migration.
+    decided_at: "2026-08-03T15:25:02Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -201,14 +206,34 @@ attempts:
     approach: Enable platform:teams through the dev-only Docker config, recreate api, and rerun lifecycle, membership, and offboarding CLI verifiers.
     outcome: succeeded
     recorded_at: "2026-08-03T13:45:33Z"
+  - id: ATTEMPT-5
+    task_id: TASK-2
+    approach: Add failing Team Project context, role, migration, and revocation tests before implementing context-scoped persistence and routes.
+    outcome: succeeded
+    recorded_at: "2026-08-03T15:10:25Z"
+    reason: The red run failed on the missing source-removal contract; focused and adjacent backend suites passed after implementation.
+  - id: ATTEMPT-6
+    task_id: TASK-2
+    approach: Add code-review regression tests for move wrappers/rollback, Team source projection, Project-wide source revocation, and Team history rejection before fixes.
+    outcome: succeeded
+    recorded_at: "2026-08-03T15:32:05Z"
+    reason: The red run produced 11 expected failures; all focused, migration, bridge, wrapper, move, ask, and Personal history regressions passed after fixes.
+  - id: ATTEMPT-7
+    task_id: TASK-2
+    approach: Implement the real direct REST Personal/Team Project verifier with isolated test-account auth, stable redacted reporting, denial checks, and deterministic cleanup.
+    outcome: succeeded
+    recorded_at: "2026-08-03T15:46:30Z"
+    reason: Four verifier helper tests, Ruff, py_compile, help smoke, spec validation, and diff hygiene passed; the user explicitly deferred the live dev run until after deployment.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Add Team-aware Project persistence and authorization tests before changing implementation code.
-  command: docker exec api python -m pytest /app/backend/tests/test_projects.py
-  expected_outcome: New Team context, role, attacher, migration, and source-removal tests fail for the expected missing contract.
-  blocker: null
-  last_verified_commit: c5d62bf
+  next_action: Deploy the additive schema/migration, API, and direct REST verifier changes in a later authorized session, then run Personal/Team proof before TASK-3.
+  command: python3 scripts/verify_projects_api.py --api-url https://api.dev.openmates.org --personal-and-team
+  expected_outcome: Personal/Team CRUD, children, settings, role denials, source removal, and encrypted persistence pass through the real dev API.
+  blocker:
+    reason: The user explicitly prohibited commit and deploy in this session, so the implemented scripts/verify_projects_api.py cannot test these worktree changes against dev yet.
+    blocking_tasks: [TASK-2]
+  last_verified_commit: d14c5bc27b7879cfe9db4198fcba1eecb078232e
 
 scenarios:
   - id: S-1
@@ -382,7 +407,7 @@ assumptions:
 
 contracts:
   api:
-    - surface: Project CRUD, children, sources, settings, and history
+    - surface: Project CRUD, children, sources, settings, and Personal history; Team history list/restore is explicitly unsupported
       routes: Existing `/v1/projects` routes plus `DELETE /v1/projects/{project_id}/sources/{source_id}`.
       access_model: Developer API-key REST API and first-party client surface with approved device key access.
       auth: Authenticated session or developer API key; encrypted data requires separately approved local key material.
@@ -390,7 +415,7 @@ contracts:
       rate_limits: Existing list/get 60 per minute, mutation 30 per minute, delete 20 per minute; source delete 20 per minute.
       credit_budget: Deterministic operations consume no AI credits; Project ask behavior is unchanged.
       encryption_boundary: Metadata and Project keys remain client-encrypted; API returns ciphertext/wrappers and never plaintext or raw keys.
-      errors: [401 unauthenticated, 403 TEAM_PERMISSION_DENIED, 404 absent_or_out_of_context, 409 conflict_or_missing_confirmation, 429 rate_limited]
+      errors: [401 unauthenticated, 403 TEAM_PERMISSION_DENIED, 404 absent_or_out_of_context, 409 conflict_missing_confirmation_or_TEAM_PROJECT_HISTORY_UNSUPPORTED, 429 rate_limited]
     - surface: Remote request/result and WebSocket source lifecycle
       routes: Existing Project remote-access REST and authenticated WebSocket contracts.
       access_model: First-party client surface only.
@@ -432,6 +457,7 @@ contracts:
   data:
     - Personal Project rows have hashed_user_id/no hashed_team_id; Team rows have hashed_team_id and created_by_user_hash.
     - Team create stores a key_type team Project wrapper encrypted by Team key epoch 1; raw keys never reach backend.
+    - Moving a Personal Project requires a matching Team epoch-1 Project wrapper; all children and the wrapper are preflighted/moved with rollback before the parent owner changes.
     - Folders, item links, sources, and settings gain owner-context and creator/attacher fields needed for Team scoping.
     - Existing rows backfill idempotently as Personal; mixed invalid owner states fail validation.
     - Team source uniqueness is hashed_team_id plus source_id; Personal uniqueness remains hashed_user_id plus source_id.
@@ -484,8 +510,29 @@ tests:
       - Personal/Team CRUD and child/source operations use exact owner context.
       - Role matrix and member-attacher cleanup are enforced without partial writes.
       - Migration classifies legacy rows as Personal and rejects mixed ownership.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+      - Project moves require a matching Team epoch-1 wrapper and roll back wrapper, child, and parent writes on failure.
+      - Team source responses expose only safe metadata and ownership labels, while Project deletion revokes every source before durable deletion.
+      - Team Project history list/restore fails with the stable `TEAM_PROJECT_HISTORY_UNSUPPORTED` error.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_projects.py
+        run_id: local-backend-project-context-red-2026-08-03T14:57:20Z
+        subject_commit: d14c5bc27b7879cfe9db4198fcba1eecb078232e
+        timestamp: "2026-08-03T14:57:20Z"
+        reason: Collection failed with ImportError because delete_project_source did not exist before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_projects.py backend/tests/test_setup_schemas.py
+        run_id: local-backend-project-context-green-2026-08-03T15:35:39Z
+        subject_commit: d14c5bc27b7879cfe9db4198fcba1eecb078232e
+        timestamp: "2026-08-03T15:35:39Z"
+        reason: 58 TASK-2 and migration tests passed against uncommitted changes atop the recorded subject base; 70 adjacent source/bridge/wrapper/move tests and 31 ask/Personal-history tests also passed.
   - id: T-BACKEND-REMOTE-TEAM
     type: pytest
     file: backend/tests/test_project_remote_access_bridge.py
@@ -649,10 +696,10 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/cli-remote-access-cross-device-requester/spec.yml
-      run_id: local-spec-validate-2026-08-03T12:39:42Z
-      subject_commit: 51fdd17559765f0d2a127c12702b4a214b3a1ec3
-      summary: Schema V2 structure and all scenario, criterion, test, verification, and task references passed.
-      timestamp: "2026-08-03T12:39:42Z"
+      run_id: local-spec-validate-2026-08-03T15:16:49Z
+      subject_commit: d14c5bc27b7879cfe9db4198fcba1eecb078232e
+      summary: Schema V2 structure and all TASK-2 evidence, handoff, scenario, criterion, test, verification, and task references passed against uncommitted worktree changes atop the subject base.
+      timestamp: "2026-08-03T15:16:49Z"
   - id: V-NO-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: not_applicable
@@ -790,14 +837,14 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Add Team-aware Project persistence and authorization
-    status: pending
-    phase: working_tasks
+    status: in_progress
+    phase: running_checks
     covers: {scenarios: [S-1, S-2, S-6], acceptance_criteria: [AC-1, AC-2, AC-6]}
-    expected_files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py]
+    expected_files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/directus/setup/migrate_project_owner_context.sql, backend/core/directus/setup/setup_schemas.py, backend/core/directus/Dockerfile.setup.selfhost, backend/core/docker-compose.yml, backend/core/docker-compose.selfhost.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/services/team_workspace_service.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py, backend/tests/test_project_remote_sources.py, backend/tests/test_setup_schemas.py, backend/tests/test_teams_move_authorization.py, backend/tests/test_workspace_ask_routes.py, scripts/verify_projects_api.py, scripts/tests/test_verify_projects_api.py]
     verification_ids: [T-BACKEND-PROJECT-CONTEXT, T-API-PROJECT-CONTEXT-LIVE]
     dependencies: [TASK-2A]
-    ownership: {files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py, scripts/verify_projects_api.py], shared_files: []}
-    blockers: []
+    ownership: {files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/directus/setup/migrate_project_owner_context.sql, backend/core/directus/setup/setup_schemas.py, backend/core/directus/Dockerfile.setup.selfhost, backend/core/docker-compose.yml, backend/core/docker-compose.selfhost.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/services/team_workspace_service.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py, backend/tests/test_project_remote_sources.py, backend/tests/test_setup_schemas.py, backend/tests/test_teams_move_authorization.py, backend/tests/test_workspace_ask_routes.py, scripts/verify_projects_api.py, scripts/tests/test_verify_projects_api.py], shared_files: []}
+    blockers: [T-API-PROJECT-CONTEXT-LIVE requires a later commit/deploy because this session explicitly forbids commit and deploy.]
     follow_up_tasks: [TASK-3]
     independently_deployable: true
   - id: TASK-3

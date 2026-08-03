@@ -17,12 +17,18 @@ projects:
 
     hashed_user_id:
       type: string
-      note: "[Indexed] SHA256(user_id) of the project owner."
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(user_id) for Personal ownership. Null for Team Projects."
 
     hashed_team_id:
       type: string
       nullable: true
       note: "[Indexed, Nullable] SHA256(team_id) when the project has been moved into a team workspace. Null means personal context."
+
+    created_by_user_hash:
+      type: string
+      nullable: true
+      note: "[Indexed] SHA256(user_id) of the member who created the Project."
 
     encrypted_project_key:
       type: text
@@ -100,7 +106,8 @@ project_key_wrappers:
 
     hashed_user_id:
       type: string
-      note: "[Indexed] SHA256(user_id) of the project owner."
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(user_id) for Personal wrappers. Null for Team wrappers."
 
     key_type:
       type: string

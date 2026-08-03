@@ -162,6 +162,53 @@ class ProjectRemoteAccessService:
             await self.cache.delete(self._session_key(user_id, source_session_id))
             return current
 
+    async def revoke_source(self, *, user_id: str, project_id: str, source_id: str) -> bool:
+        """Invalidate a source binding and all queued or in-flight work before deletion."""
+        async with self._state_lock(user_id):
+            owner_key = self._binding_key(user_id, project_id, source_id)
+            owner = await self.cache.get(owner_key)
+            if not isinstance(owner, dict):
+                return False
+            source_session_id = str(owner.get("source_session_id") or "")
+            session_key = self._session_key(user_id, source_session_id)
+            session = await self.cache.get(session_key)
+            await self.cache.delete(owner_key)
+            if not isinstance(session, dict):
+                return True
+
+            revoked_request_ids: list[str] = []
+            for field in ("in_flight", "queued"):
+                retained: list[str] = []
+                for request_id in session.get(field, []):
+                    request = await self.cache.get(self._request_key(user_id, request_id))
+                    if isinstance(request, dict) and (
+                        request.get("project_id"),
+                        request.get("source_id"),
+                    ) == (project_id, source_id):
+                        revoked_request_ids.append(request_id)
+                    else:
+                        retained.append(request_id)
+                session[field] = retained
+            for request_id in revoked_request_ids:
+                await self.cache.delete(self._request_key(user_id, request_id))
+                await self.cache.delete(self._result_key(user_id, request_id))
+                await self.cache.set(
+                    self._tombstone_key(user_id, request_id),
+                    True,
+                    ttl=RESULT_CACHE_TTL_SECONDS,
+                )
+
+            session["bindings"] = [
+                binding
+                for binding in session.get("bindings", [])
+                if (binding.get("project_id"), binding.get("source_id")) != (project_id, source_id)
+            ]
+            if session["bindings"]:
+                await self.cache.set(session_key, session, ttl=SESSION_TIMEOUT_SECONDS)
+            else:
+                await self.cache.delete(session_key)
+            return True
+
     async def get_active_binding(
         self,
         user_id: str,

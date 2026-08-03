@@ -168,6 +168,7 @@ services:
       WORKFLOW_RUNTIME_MIGRATION_PATH: "/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql"
       USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
       USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
+      PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
     networks:
       - openmates
     depends_on:

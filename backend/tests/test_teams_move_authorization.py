@@ -98,7 +98,6 @@ async def test_cannot_move_already_team_scoped_record_again() -> None:
     ("workspace_type", "collection", "id_field", "object_id"),
     [
         ("chat", "chats", "id", "chat-1"),
-        ("project", "projects", "project_id", "project-1"),
         ("task", "user_tasks", "task_id", "task-1"),
         ("plan", "user_plans", "plan_id", "plan-1"),
         ("workflow", "workflows", "workflow_id", "workflow-1"),
@@ -134,4 +133,27 @@ async def test_move_workspace_record_requires_confirmation() -> None:
             workspace_type="project",
             object_id="project-1",
             confirmed=False,
+        )
+
+
+@pytest.mark.anyio
+async def test_generic_workspace_move_rejects_projects_without_wrapper_contract() -> None:
+    directus, _methods = await _seed_team_with_member("member")
+    directus.rows["projects"].append(
+        {
+            "id": "row-1",
+            "project_id": "project-1",
+            "hashed_user_id": hash_id("bob"),
+            "hashed_team_id": None,
+        }
+    )
+
+    with pytest.raises(TeamWorkspaceMoveError, match="Unsupported workspace type"):
+        await move_workspace_record_to_team(
+            directus_service=directus,
+            actor_user_id="bob",
+            team_id="team-1",
+            workspace_type="project",
+            object_id="project-1",
+            confirmed=True,
         )

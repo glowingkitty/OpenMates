@@ -23,7 +23,6 @@ class TeamWorkspaceMoveError(ValueError):
 
 WORKSPACE_COLLECTIONS: dict[str, tuple[str, str]] = {
     "chat": ("chats", "id"),
-    "project": ("projects", "project_id"),
     "task": ("user_tasks", "task_id"),
     "plan": ("user_plans", "plan_id"),
     "workflow": ("workflows", "workflow_id"),

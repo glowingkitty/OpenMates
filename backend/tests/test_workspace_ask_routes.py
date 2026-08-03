@@ -139,21 +139,31 @@ class FakePlanService:
 
 
 class FakeProjectMethods:
-    async def get_project(self, project_id: str, user_id: str):
+    async def get_project(self, project_id: str, user_id: str, team_id: str | None = None):
         assert user_id == "user-1"
+        assert team_id is None
         return {"project_id": project_id, "encrypted_name": "cipher-before", "archived": False, "version": 1}
 
-    async def create_project(self, user_id: str, payload: dict):
+    async def create_project(self, user_id: str, payload: dict, team_id: str | None = None):
         assert user_id == "user-1"
+        assert team_id is None
         return {**payload, "id": "row-project"}
 
-    async def update_project(self, project_id: str, user_id: str, patch: dict):
+    async def update_project(self, project_id: str, user_id: str, patch: dict, team_id: str | None = None):
         assert user_id == "user-1"
+        assert team_id is None
         return {"project_id": project_id, "encrypted_name": "cipher-after", **patch, "version": 2}
 
-    async def delete_project(self, project_id: str, user_id: str):
+    async def delete_project(self, project_id: str, user_id: str, team_id: str | None = None):
         assert user_id == "user-1"
+        assert team_id is None
         return bool(project_id)
+
+    async def list_sources(self, project_id: str, user_id: str, team_id: str | None = None):
+        assert project_id
+        assert user_id == "user-1"
+        assert team_id is None
+        return []
 
 
 class FakeWorkflow:
