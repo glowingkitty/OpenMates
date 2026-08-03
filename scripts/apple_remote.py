@@ -510,7 +510,7 @@ watch_test_status = "unknown"
 if project_yml.exists():
     text = project_yml.read_text(encoding="utf-8")
     has_watch_scheme = "OpenMatesWatch:" in text
-    has_watch_test_scheme = "OpenMatesWatchTests" in text
+    has_watch_test_scheme = "OpenMatesWatchUITests" in text
     if has_watch_scheme and not has_watch_test_scheme:
         watch_test_status = "no_dedicated_watch_test_scheme"
     elif has_watch_test_scheme:
@@ -3253,11 +3253,19 @@ def build_watch_command(simulator: str) -> str:
 
 
 def test_watch_command(simulator: str, only_testing: str | None) -> str:
-    raise AppleRemoteError(
-        "OpenMatesWatch currently has no dedicated Watch test scheme. "
-        "Run test-ios --only-testing OpenMatesTests/<Watch...> for Watch unit tests, "
-        "or verify-watch-startup for runtime launch/crash checks."
-    )
+    parts = [
+        "xcodebuild",
+        "test",
+        "-project",
+        "apple/OpenMates.xcodeproj",
+        "-scheme",
+        "OpenMatesWatchUITests",
+        "-destination",
+        f"platform=watchOS Simulator,name={simulator}",
+    ]
+    if only_testing:
+        parts.extend(["-only-testing", only_testing])
+    return simulator_locked_command(parts)
 
 
 def verify_watch_startup_command(simulator: str, duration: int) -> str:

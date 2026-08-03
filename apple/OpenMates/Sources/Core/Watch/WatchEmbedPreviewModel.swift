@@ -91,6 +91,7 @@ enum WatchEmbedOpenConnectivityPayload {
 }
 
 struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
+    static let cardWidth: Double = 156
     static let cardHeight: Double = 112
 
     let id: String

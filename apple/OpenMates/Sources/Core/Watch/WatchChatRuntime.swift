@@ -392,6 +392,21 @@ final class WatchChatRuntime: ObservableObject {
         self.syncSession = syncSession
     }
 
+#if DEBUG
+    init(uiTestSnapshot snapshot: WatchChatSnapshot, selectedChatId: String) {
+        self.api = APIClient.shared
+        self.cache = WatchChatOfflineCache()
+        self.crypto = WatchChatCryptoService(currentUserId: nil)
+        self.syncSocket = nil
+        self.syncSession = nil
+        self.chats = snapshot.chats
+        self.messagesByChatId = snapshot.messagesByChatId
+        self.pendingTextSends = snapshot.pendingTextSends
+        self.pendingAudioEmbeds = snapshot.pendingAudioEmbeds
+        self.selectedChatId = selectedChatId
+    }
+#endif
+
     var selectedChat: WatchChatSummary? {
         guard let selectedChatId else { return nil }
         return chats.first { $0.id == selectedChatId }

@@ -85,6 +85,7 @@ private final class WatchAudioRecorder: ObservableObject {
 struct WatchChatShellView: View {
     @StateObject private var runtime: WatchChatRuntime
     @StateObject private var phoneBridge = WatchPhoneLoginBridge()
+    private let startsNetworkTasks: Bool
 
     init(currentUserId: String?, webSocketToken: String?) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
@@ -94,7 +95,18 @@ struct WatchChatShellView: View {
                 token: webSocketToken
             )
         ))
+        startsNetworkTasks = true
     }
+
+#if DEBUG
+    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String) {
+        _runtime = StateObject(wrappedValue: WatchChatRuntime(
+            uiTestSnapshot: uiTestSnapshot,
+            selectedChatId: selectedChatId
+        ))
+        startsNetworkTasks = false
+    }
+#endif
 
     var body: some View {
         Group {
@@ -109,6 +121,7 @@ struct WatchChatShellView: View {
         .background(Color.grey100)
         .ignoresSafeArea(edges: .bottom)
         .task {
+            guard startsNetworkTasks else { return }
             phoneBridge.start { _ in }
             await runtime.loadCachedSnapshot()
             await runtime.startRealtimeSync()

@@ -364,6 +364,21 @@ targets:
         TEST_TARGET_NAME: OpenMates_macOS
         SWIFT_VERSION: "6.0"
 
+  OpenMatesWatchUITests:
+    type: bundle.ui-testing
+    platform: watchOS
+    sources:
+      - path: OpenMatesWatchUITests
+    dependencies:
+      - target: OpenMatesWatch
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesUITests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watchuitests
+        PRODUCT_NAME: OpenMatesWatchUITests
+        TEST_TARGET_NAME: OpenMatesWatch
+        SWIFT_VERSION: "6.0"
+
   OpenMatesTests:
     type: bundle.unit-test
     platform: iOS
@@ -426,3 +441,11 @@ schemes:
     build:
       targets:
         OpenMatesWatch: all
+  OpenMatesWatchUITests:
+    build:
+      targets:
+        OpenMatesWatch: all
+        OpenMatesWatchUITests: [test]
+    test:
+      targets:
+        - OpenMatesWatchUITests

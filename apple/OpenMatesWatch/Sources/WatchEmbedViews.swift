@@ -51,7 +51,7 @@ struct WatchEmbedPreviewCard: View {
             }
             .padding(.spacing3)
             .frame(
-                maxWidth: .infinity,
+                width: CGFloat(WatchEmbedPreviewModel.cardWidth),
                 minHeight: CGFloat(WatchEmbedPreviewModel.cardHeight),
                 maxHeight: CGFloat(WatchEmbedPreviewModel.cardHeight),
                 alignment: .topLeading
@@ -63,7 +63,7 @@ struct WatchEmbedPreviewCard: View {
             )
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
+        .frame(width: CGFloat(WatchEmbedPreviewModel.cardWidth))
         .disabled(model.state == .processing)
         .accessibilityIdentifier("watch-embed-preview-\(model.family.rawValue)")
     }

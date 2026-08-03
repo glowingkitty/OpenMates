@@ -88,11 +88,11 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertTrue(source.contains(".ignoresSafeArea(edges: .bottom)"))
     }
 
-    func testWatchEmbedPreviewUsesAvailableMessageWidth() throws {
+    func testWatchEmbedPreviewUsesFixedWatchCardWidth() throws {
         let source = try watchSource(named: "WatchEmbedViews.swift")
 
-        XCTAssertFalse(source.contains("width: CGFloat(WatchEmbedPreviewModel.cardWidth)"))
-        XCTAssertTrue(source.contains("maxWidth: .infinity"))
+        XCTAssertEqual(WatchEmbedPreviewModel.cardWidth, 156)
+        XCTAssertTrue(source.contains("width: CGFloat(WatchEmbedPreviewModel.cardWidth)"))
         XCTAssertTrue(source.contains("gradient(forAppId: model.appId)"))
     }
 
