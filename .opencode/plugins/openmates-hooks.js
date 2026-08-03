@@ -6,11 +6,17 @@
 
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const READ_TOOLS = new Set(["read", "Read"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
+const WORKTREE_ROOTS = [
+  `${PROJECT_ROOT}/.openmates-agent-worktrees`,
+  `${PROJECT_ROOT}/.agent-worktrees`,
+  "/home/superdev/projects/.openmates-agent-worktrees",
+];
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const SESSIONS_FILE = `${PROJECT_ROOT}/.claude/sessions.json`;
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
@@ -202,22 +208,32 @@ function activeWorktreePath(sessionID) {
 }
 
 function pathInProjectRoot(file) {
-  return file === PROJECT_ROOT || file?.startsWith(`${PROJECT_ROOT}/`);
+  if (!file) return false;
+  const relativePath = relative(resolve(PROJECT_ROOT), resolve(file));
+  return relativePath === "" || (relativePath !== ".." && !relativePath.startsWith(`..${sep}`) && !isAbsolute(relativePath));
 }
 
 function pathInWorktree(file) {
-  return file?.includes("/.openmates-agent-worktrees/") || file?.includes("/.agent-worktrees/");
-}
-
-function shouldRewriteEditPath(file) {
-  return Boolean(file) && !file.startsWith("/") && !file.startsWith("../") && !pathInWorktree(file);
+  if (!file || !isAbsolute(file)) return false;
+  const resolvedFile = resolve(file);
+  return WORKTREE_ROOTS.some((root) => {
+    const relativePath = relative(resolve(root), resolvedFile);
+    return relativePath !== "" && relativePath !== ".." && !relativePath.startsWith(`..${sep}`) && !isAbsolute(relativePath);
+  });
 }
 
 function rewritePathForWorktree(file, worktreePath) {
-  if (!worktreePath || !shouldRewriteEditPath(file)) return file;
-  let relative = file;
-  while (relative.startsWith("./")) relative = relative.slice(2);
-  return `${worktreePath}/${relative}`;
+  if (!worktreePath || !file || pathInWorktree(file)) return file;
+  if (isAbsolute(file) && pathInProjectRoot(file)) {
+    const relativePath = relative(resolve(PROJECT_ROOT), resolve(file));
+    return relativePath ? `${worktreePath}/${relativePath}` : worktreePath;
+  }
+  if (isAbsolute(file)) return file;
+  const resolvedWorktree = resolve(worktreePath);
+  const resolvedTarget = resolve(resolvedWorktree, file);
+  const worktreeRelative = relative(resolvedWorktree, resolvedTarget);
+  if (worktreeRelative === ".." || worktreeRelative.startsWith(`..${sep}`) || isAbsolute(worktreeRelative)) return file;
+  return worktreeRelative ? `${worktreePath}/${worktreeRelative}` : worktreePath;
 }
 
 function rewritePatchHeadersForWorktree(patchText, worktreePath) {
@@ -516,8 +532,7 @@ function isInsideProjectRoot(file) {
 }
 
 function isInsideAgentWorktree(cwd, target) {
-  const combined = `${cwd || ""}\n${target || ""}`;
-  return pathInWorktree(combined);
+  return pathInWorktree(cwd) || pathInWorktree(target);
 }
 
 function worktreeGuardMessage(sessionID, worktreePath = "") {

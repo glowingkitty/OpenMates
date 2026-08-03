@@ -118,6 +118,14 @@ test("relative edit args rewrite to the active session worktree", () => {
   );
 });
 
+test("absolute root edit args rewrite to the active session worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    rewriteEditArgsForTest({ file_path: "/home/superdev/projects/OpenMates/scripts/sessions.py" }, worktree),
+    { file_path: `${worktree}/scripts/sessions.py` },
+  );
+});
+
 test("patch headers rewrite to the active session worktree", () => {
   const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
   assert.deepEqual(
@@ -133,10 +141,81 @@ test("patch headers rewrite to the active session worktree", () => {
   );
 });
 
+test("absolute root patch headers rewrite to the active session worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    rewriteEditArgsForTest(
+      {
+        patchText: "*** Begin Patch\n*** Update File: /home/superdev/projects/OpenMates/docs/example.md\n@@\n-old\n+new\n*** End Patch",
+      },
+      worktree,
+    ),
+    {
+      patchText: `*** Begin Patch\n*** Update File: ${worktree}/docs/example.md\n@@\n-old\n+new\n*** End Patch`,
+    },
+  );
+});
+
 test("absolute and already-worktree edit args are not double rewritten", () => {
   const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
   assert.deepEqual(
     rewriteEditArgsForTest({ file_path: `${worktree}/scripts/sessions.py`, path: "/tmp/example.txt" }, worktree),
     { file_path: `${worktree}/scripts/sessions.py`, path: "/tmp/example.txt" },
   );
+});
+
+test("absolute external paths remain outside the active worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    rewriteEditArgsForTest({ file_path: "/tmp/example.txt", path: "/home/superdev/projects/other/file.ts" }, worktree),
+    { file_path: "/tmp/example.txt", path: "/home/superdev/projects/other/file.ts" },
+  );
+});
+
+test("absolute root traversal paths are not rewritten through the worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  const traversal = "/home/superdev/projects/OpenMates/../../tmp/example.txt";
+  assert.deepEqual(
+    rewriteEditArgsForTest({ file_path: traversal }, worktree),
+    { file_path: traversal },
+  );
+});
+
+test("relative traversal paths are not rewritten through the worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  for (const traversal of ["./../outside.txt", "scripts/../../outside.txt"]) {
+    assert.deepEqual(
+      rewriteEditArgsForTest({ file_path: traversal }, worktree),
+      { file_path: traversal },
+    );
+  }
+});
+
+test("relative traversal patch headers are not rewritten through the worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  const patchText = "*** Begin Patch\n*** Update File: scripts/../../outside.txt\n@@\n-old\n+new\n*** End Patch";
+  assert.deepEqual(
+    rewriteEditArgsForTest({ patchText }, worktree),
+    { patchText },
+  );
+});
+
+test("worktree marker traversal back to root is rewritten safely", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  const traversal = `${worktree}/../../scripts/sessions.py`;
+  assert.deepEqual(
+    rewriteEditArgsForTest({ file_path: traversal }, worktree),
+    { file_path: `${worktree}/scripts/sessions.py` },
+  );
+});
+
+test("root guard blocks worktree marker traversal back to root", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  const decision = rootGuardDecisionForTest({
+    mode: "strict",
+    cwd: "/home/superdev/projects/OpenMates",
+    target: `${worktree}/../../scripts/sessions.py`,
+    sessionID: "ses_test",
+  });
+  assert.equal(decision.decision, "block");
 });

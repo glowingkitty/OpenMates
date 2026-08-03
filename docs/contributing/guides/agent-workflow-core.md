@@ -13,6 +13,13 @@ Use the smallest correct change. Prefer deterministic audits or focused tests
 when repeated mistakes, flaky behavior, safety risks, or workflow drift are
 found.
 
+Before issuing tools, collect operations whose inputs are already known and
+emit independent calls in one turn. Batch unrelated reads, searches, static
+inspections, and disjoint-file patches; keep calls sequential when one result
+selects or validates the next action. When a todo update and the next operation
+are independent, issue them in the same turn instead of spending a standalone
+model round-trip.
+
 Playwright `*.spec.ts` verification is deployed-code verification. If local UI,
 embed, or spec changes are needed, perform a scoped `dev` deploy with
 `python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch

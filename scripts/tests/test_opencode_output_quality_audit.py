@@ -63,6 +63,8 @@ Apple, and spec rules only when relevant. Final responses should cite evidence,
 changed files, verification commands, failed checks, uncertainty, and next steps.
 Use exact commands and state when verification was not run. Firecrawl is a
 quota-backed fallback only.
+Batch independent calls in one turn. When a todo update and the next operation
+are independent, avoid a standalone model round-trip.
 Playwright `*.spec.ts` verification is deployed-code verification. If local UI,
 embed, or spec changes are needed, perform a scoped `dev` deploy with
 `python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch
@@ -143,3 +145,137 @@ def test_aggregate_telemetry_report_redacts_raw_chat_content() -> None:
     assert "raw user message" not in encoded
     assert "command output body" not in encoded
     assert "private response body" not in encoded
+
+
+def test_tool_turn_telemetry_counts_only_conservative_batching_candidates() -> None:
+    audit = load_audit_module()
+
+    report = audit.summarize_tool_turns(
+        [
+            {
+                "session_id": "one",
+                "time_created": 1_000,
+                "tokens_input": 10,
+                "tokens_cache_read": 100,
+                "tools": [{"name": "read", "args": {"filePath": "/repo/a.py"}}],
+            },
+            {
+                "session_id": "one",
+                "time_created": 2_000,
+                "tokens_input": 20,
+                "tokens_cache_read": 200,
+                "tools": [{"name": "read", "args": {"filePath": "/repo/b.py"}}],
+            },
+            {
+                "session_id": "one",
+                "time_created": 3_000,
+                "tokens_input": 30,
+                "tokens_cache_read": 300,
+                "tools": [{"name": "todowrite", "args": {"todos": []}}],
+            },
+            {
+                "session_id": "one",
+                "time_created": 4_000,
+                "tokens_input": 40,
+                "tokens_cache_read": 400,
+                "tools": [{"name": "grep", "args": {"pattern": "Example"}}],
+            },
+        ]
+    )
+
+    assert report == {
+        "assistant_tool_turns": 4,
+        "tool_calls": 4,
+        "singleton_tool_turns": 4,
+        "singleton_tool_turn_rate": 1.0,
+        "conservative_batchable_turns": 1,
+        "standalone_todo_turns": 1,
+        "todo_next_turn_context": {"tokens_input": 40, "tokens_cache_read": 400},
+    }
+
+
+def test_tool_turn_telemetry_keeps_dependent_same_file_reads_sequential() -> None:
+    audit = load_audit_module()
+
+    report = audit.summarize_tool_turns(
+        [
+            {
+                "session_id": "one",
+                "time_created": 1_000,
+                "tools": [{"name": "read", "args": {"filePath": "/repo/a.py", "offset": 1}}],
+            },
+            {
+                "session_id": "one",
+                "time_created": 2_000,
+                "tools": [{"name": "read", "args": {"filePath": "/repo/a.py", "offset": 500}}],
+            },
+        ]
+    )
+
+    assert report["conservative_batchable_turns"] == 0
+
+
+def test_tool_turn_telemetry_normalizes_equivalent_read_paths() -> None:
+    audit = load_audit_module()
+    root = audit._opencode_project_directory()
+
+    report = audit.summarize_tool_turns(
+        [
+            {
+                "session_id": "one",
+                "time_created": 1_000,
+                "tools": [{"name": "read", "args": {"filePath": "./scripts/example.py"}}],
+            },
+            {
+                "session_id": "one",
+                "time_created": 2_000,
+                "tools": [{"name": "read", "args": {"filePath": str(root / "scripts/example.py")}}],
+            },
+        ]
+    )
+
+    assert report["conservative_batchable_turns"] == 0
+
+
+def test_tool_turn_telemetry_normalizes_equivalent_patch_paths() -> None:
+    audit = load_audit_module()
+    root = audit._opencode_project_directory()
+
+    report = audit.summarize_tool_turns(
+        [
+            {
+                "session_id": "one",
+                "time_created": 1_000,
+                "tools": [
+                    {
+                        "name": "apply_patch",
+                        "args": {"patchText": "*** Begin Patch\n*** Update File: ./scripts/example.py\n*** End Patch"},
+                    }
+                ],
+            },
+            {
+                "session_id": "one",
+                "time_created": 2_000,
+                "tools": [
+                    {
+                        "name": "apply_patch",
+                        "args": {"patchText": f"*** Begin Patch\n*** Update File: {root}/scripts/example.py\n*** End Patch"},
+                    }
+                ],
+            },
+        ]
+    )
+
+    assert report["conservative_batchable_turns"] == 0
+
+
+def test_tool_turn_telemetry_resolves_worktree_aliases_before_normalizing() -> None:
+    audit = load_audit_module()
+    root = audit._opencode_project_directory()
+    worktrees = root / ".openmates-agent-worktrees"
+
+    first = worktrees / "agent-a/../agent-b/scripts/example.py"
+    second = worktrees / "agent-b/scripts/example.py"
+
+    assert audit._canonical_tool_path(str(first)) == "scripts/example.py"
+    assert audit._canonical_tool_path(str(first)) == audit._canonical_tool_path(str(second))

@@ -12,7 +12,9 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 import json
+import sqlite3
 import statistics
 import sys
 from pathlib import Path
@@ -21,6 +23,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENCODE_CONFIG = REPO_ROOT / "opencode.json"
+OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
 CORE_INSTRUCTION = "docs/contributing/guides/agent-workflow-core.md"
 EAGER_LONG_INSTRUCTIONS = {
     ".claude/rules/planning.md",
@@ -35,6 +38,8 @@ REQUIRED_CORE_TERMS = {
     "uncertainty guidance": ("uncertainty",),
     "command guidance": ("command",),
     "Firecrawl fallback guidance": ("firecrawl", "fallback", "quota-backed"),
+    "parallel tool guidance": ("independent calls", "one turn", "batch"),
+    "todo coalescing guidance": ("todo update", "standalone", "model round-trip"),
 }
 REQUIRED_CORE_PHRASES = {
     "deployed Playwright guidance": (
@@ -224,6 +229,159 @@ def summarize_opencode_telemetry(sessions: list[dict[str, Any]], log_lines: list
     }
 
 
+def _canonical_tool_path(value: str) -> str:
+    if not value:
+        return ""
+    path = Path(value)
+    project_root = _opencode_project_directory().resolve()
+    resolved = path.resolve() if path.is_absolute() else (project_root / path).resolve()
+    parts = resolved.parts
+    if ".openmates-agent-worktrees" in parts:
+        marker = parts.index(".openmates-agent-worktrees")
+        if len(parts) > marker + 2:
+            return Path(*parts[marker + 2 :]).as_posix()
+    try:
+        return resolved.relative_to(project_root).as_posix()
+    except ValueError:
+        return resolved.as_posix()
+
+
+def _tool_path(args: dict[str, Any]) -> str:
+    raw_path = str(args.get("filePath") or args.get("file_path") or args.get("path") or "")
+    return _canonical_tool_path(raw_path)
+
+
+def _patch_paths(args: dict[str, Any]) -> set[str]:
+    paths: set[str] = set()
+    patch = str(args.get("patchText") or args.get("patch") or "")
+    for line in patch.splitlines():
+        for prefix in ("*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "):
+            if line.startswith(prefix):
+                paths.add(_canonical_tool_path(line[len(prefix) :].strip()))
+    return paths
+
+
+def _batchable_pair(first: dict[str, Any], second: dict[str, Any]) -> bool:
+    if first.get("session_id") != second.get("session_id"):
+        return False
+    if int(second.get("time_created") or 0) - int(first.get("time_created") or 0) > 120_000:
+        return False
+    first_tools = first.get("tools") or []
+    second_tools = second.get("tools") or []
+    if len(first_tools) != 1 or len(second_tools) != 1:
+        return False
+    first_tool, second_tool = first_tools[0], second_tools[0]
+    if first_tool["name"] == second_tool["name"] == "read":
+        first_path = _tool_path(first_tool["args"])
+        second_path = _tool_path(second_tool["args"])
+        return bool(first_path and second_path and first_path != second_path)
+    if first_tool["name"] == second_tool["name"] == "apply_patch":
+        first_paths = _patch_paths(first_tool["args"])
+        second_paths = _patch_paths(second_tool["args"])
+        return bool(first_paths and second_paths and first_paths.isdisjoint(second_paths))
+    return False
+
+
+def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize privacy-safe round-trip metrics from assistant tool turns."""
+
+    ordered = sorted(turns, key=lambda turn: (str(turn.get("session_id") or ""), int(turn.get("time_created") or 0)))
+    tool_turns = [turn for turn in ordered if turn.get("tools")]
+    tool_calls = sum(len(turn["tools"]) for turn in tool_turns)
+    singleton_turns = sum(len(turn["tools"]) == 1 for turn in tool_turns)
+
+    batchable_turns = 0
+    index = 0
+    while index + 1 < len(ordered):
+        if _batchable_pair(ordered[index], ordered[index + 1]):
+            batchable_turns += 1
+            index += 2
+        else:
+            index += 1
+
+    standalone_todos = 0
+    todo_next_input = 0
+    todo_next_cache_read = 0
+    turns_by_session: dict[str, list[dict[str, Any]]] = {}
+    for turn in ordered:
+        turns_by_session.setdefault(str(turn.get("session_id") or ""), []).append(turn)
+    for session_turns in turns_by_session.values():
+        for position, turn in enumerate(session_turns[:-1]):
+            tools = turn.get("tools") or []
+            if len(tools) != 1 or tools[0]["name"] != "todowrite":
+                continue
+            standalone_todos += 1
+            next_turn = session_turns[position + 1]
+            todo_next_input += int(next_turn.get("tokens_input") or 0)
+            todo_next_cache_read += int(next_turn.get("tokens_cache_read") or 0)
+
+    return {
+        "assistant_tool_turns": len(tool_turns),
+        "tool_calls": tool_calls,
+        "singleton_tool_turns": singleton_turns,
+        "singleton_tool_turn_rate": round(singleton_turns / len(tool_turns), 4) if tool_turns else 0.0,
+        "conservative_batchable_turns": batchable_turns,
+        "standalone_todo_turns": standalone_todos,
+        "todo_next_turn_context": {
+            "tokens_input": todo_next_input,
+            "tokens_cache_read": todo_next_cache_read,
+        },
+    }
+
+
+def _opencode_project_directory() -> Path:
+    if REPO_ROOT.parent.name == ".openmates-agent-worktrees":
+        return REPO_ROOT.parent.parent
+    return REPO_ROOT
+
+
+def collect_tool_turns(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[dict[str, Any]]:
+    """Collect only metadata needed for aggregate round-trip telemetry."""
+
+    since_ms = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
+    connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.execute("PRAGMA query_only = ON")
+    try:
+        rows = connection.execute(
+            """
+            SELECT message.id, message.session_id, message.time_created, message.data, part.data
+            FROM message
+            JOIN session ON session.id = message.session_id
+            LEFT JOIN part ON part.message_id = message.id
+            WHERE session.directory = ? AND message.time_created >= ?
+            ORDER BY message.session_id, message.time_created, part.time_created
+            """,
+            (str(_opencode_project_directory()), since_ms),
+        ).fetchall()
+    finally:
+        connection.close()
+
+    turns: dict[str, dict[str, Any]] = {}
+    for message_id, session_id, time_created, raw_message, raw_part in rows:
+        message = json.loads(raw_message)
+        if message.get("role") != "assistant":
+            continue
+        tokens = message.get("tokens") or {}
+        turn = turns.setdefault(
+            message_id,
+            {
+                "session_id": session_id,
+                "time_created": time_created,
+                "tokens_input": int(tokens.get("input") or 0),
+                "tokens_cache_read": int((tokens.get("cache") or {}).get("read") or 0),
+                "tools": [],
+            },
+        )
+        if not raw_part:
+            continue
+        part = json.loads(raw_part)
+        if part.get("type") == "tool":
+            state = part.get("state") or {}
+            args = state.get("input") if isinstance(state.get("input"), dict) else {}
+            turn["tools"].append({"name": str(part.get("tool") or "unknown"), "args": args})
+    return list(turns.values())
+
+
 def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
     return audit_instruction_surface(root)
 
@@ -231,17 +389,24 @@ def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audit OpenCode output-quality and context-efficiency guardrails.")
     parser.add_argument("--json", action="store_true", help="Print issues as JSON.")
+    parser.add_argument("--telemetry-days", type=int, default=0, help="Include aggregate-only tool-turn telemetry for the last N days.")
     args = parser.parse_args(argv)
 
     issues = audit(REPO_ROOT)
+    telemetry = summarize_tool_turns(collect_tool_turns(days=args.telemetry_days)) if args.telemetry_days > 0 else None
     if args.json:
-        print(json.dumps([issue.__dict__ for issue in issues], indent=2, sort_keys=True))
+        payload: Any = [issue.__dict__ for issue in issues]
+        if telemetry is not None:
+            payload = {"issues": payload, "telemetry": telemetry}
+        print(json.dumps(payload, indent=2, sort_keys=True))
     elif issues:
         print("FAIL OpenCode output-quality audit", file=sys.stderr)
         for issue in issues:
             print(f"- {issue.path}: {issue.message}", file=sys.stderr)
     else:
         print("PASS OpenCode output-quality audit")
+    if telemetry is not None and not args.json:
+        print(json.dumps(telemetry, indent=2, sort_keys=True))
     return 1 if issues else 0
 
 

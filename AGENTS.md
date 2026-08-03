@@ -52,7 +52,7 @@ OpenMates/
 | `backend/shared/providers/`            | Pure API wrappers (no skill-specific code) |
 | `frontend/packages/ui/src/utils/`      | Frontend shared utilities                  |
 | `frontend/packages/ui/src/components/` | Shared Svelte components                   |
-| `settings/elements/`                   | Settings UI components (29 canonical)      |
+| `settings/elements/`                   | Settings UI components (26 component files) |
 
 Architecture decisions: write once in `docs/architecture/`, reference in code.
 
