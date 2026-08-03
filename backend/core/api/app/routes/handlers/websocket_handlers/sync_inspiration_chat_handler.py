@@ -187,13 +187,15 @@ async def handle_sync_inspiration_chat(
                     )
 
                 try:
-                    await _async_persist_encrypted_chat_metadata(
+                    persisted = await _async_persist_encrypted_chat_metadata(
                         chat_id,
                         chat_metadata_fields,
                         f"sync_inspiration_chat:{chat_id}",
                         user_id_hash,
                         user_id,
                     )
+                    if not persisted:
+                        raise RuntimeError(f"Chat metadata was not persisted for chat {chat_id}")
                     logger.info(
                         "[SyncInspirationChat] Persisted chat metadata inline for chat %s before follow-up sends",
                         chat_id,

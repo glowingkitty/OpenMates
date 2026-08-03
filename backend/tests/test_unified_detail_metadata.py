@@ -385,8 +385,9 @@ def test_chat_title_and_summary_mutations_are_owner_only(
 ) -> None:
     persistence_calls: list[str] = []
 
-    async def persist_metadata(chat_id: str, *args, **kwargs) -> None:
+    async def persist_metadata(chat_id: str, *args, **kwargs) -> bool:
         persistence_calls.append(chat_id)
+        return True
 
     monkeypatch.setattr(
         encrypted_chat_metadata_handler,
@@ -437,10 +438,11 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
         task_id: str,
         hashed_user_id: str | None = None,
         user_id: str | None = None,
-    ) -> None:
+    ) -> bool:
         persistence_calls.append(
             (chat_id, metadata, task_id, hashed_user_id, user_id)
         )
+        return True
 
     monkeypatch.setattr(
         encrypted_chat_metadata_handler,
@@ -486,13 +488,14 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
 
 def test_post_processing_summary_updates_sync_cache_before_version_broadcast(monkeypatch) -> None:
     events: list[tuple] = []
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
 
-    def queue_task(name: str, args=None, queue: str | None = None):
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-1")
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+        events.append(("persist", chat_id))
+        return True
 
-    monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+    monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
 
     manager = OrderedPostProcessingManager(events)
     asyncio.run(
@@ -509,32 +512,112 @@ def test_post_processing_summary_updates_sync_cache_before_version_broadcast(mon
         )
     )
 
-    assert events[0] == (
+    assert events[0] == ("persist", "chat-1")
+    assert events[1] == (
         "cache",
         "owner-1",
         "chat-1",
         "encrypted_chat_summary",
         "cipher-summary-v5",
     )
-    assert events[1:] == [
+    assert events[2:] == [
         ("personal", "post_processing_metadata_stored"),
         ("broadcast", "encrypted_chat_metadata"),
     ]
-    task_name, task_args, queue = queued_tasks[0]
-    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
-    assert queue == "persistence"
-    assert task_args[1]["metadata_v"] == 5
+    chat_id, persisted, task_id, hashed_user_id, user_id = persistence_calls[0]
+    assert chat_id == "chat-1"
+    assert task_id == "websocket-direct"
+    assert hashed_user_id == "owner-hash"
+    assert user_id == "owner-1"
+    assert persisted["metadata_v"] == 5
 
 
-def test_post_processing_drops_stale_summary_without_blocking_other_metadata(monkeypatch) -> None:
-    events: list[tuple] = []
+def test_post_processing_does_not_ack_failed_persistence(monkeypatch) -> None:
+    async def reject_persistence(*args, **kwargs) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        post_processing_metadata_handler,
+        "_async_persist_encrypted_chat_metadata",
+        reject_persistence,
+    )
+    manager = ChatMetadataManager()
+
+    with pytest.raises(RuntimeError, match="was not persisted"):
+        asyncio.run(
+            handle_post_processing_metadata(
+                websocket=None,
+                manager=manager,
+                cache_service=PostProcessingCache([]),
+                directus_service=ChatMetadataDirectus(is_owner=True),
+                encryption_service=None,
+                user_id="owner-1",
+                user_id_hash="owner-hash",
+                device_fingerprint_hash="device-1",
+                payload=chat_metadata_payload(
+                    encrypted_quick_tip_slugs="cipher-quick-tips",
+                    encrypted_chat_key="cipher-key",
+                ),
+            )
+        )
+
+    assert manager.personal_messages == []
+    assert manager.broadcasts == []
+
+
+def test_post_processing_keeps_new_chat_suggestions_on_persistence_queue(monkeypatch) -> None:
     queued_tasks: list[tuple[str, list, str | None]] = []
 
     def queue_task(name: str, args=None, queue: str | None = None):
         queued_tasks.append((name, args or [], queue))
         return SimpleNamespace(id="task-1")
 
+    async def persist_metadata(*args, **kwargs) -> bool:
+        return True
+
     monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+    monkeypatch.setattr(
+        post_processing_metadata_handler,
+        "_async_persist_encrypted_chat_metadata",
+        persist_metadata,
+    )
+
+    asyncio.run(
+        handle_post_processing_metadata(
+            websocket=None,
+            manager=ChatMetadataManager(),
+            cache_service=PostProcessingCache([]),
+            directus_service=ChatMetadataDirectus(is_owner=True),
+            encryption_service=None,
+            user_id="owner-1",
+            user_id_hash="owner-hash",
+            device_fingerprint_hash="device-1",
+            payload=chat_metadata_payload(
+                encrypted_new_chat_suggestions=["cipher-suggestion"],
+                encrypted_quick_tip_slugs="cipher-quick-tips",
+                encrypted_chat_key="cipher-key",
+            ),
+        )
+    )
+
+    assert queued_tasks == [
+        (
+            "app.tasks.persistence_tasks.persist_new_chat_suggestions",
+            ["owner-hash", "chat-1", ["cipher-suggestion"]],
+            "persistence",
+        )
+    ]
+
+
+def test_post_processing_drops_stale_summary_without_blocking_other_metadata(monkeypatch) -> None:
+    events: list[tuple] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
+
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+        return True
+
+    monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
 
     manager = OrderedPostProcessingManager(events)
     asyncio.run(
@@ -558,11 +641,8 @@ def test_post_processing_drops_stale_summary_without_blocking_other_metadata(mon
 
     assert events == [("personal", "post_processing_metadata_stored")]
     assert manager.broadcasts == []
-    assert len(queued_tasks) == 1
-    task_name, task_args, queue = queued_tasks[0]
-    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
-    assert queue == "persistence"
-    persisted = task_args[1]
+    assert len(persistence_calls) == 1
+    persisted = persistence_calls[0][1]
     assert persisted["encrypted_chat_tags"] == "fresh-tags-from-post-processing"
     assert persisted["encrypted_chat_key"] == "cipher-key"
     assert "encrypted_chat_summary" not in persisted
@@ -571,13 +651,13 @@ def test_post_processing_drops_stale_summary_without_blocking_other_metadata(mon
 
 def test_generated_post_processing_without_baseline_preserves_existing_summary(monkeypatch) -> None:
     events: list[tuple] = []
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
 
-    def queue_task(name: str, args=None, queue: str | None = None):
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-1")
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+        return True
 
-    monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+    monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
 
     manager = OrderedPostProcessingManager(events)
     asyncio.run(
@@ -607,11 +687,8 @@ def test_generated_post_processing_without_baseline_preserves_existing_summary(m
 
     assert events == [("personal", "post_processing_metadata_stored")]
     assert manager.broadcasts == []
-    assert len(queued_tasks) == 1
-    task_name, task_args, queue = queued_tasks[0]
-    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
-    assert queue == "persistence"
-    persisted = task_args[1]
+    assert len(persistence_calls) == 1
+    persisted = persistence_calls[0][1]
     assert persisted["encrypted_chat_tags"] == "fresh-generated-tags"
     assert persisted["encrypted_chat_key"] == "cipher-key"
     assert "encrypted_title" not in persisted
@@ -621,13 +698,13 @@ def test_generated_post_processing_without_baseline_preserves_existing_summary(m
 
 def test_post_processing_accepts_manual_summary_with_stale_local_baseline(monkeypatch) -> None:
     events: list[tuple] = []
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
 
-    def queue_task(name: str, args=None, queue: str | None = None):
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-1")
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+        return True
 
-    monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+    monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
 
     manager = OrderedPostProcessingManager(events)
     asyncio.run(
@@ -660,24 +737,21 @@ def test_post_processing_accepts_manual_summary_with_stale_local_baseline(monkey
         ("personal", "post_processing_metadata_stored"),
         ("broadcast", "encrypted_chat_metadata"),
     ]
-    assert len(queued_tasks) == 1
-    task_name, task_args, queue = queued_tasks[0]
-    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
-    assert queue == "persistence"
-    persisted = task_args[1]
+    assert len(persistence_calls) == 1
+    persisted = persistence_calls[0][1]
     assert persisted["encrypted_chat_summary"] == "manual-summary-v9"
     assert persisted["metadata_v"] == 9
 
 
 def test_manual_summary_can_carry_current_title_without_bumping_title_version(monkeypatch) -> None:
     events: list[tuple] = []
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
 
-    def queue_task(name: str, args=None, queue: str | None = None):
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-1")
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+        return True
 
-    monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+    monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
 
     manager = OrderedPostProcessingManager(events)
     asyncio.run(
@@ -701,11 +775,8 @@ def test_manual_summary_can_carry_current_title_without_bumping_title_version(mo
         )
     )
 
-    assert len(queued_tasks) == 1
-    task_name, task_args, queue = queued_tasks[0]
-    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
-    assert queue == "persistence"
-    persisted = task_args[1]
+    assert len(persistence_calls) == 1
+    persisted = persistence_calls[0][1]
     assert persisted["encrypted_title"] == "manual-title-carry-forward"
     assert persisted["encrypted_chat_summary"] == "manual-summary-v9"
     assert persisted["metadata_v"] == 9

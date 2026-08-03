@@ -1968,7 +1968,7 @@ async def _async_persist_encrypted_chat_metadata(
     task_id: str,
     hashed_user_id: Optional[str] = None,
     user_id: Optional[str] = None  # User ID for cache updates (not hashed)
-):
+) -> bool:
     """
     Async logic for persisting encrypted chat metadata from the dual-phase architecture.
     This includes encrypted title, summary, tags, and follow-up suggestions.
@@ -2091,6 +2091,7 @@ async def _async_persist_encrypted_chat_metadata(
                         f"Also blocked metadata fields: {rejected_metadata or 'none'}. "
                         f"(task_id: {task_id})"
                     )
+                    return False
             
             # Separate version fields from metadata fields
             metadata_fields = {
@@ -2141,7 +2142,7 @@ async def _async_persist_encrypted_chat_metadata(
 
             if not update_fields:
                 logger.info(f"No fields need updating for chat {chat_id} (all versions current and no metadata provided)")
-                return
+                return True
 
             updated_chat = await directus_service.chat.update_chat_fields_in_directus(
                 chat_id=chat_id,
@@ -2183,10 +2184,12 @@ async def _async_persist_encrypted_chat_metadata(
                     logger.warning(
                         f"⚠️ Cannot update cache for chat {chat_id} - user_id not provided (task_id: {task_id})"
                     )
+                return True
             else:
                 logger.error(
                     f"Failed to update chat {chat_id} with encrypted metadata (task_id: {task_id})"
                 )
+                return False
         else:
             # Chat doesn't exist - CREATE it with the encrypted metadata
             logger.info(f"Chat {chat_id} doesn't exist, creating with encrypted metadata")
@@ -2195,7 +2198,7 @@ async def _async_persist_encrypted_chat_metadata(
                 logger.error(
                     f"Cannot create chat {chat_id} without hashed_user_id (task_id: {task_id})"
                 )
-                return
+                return False
             
             # CRITICAL: Create chat metadata in sync cache FIRST (before Directus)
             # This ensures cache-first strategy as per requirements
@@ -2368,6 +2371,7 @@ async def _async_persist_encrypted_chat_metadata(
                         )
                     finally:
                         await cache_service.close()
+                return True
             elif is_duplicate:
                 # RACE CONDITION FIX: Chat creation failed because another task (persist_new_chat_message_task)
                 # already created a minimal chat record. Update the existing chat with encrypted metadata.
@@ -2423,16 +2427,19 @@ async def _async_persist_encrypted_chat_metadata(
                             )
                         finally:
                             await cache_service.close()
+                    return True
                 else:
                     logger.error(
                         f"❌ Failed to update chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
                     )
+                    return False
             else:
                 # Chat creation failed for another reason (not a race condition)
                 logger.error(
                     f"❌ Failed to create chat {chat_id} with encrypted metadata (task_id: {task_id}). "
                     f"Response: {created_chat}"
                 )
+                return False
 
     except Exception as e:
         logger.error(
@@ -2468,9 +2475,12 @@ def persist_encrypted_chat_metadata(
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_persist_encrypted_chat_metadata(
+        persisted = loop.run_until_complete(_async_persist_encrypted_chat_metadata(
             chat_id, encrypted_metadata, task_id, hashed_user_id, user_id
         ))
+        if not persisted:
+            raise RuntimeError(f"Encrypted chat metadata was not persisted for chat {chat_id}")
+        return True
     except Exception as e:
         logger.error(
             f"SYNC_WRAPPER_ERROR: persist_encrypted_chat_metadata for chat {chat_id}, "

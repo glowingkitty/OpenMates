@@ -10,6 +10,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.persistence_tasks import _async_persist_encrypted_chat_metadata
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
     allocate_chat_metadata_versions,
@@ -234,19 +235,9 @@ async def handle_post_processing_metadata(
             if encrypted_follow_up_suggestions:
                 chat_update_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
 
-            if not is_team_chat and encrypted_new_chat_suggestions and len(encrypted_new_chat_suggestions) > 0:
-                # CRITICAL: This task MUST be dispatched to 'persistence' queue, which is handled by 'task-worker' container.
-                # app-web-worker only handles 'app_web' queue for long-running web app skills (like scraping).
-                # If you see this task executing in app-web-worker logs, there's a queue routing misconfiguration.
-                task_result = celery_app.send_task(
-                    "app.tasks.persistence_tasks.persist_new_chat_suggestions",
-                    args=[user_id_hash, chat_id, encrypted_new_chat_suggestions[:6]],
-                    queue="persistence"  # Must route to task-worker, NOT app-web-worker
-                )
-                logger.info(
-                    f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions) "
-                    f"to 'persistence' queue (handled by task-worker). Task ID: {task_result.id}"
-                )
+            has_new_chat_suggestions = bool(
+                not is_team_chat and encrypted_new_chat_suggestions
+            )
 
             if encrypted_chat_summary:
                 chat_update_fields["encrypted_chat_summary"] = encrypted_chat_summary
@@ -270,7 +261,7 @@ async def handle_post_processing_metadata(
 
             # OPE-314: Forward encrypted_chat_key so persistence task can validate
             # metadata was encrypted with the correct key
-            if encrypted_chat_key and chat_update_fields:
+            if encrypted_chat_key and (chat_update_fields or has_new_chat_suggestions):
                 chat_update_fields["encrypted_chat_key"] = encrypted_chat_key
 
             if not chat_update_fields:
@@ -282,6 +273,7 @@ async def handle_post_processing_metadata(
             chat_update_fields["updated_at"] = now_ts
 
             accepted_versions = None
+            cache_updates = []
             if encrypted_title or encrypted_chat_summary:
                 accepted_versions = await allocate_chat_metadata_versions(
                     cache_service,
@@ -293,31 +285,46 @@ async def handle_post_processing_metadata(
                 )
                 chat_update_fields.update(accepted_versions)
 
-                cache_updates = []
                 if encrypted_title:
                     cache_updates.append(("title", encrypted_title))
                 if encrypted_chat_summary:
                     cache_updates.append(("encrypted_chat_summary", encrypted_chat_summary))
 
-                for field, value in cache_updates:
-                    update_field_success = await cache_service.update_chat_list_item_field(
-                        user_id, chat_id, field, value
-                    )
-                    if not update_field_success:
-                        logger.error(
-                            f"Failed to update {field} in list_item_data for chat {chat_id}. User: {user_id}"
-                        )
-
             logger.info(f"Storing encrypted post-processing metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
 
-            # Queue task to update chat metadata in Directus
-            # CRITICAL: Pass user_id (not hashed) for cache updates
-            celery_app.send_task(
-                "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-                args=[chat_id, chat_update_fields, user_id_hash, user_id],  # Added user_id for cache updates
-                queue="persistence"
+            # This acknowledgement is a durability boundary for logout and
+            # cross-device sync, so Directus must be updated before it is sent.
+            persisted = await _async_persist_encrypted_chat_metadata(
+                chat_id,
+                chat_update_fields,
+                "websocket-direct",
+                user_id_hash,
+                user_id,
             )
-            logger.info(f"Queued post-processing metadata update task for chat {chat_id}")
+            if not persisted:
+                raise RuntimeError(f"Post-processing metadata was not persisted for chat {chat_id}")
+            logger.info(f"Persisted post-processing metadata for chat {chat_id}")
+
+            if has_new_chat_suggestions:
+                # Queue only after the chat-key guard accepted the metadata payload.
+                task_result = celery_app.send_task(
+                    "app.tasks.persistence_tasks.persist_new_chat_suggestions",
+                    args=[user_id_hash, chat_id, encrypted_new_chat_suggestions[:6]],
+                    queue="persistence",
+                )
+                logger.info(
+                    f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions) "
+                    f"to 'persistence' queue (handled by task-worker). Task ID: {task_result.id}"
+                )
+
+            for field, value in cache_updates:
+                update_field_success = await cache_service.update_chat_list_item_field(
+                    user_id, chat_id, field, value
+                )
+                if not update_field_success:
+                    logger.error(
+                        f"Failed to update {field} in list_item_data for chat {chat_id}. User: {user_id}"
+                    )
 
             # Send confirmation to client
             await manager.send_personal_message(
@@ -325,7 +332,7 @@ async def handle_post_processing_metadata(
                     "type": "post_processing_metadata_stored",
                     "payload": {
                         "chat_id": chat_id,
-                        "status": "queued_for_storage",
+                        "status": "stored",
                         "versions": accepted_versions or {},
                     }
                 },

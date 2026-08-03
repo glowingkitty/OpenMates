@@ -472,13 +472,15 @@ async def handle_encrypted_chat_metadata(
             
                 # The stored confirmation is a durability boundary used by logout
                 # and cross-device sync, so persist before acknowledging the client.
-                await _async_persist_encrypted_chat_metadata(
+                persisted = await _async_persist_encrypted_chat_metadata(
                     chat_id,
                     chat_update_fields,
                     "websocket-direct",
                     user_id_hash,
                     user_id,
                 )
+                if not persisted:
+                    raise RuntimeError(f"Encrypted chat metadata was not persisted for chat {chat_id}")
                 logger.info(f"Persisted encrypted chat metadata for chat {chat_id}")
 
             # Send message confirmation to client after successful storage
