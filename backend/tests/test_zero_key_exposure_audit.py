@@ -1,7 +1,7 @@
 """Test the read-only historical zero-key exposure audit.
 
 The fixtures authenticate synthetic AES-GCM and NaCl records under a zero key.
-They also prove strict parsing, complete pagination, sanitized findings, and
+They also prove strict parsing, repeatable snapshots, sanitized findings, and
 nonzero CLI exits for matches or inconclusive scans. No real Directus service
 or durable user data is used by this test module.
 """
@@ -42,7 +42,7 @@ class FakeRepository:
         self.count_overrides = {collection: list(counts) for collection, counts in (count_overrides or {}).items()}
         self.read_failures = read_failures or set()
         self.page_overrides = {collection: list(pages) for collection, pages in (page_overrides or {}).items()}
-        self.read_calls: list[tuple[str, str | int | None, int]] = []
+        self.read_calls: list[tuple[str, int, int]] = []
         self.write_calls = 0
 
     def count(self, collection: str, filters: Mapping[str, str]) -> int:
@@ -56,20 +56,18 @@ class FakeRepository:
         collection: str,
         fields: tuple[str, ...],
         filters: Mapping[str, str],
-        after_id: str | int | None,
+        offset: int,
         limit: int,
     ) -> list[dict[str, Any]]:
         del fields
-        self.read_calls.append((collection, after_id, limit))
+        self.read_calls.append((collection, offset, limit))
         if collection in self.read_failures:
             raise RuntimeError("synthetic read failure containing ciphertext-marker")
         overrides = self.page_overrides.get(collection)
         if overrides:
             return overrides.pop(0)
         rows = sorted(self._filtered(collection, filters), key=lambda row: str(row.get("id", "")))
-        if after_id is not None:
-            rows = [row for row in rows if str(row.get("id", "")) > str(after_id)]
-        return rows[:limit]
+        return rows[offset : offset + limit]
 
     def _filtered(self, collection: str, filters: Mapping[str, str]) -> list[dict[str, Any]]:
         rows = self.records.get(collection, [])
@@ -193,7 +191,35 @@ def test_detects_every_eligible_zero_key_format_without_flagging_nonzero_records
     assert len({finding["finding_id"] for finding in report["findings"]}) == 7
     assert all(len(finding["finding_id"]) == 64 for finding in report["findings"])
     assert repository.write_calls == 0
-    assert any(after_id is not None for _, after_id, _ in repository.read_calls)
+    assert any(offset > 0 for _, offset, _ in repository.read_calls)
+    assert [offset for collection, offset, _ in repository.read_calls if collection == "users"] == [0, 1, 0, 1]
+
+
+@pytest.mark.parametrize("change", ["record", "ciphertext"])
+def test_compensating_same_count_snapshot_changes_make_the_scan_incomplete(change: str) -> None:
+    first = _secretbox("a-email-row", NONZERO_KEY)
+    unchanged = _secretbox("b-email-row", NONZERO_KEY)
+    if change == "record":
+        changed = _secretbox("c-email-row", NONZERO_KEY)
+        second_snapshot = [unchanged, changed]
+    else:
+        changed = _secretbox("a-email-row", ZERO_KEY)
+        second_snapshot = [changed, unchanged]
+    records = _all_collections()
+    records["users"] = [first, unchanged]
+    repository = FakeRepository(
+        records,
+        page_overrides={"users": [[first, unchanged], second_snapshot]},
+    )
+
+    report = audit.audit_repository(repository, audited_at=AUDITED_AT)
+
+    assert report["status"] == "incomplete"
+    assert report["complete"] is False
+    assert "users.encrypted_email_address:snapshot_mismatch" in report["errors"]
+    assert not any(finding["category"] == "users.encrypted_email_address" for finding in report["findings"])
+    assert [offset for collection, offset, _ in repository.read_calls if collection == "users"] == [0, 0]
+    assert repository.write_calls == 0
 
 
 def test_finding_ids_are_domain_separated_and_report_never_exposes_sensitive_values() -> None:
@@ -251,7 +277,7 @@ def test_read_failure_is_sanitized_and_never_reported_as_clean() -> None:
     assert repository.write_calls == 0
 
 
-def test_duplicate_ids_in_keyset_pages_make_the_scan_incomplete() -> None:
+def test_duplicate_ids_in_offset_pages_make_the_scan_incomplete() -> None:
     duplicate = _secretbox("duplicate-email-row", NONZERO_KEY)
     records = _all_collections()
     records["users"] = [duplicate, dict(duplicate)]
@@ -265,7 +291,7 @@ def test_duplicate_ids_in_keyset_pages_make_the_scan_incomplete() -> None:
     assert repository.write_calls == 0
 
 
-def test_unsorted_ids_in_keyset_page_make_the_scan_incomplete() -> None:
+def test_unsorted_ids_in_offset_page_make_the_scan_incomplete() -> None:
     first = _secretbox("b-email-row", NONZERO_KEY)
     second = _secretbox("a-email-row", NONZERO_KEY)
     records = _all_collections()
@@ -275,7 +301,7 @@ def test_unsorted_ids_in_keyset_page_make_the_scan_incomplete() -> None:
     report = audit.audit_repository(repository, page_size=2, audited_at=AUDITED_AT)
 
     assert report["status"] == "incomplete"
-    assert "users.encrypted_email_address:keyset_order_malformed" in report["errors"]
+    assert "users.encrypted_email_address:sort_order_malformed" in report["errors"]
     assert repository.write_calls == 0
 
 
@@ -474,7 +500,7 @@ def test_directus_rejects_malformed_counts(
     ("collection", "expected_path"),
     [("users", "/users"), ("chats", "/items/chats")],
 )
-def test_directus_pages_use_get_only_keyset_queries(
+def test_directus_pages_use_get_only_offset_queries(
     monkeypatch: pytest.MonkeyPatch,
     collection: str,
     expected_path: str,
@@ -489,16 +515,16 @@ def test_directus_pages_use_get_only_keyset_queries(
     monkeypatch.setattr(audit, "urlopen", fake_urlopen)
     repository = audit.DirectusReadOnlyRepository("https://directus.invalid", "test-token")
 
-    assert repository.page(collection, ("id",), {}, "a", 2) == rows
+    assert repository.page(collection, ("id",), {}, 3, 2) == rows
     request, _ = requests[0]
     parsed = urlparse(request.full_url)
     query = parse_qs(parsed.query)
     assert request.get_method() == "GET"
     assert parsed.path == expected_path
-    assert query["filter[id][_gt]"] == ["a"]
     assert query["sort"] == ["id"]
     assert query["limit"] == ["2"]
-    assert "offset" not in query
+    assert query["offset"] == ["3"]
+    assert "filter[id][_gt]" not in query
 
 
 def test_directus_rejects_malformed_page_response(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -510,7 +536,7 @@ def test_directus_rejects_malformed_page_response(monkeypatch: pytest.MonkeyPatc
     repository = audit.DirectusReadOnlyRepository("https://directus.invalid", "test-token")
 
     with pytest.raises(RuntimeError, match="page_response_malformed"):
-        repository.page("chats", ("id",), {}, None, 10)
+        repository.page("chats", ("id",), {}, 0, 10)
 
 
 def test_cli_exit_codes_block_matches_and_incomplete_scans_but_allow_clean_scan() -> None:

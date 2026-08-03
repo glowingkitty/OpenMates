@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Audit historical client ciphertext for authenticated zero-key exposure.
 
-The detector reads eligible Directus records with count-verified pagination.
+The detector reads two count-verified, offset-paginated snapshots per category.
 It emits only category counts and domain-separated identifier hashes, never
 ciphertext, crypto metadata, identifiers, plaintext, or decrypted bytes.
-Any match, malformed record, read failure, or count mismatch exits nonzero.
+Any match, snapshot difference, malformed record, or read failure exits nonzero.
 """
 
 from __future__ import annotations
@@ -40,6 +40,9 @@ SECRETBOX_TAG_BYTES = 16
 DEFAULT_PAGE_SIZE = 250
 DEFAULT_TIMEOUT_SECONDS = 30
 FINDING_ID_DOMAIN = b"openmates.zero-key-audit.v1"
+INTERNAL_ID_DOMAIN = b"openmates.zero-key-audit.internal-id.v1"
+RECORD_FINGERPRINT_DOMAIN = b"openmates.zero-key-audit.record.v1"
+SNAPSHOT_FINGERPRINT_DOMAIN = b"openmates.zero-key-audit.snapshot.v1"
 EXIT_BLOCKED = 1
 EXIT_USAGE = 2
 
@@ -54,7 +57,7 @@ class ReadOnlyRepository(Protocol):
         collection: str,
         fields: tuple[str, ...],
         filters: Mapping[str, str],
-        after_id: str | int | None,
+        offset: int,
         limit: int,
     ) -> list[dict[str, Any]]: ...
 
@@ -195,13 +198,18 @@ class DirectusReadOnlyRepository:
         collection: str,
         fields: tuple[str, ...],
         filters: Mapping[str, str],
-        after_id: str | int | None,
+        offset: int,
         limit: int,
     ) -> list[dict[str, Any]]:
         params = self._params(filters)
-        params.update({"fields": ",".join(fields), "limit": str(limit), "sort": "id"})
-        if after_id is not None:
-            params["filter[id][_gt]"] = str(after_id)
+        params.update(
+            {
+                "fields": ",".join(fields),
+                "limit": str(limit),
+                "offset": str(offset),
+                "sort": "id",
+            }
+        )
         data = self._request(collection, params).get("data")
         if not isinstance(data, list) or not all(isinstance(row, dict) for row in data):
             raise RuntimeError("page_response_malformed")
@@ -365,6 +373,37 @@ def _finding_id(category: str, record_id: str) -> str:
     return digest.hexdigest()
 
 
+def _internal_id(category: str, record_id: str) -> bytes:
+    digest = hashlib.sha256()
+    digest.update(INTERNAL_ID_DOMAIN)
+    digest.update(b"\0")
+    digest.update(category.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(record_id.encode("utf-8"))
+    return digest.digest()
+
+
+def _record_fingerprint(scan: ScanDefinition, record_id: str, record: Mapping[str, Any]) -> bytes:
+    digest = hashlib.sha256()
+    digest.update(RECORD_FINGERPRINT_DOMAIN)
+    digest.update(b"\0")
+    digest.update(scan.category.encode("utf-8"))
+    for value in (record_id, record.get(scan.ciphertext_field)):
+        if not isinstance(value, str):
+            raise ValueError("fingerprint_field_malformed")
+        encoded = value.encode("utf-8")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+    if scan.format == "aes-separate-iv":
+        key_iv = record.get("key_iv")
+        if not isinstance(key_iv, str):
+            raise ValueError("fingerprint_field_malformed")
+        encoded_iv = key_iv.encode("utf-8")
+        digest.update(len(encoded_iv).to_bytes(8, "big"))
+        digest.update(encoded_iv)
+    return digest.digest()
+
+
 def _id_advances(previous: str | int, current: str | int) -> bool:
     if type(previous) is type(current):
         return current > previous
@@ -381,6 +420,112 @@ def _mark_incomplete(
     sanitized = f"{category}:{code}"
     if sanitized not in errors:
         errors.append(sanitized)
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    count: int
+    scanned: int
+    fingerprint: bytes
+    matches: frozenset[str]
+    complete: bool
+
+
+def _read_snapshot(
+    repository: ReadOnlyRepository,
+    scan: ScanDefinition,
+    page_size: int,
+    incomplete_categories: set[str],
+    errors: list[str],
+) -> Snapshot:
+    try:
+        expected_count = repository.count(scan.collection, scan.filters)
+        if isinstance(expected_count, bool) or not isinstance(expected_count, int) or expected_count < 0:
+            raise ValueError("count_malformed")
+    except Exception:
+        _mark_incomplete(scan.category, "count_read_failed", incomplete_categories, errors)
+        return Snapshot(0, 0, b"", frozenset(), False)
+
+    snapshot_digest = hashlib.sha256()
+    snapshot_digest.update(SNAPSHOT_FINGERPRINT_DOMAIN)
+    snapshot_digest.update(b"\0")
+    snapshot_digest.update(scan.category.encode("utf-8"))
+    seen_id_hashes: set[bytes] = set()
+    match_hashes: set[str] = set()
+    previous_id: str | int | None = None
+    scanned = 0
+    offset = 0
+    complete = True
+
+    while offset < expected_count:
+        try:
+            page = repository.page(scan.collection, scan.fields, scan.filters, offset, page_size)
+        except Exception:
+            _mark_incomplete(scan.category, "page_read_failed", incomplete_categories, errors)
+            complete = False
+            break
+        if not isinstance(page, list) or len(page) > page_size:
+            _mark_incomplete(scan.category, "page_malformed", incomplete_categories, errors)
+            complete = False
+            break
+        if not page:
+            _mark_incomplete(scan.category, "page_short", incomplete_categories, errors)
+            complete = False
+            break
+
+        for record in page:
+            scanned += 1
+            if not isinstance(record, dict):
+                _mark_incomplete(scan.category, "record_malformed", incomplete_categories, errors)
+                complete = False
+                continue
+            record_id = record.get("id")
+            if not isinstance(record_id, (str, int)) or isinstance(record_id, bool) or not str(record_id):
+                _mark_incomplete(scan.category, "record_malformed", incomplete_categories, errors)
+                complete = False
+                continue
+            if previous_id is not None and not _id_advances(previous_id, record_id):
+                _mark_incomplete(scan.category, "sort_order_malformed", incomplete_categories, errors)
+                complete = False
+            previous_id = record_id
+            normalized_id = str(record_id)
+            id_hash = _internal_id(scan.category, normalized_id)
+            if id_hash in seen_id_hashes:
+                _mark_incomplete(scan.category, "duplicate_record", incomplete_categories, errors)
+                complete = False
+                continue
+            seen_id_hashes.add(id_hash)
+            if not _record_is_eligible(scan, record):
+                _mark_incomplete(scan.category, "eligibility_mismatch", incomplete_categories, errors)
+                complete = False
+                continue
+            try:
+                matched = _record_matches(scan, record)
+                record_fingerprint = _record_fingerprint(scan, normalized_id, record)
+            except ValueError:
+                _mark_incomplete(scan.category, "crypto_record_malformed", incomplete_categories, errors)
+                complete = False
+                continue
+            except Exception:
+                _mark_incomplete(scan.category, "crypto_check_failed", incomplete_categories, errors)
+                complete = False
+                continue
+            snapshot_digest.update(record_fingerprint)
+            if matched:
+                match_hashes.add(_finding_id(scan.category, normalized_id))
+        offset += len(page)
+
+    try:
+        final_count = repository.count(scan.collection, scan.filters)
+    except Exception:
+        _mark_incomplete(scan.category, "final_count_read_failed", incomplete_categories, errors)
+        complete = False
+    else:
+        if final_count != expected_count or scanned != expected_count:
+            _mark_incomplete(scan.category, "count_mismatch", incomplete_categories, errors)
+            complete = False
+
+    return Snapshot(expected_count, scanned, snapshot_digest.digest(), frozenset(match_hashes), complete)
 
 
 def audit_repository(
@@ -400,89 +545,29 @@ def audit_repository(
     for scan in SCANS:
         counts = {"eligible": 0, "scanned": 0, "matched": 0}
         category_counts[scan.category] = counts
-        try:
-            expected_count = repository.count(scan.collection, scan.filters)
-            if isinstance(expected_count, bool) or not isinstance(expected_count, int) or expected_count < 0:
-                raise ValueError("count_malformed")
-            counts["eligible"] = expected_count
-        except Exception:
-            _mark_incomplete(scan.category, "count_read_failed", incomplete_categories, errors)
-            continue
+        first = _read_snapshot(repository, scan, page_size, incomplete_categories, errors)
+        second = _read_snapshot(repository, scan, page_size, incomplete_categories, errors)
+        counts["eligible"] = first.count
+        counts["scanned"] = first.scanned
 
-        seen_ids: set[str] = set()
-        after_id: str | int | None = None
-        read_failed = False
-        while counts["scanned"] < expected_count:
-            try:
-                page = repository.page(scan.collection, scan.fields, scan.filters, after_id, page_size)
-            except Exception:
-                _mark_incomplete(scan.category, "page_read_failed", incomplete_categories, errors)
-                read_failed = True
-                break
-            if not isinstance(page, list) or len(page) > page_size:
-                _mark_incomplete(scan.category, "page_malformed", incomplete_categories, errors)
-                read_failed = True
-                break
-            if not page:
-                _mark_incomplete(scan.category, "page_short", incomplete_categories, errors)
-                break
-            cursor_id: str | int | None = None
-            cursor_invalid = False
-            for record in page:
-                counts["scanned"] += 1
-                if not isinstance(record, dict):
-                    _mark_incomplete(scan.category, "record_malformed", incomplete_categories, errors)
-                    continue
-                record_id = record.get("id")
-                if not isinstance(record_id, (str, int)) or isinstance(record_id, bool) or not str(record_id):
-                    _mark_incomplete(scan.category, "record_malformed", incomplete_categories, errors)
-                    continue
-                normalized_id = str(record_id)
-                previous_id = cursor_id if cursor_id is not None else after_id
-                if previous_id is not None and not _id_advances(previous_id, record_id):
-                    _mark_incomplete(scan.category, "keyset_order_malformed", incomplete_categories, errors)
-                    cursor_invalid = True
-                cursor_id = record_id
-                if normalized_id in seen_ids:
-                    _mark_incomplete(scan.category, "duplicate_record", incomplete_categories, errors)
-                    continue
-                seen_ids.add(normalized_id)
-                if not _record_is_eligible(scan, record):
-                    _mark_incomplete(scan.category, "eligibility_mismatch", incomplete_categories, errors)
-                    continue
-                try:
-                    matched = _record_matches(scan, record)
-                except ValueError:
-                    _mark_incomplete(scan.category, "crypto_record_malformed", incomplete_categories, errors)
-                    continue
-                except Exception:
-                    _mark_incomplete(scan.category, "crypto_check_failed", incomplete_categories, errors)
-                    continue
-                if matched:
-                    counts["matched"] += 1
-                    findings.append(
-                        {
-                            "category": scan.category,
-                            "finding_id": _finding_id(scan.category, normalized_id),
-                            "timestamp": timestamp,
-                            "match": True,
-                        }
-                    )
-            if cursor_invalid:
-                break
-            if cursor_id is None:
-                _mark_incomplete(scan.category, "keyset_cursor_malformed", incomplete_categories, errors)
-                break
-            after_id = cursor_id
+        if first.complete and second.complete and (
+            first.count != second.count
+            or first.fingerprint != second.fingerprint
+            or first.matches != second.matches
+        ):
+            _mark_incomplete(scan.category, "snapshot_mismatch", incomplete_categories, errors)
 
-        if not read_failed:
-            try:
-                final_count = repository.count(scan.collection, scan.filters)
-            except Exception:
-                _mark_incomplete(scan.category, "final_count_read_failed", incomplete_categories, errors)
-            else:
-                if final_count != expected_count or counts["scanned"] != expected_count:
-                    _mark_incomplete(scan.category, "count_mismatch", incomplete_categories, errors)
+        if first.complete and second.complete and scan.category not in incomplete_categories:
+            counts["matched"] = len(first.matches)
+            findings.extend(
+                {
+                    "category": scan.category,
+                    "finding_id": finding_id,
+                    "timestamp": timestamp,
+                    "match": True,
+                }
+                for finding_id in sorted(first.matches)
+            )
 
     complete = not incomplete_categories
     matched_total = len(findings)
