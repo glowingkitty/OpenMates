@@ -213,7 +213,7 @@
 
 {#if isMobile}
   <!-- Mobile Layout: Vertical layout with app icon, skill icon, status text, and stop button -->
-  <div class="basic-infos-bar mobile">
+  <div class="basic-infos-bar mobile" data-testid="embed-basic-infos-bar">
     <!-- App icon container OR favicon (full width, 44px height, gradient background) -->
     {#if safeFaviconUrl}
       <div class="app-icon-container {appId}" data-app-icon={appId} style={appGradientStyle}>
@@ -265,7 +265,7 @@
   </div>
 {:else}
   <!-- Desktop Layout: Horizontal bar (61px height, 30px rounded edges, grey-20 background) -->
-  <div class="basic-infos-bar desktop" class:noSkillIcon={!showSkillIcon}>
+  <div class="basic-infos-bar desktop" class:noSkillIcon={!showSkillIcon} data-testid="embed-basic-infos-bar">
     <!-- App icon in gradient circle (always show app icon, not favicon) -->
     <div class="app-icon-circle {appId}" data-testid="app-icon-circle" data-app-icon={appId} style={appGradientStyle}>
       {#if safeAppIconName}

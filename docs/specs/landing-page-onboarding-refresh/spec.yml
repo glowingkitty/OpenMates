@@ -110,7 +110,7 @@ clarification:
     - question: Should the `Find events` animation render real embed components or a lightweight visual match?
       answer: Use a simplified deterministic animation, but its user/assistant messages must match the real chat history UI and its events surfaces must reuse or mirror the real events embed preview/fullscreen designs.
     - question: Which event should the first `Actionable` animation represent?
-      answer: Use a language-learning event in Berlin. The sequence is user message, `Sure, let me help with that!`, fade response up/out, fade in embed preview, then expand preview into fullscreen details while the scene zooms out.
+      answer: Use the `DEPIN DAY BERLIN` tech event. The sequence is a localized user request, George's localized `Of course, here you go:` response, the real event preview with a pointer click, and the `Open on Luma` CTA with a pointer click.
   vision_summary: >
     Logged-out users should understand OpenMates from the real app UI before they
     choose topics or read long intro chats. The first page load should feel like a
@@ -464,7 +464,8 @@ scenarios:
       - The click reveals the actual CTA text `Open on Luma`, and the cursor clicks that CTA.
       - Every user-visible demo string comes from the translation sources for every supported locale.
       - Each content stage enters quickly from below at reduced scale, continues drifting upward very slowly through the center without stopping, then accelerates upward while scaling and fading down.
-      - On mobile, the existing headline and category icon nodes move from the large left-aligned layout into a centered compact top caption at approximately 0.5 opacity, with the icon transitioning from above the heading to its left; desktop keeps the side-by-side layout.
+      - On mobile, the existing headline and category icon nodes fade out at full size, switch while hidden into a centered compact top caption with the icon on the left, then fade back in at approximately 0.5 opacity; desktop keeps the side-by-side layout.
+      - The first user-message stage starts only after the compact mobile heading has completed its fade-in, and both chat message containers render wider and larger than the previous compact treatment.
       - The preview is fully visible and centered during its center dwell at desktop and mobile sizes.
       - The animation plays once, the progress bar reaches 100% at the final clicked state, and the carousel advances to the privacy slide without repeating.
       - The slide does not show the rejected simplified fullscreen/map surface.
