@@ -144,6 +144,9 @@ class ProjectRemoteAccessService:
                             ),
                             replaced,
                         )
+                        await self._remove_index_value(
+                            self._team_sessions_key(context_id), replaced
+                        )
                 await self.cache.delete(self._session_key(context_id, replaced, context_type))
             if context_type == "team":
                 await self._append_index(self._member_sessions_key(context_id, user_id), source_session_id)
@@ -184,6 +187,7 @@ class ProjectRemoteAccessService:
             )
             if context_type == "team":
                 await self._append_index(self._member_sessions_key(context_id, user_id), source_session_id)
+                await self._append_index(self._team_sessions_key(context_id), source_session_id)
             for item in session["bindings"]:
                 owner_key = self._binding_key(context_id, item["project_id"], item["source_id"], context_type)
                 owner = await self.cache.get(owner_key)
@@ -221,6 +225,7 @@ class ProjectRemoteAccessService:
             await self.cache.delete(self._session_key(context_id, source_session_id, context_type))
             if context_type == "team":
                 await self._remove_index_value(self._member_sessions_key(context_id, user_id), source_session_id)
+                await self._remove_index_value(self._team_sessions_key(context_id), source_session_id)
             return current
 
     async def revoke_source(
@@ -238,6 +243,16 @@ class ProjectRemoteAccessService:
             session = await self.cache.get(session_key)
             await self.cache.delete(owner_key)
             if not isinstance(session, dict):
+                if context_type == "team":
+                    await self._remove_index_value(
+                        self._member_sessions_key(
+                            context_id, str(owner.get("host_user_id") or "")
+                        ),
+                        source_session_id,
+                    )
+                    await self._remove_index_value(
+                        self._team_sessions_key(context_id), source_session_id
+                    )
                 return True
 
             revoked_request_ids: list[str] = []
@@ -254,13 +269,7 @@ class ProjectRemoteAccessService:
                         retained.append(request_id)
                 session[field] = retained
             for request_id in revoked_request_ids:
-                await self.cache.delete(self._request_key(context_id, request_id, context_type))
-                await self.cache.delete(self._result_key(context_id, request_id, context_type))
-                await self.cache.set(
-                    self._tombstone_key(context_id, request_id, context_type),
-                    True,
-                    ttl=RESULT_CACHE_TTL_SECONDS,
-                )
+                await self._revoke_request(context_type, context_id, request_id)
 
             session["bindings"] = [
                 binding
@@ -275,6 +284,9 @@ class ProjectRemoteAccessService:
                     await self._remove_index_value(
                         self._member_sessions_key(context_id, str(session.get("host_user_id") or "")),
                         source_session_id,
+                    )
+                    await self._remove_index_value(
+                        self._team_sessions_key(context_id), source_session_id
                     )
             return True
 
@@ -424,6 +436,8 @@ class ProjectRemoteAccessService:
                 except ProjectRemoteAccessError:
                     session["in_flight"] = [value for value in in_flight if value != request_id]
                     await self.cache.delete(request_key)
+                    if context_type == "team":
+                        await self._remove_request_indexes(context_id, user_id, request_id)
                     await self.cache.set(
                         self._session_key(context_id, session_id, context_type),
                         session,
@@ -433,6 +447,8 @@ class ProjectRemoteAccessService:
             response: dict[str, Any] = {
                 "request_id": request_id,
                 "status": status,
+                "source_session_id": session_id,
+                "key_epoch": key_epoch,
             }
             if context_type == "team":
                 response["routing_identity"] = self._routing_identity(request)
@@ -488,6 +504,7 @@ class ProjectRemoteAccessService:
                     "project_hash": request["project_hash"],
                     "source_id": source_id,
                     "requesting_client_id": request["requesting_client_id"],
+                    "requester_user_id": request["requester_user_id"],
                     "requester_member_hash": request["requester_member_hash"],
                     "requester_device_fingerprint_hash": request["requester_device_fingerprint_hash"],
                     "status": "completed",
@@ -495,6 +512,12 @@ class ProjectRemoteAccessService:
                 },
                 ttl=RESULT_CACHE_TTL_SECONDS,
             )
+            if context_type == "team":
+                await self._append_index(
+                    self._member_requests_key(context_id, str(request["requester_user_id"])),
+                    request_id,
+                )
+                await self._append_index(self._team_requests_key(context_id), request_id)
             await self.cache.set(
                 self._tombstone_key(context_id, request_id, context_type),
                 True,
@@ -524,22 +547,31 @@ class ProjectRemoteAccessService:
     ) -> dict[str, str]:
         del now
         context_type, context_id = _context(user_id, team_id)
-        result = await self.cache.get(self._result_key(context_id, request_id, context_type))
-        if not isinstance(result, dict) or (
-            result.get("project_hash"),
-            result.get("source_id"),
-            result.get("requesting_client_id"),
-            result.get("requester_member_hash"),
-            result.get("requester_device_fingerprint_hash"),
-        ) != (
-            _hash(project_id),
-            source_id,
-            requesting_client_id,
-            _hash(user_id),
-            requesting_device_fingerprint_hash or requesting_client_id,
-        ):
-            raise ProjectRemoteAccessError("request_not_found", status_code=404)
-        return {"status": str(result["status"]), "encrypted_envelope": str(result["encrypted_envelope"])}
+        async with self._state_lock(context_type, context_id):
+            result_key = self._result_key(context_id, request_id, context_type)
+            result = await self.cache.get(result_key)
+            if not isinstance(result, dict) or (
+                result.get("project_hash"),
+                result.get("source_id"),
+                result.get("requesting_client_id"),
+                result.get("requester_member_hash"),
+                result.get("requester_device_fingerprint_hash"),
+            ) != (
+                _hash(project_id),
+                source_id,
+                requesting_client_id,
+                _hash(user_id),
+                requesting_device_fingerprint_hash or requesting_client_id,
+            ):
+                raise ProjectRemoteAccessError("request_not_found", status_code=404)
+            response = {
+                "status": str(result["status"]),
+                "encrypted_envelope": str(result["encrypted_envelope"]),
+            }
+            await self.cache.delete(result_key)
+            if context_type == "team":
+                await self._remove_request_indexes(context_id, user_id, request_id)
+            return response
 
     async def _consume_rate_limit(self, user_id: str, now: int) -> None:
         minute = now // 60
@@ -601,6 +633,10 @@ class ProjectRemoteAccessService:
                     active.append(request_id)
                     continue
                 await self.cache.delete(self._request_key(context_id, request_id, context_type))
+                if context_type == "team" and isinstance(request, dict):
+                    await self._remove_request_indexes(
+                        context_id, str(request.get("requester_user_id") or ""), request_id
+                    )
                 await self.cache.set(
                     self._tombstone_key(context_id, request_id, context_type),
                     True,
@@ -707,6 +743,15 @@ class ProjectRemoteAccessService:
         else:
             await self.cache.delete(key)
 
+    async def _remove_request_indexes(
+        self, team_id: str, requester_user_id: str, request_id: str
+    ) -> None:
+        if requester_user_id:
+            await self._remove_index_value(
+                self._member_requests_key(team_id, requester_user_id), request_id
+            )
+        await self._remove_index_value(self._team_requests_key(team_id), request_id)
+
     async def _revoke_member_locked(self, team_id: str, member_user_id: str) -> bool:
         revoked = False
         sessions = list(await self.cache.get(self._member_sessions_key(team_id, member_user_id)) or [])
@@ -735,8 +780,14 @@ class ProjectRemoteAccessService:
         return revoked
 
     async def _revoke_request(self, context_type: str, context_id: str, request_id: str) -> None:
+        request = await self.cache.get(self._request_key(context_id, request_id, context_type))
+        result = await self.cache.get(self._result_key(context_id, request_id, context_type))
         await self.cache.delete(self._request_key(context_id, request_id, context_type))
         await self.cache.delete(self._result_key(context_id, request_id, context_type))
+        if context_type == "team":
+            metadata = request if isinstance(request, dict) else result
+            requester_user_id = str(metadata.get("requester_user_id") or "") if isinstance(metadata, dict) else ""
+            await self._remove_request_indexes(context_id, requester_user_id, request_id)
         await self.cache.set(
             self._tombstone_key(context_id, request_id, context_type),
             True,

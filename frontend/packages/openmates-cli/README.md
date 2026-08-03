@@ -144,9 +144,12 @@ review the spend confirmation before live runs.
 ### Local source bridge
 
 ```bash
-openmates remote-access
-openmates remote-access --path ./my-repo --path ../shared
-openmates remote-access --path ./my-repo --json
+openmates remote-access --personal
+openmates remote-access --team <team> --path ./my-repo --path ../shared
+openmates remote-access --personal --path ./my-repo --json
+openmates projects files list <project> --personal --json
+openmates projects files search <project> <query> --team <team> --source <source-id> --json
+openmates projects files read <project> <relative-path> --team <team> --source <source-id> --json
 ```
 
 The command discovers Git repositories below the current folder by default;
@@ -156,6 +159,14 @@ stops. OpenMates can request bounded directory listings, text search, and
 selected text previews. The bridge is read-only, excludes ignored, protected,
 binary, and out-of-root files, and never uploads a preview unless you explicitly
 choose to upload it.
+
+Interactive hosting confirms Personal or Team context before discovery.
+Non-interactive/JSON hosting and live file requests require `--personal` or
+`--team <team>`. Team permissions are enforced by the API; live filesystem
+methods remain CLI-only and are not exposed by the npm SDK.
+Project deletion requires the exact Project ID, and source removal requires the
+exact source ID, both in the CLI prompt and in the server request. Generic
+boolean confirmation is not supported.
 
 Project keys authenticate end-to-end encryption between trusted clients. The
 backend receives routing metadata and opaque ciphertext, not filesystem paths,

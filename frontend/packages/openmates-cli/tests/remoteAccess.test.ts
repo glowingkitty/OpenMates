@@ -20,6 +20,7 @@ import {
   listRemoteAccessSources,
   discoverRemoteAccessRepositories,
   listRemoteAccessDirectory,
+  projectRemoteAccessLifecyclePayload,
   readRemoteAccessTextFile,
   remoteAccessSourceType,
   resolveRemoteAccessRoots,
@@ -31,6 +32,20 @@ import {
 } from "../src/remoteAccess.ts";
 
 describe("Project remote-access bridge primitives", () => {
+  it("includes Team context on every source lifecycle message", () => {
+    const bindings = [{
+      source: { sourceId: "source-1", projectId: "project-1" },
+      projectKey: new Uint8Array(32),
+      keyEpoch: 1,
+      teamId: "team-1",
+    }];
+
+    assert.deepEqual(projectRemoteAccessLifecyclePayload("session-1", bindings), {
+      source_session_id: "session-1",
+      team_id: "team-1",
+    });
+  });
+
   it("stores preview cache under ~/.openmates/remote-cache/<source-id> by default", () => {
     assert.equal(
       resolveRemoteCachePath("source-1", "/home/alice"),

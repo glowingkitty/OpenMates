@@ -27,6 +27,8 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
     create_project,
     delete_project,
     delete_project_source,
+    get_project,
+    list_projects,
     list_project_history,
     list_project_sources,
     move_project_to_team,
@@ -64,6 +66,51 @@ def team_project_wrapper(team_id: str = "team-1", epoch: int = 1) -> dict[str, o
         "encrypted_project_key": "cipher-team-project-key",
         "created_at": 1,
     }
+
+
+@pytest.mark.anyio
+async def test_team_project_projection_includes_authorized_wrapper_and_permissions() -> None:
+    project = {"project_id": "project-1", "encrypted_project_key": None, "encrypted_name": "cipher-name"}
+    wrappers = [team_project_wrapper()]
+    directus = SimpleNamespace(
+        team=SimpleNamespace(require_team_role=AsyncMock(return_value={"role": "member"})),
+        project=SimpleNamespace(
+            list_projects=AsyncMock(return_value=[project]),
+            get_project=AsyncMock(return_value=project),
+            list_project_key_wrappers=AsyncMock(return_value=wrappers),
+            list_folders=AsyncMock(return_value=[]),
+            list_items=AsyncMock(return_value=[]),
+        ),
+    )
+
+    listed = await list_projects(
+        request=make_request("GET"),
+        include_archived=True,
+        team_id="team-1",
+        current_user=SimpleNamespace(id="user-1"),
+        directus_service=directus,
+    )
+    shown = await get_project(
+        request=make_request("GET"),
+        project_id="project-1",
+        team_id="team-1",
+        current_user=SimpleNamespace(id="user-1"),
+        directus_service=directus,
+    )
+
+    for projected in (listed["projects"][0], shown["project"]):
+        assert projected["key_wrappers"] == wrappers
+        assert projected["mutation_permissions"] == {
+            "create": True,
+            "update": True,
+            "archive": True,
+            "delete": False,
+            "settings": False,
+            "manage_any_items": False,
+            "manage_any_sources": False,
+            "manage_own_items": True,
+            "manage_own_sources": True,
+        }
 
 
 @pytest.mark.anyio
@@ -607,7 +654,7 @@ async def test_member_can_remove_only_source_they_attached() -> None:
             request=make_request("DELETE"),
             project_id="project-1",
             source_id="source-1",
-            confirmed=True,
+            confirmation_source_id="source-1",
             team_id="team-1",
             current_user=SimpleNamespace(id="user-1"),
             directus_service=directus,
@@ -627,13 +674,33 @@ async def test_source_removal_requires_explicit_confirmation() -> None:
             request=make_request("DELETE"),
             project_id="project-1",
             source_id="source-1",
-            confirmed=False,
+            confirmation_source_id=None,
             current_user=SimpleNamespace(id="user-1"),
             directus_service=directus,
         )
 
     assert exc_info.value.status_code == 409
     assert exc_info.value.detail == "SOURCE_REMOVAL_CONFIRMATION_REQUIRED"
+    directus.project.delete_source.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_source_removal_rejects_mismatched_exact_source_id() -> None:
+    directus = SimpleNamespace()
+    directus.project = SimpleNamespace(delete_source=AsyncMock())
+
+    with pytest.raises(HTTPException) as exc_info:
+        await delete_project_source(
+            request=make_request("DELETE"),
+            project_id="project-1",
+            source_id="source-1",
+            confirmation_source_id="source-2",
+            current_user=SimpleNamespace(id="user-1"),
+            directus_service=directus,
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == "SOURCE_REMOVAL_CONFIRMATION_MISMATCH"
     directus.project.delete_source.assert_not_awaited()
 
 
@@ -654,7 +721,7 @@ async def test_source_removal_revokes_runtime_before_deleting_row(monkeypatch) -
         request=make_request("DELETE"),
         project_id="project-1",
         source_id="source-1",
-        confirmed=True,
+        confirmation_source_id="source-1",
         team_id="team-1",
         current_user=SimpleNamespace(id="user-1"),
         directus_service=directus,
@@ -726,6 +793,7 @@ async def test_project_delete_revokes_all_sources_before_durable_delete(monkeypa
     response = await delete_project(
         request=make_request("DELETE"),
         project_id="project-1",
+        confirmation_project_id="project-1",
         current_user=SimpleNamespace(id="user-1"),
         directus_service=directus,
         history_service=history_service,
@@ -733,6 +801,42 @@ async def test_project_delete_revokes_all_sources_before_durable_delete(monkeypa
 
     assert response["deleted"] is True
     assert calls == ["revoke:source-1", "revoke:source-2", "delete"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("confirmation_project_id", "detail"),
+    [
+        (None, "PROJECT_DELETION_CONFIRMATION_REQUIRED"),
+        ("project-2", "PROJECT_DELETION_CONFIRMATION_MISMATCH"),
+    ],
+)
+async def test_project_delete_requires_matching_exact_project_id(
+    confirmation_project_id: str | None,
+    detail: str,
+) -> None:
+    directus = SimpleNamespace(
+        project=SimpleNamespace(
+            get_project=AsyncMock(),
+            list_sources=AsyncMock(),
+            delete_project=AsyncMock(),
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await delete_project(
+            request=make_request("DELETE"),
+            project_id="project-1",
+            confirmation_project_id=confirmation_project_id,
+            current_user=SimpleNamespace(id="user-1"),
+            directus_service=directus,
+            history_service=AsyncMock(),
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == detail
+    directus.project.get_project.assert_not_awaited()
+    directus.project.delete_project.assert_not_awaited()
 
 
 @pytest.mark.anyio

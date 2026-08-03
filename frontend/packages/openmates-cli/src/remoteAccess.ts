@@ -30,7 +30,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { join, resolve, relative } from "node:path";
 
 import { classifyProjectFileRisk, PROJECT_HIGH_RISK_GLOBS } from "./projectFileRisk.js";
-import { decryptWithAesGcmCombined } from "./crypto.js";
+import { decryptWithAesGcmCombined, encryptWithAesGcmCombined } from "./crypto.js";
 import {
   createRemoteAccessHandshake,
   deriveRemoteAccessSessionKey,
@@ -132,6 +132,7 @@ export interface LiveRemoteAccessBinding {
   source: RemoteAccessSourceRecord;
   projectKey: Uint8Array;
   keyEpoch: number;
+  teamId?: string;
 }
 
 export interface RemoteAccessLifecycleEvent {
@@ -314,8 +315,9 @@ export async function runRemoteAccessBridge(options: {
     try {
       const opened = await options.client.openProjectRemoteAccessWebSocket();
       ws = opened.ws;
+      const lifecyclePayload = projectRemoteAccessLifecyclePayload(options.sourceSessionId, options.bindings);
       await ws.sendAsync("project_remote_access_register", {
-        source_session_id: options.sourceSessionId,
+        ...lifecyclePayload,
         confirmed_takeover: options.confirmedTakeover === true,
         bindings: options.bindings.map((binding) => ({
           project_id: binding.source.projectId,
@@ -331,11 +333,11 @@ export async function runRemoteAccessBridge(options: {
         void handleLiveRemoteAccessRequest(ws!, opened.ownerId, options.sourceSessionId, options.bindings, frame);
       });
       heartbeatTimer = setInterval(() => {
-        void ws?.sendAsync("project_remote_access_heartbeat", { source_session_id: options.sourceSessionId });
+        void ws?.sendAsync("project_remote_access_heartbeat", lifecyclePayload);
       }, 15_000);
       await Promise.race([ws.waitForClose(), waitForAbort(options.signal)]);
       if (options.signal.aborted) {
-        await ws.sendAsync("project_remote_access_disconnect", { source_session_id: options.sourceSessionId }).catch(() => undefined);
+        await ws.sendAsync("project_remote_access_disconnect", lifecyclePayload).catch(() => undefined);
         options.onLifecycle?.({ state: "disconnected" });
         return;
       }
@@ -355,6 +357,17 @@ export async function runRemoteAccessBridge(options: {
   }
 }
 
+export function projectRemoteAccessLifecyclePayload(
+  sourceSessionId: string,
+  bindings: LiveRemoteAccessBinding[],
+): { source_session_id: string; team_id?: string } {
+  const teamId = bindings[0]?.teamId;
+  return {
+    source_session_id: sourceSessionId,
+    ...(teamId ? { team_id: teamId } : {}),
+  };
+}
+
 async function handleLiveRemoteAccessRequest(
   ws: Awaited<ReturnType<OpenMatesClient["openProjectRemoteAccessWebSocket"]>>["ws"],
   ownerId: string,
@@ -369,6 +382,8 @@ async function handleLiveRemoteAccessRequest(
   const bootstrapText = await decryptWithAesGcmCombined(frame.encrypted_envelope, binding.projectKey);
   if (!bootstrapText) return;
   let bootstrap: {
+    type?: string;
+    nonce?: string;
     requesting_client_id?: string;
     requester_handshake?: RemoteAccessHandshake;
     operation?: ProjectRemoteAccessRequestFrame["operation"];
@@ -380,6 +395,25 @@ async function handleLiveRemoteAccessRequest(
     return;
   }
   if (
+    bootstrap.type === "routing_discovery"
+    && bootstrap.requesting_client_id === frame.requesting_client_id
+    && bootstrap.nonce
+  ) {
+    await ws.sendAsync("project_remote_access_complete", {
+      source_session_id: sourceSessionId,
+      ...(binding.teamId ? { team_id: binding.teamId } : {}),
+      project_id: frame.project_id,
+      source_id: frame.source_id,
+      request_id: frame.request_id,
+      key_epoch: binding.keyEpoch,
+      encrypted_envelope: await encryptWithAesGcmCombined(
+        JSON.stringify({ type: "routing_discovery_result", nonce: bootstrap.nonce }),
+        binding.projectKey,
+      ),
+    });
+    return;
+  }
+  if (
     !bootstrap.requesting_client_id
     || bootstrap.requesting_client_id !== frame.requesting_client_id
     || !bootstrap.requester_handshake
@@ -387,7 +421,15 @@ async function handleLiveRemoteAccessRequest(
     || !bootstrap.arguments
   ) return;
   const identity: RemoteAccessCryptoIdentity = {
-    ownerId,
+    ownerId: frame.routing_identity?.context_id_hash ?? ownerId,
+    ...(binding.teamId && frame.routing_identity ? {
+      contextType: "team" as const,
+      contextId: frame.routing_identity.context_id_hash,
+      hostMemberId: frame.routing_identity.host_member_hash,
+      hostDeviceId: frame.routing_identity.host_device_fingerprint_hash,
+      requesterMemberId: frame.routing_identity.requester_member_hash,
+      requesterDeviceId: frame.routing_identity.requester_device_fingerprint_hash,
+    } : {}),
     projectId: frame.project_id,
     sourceId: frame.source_id,
     sourceSessionId,
@@ -422,6 +464,7 @@ async function handleLiveRemoteAccessRequest(
     );
     await ws.sendAsync("project_remote_access_complete", {
       source_session_id: sourceSessionId,
+      ...(binding.teamId ? { team_id: binding.teamId } : {}),
       project_id: frame.project_id,
       source_id: frame.source_id,
       request_id: frame.request_id,

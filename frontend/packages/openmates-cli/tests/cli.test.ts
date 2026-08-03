@@ -29,7 +29,7 @@ import {
   INTEREST_TAG_IDS,
   normalizeInterestTagIds,
 } from "../dist/index.js";
-import { buildTravelConnectionsRequest } from "../dist/cli.js";
+import { buildTravelConnectionsRequest, requireExactConfirmation } from "../dist/cli.js";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -1035,6 +1035,61 @@ describe("remote-access command", () => {
     } finally {
       rmSync(tempHome, { recursive: true, force: true });
     }
+  });
+});
+
+describe("projects deterministic commands", () => {
+  it("documents CRUD, item/source navigation, and CLI-only requester commands", () => {
+    const output = runCli(["projects", "--help"]);
+    for (const command of [
+      "projects list",
+      "projects show",
+      "projects open",
+      "projects create",
+      "projects update",
+      "projects archive",
+      "projects unarchive",
+      "projects delete",
+      "projects items list",
+      "projects items remove",
+      "projects sources list",
+      "projects sources remove",
+      "projects files list",
+      "projects files search",
+      "projects files read",
+    ]) assert.match(output, new RegExp(command.replaceAll(" ", "\\s+")));
+    assert.match(output, /--personal\|--team <team>/);
+    assert.match(output, /live file requests require an explicit context/i);
+    assert.doesNotMatch(output, /LLM|fallback to chat/i);
+  });
+
+  it("returns JSON-safe confirmation and live-context errors before network access", () => {
+    const deletion = runCliWithoutSessionResult(["projects", "delete", "project-1", "--json"]);
+    assert.notEqual(deletion.status, 0);
+    assert.deepEqual(JSON.parse(deletion.stderr.trim()), {
+      error: { code: "confirmation_required", message: "Project deletion requires --confirm <exact-project-id>." },
+    });
+
+    const requester = runCliWithoutSessionResult(["projects", "files", "list", "project-1", "--json"]);
+    assert.notEqual(requester.status, 0);
+    assert.deepEqual(JSON.parse(requester.stderr.trim()), {
+      error: { code: "context_confirmation_required", message: "Live file requests require --personal or --team <team>." },
+    });
+
+    const sourceRemoval = runCliWithoutSessionResult(["projects", "sources", "remove", "project-1", "--source", "source-1", "--json"]);
+    assert.notEqual(sourceRemoval.status, 0);
+    assert.deepEqual(JSON.parse(sourceRemoval.stderr.trim()), {
+      error: { code: "confirmation_required", message: "Project source removal requires --confirm <source-id>." },
+    });
+  });
+
+  it("rejects mismatched exact confirmations", async () => {
+    await assert.rejects(
+      requireExactConfirmation("Project deletion", "project-1", { confirm: "project-2", json: true }),
+      (error: Error & { code?: string }) =>
+        error.code === "confirmation_mismatch"
+        && error.message === "Project deletion confirmation must exactly match 'project-1'.",
+    );
   });
 });
 

@@ -518,7 +518,8 @@ export async function updateProjectSettings(
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
-  await requestJson<{ deleted: boolean }>(`/v1/projects/${projectId}`, { method: "DELETE" });
+  const confirmation = new URLSearchParams({ confirmation_project_id: projectId });
+  await requestJson<{ deleted: boolean }>(`/v1/projects/${projectId}?${confirmation.toString()}`, { method: "DELETE" });
 }
 
 async function decryptProjectSource(source: ProjectSourceRecord, projectKey: Uint8Array): Promise<ProjectSourceViewModel> {

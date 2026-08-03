@@ -62,7 +62,11 @@ test.describe('Unified workspace detail pages', () => {
 			projectId = (await (await created).json()).project.project_id;
 			await expectUnifiedDetail(page, 'projects', projectId);
 		} finally {
-			if (projectId) await page.request.delete(`${apiUrl}/v1/projects/${encodeURIComponent(projectId)}`).catch(() => null);
+			if (projectId) {
+				await page.request.delete(
+					`${apiUrl}/v1/projects/${encodeURIComponent(projectId)}?confirmation_project_id=${encodeURIComponent(projectId)}`,
+				).catch(() => null);
+			}
 		}
 	});
 

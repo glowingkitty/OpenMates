@@ -124,7 +124,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-review-fixes
+  subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4
 
 approvals:
   product_contract:
@@ -254,16 +254,55 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-03T18:04:54Z"
     reason: The verifier now builds and imports dist/remoteAccessCrypto.js, exercises Personal v1 and Team v2 transcript/result-envelope compatibility, and adds deterministic wrong-context replay, takeover/stale-session, and cross-session polling denial probes. Cross-account and removed-member live probes remain explicitly not_run without a separately approved second account; backend unit coverage remains green.
+  - id: ATTEMPT-13
+    task_id: TASK-3
+    approach: Run the crypto-backed Personal/Team REST and WebSocket verifier against the deployed TASK-3 commit chain after stabilizing compiled imports and bridge lifecycle cleanup.
+    outcome: succeeded
+    recorded_at: "2026-08-03T20:14:30Z"
+    reason: Personal v1 and Team v2 encrypted relay, context denial, replay denial, cross-session polling denial, takeover, stale-session denial, disconnect, and cleanup passed against deployed commits 759486c, 9ee19dd, 6e12945, 9d3a6b9, and 47974ac; second-account-only probes remained explicitly not_run.
+  - id: ATTEMPT-14
+    task_id: TASK-4
+    approach: Add focused deterministic Project CLI/client/requester tests before production command implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-03T20:27:00Z"
+    reason: The red run produced two expected CLI grammar/JSON failures and the focused client test failed because getProject was absent; an initial dependency-only failure was superseded after using the existing workspace dependency installation.
+  - id: ATTEMPT-15
+    task_id: TASK-4
+    approach: Implement context-scoped Project CRUD/navigation, Team key projection and permissions, bounded encrypted Personal/Team requester exchange, foreground hosting confirmation, live CLI verifier scripts, docs, and deterministic audits.
+    outcome: succeeded
+    recorded_at: "2026-08-03T20:45:45Z"
+    reason: Build/declarations, 5 focused TASK-4 tests, 16 remote-access CLI tests, 92 backend/verifier tests, Ruff, script syntax, docs/privacy/parity audits, spec validation, and diff hygiene passed. The real Personal/Team CLI verifiers remain intentionally not_run until this code is deployed, as required by the user.
+  - id: ATTEMPT-16
+    task_id: TASK-4
+    approach: Add review regression tests before replacing boolean DELETE confirmation with exact identifiers, carrying Team context through all source lifecycle frames, and hardening two-CLI verifier modes/reporting.
+    outcome: succeeded
+    recorded_at: "2026-08-03T21:04:25Z"
+    reason: The red backend run failed six exact-confirmation cases and the verifier mode guard failed on serve-team; TypeScript red execution was initially dependency-blocked until the frozen offline workspace install restored local links. Green proof includes 64 focused backend/verifier tests, 5 Project CLI/client/requester tests, 17 remote-access tests, production build/declarations, script syntax, privacy/docs/parity audits, and diff hygiene. No deploy or live dev probes were run.
+  - id: ATTEMPT-17
+    task_id: TASK-4
+    approach: Add focused review regressions for semantic two-CLI verification, Team revocation-index lifetime, and failed host-heartbeat cleanup before changing implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-03T21:22:30Z"
+    reason: Red proof produced four expected backend failures because Team heartbeat did not refresh the Team index and membership failure left runtime state connected, plus two expected verifier failures because operation labels were accepted without result checks or denial/shutdown probes. Green proof includes 45 bridge/verifier tests, 5 Project CLI/client/requester tests, 17 remote-access tests, production build/declarations, Ruff, Python and Node syntax checks, privacy/docs/parity audits, and spec validation. The verifier report now exposes only context, status, and check counts; no deploy or live dev probe was run.
+  - id: ATTEMPT-18
+    task_id: TASK-4
+    approach: Add focused audit regressions for Team request/session index cleanup, mismatched CLI confirmation, bounded verifier event reads, and forced child cleanup before applying minimal lifecycle fixes.
+    outcome: succeeded
+    recorded_at: "2026-08-03T21:42:01Z"
+    reason: Red proof exposed stale Team result/request/session indexes, blocking fixture_ready and bridge_stopped reads, missing kill escalation, and the missing CLI mismatch regression. Green proof includes 41 bridge tests, 13 verifier tests, 22 adjacent Project source tests, 6 Project CLI/client/requester tests, 17 remote-access tests, production build/declarations, Ruff, py_compile, privacy/docs/parity audits, spec validation, and diff hygiene. No deploy or live dev probe was run.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: After an authorized commit/deploy, run the crypto-backed Personal/Team REST and WebSocket verifier and record T-API-REMOTE-LIVE before handing off TASK-4; local review regressions are green.
-  command: python3 scripts/verify_project_remote_access_api.py --api-url https://api.dev.openmates.org --personal-and-team
-  expected_outcome: Two independently authenticated same-account device sessions prove Personal v1 and Team v2 crypto, opaque routing, wrong-context replay rejection, cross-session polling denial, confirmed takeover, stale-session denial, disconnect, and cleanup through api.dev.openmates.org. Cross-account and removed-member live probes report not_run unless a separately approved second account is available; backend unit coverage remains authoritative for those cases.
+  current_task_id: TASK-4
+  next_action: After TASK-4 is committed and deployed, run the real Personal/Team deterministic CLI verifier followed by the two-CLI source/requester verifier; record T-CLI-PROJECTS-LIVE and T-CLI-TWO-DEVICE-LIVE before handing off TASK-5. With only one approved account, keep cross_account_denial and removed_member_denial explicitly not_run and cite their named backend denial tests rather than claiming live pass.
+  command: python3 scripts/verify_projects_cli.py --api-url https://api.dev.openmates.org --personal-and-team && python3 scripts/verify_project_remote_access_cli.py --api-url https://api.dev.openmates.org --two-cli --personal-and-team
+  expected_outcome: The compiled production CLI proves Personal/Team CRUD, exact-ID deletion, item/source navigation, foreground hosting, and encrypted list/search/read through api.dev.openmates.org with deterministic cleanup; second-account-only probes remain not_run unless a separately approved account is supplied.
   blocker:
-    reason: The user explicitly prohibited commit and deploy, so the changed Team REST/WebSocket implementation is not present on api.dev.openmates.org and the live verifier must not run yet.
-    blocking_tasks: [TASK-3]
-  last_verified_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
+    task_id: TASK-4
+    requires_user_input: false
+    reason: The user explicitly prohibited deploy and required the real CLI scripts not to run before deployment, so deployed CLI green evidence cannot exist in this session.
+    next_action: Commit/deploy TASK-4 in an authorized follow-up, then run both exact live commands against that deployed subject commit.
+    blocking_tasks: [TASK-4]
+  last_verified_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4-review-fixes
 
 scenarios:
   - id: S-1
@@ -572,6 +611,9 @@ tests:
       - Same-account Personal and active Team role requests succeed while cross-scope requests fail.
       - Host membership is rechecked throughout source/request lifecycle.
       - Host removal invalidates work and leaves durable source offline.
+      - Team session heartbeats refresh both member and Team revocation indexes, and disconnect removes both index entries.
+      - Team request indexes are retained for the completed-result TTL, then removed with consumed or pruned work; takeover and source revocation remove both session indexes.
+      - A removed or inactive host's failed heartbeat synchronously revokes runtime state and durably marks its sources offline before returning the fail-closed error.
       - Member offboarding persists removed membership before fallible runtime/source/wrapper cleanup; Team deletion revokes runtime routing and offlines sources before durable deletion.
       - Wrapper or cache cleanup failure leaves removed membership fail-closed, and stale cached hosts fail lifecycle revalidation.
       - Request delivery revalidates the cached host under the bridge state lock and revokes/offlines an invalid host before publish.
@@ -583,21 +625,21 @@ tests:
       expected: fail
       evidence:
         status: failed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_project_remote_access_bridge.py
-        run_id: local-backend-remote-team-red-2026-08-03
-        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062
-        timestamp: "2026-08-03T17:08:23Z"
-        reason: 6 new Team cases failed on the missing team_id service contract while 18 legacy Personal cases passed.
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_project_remote_access_bridge.py -k "completed_result_indexes or expired_request_pruning or takeover_and_source_revocation"; /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest scripts/tests/test_verify_project_remote_access_cli.py -k "bounded_deadlines or kills_child"
+        run_id: local-project-remote-medium-gaps-red-2026-08-03T21:36:00Z
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4-review-baseline
+        timestamp: "2026-08-03T21:36:00Z"
+        reason: Six backend parametrizations failed on stale Team request/session indexes; three verifier cases failed because event reads had no deadline helper and graceful cleanup did not escalate after timeout.
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_auth_dependencies.py backend/tests/test_project_remote_access_bridge.py backend/tests/test_projects.py backend/tests/test_teams_lifecycle.py backend/tests/test_teams_membership.py backend/tests/test_teams_permissions.py backend/tests/test_teams_routes.py -k "not billing and not bank_transfer"
-        run_id: local-backend-remote-team-review-green-2026-08-03T17:46:22Z
-        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
-        timestamp: "2026-08-03T17:46:22Z"
-        reason: 121 focused and adjacent auth-device, Personal/Team bridge, Project, membership, permission, fail-closed cache/wrapper failure, offboarding, deletion, takeover, stale-session, route, replay, and compatibility cases passed; three unrelated cloud-only bank-transfer tests were deselected after their local server-edition 404 baseline was confirmed.
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_project_remote_access_bridge.py; /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest scripts/tests/test_verify_project_remote_access_cli.py scripts/tests/test_verify_project_remote_access_api.py
+        run_id: local-project-remote-medium-gaps-green-2026-08-03T21:42:01Z
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4-medium-gap-fixes
+        timestamp: "2026-08-03T21:42:01Z"
+        reason: All 41 bridge and 13 verifier cases passed, including completed-result index TTL refresh and consumption, expired-request pruning, Team session cleanup on takeover/source revocation, bounded fixture_ready and bridge_stopped reads, and kill escalation after graceful child cleanup timeout.
   - id: T-REMOTE-CRYPTO
     type: unit
     file: frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
@@ -639,8 +681,26 @@ tests:
       - Unauthenticated, wrong-project/context, crypto replay, completion replay, cross-session polling, takeover, and stale-session probes fail through the network contract.
       - Cross-account and removed-member live probes are reported as not_run when no separately approved second account is available; focused backend tests retain those denial guarantees.
       - Persistence and logs contain no decrypted operation payloads.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: python3 scripts/verify_project_remote_access_api.py --api-url https://api.dev.openmates.org --personal-and-team
+        run_id: live-project-remote-access-pre-stabilization-2026-08-03
+        subject_commit: 759486c4ec029fd9b760874a2c4e1195363a21c5-plus-9ee19ddba-plus-6e1294543
+        timestamp: "2026-08-03T20:03:25Z"
+        reason: The deployed contract reached the live bridge but the verifier exposed compiled-import and lifecycle cleanup races subsequently fixed by 9d3a6b9 and 47974ac.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/verify_project_remote_access_api.py --api-url https://api.dev.openmates.org --personal-and-team
+        run_id: live-project-remote-access-2026-08-03T20:14:30Z
+        subject_commit: 759486c4ec029fd9b760874a2c4e1195363a21c5-plus-9ee19ddba-plus-6e1294543-plus-9d3a6b91a-plus-47974ac01
+        timestamp: "2026-08-03T20:14:30Z"
+        reason: Real Personal v1 and Team v2 REST/WebSocket relay, independently authenticated same-account devices, opaque routing, wrong-context and replay denials, cross-session polling denial, confirmed takeover, stale-session denial, disconnect, and cleanup passed on api.dev.openmates.org. Cross-account and removed-member probes reported not_run because no separately approved second account was available; focused backend tests retain those guarantees.
   - id: T-API-PROJECT-CONTEXT-LIVE
     type: manual
     file: scripts/verify_projects_api.py
@@ -668,10 +728,29 @@ tests:
     covers: [AC-1, AC-2, AC-4, AC-9]
     assertions:
       - Documented commands parse exact identifiers, contexts, JSON, and confirmation flags.
+      - Exact confirmation rejects a mismatched identifier with the stable confirmation_mismatch code.
       - Ambiguous names, missing source, unsafe paths, and aliases fail clearly.
       - Context prompt precedes discovery and sensitive fields stay out of output.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: npm run build && node --test tests/cli.test.ts; node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
+        run_id: local-cli-projects-red-2026-08-03T20:27:00Z
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-task-4-tests
+        timestamp: "2026-08-03T20:27:00Z"
+        reason: Two focused CLI cases failed on missing deterministic grammar/JSON errors and the client case failed because getProject was not implemented; unrelated tests remained green.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:projects-cli && npm run test:unit:remote-access
+        run_id: local-cli-projects-medium-gaps-green-2026-08-03T21:42:01Z
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4-medium-gap-fixes
+        timestamp: "2026-08-03T21:42:01Z"
+        reason: Production build/declarations passed; 6 focused grammar, JSON fail-closed, exact mismatch, transport, Personal encryption, and Team v2 requester tests plus 17 source filesystem/transport/lifecycle tests passed.
   - id: T-CLI-PROJECTS-LIVE
     type: manual
     file: scripts/verify_projects_cli.py
@@ -690,8 +769,11 @@ tests:
     covers: [AC-3, AC-4, AC-5, AC-7, AC-9]
     assertions:
       - One real CLI hosts while another invokes production file list/search/read.
-      - Same-account Personal and Team viewer reads pass; different-account and removed-member reads fail.
-      - Context, offline, removal, cleanup, and shutdown behavior are observed.
+      - Same-account Personal and Team reads pass through independently authenticated devices.
+      - List contains the expected safe entry without the protected file, search contains the expected path match, read contains the expected fixture marker, and protected-file access returns the stable denial.
+      - Host shutdown is observed before a follow-up file command proves the source is offline.
+      - Verifier output contains only context, status, check counts, opaque identifiers, and not_run denial coverage; it never emits fixture paths, queries, snippets, or file contents.
+      - With one approved test account, cross-account and removed-member probes report not_run and name backend/tests/test_project_remote_access_bridge.py::test_cross_user_project_and_expired_session_requests_fail_closed and ::test_team_heartbeat_membership_failure_revokes_session_and_offlines_sources as denial coverage; they are never claimed passed.
     red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
     green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-NPM-SDK-PROJECTS-LIVE
@@ -750,10 +832,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/audit_cli_remote_access_privacy.py
-        run_id: local-privacy-review-green-2026-08-03T17:44:28Z
-        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
-        timestamp: "2026-08-03T17:44:28Z"
-        reason: The first-party opaque relay, output/log redaction, and no-live-SDK boundary audit passed after server-derived requester identity and offboarding changes.
+        run_id: local-cli-requester-privacy-review-green-2026-08-03T21:04:25Z
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4-review-fixes
+        timestamp: "2026-08-03T21:04:25Z"
+        reason: The first-party opaque relay, bounded requester, exact Project/source DELETE IDs, output/log redaction, no boolean compatibility, and no-live-SDK boundary audit passed with Personal/Team requester behavior.
   - id: T-PLAYWRIGHT-REMOTE-REGRESSION
     type: playwright
     file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
@@ -784,8 +866,26 @@ tests:
       - CLI help, package README, user guide, and architecture docs contain the canonical Project and file-request commands.
       - Context, Team role, foreground lifetime, offline, read-only, and SDK boundaries are consistent.
       - Obsolete aliases, daemon claims, public remote-file API claims, and missing explicit non-interactive context are rejected.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: python3 scripts/audit_cli_remote_access_docs.py
+        run_id: local-cli-docs-red-missing-assertions-2026-08-03
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77
+        timestamp: "2026-08-03T20:27:00Z"
+        reason: The pre-TASK-4 audit covered only the source-host command and lacked deterministic requester assertions; focused CLI help tests supplied executable red evidence before the audit was extended.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_cli_remote_access_docs.py
+        run_id: local-cli-docs-review-green-2026-08-03T21:04:25Z
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4-review-fixes
+        timestamp: "2026-08-03T21:04:25Z"
+        reason: Package README, user guide, architecture, and canonical CLI help cover deterministic Project/requester commands, exact Project/source IDs, explicit context, foreground lifetime, read-only bounds, no AI fallback, and CLI-only live filesystem access.
 
 verifications:
   - id: V-SPEC-VALIDATION
@@ -796,10 +896,10 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/cli-remote-access-cross-device-requester/spec.yml
-      run_id: local-spec-validate-2026-08-03T15:16:49Z
-      subject_commit: d14c5bc27b7879cfe9db4198fcba1eecb078232e
-      summary: Schema V2 structure and all TASK-2 evidence, handoff, scenario, criterion, test, verification, and task references passed against uncommitted worktree changes atop the subject base.
-      timestamp: "2026-08-03T15:16:49Z"
+      run_id: local-spec-validate-task-4-review-candidates-2026-08-03T21:22:30Z
+      subject_commit: 47974ac0101932514adfae4f22a802bfab797e77-plus-local-task-4-review-candidate-fixes
+      summary: Schema V2 structure, semantic verifier checks, Team index lifecycle, fail-closed heartbeat cleanup, truthful not_run live probe wording, red/green review evidence, handoff, scenario, criterion, verification, and task references passed; TASK-4 remains implementing because the user prohibited deploy and its real CLI gates require deployed code.
+      timestamp: "2026-08-03T21:22:30Z"
   - id: V-NO-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: not_applicable
@@ -949,26 +1049,26 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Extend bridge routing to Team hosts and requesters
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers: {scenarios: [S-3, S-5, S-7, S-9], acceptance_criteria: [AC-3, AC-5, AC-7, AC-9]}
     expected_files: [backend/core/api/app/routes/auth_routes/auth_dependencies.py, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/services/directus/team_methods.py, backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/routes/projects.py, backend/core/api/app/routes/teams.py, backend/core/api/app/routes/websockets.py, backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py, backend/tests/test_auth_dependencies.py, backend/tests/test_projects.py, backend/tests/test_project_remote_access_bridge.py, backend/tests/test_teams_lifecycle.py, backend/tests/test_teams_routes.py, frontend/packages/openmates-cli/src/remoteAccessCrypto.ts, frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts, frontend/packages/ui/src/services/projectRemoteAccessCrypto.ts, scripts/project_remote_access_live.mjs, scripts/verify_project_remote_access_api.py]
     verification_ids: [T-BACKEND-REMOTE-TEAM, T-REMOTE-CRYPTO, T-API-REMOTE-LIVE]
     dependencies: [TASK-2]
     ownership: {files: [backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/routes/websockets.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/src/remoteAccessCrypto.ts, frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts, scripts/verify_project_remote_access_api.py], shared_files: [backend/core/api/app/routes/projects.py]}
-    blockers: [T-API-REMOTE-LIVE requires an authorized commit/deploy; this session explicitly forbids both and the verifier was intentionally not run against stale dev code.]
+    blockers: []
     follow_up_tasks: [TASK-4]
     independently_deployable: true
   - id: TASK-4
     title: Implement deterministic Project and requester CLI commands
-    status: pending
-    phase: working_tasks
+    status: in_progress
+    phase: running_checks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-9, S-10], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-9, AC-12]}
-    expected_files: [frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/remoteAccess.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/client.test.ts, scripts/verify_projects_cli.py, scripts/verify_project_remote_access_cli.py, scripts/audit_cli_remote_access_docs.py, docs/user-guide/cli/remote-access.md, docs/architecture/platforms/cli-package.md]
+    expected_files: [backend/core/api/app/routes/projects.py, backend/core/api/app/services/project_remote_access_service.py, backend/tests/test_projects.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/package.json, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/projectRequester.ts, frontend/packages/openmates-cli/src/remoteAccess.ts, frontend/packages/openmates-cli/src/ws.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/client.test.ts, frontend/packages/openmates-cli/tests/projectRequester.test.ts, scripts/verify_projects_cli.py, scripts/verify_project_remote_access_cli.py, scripts/project_remote_access_live.mjs, scripts/tests/test_verify_project_remote_access_cli.py, scripts/audit_cli_remote_access_docs.py, scripts/audit_cli_remote_access_privacy.py, frontend/packages/openmates-cli/README.md, docs/user-guide/cli/remote-access.md, docs/architecture/platforms/cli-package.md]
     verification_ids: [T-CLI-PROJECTS-UNIT, T-CLI-PROJECTS-LIVE, T-CLI-TWO-DEVICE-LIVE, T-PRIVACY-AUDIT, T-DOCS-AUDIT]
     dependencies: [TASK-3]
-    ownership: {files: [frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/remoteAccess.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/client.test.ts, scripts/verify_projects_cli.py, scripts/verify_project_remote_access_cli.py, scripts/audit_cli_remote_access_docs.py, docs/user-guide/cli/remote-access.md, docs/architecture/platforms/cli-package.md], shared_files: [frontend/packages/openmates-cli/src/remoteAccessCrypto.ts]}
-    blockers: []
+    ownership: {files: [backend/core/api/app/routes/projects.py, backend/core/api/app/services/project_remote_access_service.py, backend/tests/test_projects.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/package.json, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/projectRequester.ts, frontend/packages/openmates-cli/src/remoteAccess.ts, frontend/packages/openmates-cli/src/ws.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/client.test.ts, frontend/packages/openmates-cli/tests/projectRequester.test.ts, scripts/verify_projects_cli.py, scripts/verify_project_remote_access_cli.py, scripts/project_remote_access_live.mjs, scripts/tests/test_verify_project_remote_access_cli.py, scripts/audit_cli_remote_access_docs.py, scripts/audit_cli_remote_access_privacy.py, frontend/packages/openmates-cli/README.md, docs/user-guide/cli/remote-access.md, docs/architecture/platforms/cli-package.md], shared_files: [frontend/packages/openmates-cli/src/remoteAccessCrypto.ts]}
+    blockers: [T-CLI-PROJECTS-LIVE and T-CLI-TWO-DEVICE-LIVE require TASK-4 deployment; the user explicitly prohibited deploy and required no pre-deploy live run.]
     follow_up_tasks: [TASK-5]
     independently_deployable: true
   - id: TASK-5

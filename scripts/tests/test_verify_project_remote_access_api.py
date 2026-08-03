@@ -134,3 +134,16 @@ def test_fixture_cleanup_retries_only_bounded_transient_statuses() -> None:
     assert "attempt === FIXTURE_DELETE_MAX_ATTEMPTS" in cleanup
     assert "setTimeout(resolvePromise, FIXTURE_DELETE_RETRY_DELAY_MS)" in cleanup
     assert "throw new Error(`Fixture cleanup failed with HTTP ${response.status}`)" in cleanup
+
+
+def test_two_cli_modes_match_live_script_allowlist_and_report_unrun_denials() -> None:
+    live_source = (verifier.ROOT / "scripts" / "project_remote_access_live.mjs").read_text(encoding="utf-8")
+    cli_source = (verifier.ROOT / "scripts" / "verify_project_remote_access_cli.py").read_text(encoding="utf-8")
+
+    assert '"serve-team"' in live_source[live_source.index("new Set(") : live_source.index("function requireValue")]
+    assert 'mode = "serve-team" if team else "serve"' in cli_source
+    assert '"cross_account_denial":' in cli_source
+    assert '"removed_member_denial":' in cli_source
+    assert '"status": "not_run"' in cli_source
+    assert "test_cross_user_project_and_expired_session_requests_fail_closed" in cli_source
+    assert "test_team_heartbeat_membership_failure_revokes_session_and_offlines_sources" in cli_source

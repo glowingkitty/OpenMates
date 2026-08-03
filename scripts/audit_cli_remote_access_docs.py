@@ -28,6 +28,18 @@ REQUIRED_GUIDE_MARKERS = [
     "read-only",
     "offline",
     "encrypted end to end",
+    "projects files list",
+    "projects files search",
+    "projects files read",
+    "context_confirmation_required",
+    "never fall back to an ai model",
+]
+REQUIRED_SHARED_MARKERS = [
+    "--personal",
+    "--team <team>",
+    "cli-only",
+    "exact project id",
+    "exact source id",
 ]
 OBSOLETE_COMMAND = re.compile(r"openmates\s+remote-access\s+(?:start|stop|status|search)\b")
 
@@ -46,6 +58,11 @@ def main() -> int:
     for marker in REQUIRED_GUIDE_MARKERS:
         if marker not in guide:
             failures.append(f"{DOCS[0].relative_to(ROOT)} missing required behavior: {marker}")
+    for path in DOCS[:3]:
+        source = path.read_text(encoding="utf-8").lower() if path.is_file() else ""
+        for marker in REQUIRED_SHARED_MARKERS:
+            if marker not in source:
+                failures.append(f"{path.relative_to(ROOT)} missing Project requester behavior: {marker}")
 
     if failures:
         for failure in failures:

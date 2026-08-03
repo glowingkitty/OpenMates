@@ -39,8 +39,8 @@ const FIXTURE_DELETE_RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 const mode = process.argv[2];
 const apiUrl = (process.argv[3] || "https://api.dev.openmates.org").replace(/\/$/, "");
 
-if (!new Set(["api", "api-team", "cli", "serve"]).has(mode)) {
-  throw new Error("Usage: project_remote_access_live.mjs <api|api-team|cli|serve> <api-url>");
+if (!new Set(["api", "api-team", "cli", "cli-team", "serve", "serve-team"]).has(mode)) {
+  throw new Error("Usage: project_remote_access_live.mjs <api|api-team|cli|cli-team|serve|serve-team> <api-url>");
 }
 
 function requireValue(condition, message) {
@@ -151,9 +151,10 @@ async function createFixture(client, teamId = null, teamKey = null) {
 
 async function deleteFixture(client, fixture) {
   if (!fixture) return;
-  const query = fixture.teamId ? `?team_id=${encodeURIComponent(fixture.teamId)}` : "";
+  const params = new URLSearchParams({ confirmation_project_id: fixture.projectId });
+  if (fixture.teamId) params.set("team_id", fixture.teamId);
   for (let attempt = 1; attempt <= FIXTURE_DELETE_MAX_ATTEMPTS; attempt += 1) {
-    const response = await apiRequest(client, `/v1/projects/${encodeURIComponent(fixture.projectId)}${query}`, { method: "DELETE" });
+    const response = await apiRequest(client, `/v1/projects/${encodeURIComponent(fixture.projectId)}?${params.toString()}`, { method: "DELETE" });
     if (response.status === 200 || response.status === 404) return;
     if (!FIXTURE_DELETE_RETRYABLE_STATUSES.has(response.status) || attempt === FIXTURE_DELETE_MAX_ATTEMPTS) {
       throw new Error(`Fixture cleanup failed with HTTP ${response.status}`);
@@ -600,13 +601,13 @@ async function runApiVerification(hostClient, requesterClient, fixture, ownerId)
       probes,
       "cross_account_denial",
       "not_run",
-      "requires a separately approved second test account; backend unit coverage is retained",
+      "requires a separately approved second test account; backend/tests/test_project_remote_access_bridge.py::test_cross_user_project_and_expired_session_requests_fail_closed retains denial coverage",
     );
     recordProbe(
       probes,
       "removed_member_denial",
       "not_run",
-      "requires a separately approved second test account; backend unit coverage is retained",
+      "requires a separately approved second test account; backend/tests/test_project_remote_access_bridge.py::test_team_heartbeat_membership_failure_revokes_session_and_offlines_sources retains denial coverage",
     );
     return probes;
   } finally {
@@ -725,7 +726,8 @@ async function runCliVerification(client, fixture, ownerId) {
     displayName: "Live verification source",
   });
 
-  const child = spawn("node", ["dist/cli.js", "remote-access", "--path", rootPath, "--json"], {
+  const contextArgs = fixture.teamId ? ["--team", fixture.teamId] : ["--personal"];
+  const child = spawn("node", ["dist/cli.js", "remote-access", ...contextArgs, "--path", rootPath, "--json"], {
     cwd: CLI_DIR,
     env: { ...process.env, OPENMATES_API_URL: apiUrl },
     stdio: ["ignore", "pipe", "pipe"],
@@ -791,7 +793,8 @@ async function runServeFixture(client, fixture) {
     sourceType: "local_folder",
     displayName: "Live remote source",
   });
-  const child = spawn("node", ["dist/cli.js", "remote-access", "--path", rootPath, "--json"], {
+  const contextArgs = fixture.teamId ? ["--team", fixture.teamId] : ["--personal"];
+  const child = spawn("node", ["dist/cli.js", "remote-access", ...contextArgs, "--path", rootPath, "--json"], {
     cwd: CLI_DIR,
     env: { ...process.env, OPENMATES_API_URL: apiUrl },
     stdio: ["ignore", "pipe", "pipe"],
@@ -804,6 +807,7 @@ async function runServeFixture(client, fixture) {
       event: "fixture_ready",
       project_id: fixture.projectId,
       source_id: fixture.sourceId,
+      team_id: fixture.teamId ?? null,
     })}\n`);
     await new Promise((resolvePromise) => {
       process.once("SIGUSR1", () => {
@@ -824,7 +828,9 @@ async function runServeFixture(client, fixture) {
 }
 
 const isolatedApiMode = mode === "api" || mode === "api-team";
-const client = isolatedApiMode ? loadIsolatedClient("OPENMATES_REMOTE_HOST_SESSION") : OpenMatesClient.load({ apiUrl });
+const isolatedSessionMode = isolatedApiMode || mode === "serve" || mode === "serve-team";
+const teamMode = mode === "api-team" || mode === "serve-team" || mode === "cli-team";
+const client = isolatedSessionMode ? loadIsolatedClient("OPENMATES_REMOTE_HOST_SESSION") : OpenMatesClient.load({ apiUrl });
 const requesterClient = isolatedApiMode ? loadIsolatedClient("OPENMATES_REMOTE_REQUESTER_SESSION") : client;
 requireValue(client.hasSession() && requesterClient.hasSession(), "Run the test-account login helper before live verification");
 requireValue(
@@ -839,7 +845,7 @@ let teamId;
 let teamKey;
 let probes = [];
 try {
-  if (mode === "api-team") {
+  if (teamMode) {
     teamId = randomUUID();
     teamKey = randomBytes(32);
     await expectStatus(client, "/v1/teams", 200, {
@@ -861,7 +867,7 @@ try {
     requireValue(decryptedKey && Buffer.from(decryptedKey).equals(Buffer.from(fixture.projectKey)), "Created Project key did not round-trip");
   }
   if (mode === "api" || mode === "api-team") probes = await runApiVerification(client, requesterClient, fixture, ownerId);
-  else if (mode === "cli") await runCliVerification(client, fixture, ownerId);
+  else if (mode === "cli" || mode === "cli-team") await runCliVerification(client, fixture, ownerId);
   else await runServeFixture(client, fixture);
   process.stdout.write(`${JSON.stringify({ success: true, mode, api_url: apiUrl, probes })}\n`);
 } finally {

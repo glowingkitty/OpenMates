@@ -37,6 +37,14 @@ export interface ProjectRemoteAccessRequestFrame {
   operation: "list" | "search" | "read_text";
   key_epoch: number;
   encrypted_envelope: string;
+  routing_identity?: {
+    context_type: string;
+    context_id_hash: string;
+    host_member_hash: string;
+    host_device_fingerprint_hash: string;
+    requester_member_hash: string;
+    requester_device_fingerprint_hash: string;
+  };
 }
 
 /** Streaming event dispatched for each chunk or lifecycle event. */

@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from backend.core.api.app.services.project_remote_access_service import (
     ProjectRemoteAccessError,
     ProjectRemoteAccessService,
+    RESULT_CACHE_TTL_SECONDS,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.project_remote_access_handlers import (
     handle_project_remote_access_heartbeat,
@@ -34,6 +35,7 @@ from backend.core.api.app.services.directus.team_methods import TeamPermissionEr
 class MemoryCache:
     def __init__(self) -> None:
         self.values: dict[str, Any] = {}
+        self.ttls: dict[str, int | None] = {}
         self.published: list[tuple[str, dict[str, Any]]] = []
 
     async def get(self, key: str) -> Any:
@@ -41,10 +43,12 @@ class MemoryCache:
 
     async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         self.values[key] = value
+        self.ttls[key] = ttl
         return True
 
     async def delete(self, key: str) -> bool:
         self.values.pop(key, None)
+        self.ttls.pop(key, None)
         return True
 
     async def publish_event(self, channel: str, event: dict[str, Any]) -> bool:
@@ -197,7 +201,12 @@ async def test_create_request_routes_only_opaque_envelope_to_exact_device() -> N
         now=2_001,
     )
 
-    assert created == {"request_id": "request-1", "status": "delivered"}
+    assert created == {
+        "request_id": "request-1",
+        "status": "delivered",
+        "source_session_id": "session-1",
+        "key_epoch": 1,
+    }
     channel, event = cache.published[-1]
     assert channel.startswith("user_updates::")
     assert event["target_device_fingerprint_hash"] == "device-cli"
@@ -699,6 +708,144 @@ async def test_team_deletion_revokes_all_host_sessions_and_pending_work() -> Non
 
 
 @pytest.mark.anyio
+async def test_team_heartbeat_refreshes_and_disconnect_removes_all_session_indexes() -> None:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    await service.register_session(
+        user_id="host-1",
+        team_id="team-1",
+        device_fingerprint_hash="team-device",
+        source_session_id="team-session",
+        bindings=[binding()],
+        confirmed_takeover=False,
+        now=9_200,
+    )
+    member_key = service._member_sessions_key("team-1", "host-1")
+    team_key = service._team_sessions_key("team-1")
+    cache.ttls[member_key] = 1
+    cache.ttls[team_key] = 1
+
+    await service.heartbeat_session(
+        user_id="host-1",
+        team_id="team-1",
+        device_fingerprint_hash="team-device",
+        source_session_id="team-session",
+        now=9_215,
+    )
+
+    assert cache.ttls[member_key] == RESULT_CACHE_TTL_SECONDS
+    assert cache.ttls[team_key] == RESULT_CACHE_TTL_SECONDS
+    assert await service.disconnect_session(
+        user_id="host-1",
+        team_id="team-1",
+        device_fingerprint_hash="team-device",
+        source_session_id="team-session",
+        now=9_216,
+    ) is True
+    assert await cache.get(member_key) is None
+    assert await cache.get(team_key) is None
+
+    await service.register_session(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="device-stale",
+        source_session_id="session-stale", bindings=[binding(source_id="source-2")],
+        confirmed_takeover=False, now=9_502,
+    )
+    await cache.delete(service._session_key("team-1", "session-stale", "team"))
+    assert await service.revoke_source(
+        user_id="host-1", team_id="team-1", project_id="project-1", source_id="source-2",
+    ) is True
+    assert await cache.get(member_key) is None
+    assert await cache.get(team_key) is None
+
+
+@pytest.mark.anyio
+async def test_team_completed_result_indexes_refresh_then_clear_on_consumption() -> None:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    await service.register_session(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="team-device",
+        source_session_id="team-session", bindings=[binding()], confirmed_takeover=False, now=9_300,
+    )
+    await service.create_request(
+        user_id="requester-1", team_id="team-1", project_id="project-1", source_id="source-1",
+        request_id="team-request", requesting_client_id="request-client",
+        requesting_device_fingerprint_hash="request-device", operation="list", key_epoch=1,
+        encrypted_envelope="opaque-request", now=9_301,
+    )
+    member_key = service._member_requests_key("team-1", "requester-1")
+    team_key = service._team_requests_key("team-1")
+    cache.ttls[member_key] = 1
+    cache.ttls[team_key] = 1
+
+    await service.complete_request(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="team-device",
+        source_session_id="team-session", project_id="project-1", source_id="source-1",
+        request_id="team-request", key_epoch=1, encrypted_envelope="opaque-result", now=9_302,
+    )
+
+    assert cache.ttls[member_key] == RESULT_CACHE_TTL_SECONDS
+    assert cache.ttls[team_key] == RESULT_CACHE_TTL_SECONDS
+    assert await service.get_request_result(
+        user_id="requester-1", team_id="team-1", project_id="project-1", source_id="source-1",
+        request_id="team-request", requesting_client_id="request-client",
+        requesting_device_fingerprint_hash="request-device", now=9_303,
+    ) == {"status": "completed", "encrypted_envelope": "opaque-result"}
+    assert await cache.get(service._result_key("team-1", "team-request", "team")) is None
+    assert await cache.get(member_key) is None
+    assert await cache.get(team_key) is None
+
+
+@pytest.mark.anyio
+async def test_team_expired_request_pruning_removes_request_indexes() -> None:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    await service.register_session(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="team-device",
+        source_session_id="team-session", bindings=[binding()], confirmed_takeover=False, now=9_400,
+    )
+    await service.create_request(
+        user_id="requester-1", team_id="team-1", project_id="project-1", source_id="source-1",
+        request_id="expired-request", requesting_client_id="request-client", operation="list",
+        key_epoch=1, encrypted_envelope="opaque", now=9_401,
+    )
+    await service.heartbeat_session(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="team-device",
+        source_session_id="team-session", now=9_415,
+    )
+    await service.heartbeat_session(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="team-device",
+        source_session_id="team-session", now=9_447,
+    )
+
+    assert await cache.get(service._member_requests_key("team-1", "requester-1")) is None
+    assert await cache.get(service._team_requests_key("team-1")) is None
+
+
+@pytest.mark.anyio
+async def test_team_takeover_and_source_revocation_remove_all_session_indexes() -> None:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    await service.register_session(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="device-old",
+        source_session_id="session-old", bindings=[binding()], confirmed_takeover=False, now=9_500,
+    )
+    await service.register_session(
+        user_id="host-1", team_id="team-1", device_fingerprint_hash="device-new",
+        source_session_id="session-new", bindings=[binding()], confirmed_takeover=True, now=9_501,
+    )
+
+    member_key = service._member_sessions_key("team-1", "host-1")
+    team_key = service._team_sessions_key("team-1")
+    assert await cache.get(member_key) == ["session-new"]
+    assert await cache.get(team_key) == ["session-new"]
+    assert await service.revoke_source(
+        user_id="host-1", team_id="team-1", project_id="project-1", source_id="source-1",
+    ) is True
+    assert await cache.get(member_key) is None
+    assert await cache.get(team_key) is None
+
+
+@pytest.mark.anyio
 async def test_team_takeover_rejects_stale_member_and_device_lifecycle_messages() -> None:
     cache = MemoryCache()
     service = ProjectRemoteAccessService(cache)
@@ -769,7 +916,7 @@ async def test_team_takeover_rejects_stale_member_and_device_lifecycle_messages(
 
 
 @pytest.mark.anyio
-async def test_team_websocket_lifecycle_revalidates_membership_before_cache_mutation() -> None:
+async def test_team_heartbeat_membership_failure_revokes_session_and_offlines_sources() -> None:
     cache = MemoryCache()
     directus = DirectusAccessStub()
     websocket = MemoryWebSocket()
@@ -800,9 +947,12 @@ async def test_team_websocket_lifecycle_revalidates_membership_before_cache_muta
     )
     assert websocket.messages[-1]["payload"]["code"] == "team_membership_required"
     service_key = ProjectRemoteAccessService._session_key("team-1", "team-session", "team")
-    session = await cache.get(service_key)
-    assert session is not None
-    assert await cache.get(service_key) == session
+    assert await cache.get(service_key) is None
+    assert directus.project.offlined_members == [("team-1", "host-1")]
+    with pytest.raises(ProjectRemoteAccessError, match="source_offline"):
+        await ProjectRemoteAccessService(cache).get_active_binding(
+            "host-1", "project-1", "source-1", team_id="team-1", now=int(time.time())
+        )
 
 
 @pytest.mark.anyio

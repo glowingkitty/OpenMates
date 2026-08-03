@@ -298,10 +298,34 @@ def verify_source_lifecycle(client: RestClient, project_id: str, team_id: str | 
     if team_id and matching[0].get("ownership_label") not in {"attached_by_you", "team_source"}:
         raise VerificationFailure(f"{scenario}_source_list", "team_source_ownership_label_missing")
 
+    missing_confirmation = client.request(
+        "DELETE",
+        f"/v1/projects/{project_id}/sources/{source_id}",
+        query=context,
+        scenario=f"{scenario}_source_delete_confirmation_missing",
+    )
+    assert_status(missing_confirmation, 409, f"{scenario}_source_delete_confirmation_missing")
+    assert_detail(
+        missing_confirmation,
+        "SOURCE_REMOVAL_CONFIRMATION_REQUIRED",
+        f"{scenario}_source_delete_confirmation_missing",
+    )
+    mismatched_confirmation = client.request(
+        "DELETE",
+        f"/v1/projects/{project_id}/sources/{source_id}",
+        query={"confirmation_source_id": f"{source_id}-mismatch", **({"team_id": team_id} if team_id else {})},
+        scenario=f"{scenario}_source_delete_confirmation_mismatch",
+    )
+    assert_status(mismatched_confirmation, 409, f"{scenario}_source_delete_confirmation_mismatch")
+    assert_detail(
+        mismatched_confirmation,
+        "SOURCE_REMOVAL_CONFIRMATION_MISMATCH",
+        f"{scenario}_source_delete_confirmation_mismatch",
+    )
     deleted = client.request(
         "DELETE",
         f"/v1/projects/{project_id}/sources/{source_id}",
-        query={"confirmed": "true", **({"team_id": team_id} if team_id else {})},
+        query={"confirmation_source_id": source_id, **({"team_id": team_id} if team_id else {})},
         scenario=f"{scenario}_source_delete",
     )
     assert_status(deleted, 200, f"{scenario}_source_delete")
@@ -314,7 +338,7 @@ def verify_source_lifecycle(client: RestClient, project_id: str, team_id: str | 
     assert_status(after, 200, f"{scenario}_source_delete_verify")
     if any(source.get("source_id") == source_id for source in source_records(after.payload)):
         raise VerificationFailure(f"{scenario}_source_delete_verify", "source_still_listed")
-    return 4
+    return 6
 
 
 def verify_project_lifecycle(client: RestClient, project_id: str, team_id: str | None, scenario: str) -> int:
@@ -394,7 +418,7 @@ def delete_project(client: RestClient, project_id: str, team_id: str | None, sce
     response = client.request(
         "DELETE",
         f"/v1/projects/{project_id}",
-        query={"team_id": team_id} if team_id else None,
+        query={"confirmation_project_id": project_id, **({"team_id": team_id} if team_id else {})},
         scenario=scenario,
     )
     if allow_missing and response.status == 404:

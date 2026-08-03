@@ -52,6 +52,37 @@ TEAM_SOURCE_SAFE_FIELDS = {
 }
 
 
+def _project_mutation_permissions(role: str | None) -> Dict[str, bool]:
+    can_mutate = role is None or role in TEAM_MUTATE_ROLES
+    can_admin = role is None or role in TEAM_ADMIN_ROLES
+    return {
+        "create": can_mutate,
+        "update": can_mutate,
+        "archive": can_mutate,
+        "delete": can_admin,
+        "settings": can_admin,
+        "manage_any_items": can_admin,
+        "manage_any_sources": can_admin,
+        "manage_own_items": can_mutate,
+        "manage_own_sources": can_mutate,
+    }
+
+
+async def _project_client_projection(
+    directus_service: DirectusService,
+    project: Dict[str, Any],
+    user_id: str,
+    team_id: str | None,
+    role: str | None,
+) -> Dict[str, Any]:
+    wrappers = await directus_service.project.list_project_key_wrappers(user_id, project["project_id"], team_id=team_id)
+    return {
+        **project,
+        "key_wrappers": wrappers,
+        "mutation_permissions": _project_mutation_permissions(role),
+    }
+
+
 def get_directus_service(request: Request) -> DirectusService:
     if not hasattr(request.app.state, "directus_service"):
         logger.error("DirectusService not found in app.state")
@@ -357,9 +388,15 @@ async def list_projects(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
     projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
-    return {"projects": projects}
+    role = str(membership.get("role")) if membership else None
+    return {
+        "projects": [
+            await _project_client_projection(directus_service, project, current_user.id, team_id, role)
+            for project in projects
+        ]
+    }
 
 
 @router.post("")
@@ -499,12 +536,17 @@ async def get_project(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     folders, items = await _load_project_children(project_id, current_user.id, directus_service, team_id=team_id)
-    return {"project": project, "folders": folders, "items": items}
+    role = str(membership.get("role")) if membership else None
+    return {
+        "project": await _project_client_projection(directus_service, project, current_user.id, team_id, role),
+        "folders": folders,
+        "items": items,
+    }
 
 
 @router.post("/{project_id}/move")
@@ -697,13 +739,15 @@ async def delete_project_source(
     request: Request,
     project_id: str,
     source_id: str,
-    confirmed: bool = Query(False),
+    confirmation_source_id: str | None = Query(None),
     team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    if not confirmed:
+    if confirmation_source_id is None:
         raise HTTPException(status_code=409, detail="SOURCE_REMOVAL_CONFIRMATION_REQUIRED")
+    if confirmation_source_id != source_id:
+        raise HTTPException(status_code=409, detail="SOURCE_REMOVAL_CONFIRMATION_MISMATCH")
     membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     source = await directus_service.project.get_source(
@@ -902,11 +946,16 @@ async def update_project_settings(
 async def delete_project(
     request: Request,
     project_id: str,
+    confirmation_project_id: str | None = Query(None),
     team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
+    if confirmation_project_id is None:
+        raise HTTPException(status_code=409, detail="PROJECT_DELETION_CONFIRMATION_REQUIRED")
+    if confirmation_project_id != project_id:
+        raise HTTPException(status_code=409, detail="PROJECT_DELETION_CONFIRMATION_MISMATCH")
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_ADMIN_ROLES)
     before = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not before:

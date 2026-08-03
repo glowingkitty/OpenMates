@@ -18,6 +18,9 @@ CLI = ROOT / "frontend/packages/openmates-cli/src/cli.ts"
 SERVICE = ROOT / "backend/core/api/app/services/project_remote_access_service.py"
 ROUTES = ROOT / "backend/core/api/app/routes/projects.py"
 WEBSOCKET = ROOT / "backend/core/api/app/routes/websockets.py"
+REQUESTER = ROOT / "frontend/packages/openmates-cli/src/projectRequester.ts"
+SDK_TS = ROOT / "frontend/packages/openmates-cli/src/sdk.ts"
+SDK_PY = ROOT / "packages/openmates-python/openmates/sdk.py"
 
 
 def require_markers(path: Path, markers: list[str], failures: list[str]) -> str:
@@ -43,16 +46,36 @@ def main() -> int:
         ["encrypted_envelope", "target_device_fingerprint_hash", "MAX_ENVELOPE_BYTES", "_hash(project_id)"],
         failures,
     )
-    require_markers(
+    routes = require_markers(
         ROUTES,
-        ["get_current_user", "create_project_remote_access_request", "get_project_remote_access_request_result"],
+        [
+            "get_current_user",
+            "create_project_remote_access_request",
+            "get_project_remote_access_request_result",
+            "confirmation_project_id",
+            "confirmation_source_id",
+        ],
         failures,
     )
+    if "confirmed: bool = Query" in routes:
+        failures.append("Project/source DELETE routes must not retain generic boolean confirmation")
     require_markers(
         WEBSOCKET,
         ["project_remote_access_register", "project_remote_access_complete"],
         failures,
     )
+    requester = require_markers(
+        REQUESTER,
+        ["createRemoteAccessHandshake", "openRemoteAccessEnvelope", "REMOTE_PROTOCOL_TIMEOUT_MS", "MAX_REMOTE_RESULT_BYTES"],
+        failures,
+    )
+    if "console." in requester:
+        failures.append("Project requester must not log plaintext or encrypted relay payloads")
+    for path in (SDK_TS, SDK_PY):
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        for forbidden in ("requestProjectRemoteOperation", "projects.files", "remote_access_files"):
+            if forbidden in source:
+                failures.append(f"{path.relative_to(ROOT)} exposes CLI-only live filesystem behavior")
     public_help = cli[cli.find("function printHelp"):]
     for forbidden in ("--encrypted-display-name", "--encrypted-metadata", "--project-key", "--session-key"):
         if forbidden in public_help:

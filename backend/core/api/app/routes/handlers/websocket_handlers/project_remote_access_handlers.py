@@ -118,8 +118,21 @@ async def handle_project_remote_access_heartbeat(
     except ProjectRemoteAccessError as exc:
         await _send_error(websocket, exc.code)
         return
-    if not await _require_team_membership(websocket, directus_service, team_id, user_id):
-        return
+    if team_id:
+        try:
+            await directus_service.team.require_team_role(
+                team_id, user_id, TEAM_REMOTE_ACCESS_ROLES
+            )
+        except TeamPermissionError:
+            service = ProjectRemoteAccessService(cache_service)
+            await service.revoke_member(team_id=team_id, member_user_id=user_id)
+            await directus_service.project.mark_team_member_sources_offline(
+                team_id,
+                user_id,
+                updated_at=int(time.time()),
+            )
+            await _send_error(websocket, "team_membership_required")
+            return
     await _run_lifecycle(
         websocket,
         "project_remote_access_heartbeat_ack",

@@ -175,6 +175,72 @@ describe("OpenMatesClient session API URL", () => {
     assert.strictEqual(client.apiUrl, sessionApiUrl);
   });
 
+  it("routes deterministic Project CRUD, children, source removal, and remote requests through one explicit context", async () => {
+    const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => { raw += chunk; });
+      request.on("end", () => {
+        requests.push({ method: request.method, url: request.url, body: raw ? JSON.parse(raw) as Record<string, unknown> : undefined });
+        response.writeHead(200, { "content-type": "application/json" });
+        if (request.method === "GET" && request.url?.startsWith("/v1/projects/project-1/sources/source-1/requests/request-1")) {
+          response.end(JSON.stringify({ status: "completed", encrypted_envelope: "opaque-result" }));
+        } else if (request.method === "GET" && request.url?.includes("/items")) {
+          response.end(JSON.stringify({ folders: [], items: [] }));
+        } else if (request.method === "GET" && request.url?.includes("/sources")) {
+          response.end(JSON.stringify({ sources: [] }));
+        } else if (request.method === "GET" && request.url?.includes("project-1")) {
+          response.end(JSON.stringify({ project: { project_id: "project-1" }, folders: [], items: [] }));
+        } else if (request.method === "POST" && request.url?.includes("/requests")) {
+          response.end(JSON.stringify({ request_id: "request-1", status: "delivered" }));
+        } else if (request.method === "DELETE") {
+          response.end(JSON.stringify({ deleted: true }));
+        } else {
+          response.end(JSON.stringify({ project: { project_id: "project-1" } }));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const context = { teamId: "team-1" };
+      await client.getProject("project-1", context);
+      await client.createProject({ project_id: "project-1" }, context);
+      await client.updateProject("project-1", { pinned: true }, context);
+      await client.deleteProject("project-1", "project-1", context);
+      await client.listProjectItems("project-1", context);
+      await client.listProjectSources("project-1", context);
+      await client.deleteProjectSource("project-1", "source-1", "source-1", context);
+      await client.createProjectRemoteAccessRequest("project-1", "source-1", {
+        request_id: "request-1",
+        requesting_client_id: "requester-1",
+        operation: "list",
+        key_epoch: 1,
+        encrypted_envelope: "opaque-request",
+      }, context);
+      await client.getProjectRemoteAccessResult("project-1", "source-1", "request-1", "requester-1", context);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+    assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      "GET /v1/projects/project-1?team_id=team-1",
+      "POST /v1/projects?team_id=team-1",
+      "PATCH /v1/projects/project-1?team_id=team-1",
+      "DELETE /v1/projects/project-1?confirmation_project_id=project-1&team_id=team-1",
+      "GET /v1/projects/project-1/items?team_id=team-1",
+      "GET /v1/projects/project-1/sources?team_id=team-1",
+      "DELETE /v1/projects/project-1/sources/source-1?confirmation_source_id=source-1&team_id=team-1",
+      "POST /v1/projects/project-1/sources/source-1/requests?team_id=team-1",
+      "GET /v1/projects/project-1/sources/source-1/requests/request-1?requesting_client_id=requester-1&team_id=team-1",
+    ]);
+    assert.equal(requests[7]?.body?.encrypted_envelope, "opaque-request");
+  });
+
   it("keeps explicit API URL overrides higher priority than the persisted session", () => {
     const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:8000" });
     assert.strictEqual(client.apiUrl, "http://127.0.0.1:8000");

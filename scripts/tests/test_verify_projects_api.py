@@ -126,3 +126,13 @@ def test_report_classification_declares_encryption_and_access_boundaries() -> No
     assert result["data_boundary"] == "opaque_client_side_encrypted_metadata_only"
     assert result["decrypted_plaintext"] == "none"
     assert result["credit_budget"] == "none"
+
+
+def test_live_verifier_uses_exact_delete_identifiers_without_boolean_compatibility() -> None:
+    source = MODULE_PATH.read_text(encoding="utf-8")
+
+    assert '"confirmation_project_id": project_id' in source
+    assert '"confirmation_source_id": source_id' in source
+    assert '"confirmed": "true"' not in source
+    assert "SOURCE_REMOVAL_CONFIRMATION_REQUIRED" in source
+    assert "SOURCE_REMOVAL_CONFIRMATION_MISMATCH" in source

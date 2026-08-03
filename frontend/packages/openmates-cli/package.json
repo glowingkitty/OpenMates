@@ -39,6 +39,7 @@
     "test:unit:account-delete": "node --test tests/account-delete.test.ts",
     "test:unit:ideabucket": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/ideabucket.test.ts",
     "test:unit:cli": "node --test tests/cli.test.ts",
+    "test:unit:projects-cli": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/projectRequester.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern 'routes deterministic Project CRUD' tests/client.test.ts && node --test --test-name-pattern 'projects deterministic commands' tests/cli.test.ts",
     "test:t-cli-recovery": "node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern recovery tests/client.test.ts",
     "test:t-cli-update-required": "npm run build && node --test --test-name-pattern update-required tests/cli.test.ts",
     "test:unit:recovery": "npm run test:t-cli-recovery",
