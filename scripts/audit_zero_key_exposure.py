@@ -50,6 +50,8 @@ EXIT_USAGE = 2
 class ReadOnlyRepository(Protocol):
     """Minimal repository surface intentionally incapable of writes."""
 
+    def collection_exists(self, collection: str) -> bool: ...
+
     def count(self, collection: str, filters: Mapping[str, str]) -> int: ...
 
     def page(
@@ -73,6 +75,7 @@ class ScanDefinition:
     expected_login_method: str | None = None
     login_method_prefix: str | None = None
     expected_key_type: str | None = None
+    optional_collection: bool = False
 
 
 ENCRYPTION_KEY_FIELDS = ("id", "login_method", "encrypted_key", "key_iv")
@@ -145,6 +148,7 @@ SCANS = (
         "encrypted_chat_key",
         "aes-prefixed-nonce",
         expected_key_type="master",
+        optional_collection=True,
     ),
 )
 
@@ -166,6 +170,15 @@ class DirectusReadOnlyRepository:
         self._timeout = timeout
         self._admin_email = admin_email
         self._admin_password = admin_password
+
+    def collection_exists(self, collection: str) -> bool:
+        url = f"{self._base_url}/collections?{urlencode({'limit': '-1', 'fields': 'collection'})}"
+        data = self._request_url(url).get("data")
+        if not isinstance(data, list) or not all(
+            isinstance(item, dict) and isinstance(item.get("collection"), str) for item in data
+        ):
+            raise RuntimeError("collection_inventory_malformed")
+        return any(item["collection"] == collection for item in data)
 
     def count(self, collection: str, filters: Mapping[str, str]) -> int:
         params = self._params(filters)
@@ -222,6 +235,9 @@ class DirectusReadOnlyRepository:
     def _request(self, collection: str, params: Mapping[str, str]) -> dict[str, Any]:
         collection_path = "users" if collection == "users" else f"items/{collection}"
         url = f"{self._base_url}/{collection_path}?{urlencode(params)}"
+        return self._request_url(url)
+
+    def _request_url(self, url: str) -> dict[str, Any]:
         try:
             payload = self._get(url)
         except HTTPError as exc:
@@ -545,6 +561,18 @@ def audit_repository(
     for scan in SCANS:
         counts = {"eligible": 0, "scanned": 0, "matched": 0}
         category_counts[scan.category] = counts
+        if scan.optional_collection:
+            try:
+                first_exists = repository.collection_exists(scan.collection)
+                second_exists = repository.collection_exists(scan.collection)
+            except Exception:
+                _mark_incomplete(scan.category, "collection_inventory_failed", incomplete_categories, errors)
+                continue
+            if first_exists != second_exists:
+                _mark_incomplete(scan.category, "collection_inventory_changed", incomplete_categories, errors)
+                continue
+            if not first_exists:
+                continue
         first = _read_snapshot(repository, scan, page_size, incomplete_categories, errors)
         second = _read_snapshot(repository, scan, page_size, incomplete_categories, errors)
         counts["eligible"] = first.count

@@ -37,13 +37,23 @@ class FakeRepository:
         count_overrides: Mapping[str, list[int]] | None = None,
         read_failures: set[str] | None = None,
         page_overrides: Mapping[str, list[list[dict[str, Any]]]] | None = None,
+        collection_inventory: Mapping[str, list[bool]] | None = None,
     ) -> None:
         self.records = {collection: list(rows) for collection, rows in records.items()}
         self.count_overrides = {collection: list(counts) for collection, counts in (count_overrides or {}).items()}
         self.read_failures = read_failures or set()
         self.page_overrides = {collection: list(pages) for collection, pages in (page_overrides or {}).items()}
+        self.collection_inventory = {
+            collection: list(results) for collection, results in (collection_inventory or {}).items()
+        }
         self.read_calls: list[tuple[str, int, int]] = []
         self.write_calls = 0
+
+    def collection_exists(self, collection: str) -> bool:
+        results = self.collection_inventory.get(collection)
+        if results:
+            return results.pop(0)
+        return collection in self.records
 
     def count(self, collection: str, filters: Mapping[str, str]) -> int:
         overrides = self.count_overrides.get(collection)
@@ -277,6 +287,35 @@ def test_read_failure_is_sanitized_and_never_reported_as_clean() -> None:
     assert repository.write_calls == 0
 
 
+def test_confirmed_absent_optional_collection_is_zero_eligible_and_clean() -> None:
+    repository = FakeRepository({})
+
+    report = audit.audit_repository(repository, audited_at=AUDITED_AT)
+
+    assert report["status"] == "clean"
+    assert report["complete"] is True
+    assert report["categories"]["chat_key_wrappers.master"] == {
+        "eligible": 0,
+        "scanned": 0,
+        "matched": 0,
+    }
+
+
+@pytest.mark.parametrize("inventory", [[True, False], [RuntimeError("inventory failed")]])
+def test_optional_collection_inventory_ambiguity_is_incomplete(inventory: list[Any]) -> None:
+    class InventoryRepository(FakeRepository):
+        def collection_exists(self, collection: str) -> bool:
+            result = inventory.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+    report = audit.audit_repository(InventoryRepository({}), audited_at=AUDITED_AT)
+
+    assert report["status"] == "incomplete"
+    assert report["incomplete_categories"] == ["chat_key_wrappers.master"]
+
+
 def test_duplicate_ids_in_offset_pages_make_the_scan_incomplete() -> None:
     duplicate = _secretbox("duplicate-email-row", NONZERO_KEY)
     records = _all_collections()
@@ -397,6 +436,26 @@ def test_directus_item_count_uses_aggregate_response(monkeypatch: pytest.MonkeyP
     assert "meta" not in query
 
 
+def test_directus_collection_inventory_uses_get_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests = []
+
+    def fake_urlopen(request: Any, *, timeout: int) -> FakeHttpResponse:
+        requests.append((request, timeout))
+        return FakeHttpResponse({"data": [{"collection": "chats"}, {"collection": "chat_key_wrappers"}]})
+
+    monkeypatch.setattr(audit, "urlopen", fake_urlopen)
+    repository = audit.DirectusReadOnlyRepository("https://directus.invalid", "test-token")
+
+    assert repository.collection_exists("chat_key_wrappers") is True
+    request, timeout = requests[0]
+    parsed = urlparse(request.full_url)
+    query = parse_qs(parsed.query)
+    assert request.get_method() == "GET"
+    assert timeout == audit.DEFAULT_TIMEOUT_SECONDS
+    assert parsed.path == "/collections"
+    assert query == {"limit": ["-1"], "fields": ["collection"]}
+
+
 def test_directus_401_logs_in_and_retries_the_same_get_once(monkeypatch: pytest.MonkeyPatch) -> None:
     requests = []
 
@@ -467,6 +526,7 @@ def test_directus_auth_failure_makes_audit_incomplete(
         ("GET", "/items/encryption_keys"),
         ("GET", "/items/chats"),
         ("GET", "/items/chat_key_wrappers"),
+        ("GET", "/collections"),
         ("POST", "/auth/login"),
     }
     assert all(
