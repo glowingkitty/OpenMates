@@ -70,12 +70,29 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "List",
             "Form",
             "NavigationStack",
+            "TabView",
             "navigationTitle",
             "toolbar",
         ])
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("Color.grey100") })
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("ScrollView/LazyVStack") })
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("pending audio-recording embed") })
+    }
+
+    func testWatchChatThreadClaimsFullDisplayWithoutPagedTabChrome() throws {
+        let source = try watchSource(named: "WatchChatViews.swift")
+
+        XCTAssertFalse(source.contains("TabView("))
+        XCTAssertFalse(source.contains(".tabViewStyle(.page"))
+        XCTAssertTrue(source.contains(".frame(maxWidth: .infinity, maxHeight: .infinity)"))
+        XCTAssertTrue(source.contains(".ignoresSafeArea(edges: .bottom)"))
+    }
+
+    func testWatchEmbedPreviewUsesAvailableMessageWidth() throws {
+        let source = try watchSource(named: "WatchEmbedViews.swift")
+
+        XCTAssertFalse(source.contains("width: CGFloat(WatchEmbedPreviewModel.cardWidth)"))
+        XCTAssertTrue(source.contains("maxWidth: .infinity"))
     }
 
     func testMapsSupportedV1EmbedFamiliesToCompactPreviewModels() throws {
@@ -201,6 +218,16 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertNil(WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs))
     }
 
+    func testWatchRendersMarkdownEmbedReferencesWithoutLeakingSyntax() throws {
+        let content = "See [CSD Magdeburg](embed:csd-deutschland.de-NXT) for details."
+
+        let refs = WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
+        let displayText = WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs)
+
+        XCTAssertEqual(refs.map(\.id), ["csd-deutschland.de-NXT"])
+        XCTAssertEqual(displayText, "See CSD Magdeburg for details.")
+    }
+
     private static func embed(
         id: String = "embed-1",
         type: String,
@@ -218,6 +245,14 @@ final class WatchEmbedPreviewTests: XCTestCase {
             embedIds: nil,
             createdAt: "2026-07-07T00:00:00Z"
         )
+    }
+
+    private func watchSource(named filename: String) throws -> String {
+        let appleRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = appleRoot.appendingPathComponent("OpenMatesWatch/Sources/\(filename)")
+        return try String(contentsOf: sourceURL, encoding: .utf8)
     }
 
     private func XCTAssertNoDuplicates(
