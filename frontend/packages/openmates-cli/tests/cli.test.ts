@@ -29,7 +29,7 @@ import {
   INTEREST_TAG_IDS,
   normalizeInterestTagIds,
 } from "../dist/index.js";
-import { buildTravelConnectionsRequest, requireExactConfirmation } from "../dist/cli.js";
+import { buildTravelConnectionsRequest, requireExactConfirmation, resolveProjectContext } from "../dist/cli.js";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -1089,6 +1089,34 @@ describe("projects deterministic commands", () => {
       (error: Error & { code?: string }) =>
         error.code === "confirmation_mismatch"
         && error.message === "Project deletion confirmation must exactly match 'project-1'.",
+    );
+  });
+
+  it("resolves duplicate membership rows for the same canonical Team", async () => {
+    const client = {
+      listTeams: async () => [
+        { team_id: "team-1", slug: "shared" },
+        { team_id: "team-1", slug: "shared" },
+      ],
+    };
+
+    assert.deepEqual(
+      await resolveProjectContext(client as never, { team: "shared" }, false),
+      { teamId: "team-1" },
+    );
+  });
+
+  it("rejects genuinely different Teams sharing a slug", async () => {
+    const client = {
+      listTeams: async () => [
+        { team_id: "team-1", slug: "shared" },
+        { team_id: "team-2", slug: "shared" },
+      ],
+    };
+
+    await assert.rejects(
+      resolveProjectContext(client as never, { team: "shared" }, false),
+      (error: Error & { code?: string }) => error.code === "ambiguous_team",
     );
   });
 });

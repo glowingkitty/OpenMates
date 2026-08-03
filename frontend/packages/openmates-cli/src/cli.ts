@@ -2658,7 +2658,7 @@ function hasExplicitProjectContext(flags: Record<string, string | boolean>): boo
   return flags.personal === true || typeof flags.team === "string" || typeof flags["team-id"] === "string";
 }
 
-async function resolveProjectContext(
+export async function resolveProjectContext(
   client: OpenMatesClient,
   flags: Record<string, string | boolean>,
   requireExplicit: boolean,
@@ -2670,7 +2670,13 @@ async function resolveProjectContext(
   const requested = typeof flags.team === "string" ? flags.team : typeof flags["team-id"] === "string" ? flags["team-id"] : null;
   if (requested) {
     const teams = await client.listTeams();
-    const matches = teams.filter((team) => team.team_id === requested || team.slug === requested);
+    const matches = [
+      ...new Map(
+        teams
+          .filter((team) => team.team_id === requested || team.slug === requested)
+          .map((team) => [team.team_id, team]),
+      ).values(),
+    ];
     if (matches.length !== 1 || !matches[0]?.team_id) {
       throw new CliContractError(matches.length > 1 ? "ambiguous_team" : "team_not_found", `Team '${requested}' was not found uniquely.`);
     }
