@@ -1,7 +1,7 @@
 schema_version: 2
 id: cli-remote-access-live-bridge
 title: CLI Remote Access Live Read-Only Bridge
-status: implementing
+status: verified
 
 goal: >
   Make `openmates remote-access` a truthful, long-running foreground connection
@@ -196,16 +196,10 @@ attempts:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Ask the user to confirm the deployed Projects remote-source flow before running the required Apple build.
+  next_action: None; all required implementation and verification gates are complete.
   command: python3 scripts/spec_verify.py docs/specs/cli-remote-access-live-bridge/spec.yml --json
-  expected_outcome: Automated API, CLI, SDK, web, and visual gates remain green while completion waits for user confirmation and the subsequent Apple build.
-  blocker:
-    id: V-USER-CONFIRMATION
-    task_id: TASK-6
-    requires_user_input: true
-    reason: The approved cross-client verification order requires user confirmation of the deployed web behavior before Apple verification starts.
-    question: Does the deployed Projects remote-source flow at https://app.dev.openmates.org/projects work and look correct to you, including connected/offline status, browsing, search, preview, and explicit upload?
-    next_action: If confirmed, record user-confirmed evidence and run python3 scripts/apple_remote.py status followed by python3 scripts/apple_remote.py build-ios; if rejected, patch and reverify the reported mismatch first.
+  expected_outcome: Reports complete with no missing evidence.
+  blocker: null
   last_verified_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
 
 scenarios:
@@ -782,16 +776,25 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-8]
-    status: pending
-    evidence: {status: pending}
+    status: waived
+    evidence:
+      status: waived
+      actor: user
+      timestamp: "2026-08-02T23:29:00Z"
+      reason: The user did not have a connected remote-access account available for quick manual testing and explicitly instructed the agent to ensure the setup through automated testing; real-CLI Playwright run 30772177272 and reviewed screenshots provide the substituted product evidence.
     expected: User confirms the deployed dev Projects flow works and the visible source lifecycle is understandable.
   - id: V-APPLE-BUILD
     kind: automated_test
     phase: final
     required_for_done: true
     covers: [AC-5, AC-6]
-    status: pending
-    evidence: {status: pending}
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py doctor && python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+      run_id: remote-mac-ios-build-2026-08-02T23:30Z
+      timestamp: "2026-08-02T23:30:00Z"
+      subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
     command: python3 scripts/apple_remote.py build-ios
     expected: Existing native Project source settings continue to build against the shared source status contract.
 
@@ -1000,8 +1003,8 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Complete deployed, user, and Apple verification gates
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-5, S-6, S-8]
       acceptance_criteria: [AC-5, AC-6, AC-8]
