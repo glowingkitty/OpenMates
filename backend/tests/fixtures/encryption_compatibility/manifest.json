@@ -9,7 +9,8 @@
   ],
   "reader_guards": [
     {"path": "frontend/packages/ui/src/services/encryption/MessageEncryptor.ts", "required": ["combined[0] === 0x4f", "combined[1] === 0x4d", "iv = combined.slice(0, AES_IV_LENGTH)", "ciphertext = combined.slice(AES_IV_LENGTH)"]},
-    {"path": "backend/core/api/app/routes/generated_assets_api.py", "required": ["variant_meta.get(\"aes_nonce\") or record.get(\"aes_nonce\")", "AESGCM(aes_key).decrypt(aes_nonce, encrypted_bytes, None)"]},
+    {"path": "backend/core/api/app/routes/generated_assets_api.py", "required": ["decrypt_media_payload(", "legacy_nonce_b64=record.get(\"aes_nonce\")"]},
+    {"path": "backend/shared/python_utils/media_encryption.py", "required": ["variant.get(\"aes_nonce\") or legacy_nonce_b64", "marker in (None, \"\")", "AESGCM(aes_key).decrypt(nonce, ciphertext, None)"]},
     {"path": "frontend/packages/ui/src/components/embeds/images/imageEmbedCrypto.ts", "required": ["if (nonceBase64 === \"\")", "nonceBuffer = base64ToArrayBuffer(nonceBase64)", "ciphertext = encryptedData"]},
     {"path": "apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift", "required": ["keys: [\"aes_nonce\"]", "AES.GCM.Nonce"]},
     {"path": "backend/core/api/app/routes/payments.py", "required": ["invoice[\"aes_nonce\"]", "invoice[\"encrypted_aes_key\"]", "invoice[\"encrypted_s3_object_key\"]"]},

@@ -53,6 +53,7 @@ from backend.shared.python_utils.generated_assets import (
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.shared.python_utils.generated_assets import create_download_token
 from backend.shared.python_utils.generated_assets.service import _token_secret
+from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
@@ -231,11 +232,23 @@ async def test_s3_stream_closes_body_when_consumer_stops_early() -> None:
 
 
 class _FakeDirectus:
-    def __init__(self, record) -> None:
+    def __init__(self, record, user_profile=None) -> None:
         self.record = record
+        self.user_profile = user_profile
 
     async def get_items(self, *_args, **_kwargs):
         return [self.record]
+
+    async def get_user_profile(self, user_id):
+        assert user_id == "user-1"
+        return True, self.user_profile, "ok"
+
+
+class _FakeEncryption:
+    async def decrypt_with_user_key(self, wrapped_key, vault_key_id):
+        assert wrapped_key == "wrapped-media-key"
+        assert vault_key_id == "vault-key-1"
+        return __import__("base64").b64encode(b"\x73" * 32).decode()
 
 
 class _FakeGeneratedAssetS3:
@@ -360,6 +373,82 @@ async def test_bounded_variant_uses_its_own_nonce_not_legacy_record_nonce() -> N
 
     assert response.body == b"provider-poster"
     assert response.media_type == "image/webp"
+
+
+@pytest.mark.asyncio
+async def test_v2_bounded_variant_uses_prefixed_nonce() -> None:
+    key = b"\x73" * 32
+    nonce = b"\x33" * 12
+    plaintext = b"v2-provider-poster"
+    encrypted = nonce + AESGCM(key).encrypt(nonce, plaintext, None)
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="poster")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "poster": {
+                    "s3_key": "models/poster.webp.enc",
+                    "format": "webp",
+                    "mime_type": "image/webp",
+                    "encryption": MEDIA_ENCRYPTION_V2,
+                }
+            },
+            "aes_key": __import__("base64").b64encode(key).decode(),
+            "aes_nonce": __import__("base64").b64encode(b"\x34" * 12).decode(),
+            "original_filename": "model.glb",
+        }
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1",
+        variant="poster",
+        request=request,
+        token=token,
+        directus_service=directus,
+        s3_service=_FakeBoundedAssetS3(encrypted),
+    )
+
+    assert response.body == plaintext
+
+
+@pytest.mark.asyncio
+async def test_v2_bounded_variant_unwraps_key_when_raw_key_is_absent() -> None:
+    key = b"\x73" * 32
+    nonce = b"\x35" * 12
+    plaintext = b"wrapped-key-provider-poster"
+    encrypted = nonce + AESGCM(key).encrypt(nonce, plaintext, None)
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="poster")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "poster": {
+                    "s3_key": "models/poster.webp.enc",
+                    "format": "webp",
+                    "mime_type": "image/webp",
+                    "encryption": MEDIA_ENCRYPTION_V2,
+                }
+            },
+            "vault_wrapped_aes_key": "wrapped-media-key",
+            "aes_nonce": "",
+            "original_filename": "model.glb",
+        },
+        user_profile={"vault_key_id": "vault-key-1"},
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1",
+        variant="poster",
+        request=request,
+        token=token,
+        directus_service=directus,
+        s3_service=_FakeBoundedAssetS3(encrypted),
+        encryption_service=_FakeEncryption(),
+    )
+
+    assert response.body == plaintext
 
 
 def test_download_token_issuance_fails_closed_in_production_without_secret(monkeypatch) -> None:

@@ -1,0 +1,13 @@
+# Media encryption reader-first rollout contract.
+# Writers remain legacy until every required R1 reader evidence ID is pinned.
+schema_version: 1
+write_version: 1
+v2_format: aes-gcm-nonce-prefixed-v1
+minimum_r1_commit: null
+activated_at: null
+r1_evidence:
+  required:
+    - V-REST-MEDIA-READER
+    - V-WEB-DEPLOYED
+    - V-APPLE
+  passed: []

@@ -11,7 +11,6 @@ import logging
 from typing import Any, Dict, Optional, TYPE_CHECKING
 from urllib.parse import quote
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
 
@@ -23,9 +22,14 @@ from backend.shared.python_utils.generated_assets import (
     decrypt_generated_asset_variant,
     validate_download_token,
 )
+from backend.shared.python_utils.media_encryption import (
+    MEDIA_ENCRYPTION_V2,
+    decrypt_media_payload,
+)
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus import DirectusService
+    from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,37 @@ def get_s3_service(request: Request) -> S3UploadService:
     if not hasattr(request.app.state, "s3_service"):
         raise HTTPException(status_code=500, detail="S3 service unavailable")
     return request.app.state.s3_service
+
+
+def get_encryption_service(request: Request) -> EncryptionService:
+    if not hasattr(request.app.state, "encryption_service"):
+        raise HTTPException(status_code=500, detail="Encryption service unavailable")
+    return request.app.state.encryption_service
+
+
+async def _resolve_asset_aes_key(
+    record: Dict[str, Any],
+    *,
+    user_id: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+) -> bytes:
+    raw_key = record.get("aes_key")
+    if raw_key:
+        aes_key = base64.b64decode(raw_key, validate=True)
+    else:
+        wrapped_key = record.get("vault_wrapped_aes_key")
+        if not wrapped_key:
+            raise ValueError("Generated asset key is missing")
+        success, user_profile, _message = await directus_service.get_user_profile(user_id)
+        vault_key_id = user_profile.get("vault_key_id") if success and user_profile else None
+        if not vault_key_id:
+            raise ValueError("Generated asset owner Vault key is missing")
+        aes_key_b64 = await encryption_service.decrypt_with_user_key(wrapped_key, vault_key_id)
+        aes_key = base64.b64decode(aes_key_b64 or "", validate=True)
+    if len(aes_key) != 32:
+        raise ValueError("Generated asset key must be 32 bytes")
+    return aes_key
 
 
 def _content_type_for_variant(record_content_type: str, variant: Dict[str, Any]) -> str:
@@ -80,6 +115,7 @@ async def download_generated_asset(
     token: str = Query(..., description="Short-lived signed generated asset download token"),
     directus_service: DirectusService = Depends(get_directus_service),
     s3_service: S3UploadService = Depends(get_s3_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> Response:
     """Stream a decrypted generated asset variant from encrypted S3 storage."""
     log_prefix = f"[GeneratedAssetDownload] [asset:{asset_id[:8]}] [variant:{variant}]"
@@ -96,7 +132,7 @@ async def download_generated_asset(
         "upload_files",
         params={
             "filter": {"embed_id": {"_eq": asset_id}, "user_id": {"_eq": payload.get("user_id")}},
-            "fields": "id,content_type,files_metadata,aes_key,aes_nonce,original_filename",
+            "fields": "id,content_type,files_metadata,aes_key,aes_nonce,vault_wrapped_aes_key,original_filename",
             "sort": "-created_at",
             "limit": 1,
         },
@@ -114,16 +150,18 @@ async def download_generated_asset(
     media_type = _content_type_for_variant(str(record.get("content_type") or ""), variant_meta)
     filename = str(record.get("original_filename") or f"openmates_generated_{asset_id}")
     try:
-        aes_key = base64.b64decode(record.get("aes_key") or "", validate=True)
-        if len(aes_key) != 32:
-            raise ValueError("Generated asset key must be 32 bytes")
+        aes_key = await _resolve_asset_aes_key(
+            record,
+            user_id=str(payload.get("user_id") or ""),
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+        )
     except Exception as exc:
         logger.error("%s Generated asset key is invalid", log_prefix, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to decrypt generated asset") from exc
 
-    if variant_meta.get("encryption"):
-        if variant_meta["encryption"] != CHUNKED_MODEL_ENCRYPTION:
-            raise HTTPException(status_code=500, detail="Generated asset has unsupported encryption")
+    encryption_marker = variant_meta.get("encryption")
+    if encryption_marker == CHUNKED_MODEL_ENCRYPTION:
         encrypted_source = s3_service.get_file_stream(
             bucket_name=get_bucket_name("chatfiles", s3_service.environment),
             object_key=variant_meta["s3_key"],
@@ -133,6 +171,8 @@ async def download_generated_asset(
             media_type=media_type,
             headers={"Content-Disposition": _attachment_header(filename)},
         )
+    if encryption_marker not in (None, "", MEDIA_ENCRYPTION_V2):
+        raise HTTPException(status_code=500, detail="Generated asset has unsupported encryption")
 
     try:
         encrypted_bytes = await s3_service.get_file(
@@ -141,8 +181,12 @@ async def download_generated_asset(
         )
         if not encrypted_bytes:
             raise HTTPException(status_code=404, detail="Generated asset file missing")
-        aes_nonce = base64.b64decode(variant_meta.get("aes_nonce") or record.get("aes_nonce") or "")
-        plaintext = AESGCM(aes_key).decrypt(aes_nonce, encrypted_bytes, None)
+        plaintext = decrypt_media_payload(
+            encrypted_data=encrypted_bytes,
+            aes_key=aes_key,
+            variant=variant_meta,
+            legacy_nonce_b64=record.get("aes_nonce"),
+        )
     except HTTPException:
         raise
     except Exception as exc:

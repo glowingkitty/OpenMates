@@ -10,6 +10,7 @@ import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.shared.python_utils.encrypted_embed_images import resolve_encrypted_image_embed
+from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
 
 
 class _FakeCache:
@@ -209,6 +210,39 @@ async def test_preloaded_upload_record_decrypts_when_worker_cache_misses() -> No
                 "vault_wrapped_aes_key": "wrapped-aes-key",
                 "aes_nonce": base64.b64encode(nonce).decode(),
                 "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }
+        },
+        decode_toon=lambda _plaintext: pytest.fail("preloaded upload records must not decode chat TOON"),
+    )
+
+    assert resolved.content == plaintext
+    assert resolved.mime_type == "image/png"
+
+
+@pytest.mark.asyncio
+async def test_preloaded_v2_image_decrypts_without_top_level_nonce() -> None:
+    nonce = b"\x23" * 12
+    plaintext = b"\x89PNG\r\n\x1a\nv2-chair-image"
+    encrypted = nonce + AESGCM(b"\x11" * 32).encrypt(nonce, plaintext, None)
+
+    resolved = await resolve_encrypted_image_embed(
+        embed_id="embed-1",
+        user_vault_key_id="vault-key-1",
+        cache_client=_BrokenCache(),
+        directus_service=_MissingDirectus(),
+        encryption_service=_FakeEncryption(),
+        s3_service=_FakeS3(encrypted),
+        preloaded_records={
+            "embed-1": {
+                "embed_id": "embed-1",
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "files": {
+                    "original": {
+                        "s3_key": "inputs/chair.png",
+                        "format": "png",
+                        "encryption": MEDIA_ENCRYPTION_V2,
+                    }
+                },
             }
         },
         decode_toon=lambda _plaintext: pytest.fail("preloaded upload records must not decode chat TOON"),

@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from backend.shared.python_utils.media_encryption import decrypt_media_payload
 
 
 MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024
@@ -131,7 +131,7 @@ async def resolve_encrypted_image_embed(
     files = content.get("files")
     wrapped_key = content.get("vault_wrapped_aes_key")
     nonce_b64 = content.get("aes_nonce")
-    if not isinstance(files, dict) or not isinstance(wrapped_key, str) or not isinstance(nonce_b64, str):
+    if not isinstance(files, dict) or not isinstance(wrapped_key, str):
         raise EncryptedEmbedImageError("Referenced image is missing encryption metadata")
     variant = next(
         (
@@ -147,17 +147,21 @@ async def resolve_encrypted_image_embed(
     aes_key_b64 = await encryption_service.decrypt_with_user_key(wrapped_key, user_vault_key_id)
     try:
         aes_key = base64.b64decode(aes_key_b64 or "", validate=True)
-        nonce = base64.b64decode(nonce_b64, validate=True)
     except (TypeError, ValueError) as exc:
         raise EncryptedEmbedImageError("Referenced image encryption metadata is invalid") from exc
-    if len(aes_key) != 32 or len(nonce) != 12:
+    if len(aes_key) != 32:
         raise EncryptedEmbedImageError("Referenced image encryption metadata has an invalid size")
 
     encrypted_bytes = await s3_service.get_file(bucket_name=bucket_name, object_key=variant["s3_key"])
     if not encrypted_bytes:
         raise EncryptedEmbedImageError("Referenced image file is missing")
     try:
-        plaintext = AESGCM(aes_key).decrypt(nonce, encrypted_bytes, None)
+        plaintext = decrypt_media_payload(
+            encrypted_data=encrypted_bytes,
+            aes_key=aes_key,
+            variant=variant,
+            legacy_nonce_b64=nonce_b64,
+        )
     except Exception as exc:
         raise EncryptedEmbedImageError("Referenced image file could not be decrypted") from exc
     if len(plaintext) > MAX_IMAGE_INPUT_BYTES:
