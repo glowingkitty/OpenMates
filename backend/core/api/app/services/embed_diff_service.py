@@ -18,6 +18,26 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+def resolve_diff_target_embed_id(diff_embed_ref: Optional[str], file_path_index: Dict[str, str]) -> Optional[str]:
+    """Resolve exact refs or one uniquely matching recording-time hash suffix."""
+    if not diff_embed_ref:
+        return None
+    exact_match = file_path_index.get(diff_embed_ref)
+    if exact_match:
+        return exact_match
+
+    stale_suffix = re.match(r"^(?P<stem>.+)-[0-9a-f]{6}$", diff_embed_ref)
+    if not stale_suffix:
+        return None
+    stem = stale_suffix.group("stem")
+    candidates = [
+        embed_id
+        for embed_ref, embed_id in file_path_index.items()
+        if re.match(rf"^{re.escape(stem)}-[0-9a-f]{{6}}$", embed_ref)
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
 # ─── Data classes ────────────────────────────────────────────────────
 
 @dataclass

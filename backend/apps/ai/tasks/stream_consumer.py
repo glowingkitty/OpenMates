@@ -891,7 +891,7 @@ async def _apply_diff_block_to_existing_embed(
 ) -> str:
     """Apply a unified diff fence to an existing embed and return response markdown."""
     from backend.core.api.app.services.embed_diff_service import (
-        parse_unified_diff, apply_patch
+        apply_patch, parse_unified_diff, resolve_diff_target_embed_id
     )
     from toon_format import decode
 
@@ -903,7 +903,7 @@ async def _apply_diff_block_to_existing_embed(
         f"embed_ref={resolved_ref!r} ({len(diff_content)} chars)"
     )
 
-    target_embed_id = file_path_index.get(resolved_ref) if resolved_ref else None
+    target_embed_id = resolve_diff_target_embed_id(resolved_ref, file_path_index)
     if not target_embed_id:
         logger.warning(
             f"{log_prefix} [DIFF_BLOCK] Could not resolve embed_ref "

@@ -16,7 +16,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from backend.core.api.app.services.embed_diff_service import EmbedDiffService, apply_patch, parse_unified_diff
+from backend.core.api.app.services.embed_diff_service import (
+    EmbedDiffService,
+    apply_patch,
+    parse_unified_diff,
+    resolve_diff_target_embed_id,
+)
 
 
 STREAM_CONSUMER_PATH = Path(__file__).resolve().parents[1] / "apps/ai/tasks/stream_consumer.py"
@@ -102,6 +107,23 @@ def test_stream_consumer_updates_notebook_diff_targets() -> None:
     assert 'decoded.get("content") if decoded.get("type") == "notebook"' in source
     assert 'elif embed_type == "notebook":' in source
     assert "update_notebook_embed_content(" in source
+
+
+def test_diff_target_resolution_accepts_unique_stale_hash_suffix() -> None:
+    index = {"average.py-262e29": "embed-current"}
+
+    assert resolve_diff_target_embed_id("average.py-56d5a8", index) == "embed-current"
+
+
+def test_diff_target_resolution_prefers_exact_and_rejects_ambiguous_stems() -> None:
+    index = {
+        "average.py-262e29": "embed-current",
+        "average.py-aabbcc": "embed-other",
+    }
+
+    assert resolve_diff_target_embed_id("average.py-262e29", index) == "embed-current"
+    assert resolve_diff_target_embed_id("average.py-56d5a8", index) is None
+    assert resolve_diff_target_embed_id("average.py", index) is None
 
 
 @pytest.mark.parametrize(
