@@ -50,6 +50,52 @@ def test_project_payload_uses_exact_personal_or_team_key_context() -> None:
     ]
 
 
+def test_fixture_payloads_use_unix_seconds_consistently(monkeypatch: pytest.MonkeyPatch) -> None:
+    verifier = load_verifier()
+    monkeypatch.setattr(verifier.time, "time", lambda: 1_700_000_000.987)
+
+    project = verifier.project_payload("project-1", team_id="team-1")
+    source = verifier.source_payload("source-1")
+    team = verifier.team_payload("team-1")
+
+    assert project["created_at"] == 1_700_000_000
+    assert project["updated_at"] == 1_700_000_000
+    assert project["last_opened_at"] == 1_700_000_000
+    assert project["key_wrappers"][0]["created_at"] == 1_700_000_000
+    assert source["created_at"] == 1_700_000_000
+    assert source["updated_at"] == 1_700_000_000
+    assert team["created_at"] == 1_700_000_000
+    assert "time() * 1000" not in MODULE_PATH.read_text(encoding="utf-8")
+
+
+def test_failed_team_creation_does_not_attempt_team_cleanup(monkeypatch: pytest.MonkeyPatch) -> None:
+    verifier = load_verifier()
+    requests: list[tuple[str, str]] = []
+
+    class FakeRestClient:
+        def __init__(self, api_url: str, headers: dict[str, str] | None = None) -> None:
+            self.authenticated = headers is not None
+
+        def request(self, method: str, path: str, **kwargs) -> object:
+            requests.append((method, path))
+            if not self.authenticated:
+                return verifier.ApiResponse(401, {})
+            if method == "GET" and path == "/v1/projects":
+                return verifier.ApiResponse(403, {"detail": "TEAM_PERMISSION_DENIED"})
+            if method == "POST" and path == "/v1/teams":
+                return verifier.ApiResponse(500, {})
+            raise AssertionError(f"unexpected request: {method} {path}")
+
+    monkeypatch.setattr(verifier, "RestClient", FakeRestClient)
+
+    report, exit_code = verifier.run_verification("https://api.dev.openmates.org", {"Cookie": "test"})
+
+    assert exit_code == 1
+    assert report["scenarios"]["team_fixture_create"]["code"] == "expected_http_200_got_500"
+    assert report["cleanup"] == {"status": "passed", "failed_resources": []}
+    assert not any(method == "DELETE" and path.startswith("/v1/teams/") for method, path in requests)
+
+
 def test_project_and_source_response_helpers_fail_with_stable_codes() -> None:
     verifier = load_verifier()
 

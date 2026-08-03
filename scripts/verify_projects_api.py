@@ -89,8 +89,12 @@ def opaque_ciphertext() -> str:
     return base64.b64encode(payload).decode("ascii")
 
 
+def unix_seconds(timestamp: int | None = None) -> int:
+    return timestamp if timestamp is not None else int(time.time())
+
+
 def project_payload(project_id: str, *, team_id: str | None = None, timestamp: int | None = None) -> dict[str, Any]:
-    now = timestamp or int(time.time() * 1000)
+    now = unix_seconds(timestamp)
     payload: dict[str, Any] = {
         "project_id": project_id,
         "encrypted_project_key": opaque_ciphertext() if team_id is None else None,
@@ -116,7 +120,7 @@ def project_payload(project_id: str, *, team_id: str | None = None, timestamp: i
 
 
 def source_payload(source_id: str, *, timestamp: int | None = None) -> dict[str, Any]:
-    now = timestamp or int(time.time() * 1000)
+    now = unix_seconds(timestamp)
     return {
         "source_id": source_id,
         "source_type": "local_folder",
@@ -126,6 +130,15 @@ def source_payload(source_id: str, *, timestamp: int | None = None) -> dict[str,
         "status": "offline",
         "created_at": now,
         "updated_at": now,
+    }
+
+
+def team_payload(team_id: str, *, timestamp: int | None = None) -> dict[str, Any]:
+    return {
+        "team_id": team_id,
+        "encrypted_name": opaque_ciphertext(),
+        "encrypted_team_key": opaque_ciphertext(),
+        "created_at": unix_seconds(timestamp),
     }
 
 
@@ -331,7 +344,7 @@ def verify_project_lifecycle(client: RestClient, project_id: str, team_id: str |
     updated = client.request(
         "PATCH",
         f"/v1/projects/{project_id}",
-        body={"encrypted_name": updated_ciphertext, "updated_at": int(time.time() * 1000)},
+        body={"encrypted_name": updated_ciphertext, "updated_at": unix_seconds()},
         query=context,
         scenario=f"{scenario}_update",
     )
@@ -342,7 +355,7 @@ def verify_project_lifecycle(client: RestClient, project_id: str, team_id: str |
     archived = client.request(
         "PATCH",
         f"/v1/projects/{project_id}",
-        body={"archived": True, "updated_at": int(time.time() * 1000)},
+        body={"archived": True, "updated_at": unix_seconds()},
         query=context,
         scenario=f"{scenario}_archive",
     )
@@ -366,7 +379,7 @@ def verify_project_lifecycle(client: RestClient, project_id: str, team_id: str |
     unarchived = client.request(
         "PATCH",
         f"/v1/projects/{project_id}",
-        body={"archived": False, "updated_at": int(time.time() * 1000)},
+        body={"archived": False, "updated_at": unix_seconds()},
         query=context,
         scenario=f"{scenario}_unarchive",
     )
@@ -440,7 +453,7 @@ def run_verification(api_url: str, headers: dict[str, str]) -> tuple[dict[str, A
     team_project_id = str(uuid.uuid4())
     team_id = str(uuid.uuid4())
     personal_create_attempted = False
-    team_create_attempted = False
+    team_fixture_created = False
     team_project_create_attempted = False
     scenarios: dict[str, Any] = {}
     failure: VerificationFailure | None = None
@@ -460,19 +473,14 @@ def run_verification(api_url: str, headers: dict[str, str]) -> tuple[dict[str, A
         assert_detail(non_member_team, "TEAM_PERMISSION_DENIED", "team_role_denial")
         scenarios["team_role_denial"] = {"status": "passed", "checks": 1, "role": "non_member"}
 
-        team_create_attempted = True
         team_created = client.request(
             "POST",
             "/v1/teams",
-            body={
-                "team_id": team_id,
-                "encrypted_name": opaque_ciphertext(),
-                "encrypted_team_key": opaque_ciphertext(),
-                "created_at": int(time.time() * 1000),
-            },
+            body=team_payload(team_id),
             scenario="team_fixture_create",
         )
         assert_status(team_created, 200, "team_fixture_create")
+        team_fixture_created = True
 
         personal_create_attempted = True
         personal_checks = verify_project_lifecycle(client, personal_project_id, None, "personal")
@@ -507,7 +515,7 @@ def run_verification(api_url: str, headers: dict[str, str]) -> tuple[dict[str, A
             client,
             personal_project_id if personal_create_attempted else None,
             team_project_id if team_project_create_attempted else None,
-            team_id if team_create_attempted else None,
+            team_id if team_fixture_created else None,
         )
 
     if cleanup["status"] != "passed" and failure is None:
