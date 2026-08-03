@@ -245,12 +245,12 @@ attempts:
     notes: Existing-data mutation creates unacceptable decryption risk.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Write the synthetic zero-key detector tests before implementing the read-only audit.
-  command: python3 -m pytest backend/tests/test_zero_key_exposure_audit.py
-  expected_outcome: The new test fails until zero-key AES-GCM wrapper and NaCl encrypted-email detection is implemented without writes or sensitive output.
+  current_task_id: TASK-5
+  next_action: Write failing web crypto tests for unsupported-runtime derivation and embed-key randomness before removing the zero-key and unsafe random fallbacks.
+  command: python3 scripts/tests.py run --suite vitest
+  expected_outcome: Focused tests fail until unsupported derivation paths throw typed errors before persistence and embed keys use cryptographic randomness without fallback.
   blocker: null
-  last_verified_commit: e9db73df6
+  last_verified_commit: 9a6517f5b
 
 scenarios:
   - id: S-1
@@ -393,7 +393,7 @@ acceptance_criteria:
   - {id: AC-10, scenario: S-10, text: "Domain policy readers support immutable legacy and new bundles through rollback.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY]}
   - {id: AC-11, scenario: S-11, text: "Security generators use CSPRNG and unbiased sampling; new human-transcribed variable code characters exclude `0` and `O` while legacy values remain accepted.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-RANDOMNESS-AUDIT, T-SECURITY-CODES]}
   - {id: AC-12, scenario: S-2, text: "No task mutates, deletes, or bulk re-encrypts existing ciphertext or removes a legacy reader.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-NO-MIGRATION-GUARD, V-SECURITY-REVIEW]}
-  - {id: AC-13, scenario: S-12, text: "A conclusive read-only production SSH audit covers every eligible AES-GCM wrapper and NaCl encrypted-email collection without exposure or mutation; any match or incomplete scan requires an approved recovery spec before zero-return removal.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-ZERO-KEY-AUDIT, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
+  - {id: AC-13, scenario: S-12, text: "A conclusive read-only production SSH audit covers every eligible AES-GCM wrapper and NaCl encrypted-email collection without exposure or mutation; any match or incomplete scan requires an approved recovery spec before zero-return removal.", required: true, status: satisfied, coverage_status: covered, verification_scope: manual, verification_ids: [T-ZERO-KEY-AUDIT, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
   - {id: AC-14, scenario: S-13, text: "Backend and workers verify canonical signed domain policy locally while all client response contracts remain unchanged and legacy startup remains rollback-compatible.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY, V-DOMAIN-IMAGES]}
   - {id: AC-15, scenario: S-14, text: "Apple PBKDF2 and secure RNG failures are explicit and cannot return zero key material or deterministic credentials.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-CRYPTO-FAILURE, V-APPLE]}
   - {id: AC-16, scenario: S-15, text: "New media v2 records omit raw server-side AES keys and missing chat keys abort embed persistence, while legacy records remain readable.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-MEDIA, T-WEB-CRYPTO, V-REST-MEDIA-WRITER]}
@@ -628,8 +628,8 @@ tests:
     command: python3 -m pytest backend/tests/test_zero_key_exposure_audit.py
     covers: [AC-13]
     assertions: [Synthetic zero-wrapped AES-GCM and zero-key NaCl email records are detected by authentication, correctly derived records are not flagged, decrypted bytes are never returned or logged, audit performs no update/delete calls, positive results produce a blocking sanitized finding.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -c 'from scripts import audit_zero_key_exposure as audit; audit._record_matches = lambda *_args: False; from backend.tests import test_zero_key_exposure_audit as test_module; test_module.test_detects_every_eligible_zero_key_format_without_flagging_nonzero_records()'", run_id: "local-mutation-2026-08-03T15:55:18Z", timestamp: "2026-08-03T15:55:18Z", reason: "In-memory mutation disabled authenticated matching; the primary detector test failed because the report was not blocking, proving the test rejects the missing behavior."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_zero_key_exposure_audit.py", run_id: "local-2026-08-03T15:55:18Z", subject_commit: "9a6517f5b", timestamp: "2026-08-03T15:55:18Z", notes: "29 focused tests passed, including authenticated AES-GCM/NaCl detection, stable snapshots, read-only Directus access, sanitization, and optional-schema ambiguity guards."}}
   - id: T-APPLE-CRYPTO-FAILURE
     type: unit
     file: apple/OpenMatesTests/CryptoFailureTests.swift
@@ -701,20 +701,20 @@ verifications:
   - {id: V-USER-CONFIRMATION, kind: user_confirmation, phase: final, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
   - {id: V-APPLE, kind: automated_test, phase: final, required_for_done: true, covers: [AC-2, AC-4, AC-6, AC-8], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
   - {id: V-APPLE-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
-  - {id: V-ZERO-KEY-AUDIT, kind: manual_check, phase: green, required_for_done: true, covers: [AC-13], status: pending, evidence: {status: "", command: "python3 scripts/audit_zero_key_exposure.py --env dev --read-only", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
+  - {id: V-ZERO-KEY-AUDIT, kind: manual_check, phase: green, required_for_done: true, covers: [AC-13], status: passed, evidence: {status: passed, command: "docker exec -i api python - --env dev --read-only < scripts/audit_zero_key_exposure.py", run_id: "dev-zero-key-2026-08-03T15:54:15Z", subject_commit: "9a6517f5b", summary: "Complete stable read-only scan: 10795 eligible and scanned records across seven categories, zero matches, zero errors, and no findings.", timestamp: "2026-08-03T15:54:15Z"}}
   - id: V-ZERO-KEY-PROD-SSH
     kind: manual_check
     phase: final
     required_for_done: true
     covers: [AC-13]
-    status: pending
+    status: passed
     evidence:
-      status: ""
+      status: passed
       command: "prod-ssh 3FA session; run validated audit_zero_key_exposure.py --env prod --read-only"
-      run_id: ""
-      subject_commit: ""
-      summary: ""
-      timestamp: ""
+      run_id: "prod-zero-key-2026-08-03T15:54:15Z"
+      subject_commit: "9a6517f5b"
+      summary: "Complete stable read-only scan through temporary 3FA SSH: 3555 eligible and scanned records across six present categories, zero matches, zero errors, and no findings; the optional post-production chat_key_wrappers collection was twice confirmed absent and therefore had zero eligible records. The SSH master was closed immediately after the audit."
+      timestamp: "2026-08-03T15:54:15Z"
   - {id: V-DOMAIN-IMAGES, kind: automated_test, phase: green, required_for_done: true, covers: [AC-14], status: pending, evidence: {status: "", command: "python3 scripts/audit_domain_security.py --signed-bundle --verify-api-worker-selfhost-images", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
   - {id: V-SECURITY-REVIEW, kind: manual_check, phase: final, required_for_done: true, covers: [AC-12], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
 
@@ -936,8 +936,8 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Build and prove the read-only zero-key detector
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-7, S-12]
       acceptance_criteria: [AC-7, AC-13]
@@ -951,8 +951,8 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Run conclusive production zero-key audit through 3FA SSH
-    status: pending
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-12]
       acceptance_criteria: [AC-13]
