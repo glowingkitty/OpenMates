@@ -69,6 +69,8 @@
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
   import { extractSearchResultsFromContent } from './embeds/embedPreviewHydration';
   import { chatDB } from '../services/db';
+  import { chatKeyManager } from '../services/encryption/ChatKeyManager';
+  import { authStore } from '../stores/authStore';
   import { webSocketService } from '../services/websocketService';
   import { getApiEndpoint } from '../config/api';
   import { activeChatStore } from '../stores/activeChatStore';
@@ -1179,6 +1181,72 @@
     olderMessagesLoading?: boolean;
   } = $props();
 
+  let hydratedQuickTipSlugs = $state<string[]>([]);
+  let effectiveQuickTipSlugs = $derived(
+    quickTipSlugs.length > 0 ? quickTipSlugs : hydratedQuickTipSlugs
+  );
+  let quickTipPropsSeenChatId: string | null = null;
+  let quickTipHydrationAttemptKey: string | null = null;
+  let quickTipKeyReadyVersion = $state(0);
+  let quickTipHydrationGeneration = 0;
+
+  onMount(() => chatKeyManager.onKeyReady((chatId) => {
+    if (chatId === currentChatId) quickTipKeyReadyVersion += 1;
+  }));
+
+  $effect(() => {
+    const isAuthenticated = $authStore.isAuthenticated;
+    const chatId = currentChatId;
+    const lastMessageRole = sourceMessages[sourceMessages.length - 1]?.role;
+    const hydrationAttemptKey = chatId ? `${chatId}:${quickTipKeyReadyVersion}` : null;
+    const generation = ++quickTipHydrationGeneration;
+
+    if (!isAuthenticated) {
+      hydratedQuickTipSlugs = [];
+      quickTipPropsSeenChatId = null;
+      quickTipHydrationAttemptKey = null;
+      return;
+    }
+    if (quickTipSlugs.length > 0) {
+      hydratedQuickTipSlugs = [];
+      quickTipPropsSeenChatId = chatId ?? null;
+      return;
+    }
+    if (
+      !chatId ||
+      lastMessageRole !== 'assistant' ||
+      isPublicChat(chatId) ||
+      quickTipPropsSeenChatId === chatId ||
+      quickTipHydrationAttemptKey === hydrationAttemptKey
+    ) {
+      hydratedQuickTipSlugs = [];
+      return;
+    }
+    hydratedQuickTipSlugs = [];
+    quickTipHydrationAttemptKey = hydrationAttemptKey;
+
+    void (async () => {
+      try {
+        const storedChat = await chatDB.getChat(chatId);
+        if (!storedChat?.encrypted_quick_tip_slugs) return;
+        const chatKey = await chatKeyManager.getKey(chatId);
+        if (!chatKey) return;
+        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+        const slugs = await decryptArrayWithChatKey(storedChat.encrypted_quick_tip_slugs, chatKey) || [];
+        if (
+          generation === quickTipHydrationGeneration &&
+          $authStore.isAuthenticated &&
+          currentChatId === chatId &&
+          quickTipSlugs.length === 0
+        ) {
+          hydratedQuickTipSlugs = slugs;
+        }
+      } catch (error) {
+        console.error(`[ChatHistory] Failed to hydrate quick tips for chat ${chatId}:`, error);
+      }
+    })();
+  });
+
   async function navigateToChat(chatId: string): Promise<void> {
     if (onChatNavigate) {
       await onChatNavigate(chatId);
@@ -1401,7 +1469,7 @@
   );
 
   let showQuickTipsInHistory = $derived(
-    quickTipSlugs.length > 0 &&
+    effectiveQuickTipSlugs.length > 0 &&
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming
   );
@@ -2806,7 +2874,7 @@
             {#if showQuickTipsInHistory}
                 <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
                     <QuickTipsCard
-                        slugs={quickTipSlugs}
+                        slugs={effectiveQuickTipSlugs}
                         category={chatCategory}
                         on:action={(event) => handleQuickTipAction(event.detail)}
                     />

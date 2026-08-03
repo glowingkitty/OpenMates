@@ -5032,14 +5032,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    $effect(() => {
-        const isAuthenticated = $authStore.isAuthenticated;
-        const chatId = currentChat?.chat_id;
-        const messageCount = currentMessages.length;
-        if (!isAuthenticated || !chatId || messageCount === 0) return;
-        void hydrateQuickTipSlugs(chatId, currentChat.encrypted_quick_tip_slugs);
-    });
-    
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
     // Shown as horizontally scrollable cards below the last AI response
