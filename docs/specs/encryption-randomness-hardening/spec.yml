@@ -252,11 +252,16 @@ attempts:
 
 handoff:
   current_task_id: TASK-7
-  next_action: Add failing signed-domain-policy compatibility tests before implementing canonical Ed25519 bundle loading; keep production activation blocked on A-8 signing custody.
-  command: python3 backend/core/api/app/services/test_domain_security.py
-  expected_outcome: New tests fail until legacy fallback, valid signed bundles, malformed inputs, and invalid-signature fail-closed behavior are explicit.
-  blocker: null
-  last_verified_commit: 034b62913
+  next_action: Confirm A-8 signing-key custody, provision the protected GitHub environment secret, then generate and review the production public artifacts before activating the signed bundle.
+  command: gh workflow run sign-domain-security-policy.yml -f policy_json='<REVIEWED_POLICY_JSON>'
+  expected_outcome: The protected workflow emits canonical policy, signature, and public-key artifacts without exposing private key material; the signed-bundle image audit then passes.
+  blocker:
+    task_id: TASK-7
+    requires_user_input: true
+    reason: Reader, signing, rollback, and image-audit infrastructure is deployed, but production activation requires release-owner confirmation of Ed25519 private-key custody, backup, and rotation ownership under A-8.
+    question: Can the release owner confirm the protected GitHub environment, private-key backup location, and rotation owner for the domain-policy Ed25519 signing key?
+    next_action: Provision DOMAIN_SECURITY_SIGNING_PRIVATE_KEY_B64 in the protected domain-policy-signing environment, run the signing workflow, review its public artifacts, embed the approved public key, and rerun the signed-bundle audit.
+  last_verified_commit: 660811d17
 
 scenarios:
   - id: S-1
@@ -626,8 +631,8 @@ tests:
     command: python3 backend/core/api/app/services/test_domain_security.py
     covers: [AC-10, AC-14]
     assertions: [Legacy policy reads only when signed bundle is absent, canonical signed bundle verifies before parsing, invalid signed bundle never falls back, invalid regex and malformed domains fail closed, API and worker mixed-version rollback works, client response contracts remain unchanged.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 backend/core/api/app/services/test_domain_security.py", run_id: "local-task7-red-2026-08-03", subject_commit: "50688cba2", timestamp: "2026-08-03T19:02:00Z", reason: "The signed-policy compatibility cases failed before the reader recognized canonical Ed25519 bundles and fail-closed mixed-version behavior."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 backend/core/api/app/services/test_domain_security.py && docker exec api python /app/backend/core/api/app/services/test_domain_security.py", run_id: "local-task7-green;api-container-task7-green", subject_commit: "660811d17", timestamp: "2026-08-03T19:36:44Z", notes: "All seven source-checkout sections passed; all six runtime-image sections passed with the source-only signing tool explicitly absent. Valid signed bundles load, signature verification precedes parsing, malformed and partial bundles fail closed, tampering remains sticky, and unchanged legacy files remain the rollback path only when both signed artifacts are absent."}}
   - id: T-ZERO-KEY-AUDIT
     type: pytest
     file: backend/tests/test_zero_key_exposure_audit.py
@@ -721,7 +726,7 @@ verifications:
       subject_commit: "9a6517f5b"
       summary: "Complete stable read-only scan through temporary 3FA SSH: 3555 eligible and scanned records across six present categories, zero matches, zero errors, and no findings; the optional post-production chat_key_wrappers collection was twice confirmed absent and therefore had zero eligible records. The SSH master was closed immediately after the audit."
       timestamp: "2026-08-03T15:54:15Z"
-  - {id: V-DOMAIN-IMAGES, kind: automated_test, phase: green, required_for_done: true, covers: [AC-14], status: pending, evidence: {status: "", command: "python3 scripts/audit_domain_security.py --signed-bundle --verify-api-worker-selfhost-images", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
+  - {id: V-DOMAIN-IMAGES, kind: automated_test, phase: green, required_for_done: true, covers: [AC-14], status: blocked, evidence: {status: blocked, command: "python3 scripts/audit_domain_security.py --signed-bundle --verify-api-worker-selfhost-images", run_id: "local-task7-image-contract", subject_commit: "660811d17", summary: "API, worker, and self-host image copy contracts plus publication workflow enforcement pass. Full signed-bundle publication verification remains blocked until A-8 supplies the protected production signing key and approved public artifacts.", timestamp: "2026-08-03T19:37:51Z"}}
   - {id: V-SECURITY-REVIEW, kind: manual_check, phase: final, required_for_done: true, covers: [AC-12], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
 
 implementation_plan:
@@ -1002,8 +1007,8 @@ tasks:
     independently_deployable: true
   - id: TASK-7
     title: Add signed backend domain-policy compatibility loading
-    status: pending
-    phase: working_tasks
+    status: blocked
+    phase: blocked
     covers:
       scenarios: [S-10, S-13]
       acceptance_criteria: [AC-10, AC-14]
