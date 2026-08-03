@@ -358,6 +358,8 @@ for module_name in include_modules:
 
 # Configure Celery
 celery_concurrency = int(os.environ.get("CELERY_AUTOSCALE_MAX", "2"))
+REDIS_PRIORITY_STEPS = [0, 3, 6, 9]
+DEFAULT_TASK_PRIORITY = 9
 
 app.conf.update(
     worker_concurrency=celery_concurrency,
@@ -371,6 +373,9 @@ app.conf.update(
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
+    # Redis consumes lower-numbered priority buckets first. Keep ordinary
+    # background work low so latency-sensitive writes can opt into priority 0.
+    task_default_priority=DEFAULT_TASK_PRIORITY,
     timezone='UTC',
     enable_utc=True,
     broker_connection_retry_on_startup=broker_connection_retry_on_startup,
@@ -379,6 +384,8 @@ app.conf.update(
         'socket_timeout': redis_socket_timeout,
         'socket_connect_timeout': redis_socket_connect_timeout,
         'retry_on_timeout': redis_retry_on_timeout,
+        'queue_order_strategy': 'priority',
+        'priority_steps': REDIS_PRIORITY_STEPS,
     },
     redis_socket_timeout=redis_socket_timeout,
     redis_socket_connect_timeout=redis_socket_connect_timeout,

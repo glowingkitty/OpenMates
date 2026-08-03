@@ -425,10 +425,15 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
     mutation: dict[str, str],
     expected_title_v: int,
 ) -> None:
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    queued_tasks: list[tuple[str, list, str | None, int | None]] = []
 
-    def queue_task(name: str, args=None, queue: str | None = None):
-        queued_tasks.append((name, args or [], queue))
+    def queue_task(
+        name: str,
+        args=None,
+        queue: str | None = None,
+        priority: int | None = None,
+    ):
+        queued_tasks.append((name, args or [], queue, priority))
         return SimpleNamespace(id="task-1")
 
     monkeypatch.setattr(encrypted_chat_metadata_handler.celery_app, "send_task", queue_task)
@@ -438,9 +443,10 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
     )
 
     assert len(queued_tasks) == 1
-    task_name, task_args, queue = queued_tasks[0]
+    task_name, task_args, queue, priority = queued_tasks[0]
     assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
     assert queue == "persistence"
+    assert priority == 0
     persisted = task_args[1]
     assert persisted["metadata_v"] == 5
     assert persisted["title_v"] == expected_title_v

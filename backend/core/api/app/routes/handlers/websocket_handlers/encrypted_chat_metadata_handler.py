@@ -13,6 +13,8 @@ from backend.core.api.app.tasks.celery_config import app as celery_app
 
 logger = logging.getLogger(__name__)
 
+CHAT_METADATA_PERSISTENCE_PRIORITY = 0
+
 
 def _effective_metadata_version(metadata: Dict[str, Any]) -> int:
     """Use title_v as the logical metadata version for pre-migration rows."""
@@ -473,7 +475,8 @@ async def handle_encrypted_chat_metadata(
                 celery_app.send_task(
                     "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
                     args=[chat_id, chat_update_fields, user_id_hash, user_id],  # Added user_id for cache updates
-                    queue="persistence"
+                    queue="persistence",
+                    priority=CHAT_METADATA_PERSISTENCE_PRIORITY,
                 )
                 logger.info(f"Queued encrypted chat metadata update task for chat {chat_id}")
 
