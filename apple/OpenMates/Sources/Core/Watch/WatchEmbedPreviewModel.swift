@@ -395,6 +395,22 @@ enum WatchEmbedPreviewMapper {
 }
 
 enum WatchMessageContentSanitizer {
+    static func inlineEmbedReferenceIds(content: String?) -> Set<String> {
+        guard let content else { return [] }
+        let pattern = #"\[([^\]\n]*)\]\(embed:([^\)\n]+)\)"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let matches = expression.matches(
+            in: content,
+            range: NSRange(content.startIndex..<content.endIndex, in: content)
+        )
+        return Set(matches.compactMap { match in
+            guard let labelRange = Range(match.range(at: 1), in: content),
+                  content[labelRange] != "!",
+                  let refRange = Range(match.range(at: 2), in: content) else { return nil }
+            return String(content[refRange])
+        })
+    }
+
     static func inlineEmbedRefs(content: String?) -> [WatchEmbedRef] {
         guard let content else { return [] }
         let pattern = #"```(?:json_embed|json)\s*([\s\S]*?)\s*```"#
@@ -576,7 +592,14 @@ enum WatchMessageContentSanitizer {
 
 extension WatchChatMessage {
     var watchEmbedRecords: [EmbedRecord] {
-        (embedRefs ?? []).map(WatchEmbedPreviewMapper.embedRecord(from:))
+        let inlineReferenceIds = WatchMessageContentSanitizer.inlineEmbedReferenceIds(content: content)
+        return (embedRefs ?? [])
+            .filter { ref in
+                guard !inlineReferenceIds.contains(ref.id) else { return false }
+                guard let embedRef = ref.data?["embed_ref"]?.value as? String else { return true }
+                return !inlineReferenceIds.contains(embedRef)
+            }
+            .map(WatchEmbedPreviewMapper.embedRecord(from:))
     }
 
     var watchDisplayContent: String? {

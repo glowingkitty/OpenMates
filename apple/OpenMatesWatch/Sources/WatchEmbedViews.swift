@@ -21,7 +21,7 @@ struct WatchEmbedPreviewCard: View {
             VStack(alignment: .leading, spacing: .spacing2) {
                 HStack(spacing: .spacing2) {
                     Circle()
-                        .fill(CategoryMapping.gradient(for: model.appId))
+                        .fill(gradient(forAppId: model.appId))
                         .frame(width: .spacing5, height: .spacing5)
                         .accessibilityHidden(true)
 
@@ -73,6 +73,23 @@ struct WatchEmbedPreviewCard: View {
         case .ready: return Color.grey70
         case .processing: return Color.buttonPrimary.opacity(0.65)
         case .error: return Color.error.opacity(0.75)
+        }
+    }
+
+    private func gradient(forAppId appId: String) -> LinearGradient {
+        switch appId {
+        case "web": return .appWeb
+        case "videos": return .appVideos
+        case "code": return .appCode
+        case "maps": return .appMaps
+        case "travel": return .appTravel
+        case "shopping": return .appShopping
+        case "weather": return .appWeather
+        case "reminder": return .appReminder
+        case "images", "photos": return .appPhotos
+        case "audio": return .appAudio
+        case "pdf": return .appPdf
+        default: return .primary
         }
     }
 }
