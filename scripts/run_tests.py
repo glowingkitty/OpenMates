@@ -271,6 +271,68 @@ def _problem_summary_label(summary: dict) -> str:
     return ", ".join(parts) if parts else "all passed"
 
 
+def _build_discord_failure_sections(suites: dict) -> list[str]:
+    """Build a category distribution and deduplicated failed-file list."""
+    categories: list[tuple[str, int, dict[str, int]]] = []
+    for suite_name, suite_data in suites.items():
+        failed_files: dict[str, int] = {}
+        failure_count = 0
+        for test in (suite_data or {}).get("tests", []):
+            if not _is_problem_status(test.get("status", "")):
+                continue
+            failure_count += 1
+            test_file = test.get("file") or test.get("name") or "unknown"
+            # Pytest node IDs identify a test after the file with `::`.
+            test_file = str(test_file).split("::", 1)[0]
+            failed_files[test_file] = failed_files.get(test_file, 0) + 1
+        if failure_count:
+            categories.append((suite_name, failure_count, failed_files))
+
+    categories.sort(key=lambda category: (-category[1], category[0]))
+    total_failures = sum(category[1] for category in categories)
+    lines = ["**Failure distribution:**"]
+    for suite_name, failure_count, failed_files in categories:
+        category_label = suite_name.replace("_", " ").capitalize()
+        file_label = "file" if len(failed_files) == 1 else "files"
+        failure_percentage = round((failure_count / total_failures) * 100)
+        lines.append(
+            f"• **{category_label}:** {failure_count} ({failure_percentage}%) across "
+            f"**{len(failed_files)}** {file_label}"
+        )
+
+    lines.extend(["", "**Failed test files:**"])
+    for suite_name, _failure_count, failed_files in categories:
+        lines.append(f"**{suite_name.replace('_', ' ').capitalize()}**")
+        for test_file, count in sorted(failed_files.items()):
+            count_suffix = f" — {count} failures" if count > 1 else ""
+            lines.append(f"• `{test_file}`{count_suffix}")
+    return lines
+
+
+def _fit_discord_description(lines: list[str]) -> str:
+    """Fit whole summary lines within Discord's description limit."""
+    description = "\n".join(lines)
+    if len(description) <= DISCORD_DESCRIPTION_MAX_CHARS:
+        return description
+
+    total_file_lines = sum(line.startswith("• `") for line in lines)
+    fitted: list[str] = []
+    included_file_lines = 0
+    for line in lines:
+        next_file_count = included_file_lines + int(line.startswith("• `"))
+        omitted = total_file_lines - next_file_count
+        omission_line = f"…and {omitted} more failed files; see the full test report."
+        candidate = "\n".join([*fitted, line, omission_line])
+        if len(candidate) > DISCORD_DESCRIPTION_MAX_CHARS:
+            break
+        fitted.append(line)
+        included_file_lines = next_file_count
+
+    omitted = total_file_lines - included_file_lines
+    fitted.append(f"…and {omitted} more failed files; see the full test report.")
+    return "\n".join(fitted)
+
+
 def _apple_remote_commands_for_nightly() -> list[tuple[str, tuple[str, ...]]]:
     """Return serialized Apple Remote commands for the nightly suite."""
     raw = os.getenv("OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS", "").strip()
@@ -779,6 +841,7 @@ def _safe_write_json(path: Path, data: dict) -> None:
 # unless boosted. Be conservative: cap to 5 files at 2 MB each.
 DISCORD_MAX_ATTACHMENTS = 5
 DISCORD_MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024
+DISCORD_DESCRIPTION_MAX_CHARS = 4000
 
 # ---------------------------------------------------------------------------
 # Discord per-test deduplication state (OPE-349 follow-up)
@@ -2646,44 +2709,6 @@ class NotificationService:
             status_suffix = _problem_summary_label(s)
             title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
 
-        # Build a compact description listing up to the first 10 problem tests
-        # AND their error snippets so readers can act on the alert without
-        # leaving Discord. Each entry: name + per-test GH Actions run link
-        # (when present) + a fenced code block with the truncated error.
-        failed_blocks: list[str] = []
-        max_failures_shown = 5  # keep description well under 4096 chars
-        max_error_chars = 500   # per failure
-        for suite_name, suite_data in result.suites.items():
-            for t in suite_data.get("tests", []):
-                if not _is_problem_status(t.get("status", "")):
-                    continue
-                name = t.get("file", t.get("name", "?"))
-                status = t.get("status", "failed").replace("_", " ")
-                err = (t.get("error") or "").strip()
-                rid = t.get("run_id")
-                # Header line: suite/test name + optional [logs] link.
-                if rid:
-                    rid_url = f"https://github.com/{GH_REPO}/actions/runs/{rid}"
-                    header = f"• `{suite_name}` — **{name}** — `{status}` — [logs]({rid_url})"
-                else:
-                    header = f"• `{suite_name}` — **{name}** — `{status}`"
-                if err:
-                    if len(err) > max_error_chars:
-                        err = err[:max_error_chars - 3].rstrip() + "..."
-                    # Strip backticks so they don't break the fenced block.
-                    err_safe = err.replace("```", "ʼʼʼ")
-                    failed_blocks.append(f"{header}\n```\n{err_safe}\n```")
-                else:
-                    failed_blocks.append(header)
-                if len(failed_blocks) >= max_failures_shown:
-                    break
-            if len(failed_blocks) >= max_failures_shown:
-                break
-
-        remaining = max(0, problem_count - len(failed_blocks))
-        if remaining > 0:
-            failed_blocks.append(f"…and {remaining} more failure(s)")
-
         dur_min = int(result.duration_seconds // 60)
         dur_sec = int(result.duration_seconds % 60)
 
@@ -2695,15 +2720,11 @@ class NotificationService:
         ]
         if run_url:
             description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
-        if failed_blocks:
+        if problem_count:
             description_parts.append("")
-            description_parts.append("**Failures / Dispatch Errors:**")
-            description_parts.extend(failed_blocks)
+            description_parts.extend(_build_discord_failure_sections(result.suites))
 
-        description = "\n".join(description_parts)
-        # Discord caps description at 4096 chars
-        if len(description) > 4000:
-            description = description[:3997] + "..."
+        description = _fit_discord_description(description_parts)
 
         embed: dict = {
             "title": title,
@@ -5814,6 +5835,8 @@ class TestOrchestrator:
                             "status": status,
                             "duration_seconds": round(test_dur, 3),
                         }
+                        if tf.get("name"):
+                            entry["file"] = tf["name"]
                         if status == "failed":
                             msgs = ar.get("failureMessages", [])
                             if msgs:
