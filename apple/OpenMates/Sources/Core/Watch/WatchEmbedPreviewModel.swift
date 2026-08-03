@@ -434,14 +434,6 @@ enum WatchMessageContentSanitizer {
             }
         }
 
-        let inlineLinkPattern = #"\[[^\]\n]*\]\(embed:([^\)\n]+)\)"#
-        if let inlineLinkRegex = try? NSRegularExpression(pattern: inlineLinkPattern) {
-            for match in inlineLinkRegex.matches(in: content, range: nsRange) {
-                guard let idRange = Range(match.range(at: 1), in: content) else { continue }
-                appendFallbackRef(id: String(content[idRange]), location: match.range.location)
-            }
-        }
-
         return refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
     }
 
@@ -530,21 +522,55 @@ enum WatchMessageContentSanitizer {
     }
 
     private static func displayText(label: String, ref: String) -> String {
-        if label.count > 3, label != ref { return label }
+        let refBase = stripEmbedRefSuffix(ref)
+        let suffix = ref.replacingOccurrences(of: refBase, with: "")
+            .replacingOccurrences(of: "-", with: "", options: .anchored)
+        let isTechnicalLabel = label.isEmpty
+            || label == ref
+            || label == refBase
+            || (!suffix.isEmpty && label == suffix)
+        if !isTechnicalLabel, label.count > 3 { return label }
         if let domainRange = ref.range(
             of: #"^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?"#,
             options: .regularExpression
         ) {
             return String(ref[domainRange])
         }
-        let base = ref.replacingOccurrences(
+
+        let base = refBase.replacingOccurrences(of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression)
+        if let expression = try? NSRegularExpression(pattern: #"^([a-zA-Z][a-zA-Z0-9_-]*)-(\d{4})$"#),
+           let match = expression.firstMatch(in: base, range: NSRange(base.startIndex..., in: base)),
+           let carrierRange = Range(match.range(at: 1), in: base),
+           let timeRange = Range(match.range(at: 2), in: base) {
+            let carrier = formatCarrierLabel(String(base[carrierRange]))
+            let rawTime = String(base[timeRange])
+            let splitIndex = rawTime.index(rawTime.startIndex, offsetBy: 2)
+            return "\(carrier) \(rawTime[..<splitIndex]):\(rawTime[splitIndex...])"
+        }
+
+        let words = base.split(whereSeparator: { $0 == "-" || $0 == "_" })
+        guard !words.isEmpty else { return ref }
+        return words.prefix(4).map { formatCarrierLabel(String($0)) }.joined(separator: " ")
+    }
+
+    private static func stripEmbedRefSuffix(_ ref: String) -> String {
+        ref.replacingOccurrences(
             of: #"-[a-zA-Z0-9]{2,4}(?:\s*\(\d+\))?$"#,
             with: "",
             options: .regularExpression
         )
-        let words = base.split(whereSeparator: { $0 == "-" || $0 == "_" })
-        guard !words.isEmpty else { return ref }
-        return words.prefix(4).map { $0.capitalized }.joined(separator: " ")
+    }
+
+    private static func formatCarrierLabel(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "db": return "DB"
+        case "ice": return "ICE"
+        case "ic": return "IC"
+        case "ec": return "EC"
+        case "flixtrain", "flixzug": return "FlixTrain"
+        default:
+            return raw.count <= 4 ? raw.uppercased() : raw.capitalized
+        }
     }
 }
 
