@@ -54,8 +54,8 @@ struct AppIconView: View {
         case "docs": return .appDocs
         case "mindmaps": return .appDiagrams
         case "models3d": return .app3dmodels
-        case "tasks": return .appTasks
-        case "workflows": return .appWorkflows
+        case "tasks": return .primary
+        case "workflows": return .primary
         default: return .primary
         }
     }
