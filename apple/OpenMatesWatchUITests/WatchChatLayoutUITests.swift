@@ -10,6 +10,7 @@ final class WatchChatLayoutUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    @MainActor
     func testOpenedChatUsesFullHeightAndFixedEmbedWidth() {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-watch-chat-layout"]

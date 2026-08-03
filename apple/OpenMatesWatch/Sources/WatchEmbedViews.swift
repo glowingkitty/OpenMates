@@ -18,54 +18,56 @@ struct WatchEmbedPreviewCard: View {
 
     var body: some View {
         Button(action: onOpen) {
-            VStack(alignment: .leading, spacing: .spacing2) {
-                HStack(spacing: .spacing2) {
-                    Circle()
-                        .fill(gradient(forAppId: model.appId))
-                        .frame(width: .spacing5, height: .spacing5)
-                        .accessibilityHidden(true)
-
-                    Text(model.typeLabel)
-                        .font(.omMicro)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.grey30)
-                        .lineLimit(1)
-                }
-
-                Text(model.title)
-                    .font(.omXs)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey0)
-                    .lineLimit(2)
-
-                if let subtitle = model.subtitle {
-                    Text(subtitle)
-                        .font(.omMicro)
-                        .foregroundStyle(Color.grey30)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 0)
-
-                WatchEmbedStatePill(state: model.state)
-            }
-            .padding(.spacing3)
-            .frame(
-                width: CGFloat(WatchEmbedPreviewModel.cardWidth),
-                minHeight: CGFloat(WatchEmbedPreviewModel.cardHeight),
-                maxHeight: CGFloat(WatchEmbedPreviewModel.cardHeight),
-                alignment: .topLeading
-            )
-            .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius6, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: .radius6, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
-            )
+            cardContent
         }
         .buttonStyle(.plain)
         .frame(width: CGFloat(WatchEmbedPreviewModel.cardWidth))
         .disabled(model.state == .processing)
         .accessibilityIdentifier("watch-embed-preview-\(model.family.rawValue)")
+    }
+
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            HStack(spacing: .spacing2) {
+                Circle()
+                    .fill(gradient(forAppId: model.appId))
+                    .frame(width: .spacing5, height: .spacing5)
+                    .accessibilityHidden(true)
+
+                Text(model.typeLabel)
+                    .font(.omMicro)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey30)
+                    .lineLimit(1)
+            }
+
+            Text(model.title)
+                .font(.omXs)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.grey0)
+                .lineLimit(2)
+
+            if let subtitle = model.subtitle {
+                Text(subtitle)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.grey30)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+            WatchEmbedStatePill(state: model.state)
+        }
+        .padding(.spacing3)
+        .frame(
+            width: CGFloat(WatchEmbedPreviewModel.cardWidth),
+            height: CGFloat(WatchEmbedPreviewModel.cardHeight),
+            alignment: .topLeading
+        )
+        .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius6, style: .continuous)
+                .stroke(borderColor, lineWidth: 1)
+        )
     }
 
     private var borderColor: Color {
