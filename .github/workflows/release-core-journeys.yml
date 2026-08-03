@@ -1,0 +1,166 @@
+# .github/workflows/release-core-journeys.yml
+#
+# Advisory dev-to-main release gate for essential hosted product journeys.
+# The dev host prepares Docker services and publishes a commit status first;
+# GitHub then validates deployment state and runs the canonical Playwright matrix.
+
+name: "Release Gate: Core Journeys"
+run-name: "Core journeys ${{ github.event.pull_request.head.sha || inputs.checkout_ref }}"
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      checkout_ref:
+        description: "Exact dev commit SHA for the bootstrap/advisory run."
+        required: true
+        type: string
+
+concurrency:
+  group: release-core-journeys-${{ github.event.pull_request.number || inputs.checkout_ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-source:
+    name: Validate release source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      checkout_ref: ${{ steps.target.outputs.checkout_ref }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Validate trusted dev source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+          DISPATCH_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            test "$HEAD_REF" = "dev" || { echo "Release PR head must be dev, got $HEAD_REF"; exit 1; }
+            test "$HEAD_REPOSITORY" = "$REPOSITORY" || { echo "Release PR must originate from $REPOSITORY"; exit 1; }
+          else
+            test "$DISPATCH_REF" = "dev" || { echo "Manual bootstrap must run from dev, got $DISPATCH_REF"; exit 1; }
+          fi
+      - name: Resolve exact target
+        id: target
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.head.sha || inputs.checkout_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "checkout_ref must be a full 40-character commit SHA"; exit 1; }
+          echo "checkout_ref=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.checkout_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require current dev head
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.checkout_ref }}
+        run: |
+          set -euo pipefail
+          git fetch origin dev
+          test "$(git rev-parse origin/dev)" = "$TARGET_SHA" || {
+            echo "Release target must equal the current origin/dev head"
+            exit 1
+          }
+      - name: Build canonical core matrix
+        id: matrix
+        run: echo "matrix=$(python3 scripts/run_tests.py --list-core-journeys)" >> "$GITHUB_OUTPUT"
+
+  deployment-ready:
+    name: Verify release candidate deployment
+    needs: validate-source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: read
+    steps:
+      - name: Require release candidate commit statuses
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ needs.validate-source.outputs.checkout_ref }}
+          RELEASE_CONTEXT: "Dev Release Candidate / Prepared"
+        run: |
+          set -euo pipefail
+          statuses="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/status")"
+          require_context() {
+            local context="$1"
+            local state
+            state="$(jq -r --arg context "$context" '[.statuses[] | select(.context == $context)][0].state // "missing"' <<<"$statuses")"
+            if [ "$state" != "success" ]; then
+              echo "$context status for $TARGET_SHA is $state"
+              if [ "$context" = "$RELEASE_CONTEXT" ]; then
+                echo "Run: python3 scripts/prepare_release_candidate.py --session <SESSION_ID>"
+              fi
+              exit 1
+            fi
+          }
+          require_context "Vercel"
+          require_context "$RELEASE_CONTEXT"
+      - name: Require reachable dev endpoints
+        env:
+          WEB_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
+          API_URL: ${{ secrets.E2E_DEV_API_URL || secrets.OPENMATES_API_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$WEB_URL" || { echo "E2E_DEV_TEST_BASE_URL is not configured"; exit 1; }
+          test -n "$API_URL" || { echo "E2E_DEV_API_URL is not configured"; exit 1; }
+          curl --fail --silent --show-error --location --max-time 20 "$WEB_URL" >/dev/null
+          curl --fail --silent --show-error --location --max-time 20 "$API_URL/health" >/dev/null
+
+  core-journeys:
+    name: Core journey / ${{ matrix.spec }}
+    needs: [validate-source, deployment-ready]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.validate-source.outputs.matrix) }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/playwright-spec.yml
+    with:
+      spec: ${{ matrix.spec }}
+      account: ${{ matrix.account }}
+      checkout_ref: ${{ needs.validate-source.outputs.checkout_ref }}
+      use_mocks: true
+      use_live_mocks: true
+      allow_credential_updates: false
+    secrets:
+      E2E_DEV_API_URL: ${{ secrets.E2E_DEV_API_URL || secrets.OPENMATES_API_URL }}
+      E2E_DEV_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
+      OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
+      TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
+      TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.account)] }}
+      TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.account)] }}
+      SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
+      E2E_SIGNUP_INVITE_CODE: ${{ secrets.E2E_SIGNUP_INVITE_CODE }}
+      MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
+      MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
+
+  core-journeys-gate:
+    name: Release Gate / Core Journeys
+    if: always()
+    needs: [validate-source, deployment-ready, core-journeys]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Aggregate required results
+        env:
+          VALIDATE_RESULT: ${{ needs.validate-source.result }}
+          DEPLOYMENT_RESULT: ${{ needs.deployment-ready.result }}
+          CORE_RESULT: ${{ needs.core-journeys.result }}
+        run: |
+          set -euo pipefail
+          echo "Validation: $VALIDATE_RESULT"
+          echo "Deployment: $DEPLOYMENT_RESULT"
+          echo "Core journeys: $CORE_RESULT"
+          test "$VALIDATE_RESULT" = "success"
+          test "$DEPLOYMENT_RESULT" = "success"
+          test "$CORE_RESULT" = "success"

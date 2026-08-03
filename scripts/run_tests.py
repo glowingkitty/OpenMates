@@ -151,7 +151,7 @@ APPLE_REMOTE_NIGHTLY_COMMANDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 # Hourly dev smoke spec list — kept SHORT on purpose. See OPE-349 + the
 # tests/dev-smoke/README.md for the policy. Anything that isn't a core user
 # flow that must keep working belongs in the nightly run, not here.
-HOURLY_DEV_SPECS: list[str] = [
+CORE_JOURNEY_SPECS: list[str] = [
     # Order determines test-account slot: specs[i] → account (i+1).
     # chat-flow is first so it uses testacct1 (known healthy) — testacct4 has
     # accumulated broken chat state that stalls DB init during login.
@@ -161,6 +161,18 @@ HOURLY_DEV_SPECS: list[str] = [
     "signup-flow-stripe-managed.spec.ts",
     "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
+HOURLY_DEV_SPECS = CORE_JOURNEY_SPECS
+
+
+def print_core_journey_matrix() -> None:
+    """Print the canonical release-gate matrix for GitHub Actions."""
+    matrix = {
+        "include": [
+            {"spec": spec, "account": str(index)}
+            for index, spec in enumerate(CORE_JOURNEY_SPECS, start=1)
+        ]
+    }
+    print(json.dumps(matrix, separators=(",", ":")))
 
 # Where each hourly mode parks its result archives + heartbeat marker.
 HOURLY_DEV_DIR = RESULTS_DIR / "hourly-dev"
@@ -6663,6 +6675,8 @@ def main() -> int:
                         help="Show top flaky tests from history and exit")
     parser.add_argument("--list", action="store_true",
                         help="List deterministic test catalog entries and exit")
+    parser.add_argument("--list-core-journeys", action="store_true",
+                        help="Print the canonical core-journey GitHub Actions matrix as JSON and exit")
 
     args = parser.parse_args()
 
@@ -6672,6 +6686,10 @@ def main() -> int:
 
     if args.list:
         _print_test_catalog()
+        return 0
+
+    if args.list_core_journeys:
+        print_core_journey_matrix()
         return 0
 
     # Reject incompatible mode combinations early so the user gets a clear

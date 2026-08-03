@@ -265,7 +265,31 @@ Write a human-readable PR description (not just a commit list). Structure it as:
 
 Only include sections that have content. Write for a developer audience — be specific and clear.
 
-**Step 4 — Create the PR**
+**Step 4 — Prepare and run the core journeys release gate**
+
+Prepare the Docker-backed dev services from a clean `dev` checkout that matches
+`origin/dev`. The command acquires the Docker lock, recreates the API and core
+workers, checks health, and publishes a status on the exact commit:
+
+```bash
+sha=$(git rev-parse HEAD)
+python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit "$sha"
+```
+
+For the first PR that introduces `.github/workflows/release-core-journeys.yml`
+to `main`, run the advisory workflow manually because GitHub does not trigger a
+new `pull_request` workflow until it already exists on the base branch:
+
+```bash
+gh workflow run release-core-journeys.yml --ref dev -f checkout_ref="$sha"
+```
+
+Inspect all four jobs and the aggregate `Release Gate / Core Journeys` result.
+Do not add the required status check to the shared main/dev ruleset. After the
+workflow exists on `main` and advisory runs are consistently green, create a
+separate main-only ruleset requiring only the aggregate result.
+
+**Step 5 — Create the PR**
 
 ```bash
 gh pr create --base main --head dev --title "<short descriptive title>" --body "$(cat <<'EOF'
@@ -274,7 +298,7 @@ EOF
 )"
 ```
 
-**Step 5 — Prepare a draft release**
+**Step 6 — Prepare a draft release**
 
 After the PR is created, immediately prepare a draft GitHub release (see "Creating Releases" section below). The draft release will be published after the PR is merged into `main`.
 

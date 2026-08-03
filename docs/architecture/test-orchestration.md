@@ -1,7 +1,7 @@
 # Test Orchestration
 
 Status: active
-Last verified: 2026-07-17
+Last verified: 2026-08-03
 
 OpenMates uses `scripts/tests.py` as the deterministic test control plane,
 Directus as the canonical coordination store, and `scripts/run_tests.py` as the
@@ -22,6 +22,27 @@ history, claims, and running-state bookkeeping stay in sync.
   downloads, screenshots, Markdown reports, and notifications.
 - `scripts/auto_fix_failed_tests.py` consumes deterministic triage groups from
   `scripts/tests.py` and verifies through `scripts/tests.py run`.
+
+## Release Core Journeys
+
+`.github/workflows/release-core-journeys.yml` is the deliberate exception to the
+local `scripts/tests.py` entry point. A required PR status must belong directly
+to the pull request, while GitHub-hosted runners cannot use the dev host's Docker
+and Directus control plane. The workflow therefore reads the canonical matrix
+from `scripts/run_tests.py`, calls the reusable single-spec workflow, and emits
+one aggregate `Release Gate / Core Journeys` result.
+
+The Docker-backed backend remains under dev-host control. An operator runs
+`scripts/prepare_release_candidate.py` under the sessions.py Docker lock; only
+after core services are recreated and healthy does that command publish the
+`Dev Release Candidate / Prepared` status on the exact commit. The preparation
+command uses the existing local Vercel API gate to prove the exact dev SHA is
+Ready before it recreates Docker services. GitHub reads this attestation and the
+Vercel commit status before browser jobs start; it receives neither credential.
+
+The release workflow uses accounts 1-4 and the reusable Playwright workflow
+serializes all runs by account number. This prevents release, hourly, nightly,
+and manual jobs from using the same persistent account concurrently.
 
 ## State Storage
 

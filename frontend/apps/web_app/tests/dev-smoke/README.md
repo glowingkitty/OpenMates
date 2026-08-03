@@ -16,10 +16,11 @@ under load (see OPE-349).
 | --- | --- | --- |
 | `dev-smoke/dev-smoke-reachability.spec.ts` | this dir | Cheap pre-flight: root + login + signup pages render. Fails fast if dev is down. |
 | `settings-buy-credits-stripe-managed.spec.ts` | `tests/` | Login → buy credits via Stripe (test card). Catches Stripe + checkout regressions. |
-| `signup-flow-polar.spec.ts` | `tests/` | Cold-boot signup → Polar checkout. Catches Polar + signup regressions. |
+| `signup-flow-stripe-managed.spec.ts` | `tests/` | Cold-boot signup → managed Stripe checkout. Catches signup + payment regressions. |
 | `chat-flow.spec.ts` | `tests/` | Login → send message → AI reply → cleanup. Catches end-to-end chat breakage. |
 
-The list is hard-coded in `scripts/run_tests.py` (`HOURLY_DEV_SPECS`). Keep it
+The list is hard-coded in `scripts/run_tests.py` (`CORE_JOURNEY_SPECS`) and also
+drives `.github/workflows/release-core-journeys.yml`. Keep it
 **short** — every spec adds ~2-5 min to the hourly wall time. Anything that is
 not "core user flow that must keep working" belongs in the nightly run, not here.
 
@@ -30,7 +31,7 @@ the dev server. The hourly cron sources `.env` before running.
 
 - `PLAYWRIGHT_TEST_BASE_URL` — dev base URL (e.g. `https://app.dev.openmates.org`)
 - `OPENMATES_TEST_ACCOUNT_*_EMAIL/PASSWORD/OTP_KEY` — used by chat-flow + Stripe specs
-- `MAILOSAUR_API_KEY`, `MAILOSAUR_SERVER_ID`, `SIGNUP_TEST_EMAIL_DOMAINS` — used by Polar signup
+- `MAILOSAUR_API_KEY`, `MAILOSAUR_SERVER_ID`, `SIGNUP_TEST_EMAIL_DOMAINS` — used by managed Stripe signup
 - `DISCORD_WEBHOOK_DEV_SMOKE` — failure notifications (post-on-failure only; silence = healthy)
 
 ## On failure
@@ -53,3 +54,19 @@ python3 scripts/tests.py run --hourly-dev --dry-run-notify
 
 Results are archived to `test-results/hourly-dev/run-<UTC-timestamp>.json`
 (rotated to last 7 days).
+
+## Release gate
+
+The same four specs form the advisory dev-to-main release gate. Before a manual
+bootstrap run or promotion PR, prepare the Docker-backed dev services and publish
+their exact-commit status:
+
+```bash
+python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_SHA>
+gh workflow run release-core-journeys.yml --ref dev -f checkout_ref=<FULL_SHA>
+```
+
+The first promotion that introduces the workflow to `main` must use the manual
+dispatch because GitHub only loads `pull_request` workflows already present on
+the base branch. Later dev-to-main PRs run it automatically. The aggregate check
+remains advisory until repeated green runs justify a separate main-only ruleset.
