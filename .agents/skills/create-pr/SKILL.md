@@ -110,6 +110,45 @@ Group commits into:
 - **Improvements** (`refactor:`, `perf:`, `improve:`) — internal improvements
 - **Other** (`docs:`, `chore:`, `build:`, `ci:`, `test:`) — maintenance
 
+### One-Time Core Journeys Bootstrap (REMOVE AFTER FIRST PROMOTION)
+
+This temporary gate applies only while `.github/workflows/release-core-journeys.yml` is absent from `origin/main`.
+
+First check the remote base branch:
+
+```bash
+git fetch origin main dev
+git cat-file -e origin/main:.github/workflows/release-core-journeys.yml 2>/dev/null
+```
+
+If the command succeeds, the first promotion has landed. Before continuing, remove this entire `One-Time Core Journeys Bootstrap` section from `.claude/skills/create-pr/SKILL.md`, run `python3 scripts/sync_agent_parity.py`, validate with `python3 scripts/sync_agent_parity.py --check`, and deploy that instruction-only cleanup to `dev` through `scripts/sessions.py deploy`. Then restart the PR flow against the new exact `origin/dev` SHA.
+
+If the command fails, GitHub cannot dispatch the new workflow yet. After all feature-readiness changes are finalized and deployed, run the one-time bootstrap against the exact current `origin/dev` commit:
+
+```bash
+FULL_DEV_SHA=$(git rev-parse origin/dev)
+python3 scripts/prepare_release_candidate.py \
+  --session <SESSION_ID> \
+  --expected-commit "$FULL_DEV_SHA"
+python3 scripts/tests.py run \
+  --core-journeys \
+  --gate-deploy \
+  --expected-commit "$FULL_DEV_SHA" \
+  --max-concurrent 4 \
+  --no-fail-fast
+```
+
+Require reachability, signup, billing, and chat to all pass for that same full SHA. Stop and report failures instead of creating the PR. Do not enable a required branch-protection check during this first advisory promotion.
+
+Include this unchecked post-merge item in the PR body so the temporary instruction cannot be forgotten:
+
+```markdown
+## Post-Merge Cleanup
+- [ ] Confirm the core-journeys workflow exists on `origin/main`, then rerun the `create-pr` skill so its one-time bootstrap instructions remove themselves from `dev`.
+```
+
+Do not remove this section before the first PR is merged: doing so changes `origin/dev` and invalidates the exact-SHA bootstrap evidence.
+
 ### Step 5 — Write PR Description
 
 Write a **human-readable** PR description — not a commit dump. Structure:
