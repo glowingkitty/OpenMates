@@ -290,6 +290,7 @@ private struct WatchChatThreadView: View {
         .padding(.bottom, .spacing4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.grey100)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-chat-thread")
     }
 
