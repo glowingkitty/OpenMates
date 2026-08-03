@@ -201,8 +201,8 @@ export function saveSession(session: OpenMatesSession): void {
 
 /**
  * Load session from disk. Retrieves the master key from whatever storage
- * tier it was saved to. Auto-migrates legacy plaintext sessions to keychain
- * when possible.
+ * tier it was saved to. Legacy plaintext sessions remain readable but are not
+ * rewritten during load.
  */
 export function loadSession(): OpenMatesSession | null {
   const filePath = join(ensureStateDir(), "session.json");
@@ -210,24 +210,10 @@ export function loadSession(): OpenMatesSession | null {
   if (!onDisk) return null;
 
   let masterKey: string | null = null;
-  let emailEncryptionKey: string | null = null;
 
   // Legacy session (no masterKeyStorage field) — key is inline
   if (!onDisk.masterKeyStorage) {
     masterKey = onDisk.masterKeyExportedB64 ?? null;
-
-    // Auto-migrate: try to move key to keychain/encrypted storage
-    if (masterKey) {
-      emailEncryptionKey = getEmailEncryptionKeyFromDisk(onDisk);
-      const session = buildSession(onDisk, masterKey, emailEncryptionKey);
-      try {
-        saveSession(session);
-        process.stderr.write("Decrypting data...\n");
-      } catch {
-        // Migration failed — keep working with plaintext key in memory
-      }
-    }
-
     return masterKey ? buildSession(onDisk, masterKey, getEmailEncryptionKeyFromDisk(onDisk)) : null;
   }
 

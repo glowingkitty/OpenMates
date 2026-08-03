@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "immutable_files": [
+    {"path": "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json", "sha256": "4a7aedaff97e43a8a2c245d56f9308201ad240a5a191c1c9041831f0db5e8923"},
+    {"path": "backend/tests/fixtures/chat_completion_recovery_vectors.json", "sha256": "403823259a10fd4d316872e10830a743e6acc9c690bd95ffef5cbf5687226f4d"},
+    {"path": "backend/core/api/app/services/domain_security_allowed.encrypted", "sha256": "08e02e488dd34834223a2d6924f8e080f42071485759771adc20479818233974"},
+    {"path": "backend/core/api/app/services/domain_security_patterns.encrypted", "sha256": "d862c4633e8c7ed26e6706b4578290c2238d610aa174ab9f9d05b038111f6b10"},
+    {"path": "backend/core/api/app/services/domain_security_restricted.encrypted", "sha256": "d9e5f3901291002fd0c9794f004586b3a9382103f708edf1adb57562464357df"}
+  ],
+  "reader_guards": [
+    {"path": "frontend/packages/ui/src/services/encryption/MessageEncryptor.ts", "required": ["combined[0] === 0x4f", "combined[1] === 0x4d", "iv = combined.slice(0, AES_IV_LENGTH)", "ciphertext = combined.slice(AES_IV_LENGTH)"]},
+    {"path": "backend/core/api/app/routes/generated_assets_api.py", "required": ["variant_meta.get(\"aes_nonce\") or record.get(\"aes_nonce\")", "AESGCM(aes_key).decrypt(aes_nonce, encrypted_bytes, None)"]},
+    {"path": "frontend/packages/ui/src/components/embeds/images/imageEmbedCrypto.ts", "required": ["if (nonceBase64 === \"\")", "nonceBuffer = base64ToArrayBuffer(nonceBase64)", "ciphertext = encryptedData"]},
+    {"path": "apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift", "required": ["keys: [\"aes_nonce\"]", "AES.GCM.Nonce"]},
+    {"path": "backend/core/api/app/routes/payments.py", "required": ["invoice[\"aes_nonce\"]", "invoice[\"encrypted_aes_key\"]", "invoice[\"encrypted_s3_object_key\"]"]},
+    {"path": "frontend/packages/ui/src/services/shortUrlEncryption.ts", "required": ["shortKey: generateBase62(6)", "salt: encoder.encode(SALT_PREFIX + token)", "const iv = combined.slice(0, 12)"]},
+    {"path": "backend/shared/python_utils/chat_completion_recovery.py", "required": ["PROTOCOL_VERSION = 1", "ENVELOPE_FIELDS = {\"v\", \"epk\", \"nonce\", \"ciphertext\"}"]},
+    {"path": "packages/openmates-python/openmates/chat_completion_recovery.py", "required": ["PROTOCOL_VERSION = 1", "ENVELOPE_FIELDS = {\"v\", \"epk\", \"nonce\", \"ciphertext\"}"]},
+    {"path": "frontend/packages/openmates-cli/src/storage.ts", "required": ["if (!onDisk.masterKeyStorage)", "case \"keychain\"", "case \"encrypted\"", "case \"plaintext\""]},
+    {"path": "backend/core/api/app/services/domain_security.py", "required": ["domain_security_restricted.encrypted", "domain_security_allowed.encrypted", "domain_security_patterns.encrypted", "fernet.decrypt(encrypted_data)"]}
+  ]
+}

@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { webcrypto } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 // ---------------------------------------------------------------------------
 // Environment: restore real Web Crypto (test-setup.ts mocks it with stubs)
@@ -44,12 +45,37 @@ import {
   uint8ArrayToBase64,
   base64ToUint8Array,
 } from "../../cryptoService";
+import {
+  decryptChatKeyWithMasterKey,
+  decryptWithMasterKey,
+} from "../MetadataEncryptor";
+import { clearMasterKey, saveMasterKey } from "../../cryptoKeyStorage";
+
+interface FrozenCompatibilityFixtures {
+  keys: {
+    content_key_b64: string;
+    wrapping_key_b64: string;
+  };
+  chat: Record<
+    "format_a" | "format_b" | "format_c" | "format_d",
+    { blob_b64: string; plaintext?: string; plaintext_key_b64?: string }
+  >;
+}
+
+const frozenFixtures = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../../../../../backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
+      import.meta.url,
+    ),
+    "utf-8",
+  ),
+) as FrozenCompatibilityFixtures;
 
 // ---------------------------------------------------------------------------
 // Constants matching cryptoService.ts internals
 // ---------------------------------------------------------------------------
 const AES_IV_LENGTH = 12;
-const CIPHERTEXT_HEADER_LENGTH = 6; // 2 magic + 4 fingerprint
 
 // ---------------------------------------------------------------------------
 // Shared test keys (deterministic for reproducibility)
@@ -73,6 +99,61 @@ beforeAll(async () => {
     true,
     ["encrypt", "decrypt"],
   );
+});
+
+describe("Frozen cross-client compatibility fixtures", () => {
+  it("decrypts frozen Format A and B messages through MessageEncryptor", async () => {
+    const key = base64ToUint8Array(frozenFixtures.keys.content_key_b64);
+
+    await expect(
+      decryptWithChatKey(frozenFixtures.chat.format_a.blob_b64, key),
+    ).resolves.toBe(frozenFixtures.chat.format_a.plaintext);
+    await expect(
+      decryptWithChatKey(frozenFixtures.chat.format_b.blob_b64, key),
+    ).resolves.toBe(frozenFixtures.chat.format_b.plaintext);
+  });
+
+  it("unwraps the frozen Format C chat key through MetadataEncryptor", async () => {
+    const wrappingKey = await crypto.subtle.importKey(
+      "raw",
+      new Uint8Array(
+        base64ToUint8Array(frozenFixtures.keys.wrapping_key_b64),
+      ),
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"],
+    );
+
+    const unwrapped = await decryptChatKeyWithMasterKey(
+      frozenFixtures.chat.format_c.blob_b64,
+      wrappingKey,
+    );
+
+    expect(unwrapped).toEqual(
+      base64ToUint8Array(frozenFixtures.chat.format_c.plaintext_key_b64!),
+    );
+  });
+
+  it("decrypts frozen Format D through the stored master-key reader", async () => {
+    const wrappingKey = await crypto.subtle.importKey(
+      "raw",
+      new Uint8Array(
+        base64ToUint8Array(frozenFixtures.keys.wrapping_key_b64),
+      ),
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"],
+    );
+    await saveMasterKey(wrappingKey, false);
+
+    try {
+      await expect(
+        decryptWithMasterKey(frozenFixtures.chat.format_d.blob_b64),
+      ).resolves.toBe(frozenFixtures.chat.format_d.plaintext);
+    } finally {
+      await clearMasterKey();
+    }
+  });
 });
 
 // =========================================================================
@@ -131,7 +212,7 @@ describe("Format B: Legacy format (no OM header)", () => {
     const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
     const rawKey = await crypto.subtle.importKey(
       "raw",
-      chatKey,
+      new Uint8Array(chatKey),
       { name: "AES-GCM" },
       false,
       ["encrypt"],
@@ -162,7 +243,7 @@ describe("Format B: Legacy format (no OM header)", () => {
 
     const rawKey = await crypto.subtle.importKey(
       "raw",
-      chatKey,
+      new Uint8Array(chatKey),
       { name: "AES-GCM" },
       false,
       ["encrypt"],
@@ -277,7 +358,7 @@ describe("Error cases: wrong key detection", () => {
     const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
     const rawKey = await crypto.subtle.importKey(
       "raw",
-      chatKey,
+      new Uint8Array(chatKey),
       { name: "AES-GCM" },
       false,
       ["encrypt"],

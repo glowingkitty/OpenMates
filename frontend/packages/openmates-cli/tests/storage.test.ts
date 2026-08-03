@@ -2,7 +2,7 @@
  * Unit tests for CLI local session storage.
  *
  * Tests session persistence, file permissions, backward compatibility with
- * legacy sessions, and keychain migration.
+ * legacy sessions, and keychain-backed storage.
  *
  * Run: node --test --experimental-strip-types tests/storage.test.ts
  */
@@ -263,8 +263,7 @@ describe("legacy session backward compatibility", () => {
     assert.strictEqual(loaded.apiUrl, "https://api.dev.openmates.org");
   });
 
-  it("auto-migrates legacy session and removes plaintext key from disk", () => {
-    // Write a legacy session
+  it("loads a legacy session without rewriting durable state", () => {
     const legacySession = {
       apiUrl: "https://api.dev.openmates.org",
       sessionId: "migrate-test-id",
@@ -283,24 +282,12 @@ describe("legacy session backward compatibility", () => {
       mode: 0o600,
     });
     chmodSync(filePath, 0o600);
+    const beforeLoad = readFileSync(filePath, "utf-8");
 
-    // Load triggers auto-migration
     const loaded = loadSession();
-    assert.ok(loaded, "should load and migrate");
+    assert.ok(loaded, "should load legacy session");
     assert.strictEqual(loaded.masterKeyExportedB64, "MIGRATE_THIS_KEY==");
-
-    // After migration, re-read the file — it should now have masterKeyStorage
-    const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
-    assert.ok(onDisk.masterKeyStorage, "should have masterKeyStorage after migration");
-
-    // If migrated to keychain or encrypted, plaintext key should be absent
-    if (onDisk.masterKeyStorage !== "plaintext") {
-      assert.strictEqual(
-        onDisk.masterKeyExportedB64,
-        undefined,
-        "plaintext key should be removed from disk after migration",
-      );
-    }
+    assert.strictEqual(readFileSync(filePath, "utf-8"), beforeLoad);
   });
 });
 
