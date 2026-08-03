@@ -1,7 +1,7 @@
 schema_version: 2
 id: test-debug-campaigns
 title: Durable Test Debug Campaigns
-status: approved
+status: verified
 
 goal: >
   Make failed-test debugging a durable, acceptance-driven workflow in which
@@ -94,7 +94,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 9fa376392170b68577bd4071dd14ae36826a1683
+  subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
 
 approvals:
   product_contract:
@@ -140,11 +140,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the scoped implementation, apply additive Directus schemas, and rerun verification against the committed revision.
-  command: 'python3 scripts/sessions.py deploy --session 2450 --title "feat: add durable test debug campaigns" --message "Persist campaign scope, acceptance, attempts, blockers, and exact group evidence."'
-  expected_outcome: The committed revision passes focused control-plane tests and live Directus campaign smoke verification.
+  next_action: No implementation action remains; use the campaign workflow for the next failed-test debugging request.
+  command: python3 scripts/spec_verify.py docs/specs/test-debug-campaigns/spec.yml --json
+  expected_outcome: The executable spec reports complete.
   blocker: null
-  last_verified_commit: 9fa376392170b68577bd4071dd14ae36826a1683
+  last_verified_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
 
 scenarios:
   - id: S-1
@@ -239,7 +239,7 @@ acceptance_criteria:
     scenario: S-1
     text: Campaign creation persists explicit initial test and group membership and resumes an existing active session campaign idempotently.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-CONTROL]
@@ -247,7 +247,7 @@ acceptance_criteria:
     scenario: S-2
     text: Every actionable group stores observed failure, expected behavior, concrete acceptance criteria, and source red evidence before implementation begins.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-CONTROL, T-WORKFLOW-AUDIT]
@@ -255,7 +255,7 @@ acceptance_criteria:
     scenario: S-3
     text: Group verification selects exact Directus-backed members, ignores stale local failure artifacts, and records requested canonical keys plus campaign/group references.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-SELECTION]
@@ -263,7 +263,7 @@ acceptance_criteria:
     scenario: S-4
     text: Root-cause hypotheses and every failed, blocked, or successful attempt persist and are returned when a campaign resumes.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-CONTROL]
@@ -271,7 +271,7 @@ acceptance_criteria:
     scenario: S-5
     text: A new failure exposed by campaign-bound verification is persisted as a child group and prevents premature campaign completion.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-CONTROL]
@@ -279,7 +279,7 @@ acceptance_criteria:
     scenario: S-6
     text: Group completion requires passing evidence for every durable member after selection and records run, result, commit, and timestamp evidence.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-CONTROL]
@@ -287,7 +287,7 @@ acceptance_criteria:
     scenario: S-7
     text: Required unresolved input leaves the campaign blocked with a structured reason, question, and next action rather than partially completed.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-CONTROL]
@@ -295,7 +295,7 @@ acceptance_criteria:
     scenario: S-8
     text: A campaign completes when all selected and child groups are individually green without requiring a combined campaign-wide rerun.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CAMPAIGN-CONTROL]
@@ -303,7 +303,7 @@ acceptance_criteria:
     scenario: S-1
     text: Directus schema definitions expose queryable campaign and group lifecycle fields while claims remain ownership records.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CAMPAIGN-SCHEMA]
@@ -311,7 +311,7 @@ acceptance_criteria:
     scenario: S-4
     text: Interactive skills, triage instructions, and sequential auto-fix all use the same campaign and group workflow rather than independent local state.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WORKFLOW-AUDIT]
@@ -427,11 +427,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
   - id: T-CAMPAIGN-CONTROL
     type: pytest
     file: scripts/tests/test_tests_control_campaigns.py
@@ -455,11 +455,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
   - id: T-CAMPAIGN-SELECTION
     type: pytest
     file: scripts/tests/test_tests_control_campaigns.py
@@ -482,11 +482,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
   - id: T-WORKFLOW-AUDIT
     type: pytest
     file: scripts/tests/test_test_debug_campaign_workflow.py
@@ -510,11 +510,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -522,11 +522,14 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      command: python3 scripts/spec_validate.py docs/specs/test-debug-campaigns/spec.yml
+      run_id: local-spec-validate-20260803T181438Z
+      subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+      summary: Spec validation and 60 focused tests passed. Directus created both new collections and all four linkage columns; a transactional campaign/group insert-read-rollback smoke passed. The full cms-setup sweep later failed in an unrelated pre-existing Project owner-context null-data migration.
+      timestamp: "2026-08-03T18:14:38Z"
 implementation_plan:
   spec_path: docs/specs/test-debug-campaigns/spec.yml
   existing_patterns:
@@ -697,7 +700,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Verify and document the completed architecture
-    status: in_progress
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8]
