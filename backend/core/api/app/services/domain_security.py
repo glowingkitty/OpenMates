@@ -11,11 +11,15 @@ import logging
 import re
 import hashlib
 import base64
+import binascii
+import json
 import time
 from typing import List, Set, Optional, Tuple, Dict
 from pathlib import Path
 from cryptography.fernet import Fernet
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 logger = logging.getLogger(__name__)
@@ -24,6 +28,13 @@ logger = logging.getLogger(__name__)
 # These constants are used elsewhere in the codebase, so removing them would break other functionality
 _KEY_DOMAIN = "openmates.org"
 _KEY_API_TITLE = "OpenMates API"
+_DOMAIN_POLICY_PUBLIC_KEY_B64 = ""
+_DOMAIN_POLICY_SCHEMA_VERSION = 1
+_DOMAIN_POLICY_VERSION = 1
+_DOMAIN_PATTERN = re.compile(
+    r"(?=.{1,253}\Z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
+    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z"
+)
 
 # Salt derivation: Use a hash of stable constants for tamper resistance
 # This makes the salt less obvious than a plain base64 string, while remaining stable
@@ -144,6 +155,7 @@ class DomainSecurityService:
         self._validation_initialized = False
         self._integrity_failed = False
         self._last_integrity_check_at = 0.0
+        self._using_signed_policy = False
         
         # Paths to encrypted security configuration files
         # These should be in a location accessible to the server
@@ -165,6 +177,16 @@ class DomainSecurityService:
         self.suspicious_patterns_path = Path(os.getenv(
             "DOMAIN_SECURITY_PATTERNS_PATH",
             str(base_path / "domain_security_patterns.encrypted")
+        ))
+
+        self.signed_policy_path = Path(os.getenv(
+            "DOMAIN_SECURITY_POLICY_PATH",
+            str(base_path / "domain_security_policy.json")
+        ))
+
+        self.signed_policy_signature_path = Path(os.getenv(
+            "DOMAIN_SECURITY_POLICY_SIGNATURE_PATH",
+            str(base_path / "domain_security_policy.sig")
         ))
         
         logger.debug(f"DomainSecurityService initialized. Config paths: restricted={self.restricted_domains_path}, allowed={self.allowed_domain_path}, patterns={self.suspicious_patterns_path}")
@@ -205,26 +227,26 @@ class DomainSecurityService:
                 "Server files missing. Server cannot start without the configuration."
             )
             raise SystemExit("Server files missing")
-        
+
         try:
             # Compute file hash for integrity checking (resilience measure)
             file_hash = self._compute_file_hash(file_path)
-            
+
             # Read encrypted file (binary format)
             with open(file_path, 'rb') as f:
                 encrypted_data = f.read()
-            
+
             if not encrypted_data:
                 logger.critical(
                     f"CRITICAL: Encrypted {description} file is empty at {file_path}. "
                     "Server files missing."
                 )
                 raise SystemExit("Server files missing")
-            
+
             # Derive encryption key (must match encryption script)
             key = _derive_encryption_key()
             fernet = Fernet(key)
-            
+
             try:
                 # Decrypt the content
                 decrypted_data = fernet.decrypt(encrypted_data).decode('utf-8')
@@ -234,16 +256,16 @@ class DomainSecurityService:
                     "Server files missing. Encrypted files may be corrupted or encrypted with different key."
                 )
                 raise SystemExit("Server files missing")
-            
+
             if not decrypted_data:
                 logger.critical(
                     f"CRITICAL: Failed to decrypt {description} - empty result. "
                     "Server files missing."
                 )
                 raise SystemExit("Server files missing")
-            
+
             return decrypted_data, file_hash
-            
+
         except SystemExit:
             raise
         except Exception as e:
@@ -252,6 +274,94 @@ class DomainSecurityService:
                 "Server files missing."
             )
             raise SystemExit("Server files missing")
+
+    @staticmethod
+    def _canonical_policy_bytes(policy: dict) -> bytes:
+        return (json.dumps(policy, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+
+    @staticmethod
+    def _validate_policy_domain(domain: object) -> str:
+        if not isinstance(domain, str) or domain != domain.strip().lower():
+            raise ValueError("policy domains must be normalized strings")
+        if not _DOMAIN_PATTERN.fullmatch(domain):
+            raise ValueError("policy contains an invalid domain")
+        return domain
+
+    def _apply_policy(self, policy: object) -> None:
+        expected_keys = {
+            "allowed_domain",
+            "policy_version",
+            "restricted_domains",
+            "schema_version",
+            "suspicious_patterns",
+        }
+        if not isinstance(policy, dict) or set(policy) != expected_keys:
+            raise ValueError("domain policy has an invalid shape")
+        if type(policy["schema_version"]) is not int or policy["schema_version"] != _DOMAIN_POLICY_SCHEMA_VERSION:
+            raise ValueError("unsupported domain policy schema version")
+        if type(policy["policy_version"]) is not int or policy["policy_version"] != _DOMAIN_POLICY_VERSION:
+            raise ValueError("unsupported domain policy version")
+
+        allowed_domain = self._validate_policy_domain(policy["allowed_domain"])
+        restricted_domains = policy["restricted_domains"]
+        if not isinstance(restricted_domains, list) or not restricted_domains:
+            raise ValueError("restricted domains must be a non-empty list")
+        normalized_domains = [self._validate_policy_domain(domain) for domain in restricted_domains]
+        if normalized_domains != sorted(set(normalized_domains)):
+            raise ValueError("restricted domains must be sorted and unique")
+
+        suspicious_patterns = policy["suspicious_patterns"]
+        if not isinstance(suspicious_patterns, list) or not suspicious_patterns:
+            raise ValueError("suspicious patterns must be a non-empty list")
+        if any(not isinstance(pattern, str) or not pattern for pattern in suspicious_patterns):
+            raise ValueError("suspicious patterns must be non-empty strings")
+        for pattern in suspicious_patterns:
+            re.compile(pattern, re.IGNORECASE)
+
+        self.restricted_domains = set(normalized_domains)
+        global _ALLOWED_DOMAIN, _PLATFORM_NAME, _SUSPICIOUS_PATTERNS
+        _ALLOWED_DOMAIN = allowed_domain
+        _PLATFORM_NAME = allowed_domain.split(".", maxsplit=1)[0]
+        _SUSPICIOUS_PATTERNS = list(suspicious_patterns)
+        self.validate_minimum_policy()
+
+    def _load_signed_policy_if_present(self) -> bool:
+        policy_exists = self.signed_policy_path.exists()
+        signature_exists = self.signed_policy_signature_path.exists()
+        if not policy_exists and not signature_exists:
+            return False
+        if not policy_exists or not signature_exists:
+            raise ValueError("signed domain policy bundle is incomplete")
+        if not _DOMAIN_POLICY_PUBLIC_KEY_B64:
+            raise ValueError("signed domain policy public key is not configured")
+
+        policy_bytes = self.signed_policy_path.read_bytes()
+        try:
+            public_key_bytes = base64.b64decode(_DOMAIN_POLICY_PUBLIC_KEY_B64, validate=True)
+            signature = base64.b64decode(
+                self.signed_policy_signature_path.read_text(encoding="ascii").strip(),
+                validate=True,
+            )
+        except (ValueError, UnicodeError, binascii.Error) as exc:
+            raise ValueError("signed domain policy encoding is invalid") from exc
+        if len(public_key_bytes) != 32 or len(signature) != 64:
+            raise ValueError("signed domain policy key or signature length is invalid")
+        try:
+            Ed25519PublicKey.from_public_bytes(public_key_bytes).verify(signature, policy_bytes)
+        except InvalidSignature as exc:
+            raise ValueError("domain policy signature is invalid") from exc
+
+        policy = json.loads(policy_bytes.decode("utf-8"))
+        if policy_bytes != self._canonical_policy_bytes(policy):
+            raise ValueError("domain policy JSON is not canonical")
+        self._apply_policy(policy)
+        self._file_hashes["signed_policy"] = self._compute_file_hash(self.signed_policy_path)
+        self._file_hashes["signed_policy_signature"] = self._compute_file_hash(
+            self.signed_policy_signature_path
+        )
+        self._using_signed_policy = True
+        logger.info("Loaded signed domain security policy version %s", policy["policy_version"])
+        return True
     
     def load_security_config(self) -> bool:
         """
@@ -268,7 +378,14 @@ class DomainSecurityService:
         Raises:
             SystemExit: If any configuration file is missing (server must not start)
         """
+        global _CONFIG_LOADED_FLAG
         try:
+            if self._load_signed_policy_if_present():
+                self.config_loaded = True
+                self._validation_initialized = True
+                _CONFIG_LOADED_FLAG = True
+                return True
+
             # Load restricted domains
             restricted_content, restricted_hash = self._load_encrypted_file(
                 self.restricted_domains_path,
@@ -334,7 +451,6 @@ class DomainSecurityService:
             # Resilience: Mark configuration as loaded and validation as initialized
             self.config_loaded = True
             self._validation_initialized = True
-            global _CONFIG_LOADED_FLAG
             _CONFIG_LOADED_FLAG = True
             
             logger.info("Successfully loaded all domain security configurations")
@@ -444,6 +560,17 @@ class DomainSecurityService:
             True if integrity check passes, False otherwise
         """
         try:
+            if self._using_signed_policy:
+                signed_files = {
+                    "signed_policy": self.signed_policy_path,
+                    "signed_policy_signature": self.signed_policy_signature_path,
+                }
+                for key, path in signed_files.items():
+                    if not path.exists() or self._compute_file_hash(path) != self._file_hashes.get(key):
+                        logger.warning("Resilience check: Signed domain policy integrity failure")
+                        return False
+                return True
+
             # Check if files still exist and have same hashes
             if 'restricted' in self._file_hashes:
                 if not self.restricted_domains_path.exists():

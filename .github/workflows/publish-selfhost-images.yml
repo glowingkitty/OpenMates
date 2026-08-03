@@ -73,6 +73,15 @@ jobs:
         with:
           node-version: 24
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify domain-security policy and image inclusion
+        run: |
+          python -m pip install --disable-pip-version-check cryptography==48.0.1
+          python scripts/audit_domain_security.py --verify-api-worker-selfhost-images
+
       - name: Derive image tag
         id: version
         run: |

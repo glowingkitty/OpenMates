@@ -1,0 +1,52 @@
+name: Sign domain-security policy
+
+on:
+  workflow_dispatch:
+    inputs:
+      policy_json:
+        description: Reviewed domain-security policy JSON
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    environment: domain-policy-signing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install signing dependency
+        run: python -m pip install --disable-pip-version-check cryptography==48.0.1
+
+      - name: Sign reviewed policy
+        env:
+          DOMAIN_SECURITY_SIGNING_PRIVATE_KEY_B64: ${{ secrets.DOMAIN_SECURITY_SIGNING_PRIVATE_KEY_B64 }}
+          POLICY_JSON: ${{ inputs.policy_json }}
+        run: |
+          mkdir -p policy-signing-artifact
+          printf '%s\n' "$POLICY_JSON" > policy-signing-artifact/domain_security_policy.json
+          python scripts/sign_domain_security_policy.py \
+            --policy policy-signing-artifact/domain_security_policy.json \
+            --signature policy-signing-artifact/domain_security_policy.sig \
+            --public-key policy-signing-artifact/domain_security_policy.pub
+          python scripts/audit_domain_security.py \
+            --signed-bundle \
+            --policy-path policy-signing-artifact/domain_security_policy.json \
+            --signature-path policy-signing-artifact/domain_security_policy.sig \
+            --public-key-file policy-signing-artifact/domain_security_policy.pub \
+            --verify-api-worker-selfhost-images
+
+      - name: Upload reviewed signing artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-security-policy-signing-artifact
+          path: policy-signing-artifact/
+          if-no-files-found: error
+          retention-days: 7

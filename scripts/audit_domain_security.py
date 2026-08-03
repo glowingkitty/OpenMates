@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
+import argparse
 from pathlib import Path
 
 
@@ -22,11 +23,11 @@ LOCAL_CLEARTEXT_PATH = REPO_ROOT / "restricted_domains.txt"
 os.environ.setdefault("DOMAIN_SECURITY_CONFIG_DIR", str(DEFAULT_CONFIG_DIR))
 sys.path.insert(0, str(REPO_ROOT))
 
-from backend.core.api.app.services.domain_security import (  # noqa: E402
-    DomainSecurityService,
-    _MIN_RESTRICTED_DOMAIN_COUNT,
-    _REQUIRED_RESTRICTED_DOMAINS,
-)
+from backend.core.api.app.services import domain_security  # noqa: E402
+
+DomainSecurityService = domain_security.DomainSecurityService
+_MIN_RESTRICTED_DOMAIN_COUNT = domain_security._MIN_RESTRICTED_DOMAIN_COUNT
+_REQUIRED_RESTRICTED_DOMAINS = domain_security._REQUIRED_RESTRICTED_DOMAINS
 
 
 def _load_local_cleartext_domains() -> set[str] | None:
@@ -39,7 +40,43 @@ def _load_local_cleartext_domains() -> set[str] | None:
     }
 
 
-def audit_domain_security() -> list[str]:
+def _audit_image_copy_contracts() -> list[str]:
+    contracts = {
+        "backend/core/api/Dockerfile": "COPY backend /app/backend",
+        "backend/core/api/Dockerfile.selfhost": "COPY backend /app/backend",
+        "backend/core/api/Dockerfile.celery": "COPY . /app/",
+    }
+    issues = []
+    for relative_path, required_copy in contracts.items():
+        source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        if required_copy not in source:
+            issues.append(f"{relative_path} does not include the domain-policy source tree")
+
+    signing_workflow = (REPO_ROOT / ".github/workflows/sign-domain-security-policy.yml").read_text(
+        encoding="utf-8"
+    )
+    signing_contracts = (
+        "policy_json:",
+        "POLICY_JSON: ${{ inputs.policy_json }}",
+        "printf '%s\\n' \"$POLICY_JSON\"",
+    )
+    for contract in signing_contracts:
+        if contract not in signing_workflow:
+            issues.append(f"sign-domain-security-policy.yml is missing safe policy input contract: {contract}")
+
+    publish_workflow = (REPO_ROOT / ".github/workflows/publish-selfhost-images.yml").read_text(
+        encoding="utf-8"
+    )
+    if "python scripts/audit_domain_security.py --verify-api-worker-selfhost-images" not in publish_workflow:
+        issues.append("publish-selfhost-images.yml does not run the domain-security audit")
+    return issues
+
+
+def audit_domain_security(
+    *,
+    require_signed_bundle: bool = False,
+    verify_images: bool = False,
+) -> list[str]:
     """Return blocking audit issues for the encrypted domain-security policy."""
     issues: list[str] = []
     service = DomainSecurityService()
@@ -48,6 +85,9 @@ def audit_domain_security() -> list[str]:
         service.load_security_config()
     except SystemExit as exc:
         return [f"domain security config failed to load: {exc}"]
+
+    if require_signed_bundle and not service._using_signed_policy:
+        issues.append("signed domain policy bundle is required but legacy policy loaded")
 
     if len(service.restricted_domains) < _MIN_RESTRICTED_DOMAIN_COUNT:
         issues.append(
@@ -95,11 +135,35 @@ def audit_domain_security() -> list[str]:
         if extra_in_encrypted:
             issues.append("encrypted config has domains absent from cleartext source: " + ", ".join(extra_in_encrypted))
 
+    if verify_images:
+        issues.extend(_audit_image_copy_contracts())
+
     return issues
 
 
 def main() -> int:
-    issues = audit_domain_security()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--signed-bundle", action="store_true")
+    parser.add_argument("--policy-path", type=Path)
+    parser.add_argument("--signature-path", type=Path)
+    parser.add_argument("--public-key-file", type=Path)
+    parser.add_argument("--verify-api-worker-selfhost-images", action="store_true")
+    args = parser.parse_args()
+
+    if bool(args.policy_path) != bool(args.signature_path):
+        parser.error("--policy-path and --signature-path must be supplied together")
+    if args.policy_path:
+        os.environ["DOMAIN_SECURITY_POLICY_PATH"] = str(args.policy_path)
+        os.environ["DOMAIN_SECURITY_POLICY_SIGNATURE_PATH"] = str(args.signature_path)
+    if args.public_key_file:
+        domain_security._DOMAIN_POLICY_PUBLIC_KEY_B64 = args.public_key_file.read_text(
+            encoding="ascii"
+        ).strip()
+
+    issues = audit_domain_security(
+        require_signed_bundle=args.signed_bundle,
+        verify_images=args.verify_api_worker_selfhost_images,
+    )
     if issues:
         print("[domain-security] Audit failed:")
         for issue in issues:
