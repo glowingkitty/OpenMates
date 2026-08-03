@@ -45,6 +45,10 @@
   import DirectVideoEmbedFullscreen from './embeds/videos/DirectVideoEmbedFullscreen.svelte';
   import WikipediaEmbedPreview from './embeds/wiki/WikipediaEmbedPreview.svelte';
   import LandingActionableEventDemo from './landing/LandingActionableEventDemo.svelte';
+  import {
+    ACTIONABLE_DEMO_DURATION_MS,
+    ACTIONABLE_MOBILE_START_DELAY_MS,
+  } from './landing/landingActionableEventTimeline';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
 
@@ -57,7 +61,6 @@
 
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
-  const MOBILE_GUEST_HEADING_COMPACT_DELAY_MS = 1500;
   const LANDING_INTRO_REQUESTS_COUNT = 4;
   const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
   const LANDING_INTRO_REQUEST_INTERVAL_MS = 2100;
@@ -171,6 +174,10 @@
   let isOpeningInspiration = $state(false);
   let directVideoFullscreenOpen = $state(false);
   let progressRestartToken = $state(0);
+  let actionableDemoComplete = $state(false);
+  let actionableProgressComplete = $state(false);
+  let actionableAdvanceCommitted = $state(false);
+  let actionableCompletionKey = $state('');
   let lastNotifiedInspirationId = $state('');
   let lastNotifiedLandingIntroPhase = $state<LandingIntroPhase>('regular');
   let landingIntroDismissed = $state(false);
@@ -367,7 +374,7 @@
     if (isGuestIntroVariant) {
       const timeout = window.setTimeout(() => {
         showMobileCard = true;
-      }, MOBILE_GUEST_HEADING_COMPACT_DELAY_MS);
+      }, ACTIONABLE_MOBILE_START_DELAY_MS);
 
       return () => window.clearTimeout(timeout);
     }
@@ -440,10 +447,6 @@
   let landingIntroSecondRailBase = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRailBase));
   let landingIntroFirstRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroFirstRailBase));
   let landingIntroSecondRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroSecondRailBase));
-  let carouselProgressDurationMs = $derived(
-    landingIntroOverlayActive ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
-  );
-
   $effect(() => {
     if (landingIntroParentPhase === lastNotifiedLandingIntroPhase) return;
     lastNotifiedLandingIntroPhase = landingIntroParentPhase;
@@ -591,6 +594,38 @@
 
   /** Whether the banner is rendered in the narrow mobile layout. */
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
+  let actionablePlaybackActive = $derived(
+    isGuestActionableSlide
+      && isBannerVisible
+      && containerWidth > 0
+      && (!isMobileBannerLayout || showMobileCard),
+  );
+  let carouselProgressDurationMs = $derived(
+    landingIntroOverlayActive
+      ? LANDING_INTRO_TOTAL_MS
+      : isGuestActionableSlide
+        ? ACTIONABLE_DEMO_DURATION_MS + (isMobileBannerLayout ? ACTIONABLE_MOBILE_START_DELAY_MS : 0)
+        : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
+  );
+
+  $effect(() => {
+    const completionKey = isGuestActionableSlide
+      ? `${current?.inspiration_id ?? 'none'}-${currentIndex}`
+      : '';
+    if (completionKey === actionableCompletionKey) return;
+    actionableCompletionKey = completionKey;
+    actionableDemoComplete = false;
+    actionableProgressComplete = false;
+    actionableAdvanceCommitted = false;
+  });
+
+  $effect(() => {
+    if (!isGuestActionableSlide) return;
+    if (!actionableDemoComplete || !actionableProgressComplete || actionableAdvanceCommitted) return;
+    if (!isBannerVisible || isUserInteracting || isOpeningInspiration) return;
+    actionableAdvanceCommitted = true;
+    goToNavigableVisibleIndex(currentIndex + 1, 1);
+  });
 
   /**
    * The embed_id to use for VideoEmbedPreview.
@@ -864,9 +899,18 @@
       completeLandingIntro(1);
       return;
     }
+    if (isGuestActionableSlide) {
+      actionableProgressComplete = true;
+      return;
+    }
     if (!isBannerVisible || visibleInspirations.length <= 1 || shouldHoldOnFinalSlide) return;
     if (isUserInteracting || isOpeningInspiration) return;
     goToNavigableVisibleIndex(currentIndex + 1, 1);
+  }
+
+  function handleActionableDemoComplete() {
+    if (!isGuestActionableSlide || !isBannerVisible) return;
+    actionableDemoComplete = true;
   }
 
   function openSignup(): void {
@@ -1409,7 +1453,7 @@
                     </div>
                   {:else}
                   {#if InfoCardIconComponent}
-                    <span class="guest-feature-inline-icon" aria-hidden="true">
+                    <span class="guest-feature-inline-icon" data-testid="guest-feature-inline-icon" aria-hidden="true">
                       <InfoCardIconComponent size={44} color="white" />
                     </span>
                   {/if}
@@ -1479,7 +1523,7 @@
                 </div>
               {:else if isGuestActionableSlide}
                 <div class="guest-actionable-demo-shell" in:fade={{ duration: 320 }}>
-                  <LandingActionableEventDemo />
+                  <LandingActionableEventDemo playing={actionablePlaybackActive} onComplete={handleActionableDemoComplete} />
                 </div>
               {:else if guestProductAnimationKind && InfoCardIconComponent}
                 <div
@@ -3411,6 +3455,24 @@
       transform: translateY(0);
     }
 
+    .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy {
+      inset: auto;
+      top: 50%;
+      left: clamp(42px, 10vw, 66px);
+      width: calc(100% - clamp(84px, 20vw, 132px));
+      height: auto;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      transform: translateY(-50%);
+      transform-origin: top center;
+      transition:
+        top 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        left 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        width 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
     .banner-content.mobile-card-loop.show-mobile-card .banner-left {
       opacity: 0;
       pointer-events: none;
@@ -3418,20 +3480,34 @@
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
-      inset: 0 0 auto;
-      height: clamp(38px, 11vw, 50px);
+      inset: auto;
+      top: 4px;
+      left: 50%;
+      width: min(calc(100% - 88px), 330px);
+      height: auto;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       opacity: 1;
       pointer-events: none;
       text-align: center;
-      transform: translateY(-2px) scale(0.82);
+      transform: translateX(-50%);
       transform-origin: top center;
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy .guest-intro-ai-icon,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy .guest-feature-inline-icon {
-      display: none;
+      width: 20px;
+      height: 20px;
+      margin-bottom: 1px;
+      opacity: 0.5;
+    }
+
+    .banner-content.mobile-card-loop .guest-feature-inline-icon {
+      transition:
+        width 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        height 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        margin 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 520ms ease;
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy-line,
@@ -3442,12 +3518,19 @@
       color: rgba(255, 255, 255, 0.92);
       font-size: clamp(0.82rem, 3.4vw, 1rem);
       line-height: 1.08;
-      opacity: 1;
+      opacity: 0.5;
       text-align: center;
       text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
       line-clamp: 2;
+    }
+
+    .banner-content.mobile-card-loop .guest-feature-headline {
+      transition:
+        font-size 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        line-height 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 520ms ease;
     }
 
     .banner-embed-wrapper {
@@ -3524,6 +3607,10 @@
       inset: 0;
       height: 100%;
       margin: auto;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell {
+      inset-block-start: clamp(60px, 16vw, 68px);
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {

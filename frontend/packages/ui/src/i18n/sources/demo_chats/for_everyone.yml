@@ -2626,97 +2626,97 @@ landing_actionable_line1:
   context: First line of the second logged-out landing slide headline
   en: Actionable.
   de: Umsetzbar.
-  zh: Actionable.
-  es: Actionable.
-  fr: Actionable.
-  pt: Actionable.
-  ru: Actionable.
-  ja: Actionable.
-  ko: Actionable.
-  it: Actionable.
-  tr: Actionable.
-  vi: Actionable.
-  id: Actionable.
-  pl: Actionable.
-  nl: Actionable.
-  ar: Actionable.
-  hi: Actionable.
-  th: Actionable.
-  cs: Actionable.
-  sv: Actionable.
-  he: Actionable.
+  zh: 可执行。
+  es: Accionable.
+  fr: Concret.
+  pt: Acionável.
+  ru: С практическим результатом.
+  ja: 実行につながる。
+  ko: 바로 실행할 수 있어요.
+  it: Concreto.
+  tr: Uygulanabilir.
+  vi: Có thể hành động.
+  id: Dapat ditindaklanjuti.
+  pl: Konkretne działanie.
+  nl: Direct uitvoerbaar.
+  ar: قابل للتنفيذ.
+  hi: अमल में लाने योग्य।
+  th: นำไปใช้ได้จริง
+  cs: Praktické.
+  sv: Handlingsbart.
+  he: מעשי.
   verified_by_human: []
 landing_actionable_line2:
   context: Second line of the second logged-out landing slide headline
   en: Not just a wall of text.
   de: Nicht nur eine Textwand.
-  zh: Not just a wall of text.
-  es: Not just a wall of text.
-  fr: Not just a wall of text.
-  pt: Not just a wall of text.
-  ru: Not just a wall of text.
-  ja: Not just a wall of text.
-  ko: Not just a wall of text.
-  it: Not just a wall of text.
-  tr: Not just a wall of text.
-  vi: Not just a wall of text.
-  id: Not just a wall of text.
-  pl: Not just a wall of text.
-  nl: Not just a wall of text.
-  ar: Not just a wall of text.
-  hi: Not just a wall of text.
-  th: Not just a wall of text.
-  cs: Not just a wall of text.
-  sv: Not just a wall of text.
-  he: Not just a wall of text.
+  zh: 不只是一大段文字。
+  es: No solo un muro de texto.
+  fr: Pas seulement un mur de texte.
+  pt: Não apenas uma parede de texto.
+  ru: Не просто стена текста.
+  ja: ただの長い文章ではありません。
+  ko: 긴 텍스트로 끝나지 않아요.
+  it: Non solo un muro di testo.
+  tr: Sadece bir metin duvarı değil.
+  vi: Không chỉ là một bức tường chữ.
+  id: Bukan sekadar dinding teks.
+  pl: Nie tylko ściana tekstu.
+  nl: Niet alleen een muur van tekst.
+  ar: ليست مجرد كتلة من النص.
+  hi: सिर्फ़ टेक्स्ट की दीवार नहीं।
+  th: ไม่ใช่แค่ข้อความยาวเป็นพรืด
+  cs: Nejen stěna textu.
+  sv: Inte bara en vägg av text.
+  he: לא רק קיר של טקסט.
   verified_by_human: []
 landing_actionable_event_user_message:
   context: User message shown in the lightweight Actionable landing slide event demo
   en: Find tech events in Berlin
   de: Finde Tech-Events in Berlin
-  zh: Find language-learning events in Berlin
-  es: Find language-learning events in Berlin
-  fr: Find language-learning events in Berlin
-  pt: Find language-learning events in Berlin
-  ru: Find language-learning events in Berlin
-  ja: Find language-learning events in Berlin
-  ko: Find language-learning events in Berlin
-  it: Find language-learning events in Berlin
-  tr: Find language-learning events in Berlin
-  vi: Find language-learning events in Berlin
-  id: Find language-learning events in Berlin
-  pl: Find language-learning events in Berlin
-  nl: Find language-learning events in Berlin
-  ar: Find language-learning events in Berlin
-  hi: Find language-learning events in Berlin
-  th: Find language-learning events in Berlin
-  cs: Find language-learning events in Berlin
-  sv: Find language-learning events in Berlin
-  he: Find language-learning events in Berlin
+  zh: 寻找柏林的科技活动
+  es: Busca eventos tecnológicos en Berlín
+  fr: Trouve des événements tech à Berlin
+  pt: Encontre eventos de tecnologia em Berlim
+  ru: Найди технологические мероприятия в Берлине
+  ja: ベルリンのテックイベントを探して
+  ko: 베를린의 기술 이벤트를 찾아줘
+  it: Trova eventi tech a Berlino
+  tr: Berlin'deki teknoloji etkinliklerini bul
+  vi: Tìm sự kiện công nghệ ở Berlin
+  id: Cari acara teknologi di Berlin
+  pl: Znajdź wydarzenia technologiczne w Berlinie
+  nl: Zoek tech-evenementen in Berlijn
+  ar: ابحث عن فعاليات تقنية في برلين
+  hi: बर्लिन में टेक कार्यक्रम खोजो
+  th: ค้นหางานเทคในเบอร์ลิน
+  cs: Najdi technologické akce v Berlíně
+  sv: Hitta techevenemang i Berlin
+  he: מצא אירועי טכנולוגיה בברלין
   verified_by_human: []
 landing_actionable_event_assistant_message:
   context: Assistant message shown in the lightweight Actionable landing slide event demo
-  en: I found a real Luma event with a preview you can open directly.
-  de: Ich habe ein echtes Luma-Event mit Vorschau gefunden, das du direkt oeffnen kannst.
-  zh: Sure, let me help with that!
-  es: Sure, let me help with that!
-  fr: Sure, let me help with that!
-  pt: Sure, let me help with that!
-  ru: Sure, let me help with that!
-  ja: Sure, let me help with that!
-  ko: Sure, let me help with that!
-  it: Sure, let me help with that!
-  tr: Sure, let me help with that!
-  vi: Sure, let me help with that!
-  id: Sure, let me help with that!
-  pl: Sure, let me help with that!
-  nl: Sure, let me help with that!
-  ar: Sure, let me help with that!
-  hi: Sure, let me help with that!
-  th: Sure, let me help with that!
-  cs: Sure, let me help with that!
-  sv: Sure, let me help with that!
-  he: Sure, let me help with that!
+  en: "Of course, here you go:"
+  de: "Natürlich, hier bitte:"
+  zh: "当然，给你："
+  es: "Por supuesto, aquí tienes:"
+  fr: "Bien sûr, voilà :"
+  pt: "Claro, aqui está:"
+  ru: "Конечно, вот:"
+  ja: "もちろん、どうぞ："
+  ko: "물론이죠, 여기 있어요:"
+  it: "Certo, ecco qui:"
+  tr: "Elbette, işte burada:"
+  vi: "Tất nhiên, đây nhé:"
+  id: "Tentu, ini dia:"
+  pl: "Oczywiście, proszę:"
+  nl: "Natuurlijk, alsjeblieft:"
+  ar: "بالطبع، تفضل:"
+  hi: "ज़रूर, ये रहा:"
+  th: "ได้เลย นี่ครับ:"
+  cs: "Samozřejmě, tady je:"
+  sv: "Självklart, här är det:"
+  he: "כמובן, הנה:"
   verified_by_human: []
 landing_actionable_event_source:
   context: Source label for the lightweight Actionable landing slide event demo
@@ -2746,25 +2746,25 @@ landing_actionable_event_title:
   context: Event title for the lightweight Actionable landing slide event demo
   en: DEPIN DAY BERLIN
   de: DEPIN DAY BERLIN
-  zh: Berlin Language Exchange
-  es: Berlin Language Exchange
-  fr: Berlin Language Exchange
-  pt: Berlin Language Exchange
-  ru: Berlin Language Exchange
-  ja: Berlin Language Exchange
-  ko: Berlin Language Exchange
-  it: Berlin Language Exchange
-  tr: Berlin Language Exchange
-  vi: Berlin Language Exchange
-  id: Berlin Language Exchange
-  pl: Berlin Language Exchange
-  nl: Berlin Language Exchange
-  ar: Berlin Language Exchange
-  hi: Berlin Language Exchange
-  th: Berlin Language Exchange
-  cs: Berlin Language Exchange
-  sv: Berlin Language Exchange
-  he: Berlin Language Exchange
+  zh: DEPIN DAY BERLIN
+  es: DEPIN DAY BERLIN
+  fr: DEPIN DAY BERLIN
+  pt: DEPIN DAY BERLIN
+  ru: DEPIN DAY BERLIN
+  ja: DEPIN DAY BERLIN
+  ko: DEPIN DAY BERLIN
+  it: DEPIN DAY BERLIN
+  tr: DEPIN DAY BERLIN
+  vi: DEPIN DAY BERLIN
+  id: DEPIN DAY BERLIN
+  pl: DEPIN DAY BERLIN
+  nl: DEPIN DAY BERLIN
+  ar: DEPIN DAY BERLIN
+  hi: DEPIN DAY BERLIN
+  th: DEPIN DAY BERLIN
+  cs: DEPIN DAY BERLIN
+  sv: DEPIN DAY BERLIN
+  he: DEPIN DAY BERLIN
   verified_by_human: []
 landing_actionable_event_meta:
   context: Event metadata for the lightweight Actionable landing slide event demo
@@ -2794,25 +2794,241 @@ landing_actionable_event_detail:
   context: Fullscreen detail description for the lightweight Actionable landing slide event demo
   en: A Berlin Luma event about decentralized compute and DePIN research, found from a real event search.
   de: Ein Berliner Luma-Event ueber dezentrales Computing und DePIN-Forschung, gefunden aus einer echten Eventsuche.
-  zh: Practice German and English in small groups, then save the event or ask for similar options.
-  es: Practice German and English in small groups, then save the event or ask for similar options.
-  fr: Practice German and English in small groups, then save the event or ask for similar options.
-  pt: Practice German and English in small groups, then save the event or ask for similar options.
-  ru: Practice German and English in small groups, then save the event or ask for similar options.
-  ja: Practice German and English in small groups, then save the event or ask for similar options.
-  ko: Practice German and English in small groups, then save the event or ask for similar options.
-  it: Practice German and English in small groups, then save the event or ask for similar options.
-  tr: Practice German and English in small groups, then save the event or ask for similar options.
-  vi: Practice German and English in small groups, then save the event or ask for similar options.
-  id: Practice German and English in small groups, then save the event or ask for similar options.
-  pl: Practice German and English in small groups, then save the event or ask for similar options.
-  nl: Practice German and English in small groups, then save the event or ask for similar options.
-  ar: Practice German and English in small groups, then save the event or ask for similar options.
-  hi: Practice German and English in small groups, then save the event or ask for similar options.
-  th: Practice German and English in small groups, then save the event or ask for similar options.
-  cs: Practice German and English in small groups, then save the event or ask for similar options.
-  sv: Practice German and English in small groups, then save the event or ask for similar options.
-  he: Practice German and English in small groups, then save the event or ask for similar options.
+  zh: 在柏林举办的 Luma 活动，探讨去中心化计算和 DePIN 研究。
+  es: Un evento de Luma en Berlín sobre computación descentralizada e investigación DePIN.
+  fr: Un événement Luma à Berlin sur le calcul décentralisé et la recherche DePIN.
+  pt: Um evento da Luma em Berlim sobre computação descentralizada e pesquisa DePIN.
+  ru: Мероприятие Luma в Берлине о децентрализованных вычислениях и исследованиях DePIN.
+  ja: 分散型コンピューティングと DePIN 研究を扱うベルリンの Luma イベントです。
+  ko: 탈중앙화 컴퓨팅과 DePIN 연구를 다루는 베를린 Luma 이벤트입니다.
+  it: Un evento Luma a Berlino su calcolo decentralizzato e ricerca DePIN.
+  tr: Merkeziyetsiz bilişim ve DePIN araştırmaları üzerine Berlin'de bir Luma etkinliği.
+  vi: Một sự kiện Luma tại Berlin về điện toán phi tập trung và nghiên cứu DePIN.
+  id: Acara Luma di Berlin tentang komputasi terdesentralisasi dan riset DePIN.
+  pl: Wydarzenie Luma w Berlinie o zdecentralizowanych obliczeniach i badaniach DePIN.
+  nl: Een Luma-evenement in Berlijn over gedecentraliseerde rekenkracht en DePIN-onderzoek.
+  ar: فعالية على Luma في برلين حول الحوسبة اللامركزية وأبحاث DePIN.
+  hi: विकेंद्रीकृत कंप्यूटिंग और DePIN शोध पर बर्लिन में एक Luma कार्यक्रम।
+  th: งาน Luma ในเบอร์ลินเกี่ยวกับการประมวลผลแบบกระจายศูนย์และงานวิจัย DePIN
+  cs: Akce Luma v Berlíně o decentralizovaných výpočtech a výzkumu DePIN.
+  sv: Ett Luma-evenemang i Berlin om decentraliserad databehandling och DePIN-forskning.
+  he: אירוע Luma בברלין על מחשוב מבוזר ומחקר DePIN.
+  verified_by_human: []
+landing_actionable_event_open_luma:
+  context: CTA clicked by the animated pointer in the Actionable landing slide
+  en: Open on Luma
+  de: Auf Luma öffnen
+  zh: 在 Luma 中打开
+  es: Abrir en Luma
+  fr: Ouvrir sur Luma
+  pt: Abrir no Luma
+  ru: Открыть в Luma
+  ja: Luma で開く
+  ko: Luma에서 열기
+  it: Apri su Luma
+  tr: Luma'da aç
+  vi: Mở trên Luma
+  id: Buka di Luma
+  pl: Otwórz w Luma
+  nl: Openen op Luma
+  ar: فتح على Luma
+  hi: Luma पर खोलें
+  th: เปิดบน Luma
+  cs: Otevřít na Luma
+  sv: Öppna på Luma
+  he: פתיחה ב-Luma
+  verified_by_human: []
+landing_actionable_event_venue:
+  context: Venue name in the Actionable landing slide event preview
+  en: Magazin in der Heeresbaeckerei
+  de: Magazin in der Heeresbaeckerei
+  zh: Magazin in der Heeresbaeckerei
+  es: Magazin in der Heeresbaeckerei
+  fr: Magazin in der Heeresbaeckerei
+  pt: Magazin in der Heeresbaeckerei
+  ru: Magazin in der Heeresbaeckerei
+  ja: Magazin in der Heeresbaeckerei
+  ko: Magazin in der Heeresbaeckerei
+  it: Magazin in der Heeresbaeckerei
+  tr: Magazin in der Heeresbaeckerei
+  vi: Magazin in der Heeresbaeckerei
+  id: Magazin in der Heeresbaeckerei
+  pl: Magazin in der Heeresbaeckerei
+  nl: Magazin in der Heeresbaeckerei
+  ar: Magazin in der Heeresbaeckerei
+  hi: Magazin in der Heeresbaeckerei
+  th: Magazin in der Heeresbaeckerei
+  cs: Magazin in der Heeresbaeckerei
+  sv: Magazin in der Heeresbaeckerei
+  he: Magazin in der Heeresbaeckerei
+  verified_by_human: []
+landing_actionable_event_address:
+  context: Venue address in the Actionable landing slide event preview
+  en: Koepenicker Strasse 16-17
+  de: Koepenicker Strasse 16-17
+  zh: Koepenicker Strasse 16-17
+  es: Koepenicker Strasse 16-17
+  fr: Koepenicker Strasse 16-17
+  pt: Koepenicker Strasse 16-17
+  ru: Koepenicker Strasse 16-17
+  ja: Koepenicker Strasse 16-17
+  ko: Koepenicker Strasse 16-17
+  it: Koepenicker Strasse 16-17
+  tr: Koepenicker Strasse 16-17
+  vi: Koepenicker Strasse 16-17
+  id: Koepenicker Strasse 16-17
+  pl: Koepenicker Strasse 16-17
+  nl: Koepenicker Strasse 16-17
+  ar: Koepenicker Strasse 16-17
+  hi: Koepenicker Strasse 16-17
+  th: Koepenicker Strasse 16-17
+  cs: Koepenicker Strasse 16-17
+  sv: Koepenicker Strasse 16-17
+  he: Koepenicker Strasse 16-17
+  verified_by_human: []
+landing_actionable_event_city:
+  context: Venue city in the Actionable landing slide event preview
+  en: Berlin
+  de: Berlin
+  zh: 柏林
+  es: Berlín
+  fr: Berlin
+  pt: Berlim
+  ru: Берлин
+  ja: ベルリン
+  ko: 베를린
+  it: Berlino
+  tr: Berlin
+  vi: Berlin
+  id: Berlin
+  pl: Berlin
+  nl: Berlijn
+  ar: برلين
+  hi: बर्लिन
+  th: เบอร์ลิน
+  cs: Berlín
+  sv: Berlin
+  he: ברלין
+  verified_by_human: []
+landing_actionable_event_country:
+  context: Venue country in the Actionable landing slide event preview
+  en: Germany
+  de: Deutschland
+  zh: 德国
+  es: Alemania
+  fr: Allemagne
+  pt: Alemanha
+  ru: Германия
+  ja: ドイツ
+  ko: 독일
+  it: Germania
+  tr: Almanya
+  vi: Đức
+  id: Jerman
+  pl: Niemcy
+  nl: Duitsland
+  ar: ألمانيا
+  hi: जर्मनी
+  th: เยอรมนี
+  cs: Německo
+  sv: Tyskland
+  he: גרמניה
+  verified_by_human: []
+landing_actionable_event_organizer:
+  context: Organizer name in the Actionable landing slide event preview
+  en: Fluence
+  de: Fluence
+  zh: Fluence
+  es: Fluence
+  fr: Fluence
+  pt: Fluence
+  ru: Fluence
+  ja: Fluence
+  ko: Fluence
+  it: Fluence
+  tr: Fluence
+  vi: Fluence
+  id: Fluence
+  pl: Fluence
+  nl: Fluence
+  ar: Fluence
+  hi: Fluence
+  th: Fluence
+  cs: Fluence
+  sv: Fluence
+  he: Fluence
+  verified_by_human: []
+landing_actionable_event_online:
+  context: Online event type label in the Actionable landing slide preview
+  en: Online
+  de: Online
+  zh: 线上
+  es: En línea
+  fr: En ligne
+  pt: Online
+  ru: Онлайн
+  ja: オンライン
+  ko: 온라인
+  it: Online
+  tr: Çevrim içi
+  vi: Trực tuyến
+  id: Online
+  pl: Online
+  nl: Online
+  ar: عبر الإنترنت
+  hi: ऑनलाइन
+  th: ออนไลน์
+  cs: Online
+  sv: Online
+  he: מקוון
+  verified_by_human: []
+landing_actionable_event_in_person:
+  context: Physical event type label in the Actionable landing slide preview
+  en: In person
+  de: Vor Ort
+  zh: 线下
+  es: Presencial
+  fr: En personne
+  pt: Presencial
+  ru: Очно
+  ja: 対面
+  ko: 오프라인
+  it: In presenza
+  tr: Yüz yüze
+  vi: Trực tiếp
+  id: Tatap muka
+  pl: Stacjonarnie
+  nl: Op locatie
+  ar: حضوري
+  hi: व्यक्तिगत रूप से
+  th: เข้าร่วมที่สถานที่
+  cs: Osobně
+  sv: På plats
+  he: פנים אל פנים
+  verified_by_human: []
+landing_actionable_event_rsvps:
+  context: Attendance count label in the Actionable landing slide preview
+  en: RSVPs
+  de: Zusagen
+  zh: 人参加
+  es: confirmaciones
+  fr: inscriptions
+  pt: confirmações
+  ru: участников
+  ja: 人が参加予定
+  ko: 명 참석 예정
+  it: partecipanti
+  tr: katılımcı
+  vi: người tham dự
+  id: peserta
+  pl: uczestników
+  nl: aanmeldingen
+  ar: مشاركين
+  hi: प्रतिभागी
+  th: คนตอบรับ
+  cs: účastníků
+  sv: anmälningar
+  he: משתתפים
   verified_by_human: []
 landing_actionable_event_tag_language:
   context: Language tag in the lightweight Actionable landing slide event demo

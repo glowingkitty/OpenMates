@@ -2,104 +2,208 @@
   /**
    * LandingActionableEventDemo.svelte
    *
-   * Lightweight logged-out landing animation for the Actionable product slide.
-   * It mirrors real chat-message bubbles and the events embed preview while
-   * sequencing each stage through the same centered fade-up transition.
+   * One-shot logged-out landing animation for the Actionable product slide.
+   * It reuses real chat and event-preview surfaces while coordinating staged
+   * motion, visible pointer clicks, localization, and carousel completion.
    */
 
   import { onMount } from 'svelte';
-  import { fly } from 'svelte/transition';
   import { text } from '@repo/ui';
+  import { getLucideIcon } from '../../utils/categoryUtils';
   import EventEmbedPreview from '../embeds/events/EventEmbedPreview.svelte';
+  import {
+    ACTIONABLE_CTA_CLICK_MS,
+    ACTIONABLE_CTA_POINTER_TARGET_MS,
+    ACTIONABLE_PREVIEW_CLICK_MS,
+    ACTIONABLE_PREVIEW_POINTER_TARGET_MS,
+    ACTIONABLE_STAGE_SEQUENCE,
+    type ActionableStage,
+  } from './landingActionableEventTimeline';
 
-  const ACTIONABLE_STAGE_INTERVAL_MS = 2200;
-  const ACTIONABLE_STAGE_TRANSITION_MS = 420;
-  const ACTIONABLE_STAGES = ['user-request', 'assistant-response', 'event-preview', 'luma-cta'] as const;
+  interface Props {
+    playing: boolean;
+    onComplete: () => void;
+  }
 
-  type ActionableStage = typeof ACTIONABLE_STAGES[number];
+  type InteractionState = 'idle' | 'preview-targeted' | 'preview-clicked' | 'cta-targeted' | 'cta-clicked';
 
-  let activeStageIndex = $state(0);
-  let activeStage = $derived<ActionableStage>(ACTIONABLE_STAGES[activeStageIndex] ?? ACTIONABLE_STAGES[0]);
+  let { playing, onComplete }: Props = $props();
 
+  const MousePointerIcon = getLucideIcon('mouse-pointer-2');
   const demoStartDate = new Date('2024-05-22T11:00:00+02:00');
   const demoEndDate = new Date(demoStartDate);
   demoEndDate.setHours(18, 0, 0, 0);
 
-  const demoEvent = {
+  let activeStageIndex = $state(0);
+  let interactionState = $state<InteractionState>('idle');
+  let playbackRunId = $state(0);
+  let mounted = $state(false);
+
+  let activeStage = $derived<ActionableStage>(
+    ACTIONABLE_STAGE_SEQUENCE[activeStageIndex]?.id ?? ACTIONABLE_STAGE_SEQUENCE[0].id,
+  );
+  let activeStageDurationMs = $derived(
+    ACTIONABLE_STAGE_SEQUENCE[activeStageIndex]?.durationMs ?? ACTIONABLE_STAGE_SEQUENCE[0].durationMs,
+  );
+  let demoEvent = $derived.by(() => ({
     embed_id: 'landing-actionable-event-preview',
     id: 'landing-actionable-depin-berlin',
     provider: 'luma',
-    title: 'DEPIN DAY BERLIN',
-    description: 'The second edition of DePIN Day in Berlin, with research and talks on decentralized compute.',
+    title: $text('demo_chats.for_everyone.landing_actionable_event_title'),
+    description: $text('demo_chats.for_everyone.landing_actionable_event_detail'),
     url: 'https://luma.com/depin-berlin',
     date_start: demoStartDate.toISOString(),
     date_end: demoEndDate.toISOString(),
     event_type: 'PHYSICAL',
     venue: {
-      name: 'Magazin in der Heeresbaeckerei',
-      address: 'Koepenicker Strasse 16-17',
-      city: 'Berlin',
-      country: 'Germany',
+      name: $text('demo_chats.for_everyone.landing_actionable_event_venue'),
+      address: $text('demo_chats.for_everyone.landing_actionable_event_address'),
+      city: $text('demo_chats.for_everyone.landing_actionable_event_city'),
+      country: $text('demo_chats.for_everyone.landing_actionable_event_country'),
       lat: 52.5094,
       lon: 13.4307,
     },
-    organizer: { name: 'Fluence' },
+    organizer: { name: $text('demo_chats.for_everyone.landing_actionable_event_organizer') },
     rsvp_count: 460,
     is_paid: false,
     image_url: 'https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/event-covers/g3/d98ef380-57c3-4dd8-b751-d7c0ae6c2519',
-  };
+  }));
 
   function noop() {
     // Non-interactive decorative preview inside the autoplay landing slide.
   }
 
   onMount(() => {
-    const interval = window.setInterval(() => {
-      activeStageIndex = (activeStageIndex + 1) % ACTIONABLE_STAGES.length;
-    }, ACTIONABLE_STAGE_INTERVAL_MS);
+    mounted = true;
+  });
 
-    return () => window.clearInterval(interval);
+  $effect(() => {
+    if (!mounted) return;
+    if (!playing) {
+      activeStageIndex = 0;
+      interactionState = 'idle';
+      return;
+    }
+
+    activeStageIndex = 0;
+    interactionState = 'idle';
+    playbackRunId = window.performance.now();
+
+    const timeouts: number[] = [];
+    const schedule = (delayMs: number, callback: () => void) => {
+      timeouts.push(window.setTimeout(callback, delayMs));
+    };
+
+    let stageStartMs = 0;
+    ACTIONABLE_STAGE_SEQUENCE.forEach((stage, index) => {
+      if (index > 0) {
+        schedule(stageStartMs, () => {
+          activeStageIndex = index;
+          interactionState = 'idle';
+        });
+      }
+
+      if (stage.id === 'event-preview') {
+        schedule(stageStartMs + ACTIONABLE_PREVIEW_POINTER_TARGET_MS, () => {
+          interactionState = 'preview-targeted';
+        });
+        schedule(stageStartMs + ACTIONABLE_PREVIEW_CLICK_MS, () => {
+          interactionState = 'preview-clicked';
+        });
+      }
+
+      if (stage.id === 'luma-cta') {
+        schedule(stageStartMs + ACTIONABLE_CTA_POINTER_TARGET_MS, () => {
+          interactionState = 'cta-targeted';
+        });
+        schedule(stageStartMs + ACTIONABLE_CTA_CLICK_MS, () => {
+          interactionState = 'cta-clicked';
+        });
+      }
+
+      stageStartMs += stage.durationMs;
+    });
+
+    schedule(stageStartMs, onComplete);
+
+    return () => {
+      timeouts.forEach((timeout) => window.clearTimeout(timeout));
+    };
   });
 </script>
 
-<div class="landing-actionable-demo" data-testid="landing-actionable-event-demo" data-active-stage={activeStage}>
+<div
+  class="landing-actionable-demo"
+  class:playing
+  data-testid="landing-actionable-event-demo"
+  data-active-stage={activeStage}
+  data-interaction-state={interactionState}
+  data-playing={playing ? 'true' : 'false'}
+>
   <div class="landing-actionable-scene" data-testid="landing-actionable-event-scene">
-    {#key activeStage}
+    {#key `${playbackRunId}-${activeStage}`}
       <div
         class="landing-actionable-stage"
         data-testid="landing-actionable-stage"
         data-stage={activeStage}
-        in:fly={{ y: 24, duration: ACTIONABLE_STAGE_TRANSITION_MS }}
-        out:fly={{ y: -24, duration: ACTIONABLE_STAGE_TRANSITION_MS }}
+        style={`--actionable-stage-duration: ${activeStageDurationMs}ms`}
       >
-        {#if activeStage === 'user-request'}
-          <div class="chat-message user landing-actionable-message-stage" data-testid="landing-actionable-user-row">
-            <div class="message-align-right">
-              <div class="user-message-content" data-testid="landing-actionable-user-message">
-                <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_user_message')}</div>
+        <div class="landing-actionable-stage-motion">
+          <div class="landing-actionable-stage-content" data-testid="landing-actionable-stage-content" data-stage={activeStage}>
+            {#if activeStage === 'user-request'}
+              <div class="chat-message user landing-actionable-message-stage" data-testid="landing-actionable-user-row">
+                <div class="message-align-right">
+                  <div class="user-message-content" data-testid="landing-actionable-user-message">
+                    <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_user_message')}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        {:else if activeStage === 'assistant-response'}
-          <div class="chat-message assistant landing-actionable-message-stage" data-testid="landing-actionable-assistant-row">
-            <div class="mate-profile general_knowledge" data-testid="landing-actionable-assistant-profile"></div>
-            <div class="message-align-left">
-              <div class="mate-message-content" data-testid="landing-actionable-assistant-message">
-                <div class="chat-mate-name" data-testid="landing-actionable-assistant-name">OpenMates</div>
-                <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_assistant_message')}</div>
+            {:else if activeStage === 'assistant-response'}
+              <div class="chat-message assistant landing-actionable-message-stage" data-testid="landing-actionable-assistant-row">
+                <div class="mate-profile general_knowledge" data-testid="landing-actionable-assistant-profile"></div>
+                <div class="message-align-left">
+                  <div class="mate-message-content" data-testid="landing-actionable-assistant-message">
+                    <div class="chat-mate-name" data-testid="landing-actionable-assistant-name">{$text('mates.general_knowledge')}</div>
+                    <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_assistant_message')}</div>
+                  </div>
+                </div>
               </div>
-            </div>
+            {:else if activeStage === 'event-preview'}
+              <div
+                class="landing-actionable-preview"
+                data-testid="landing-actionable-event-preview"
+                data-demo-pressed={interactionState === 'preview-clicked' ? 'true' : 'false'}
+              >
+                <EventEmbedPreview
+                  id="landing-actionable-event-preview-card"
+                  event={demoEvent}
+                  isMobile={false}
+                  onlineLabel={$text('demo_chats.for_everyone.landing_actionable_event_online')}
+                  inPersonLabel={$text('demo_chats.for_everyone.landing_actionable_event_in_person')}
+                  rsvpLabel={$text('demo_chats.for_everyone.landing_actionable_event_rsvps')}
+                  onFullscreen={noop}
+                />
+                <div class="landing-actionable-preview-title" data-testid="landing-actionable-event-title">{$text('demo_chats.for_everyone.landing_actionable_event_title')}</div>
+              </div>
+            {:else}
+              <div
+                class="landing-actionable-luma-button"
+                data-testid="landing-actionable-luma-button"
+                data-demo-pressed={interactionState === 'cta-clicked' ? 'true' : 'false'}
+              >
+                {$text('demo_chats.for_everyone.landing_actionable_event_open_luma')}
+              </div>
+            {/if}
           </div>
-        {:else if activeStage === 'event-preview'}
-          <div class="landing-actionable-preview" data-testid="landing-actionable-event-preview">
-            <EventEmbedPreview id="landing-actionable-event-preview-card" event={demoEvent} isMobile={false} onFullscreen={noop} />
-            <div class="landing-actionable-preview-title" data-testid="landing-actionable-event-title">{$text('demo_chats.for_everyone.landing_actionable_event_title')}</div>
-          </div>
-        {:else}
-          <button class="landing-actionable-luma-button" data-testid="landing-actionable-luma-button" type="button">Open on Luma</button>
-        {/if}
+        </div>
       </div>
     {/key}
+
+    {#if activeStage === 'event-preview' || activeStage === 'luma-cta'}
+      <div class="landing-actionable-pointer" data-testid="landing-actionable-pointer" aria-hidden="true">
+        <MousePointerIcon size={34} strokeWidth={2.6} />
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -119,24 +223,67 @@
     pointer-events: none;
   }
 
-  .landing-actionable-scene {
+  .landing-actionable-scene,
+  .landing-actionable-stage {
     position: absolute;
     inset: 0;
     display: grid;
     place-items: center;
+  }
+
+  .landing-actionable-scene {
     overflow: visible;
   }
 
   .landing-actionable-stage {
-    position: absolute;
-    inset: 0;
     z-index: var(--z-index-raised);
-    display: grid;
-    place-items: center;
-    width: 100%;
     min-width: 0;
     padding: 18px;
     box-sizing: border-box;
+  }
+
+  .landing-actionable-stage-motion {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    transform-origin: center;
+  }
+
+  .playing .landing-actionable-stage-motion {
+    animation: landingActionableStageFlow var(--actionable-stage-duration) linear both;
+  }
+
+  .landing-actionable-demo:not(.playing) .landing-actionable-stage-motion {
+    opacity: 0;
+  }
+
+  .landing-actionable-stage-content {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    transform-origin: center;
+  }
+
+  @keyframes landingActionableStageFlow {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 34px, 0) scale(0.72);
+      animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    28% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      animation-timing-function: linear;
+    }
+    70% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      animation-timing-function: cubic-bezier(0.7, 0, 1, 0.5);
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(0, -30px, 0) scale(0.8);
+    }
   }
 
   .landing-actionable-message-stage {
@@ -202,7 +349,11 @@
     position: relative;
     z-index: var(--z-index-raised-2);
     width: 300px;
-    max-width: 100%;
+    transition: transform var(--duration-fast) ease;
+  }
+
+  .landing-actionable-preview[data-demo-pressed='true'] {
+    transform: scale(0.96);
   }
 
   .landing-actionable-preview :global(.unified-embed-preview) {
@@ -218,7 +369,7 @@
     top: 20px;
     z-index: var(--z-index-raised);
     max-width: 150px;
-    color: var(--color-grey-0);
+    color: rgba(255, 255, 255, 0.96);
     font-size: 0.92rem;
     line-height: 1.08;
     font-weight: 800;
@@ -227,8 +378,92 @@
   }
 
   .landing-actionable-luma-button {
-    font-weight: 800;
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 12px 22px !important;
+    border: 0 !important;
+    border-radius: var(--radius-8) !important;
+    background: var(--color-button-primary) !important;
+    color: white !important;
+    box-shadow: var(--shadow-md) !important;
+    font: inherit;
+    font-weight: 800 !important;
     white-space: nowrap;
+    transition:
+      background var(--duration-fast) ease,
+      box-shadow var(--duration-fast) ease,
+      transform var(--duration-fast) ease;
+  }
+
+  .landing-actionable-luma-button[data-demo-pressed='true'] {
+    background: var(--color-button-primary-pressed) !important;
+    box-shadow: var(--shadow-xs) !important;
+    transform: scale(0.97);
+  }
+
+  .landing-actionable-pointer {
+    position: absolute;
+    left: 54%;
+    top: calc(100% + 40px);
+    z-index: var(--z-index-modal);
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    color: white;
+    opacity: 0;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.65)) drop-shadow(0 5px 12px rgba(0, 0, 0, 0.35));
+    transform: translate(-15%, -12%) scale(0.82);
+    transition:
+      left 620ms cubic-bezier(0.16, 1, 0.3, 1),
+      top 620ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 180ms ease,
+      transform 140ms ease;
+  }
+
+  .landing-actionable-pointer::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.88);
+    border-radius: var(--radius-full);
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  .landing-actionable-demo[data-interaction-state='preview-targeted'] .landing-actionable-pointer,
+  .landing-actionable-demo[data-interaction-state='preview-clicked'] .landing-actionable-pointer {
+    left: 57%;
+    top: 53%;
+    opacity: 1;
+    transform: translate(-15%, -12%) scale(1);
+  }
+
+  .landing-actionable-demo[data-interaction-state='cta-targeted'] .landing-actionable-pointer,
+  .landing-actionable-demo[data-interaction-state='cta-clicked'] .landing-actionable-pointer {
+    left: 54%;
+    top: 51%;
+    opacity: 1;
+    transform: translate(-15%, -12%) scale(1);
+  }
+
+  .landing-actionable-demo[data-interaction-state='preview-clicked'] .landing-actionable-pointer,
+  .landing-actionable-demo[data-interaction-state='cta-clicked'] .landing-actionable-pointer {
+    transform: translate(-15%, -12%) scale(0.78);
+  }
+
+  .landing-actionable-demo[data-interaction-state='preview-clicked'] .landing-actionable-pointer::after,
+  .landing-actionable-demo[data-interaction-state='cta-clicked'] .landing-actionable-pointer::after {
+    animation: landingActionableClickPulse 420ms ease-out;
+  }
+
+  @keyframes landingActionableClickPulse {
+    from { opacity: 0.9; transform: scale(0.35); }
+    to { opacity: 0; transform: scale(1.65); }
   }
 
   @media (max-width: 730px) {
@@ -240,27 +475,41 @@
     }
 
     .landing-actionable-stage {
-      padding: 4px 6px;
+      padding: 2px 6px;
+    }
+
+    .landing-actionable-stage-content[data-stage='user-request'],
+    .landing-actionable-stage-content[data-stage='assistant-response'] {
+      transform: scale(0.88);
+    }
+
+    .landing-actionable-stage-content[data-stage='event-preview'] {
+      transform: scale(0.56);
+    }
+
+    .landing-actionable-stage-content[data-stage='luma-cta'] {
+      transform: scale(0.9);
     }
 
     .landing-actionable-message-stage {
       width: min(100%, 320px);
-      transform: scale(0.9);
-    }
-
-    .landing-actionable-preview {
-      width: 300px;
-      transform: scale(0.58);
-    }
-
-    .landing-actionable-luma-button {
-      transform: scale(0.9);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .landing-actionable-stage {
-      transition: none !important;
+    .playing .landing-actionable-stage-motion {
+      animation-name: landingActionableStageFade;
     }
+
+    .landing-actionable-pointer,
+    .landing-actionable-preview,
+    .landing-actionable-luma-button {
+      transition-duration: 1ms !important;
+    }
+  }
+
+  @keyframes landingActionableStageFade {
+    0%, 100% { opacity: 0; }
+    16%, 84% { opacity: 1; }
   }
 </style>

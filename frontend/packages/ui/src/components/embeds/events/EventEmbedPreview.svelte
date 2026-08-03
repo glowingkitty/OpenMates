@@ -70,6 +70,10 @@
     event: EventResult;
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    /** Optional localized labels for compact preview metadata. */
+    onlineLabel?: string;
+    inPersonLabel?: string;
+    rsvpLabel?: string;
     /** Click handler that opens EventEmbedFullscreen drill-down */
     onFullscreen: () => void;
   }
@@ -78,6 +82,9 @@
     id,
     event,
     isMobile = false,
+    onlineLabel = 'Online',
+    inPersonLabel = 'In Person',
+    rsvpLabel = 'RSVPs',
     onFullscreen,
   }: Props = $props();
 
@@ -136,7 +143,7 @@
    * Return short location: "Online" for ONLINE events, "City, Country" for physical.
    */
   function getEventLocation(ev: EventResult): string {
-    if (ev.event_type === 'ONLINE') return 'Online';
+    if (ev.event_type === 'ONLINE') return onlineLabel;
     if (!ev.venue) return '';
     const parts: string[] = [];
     if (ev.venue.city) parts.push(ev.venue.city);
@@ -231,13 +238,13 @@
           <div class="event-footer">
             {#if event.event_type}
               <span class="event-type-badge" class:online={isOnline}>
-                {isOnline ? 'Online' : 'In Person'}
+                {isOnline ? onlineLabel : inPersonLabel}
               </span>
             {/if}
             {#if isPaid && feeDisplay}
               <span class="event-fee">{feeDisplay}</span>
             {:else if event.rsvp_count != null && event.rsvp_count > 0}
-              <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
+              <span class="event-rsvp">{event.rsvp_count.toLocaleString()} {rsvpLabel}</span>
             {/if}
             {#if providerLabel}
               <span class="event-source">{providerLabel}</span>

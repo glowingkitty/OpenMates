@@ -508,7 +508,8 @@ async function mobileActionableSlideState(page: any): Promise<{
 		const copyRect = copy.getBoundingClientRect();
 		const iconRect = icon.getBoundingClientRect();
 		const demoRect = demo.getBoundingClientRect();
-		const stageContentRect = (stage.firstElementChild as HTMLElement | null)?.getBoundingClientRect();
+		const stageContentRect = stage.querySelector<HTMLElement>('[data-testid="landing-actionable-stage-content"]')
+			?.firstElementChild?.getBoundingClientRect();
 		const demoCenterX = demoRect.left + demoRect.width / 2;
 		const demoCenterY = demoRect.top + demoRect.height / 2;
 		const contentCenterX = stageContentRect ? stageContentRect.left + stageContentRect.width / 2 : demoCenterX;
@@ -793,6 +794,18 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(state.hasAssistantMessage).toBe(false);
 		expect(state.hasPreview).toBe(true);
 		expect(state.hasButton).toBe(false);
+		const pointerStart = await page.evaluate(() => {
+			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
+			const pointer = document.querySelector<HTMLElement>('[data-testid="landing-actionable-pointer"]');
+			if (!scene || !pointer) throw new Error('Actionable pointer start elements missing');
+			return {
+				opacity: Number.parseFloat(getComputedStyle(pointer).opacity),
+				top: pointer.getBoundingClientRect().top,
+				sceneBottom: scene.getBoundingClientRect().bottom
+			};
+		});
+		expect(pointerStart.opacity, 'pointer should begin hidden below the preview scene').toBeLessThanOrEqual(0.05);
+		expect(pointerStart.top, 'pointer should begin outside the bottom of the preview scene').toBeGreaterThanOrEqual(pointerStart.sceneBottom);
 		await expect(page.getByTestId('landing-actionable-event-preview')).toContainText('DEPIN DAY BERLIN');
 		await expect(page.getByTestId('landing-actionable-event-preview').getByTestId('embed-preview')).toHaveAttribute(
 			'data-app-id',
@@ -804,6 +817,27 @@ test.describe('Landing page onboarding refresh', () => {
 			{ timeout: ACTIONABLE_INTERACTION_TIMEOUT_MS }
 		).toBe('preview-clicked');
 		await expect(page.getByTestId('landing-actionable-event-preview')).toHaveAttribute('data-demo-pressed', 'true');
+		const previewGeometry = await page.evaluate(() => {
+			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
+			const preview = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-preview"]');
+			const pointer = document.querySelector<HTMLElement>('[data-testid="landing-actionable-pointer"]');
+			if (!scene || !preview || !pointer) throw new Error('Actionable preview geometry elements missing');
+			const sceneRect = scene.getBoundingClientRect();
+			const previewRect = preview.getBoundingClientRect();
+			return {
+				centerDeltaX: Math.abs((previewRect.left + previewRect.width / 2) - (sceneRect.left + sceneRect.width / 2)),
+				centerDeltaY: Math.abs((previewRect.top + previewRect.height / 2) - (sceneRect.top + sceneRect.height / 2)),
+				pointerInsideScene: pointer.getBoundingClientRect().top < sceneRect.bottom,
+				fullyVisible: previewRect.left >= sceneRect.left - 1
+					&& previewRect.right <= sceneRect.right + 1
+					&& previewRect.top >= sceneRect.top - 1
+					&& previewRect.bottom <= sceneRect.bottom + 1
+			};
+		});
+		expect(previewGeometry.centerDeltaX, 'event preview should dwell at the horizontal center').toBeLessThanOrEqual(2);
+		expect(previewGeometry.centerDeltaY, 'event preview should dwell at the vertical center').toBeLessThanOrEqual(2);
+		expect(previewGeometry.fullyVisible, 'event preview should not be clipped during its center dwell').toBe(true);
+		expect(previewGeometry.pointerInsideScene, 'pointer should move into the scene before clicking the preview').toBe(true);
 
 		await waitForActionableStage(page, 'luma-cta');
 		state = await actionableStageState(page);
@@ -813,9 +847,11 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(state.hasPreview).toBe(false);
 		expect(state.hasCtaCard, 'the old custom CTA card must not render').toBe(false);
 		expect(state.hasButton).toBe(true);
-		expect(state.hasPointer).toBe(true);
 		expect(state.buttonText).toBe('Open on Luma');
 		expect(state.buttonBackground).toBe('rgb(255, 85, 59)');
+		await expect(page.getByTestId('landing-actionable-pointer')).toBeVisible({ timeout: ACTIONABLE_INTERACTION_TIMEOUT_MS });
+		state = await actionableStageState(page);
+		expect(state.hasPointer).toBe(true);
 		await expect.poll(
 			async () => page.getByTestId('landing-actionable-event-demo').getAttribute('data-interaction-state'),
 			{ timeout: ACTIONABLE_INTERACTION_TIMEOUT_MS }

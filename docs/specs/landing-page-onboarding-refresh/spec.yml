@@ -383,12 +383,21 @@ attempts:
       control-plane run passed on `app.dev.openmates.org` in GitHub Actions run
       `30088768978` after Vercel deployment `dpl_BrEka7VsjdnYMLxfMEHj7vtsmkG7`
       became Ready.
+  - id: ATTEMPT-19
+    task_id: TASK-2
+    approach: Deploy the strengthened Actionable Playwright contract before changing the implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-03"
+    notes: >
+      Commit `1fc76c984` deployed Ready as `dpl_2Krx6Ud9Z9VRRd213Xrc9sW8Noqh`.
+      GitHub Actions run `30814094032` failed on the first intended assertion because
+      the old Actionable slide still exposed the generic 20000ms progress duration.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the strengthened Actionable Playwright contract without implementation changes and capture the expected red result.
-  command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts --gate-deploy --expected-commit <test-contract-commit>
-  expected_outcome: Fails on the old assistant copy/name or missing pointer interaction before implementation starts.
+  next_action: Implement and statically verify the one-shot Actionable timeline, localized copy, pointer clicks, and mobile headline morph.
+  command: bash scripts/lint_changed.sh --svelte --ts --yml --path frontend/packages/ui/src/components/DailyInspirationBanner.svelte --path frontend/packages/ui/src/components/landing --path frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+  expected_outcome: Focused Svelte, TypeScript, YAML, translation, and locale checks pass before the green deploy.
   blocker: null
   last_verified_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
 
@@ -643,9 +652,14 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        reason: Awaiting the test-contract-only deployed run against the previous implementation.
-        timestamp: "2026-08-03"
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts --gate-deploy --expected-commit 1fc76c9
+        run_id: "30814094032"
+        subject_commit: 1fc76c984
+        target: app.dev.openmates.org
+        deployment_reference: dpl_2Krx6Ud9Z9VRRd213Xrc9sW8Noqh
+        reason: The old implementation reported a 20000ms progress duration instead of the coordinated one-shot duration.
+        timestamp: "2026-08-03T12:37:27Z"
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -653,9 +667,6 @@ tests:
         status: pending
         reason: The user approved a material replacement contract on 2026-08-03, invalidating the earlier green evidence.
         timestamp: "2026-08-03"
-        target: app.dev.openmates.org
-        deployment_reference: dpl_BrEka7VsjdnYMLxfMEHj7vtsmkG7
-        timestamp: "2026-07-24T11:14:41Z"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -787,6 +798,8 @@ implementation_plan:
       reason: Focused deployed Playwright coverage for the refreshed logged-out intro.
     - path: frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
       reason: Localized one-shot messages, embed/pointer interactions, and stage motion.
+    - path: frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+      reason: Accept localized event-type and attendance labels from the landing demo while preserving shared preview rendering.
     - path: frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
       reason: All visible Actionable demo copy for every supported locale.
     - path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -860,6 +873,7 @@ tasks:
       - docs/specs/landing-page-onboarding-refresh/spec.yml
       - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
       - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+      - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
       - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
       - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
     verification:
@@ -873,6 +887,7 @@ tasks:
       files:
         - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
         - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+        - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
         - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
       shared_files: []
     blockers:
