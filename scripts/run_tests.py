@@ -271,11 +271,58 @@ def _problem_summary_label(summary: dict) -> str:
     return ", ".join(parts) if parts else "all passed"
 
 
-def _build_discord_failure_sections(suites: dict) -> list[str]:
-    """Build a category distribution and deduplicated failed-file list."""
-    categories: list[tuple[str, int, dict[str, int]]] = []
+CRITICAL_PRODUCT_AREA_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "Billing & payments",
+        ("billing", "payment", "stripe", "credit", "invoice", "purchase", "bank transfer", "usage"),
+    ),
+    (
+        "Signup & authentication",
+        (
+            "signup", "sign up", "login", "log in", "recovery key", "backup code",
+            "passkey", "2fa", "change email", "force logout", "account delete",
+            "delete account", "authentication",
+        ),
+    ),
+    (
+        "Core chat",
+        ("chat", "composer", "encryption", "chat sync", "recent chats"),
+    ),
+)
+
+PRODUCT_AREA_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    CRITICAL_PRODUCT_AREA_RULES[1],
+    CRITICAL_PRODUCT_AREA_RULES[0],
+    CRITICAL_PRODUCT_AREA_RULES[2],
+    ("Apps & skills", ("skill", "apps api", "focus mode", "daily inspiration", "reminder")),
+    ("Workflows, tasks & plans", ("workflow", "task", "plan")),
+    ("Embeds & files", ("embed", "pdf", "paste", "source quote", "detail")),
+    ("Sharing & collaboration", ("share", "team", "project", "referral")),
+    ("Settings & account", ("settings", "account", "session", "language", "translation")),
+)
+DEFAULT_PRODUCT_AREA = "Platform & quality"
+
+
+def _matches_product_area(searchable: str, keywords: tuple[str, ...]) -> bool:
+    """Match whole normalized words or phrases in a test identifier."""
+    normalized = " " + re.sub(r"[^a-z0-9]+", " ", searchable.lower()).strip() + " "
+    return any(f" {keyword} " in normalized for keyword in keywords)
+
+
+def _primary_product_area(searchable: str) -> str:
+    """Return the single display group used for a failed file."""
+    for area_name, keywords in PRODUCT_AREA_RULES:
+        if _matches_product_area(searchable, keywords):
+            return area_name
+    return DEFAULT_PRODUCT_AREA
+
+
+def _build_discord_failure_embeds(suites: dict, color: int) -> list[dict]:
+    """Build one product-area-grouped Discord embed per failing suite."""
+    suite_failures: list[tuple[str, int, dict[str, int], dict[str, list[str]]]] = []
     for suite_name, suite_data in suites.items():
-        failed_files: dict[str, int] = {}
+        failed_file_counts: dict[str, int] = {}
+        failed_file_searchable: dict[str, list[str]] = {}
         failure_count = 0
         for test in (suite_data or {}).get("tests", []):
             if not _is_problem_status(test.get("status", "")):
@@ -284,46 +331,112 @@ def _build_discord_failure_sections(suites: dict) -> list[str]:
             test_file = test.get("file") or test.get("name") or "unknown"
             # Pytest node IDs identify a test after the file with `::`.
             test_file = str(test_file).split("::", 1)[0]
-            failed_files[test_file] = failed_files.get(test_file, 0) + 1
+            failed_file_counts[test_file] = failed_file_counts.get(test_file, 0) + 1
+            failed_file_searchable.setdefault(test_file, []).append(
+                str(test.get("name") or test_file)
+            )
         if failure_count:
-            categories.append((suite_name, failure_count, failed_files))
+            suite_failures.append(
+                (suite_name, failure_count, failed_file_counts, failed_file_searchable)
+            )
 
-    categories.sort(key=lambda category: (-category[1], category[0]))
-    total_failures = sum(category[1] for category in categories)
-    lines = ["**Failure distribution:**"]
-    for suite_name, failure_count, failed_files in categories:
+    suite_failures.sort(key=lambda suite: (-suite[1], suite[0]))
+    embeds: list[dict] = []
+    for suite_name, failure_count, failed_file_counts, failed_file_searchable in suite_failures:
         category_label = suite_name.replace("_", " ").capitalize()
-        file_label = "file" if len(failed_files) == 1 else "files"
-        failure_percentage = round((failure_count / total_failures) * 100)
-        lines.append(
-            f"• **{category_label}:** {failure_count} ({failure_percentage}%) across "
-            f"**{len(failed_files)}** {file_label}"
+        file_label = "file" if len(failed_file_counts) == 1 else "files"
+        title = (
+            f"{category_label} · {failure_count} failures · "
+            f"{len(failed_file_counts)} {file_label}"
         )
 
-    lines.extend(["", "**Failed test files:**"])
-    for suite_name, _failure_count, failed_files in categories:
-        lines.append(f"**{suite_name.replace('_', ' ').capitalize()}**")
-        for test_file, count in sorted(failed_files.items()):
-            count_suffix = f" — {count} failures" if count > 1 else ""
-            lines.append(f"• `{test_file}`{count_suffix}")
-    return lines
+        lines = ["**Critical product areas**"]
+        for area_name, keywords in CRITICAL_PRODUCT_AREA_RULES:
+            matching_files = sum(
+                _matches_product_area(
+                    f"{test_file} {' '.join(failed_file_searchable[test_file])}", keywords
+                )
+                for test_file in failed_file_counts
+            )
+            status_icon = "🔴" if matching_files else "🟢"
+            failed_file_label = "failed file" if matching_files == 1 else "failed files"
+            lines.append(f"{status_icon} {area_name}: **{matching_files}** {failed_file_label}")
+
+        grouped_files: dict[str, list[tuple[str, int]]] = {}
+        for test_file, count in failed_file_counts.items():
+            searchable = f"{test_file} {' '.join(failed_file_searchable[test_file])}"
+            area_name = _primary_product_area(searchable)
+            grouped_files.setdefault(area_name, []).append((test_file, count))
+
+        lines.extend(["", "**Files by product area**"])
+        area_order = [area_name for area_name, _keywords in PRODUCT_AREA_RULES]
+        area_order.append(DEFAULT_PRODUCT_AREA)
+        for area_name in area_order:
+            area_files = grouped_files.get(area_name, [])
+            if not area_files:
+                continue
+            area_failures = sum(count for _test_file, count in area_files)
+            failure_label = "failure" if area_failures == 1 else "failures"
+            area_file_label = "file" if len(area_files) == 1 else "files"
+            lines.append(
+                f"**{area_name} · {area_failures} {failure_label} · "
+                f"{len(area_files)} {area_file_label}**"
+            )
+            for test_file, count in sorted(area_files):
+                count_suffix = f" — {count} failures" if count > 1 else ""
+                lines.append(f"• `{test_file}`{count_suffix}")
+
+        embeds.append({
+            "title": title,
+            "description": _fit_discord_description(lines),
+            "color": color,
+        })
+    return embeds
 
 
-def _fit_discord_description(lines: list[str]) -> str:
+def _limit_discord_failure_embeds(embeds: list[dict], color: int) -> list[dict]:
+    """Reserve one Discord embed for the run summary and report overflow."""
+    max_detail_embeds = DISCORD_MAX_EMBEDS - 1
+    if len(embeds) <= max_detail_embeds:
+        return embeds
+
+    visible = embeds[:max_detail_embeds - 1]
+    omitted = embeds[max_detail_embeds - 1:]
+    omitted_lines = [f"• {embed['title']}" for embed in omitted]
+    visible.append({
+        "title": f"{len(omitted)} more failing suites",
+        "description": _fit_discord_description(omitted_lines),
+        "color": color,
+    })
+    return visible
+
+
+def _fit_discord_description(lines: list[str], max_chars: Optional[int] = None) -> str:
     """Fit whole summary lines within Discord's description limit."""
+    if max_chars is None:
+        max_chars = DISCORD_DESCRIPTION_MAX_CHARS
     description = "\n".join(lines)
-    if len(description) <= DISCORD_DESCRIPTION_MAX_CHARS:
+    if len(description) <= max_chars:
         return description
 
-    total_file_lines = sum(line.startswith("• `") for line in lines)
+    prior_omitted = 0
+    content_lines = []
+    for line in lines:
+        omission_match = re.match(r"^…and (\d+) more failed files;", line)
+        if omission_match:
+            prior_omitted += int(omission_match.group(1))
+        else:
+            content_lines.append(line)
+
+    total_file_lines = prior_omitted + sum(line.startswith("• `") for line in content_lines)
     fitted: list[str] = []
     included_file_lines = 0
-    for line in lines:
+    for line in content_lines:
         next_file_count = included_file_lines + int(line.startswith("• `"))
         omitted = total_file_lines - next_file_count
         omission_line = f"…and {omitted} more failed files; see the full test report."
         candidate = "\n".join([*fitted, line, omission_line])
-        if len(candidate) > DISCORD_DESCRIPTION_MAX_CHARS:
+        if len(candidate) > max_chars:
             break
         fitted.append(line)
         included_file_lines = next_file_count
@@ -331,6 +444,43 @@ def _fit_discord_description(lines: list[str]) -> str:
     omitted = total_file_lines - included_file_lines
     fitted.append(f"…and {omitted} more failed files; see the full test report.")
     return "\n".join(fitted)
+
+
+def _fit_discord_embed_total(embeds: list[dict]) -> list[dict]:
+    """Keep the full Discord message within its aggregate embed text cap."""
+    fitted = [dict(embed) for embed in embeds]
+
+    def total_chars() -> int:
+        return sum(
+            len(str(embed.get("title", ""))) + len(str(embed.get("description", "")))
+            for embed in fitted
+        )
+
+    overage = total_chars() - DISCORD_EMBED_TOTAL_MAX_CHARS
+    if overage <= 0:
+        return fitted
+
+    # Detail embeds start after the run summary. Trim longest file lists first,
+    # retaining enough space for each suite's critical-area block.
+    detail_indexes = sorted(
+        range(1, len(fitted)),
+        key=lambda index: len(str(fitted[index].get("description", ""))),
+        reverse=True,
+    )
+    for index in detail_indexes:
+        if overage <= 0:
+            break
+        description = str(fitted[index].get("description", ""))
+        minimum_chars = min(len(description), DISCORD_MIN_DETAIL_DESCRIPTION_CHARS)
+        reducible = len(description) - minimum_chars
+        if reducible <= 0:
+            continue
+        target_chars = len(description) - min(overage, reducible)
+        fitted[index]["description"] = _fit_discord_description(
+            description.splitlines(), target_chars
+        )
+        overage = total_chars() - DISCORD_EMBED_TOTAL_MAX_CHARS
+    return fitted
 
 
 def _apple_remote_commands_for_nightly() -> list[tuple[str, tuple[str, ...]]]:
@@ -842,6 +992,9 @@ def _safe_write_json(path: Path, data: dict) -> None:
 DISCORD_MAX_ATTACHMENTS = 5
 DISCORD_MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024
 DISCORD_DESCRIPTION_MAX_CHARS = 4000
+DISCORD_MAX_EMBEDS = 10
+DISCORD_EMBED_TOTAL_MAX_CHARS = 6000
+DISCORD_MIN_DETAIL_DESCRIPTION_CHARS = 300
 
 # ---------------------------------------------------------------------------
 # Discord per-test deduplication state (OPE-349 follow-up)
@@ -2720,10 +2873,6 @@ class NotificationService:
         ]
         if run_url:
             description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
-        if problem_count:
-            description_parts.append("")
-            description_parts.extend(_build_discord_failure_sections(result.suites))
-
         description = _fit_discord_description(description_parts)
 
         embed: dict = {
@@ -2734,10 +2883,16 @@ class NotificationService:
         if run_url:
             embed["url"] = run_url
 
+        embeds = [embed]
+        if problem_count:
+            failure_embeds = _build_discord_failure_embeds(result.suites, color)
+            embeds.extend(_limit_discord_failure_embeds(failure_embeds, color))
+        embeds = _fit_discord_embed_total(embeds)
+
         payload = {
             "username": "OpenMates Server",
             "avatar_url": "https://openmates.org/favicon.png",
-            "embeds": [embed],
+            "embeds": embeds,
         }
 
         # Collect attachments. Each path on disk is read into memory once,
