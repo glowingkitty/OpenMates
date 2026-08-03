@@ -612,7 +612,51 @@ export interface ProjectRecord {
   created_at?: number;
   updated_at?: number;
   last_opened_at?: number;
+  key_wrappers?: ProjectKeyWrapperRecord[];
+  mutation_permissions?: ProjectMutationPermissions;
   [key: string]: unknown;
+}
+
+export interface ProjectKeyWrapperRecord {
+  key_type: "master" | "chat" | "project" | "plan" | "team";
+  encrypted_project_key: string;
+  hashed_team_id?: string | null;
+  team_key_epoch?: number | null;
+  [key: string]: unknown;
+}
+
+export interface ProjectMutationPermissions {
+  create: boolean;
+  update: boolean;
+  archive: boolean;
+  delete: boolean;
+  settings: boolean;
+  manage_any_items: boolean;
+  manage_any_sources: boolean;
+  manage_own_items: boolean;
+  manage_own_sources: boolean;
+}
+
+export interface ProjectDetail {
+  project: ProjectRecord;
+  folders: Array<Record<string, unknown>>;
+  items: ProjectItemRecord[];
+}
+
+export interface ProjectRemoteAccessRequestInput {
+  request_id: string;
+  requesting_client_id: string;
+  operation: "list" | "search" | "read_text";
+  key_epoch: number;
+  encrypted_envelope: string;
+}
+
+export interface ProjectRemoteAccessRequestResult {
+  request_id: string;
+  status: "queued" | "delivered";
+  source_session_id: string;
+  key_epoch: number;
+  routing_identity?: Record<string, string>;
 }
 
 export interface ProjectSourceRecord {
@@ -8375,15 +8419,52 @@ export class OpenMatesClient {
     return response.data.projects ?? [];
   }
 
-  async createProject(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  async getProject(projectId: string, options: TeamContextOptions = {}): Promise<ProjectDetail> {
+    this.requireSession();
+    const response = await this.http.get<ProjectDetail>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}`, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.project) throw this.projectRequestError("get", response);
+    return response.data;
+  }
+
+  async createProject(input: Record<string, unknown>, options: TeamContextOptions = {}): Promise<Record<string, unknown>> {
     this.requireSession();
     const response = await this.http.post<Record<string, unknown>>(
-      "/v1/projects",
+      this.appendTeamQuery("/v1/projects", options),
       input,
       this.getCliRequestHeaders(),
     );
-    if (!response.ok) throw new Error(`Project create failed with HTTP ${response.status}`);
+    if (!response.ok) throw this.projectRequestError("create", response);
     return response.data;
+  }
+
+  async updateProject(projectId: string, patch: Record<string, unknown>, options: TeamContextOptions = {}): Promise<ProjectRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ project?: ProjectRecord }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}`, options),
+      patch,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.project) throw this.projectRequestError("update", response);
+    return response.data.project;
+  }
+
+  async deleteProject(
+    projectId: string,
+    confirmationProjectId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ deleted: boolean }> {
+    this.requireSession();
+    const params = new URLSearchParams({ confirmation_project_id: confirmationProjectId });
+    const response = await this.http.delete<{ deleted?: boolean }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}?${params.toString()}`, options),
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("delete", response);
+    return { deleted: response.data.deleted === true };
   }
 
   async askProject(input: {
@@ -8422,29 +8503,125 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async listProjectSources(projectId: string): Promise<ProjectSourceRecord[]> {
+  async listProjectItems(projectId: string, options: TeamContextOptions = {}): Promise<{ folders: Array<Record<string, unknown>>; items: ProjectItemRecord[] }> {
+    this.requireSession();
+    const response = await this.http.get<{ folders?: Array<Record<string, unknown>>; items?: ProjectItemRecord[] }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("item list", response);
+    return { folders: response.data.folders ?? [], items: response.data.items ?? [] };
+  }
+
+  async listProjectSources(projectId: string, options: TeamContextOptions = {}): Promise<ProjectSourceRecord[]> {
     this.requireSession();
     const response = await this.http.get<{ sources?: ProjectSourceRecord[] }>(
-      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/sources`, options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
-      throw new Error(`Project source list failed with HTTP ${response.status}`);
+      throw this.projectRequestError("source list", response);
     }
     return response.data.sources ?? [];
   }
 
-  async createProjectSource(projectId: string, input: ProjectSourceCreateInput): Promise<ProjectSourceRecord> {
+  async createProjectSource(projectId: string, input: ProjectSourceCreateInput, options: TeamContextOptions = {}): Promise<ProjectSourceRecord> {
     this.requireSession();
     const response = await this.http.post<{ source?: ProjectSourceRecord }>(
-      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/sources`, options),
       input,
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.source) {
-      throw new Error(`Project source create failed with HTTP ${response.status}`);
+      throw this.projectRequestError("source create", response);
     }
     return response.data.source;
+  }
+
+  async deleteProjectSource(
+    projectId: string,
+    sourceId: string,
+    confirmationSourceId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ deleted: boolean }> {
+    this.requireSession();
+    const params = new URLSearchParams({ confirmation_source_id: confirmationSourceId });
+    const path = `/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}?${params.toString()}`;
+    const response = await this.http.delete<{ deleted?: boolean }>(
+      this.appendTeamQuery(path, options),
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("source delete", response);
+    return { deleted: response.data.deleted === true };
+  }
+
+  async createProjectRemoteAccessRequest(
+    projectId: string,
+    sourceId: string,
+    input: ProjectRemoteAccessRequestInput,
+    options: TeamContextOptions = {},
+  ): Promise<ProjectRemoteAccessRequestResult> {
+    this.requireSession();
+    const response = await this.http.post<ProjectRemoteAccessRequestResult>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/requests`, options),
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("remote request", response);
+    return response.data;
+  }
+
+  async getProjectRemoteAccessResult(
+    projectId: string,
+    sourceId: string,
+    requestId: string,
+    requestingClientId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ status: string; encrypted_envelope: string }> {
+    this.requireSession();
+    const path = `/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/requests/${encodeURIComponent(requestId)}?requesting_client_id=${encodeURIComponent(requestingClientId)}`;
+    const response = await this.http.get<{ status: string; encrypted_envelope: string }>(
+      this.appendTeamQuery(path, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("remote result", response);
+    return response.data;
+  }
+
+  async decryptProjectKey(record: ProjectRecord, options: TeamContextOptions = {}): Promise<Uint8Array> {
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId) {
+      if (typeof record.encrypted_project_key !== "string") throw new Error("Project is missing its Personal key wrapper.");
+      const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, this.getMasterKeyBytes());
+      if (!projectKey) throw new Error("Unable to decrypt Project key.");
+      return projectKey;
+    }
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    const wrapper = record.key_wrappers?.find((candidate) =>
+      candidate.key_type === "team" && candidate.team_key_epoch === 1
+    );
+    if (!teamKey || !wrapper) throw new Error("Team Project key wrapper is unavailable.");
+    const projectKey = await decryptBytesWithAesGcm(wrapper.encrypted_project_key, teamKey);
+    if (!projectKey) throw new Error("Unable to decrypt Team Project key.");
+    return projectKey;
+  }
+
+  async projectWrappingKey(options: TeamContextOptions = {}): Promise<{ key: Uint8Array; teamId: string | null }> {
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId) return { key: this.getMasterKeyBytes(), teamId: null };
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to load Team key.");
+    return { key, teamId };
+  }
+
+  private projectRequestError(action: string, response: HttpResponse<unknown>): Error {
+    const data = response.data && typeof response.data === "object" ? response.data as Record<string, unknown> : {};
+    const detail = typeof data.detail === "string" ? data.detail : `HTTP_${response.status}`;
+    const error = new Error(`Project ${action} failed: ${detail}`) as Error & { code?: string; status?: number };
+    error.code = detail;
+    error.status = response.status;
+    return error;
   }
 
   async openProjectRemoteAccessWebSocket(): Promise<{
@@ -8472,11 +8649,16 @@ export class OpenMatesClient {
     return response.data.item;
   }
 
-  async deleteProjectItemByTarget(projectId: string, itemType: "embed" | "chat" | "workflow", targetId: string): Promise<{ deleted: boolean; deleted_count: number }> {
+  async deleteProjectItemByTarget(
+    projectId: string,
+    itemType: "embed" | "chat" | "workflow",
+    targetId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ deleted: boolean; deleted_count: number }> {
     this.requireSession();
     const params = new URLSearchParams({ item_type: itemType, target_id: targetId });
     const response = await this.http.delete<{ deleted?: boolean; deleted_count?: number }>(
-      `/v1/projects/${encodeURIComponent(projectId)}/items?${params.toString()}`,
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items?${params.toString()}`, options),
       undefined,
       this.getCliRequestHeaders(),
     );
