@@ -37,8 +37,11 @@ The Docker-backed backend remains under dev-host control. An operator runs
 after core services are recreated and healthy does that command publish the
 `Dev Release Candidate / Prepared` status on the exact commit. The preparation
 command uses the existing local Vercel API gate to prove the exact dev SHA is
-Ready before it recreates Docker services. GitHub reads this attestation and the
-Vercel commit status before browser jobs start; it receives neither credential.
+Ready before it recreates Docker services with the root `.env` interpolation
+contract. It then runs the cloud-overlay boot check so disabled billing routes or
+missing worker markers fail before success is published. GitHub reads this
+attestation and the Vercel commit status before browser jobs start; it receives
+neither credential.
 
 The release workflow uses accounts 1-4 and the reusable Playwright workflow
 serializes all runs by account number. This prevents release, hourly, nightly,

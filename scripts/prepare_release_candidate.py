@@ -27,6 +27,7 @@ CORE_SERVICES = ("api", "task-worker", "task-scheduler", "app-ai-worker")
 BACKEND_RUNTIME_PATHS = ("backend", "shared", "frontend/packages/ui/src/i18n")
 RELEASE_STATUS_CONTEXT = "Dev Release Candidate / Prepared"
 API_HEALTH_URL = "https://api.dev.openmates.org/health"
+DEV_API_URL = "https://api.dev.openmates.org"
 HEALTH_TIMEOUT_SECONDS = 120
 HEALTH_POLL_SECONDS = 5
 
@@ -97,6 +98,8 @@ def compose_prepare_command() -> list[str]:
     return [
         "docker",
         "compose",
+        "--env-file",
+        ".env",
         "-f",
         COMPOSE_FILE,
         "up",
@@ -191,6 +194,20 @@ def wait_for_health() -> None:
     )
 
 
+def verify_cloud_overlay() -> None:
+    """Fail attestation unless hosted dev billing routes and worker markers are active."""
+    run_command(
+        [
+            sys.executable,
+            "scripts/api_tests/test_cloud_overlay_boot.py",
+            "--api-url",
+            DEV_API_URL,
+            "--cli-overlay",
+            "--redact",
+        ]
+    )
+
+
 def prepare_release_candidate(session: str, expected_commit: str = "") -> str:
     run_command(["git", "fetch", "origin", "dev"])
     commit = preflight_release_candidate(expected_commit)
@@ -202,6 +219,7 @@ def prepare_release_candidate(session: str, expected_commit: str = "") -> str:
         lock_acquired = True
         run_command(compose_prepare_command())
         wait_for_health()
+        verify_cloud_overlay()
         publish_status(commit, "success", "Exact frontend and core dev services are healthy")
         return commit
     except Exception as exc:

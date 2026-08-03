@@ -199,7 +199,7 @@ acceptance_criteria:
     verification_ids: [T-PY-CORE-GATE, V-WORKFLOW]
   - id: AC-4
     scenario: S-3
-    text: Dev-host preparation verifies dev alignment, recreates core services under the Docker lock, health-checks them, and publishes status for the exact commit.
+    text: Dev-host preparation verifies dev alignment, recreates core services with root environment interpolation under the Docker lock, health-checks hosted billing, and publishes status for the exact commit.
     required: true
     status: pending
     coverage_status: covered

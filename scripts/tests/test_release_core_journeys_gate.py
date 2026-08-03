@@ -153,7 +153,9 @@ def test_backend_attestation_preflight_fails_closed(monkeypatch: pytest.MonkeyPa
         prepare.preflight_release_candidate()
 
 
-def test_backend_attestation_uses_lock_services_health_and_exact_status() -> None:
+def test_backend_attestation_uses_lock_services_health_and_exact_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     prepare = load_module(
         "release_gate_prepare_contract",
         ROOT / "scripts" / "prepare_release_candidate.py",
@@ -169,6 +171,23 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status() -> Non
     assert prepare.lock_command("f563", acquire=True)[-4:] == ["--session", "f563", "--type", "docker"]
     assert "--force-recreate" in prepare.compose_prepare_command()
     assert "--build" in prepare.compose_prepare_command()
+    assert prepare.compose_prepare_command()[2:4] == ["--env-file", ".env"]
+    commands: list[list[str]] = []
+    monkeypatch.setattr(
+        prepare,
+        "run_command",
+        lambda command, **_kwargs: commands.append(list(command))
+        or prepare.CommandResult(0, "", ""),
+    )
+    prepare.verify_cloud_overlay()
+    assert commands == [[
+        sys.executable,
+        "scripts/api_tests/test_cloud_overlay_boot.py",
+        "--api-url",
+        prepare.DEV_API_URL,
+        "--cli-overlay",
+        "--redact",
+    ]]
     status = prepare.github_status_command(
         "b" * 40,
         "success",
