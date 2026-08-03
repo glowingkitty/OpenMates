@@ -1,0 +1,55 @@
+{
+  "fingerprint": "a5047fde37594300",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "math_calculate_web",
+  "recorded_at": "2026-08-03T13:06:47.191100+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 3,
+    "temperature": 0.0,
+    "tool_choice": "auto",
+    "last_message_hash": "cfa6d4f63039f129",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Calculate the square root of 144"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "math-calculate-778284c7",
+          "function_name": "math-calculate",
+          "function_arguments_raw": "{\"mode\": \"auto\", \"expression\": \"sqrt(144)\", \"title\": \"Square root of 144\"}",
+          "function_arguments_parsed": {
+            "mode": "auto",
+            "expression": "sqrt(144)",
+            "title": "Square root of 144"
+          },
+          "parsing_error": null,
+          "thought_signature": "EjQKMgERTTIPZ1mOBcANeNuavHBHNsGxsVsVauNbfy/8fj+gIR+kWVN//1EFGnn4ePIudSc1"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 13397,
+          "candidates_token_count": 39,
+          "total_token_count": 13436,
+          "user_input_tokens": 9,
+          "system_prompt_tokens": 12501
+        }
+      }
+    ]
+  }
+}

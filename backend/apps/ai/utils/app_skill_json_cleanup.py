@@ -1,8 +1,7 @@
 # backend/apps/ai/utils/app_skill_json_cleanup.py
 #
 # Utilities for removing app-skill transport metadata from assistant-visible
-# markdown. App-skill embed records are persisted separately; the raw JSON fence
-# is only a streaming transport detail and should not be saved as message text.
+# markdown while preserving a renderable reference to standalone parent embeds.
 
 from __future__ import annotations
 
@@ -14,13 +13,13 @@ import re
 logger = logging.getLogger(__name__)
 
 APP_SKILL_EMBED_REFERENCE_FENCE_PATTERN = re.compile(
-    r'```(?:json|json_embed)\s*\n\s*(\{[^`]*?"embed_id"\s*:\s*"([^"]+)"[^`]*?\})\s*\n```',
+    r"```(?:json|json_embed)\s*\n\s*(\{.*?\})\s*\n```",
     re.DOTALL,
 )
 
 
 def strip_successful_app_skill_json_blocks(text: str, log_prefix: str = "") -> str:
-    """Remove assistant-visible app-skill transport fences after embeds are persisted."""
+    """Remove app-skill JSON while keeping standalone parent embeds renderable."""
     if not text:
         return text
 
@@ -40,7 +39,7 @@ def strip_successful_app_skill_json_blocks(text: str, log_prefix: str = "") -> s
             return match.group(0)
 
         stripped_count += 1
-        return ""
+        return f"[!](embed:{embed_id.strip()})"
 
     cleaned = APP_SKILL_EMBED_REFERENCE_FENCE_PATTERN.sub(replace_match, text)
     if stripped_count == 0:
