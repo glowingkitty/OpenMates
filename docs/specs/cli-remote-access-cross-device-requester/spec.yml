@@ -124,7 +124,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 7674f6767c143996d22851eb1a75106353a6deda
+  subject_commit: 51fdd17559765f0d2a127c12702b4a214b3a1ec3
 
 approvals:
   product_contract:
@@ -192,7 +192,7 @@ handoff:
   command: python3 scripts/spec_validate.py docs/specs/cli-remote-access-cross-device-requester/spec.yml
   expected_outcome: Schema V2 structure and all references pass validation.
   blocker: null
-  last_verified_commit: 7674f6767c143996d22851eb1a75106353a6deda
+  last_verified_commit: 51fdd17559765f0d2a127c12702b4a214b3a1ec3
 
 scenarios:
   - id: S-1
@@ -607,11 +607,14 @@ verifications:
     kind: deterministic_check
     phase: final
     required_for_done: false
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      command: python3 scripts/spec_validate.py docs/specs/cli-remote-access-cross-device-requester/spec.yml
+      run_id: local-spec-validate-2026-08-03T12:39:42Z
+      subject_commit: 51fdd17559765f0d2a127c12702b4a214b3a1ec3
+      summary: Schema V2 structure and all scenario, criterion, test, verification, and task references passed.
+      timestamp: "2026-08-03T12:39:42Z"
   - id: V-NO-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: not_applicable
