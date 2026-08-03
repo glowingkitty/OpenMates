@@ -14336,6 +14336,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .center-content.guest-all-examples-content {
         top: calc(50% - 10px);
+        height: calc(100% - 20px);
     }
 
     .daily-inspiration-area.guest-all-examples-hidden {
@@ -14514,7 +14515,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .guest-all-examples-view {
         width: min(100% - 32px, 1120px);
-        max-height: min(72vh, 800px);
+        height: 100%;
+        max-height: none;
         display: flex;
         flex-direction: column;
         pointer-events: auto;
@@ -14635,7 +14637,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         .guest-all-examples-view {
             width: min(100% - 24px, 520px);
-            max-height: 72vh;
         }
 
         .guest-all-examples-toolbar {
