@@ -34,6 +34,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.account.listInterests()` | `om.account.list_interests()` | `none` | `none` | `object` |
 | `om.account.parseChatGPTImport()` | `om.account.parse_chatgpt_import()` | `input, source_name` | `input, source_name` | `object` |
 | `om.account.parseClaudeImport()` | `om.account.parse_claude_import()` | `input, source_name` | `input, source_name` | `object` |
+| `om.account.parseOpenCodeImport()` | `om.account.parse_opencode_import()` | `input, source_name` | `input, source_name` | `object` |
 | `om.account.parseOpenMatesImport()` | `om.account.parse_openmates_import()` | `input, source_name, password` | `input, source_name, password` | `object` |
 | `om.account.persistImport()` | `om.account.persist_import()` | `import_id, chats` | `import_id, chats` | `object` |
 | `om.account.previewImport()` | `om.account.preview_import()` | `source, chats, chat_count, source_fingerprints, estimated_tokens, estimated_bytes` | `source, chats, chat_count, source_fingerprints, estimated_tokens, estimated_bytes` | `object` |

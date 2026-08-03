@@ -132,6 +132,44 @@ def test_account_import_parses_chatgpt_official_export():
     assert "Synthetic" not in parsed["chats"][0]["source_fingerprint"]
 
 
+def test_account_import_parses_opencode_cli_transcript_export():
+    client = OpenMates(api_key="sk-api-test")
+    parsed = client.account.parse_opencode_import(json.dumps({
+        "info": {
+            "id": "ses_opencode_1",
+            "title": "Synthetic OpenCode session",
+            "time": {"created": 1785000000000, "updated": 1785000010000},
+        },
+        "messages": [
+            {
+                "info": {"id": "msg_user_1", "role": "user", "time": {"created": 1785000001000}},
+                "parts": [
+                    {"id": "part_user", "type": "text", "text": "Synthetic OpenCode user text."},
+                    {"id": "part_file", "type": "file", "filename": "notes.txt", "mime": "text/plain", "url": "data:text/plain;base64,cHJpdmF0ZQ=="},
+                ],
+            },
+            {
+                "info": {"id": "msg_assistant_1", "role": "assistant", "time": {"created": 1785000002000}},
+                "parts": [
+                    {"id": "part_reasoning", "type": "reasoning", "text": "Private reasoning must not import."},
+                    {"id": "part_assistant", "type": "text", "text": "Synthetic OpenCode assistant text."},
+                    {"id": "part_tool", "type": "tool", "state": {"status": "completed", "output": "Tool output must not import."}},
+                ],
+            },
+        ],
+    }))
+
+    assert parsed["source"] == "opencode"
+    assert parsed["chats"][0]["provider"] == "opencode"
+    assert [message["content"] for message in parsed["chats"][0]["messages"]] == [
+        "Synthetic OpenCode user text.",
+        "Synthetic OpenCode assistant text.",
+    ]
+    assert "Private reasoning must not import." not in json.dumps(parsed)
+    assert "Tool output must not import." not in json.dumps(parsed)
+    assert "cHJpdmF0ZQ==" not in json.dumps(parsed)
+
+
 def test_account_import_sdk_encrypts_and_uses_shared_endpoints(monkeypatch):
     api_key = "sk-api-test-import"
     requests_seen: list[tuple[str, str, dict[str, Any] | None]] = []

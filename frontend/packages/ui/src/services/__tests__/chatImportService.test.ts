@@ -591,4 +591,52 @@ describe("chatImportService Account Import V1", () => {
     expect(JSON.stringify(parsed)).not.toContain("This branch must not import");
     expect(parsed.chats[0].uploads).toEqual([]);
   });
+
+  it("parses OpenCode CLI transcript exports without importing reasoning or tool output", async () => {
+    const service = await import("../chatImportService");
+    const file = {
+      name: "opencode-session.json",
+      text: async () => JSON.stringify({
+        info: {
+          id: "ses_opencode_1",
+          title: "Synthetic OpenCode session",
+          time: { created: 1785000000000, updated: 1785000010000 },
+        },
+        messages: [
+          {
+            info: { id: "msg_user_1", role: "user", time: { created: 1785000001000 } },
+            parts: [
+              { id: "part_user_text", type: "text", text: "Synthetic OpenCode user text." },
+              { id: "part_file", type: "file", filename: "notes.txt", mime: "text/plain", url: "data:text/plain;base64,cHJpdmF0ZQ==" },
+            ],
+          },
+          {
+            info: { id: "msg_assistant_1", role: "assistant", time: { created: 1785000002000 } },
+            parts: [
+              { id: "part_reasoning", type: "reasoning", text: "Private reasoning must not import." },
+              { id: "part_assistant_text", type: "text", text: "Synthetic OpenCode assistant text." },
+              { id: "part_tool", type: "tool", state: { status: "completed", output: "Tool output must not import." } },
+            ],
+          },
+        ],
+      }),
+    } as File;
+
+    const parsed = await service.parseImportFile(file);
+
+    expect(parsed.source).toBe("opencode");
+    expect(parsed.fileType).toBe("opencode-json");
+    expect(parsed.chats[0].provider).toBe("opencode");
+    expect(parsed.chats[0].source_chat_id).toBe("ses_opencode_1");
+    expect(parsed.chats[0].title).toBe("Synthetic OpenCode session");
+    expect(parsed.chats[0].messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+    expect(parsed.chats[0].messages.map((message) => message.content)).toEqual([
+      "Synthetic OpenCode user text.",
+      "Synthetic OpenCode assistant text.",
+    ]);
+    expect(parsed.chats[0].uploads).toEqual([]);
+    expect(JSON.stringify(parsed)).not.toContain("cHJpdmF0ZQ==");
+    expect(JSON.stringify(parsed)).not.toContain("Private reasoning must not import.");
+    expect(JSON.stringify(parsed)).not.toContain("Tool output must not import.");
+  });
 });

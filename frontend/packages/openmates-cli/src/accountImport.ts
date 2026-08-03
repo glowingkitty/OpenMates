@@ -1,7 +1,7 @@
 /*
  * Account Import V1 CLI parsing helpers.
  *
- * Purpose: normalize user-provided Claude/ChatGPT/OpenMates export archives before the
+ * Purpose: normalize user-provided Claude/ChatGPT/OpenCode/OpenMates exports before the
  * CLI calls the backend preview and transient scan endpoints.
  * Architecture: docs/specs/account-import-v1/spec.yml.
  * Security: source fingerprints are one-way hashes; raw provider exports stay
@@ -14,7 +14,7 @@ import JSZip from "jszip";
 const ENCRYPTED_ZIP_MAGIC = "OMZIP1";
 const ENCRYPTED_ZIP_KEY_BYTES = 32;
 
-export type AccountImportSource = "claude" | "chatgpt" | "openmates";
+export type AccountImportSource = "claude" | "chatgpt" | "opencode" | "openmates";
 
 export interface ParsedImportMessage {
   role: "user" | "assistant" | "system";
@@ -277,6 +277,67 @@ export async function parseChatGPTImportBuffer(payload: Buffer, sourceName = "ch
     } satisfies ParsedImportChat;
   });
   return { source: "chatgpt", chats, skippedDomains: [] };
+}
+
+function openCodeTimestamp(value: unknown): string | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? new Date(value).toISOString() : null;
+}
+
+export async function parseOpenCodeImportBuffer(payload: Buffer, sourceName = "opencode-session.json"): Promise<ParsedAccountImport> {
+  let transcript: unknown;
+  try {
+    transcript = JSON.parse(payload.toString("utf-8"));
+  } catch (error) {
+    throw new Error(`OpenCode transcript export could not be parsed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!transcript || typeof transcript !== "object" || Array.isArray(transcript)) throw new Error("OpenCode transcript export must be an object");
+  const record = transcript as Record<string, unknown>;
+  const info = record.info && typeof record.info === "object" ? record.info as Record<string, unknown> : null;
+  const rawMessages = Array.isArray(record.messages) ? record.messages : null;
+  const sourceChatId = String(info?.id ?? "");
+  if (!info || !sourceChatId || !rawMessages) throw new Error("OpenCode transcript export is missing info.id or messages");
+
+  const messages: ParsedImportMessage[] = [];
+  for (const item of rawMessages) {
+    if (!item || typeof item !== "object") continue;
+    const message = item as Record<string, unknown>;
+    const messageInfo = message.info && typeof message.info === "object" ? message.info as Record<string, unknown> : {};
+    const role = String(messageInfo.role ?? "");
+    if (role !== "user" && role !== "assistant") continue;
+    const parts = Array.isArray(message.parts)
+      ? message.parts.filter((part): part is Record<string, unknown> => Boolean(part && typeof part === "object"))
+      : [];
+    const textParts = parts.filter((part) => part.type === "text" && part.ignored !== true && typeof part.text === "string");
+    const content = textParts.map((part) => String(part.text)).filter((text) => text.trim()).join("\n");
+    if (content.trim()) {
+      const time = messageInfo.time && typeof messageInfo.time === "object" ? messageInfo.time as Record<string, unknown> : {};
+      messages.push({
+        role,
+        content,
+        created_at: openCodeTimestamp(time.created),
+        source_message_id: typeof messageInfo.id === "string" ? messageInfo.id : null,
+        provider_metadata: { part_types: parts.map((part) => String(part.type ?? "unknown")), text_part_count: textParts.length },
+      });
+    }
+  }
+  const time = info.time && typeof info.time === "object" ? info.time as Record<string, unknown> : {};
+  return {
+    source: "opencode",
+    chats: [{
+      provider: "opencode",
+      source_chat_id: sourceChatId,
+      source_fingerprint: fingerprint("opencode", sourceChatId, messages),
+      title: typeof info.title === "string" ? info.title : null,
+      created_at: openCodeTimestamp(time.created),
+      updated_at: openCodeTimestamp(time.updated),
+      messages,
+      embeds: [],
+      uploads: [],
+      provider_labels: ["opencode"],
+      source_metadata: { source_name: sourceName, message_count: messages.length },
+    }],
+    skippedDomains: [],
+  };
 }
 
 function parseOpenMatesManifestDomains(manifestText: string): string[] {

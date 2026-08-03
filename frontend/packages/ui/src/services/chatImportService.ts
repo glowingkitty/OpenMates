@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/services/chatImportService.ts
 //
 // Account Import V1 browser service for Settings -> Account -> Import.
-// Parses Claude/ChatGPT official exports and OpenMates Export V1 archives locally,
+// Parses Claude/ChatGPT/OpenCode exports and OpenMates Export V1 archives locally,
 // then uses the preview -> scan -> client-encrypt -> persist-encrypted ->
 // complete control-plane contract. Permanent server persistence must receive
 // only client-encrypted private chat/message fields.
@@ -19,8 +19,8 @@ import type { Chat, Message } from "../types/chat";
 const DEFAULT_TITLE = "Imported chat";
 const CHARS_PER_TOKEN = 4;
 
-export type AccountImportSource = "claude" | "chatgpt" | "openmates";
-export type ImportFileType = "claude-json" | "claude-zip" | "chatgpt-json" | "chatgpt-zip" | "openmates-zip";
+export type AccountImportSource = "claude" | "chatgpt" | "opencode" | "openmates";
+export type ImportFileType = "claude-json" | "claude-zip" | "chatgpt-json" | "chatgpt-zip" | "opencode-json" | "openmates-zip";
 
 export interface ParsedImportMessage {
   role: "user" | "assistant" | "system";
@@ -187,7 +187,7 @@ export async function parseImportFile(
 
   if (!lowerName.endsWith(".zip")) {
     throw new Error(
-      "Unsupported import file. Choose a Claude/ChatGPT export .zip/.json file or an OpenMates Export V1 .zip archive.",
+      "Unsupported import file. Choose a Claude/ChatGPT/OpenCode export .zip/.json file or an OpenMates Export V1 .zip archive.",
     );
   }
 
@@ -446,7 +446,11 @@ function claudeUploads(message: Record<string, unknown>): ParsedImportUpload[] {
     });
 }
 
-function providerConversationSource(raw: unknown): "claude" | "chatgpt" | null {
+function providerConversationSource(raw: unknown): "claude" | "chatgpt" | "opencode" | null {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const record = raw as Record<string, unknown>;
+    if (record.info && typeof record.info === "object" && Array.isArray(record.messages)) return "opencode";
+  }
   const conversations = Array.isArray(raw)
     ? raw
     : raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).conversations)
@@ -466,7 +470,79 @@ async function parseProviderConversations(
 ): Promise<ParsedAccountImport> {
   const source = providerConversationSource(raw);
   if (source === "chatgpt") return parseChatGPTConversations(raw, container === "zip" ? "chatgpt-zip" : "chatgpt-json", sourceName);
+  if (source === "opencode") return parseOpenCodeTranscript(raw, sourceName);
   return parseClaudeConversations(raw, container === "zip" ? "claude-zip" : "claude-json", sourceName);
+}
+
+function openCodeTimestamp(value: unknown): string | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? new Date(value).toISOString()
+    : null;
+}
+
+async function parseOpenCodeTranscript(
+  raw: unknown,
+  sourceName: string,
+): Promise<ParsedAccountImport> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("OpenCode transcript export must be an object.");
+  }
+  const transcript = raw as Record<string, unknown>;
+  const info = transcript.info && typeof transcript.info === "object"
+    ? transcript.info as Record<string, unknown>
+    : null;
+  const rawMessages = Array.isArray(transcript.messages) ? transcript.messages : null;
+  const sourceChatId = String(info?.id ?? "");
+  if (!info || !sourceChatId || !rawMessages) {
+    throw new Error("OpenCode transcript export is missing info.id or messages.");
+  }
+
+  const messages: ParsedImportMessage[] = [];
+  for (const item of rawMessages) {
+    if (!item || typeof item !== "object") continue;
+    const message = item as Record<string, unknown>;
+    const messageInfo = message.info && typeof message.info === "object"
+      ? message.info as Record<string, unknown>
+      : {};
+    const role = String(messageInfo.role ?? "");
+    if (role !== "user" && role !== "assistant") continue;
+    const parts = Array.isArray(message.parts)
+      ? message.parts.filter((part): part is Record<string, unknown> => Boolean(part && typeof part === "object"))
+      : [];
+    const textParts = parts.filter((part) => part.type === "text" && part.ignored !== true && typeof part.text === "string");
+    const content = textParts.map((part) => String(part.text)).filter((text) => text.trim()).join("\n");
+    if (content.trim()) {
+      const time = messageInfo.time && typeof messageInfo.time === "object"
+        ? messageInfo.time as Record<string, unknown>
+        : {};
+      messages.push({
+        role,
+        content,
+        created_at: openCodeTimestamp(time.created),
+        source_message_id: typeof messageInfo.id === "string" ? messageInfo.id : null,
+        provider_metadata: {
+          part_types: parts.map((part) => String(part.type ?? "unknown")),
+          text_part_count: textParts.length,
+        },
+      });
+    }
+  }
+
+  const time = info.time && typeof info.time === "object" ? info.time as Record<string, unknown> : {};
+  const chat: ParsedImportChat = {
+    provider: "opencode",
+    source_chat_id: sourceChatId,
+    source_fingerprint: await stableFingerprint("opencode", sourceChatId, messages),
+    title: typeof info.title === "string" ? info.title : null,
+    created_at: openCodeTimestamp(time.created),
+    updated_at: openCodeTimestamp(time.updated),
+    messages,
+    embeds: [],
+    uploads: [],
+    provider_labels: ["opencode"],
+    source_metadata: { source_name: sourceName, message_count: messages.length },
+  };
+  return { source: "opencode", fileType: "opencode-json", chats: [chat], skippedDomains: [] };
 }
 
 async function parseClaudeConversations(

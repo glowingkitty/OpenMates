@@ -281,6 +281,69 @@ def parse_chatgpt_export_bytes(payload: bytes, *, source_name: str) -> list[dict
     return normalized
 
 
+def _opencode_timestamp(value: Any) -> str | None:
+    if not isinstance(value, int | float) or value <= 0:
+        return None
+    return datetime.fromtimestamp(float(value) / 1000, UTC).isoformat().replace("+00:00", "Z")
+
+
+def parse_opencode_export_bytes(payload: bytes, *, source_name: str) -> list[dict[str, Any]]:
+    """Parse JSON emitted by `opencode export` into one normalized chat."""
+
+    try:
+        transcript = json.loads(payload.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ImportParseError(f"OpenCode transcript export {source_name} could not be parsed") from exc
+    if not isinstance(transcript, dict):
+        raise ImportParseError("OpenCode transcript export must be an object")
+    info = transcript.get("info")
+    raw_messages = transcript.get("messages")
+    if not isinstance(info, dict) or not isinstance(raw_messages, list) or not info.get("id"):
+        raise ImportParseError("OpenCode transcript export is missing info.id or messages")
+
+    messages: list[dict[str, Any]] = []
+    for item in raw_messages:
+        if not isinstance(item, dict):
+            continue
+        message_info = item.get("info") if isinstance(item.get("info"), dict) else {}
+        role = str(message_info.get("role") or "")
+        if role not in {"user", "assistant"}:
+            continue
+        parts = [part for part in item.get("parts") or [] if isinstance(part, dict)]
+        text_parts = [
+            part for part in parts
+            if part.get("type") == "text" and part.get("ignored") is not True and isinstance(part.get("text"), str)
+        ]
+        content = "\n".join(str(part["text"]) for part in text_parts if str(part["text"]).strip())
+        if content.strip():
+            time = message_info.get("time") if isinstance(message_info.get("time"), dict) else {}
+            messages.append({
+                "role": role,
+                "content": content,
+                "created_at": _opencode_timestamp(time.get("created")),
+                "source_message_id": message_info.get("id") if isinstance(message_info.get("id"), str) else None,
+                "provider_metadata": {
+                    "part_types": [str(part.get("type") or "unknown") for part in parts],
+                    "text_part_count": len(text_parts),
+                },
+            })
+    source_chat_id = str(info["id"])
+    time = info.get("time") if isinstance(info.get("time"), dict) else {}
+    return [{
+        "provider": "opencode",
+        "source_chat_id": source_chat_id,
+        "source_fingerprint": _stable_fingerprint("opencode", source_chat_id, messages),
+        "title": info.get("title") if isinstance(info.get("title"), str) else None,
+        "created_at": _opencode_timestamp(time.get("created")),
+        "updated_at": _opencode_timestamp(time.get("updated")),
+        "messages": messages,
+        "embeds": [],
+        "uploads": [],
+        "provider_labels": ["opencode"],
+        "source_metadata": {"source_name": source_name, "message_count": len(messages)},
+    }]
+
+
 def _load_openmates_archive(payload: bytes) -> dict[str, str]:
     try:
         with zipfile.ZipFile(BytesIO(payload)) as archive:

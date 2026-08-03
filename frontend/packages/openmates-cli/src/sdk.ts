@@ -29,6 +29,7 @@ import {
 import {
   parseClaudeImportBuffer,
   parseChatGPTImportBuffer,
+  parseOpenCodeImportBuffer,
   parseOpenMatesImportBuffer,
   type AccountImportSource,
   type ParsedAccountImport,
@@ -2540,6 +2541,11 @@ export class OpenMatesAccount {
   async parseChatGPTImport(payload: Buffer | Uint8Array | string, sourceName = "chatgpt-export"): Promise<ParsedAccountImport> {
     const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
     return parseChatGPTImportBuffer(buffer, sourceName);
+  }
+
+  async parseOpenCodeImport(payload: Buffer | Uint8Array | string, sourceName = "opencode-session.json"): Promise<ParsedAccountImport> {
+    const buffer = typeof payload === "string" ? Buffer.from(payload, "utf-8") : Buffer.from(payload);
+    return parseOpenCodeImportBuffer(buffer, sourceName);
   }
 
   async parseOpenMatesImport(payload: Buffer | Uint8Array | string, sourceName = "openmates-export.zip", password?: string): Promise<ParsedAccountImport> {

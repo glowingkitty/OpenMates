@@ -43,6 +43,21 @@ describe("account import npm SDK", () => {
     assert.deepEqual(parsed.chats[0].messages.map((message) => message.role), ["user", "assistant"]);
   });
 
+  it("exposes OpenCode transcript parsing through the account facade", async () => {
+    const client = new OpenMates({ apiKey: "sk-api-test", apiUrl: "http://127.0.0.1:9", deviceId: "sdk-opencode-test" });
+    const parsed = await client.account.parseOpenCodeImport(JSON.stringify({
+      info: { id: "ses_opencode_1", title: "Synthetic OpenCode SDK chat", time: { created: 1785000000000 } },
+      messages: [{
+        info: { id: "msg_user_1", role: "user", time: { created: 1785000001000 } },
+        parts: [{ id: "part_user_1", type: "text", text: "Synthetic OpenCode SDK user text." }],
+      }],
+    }));
+
+    assert.equal(parsed.source, "opencode");
+    assert.equal(parsed.chats[0].provider, "opencode");
+    assert.equal(parsed.chats[0].messages[0].content, "Synthetic OpenCode SDK user text.");
+  });
+
   it("parses, previews, scans, encrypts, persists, and completes imports", async () => {
     const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
     const masterKeyB64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";

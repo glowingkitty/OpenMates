@@ -32,6 +32,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `account` | `om.account.listInterests()` | `om.account.list_interests()` | direct | direct |
 | `account` | `om.account.parseChatGPTImport()` | `om.account.parse_chatgpt_import()` | direct | direct |
 | `account` | `om.account.parseClaudeImport()` | `om.account.parse_claude_import()` | direct | direct |
+| `account` | `om.account.parseOpenCodeImport()` | `om.account.parse_opencode_import()` | direct | direct |
 | `account` | `om.account.parseOpenMatesImport()` | `om.account.parse_openmates_import()` | direct | direct |
 | `account` | `om.account.persistImport()` | `om.account.persist_import()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.previewImport()` | `om.account.preview_import()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |

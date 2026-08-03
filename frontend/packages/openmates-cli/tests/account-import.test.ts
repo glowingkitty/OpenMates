@@ -21,7 +21,7 @@ process.env.HOME = tempHome;
 mkdirSync(join(tempHome, ".openmates"), { recursive: true, mode: 0o700 });
 
 const { OpenMatesClient } = await import("../src/client.ts");
-const { parseClaudeImportBuffer, parseChatGPTImportBuffer, parseOpenMatesImportBuffer } = await import("../src/accountImport.ts");
+const { parseClaudeImportBuffer, parseChatGPTImportBuffer, parseOpenCodeImportBuffer, parseOpenMatesImportBuffer } = await import("../src/accountImport.ts");
 
 after(() => {
   if (originalHome === undefined) delete process.env.HOME;
@@ -119,6 +119,44 @@ describe("account import parser", () => {
     assert.deepEqual(parsed.chats[0].messages[0].provider_metadata, { content_type: "multimodal_text", asset_count: 1 });
     assert.equal(JSON.stringify(parsed).includes("This branch must not import"), false);
     assert.equal(parsed.chats[0].source_fingerprint.includes("Synthetic"), false);
+  });
+
+  it("normalizes OpenCode CLI transcript exports as one chat", async () => {
+    const parsed = await parseOpenCodeImportBuffer(Buffer.from(JSON.stringify({
+      info: {
+        id: "ses_opencode_1",
+        title: "Synthetic OpenCode session",
+        time: { created: 1785000000000, updated: 1785000010000 },
+      },
+      messages: [
+        {
+          info: { id: "msg_user_1", role: "user", time: { created: 1785000001000 } },
+          parts: [
+            { id: "part_user", type: "text", text: "Synthetic OpenCode user text." },
+            { id: "part_file", type: "file", filename: "notes.txt", mime: "text/plain", url: "data:text/plain;base64,cHJpdmF0ZQ==" },
+          ],
+        },
+        {
+          info: { id: "msg_assistant_1", role: "assistant", time: { created: 1785000002000 } },
+          parts: [
+            { id: "part_reasoning", type: "reasoning", text: "Private reasoning must not import." },
+            { id: "part_assistant", type: "text", text: "Synthetic OpenCode assistant text." },
+            { id: "part_tool", type: "tool", state: { status: "completed", output: "Tool output must not import." } },
+          ],
+        },
+      ],
+    })), "opencode-session.json");
+
+    assert.equal(parsed.source, "opencode");
+    assert.equal(parsed.chats[0].provider, "opencode");
+    assert.equal(parsed.chats[0].source_chat_id, "ses_opencode_1");
+    assert.deepEqual(parsed.chats[0].messages.map((message) => message.content), [
+      "Synthetic OpenCode user text.",
+      "Synthetic OpenCode assistant text.",
+    ]);
+    assert.equal(JSON.stringify(parsed).includes("Private reasoning must not import."), false);
+    assert.equal(JSON.stringify(parsed).includes("Tool output must not import."), false);
+    assert.equal(JSON.stringify(parsed).includes("cHJpdmF0ZQ=="), false);
   });
 });
 

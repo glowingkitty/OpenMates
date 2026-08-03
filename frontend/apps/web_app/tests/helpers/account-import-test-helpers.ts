@@ -58,6 +58,33 @@ function buildClaudeExportJson(chatCount: number, options: { duplicateTitle?: st
 	})));
 }
 
+function buildOpenCodeExportJson(): string {
+	return JSON.stringify({
+		info: {
+			id: 'ses_opencode_web_1',
+			title: 'Synthetic OpenCode web import chat',
+			time: { created: 1_785_000_000_000, updated: 1_785_000_030_000 },
+		},
+		messages: [
+			{
+				info: { id: 'msg_opencode_user_1', role: 'user', time: { created: 1_785_000_001_000 } },
+				parts: [
+					{ id: 'part_opencode_user_1', type: 'text', text: 'Synthetic OpenCode web import user message' },
+					{ id: 'part_opencode_file_1', type: 'file', filename: 'private.txt', mime: 'text/plain', url: 'data:text/plain;base64,cHJpdmF0ZQ==' },
+				],
+			},
+			{
+				info: { id: 'msg_opencode_assistant_1', role: 'assistant', time: { created: 1_785_000_030_000 } },
+				parts: [
+					{ id: 'part_opencode_reasoning_1', type: 'reasoning', text: 'OpenCode reasoning must not import' },
+					{ id: 'part_opencode_assistant_1', type: 'text', text: 'Synthetic OpenCode web import assistant message' },
+					{ id: 'part_opencode_tool_1', type: 'tool', state: { status: 'completed', output: 'OpenCode tool output must not import' } },
+				],
+			},
+		],
+	});
+}
+
 function crc32(buffer: Buffer): number {
 	let crc = 0xffffffff;
 	for (const byte of buffer) {
@@ -328,6 +355,14 @@ async function uploadClaudeJson(page: any, chatCount: number, options: { duplica
 	});
 }
 
+async function uploadOpenCodeJson(page: any): Promise<void> {
+	await page.getByTestId('account-import-file-upload-input').setInputFiles({
+		name: 'opencode-session.json',
+		mimeType: 'application/json',
+		buffer: Buffer.from(buildOpenCodeExportJson(), 'utf8'),
+	});
+}
+
 async function uploadOpenMatesZip(page: any): Promise<void> {
 	await page.getByTestId('account-import-file-upload-input').setInputFiles({
 		name: 'openmates-export.zip',
@@ -359,12 +394,14 @@ function writePersistArtifacts(testInfo: any, calls: ImportMockCall[], filename:
 module.exports = {
 	buildClaudeExportJson,
 	buildChatGPTExportZip,
+	buildOpenCodeExportJson,
 	installAccountImportMock,
 	loginAndOpenImportSettings,
 	openImportSettings,
 	persistPayloads,
 	uploadChatGPTZip,
 	uploadClaudeJson,
+	uploadOpenCodeJson,
 	uploadOpenMatesZip,
 	writePersistArtifacts,
 };

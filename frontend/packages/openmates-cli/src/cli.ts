@@ -95,6 +95,7 @@ import {
 import {
   parseClaudeImportBuffer,
   parseChatGPTImportBuffer,
+  parseOpenCodeImportBuffer,
   parseOpenMatesImportBuffer,
   type ParsedAccountImport,
 } from "./accountImport.js";
@@ -6446,6 +6447,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "export", "cancel"], description: "Cancel an account export job", examples: ["openmates settings account export cancel <export-id> --json"] },
   { path: ["account", "import", "claude"], description: "Preview a Claude official export import", examples: ["openmates account import claude ./claude-export.zip --dry-run --json"] },
   { path: ["account", "import", "chatgpt"], description: "Preview a ChatGPT official export import", examples: ["openmates account import chatgpt ./chatgpt-export.zip --dry-run --json"] },
+  { path: ["account", "import", "opencode"], description: "Preview an OpenCode CLI transcript import", examples: ["openmates account import opencode ./opencode-session.json --dry-run --json"] },
   { path: ["account", "import", "openmates"], description: "Preview an OpenMates Export V1 import", examples: ["openmates account import openmates ./openmates-export.zip --domain chats --dry-run --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
@@ -6618,13 +6620,14 @@ function printAccountExportBundle(
   if (typeof archive.output === "string") process.stdout.write(`Wrote ${archive.output}\n`);
 }
 
-type AccountImportCliSource = "claude" | "chatgpt" | "openmates";
+type AccountImportCliSource = "claude" | "chatgpt" | "opencode" | "openmates";
 
 async function parseAccountImportFile(source: AccountImportCliSource, file: string, flags: Record<string, string | boolean> = {}): Promise<ParsedAccountImport> {
   const { readFile } = await import("node:fs/promises");
   const payload = await readFile(file);
   if (source === "claude") return parseClaudeImportBuffer(payload, basename(file));
   if (source === "chatgpt") return parseChatGPTImportBuffer(payload, basename(file));
+  if (source === "opencode") return parseOpenCodeImportBuffer(payload, basename(file));
   return parseOpenMatesImportBuffer(payload, basename(file), typeof flags.password === "string" ? flags.password : undefined);
 }
 
@@ -7981,7 +7984,7 @@ async function handleSettings(
     return;
   }
 
-  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "chatgpt"]) || matches(tokens, ["account", "import", "openmates"])) {
+  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "chatgpt"]) || matches(tokens, ["account", "import", "opencode"]) || matches(tokens, ["account", "import", "openmates"])) {
     const source = tokens[2] as AccountImportCliSource;
     const file = rest[2];
     if (!file) throw new Error(`Missing import file. Example: openmates account import ${source} ./export.zip --dry-run`);

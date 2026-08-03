@@ -38,7 +38,7 @@ def main() -> int:
     parser.add_argument("--env", choices=["dev", "prod"], default="dev")
     parser.add_argument(
         "--scenario",
-        choices=["claude-import", "chatgpt-import", "npm-sdk-chatgpt-import", "pip-sdk-chatgpt-import", "openmates-v1-import", "limits-and-costs", "all"],
+        choices=["claude-import", "chatgpt-import", "opencode-import", "npm-sdk-chatgpt-import", "npm-sdk-opencode-import", "pip-sdk-chatgpt-import", "pip-sdk-opencode-import", "openmates-v1-import", "limits-and-costs", "all"],
         default="claude-import",
     )
     parser.add_argument("--api-url", help="Override API URL.")
@@ -52,7 +52,7 @@ def main() -> int:
 
     run(["npm", "run", "build"], cwd=CLI_DIR)
 
-    scenarios = [args.scenario] if args.scenario != "all" else ["claude-import", "chatgpt-import", "npm-sdk-chatgpt-import", "pip-sdk-chatgpt-import", "openmates-v1-import", "limits-and-costs"]
+    scenarios = [args.scenario] if args.scenario != "all" else ["claude-import", "chatgpt-import", "opencode-import", "npm-sdk-chatgpt-import", "npm-sdk-opencode-import", "pip-sdk-chatgpt-import", "pip-sdk-opencode-import", "openmates-v1-import", "limits-and-costs"]
     results: dict[str, str] = {}
     api_key_id = ""
     try:
@@ -62,14 +62,24 @@ def main() -> int:
                 run_claude_import(api_url, work_dir)
             elif scenario == "chatgpt-import":
                 run_chatgpt_import(api_url, work_dir)
+            elif scenario == "opencode-import":
+                run_opencode_import(api_url, work_dir)
             elif scenario == "npm-sdk-chatgpt-import":
                 if not sdk_key:
                     api_key_id, sdk_key = create_api_key(api_url)
                 run_npm_sdk_chatgpt_import(api_url, sdk_key, api_key_id, work_dir)
+            elif scenario == "npm-sdk-opencode-import":
+                if not sdk_key:
+                    api_key_id, sdk_key = create_api_key(api_url)
+                run_npm_sdk_opencode_import(api_url, sdk_key, api_key_id, work_dir)
             elif scenario == "pip-sdk-chatgpt-import":
                 if not sdk_key:
                     api_key_id, sdk_key = create_api_key(api_url)
                 run_pip_sdk_chatgpt_import(api_url, sdk_key, api_key_id, work_dir)
+            elif scenario == "pip-sdk-opencode-import":
+                if not sdk_key:
+                    api_key_id, sdk_key = create_api_key(api_url)
+                run_pip_sdk_opencode_import(api_url, sdk_key, api_key_id, work_dir)
             elif scenario == "openmates-v1-import":
                 run_openmates_import_preview(api_url, work_dir)
             elif scenario == "limits-and-costs":
@@ -121,6 +131,46 @@ def run_chatgpt_import(api_url: str, work_dir: Path) -> None:
         raise RuntimeError(f"ChatGPT import did not complete three chats: {redacted(result)}")
     if persistence.get("status") != "complete":
         raise RuntimeError(f"ChatGPT import encrypted persistence did not complete: {redacted(result)}")
+
+
+def create_opencode_fixture(work_dir: Path, filename: str) -> Path:
+    fixture = work_dir / filename
+    suffix = str(int(time.time()))
+    fixture.write_text(json.dumps({
+        "info": {
+            "id": f"ses_opencode_import_{suffix}",
+            "title": "Synthetic OpenCode import chat",
+            "time": {"created": 1_785_000_000_000, "updated": 1_785_000_010_000},
+        },
+        "messages": [
+            {
+                "info": {"id": f"msg_user_{suffix}", "role": "user", "time": {"created": 1_785_000_001_000}},
+                "parts": [
+                    {"id": f"part_user_{suffix}", "type": "text", "text": "Synthetic OpenCode import user message."},
+                    {"id": f"part_file_{suffix}", "type": "file", "filename": "private.txt", "mime": "text/plain", "url": "data:text/plain;base64,cHJpdmF0ZQ=="},
+                ],
+            },
+            {
+                "info": {"id": f"msg_assistant_{suffix}", "role": "assistant", "time": {"created": 1_785_000_002_000}},
+                "parts": [
+                    {"id": f"part_reasoning_{suffix}", "type": "reasoning", "text": "Synthetic reasoning must not import."},
+                    {"id": f"part_assistant_{suffix}", "type": "text", "text": "Synthetic OpenCode import assistant message."},
+                ],
+            },
+        ],
+    }), encoding="utf-8")
+    return fixture
+
+
+def run_opencode_import(api_url: str, work_dir: Path) -> None:
+    fixture = create_opencode_fixture(work_dir, "opencode-import-synthetic.json")
+    result = run_cli_json(["account", "import", "opencode", str(fixture), "--yes", "--json"], api_url)
+    complete = result.get("complete") if isinstance(result.get("complete"), dict) else {}
+    persistence = result.get("persistence") if isinstance(result.get("persistence"), dict) else {}
+    if complete.get("status") != "complete" or int(complete.get("imported_count") or 0) != 1:
+        raise RuntimeError(f"OpenCode import did not complete one chat: {redacted(result)}")
+    if persistence.get("status") != "complete":
+        raise RuntimeError(f"OpenCode import encrypted persistence did not complete: {redacted(result)}")
 
 
 def create_chatgpt_fixture(work_dir: Path, filename: str) -> Path:
@@ -183,6 +233,33 @@ console.log(JSON.stringify({{ source: result.source, parsed_chats: parsed.chats.
         run(["node", "--input-type=module", "-e", code], cwd=ROOT, capture=True, env=env)
 
 
+def run_npm_sdk_opencode_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
+    fixture = create_opencode_fixture(work_dir, "opencode-import-npm-sdk-synthetic.json")
+    sdk_entry = (CLI_DIR / "dist/index.js").as_uri()
+    code = f"""
+import {{ OpenMates }} from {json.dumps(sdk_entry)};
+import {{ readFileSync }} from 'node:fs';
+
+const client = new OpenMates({{ apiKey: process.env.OPENMATES_API_KEY, apiUrl: process.env.OPENMATES_API_URL, deviceId: 'account-import-opencode-sdk-npm' }});
+const parsed = await client.account.parseOpenCodeImport(readFileSync(process.env.OPENMATES_IMPORT_FIXTURE), 'opencode-sdk-live.json');
+if (parsed.source !== 'opencode' || parsed.chats.length !== 1) throw new Error(`npm SDK parsed unexpected OpenCode result`);
+if (parsed.chats[0].uploads.length !== 0) throw new Error(`npm SDK retained OpenCode file payloads`);
+const result = await client.account.importChats(parsed, {{ select: 'all' }});
+if (result?.complete?.status !== 'complete' || result?.complete?.imported_count !== 1) throw new Error(`npm SDK OpenCode import did not complete exactly one chat`);
+console.log(JSON.stringify({{ source: result.source, parsed_chats: parsed.chats.length, imported_count: result.complete.imported_count }}));
+"""
+    env = {**os.environ, "OPENMATES_API_KEY": api_key, "OPENMATES_API_URL": api_url, "OPENMATES_IMPORT_FIXTURE": str(fixture)}
+    try:
+        run(["node", "--input-type=module", "-e", code], cwd=ROOT, capture=True, env=env)
+    except RuntimeError as error:
+        if not _is_device_approval_error(error):
+            raise
+        approved = _approve_pending_key_devices(api_url, api_key_id, {"npm"})
+        if not approved:
+            raise RuntimeError("No pending npm SDK device was available to approve") from error
+        run(["node", "--input-type=module", "-e", code], cwd=ROOT, capture=True, env=env)
+
+
 def run_pip_sdk_chatgpt_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
     fixture = create_chatgpt_fixture(work_dir, "chatgpt-import-pip-sdk-synthetic.zip")
     code = """
@@ -205,6 +282,43 @@ if complete.get("status") != "complete" or complete.get("imported_count") != 3:
 if persistence.get("status") != "complete":
     raise SystemExit(f"pip SDK encrypted persistence status was {persistence.get('status')}")
 print(json.dumps({"source": result.get("source"), "parsed_chats": len(parsed.get("chats") or []), "imported_count": complete.get("imported_count"), "persistence_status": persistence.get("status")}))
+"""
+    env = {
+        **os.environ,
+        "OPENMATES_API_KEY": api_key,
+        "OPENMATES_API_URL": api_url,
+        "OPENMATES_IMPORT_FIXTURE": str(fixture),
+        "PYTHONPATH": str(ROOT / "packages/openmates-python"),
+    }
+    try:
+        run(["python3", "-c", code], cwd=ROOT, capture=True, env=env)
+    except RuntimeError as error:
+        if not _is_device_approval_error(error):
+            raise
+        approved = _approve_pending_key_devices(api_url, api_key_id, {"pip"})
+        if not approved:
+            raise RuntimeError("No pending pip SDK device was available to approve") from error
+        run(["python3", "-c", code], cwd=ROOT, capture=True, env=env)
+
+
+def run_pip_sdk_opencode_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
+    fixture = create_opencode_fixture(work_dir, "opencode-import-pip-sdk-synthetic.json")
+    code = """
+from pathlib import Path
+from openmates import OpenMates
+import os
+
+client = OpenMates(api_key=os.environ["OPENMATES_API_KEY"], api_url=os.environ["OPENMATES_API_URL"], device_id="account-import-opencode-sdk-pip")
+parsed = client.account.parse_opencode_import(Path(os.environ["OPENMATES_IMPORT_FIXTURE"]).read_bytes(), "opencode-sdk-live.json")
+if parsed.get("source") != "opencode" or len(parsed.get("chats") or []) != 1:
+    raise SystemExit("pip SDK parsed unexpected OpenCode result")
+if parsed["chats"][0].get("uploads"):
+    raise SystemExit("pip SDK retained OpenCode file payloads")
+result = client.account.import_chats(parsed, select="all")
+complete = result.get("complete") or {}
+if complete.get("status") != "complete" or complete.get("imported_count") != 1:
+    raise SystemExit("pip SDK OpenCode import did not complete exactly one chat")
+print("OpenCode pip SDK import passed")
 """
     env = {
         **os.environ,

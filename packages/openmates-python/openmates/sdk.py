@@ -960,6 +960,12 @@ def _chatgpt_timestamp(value: Any) -> str | None:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(float(value)))
 
 
+def _opencode_timestamp(value: Any) -> str | None:
+    if not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        return None
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(float(value) / 1000))
+
+
 def _chatgpt_message_content(content: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     parts = content.get("parts") if isinstance(content.get("parts"), list) else []
     text_parts: list[str] = []
@@ -4194,6 +4200,56 @@ class OpenMatesAccount:
                 "source_metadata": {"source_name": source_name, "message_count": len(messages)},
             })
         return {"source": "chatgpt", "chats": chats, "skipped_domains": []}
+
+    def parse_opencode_import(self, payload: bytes | str, source_name: str = "opencode-session.json") -> dict[str, Any]:
+        raw = payload.encode("utf-8") if isinstance(payload, str) else payload
+        try:
+            transcript = json.loads(raw.decode("utf-8"))
+        except Exception as exc:
+            raise OpenMatesConfigError(f"OpenCode transcript export could not be parsed: {exc}") from exc
+        if not isinstance(transcript, dict):
+            raise OpenMatesConfigError("OpenCode transcript export must be an object")
+        info = transcript.get("info")
+        raw_messages = transcript.get("messages")
+        if not isinstance(info, dict) or not isinstance(raw_messages, list) or not info.get("id"):
+            raise OpenMatesConfigError("OpenCode transcript export is missing info.id or messages")
+
+        messages: list[dict[str, Any]] = []
+        for item in raw_messages:
+            if not isinstance(item, dict):
+                continue
+            message_info = item.get("info") if isinstance(item.get("info"), dict) else {}
+            role = str(message_info.get("role") or "")
+            if role not in {"user", "assistant"}:
+                continue
+            parts = [part for part in item.get("parts", []) if isinstance(part, dict)] if isinstance(item.get("parts"), list) else []
+            text_parts = [part for part in parts if part.get("type") == "text" and part.get("ignored") is not True and isinstance(part.get("text"), str)]
+            content = "\n".join(str(part["text"]) for part in text_parts if str(part["text"]).strip())
+            if content.strip():
+                message_time = message_info.get("time") if isinstance(message_info.get("time"), dict) else {}
+                messages.append({
+                    "role": role,
+                    "content": content,
+                    "created_at": _opencode_timestamp(message_time.get("created")),
+                    "source_message_id": message_info.get("id") if isinstance(message_info.get("id"), str) else None,
+                    "provider_metadata": {"part_types": [str(part.get("type") or "unknown") for part in parts], "text_part_count": len(text_parts)},
+                })
+        source_chat_id = str(info["id"])
+        session_time = info.get("time") if isinstance(info.get("time"), dict) else {}
+        chat = {
+            "provider": "opencode",
+            "source_chat_id": source_chat_id,
+            "source_fingerprint": _account_import_fingerprint("opencode", source_chat_id, messages),
+            "title": info.get("title") if isinstance(info.get("title"), str) else None,
+            "created_at": _opencode_timestamp(session_time.get("created")),
+            "updated_at": _opencode_timestamp(session_time.get("updated")),
+            "messages": messages,
+            "embeds": [],
+            "uploads": [],
+            "provider_labels": ["opencode"],
+            "source_metadata": {"source_name": source_name, "message_count": len(messages)},
+        }
+        return {"source": "opencode", "chats": [chat], "skipped_domains": []}
 
     def parse_openmates_import(self, payload: bytes | str, source_name: str = "openmates-export.zip", password: str | None = None) -> dict[str, Any]:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload

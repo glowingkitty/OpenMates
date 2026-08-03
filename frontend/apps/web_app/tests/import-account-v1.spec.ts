@@ -4,8 +4,8 @@ export {};
 /**
  * Account Import V1 deployed web E2E coverage.
  *
- * Verifies Settings > Account > Import parses Claude JSON, ChatGPT official
- * exports, and OpenMates Export V1 ZIP fixtures in the browser, uses the V1
+ * Verifies Settings > Account > Import parses Claude JSON, ChatGPT official,
+ * OpenCode CLI, and OpenMates Export V1 fixtures in the browser, uses the V1
  * endpoint sequence, client-encrypts before persistence, and reports unsupported
  * OpenMates domains.
  */
@@ -19,6 +19,7 @@ const {
 	persistPayloads,
 	uploadChatGPTZip,
 	uploadClaudeJson,
+	uploadOpenCodeJson,
 	uploadOpenMatesZip,
 	writePersistArtifacts,
 } = require('./helpers/account-import-test-helpers');
@@ -81,6 +82,36 @@ test.describe('Account Import V1 web flow', () => {
 		expect(JSON.stringify(persistBody)).not.toContain('This ChatGPT branch must not import');
 		expect(persistBody.chats[0]).not.toHaveProperty('title');
 		writePersistArtifacts(testInfo, calls, 'account-import-chatgpt-persist.json');
+	});
+
+	test('imports visible OpenCode transcript text without private parts or file payloads', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(180000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		const calls = await installAccountImportMock(page, { importId: 'web-import-opencode' });
+		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
+		await uploadOpenCodeJson(page);
+
+		await expect(page.getByTestId('import-preview-summary')).toContainText('Chats found');
+		await expect(page.getByTestId('import-preview-summary')).toContainText('1');
+		await page.getByTestId('account-import-start').click();
+		await expect(page.getByTestId('import-results-container')).toContainText('2 messages imported', { timeout: 30000 });
+
+		const previewCall = calls.find((call: { path: string }) => call.path === '/v1/account-imports/preview');
+		expect(previewCall?.body?.source).toBe('opencode');
+		const scanCall = calls.find((call: { path: string }) => call.path === '/v1/account-imports/web-import-opencode/scan');
+		const scanJson = JSON.stringify(scanCall?.body);
+		expect(scanJson).toContain('Synthetic OpenCode web import user message');
+		expect(scanJson).toContain('Synthetic OpenCode web import assistant message');
+		expect(scanJson).not.toContain('OpenCode reasoning must not import');
+		expect(scanJson).not.toContain('OpenCode tool output must not import');
+		expect(scanJson).not.toContain('cHJpdmF0ZQ==');
+
+		const persistBody = persistPayloads(calls)[0] as { chats: Array<Record<string, unknown>> };
+		expect(persistBody.chats).toHaveLength(1);
+		expect(JSON.stringify(persistBody)).not.toContain('Synthetic OpenCode web import');
+		expect(persistBody.chats[0]).not.toHaveProperty('title');
+		writePersistArtifacts(testInfo, calls, 'account-import-opencode-persist.json');
 	});
 
 	test('parses OpenMates Export V1 ZIP and reports skipped domains', async ({ page }: { page: any }, testInfo: any) => {
