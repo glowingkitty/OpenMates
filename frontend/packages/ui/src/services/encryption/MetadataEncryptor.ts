@@ -81,6 +81,14 @@ export async function decryptWithMasterKey(
     return null;
   }
 
+  return await decryptWithMasterKeyDirect(encryptedDataWithIV, masterKey);
+}
+
+/** Decrypt Format D data with an explicitly supplied master key. */
+export async function decryptWithMasterKeyDirect(
+  encryptedDataWithIV: string,
+  masterKey: CryptoKey,
+): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
     const iv = combined.slice(0, AES_IV_LENGTH);

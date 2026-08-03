@@ -9,10 +9,9 @@
 import { webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { clearMasterKey, saveMasterKey } from "../cryptoKeyStorage";
 import {
   decryptChatKeyWithMasterKey,
-  decryptWithMasterKey,
+  decryptWithMasterKeyDirect,
 } from "../encryption/MetadataEncryptor";
 import { decryptWithChatKey } from "../encryption/MessageEncryptor";
 import { base64ToUint8Array } from "../cryptoService";
@@ -31,14 +30,6 @@ interface FrozenCompatibilityFixtures {
 Object.defineProperty(globalThis, "crypto", {
   value: webcrypto as unknown as Crypto,
   writable: true,
-  configurable: true,
-});
-Object.defineProperty(globalThis, "sessionStorage", {
-  value: createMemoryStorage(),
-  configurable: true,
-});
-Object.defineProperty(globalThis, "localStorage", {
-  value: createMemoryStorage(),
   configurable: true,
 });
 
@@ -76,15 +67,13 @@ describe("frozen encryption compatibility fixtures", () => {
     );
   });
 
-  it("decrypts frozen Format D through the stored master-key reader", async () => {
-    await saveMasterKey(await importWrappingKey(), false);
-    try {
-      await expect(
-        decryptWithMasterKey(frozenFixtures.chat.format_d.blob_b64),
-      ).resolves.toBe(frozenFixtures.chat.format_d.plaintext);
-    } finally {
-      await clearMasterKey();
-    }
+  it("decrypts frozen Format D through the explicit master-key reader", async () => {
+    await expect(
+      decryptWithMasterKeyDirect(
+        frozenFixtures.chat.format_d.blob_b64,
+        await importWrappingKey(),
+      ),
+    ).resolves.toBe(frozenFixtures.chat.format_d.plaintext);
   });
 });
 
@@ -98,18 +87,4 @@ function importWrappingKey(): Promise<CryptoKey> {
     false,
     ["decrypt"],
   );
-}
-
-function createMemoryStorage(): Storage {
-  const values = new Map<string, string>();
-  return {
-    get length() {
-      return values.size;
-    },
-    clear: () => values.clear(),
-    getItem: (key) => values.get(key) ?? null,
-    key: (index) => Array.from(values.keys())[index] ?? null,
-    removeItem: (key) => values.delete(key),
-    setItem: (key, value) => values.set(key, value),
-  };
 }
