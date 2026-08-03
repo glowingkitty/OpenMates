@@ -15755,6 +15755,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
         align-items: center;
         column-gap: var(--spacing-6);
+        z-index: var(--z-index-raised-2);
     }
 
     .top-buttons.guest-all-examples-top-buttons .left-buttons {
