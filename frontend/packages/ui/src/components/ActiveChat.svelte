@@ -5033,9 +5033,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     $effect(() => {
+        const isAuthenticated = $authStore.isAuthenticated;
         const chatId = currentChat?.chat_id;
         const messageCount = currentMessages.length;
-        if (!chatId || messageCount === 0) return;
+        if (!isAuthenticated || !chatId || messageCount === 0) return;
         void hydrateQuickTipSlugs(chatId, currentChat.encrypted_quick_tip_slugs);
     });
     
