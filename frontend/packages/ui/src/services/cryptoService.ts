@@ -926,8 +926,6 @@ export function generateSecureRecoveryKey(length = 24): string {
   const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
 
   // Generate random bytes using cryptographically secure RNG
-  const randomBytes = crypto.getRandomValues(new Uint8Array(length));
-
   // Ensure we have at least one character from each set by reserving positions
   const result: string[] = new Array(length);
 
@@ -941,26 +939,32 @@ export function generateSecureRecoveryKey(length = 24): string {
 
   // Fill mandatory positions with secure randomness
   for (const charSet of charSets) {
-    const randomByte = crypto.getRandomValues(new Uint8Array(1))[0];
-    result[charSet.index] = charSet.chars.charAt(
-      randomByte % charSet.chars.length,
-    );
+    result[charSet.index] = charSet.chars.charAt(secureRandomIndex(charSet.chars.length));
   }
 
   // Fill remaining positions with secure random characters from all sets
   for (let i = 4; i < length; i++) {
-    result[i] = allChars.charAt(randomBytes[i] % allChars.length);
+    result[i] = allChars.charAt(secureRandomIndex(allChars.length));
   }
 
   // Shuffle using Fisher-Yates with cryptographically secure randomness
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(
-      (crypto.getRandomValues(new Uint8Array(1))[0] / 256) * (i + 1),
-    );
+    const j = secureRandomIndex(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
 
   return result.join("");
+}
+
+function secureRandomIndex(upperBound: number): number {
+  if (!Number.isInteger(upperBound) || upperBound <= 0 || upperBound > 256) {
+    throw new RangeError("secure random upper bound must be between 1 and 256");
+  }
+  const maxUnbiasedValue = Math.floor(256 / upperBound) * upperBound;
+  while (true) {
+    const value = crypto.getRandomValues(new Uint8Array(1))[0];
+    if (value < maxUnbiasedValue) return value % upperBound;
+  }
 }
 
 /**

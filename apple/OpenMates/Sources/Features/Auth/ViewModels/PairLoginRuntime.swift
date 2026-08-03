@@ -245,7 +245,7 @@ enum PairLoginRuntime {
         authorizerDeviceName: String,
         serverProfile: ServerProfile = ServerProfile.current()
     ) async throws -> String {
-        let pin = generatePairPIN()
+        let pin = try generatePairPIN()
         let credentials: PairCredentialsResponse = try await APIClient.shared.request(
             .get,
             path: "/v1/auth/pair/credentials",
@@ -305,11 +305,9 @@ enum PairLoginRuntime {
         return (bundle, SymmetricKey(data: masterKeyData))
     }
 
-    static func generatePairPIN() -> String {
+    static func generatePairPIN() throws -> String {
         let alphabet = Array("ABCDEFGHJKLMNPQRTUVWXY3468")
-        var bytes = [UInt8](repeating: 0, count: 6)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        return String(bytes.map { alphabet[Int($0) % alphabet.count] })
+        return try SecureRandom.string(length: 6, alphabet: alphabet)
     }
 
     private static func serverDiagnostics(_ profile: ServerProfile) -> String {

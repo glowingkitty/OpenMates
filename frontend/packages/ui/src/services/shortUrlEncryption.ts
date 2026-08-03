@@ -8,10 +8,10 @@
  *
  * URL format: {domain}/s/{token}#{shortKey}
  *   - token: 8-char base62 lookup ID (visible to server for OG metadata)
- *   - shortKey: 6-char base62 decryption key (never sent to server)
+ *   - shortKey: 22-char base62 decryption key (never sent to server)
  *
  * Encryption flow:
- *   1. Generate token (8 chars) + shortKey (6 chars)
+ *   1. Generate token (8 chars) + shortKey (22 chars)
  *   2. Derive AES-256 key from shortKey via PBKDF2 (200k iterations, salt="omts-v1-"+token)
  *   3. Encrypt the full share URL (path + #key= fragment) with AES-256-GCM
  *   4. Send token + encrypted blob to server API
@@ -21,6 +21,9 @@
 
 // Base62 alphabet for URL-safe token/key generation
 const BASE62_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const TOKEN_LENGTH = 8;
+const SHORT_KEY_LENGTH = 22;
+const MAX_SHORT_KEY_LENGTH = 22;
 
 // PBKDF2 iterations — 2x the existing shareEncryption.ts pattern (100k)
 // to compensate for the shorter key length (6 chars vs full encryption keys)
@@ -34,10 +37,15 @@ const SALT_PREFIX = "omts-v1-";
  * Uses crypto.getRandomValues for cryptographic randomness.
  */
 function generateBase62(length: number): string {
-  const values = crypto.getRandomValues(new Uint8Array(length));
   let result = "";
-  for (let i = 0; i < length; i++) {
-    result += BASE62_CHARS[values[i] % BASE62_CHARS.length];
+  const maxUnbiasedValue = Math.floor(256 / BASE62_CHARS.length) * BASE62_CHARS.length;
+  while (result.length < length) {
+    const values = crypto.getRandomValues(new Uint8Array(length - result.length));
+    for (let index = 0; index < values.length; index++) {
+      const value = values[index];
+      if (value >= maxUnbiasedValue) continue;
+      result += BASE62_CHARS[value % BASE62_CHARS.length];
+    }
   }
   return result;
 }
@@ -45,12 +53,12 @@ function generateBase62(length: number): string {
 /**
  * Generate the two components of a short URL:
  * - token: 8-char base62 lookup ID (sent to server)
- * - shortKey: 6-char base62 decryption key (stays in URL fragment)
+ * - shortKey: 22-char base62 decryption key (stays in URL fragment)
  */
 export function generateShortUrlParts(): { token: string; shortKey: string } {
   return {
-    token: generateBase62(8),
-    shortKey: generateBase62(6),
+    token: generateBase62(TOKEN_LENGTH),
+    shortKey: generateBase62(SHORT_KEY_LENGTH),
   };
 }
 
@@ -200,11 +208,11 @@ export function parseShortUrlFragment(
   const token = clean.slice(0, dashIndex);
   const shortKey = clean.slice(dashIndex + 1);
 
-  // Validate: token 6-12 chars, shortKey 4-12 chars, both base62
+  // Legacy keys start at four characters; current keys carry 128+ random bits.
   const base62Pattern = /^[A-Za-z0-9]+$/;
   if (
     token.length < 6 || token.length > 12 ||
-    shortKey.length < 4 || shortKey.length > 12 ||
+    shortKey.length < 4 || shortKey.length > MAX_SHORT_KEY_LENGTH ||
     !base62Pattern.test(token) ||
     !base62Pattern.test(shortKey)
   ) {
@@ -232,7 +240,7 @@ export function parseShortUrlParts(
     const token = pathMatch[1];
     if (
       cleanHash.length >= 4 &&
-      cleanHash.length <= 12 &&
+      cleanHash.length <= MAX_SHORT_KEY_LENGTH &&
       base62Pattern.test(cleanHash)
     ) {
       return { token, shortKey: cleanHash };

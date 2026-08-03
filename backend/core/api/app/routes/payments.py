@@ -4470,7 +4470,7 @@ def generate_gift_card_code() -> str:
     Returns:
         A unique gift card code string
     """
-    import random
+    import secrets
     import string
     
     # Use alphanumeric characters, excluding ambiguous ones (0, O, I, 1)
@@ -4478,9 +4478,9 @@ def generate_gift_card_code() -> str:
     charset = string.ascii_uppercase.replace('O', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
     
     # Generate 3 groups of 4 random characters
-    part1 = ''.join(random.choices(charset, k=4))
-    part2 = ''.join(random.choices(charset, k=4))
-    part3 = ''.join(random.choices(charset, k=4))
+    part1 = ''.join(secrets.choice(charset) for _ in range(4))
+    part2 = ''.join(secrets.choice(charset) for _ in range(4))
+    part3 = ''.join(secrets.choice(charset) for _ in range(4))
     
     # Format as XXXX-XXXX-XXXX
     gift_card_code = f"{part1}-{part2}-{part3}"

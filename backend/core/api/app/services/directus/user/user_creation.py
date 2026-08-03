@@ -1,13 +1,12 @@
 import logging
 import json
 import time
-import random
-import string
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Tuple
 
 # hash_username is a standalone helper — imported here to avoid circular imports
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
+from backend.shared.python_utils.security_random import HUMAN_CODE_ALPHABET, generate_random_string
 
 
 
@@ -20,8 +19,7 @@ def _generate_account_id() -> str:
     Returns:
         str: A 6-character account ID
     """
-    charset = string.ascii_uppercase + string.digits
-    return ''.join(random.choices(charset, k=7))
+    return generate_random_string(7, HUMAN_CODE_ALPHABET)
 
 async def _generate_unique_account_id(self, max_attempts: int = 10) -> Optional[str]:
     """

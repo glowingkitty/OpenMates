@@ -7,6 +7,72 @@
 import Foundation
 import CryptoKit
 import CommonCrypto
+import Security
+
+enum SecureRandomError: LocalizedError {
+    case generationFailed(OSStatus)
+
+    var errorDescription: String? {
+        "Secure random generation failed"
+    }
+}
+
+enum SecureRandom {
+    typealias Fill = (_ count: Int, _ buffer: UnsafeMutableRawPointer) -> OSStatus
+
+    static func data(count: Int, fill: Fill? = nil) throws -> Data {
+        precondition(count >= 0)
+        if count == 0 { return Data() }
+        var bytes = [UInt8](repeating: 0, count: count)
+        let source = fill ?? { count, buffer in
+            SecRandomCopyBytes(kSecRandomDefault, count, buffer)
+        }
+        let status = bytes.withUnsafeMutableBytes { buffer in
+            source(count, buffer.baseAddress!)
+        }
+        guard status == errSecSuccess else {
+            throw SecureRandomError.generationFailed(status)
+        }
+        return Data(bytes)
+    }
+
+    static func index(upperBound: Int, fill: Fill? = nil) throws -> Int {
+        precondition((1...256).contains(upperBound))
+        let maxUnbiasedValue = (256 / upperBound) * upperBound
+        while true {
+            let value = Int(try data(count: 1, fill: fill)[0])
+            if value < maxUnbiasedValue { return value % upperBound }
+        }
+    }
+
+    static func string(length: Int, alphabet: [Character], fill: Fill? = nil) throws -> String {
+        precondition(length >= 0 && !alphabet.isEmpty && alphabet.count <= 256)
+        return try String((0..<length).map { _ in
+            alphabet[try index(upperBound: alphabet.count, fill: fill)]
+        })
+    }
+
+    static func recoveryKey(length: Int = 24, fill: Fill? = nil) throws -> String {
+        let sets = [
+            Array("ABCDEFGHJKLMNPQRSTUVWXYZ"),
+            Array("abcdefghijkmnopqrstuvwxyz"),
+            Array("23456789"),
+            Array("#-=+_&%$"),
+        ]
+        let alphabet = sets.flatMap { $0 }
+        precondition(length >= sets.count)
+        var result = try sets.map { set in
+            set[try index(upperBound: set.count, fill: fill)]
+        }
+        while result.count < length {
+            result.append(alphabet[try index(upperBound: alphabet.count, fill: fill)])
+        }
+        for position in stride(from: result.count - 1, through: 1, by: -1) {
+            result.swapAt(position, try index(upperBound: position + 1, fill: fill))
+        }
+        return String(result)
+    }
+}
 
 actor CryptoManager {
     static let shared = CryptoManager()

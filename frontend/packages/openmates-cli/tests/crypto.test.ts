@@ -224,7 +224,7 @@ describe("signup crypto material", () => {
     const signup = await createSignupCryptoMaterial("user@example.com", "password");
     const recovery = await createRecoveryKeyMaterial(signup.masterKeyB64, signup.userEmailSaltB64);
 
-    assert.match(recovery.recoveryKey, /^.{24}$/);
+    assert.match(recovery.recoveryKey, /^(?=.*[A-Z])(?=.*[a-z])(?=.*[2-9])(?=.*[#\-=+_&%$])[^0O]{24}$/);
     assert.strictEqual(recovery.lookupHash, await hashKey(recovery.recoveryKey, base64ToBytes(signup.userEmailSaltB64)));
     assert.ok(base64ToBytes(recovery.wrappedMasterKey).length > 32);
     assert.strictEqual(base64ToBytes(recovery.keyIv).length, 12);
@@ -234,7 +234,7 @@ describe("signup crypto material", () => {
     const signup = await createSignupCryptoMaterial("user@example.com", "password");
     const material = await createApiKeyCryptoMaterial("SDK live test", signup.masterKeyB64);
 
-    assert.match(material.apiKey, /^sk-api-[A-Za-z0-9]{32}$/);
+    assert.match(material.apiKey, /^sk-api-[A-NP-Za-z1-9]{32}$/);
     assert.match(material.apiKeyHash, /^[a-f0-9]{64}$/);
     assert.ok(base64ToBytes(material.encryptedName).length > 12);
     assert.ok(base64ToBytes(material.encryptedKeyPrefix).length > 12);

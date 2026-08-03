@@ -407,7 +407,7 @@ struct SettingsPasswordView: View {
                 else {
                     throw AccountSecurityError.missingAccountData
                 }
-                let passwordSalt = randomSalt()
+                let passwordSalt = try randomSalt()
                 try await AccountSecurityService.shared.verifyPasswordReauth(
                     hashedEmail: await CryptoManager.shared.hashEmail(email),
                     lookupHash: await CryptoManager.shared.hashKey(currentPassword, salt: emailSalt)
@@ -451,11 +451,8 @@ struct SettingsPasswordView: View {
         }
     }
 
-    private func randomSalt() -> Data {
-        var bytes = [UInt8](repeating: 0, count: 16)
-        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        precondition(status == errSecSuccess, "Secure random generation failed")
-        return Data(bytes)
+    private func randomSalt() throws -> Data {
+        try SecureRandom.data(count: 16)
     }
 }
 
@@ -794,8 +791,8 @@ struct SettingsRecoveryKeyView: View {
             hashedEmail: await CryptoManager.shared.hashEmail(email),
             lookupHash: await CryptoManager.shared.hashKey(authSecret, salt: emailSalt)
         )
-        let key = secureRecoveryKey()
-        let wrappingSalt = randomBytes(count: 16)
+        let key = try secureRecoveryKey()
+        let wrappingSalt = try randomBytes(count: 16)
         let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: key,
             salt: wrappingSalt
@@ -816,15 +813,12 @@ struct SettingsRecoveryKeyView: View {
         errorMessage = nil
     }
 
-    private func secureRecoveryKey() -> String {
-        randomBytes(count: 32).base64URLEncodedString()
+    private func secureRecoveryKey() throws -> String {
+        try SecureRandom.recoveryKey()
     }
 
-    private func randomBytes(count: Int) -> Data {
-        var bytes = [UInt8](repeating: 0, count: count)
-        let status = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)
-        precondition(status == errSecSuccess, "Secure random generation failed")
-        return Data(bytes)
+    private func randomBytes(count: Int) throws -> Data {
+        try SecureRandom.data(count: count)
     }
 }
 

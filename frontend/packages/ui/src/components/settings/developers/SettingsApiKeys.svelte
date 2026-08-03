@@ -238,7 +238,7 @@
     }
 
     function generateApiKey(): string {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const chars = 'ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789';
         let result = 'sk-api-';
         const maxUnbiasedValue = Math.floor(256 / chars.length) * chars.length;
         while (result.length < 'sk-api-'.length + 32) {

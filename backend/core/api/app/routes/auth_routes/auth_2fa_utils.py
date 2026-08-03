@@ -1,9 +1,8 @@
-import secrets
-import string
 import pyotp
 import hashlib # Added for SHA256 hashing
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from backend.shared.python_utils.security_random import HUMAN_CODE_ALPHABET, generate_grouped_code
 
 # Initialize Argon2 hasher
 argon2_hasher = PasswordHasher()
@@ -45,10 +44,6 @@ def verify_backup_code(code, hashed_codes):
 # Helper function to generate backup codes
 def generate_backup_codes(count=5, length=12):
     """Generate random backup codes with hyphens every 4 characters."""
-    backup_codes = []
-    for _ in range(count):
-        chars = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(length))
-        # Insert hyphens every 4 characters
-        formatted_code = '-'.join(chars[i:i+4] for i in range(0, len(chars), 4))
-        backup_codes.append(formatted_code)
-    return backup_codes
+    if length % 4 != 0:
+        raise ValueError("backup code length must be divisible by four")
+    return [generate_grouped_code(length // 4, 4, HUMAN_CODE_ALPHABET) for _ in range(count)]

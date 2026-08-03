@@ -9,13 +9,13 @@ email-change codes cannot be replayed across flows.
 
 import asyncio
 import logging
-import random
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.security_random import generate_digit_code
 
 logger = logging.getLogger(__name__)
 logger.addFilter(SensitiveDataFilter())
@@ -64,7 +64,7 @@ async def _async_generate_and_send_email_change_verification_email(
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
-        verification_code = "".join(random.choices("0123456789", k=6))
+        verification_code = generate_digit_code()
         cache_key = f"email_change_code:{user_id}:{hashed_new_email}"
         cache_result = await cache_service.set(cache_key, verification_code, ttl=1200)
         if not cache_result:

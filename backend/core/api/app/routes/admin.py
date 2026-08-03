@@ -4,7 +4,7 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
-import random
+import secrets
 import string
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
@@ -478,12 +478,12 @@ def generate_gift_card_code(prefix: Optional[str] = None) -> str:
         # Prefix replaces start of first segment, pad remainder with random chars
         prefix = prefix.upper()
         remaining = 4 - len(prefix)
-        part1 = prefix + ''.join(random.choices(GIFT_CARD_CHARSET, k=remaining))
+        part1 = prefix + ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(remaining))
     else:
-        part1 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+        part1 = ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(4))
     
-    part2 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
-    part3 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    part2 = ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(4))
+    part3 = ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(4))
     
     return f"{part1}-{part2}-{part3}"
 

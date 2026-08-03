@@ -204,8 +204,8 @@ struct SettingsAPIKeysView: View {
                       let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id) else {
                     throw APIError.invalidResponse
                 }
-                let rawKey = "sk-api-\(Self.randomToken(length: 32))"
-                let salt = Self.randomData(count: 16)
+                let rawKey = "sk-api-\(try Self.randomToken(length: 32))"
+                let salt = try Self.randomData(count: 16)
                 let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(password: rawKey, salt: salt)
                 let wrapped = try await CryptoManager.shared.encrypt(masterKey.withUnsafeBytes { Data($0) }, using: wrappingKey)
                 let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -248,16 +248,13 @@ struct SettingsAPIKeysView: View {
         }
     }
 
-    fileprivate static func randomData(count: Int) -> Data {
-        var bytes = [UInt8](repeating: 0, count: count)
-        let status = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)
-        precondition(status == errSecSuccess, "Secure random generation failed")
-        return Data(bytes)
+    fileprivate static func randomData(count: Int) throws -> Data {
+        try SecureRandom.data(count: count)
     }
 
-    fileprivate static func randomToken(length: Int) -> String {
-        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
-        return String(randomData(count: length).map { alphabet[Int($0) % alphabet.count] })
+    fileprivate static func randomToken(length: Int) throws -> String {
+        let alphabet = Array("ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789")
+        return try SecureRandom.string(length: length, alphabet: alphabet)
     }
 
     fileprivate static func sha256Hex(_ value: String) -> String {
@@ -391,7 +388,7 @@ struct SettingsWebhooksView: View {
                       let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id) else {
                     throw APIError.invalidResponse
                 }
-                let secret = "wh-\(SettingsAPIKeysView.randomToken(length: 64))"
+                let secret = "wh-\(try SettingsAPIKeysView.randomToken(length: 64))"
                 let prefix = String(secret.prefix(12)) + "..."
                 let _: WebhookItem = try await APIClient.shared.request(
                     .post,

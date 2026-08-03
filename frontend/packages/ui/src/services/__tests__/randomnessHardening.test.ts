@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   deriveEmailEncryptionKey,
   deriveKeyFromPassword,
+  generateSecureRecoveryKey,
   hkdf,
 } from "../cryptoService";
 import {
@@ -134,6 +135,40 @@ describe("WebCrypto derivation hardening", () => {
       name: "UnsupportedClientCryptoError",
       code: "unsupported_client_crypto",
     });
+  });
+});
+
+describe("recovery key randomness", () => {
+  it("uses rejection sampling and the approved 24-character shape", () => {
+    let calls = 0;
+    setCrypto({
+      getRandomValues<T extends ArrayBufferView>(values: T): T {
+        new Uint8Array(values.buffer, values.byteOffset, values.byteLength).fill(
+          calls++ % 2 === 0 ? 255 : 0,
+        );
+        return values;
+      },
+    } as Crypto);
+
+    const recoveryKey = generateSecureRecoveryKey();
+
+    expect(calls).toBeGreaterThan(47);
+    expect(recoveryKey).toHaveLength(24);
+    expect(recoveryKey).toMatch(/^[^0O]+$/);
+    expect(recoveryKey).toMatch(/[A-Z]/);
+    expect(recoveryKey).toMatch(/[a-z]/);
+    expect(recoveryKey).toMatch(/[2-9]/);
+    expect(recoveryKey).toMatch(/[#\-=+_&%$]/);
+  });
+
+  it("fails closed when secure randomness fails", () => {
+    setCrypto({
+      getRandomValues(): never {
+        throw new Error("rng unavailable");
+      },
+    } as unknown as Crypto);
+
+    expect(() => generateSecureRecoveryKey()).toThrow("rng unavailable");
   });
 });
 

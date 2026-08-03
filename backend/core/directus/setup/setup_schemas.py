@@ -1,8 +1,7 @@
 import os
 import time
 import yaml
-import random
-import string
+import secrets
 import requests
 import glob
 import hashlib
@@ -907,12 +906,12 @@ def check_if_database_initialized(token):
 
 def generate_invite_code():
     """Generate an invite code in the format XXXX-XXXX-XXXX using only numbers."""
-    digits = string.digits  # Use only digits 0-9
+    digits = "123456789"
     
     # Generate 3 groups of 4 random digits
-    part1 = ''.join(random.choices(digits, k=4))
-    part2 = ''.join(random.choices(digits, k=4))
-    part3 = ''.join(random.choices(digits, k=4))
+    part1 = ''.join(secrets.choice(digits) for _ in range(4))
+    part2 = ''.join(secrets.choice(digits) for _ in range(4))
+    part3 = ''.join(secrets.choice(digits) for _ in range(4))
     
     # Format as XXXX-XXXX-XXXX
     invite_code = f"{part1}-{part2}-{part3}"

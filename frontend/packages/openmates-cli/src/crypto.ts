@@ -28,7 +28,7 @@ const FINGERPRINT_LENGTH = 4;
 const CIPHERTEXT_HEADER_LENGTH = 2 + FINGERPRINT_LENGTH; // 6 bytes
 const API_KEY_PREFIX = "sk-api-";
 const API_KEY_RANDOM_LENGTH = 32;
-const API_KEY_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const API_KEY_CHARS = "ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789";
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
 const CHAT_RECOVERY_KEY_BYTES = 32;
@@ -338,23 +338,31 @@ export function generateSecureRecoveryKey(length = 24): string {
   const requiredSets = [uppercaseChars, lowercaseChars, numberChars, specialChars];
 
   for (let index = 0; index < requiredSets.length && index < length; index += 1) {
-    const randomByte = cryptoApi.getRandomValues(new Uint8Array(1))[0];
     const chars = requiredSets[index];
-    result[index] = chars.charAt(randomByte % chars.length);
+    result[index] = chars.charAt(secureRandomIndex(chars.length));
   }
 
-  const randomBytes = cryptoApi.getRandomValues(new Uint8Array(length));
   for (let index = requiredSets.length; index < length; index += 1) {
-    result[index] = allChars.charAt(randomBytes[index] % allChars.length);
+    result[index] = allChars.charAt(secureRandomIndex(allChars.length));
   }
 
   for (let index = result.length - 1; index > 0; index -= 1) {
-    const randomByte = cryptoApi.getRandomValues(new Uint8Array(1))[0];
-    const swapIndex = Math.floor((randomByte / 256) * (index + 1));
+    const swapIndex = secureRandomIndex(index + 1);
     [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
   }
 
   return result.join("");
+}
+
+function secureRandomIndex(upperBound: number): number {
+  if (!Number.isInteger(upperBound) || upperBound <= 0 || upperBound > 256) {
+    throw new RangeError("secure random upper bound must be between 1 and 256");
+  }
+  const maxUnbiasedValue = Math.floor(256 / upperBound) * upperBound;
+  while (true) {
+    const value = cryptoApi.getRandomValues(new Uint8Array(1))[0];
+    if (value < maxUnbiasedValue) return value % upperBound;
+  }
 }
 
 export async function hashEmail(email: string): Promise<string> {

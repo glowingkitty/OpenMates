@@ -592,7 +592,7 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-SHORT-LINK
     type: vitest
-    file: frontend/packages/ui/src/services/encryption/__tests__/shortUrlEncryption.test.ts
+    file: frontend/packages/ui/src/services/__tests__/shortUrlRandomness.test.ts
     command: python3 scripts/tests.py run --suite vitest
     covers: [AC-6]
     assertions: [Six-character links decrypt, generator uses the approved CSPRNG API and rejection sampling, new alphabet and length encode at least 128 bits, forced RNG failure fails closed, parser accepts old and new lengths.]
