@@ -3,6 +3,9 @@
 
 services:
   api:
+    environment:
+      # Enable pre-release platform gates only on the local development stack.
+      BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
     volumes:
       # Read-only access to the openmates-marketing sibling repo so
       # send_newsletter.py can render issues authored outside this repo.

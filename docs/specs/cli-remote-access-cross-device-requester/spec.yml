@@ -172,6 +172,11 @@ decisions:
     decision: Non-interactive and JSON live file requests require `--personal` or `--team`; stored Project CRUD may use persisted context.
     reason: Remote plaintext retrieval has a higher wrong-context impact than encrypted stored-data navigation.
     decided_at: "2026-08-03"
+  - id: D-8
+    status: active
+    decision: Enable platform:teams only through the local Docker development override while keeping production and self-hosted defaults disabled until Teams V1 is verified.
+    reason: The user approved real dev verification without exposing unfinished Teams behavior outside the development stack.
+    decided_at: "2026-08-03T13:23:38Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -719,6 +724,8 @@ implementation_plan:
     - None for product behavior; failed Teams prerequisite evidence may reveal an implementation blocker but not a new product decision.
   material_plan_approval_required: false
   affected_files:
+    - {path: backend/config/backend_config.dev.yml, reason: "Enable Teams only in the local development stack for required real-dev verification."}
+    - {path: backend/core/docker-compose.override.yml, reason: "Select the development-only backend configuration for api."}
     - {path: backend/core/directus/schemas/projects.yml, reason: "Normalize Team Project ownership and creator fields."}
     - {path: backend/core/directus/schemas/project_sources.yml, reason: "Add Team context and source-attacher fields."}
     - {path: backend/core/directus/schemas/project_folders.yml, reason: "Add Team context and creator fields."}
@@ -773,10 +780,10 @@ tasks:
     status: blocked
     phase: blocked
     covers: {scenarios: [S-5, S-6, S-7], acceptance_criteria: [AC-5, AC-6, AC-7]}
-    expected_files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml]
+    expected_files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml, backend/config/backend_config.dev.yml, backend/core/docker-compose.override.yml]
     verification_ids: [T-TEAMS-PREREQUISITE-LIVE]
     dependencies: [TASK-1]
-    ownership: {files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml], shared_files: [scripts/verify_teams_cli_lifecycle.py, scripts/verify_teams_cli_membership.py, scripts/verify_teams_cli_offboarding.py]}
+    ownership: {files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml, backend/config/backend_config.dev.yml, backend/core/docker-compose.override.yml], shared_files: [scripts/verify_teams_cli_lifecycle.py, scripts/verify_teams_cli_membership.py, scripts/verify_teams_cli_offboarding.py]}
     blockers: [User decision required before enabling platform:teams on dev; current real Team API returns FEATURE_DISABLED.]
     follow_up_tasks: [TASK-2]
     independently_deployable: true
