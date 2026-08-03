@@ -90,13 +90,16 @@ def _run_cli(
 
 
 def _stable_error_code(stderr: str) -> str:
-    try:
-        payload = json.loads(stderr)
-    except json.JSONDecodeError:
-        return "unknown_error"
-    error = payload.get("error") if isinstance(payload, dict) else None
-    code = error.get("code") if isinstance(error, dict) else None
-    return code if isinstance(code, str) and STABLE_ERROR_CODE_PATTERN.fullmatch(code) else "unknown_error"
+    for line in reversed(stderr.splitlines()):
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        error = payload.get("error") if isinstance(payload, dict) else None
+        code = error.get("code") if isinstance(error, dict) else None
+        if isinstance(code, str) and STABLE_ERROR_CODE_PATTERN.fullmatch(code):
+            return code
+    return "unknown_error"
 
 
 def _readline_before(stream: Any, deadline: float) -> str | None:

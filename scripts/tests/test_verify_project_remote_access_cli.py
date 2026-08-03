@@ -214,3 +214,25 @@ def test_requester_failure_never_includes_unparsed_stderr(monkeypatch) -> None:
 
     assert secret not in str(raised.value)
     assert "unknown_error" in str(raised.value)
+
+
+def test_stable_error_code_reads_final_json_after_diagnostics() -> None:
+    stderr = 'Node warning: harmless diagnostic\n{"error":{"code":"source_offline"}}\n'
+
+    assert verifier._stable_error_code(stderr) == "source_offline"
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        'diagnostic\n{"error":',
+        '{"error":{"code":"Not-Allowlisted"}}',
+        '{"error":{"code":"source_offline"}} trailing text',
+    ],
+)
+def test_stable_error_code_rejects_malformed_or_non_allowlisted_lines(stderr: str) -> None:
+    assert verifier._stable_error_code(stderr) == "unknown_error"
+
+
+def test_stable_error_code_accepts_pure_json() -> None:
+    assert verifier._stable_error_code('{"error":{"code":"protocol_timeout"}}') == "protocol_timeout"
