@@ -126,10 +126,12 @@ HEALTH_CHECK_APP_CACHE_KEY_PREFIX = "health_check:app:"
 HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX = "health_check:external:"
 # Cache TTL: 10 minutes (longer than check intervals to ensure availability)
 HEALTH_CHECK_CACHE_TTL = 600
+# Provider probes run every 30 minutes, so their status must survive between runs.
+PROVIDER_HEALTH_CHECK_CACHE_TTL = 3600
 
 # Health check intervals (in seconds)
 HEALTH_CHECK_INTERVAL_WITH_ENDPOINT = 60  # 1 minute for providers with /health endpoint
-HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 300  # 5 minutes for providers without /health endpoint
+HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 1800  # 30 minutes for providers without /health endpoint
 
 # Consecutive failures required before marking a provider "unhealthy".
 # A single transient failure (e.g. network blip, 15s timeout) is no longer enough to
@@ -144,6 +146,8 @@ HEALTH_CHECK_FAILURE_THRESHOLD = 3
 SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
+GOOGLE_PROVIDER_HEALTH_ID = "google"
+GOOGLE_AI_STUDIO_SERVER_ID = "google_ai_studio"
 
 # Minimal 8×8 white JPEG (631 bytes) used as the health check probe image for Sightengine.
 #
@@ -216,6 +220,22 @@ def _get_cerebras_health_check_model_id() -> str:
         "CEREBRAS_HEALTH_CHECK_MODEL_ID",
         CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID,
     ).strip() or CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID
+
+
+def _get_active_provider_health_ids(provider_ids: list[str]) -> list[str]:
+    """Return provider IDs that need distinct active inference probes.
+
+    Google models default to AI Studio, so probing both the canonical ``google``
+    health entry and the ``google_ai_studio`` server entry sends the same request
+    twice. Keep the canonical key consumed by status and skill availability.
+    """
+    if GOOGLE_PROVIDER_HEALTH_ID not in provider_ids:
+        return provider_ids
+    return [
+        provider_id
+        for provider_id in provider_ids
+        if provider_id != GOOGLE_AI_STUDIO_SERVER_ID
+    ]
 
 
 def _sanitize_error_message(error_message: Optional[str]) -> Optional[str]:
@@ -895,7 +915,7 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
                 await client.set(
                     cache_key,
                     json.dumps(health_data),
-                    ex=HEALTH_CHECK_CACHE_TTL
+                    ex=PROVIDER_HEALTH_CHECK_CACHE_TTL
                 )
                 logger.debug(f"Health check: Stored health status for '{provider_id}' in cache: {status}")
             else:
@@ -2137,7 +2157,7 @@ def check_all_apps_health(self):
     # Use distributed lock to prevent concurrent health checks
     # This prevents multiple API instances or retries from running duplicate checks
     lock_key = "health_check:lock:apps"
-    lock_ttl = 600  # 10 minutes - longer than the check interval to prevent overlap
+    lock_ttl = 600  # 10 minutes is sufficient to prevent overlapping probe executions
     
     async def acquire_lock_and_run():
         cache_service = CacheService()
@@ -2306,8 +2326,7 @@ def check_all_providers_health(self):
     Periodic task to check health of all LLM providers and Brave Search.
     This task is scheduled by Celery Beat.
     
-    Checks providers with /health endpoints every 1 minute.
-    Checks providers without /health endpoints every 5 minutes.
+    Checks providers without /health endpoints every 30 minutes.
     
     Uses a distributed lock to prevent multiple concurrent executions.
     """
@@ -2338,7 +2357,9 @@ def check_all_providers_health(self):
                 logger.info("=" * 80)
 
                 # Get all providers from registry
-                providers = list(PROVIDER_CLIENT_REGISTRY.keys())
+                providers = _get_active_provider_health_ids(
+                    list(PROVIDER_CLIENT_REGISTRY.keys())
+                )
                 if not providers:
                     logger.warning("Health check: No providers found in registry. Skipping health checks.")
                     return

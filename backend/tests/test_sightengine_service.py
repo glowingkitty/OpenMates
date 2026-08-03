@@ -21,6 +21,8 @@
 #
 #   5. Health check probe — _check_sightengine_health() must send a multipart POST
 #      (not a GET with ?url=), and the inline JPEG constant must be a valid image.
+#   6. Provider probe policy — duplicate Google AI Studio checks are omitted while
+#      the canonical Google health key remains available to status consumers.
 #
 # Architecture reference: docs/architecture/file-upload-pipeline.md
 #
@@ -468,6 +470,32 @@ class TestHealthCheckProbe:
         monkeypatch.delenv("CEREBRAS_HEALTH_CHECK_MODEL_ID", raising=False)
 
         assert _hct._get_cheapest_model_for_server("cerebras") == "cerebras/gpt-oss-120b"
+
+    def test_provider_health_checks_omit_duplicate_google_ai_studio_probe(self):
+        provider_ids = ["anthropic", "google", "google_ai_studio", "openai"]
+
+        assert _hct._get_active_provider_health_ids(provider_ids) == [
+            "anthropic",
+            "google",
+            "openai",
+        ]
+
+    def test_provider_health_checks_keep_ai_studio_without_canonical_google(self):
+        provider_ids = ["anthropic", "google_ai_studio", "openai"]
+
+        assert _hct._get_active_provider_health_ids(provider_ids) == provider_ids
+
+    def test_provider_health_cache_outlives_probe_interval(self):
+        assert (
+            _hct.PROVIDER_HEALTH_CHECK_CACHE_TTL
+            > _hct.HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT
+        )
+        assert _hct.HEALTH_CHECK_CACHE_TTL == 10 * 60
+
+    def test_provider_health_checks_run_every_thirty_minutes(self):
+        schedule = _hct.app.conf.beat_schedule["health-check-all-providers"]["schedule"]
+
+        assert schedule.total_seconds() == 30 * 60
 
     @pytest.mark.anyio
     async def test_cerebras_health_check_calls_client_directly(self):

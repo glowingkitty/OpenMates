@@ -53,18 +53,20 @@ OpenMates depends on multiple LLM providers, internal microservices, and externa
 
 ```mermaid
 graph TB
-    subgraph "Celery Beat · every 5 min"
-        A["check_all_providers"] --> D["Redis cache<br/>10-min TTL"]
-        B["check_all_apps"] --> D
-        C["check_external_services"] --> D
+    subgraph "Celery Beat"
+        A["check_all_providers"] --> D1["Provider cache<br/>60-min TTL"]
+        B["check_all_apps"] --> D2["App/external cache<br/>10-min TTL"]
+        C["check_external_services"] --> D2
     end
 
     A -->|"minimal LLM call<br/>per server"| P["LLM Providers<br/>Anthropic, Bedrock, Groq..."]
     B -->|"GET /health +<br/>Celery worker inspect"| Q["App Services<br/>app-web, app-code..."]
     C -->|"API call"| R["External<br/>Stripe, Brevo, SightEngine"]
 
-    D --> E["GET /v1/health"]
-    D --> F["Status Page"]
+    D1 --> E["GET /v1/health"]
+    D2 --> E
+    D1 --> F["Status Page"]
+    D2 --> F
 
     subgraph "Status Transitions"
         G["healthy"] -->|failure| H["unhealthy"]
@@ -75,11 +77,11 @@ graph TB
     H --> J["health_events<br/>Directus collection"]
 ```
 
-Three Celery Beat tasks run every **5 minutes** on the `health_check` queue, each acquiring a distributed Redis lock (10-minute TTL) to prevent duplicate executions.
+App and external-service checks run every **5 minutes**. Provider inference probes run every **30 minutes**. Each task acquires a distributed Redis lock (10-minute TTL) to prevent duplicate executions.
 
 ### Provider Health Checks (`health_check.check_all_providers`)
 
-- Iterates all server IDs from `PROVIDER_CLIENT_REGISTRY` (dynamically built from provider YAML configs; includes Anthropic, AWS Bedrock, Cerebras, Google, Google AI Studio, Google MaaS, Groq, Mistral, OpenAI, OpenRouter, Together).
+- Iterates server IDs from `PROVIDER_CLIENT_REGISTRY` (dynamically built from provider YAML configs; includes Anthropic, AWS Bedrock, Cerebras, Google, Google MaaS, Groq, Mistral, OpenAI, OpenRouter, Together). The separate Google AI Studio registry entry is omitted because the canonical Google probe already uses the AI Studio default model.
 - Makes a minimal LLM completion request ("Answer short" / "1+2?") using the cheapest available model per server (Haiku for Anthropic, `llama-3.1-8b-instant` for Groq, cheapest-by-input-cost for others).
 - 15-second timeout, single attempt (no retry to avoid duplicate API billing).
 - Also checks Brave Search reachability via HEAD request (no billing).

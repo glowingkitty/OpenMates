@@ -1246,7 +1246,7 @@ app.conf.beat_schedule = {
     # Removing these breaks app availability in the frontend Apps.
     'health-check-all-providers': {
         'task': 'health_check.check_all_providers',
-        'schedule': timedelta(seconds=300),  # 5 minutes
+        'schedule': timedelta(minutes=30),
         'options': {'queue': 'health_check'},
     },
     'health-check-all-apps': {
