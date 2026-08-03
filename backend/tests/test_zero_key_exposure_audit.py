@@ -299,6 +299,17 @@ def test_cli_requires_explicit_environment_and_read_only_acknowledgement() -> No
     assert audit.main(["--env", "dev"], repository=FakeRepository(_all_collections()), stderr=StringIO()) != 0
 
 
+def test_repository_uses_api_container_cms_url(monkeypatch: Any) -> None:
+    monkeypatch.delenv("DIRECTUS_DEV_URL", raising=False)
+    monkeypatch.delenv("DIRECTUS_URL", raising=False)
+    monkeypatch.setenv("CMS_URL", "http://cms:8055")
+    monkeypatch.setenv("DIRECTUS_TOKEN", "synthetic-token")
+
+    repository = audit._repository_from_environment("dev")
+
+    assert repository._base_url == "http://cms:8055"
+
+
 def test_directus_filters_use_nested_read_only_query_parameters() -> None:
     repository = audit.DirectusReadOnlyRepository("https://directus.invalid", "test-token")
 

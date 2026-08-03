@@ -462,7 +462,7 @@ def audit_repository(
 
 def _repository_from_environment(environment: str) -> DirectusReadOnlyRepository:
     prefix = f"DIRECTUS_{environment.upper()}"
-    base_url = os.getenv(f"{prefix}_URL") or os.getenv("DIRECTUS_URL")
+    base_url = os.getenv(f"{prefix}_URL") or os.getenv("DIRECTUS_URL") or os.getenv("CMS_URL")
     token = os.getenv(f"{prefix}_TOKEN") or os.getenv("DIRECTUS_TOKEN")
     if not base_url or not token:
         raise RuntimeError("directus_configuration_missing")
