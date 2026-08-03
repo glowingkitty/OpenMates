@@ -392,6 +392,16 @@ attempts:
       Commit `1fc76c984` deployed Ready as `dpl_2Krx6Ud9Z9VRRd213Xrc9sW8Noqh`.
       GitHub Actions run `30814094032` failed on the first intended assertion because
       the old Actionable slide still exposed the generic 20000ms progress duration.
+  - id: ATTEMPT-20
+    task_id: TASK-2
+    approach: Run exact-commit Playwright verification for the responsive Actionable motion refinement.
+    outcome: blocked
+    recorded_at: "2026-08-03"
+    notes: >
+      Commit `d14c5bc27` passed the deploy lint, translation build, and locale
+      validation gates. The exact-commit test command found Vercel deployment
+      `dpl_5KfwTK6VdKJzmUVvevLK541E8cCu`, but Vercel canceled it while queued
+      before Playwright could start; the automated retry returned HTTP 400.
 
 handoff:
   current_task_id: TASK-2
