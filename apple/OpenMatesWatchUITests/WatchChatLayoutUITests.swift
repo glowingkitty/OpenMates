@@ -16,14 +16,14 @@ final class WatchChatLayoutUITests: XCTestCase {
         app.launchArguments = ["--ui-test-watch-chat-layout"]
         app.launch()
 
-        let thread = app.descendants(matching: .any)
-            .matching(identifier: "watch-chat-thread")
+        let layoutShell = app.descendants(matching: .any)
+            .matching(identifier: "watch-chat-shell")
             .firstMatch
-        XCTAssertTrue(thread.waitForExistence(timeout: 12))
+        XCTAssertTrue(layoutShell.waitForExistence(timeout: 12))
 
         let screenFrame = XCUIScreen.main.screenshot().image.size
-        XCTAssertGreaterThanOrEqual(thread.frame.height, screenFrame.height * 0.8)
-        XCTAssertGreaterThanOrEqual(thread.frame.maxY, screenFrame.height - 1)
+        XCTAssertGreaterThanOrEqual(layoutShell.frame.height, screenFrame.height * 0.8)
+        XCTAssertGreaterThanOrEqual(layoutShell.frame.maxY, screenFrame.height - 1)
 
         let embed = app.descendants(matching: .any)
             .matching(identifier: "watch-embed-preview-website")
