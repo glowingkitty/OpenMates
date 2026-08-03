@@ -8,6 +8,7 @@ Run: python3 -m pytest backend/tests/test_auth_dependencies.py
 
 import sys
 import types
+import hashlib
 from types import SimpleNamespace
 
 import pytest
@@ -90,3 +91,33 @@ async def test_unified_auth_preserves_api_key_device_approval_error(monkeypatch)
 
     assert exc.value.status_code == 403
     assert exc.value.detail == "New device detected. Please confirm this device."
+
+
+@pytest.mark.asyncio
+async def test_session_auth_state_uses_server_associated_connection_hash(monkeypatch):
+    _stub_auth_dependency_imports(monkeypatch)
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import _set_session_auth_state
+
+    refresh_token = "refresh-token"
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+
+    class Cache:
+        async def get(self, key):
+            assert key == "user_tokens:user-1"
+            return {
+                token_hash: {
+                    "device_hash": "d" * 64,
+                    "connection_hash": "c" * 64,
+                }
+            }
+
+    request = SimpleNamespace(state=SimpleNamespace())
+
+    await _set_session_auth_state(request, Cache(), "user-1", refresh_token)
+
+    assert request.state.auth_info == {
+        "auth_source": "session",
+        "user_id": "user-1",
+        "device_hash": "d" * 64,
+        "connection_hash": "c" * 64,
+    }

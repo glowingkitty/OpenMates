@@ -147,3 +147,46 @@ async def test_remove_member_revokes_membership_and_key_without_epoch_rotation()
     assert bob_wrapper["status"] == "revoked"
     assert bob_wrapper["team_key_epoch"] == 1
     assert {row["team_key_epoch"] for row in directus.rows["team_key_wrappers"]} == {1}
+    removal_updates = [collection for collection, _item_id, _patch, _admin in directus.updated[-2:]]
+    assert removal_updates == ["team_memberships", "team_key_wrappers"]
+
+
+@pytest.mark.anyio
+async def test_remove_member_stays_fail_closed_if_wrapper_revocation_fails() -> None:
+    directus = FakeDirectus()
+    methods = TeamMethods(directus)
+    await methods.create_team("alice", team_payload())
+    await methods.create_invite(
+        "team-1", "alice", {"invite_id": "invite-1", "role": "member", "created_at": 110}
+    )
+    request = await methods.accept_invite("invite-1", "bob", accepted_at=120)
+    await methods.approve_access_request(
+        "team-1", "alice", request["access_request_id"], "cipher-team-key-for-bob", approved_at=130
+    )
+    original_update = directus.update_item
+
+    async def fail_wrapper_update(collection: str, item_id: str, patch: dict, admin_required: bool = False):
+        if collection == "team_key_wrappers":
+            return None
+        return await original_update(collection, item_id, patch, admin_required)
+
+    directus.update_item = fail_wrapper_update
+
+    with pytest.raises(RuntimeError, match="team key wrapper"):
+        await methods.remove_member("team-1", "alice", "bob", removed_at=140)
+
+    bob_membership = next(
+        row for row in directus.rows["team_memberships"] if row["hashed_user_id"] == hash_id("bob")
+    )
+    assert bob_membership["status"] == "removed"
+
+
+@pytest.mark.anyio
+async def test_deleted_team_rejects_existing_member_role_checks() -> None:
+    directus = FakeDirectus()
+    methods = TeamMethods(directus)
+    await methods.create_team("alice", team_payload())
+
+    assert await methods.delete_team("team-1", "alice", deleted_at=150) is True
+    with pytest.raises(TeamPermissionError):
+        await methods.require_team_role("team-1", "alice", {"owner"})

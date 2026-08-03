@@ -3,6 +3,7 @@ Shared dependencies for authentication routes.
 This file contains functions that provide services to all auth-related endpoints,
 including retrieving the currently authenticated user.
 """
+import hashlib
 import logging
 import time
 from fastapi import Request, Response, HTTPException, Depends, Cookie
@@ -36,6 +37,28 @@ def _set_auth_state(request: Request | None, auth_info: dict[str, Any]) -> None:
     request.state.auth_info = auth_info
     request.state.auth_source = auth_info.get("auth_source")
     request.state.api_key_metadata = auth_info.get("api_key_metadata")
+
+
+async def _set_session_auth_state(
+    request: Request | None,
+    cache_service: CacheService,
+    user_id: str,
+    refresh_token: str | None,
+) -> None:
+    if request is None or not refresh_token:
+        return
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+    token_map = await cache_service.get(f"user_tokens:{user_id}") or {}
+    metadata = token_map.get(token_hash) if isinstance(token_map, dict) else None
+    _set_auth_state(
+        request,
+        {
+            "auth_source": "session",
+            "user_id": user_id,
+            "device_hash": metadata.get("device_hash") if isinstance(metadata, dict) else None,
+            "connection_hash": metadata.get("connection_hash") if isinstance(metadata, dict) else None,
+        },
+    )
 
 
 def _workflow_scope_for_request(method: str, path: str) -> str:
@@ -185,6 +208,7 @@ async def get_current_user(
             cached_data = None
         else:
             # Ensure all fields expected by the User model are present, providing defaults if necessary
+            await _set_session_auth_state(request, cache_service, cached_user_id, refresh_token)
             return User(
                 id=cached_user_id,
                 username=cached_username,
@@ -402,6 +426,7 @@ async def get_current_user(
         user_data_for_cache.pop("gifted_credits_for_signup", None)
 
     await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token, ttl=cache_ttl)
+    await _set_session_auth_state(request, cache_service, user.id, refresh_token)
     
     return user
 

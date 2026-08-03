@@ -211,6 +211,19 @@ class TeamMethods:
         membership = await self.get_membership(team_id, user_id)
         if not membership or membership.get("role") not in allowed_roles:
             raise TeamPermissionError("Team permission denied")
+        teams = await self.directus_service.get_items(
+            "teams",
+            params={
+                "filter[hashed_team_id][_eq]": hash_id(team_id),
+                "filter[status][_eq]": ACTIVE_STATUS,
+                "fields": "id",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if not isinstance(teams, list) or not teams:
+            raise TeamPermissionError("Team permission denied")
         return membership
 
     async def create_invite(self, team_id: str, inviter_user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -430,12 +443,27 @@ class TeamMethods:
         return bool(updated)
 
     async def remove_member(self, team_id: str, actor_user_id: str, target_user_id: str, removed_at: int | None = None) -> bool:
-        await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
-        target = await self.get_membership(team_id, target_user_id)
-        if not target or target.get("role") == "owner":
+        target = await self.prepare_member_removal(team_id, actor_user_id, target_user_id)
+        if not target:
             return False
         now = int(removed_at or time.time())
-        await self.directus_service.update_item("team_memberships", target["id"], {"status": "removed", "removed_at": now, "updated_at": now}, admin_required=True)
+        await self.deactivate_member(target, removed_at=now)
+        await self.revoke_member_key_wrappers(team_id, target_user_id, revoked_at=now)
+        return True
+
+    async def deactivate_member(self, membership: dict[str, Any], *, removed_at: int) -> None:
+        """Persist the fail-closed membership state before cache or wrapper cleanup."""
+        if not await self.directus_service.update_item(
+            "team_memberships",
+            membership["id"],
+            {"status": "removed", "removed_at": removed_at, "updated_at": removed_at},
+            admin_required=True,
+        ):
+            raise RuntimeError("Failed to remove team membership")
+
+    async def revoke_member_key_wrappers(
+        self, team_id: str, target_user_id: str, *, revoked_at: int
+    ) -> None:
         wrappers = await self.directus_service.get_items(
             "team_key_wrappers",
             params={
@@ -448,10 +476,26 @@ class TeamMethods:
             no_cache=True,
             admin_required=True,
         )
-        if isinstance(wrappers, list):
-            for wrapper in wrappers:
-                await self.directus_service.update_item("team_key_wrappers", wrapper["id"], {"status": "revoked", "revoked_at": now}, admin_required=True)
-        return True
+        if not isinstance(wrappers, list):
+            raise RuntimeError("Failed to list active team key wrappers")
+        for wrapper in wrappers:
+            if not await self.directus_service.update_item(
+                "team_key_wrappers",
+                wrapper["id"],
+                {"status": "revoked", "revoked_at": revoked_at},
+                admin_required=True,
+            ):
+                raise RuntimeError("Failed to revoke team key wrapper")
+
+    async def prepare_member_removal(
+        self, team_id: str, actor_user_id: str, target_user_id: str
+    ) -> dict[str, Any] | None:
+        """Authorize removal before callers revoke runtime access."""
+        await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
+        target = await self.get_membership(team_id, target_user_id)
+        if not target or target.get("role") == "owner":
+            return None
+        return target
 
     async def set_member_role(self, team_id: str, actor_user_id: str, target_user_id: str, role: str, updated_at: int | None = None) -> dict[str, Any] | None:
         await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
