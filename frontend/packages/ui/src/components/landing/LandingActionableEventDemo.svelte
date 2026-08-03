@@ -267,22 +267,22 @@
   @keyframes landingActionableStageFlow {
     0% {
       opacity: 0;
-      transform: translate3d(0, 34px, 0) scale(0.72);
+      transform: translate3d(0, 36px, 0) scale(0.72);
       animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     }
-    28% {
+    30% {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
+      transform: translate3d(0, 4px, 0) scale(0.96);
       animation-timing-function: linear;
     }
-    70% {
+    68% {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
+      transform: translate3d(0, -4px, 0) scale(1);
       animation-timing-function: cubic-bezier(0.7, 0, 1, 0.5);
     }
     100% {
       opacity: 0;
-      transform: translate3d(0, -30px, 0) scale(0.8);
+      transform: translate3d(0, -36px, 0) scale(0.78);
     }
   }
 
@@ -484,7 +484,9 @@
     }
 
     .landing-actionable-stage-content[data-stage='event-preview'] {
-      transform: scale(0.56);
+      width: 300px;
+      height: 200px;
+      transform: scale(0.54);
     }
 
     .landing-actionable-stage-content[data-stage='luma-cta'] {

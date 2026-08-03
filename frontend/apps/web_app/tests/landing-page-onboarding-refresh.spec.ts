@@ -481,8 +481,11 @@ async function mobileActionableSlideState(page: any): Promise<{
 	headlineBottom: number;
 	copyCenterDeltaX: number;
 	copyTop: number;
+	headlineLeftGap: number;
 	iconWidth: number;
 	iconOpacity: number;
+	iconHeadlineGap: number;
+	iconHeadlineCenterDeltaY: number;
 	demoOpacity: number;
 	demoTop: number;
 	demoBottom: number;
@@ -527,8 +530,11 @@ async function mobileActionableSlideState(page: any): Promise<{
 			headlineBottom: headlineRect.bottom,
 			copyCenterDeltaX: Math.abs((copyRect.left + copyRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
 			copyTop: copyRect.top,
+			headlineLeftGap: headlineRect.left - bannerRect.left,
 			iconWidth: iconRect.width,
 			iconOpacity: Number.parseFloat(getComputedStyle(icon).opacity),
+			iconHeadlineGap: headlineRect.left - iconRect.right,
+			iconHeadlineCenterDeltaY: Math.abs((iconRect.top + iconRect.height / 2) - (headlineRect.top + headlineRect.height / 2)),
 			demoOpacity: Number.parseFloat(getComputedStyle(demo).opacity),
 			demoTop: demoRect.top,
 			demoBottom: demoRect.bottom,
@@ -908,6 +914,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(initialActionable.bannerHeight, 'regular mobile guest banner should be 20px taller').toBeGreaterThanOrEqual(190);
 		expect(initialActionable.headlineFontSize, 'mobile headline should be large before the demo appears').toBeGreaterThanOrEqual(24);
 		expect(initialActionable.demoOpacity, 'demo should not be visible during the large-heading phase').toBeLessThanOrEqual(0.15);
+		expect(initialActionable.headlineLeftGap, 'large mobile headline should remain left aligned near the banner edge').toBeLessThanOrEqual(60);
 		await page.getByTestId('daily-inspiration-phrase').evaluate((headline: HTMLElement & { __landingPhraseNodeToken?: string }) => {
 			headline.__landingPhraseNodeToken = 'mobile-actionable';
 		});
@@ -929,6 +936,9 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(compactActionable.iconOpacity, 'the compact category icon should share the half-opacity treatment').toBeLessThanOrEqual(0.58);
 		expect(compactActionable.copyCenterDeltaX, 'the compact headline/icon group should be horizontally centered').toBeLessThanOrEqual(3);
 		expect(compactActionable.copyTop - compactActionable.bannerTop, 'the compact headline/icon group should sit at the banner top').toBeLessThanOrEqual(24);
+		expect(compactActionable.iconHeadlineGap, 'compact category icon should sit immediately left of the headline').toBeGreaterThanOrEqual(4);
+		expect(compactActionable.iconHeadlineGap, 'compact category icon should sit immediately left of the headline').toBeLessThanOrEqual(12);
+		expect(compactActionable.iconHeadlineCenterDeltaY, 'compact category icon and headline should share a vertical center').toBeLessThanOrEqual(3);
 		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
 		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
 		expect(compactActionable.demoBottom, 'demo must fit inside the banner instead of being clipped by it').toBeLessThanOrEqual(compactActionable.bannerBottom);
@@ -939,6 +949,30 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(compactActionable.demoBoxShadow, 'actionable demo should not render a boxed shadow').toBe('none');
 		expect(compactActionable.demoContentCenterDeltaX, 'actionable demo content should be horizontally centered').toBeLessThanOrEqual(2);
 		expect(compactActionable.demoContentCenterDeltaY, 'actionable demo content should be vertically centered').toBeLessThanOrEqual(2);
+
+		await waitForActionableStage(page, 'event-preview');
+		await expect.poll(
+			async () => page.getByTestId('landing-actionable-event-demo').getAttribute('data-interaction-state'),
+			{ timeout: ACTIONABLE_INTERACTION_TIMEOUT_MS }
+		).toBe('preview-clicked');
+		const mobilePreviewGeometry = await page.evaluate(() => {
+			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+			const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
+			const preview = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-preview"]');
+			if (!banner || !headline || !preview) throw new Error('Mobile Actionable preview geometry elements missing');
+			const bannerRect = banner.getBoundingClientRect();
+			const headlineRect = headline.getBoundingClientRect();
+			const previewRect = preview.getBoundingClientRect();
+			return {
+				centerDeltaX: Math.abs((previewRect.left + previewRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
+				fullyVisible: previewRect.left >= bannerRect.left - 1
+					&& previewRect.right <= bannerRect.right + 1
+					&& previewRect.top > headlineRect.bottom
+					&& previewRect.bottom <= bannerRect.bottom + 1
+			};
+		});
+		expect(mobilePreviewGeometry.centerDeltaX, 'mobile event preview should remain horizontally centered').toBeLessThanOrEqual(2);
+		expect(mobilePreviewGeometry.fullyVisible, 'mobile event preview should be fully visible below the compact headline').toBe(true);
 	});
 
 	test('regular guest landing exposes workspace prompt, CTA input links, compact cards, and all examples', async ({ page }: { page: any }) => {
