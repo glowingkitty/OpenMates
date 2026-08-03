@@ -34,8 +34,9 @@ scope:
 current_milestone:
   id: phase-2-actionable-event-slide
   goal: >
-    Implement, deploy, and verify the first regular-size follow-up slide after the
-    expanded logged-out intro: the `Actionable` Luma event preview explainer.
+    Finish, deploy, and verify the first regular-size follow-up slide after the
+    expanded logged-out intro as one coordinated, localized `Actionable` event
+    animation that advances exactly when its progress reaches 100%.
   in:
     - Full-container intro for the first guest slide only.
     - Headline `Simply ask your\nAI team mates` with the existing AI/sparkle visual language.
@@ -46,7 +47,6 @@ current_milestone:
     - Existing-style progress bar and left/right controls.
     - Skip behavior: pressing next during expanded intro collapses immediately and shows slide 2 at regular header size.
   deferred:
-    - Playwright `*.spec.ts` verification until the full landing page refresh is implemented.
     - Privacy and safety slide animations.
     - Mates and focus-mode slide animations.
     - Provider/cross-platform slide animations.
@@ -162,6 +162,11 @@ decisions:
     decision: The primary intro app rail keeps moving right-to-left, slower than the secondary rail, with the highlighted apps consecutive.
     reason: User explicitly rejected a static top row and asked to remove filler app placeholders between the highlighted apps while preserving near-center highlighted visibility.
     decided_at: "2026-08-02"
+  - id: D-7
+    status: active
+    decision: The Actionable animation is a one-shot timeline whose completion advances to the privacy slide, with a mobile-only same-node headline/icon morph and progress derived from the same duration.
+    reason: The user rejected the repeating animation, abrupt compact heading replacement, and inaccurate fixed-duration progress behavior.
+    decided_at: "2026-08-03"
 
 attempts:
   - id: ATTEMPT-1
@@ -381,16 +386,10 @@ attempts:
 
 handoff:
   current_task_id: TASK-2
-  next_action: Ask the user to visually confirm the deployed `app.dev.openmates.org` landing intro across real mobile, tablet, narrow desktop, and desktop sizes.
-  command: python3 scripts/spec_verify.py docs/specs/landing-page-onboarding-refresh/spec.yml
-  expected_outcome: Passes complete-phase evidence while final product acceptance remains blocked on user visual confirmation.
-  blocker:
-    id: V-USER-PHASE1
-    task_id: TASK-2
-    requires_user_input: true
-    reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
-    question: Does the deployed logged-out landing intro now look correct at your real mobile, tablet, narrow desktop, and desktop sizes?
-    next_action: If confirmed, mark phase-1 user confirmation complete; if rejected, record the exact visual mismatch and patch the focused landing intro issue before moving to later slides.
+  next_action: Deploy the strengthened Actionable Playwright contract without implementation changes and capture the expected red result.
+  command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts --gate-deploy --expected-commit <test-contract-commit>
+  expected_outcome: Fails on the old assistant copy/name or missing pointer interaction before implementation starts.
+  blocker: null
   last_verified_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
 
 scenarios:
@@ -432,7 +431,7 @@ scenarios:
       - The page remains usable with the message input and example-chat carousel visible.
 
   - id: S-4
-    title: Future actionable slide demonstrates embeds without full chat complexity
+    title: Actionable slide demonstrates a localized one-shot embed interaction
     given:
       - The visitor is on the `Actionable` slide.
     when:
@@ -440,10 +439,15 @@ scenarios:
     then:
       - The animation shows a simple user message for tech events in Berlin.
       - It shows a real chat-history-style user bubble with the speech-tail pointer.
-      - It shows a real chat-history-style assistant response with a mate profile image and speech-tail pointer saying it found a real Luma event.
+      - It shows a real chat-history-style assistant response with the localized general-knowledge mate name and speech-tail pointer saying the localized equivalent of `Of course, here you go:`.
       - A real events embed preview for `DEPIN DAY BERLIN` fades in with its Luma cover image.
       - A visible cursor moves over the preview and clicks it.
       - The click reveals the actual CTA text `Open on Luma`, and the cursor clicks that CTA.
+      - Every user-visible demo string comes from the translation sources for every supported locale.
+      - Each content stage enters quickly from below at reduced scale, settles slowly at full scale in the center, then accelerates upward while scaling and fading down.
+      - On mobile, the existing headline and category icon nodes move from the large left-aligned layout into a centered compact top caption at approximately 0.5 opacity; desktop keeps the side-by-side layout.
+      - The preview is fully visible and centered during its center dwell at desktop and mobile sizes.
+      - The animation plays once, the progress bar reaches 100% at the final clicked state, and the carousel advances to the privacy slide without repeating.
       - The slide does not show the rejected simplified fullscreen/map surface.
       - The animation is visually faithful to real OpenMates chat and events embed styling without mounting a full interactive chat runtime.
 
@@ -502,7 +506,7 @@ acceptance_criteria:
       - V-USER-PHASE1
   - id: AC-4
     scenario: S-4
-    text: The `Actionable` slide uses real chat bubble/profile styling plus a real-image Luma event preview and cursor-to-`Open on Luma` CTA animation, without mounting a full interactive chat runtime or showing the rejected fake fullscreen/map surface.
+    text: The `Actionable` slide uses localized real chat bubble/profile styling, a mobile-only same-node headline/icon morph, scaled center-dwell stage motion, a centered real-image Luma event preview, and visible cursor clicks through the pressed `Open on Luma` CTA; it then advances once with duration-accurate progress without mounting a full interactive chat runtime or showing the rejected fake fullscreen/map surface.
     required: true
     status: pending
     coverage_status: covered
@@ -625,28 +629,30 @@ tests:
     covers:
       - AC-4
     assertions:
-      - actionable slide shows the Luma event preview-to-CTA explainer sequence
+      - actionable slide shows the one-shot Luma event preview-to-CTA explainer sequence
       - user and assistant messages expose real chat bubble speech-tail styling
-      - assistant message includes a mate profile image
+      - assistant message includes a mate profile image, localized general-knowledge mate name, and localized `Of course, here you go:` copy
       - event preview uses the real events embed preview surface with app id `events` and skill id `event`
       - event preview uses a real Luma cover image and provider label
       - no simplified fullscreen/map surface is rendered
-      - visible cursor animation reveals and clicks the `Open on Luma` CTA
+      - visible cursor animation presses the preview, reveals the translated `Open on Luma` CTA, and presses that CTA
+      - mobile compaction preserves and animates the same headline and icon nodes to the centered top caption at approximately 0.5 opacity
+      - the preview is centered and fully visible during its center dwell
+      - progress duration matches the one-shot timeline and completion advances to the privacy slide without replaying the request
     red_phase:
-      required: false
-      expected: fail_when_activated
+      required: true
+      expected: fail
       evidence:
-        status: skipped_with_reason
-        reason: Slide 2 was activated after the first intro fix was already implemented; pre-activation failure was known from missing spec/component coverage but no preserved red run exists.
-        timestamp: "2026-07-23"
+        status: pending
+        reason: Awaiting the test-contract-only deployed run against the previous implementation.
+        timestamp: "2026-08-03"
     green_phase:
-      required: false
+      required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
-        command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        run_id: "30088768978"
-        subject_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
+        status: pending
+        reason: The user approved a material replacement contract on 2026-08-03, invalidating the earlier green evidence.
+        timestamp: "2026-08-03"
         target: app.dev.openmates.org
         deployment_reference: dpl_BrEka7VsjdnYMLxfMEHj7vtsmkG7
         timestamp: "2026-07-24T11:14:41Z"
@@ -755,18 +761,23 @@ implementation_plan:
     - frontend/packages/ui/src/components/ActiveChat.svelte
     - frontend/packages/ui/src/data/appsMetadata.ts
     - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
   architecture: >
     Keep the landing in the existing app shell. Extend the guest intro variant of
     DailyInspirationBanner with an expanded-first-slide state, metadata-backed
     icon rails, deterministic request timing, and immediate skip/collapse behavior.
-    Later slides can add lightweight explainer animation subcomponents without
-    mounting the full chat/embed runtime inside autoplay header animations.
+    The Actionable subcomponent owns one deterministic phase schedule and reports
+    completion to DailyInspirationBanner. The parent delays playback until the
+    mobile headline is compact, derives progress from the same shared duration,
+    and advances exactly once without mounting the full chat runtime.
   data_flow:
     - ActiveChat renders DailyInspirationBanner with `variant='guest-intro'` for logged-out welcome state.
     - DailyInspirationBanner detects first guest intro slide and starts expanded on mount for logged-out users.
     - Intro request timing drives current request text, highlighted app id, icon-rail alignment, and progress.
     - Manual next/previous updates the carousel immediately and disables the expanded intro state for the current component instance.
     - Auto completion collapses and advances to slide 2.
+    - The Actionable slide starts immediately beside its headline on desktop and after headline compaction on mobile.
+    - Actionable completion advances to the privacy slide and its progress bar uses the same desktop/mobile total duration.
   affected_files:
     - path: docs/specs/landing-page-onboarding-refresh/spec.yml
       reason: Product contract, implementation plan, and evidence ledger.
@@ -774,13 +785,20 @@ implementation_plan:
       reason: Phase-1 guest intro animation implementation.
     - path: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
       reason: Focused deployed Playwright coverage for the refreshed logged-out intro.
+    - path: frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+      reason: Localized one-shot messages, embed/pointer interactions, and stage motion.
+    - path: frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+      reason: All visible Actionable demo copy for every supported locale.
+    - path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+      reason: Deployed behavioral, timing, localization, and responsive layout coverage.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/landing-page-onboarding-refresh/spec.yml
     - bash scripts/lint_changed.sh with focused `--path` arguments for the touched files before deploy.
     - python3 scripts/sessions.py deploy --session aab5 after focused local checks.
     - python3 backend/scripts/debug.py vercel until Ready.
-    - Firecrawl screenshots of app.dev.openmates.org at mobile, tablet, and desktop viewports after deploy.
-    - Defer `*.spec.ts` Playwright runs until the full landing page refresh is implemented.
+    - Deploy the strengthened Playwright contract first and capture its expected red result against the old implementation.
+    - Deploy the implementation and rerun `landing-page-onboarding-refresh.spec.ts` against the exact Ready commit.
+    - Run Playwright visual smoke for `/` at laptop and mobile sizes and inspect the screenshots.
     - User visual confirmation before Apple parity.
   verification_order:
     - Spec validation.
@@ -830,8 +848,8 @@ tasks:
       - TASK-5
     independently_deployable: true
   - id: TASK-2
-    title: Implement Actionable language-learning event explainer slide
-    status: done
+    title: Implement coordinated Actionable event explainer slide
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios:
@@ -839,8 +857,10 @@ tasks:
       acceptance_criteria:
         - AC-4
     expected_files:
+      - docs/specs/landing-page-onboarding-refresh/spec.yml
       - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
       - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+      - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
       - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
     verification:
       - T-WEB-ACTIONABLE-EVENT
@@ -856,7 +876,7 @@ tasks:
         - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
       shared_files: []
     blockers:
-      - Pending user visual confirmation before activating underspecified later slides.
+      - None.
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-3

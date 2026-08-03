@@ -19,8 +19,9 @@ const LANDING_INTRO_VIEWPORTS = [
 	{ name: 'laptop-landscape', width: 1280, height: 800, minAiIconWidth: 58, maxHeadlineRequestGap: 46, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 78, maxHighlightedCenterDelta: 72 },
 	{ name: 'full-hd', width: 1920, height: 1080, minAiIconWidth: 74, maxHeadlineRequestGap: 64, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 100, maxHighlightedCenterDelta: 90 }
 ];
-const ACTIONABLE_STAGE_SETTLE_MS = 520;
+const ACTIONABLE_STAGE_SETTLE_MS = 260;
 const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
+const ACTIONABLE_INTERACTION_TIMEOUT_MS = 5000;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
 const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
@@ -440,12 +441,14 @@ async function waitForActionableStage(page: any, stage: ActionableStage): Promis
 
 async function actionableStageState(page: any): Promise<{
 	activeStage: string | null;
+	interactionState: string | null;
 	stageCount: number;
 	hasUserMessage: boolean;
 	hasAssistantMessage: boolean;
 	hasPreview: boolean;
 	hasCtaCard: boolean;
 	hasButton: boolean;
+	hasPointer: boolean;
 	buttonText: string;
 	buttonBackground: string;
 }> {
@@ -453,12 +456,14 @@ async function actionableStageState(page: any): Promise<{
 		const button = demo.querySelector<HTMLElement>('[data-testid="landing-actionable-luma-button"]');
 		return {
 			activeStage: demo.getAttribute('data-active-stage'),
+			interactionState: demo.getAttribute('data-interaction-state'),
 			stageCount: demo.querySelectorAll('[data-testid="landing-actionable-stage"]').length,
 			hasUserMessage: Boolean(demo.querySelector('[data-testid="landing-actionable-user-message"]')),
 			hasAssistantMessage: Boolean(demo.querySelector('[data-testid="landing-actionable-assistant-message"]')),
 			hasPreview: Boolean(demo.querySelector('[data-testid="landing-actionable-event-preview"]')),
 			hasCtaCard: Boolean(demo.querySelector('[data-testid="landing-actionable-event-cta-card"]')),
 			hasButton: Boolean(button),
+			hasPointer: Boolean(demo.querySelector('[data-testid="landing-actionable-pointer"]')),
 			buttonText: button?.textContent?.trim() ?? '',
 			buttonBackground: button ? getComputedStyle(button).backgroundColor : ''
 		};
@@ -471,7 +476,12 @@ async function mobileActionableSlideState(page: any): Promise<{
 	headlineFontSize: number;
 	headlineOpacity: number;
 	headlineStableNode: boolean;
+	iconStableNode: boolean;
 	headlineBottom: number;
+	copyCenterDeltaX: number;
+	copyTop: number;
+	iconWidth: number;
+	iconOpacity: number;
 	demoOpacity: number;
 	demoTop: number;
 	demoBottom: number;
@@ -486,13 +496,17 @@ async function mobileActionableSlideState(page: any): Promise<{
 	return page.evaluate(() => {
 		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 		const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
+		const copy = document.querySelector<HTMLElement>('[data-testid="guest-intro-copy"]');
+		const icon = document.querySelector<HTMLElement>('[data-testid="guest-feature-inline-icon"]');
 		const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
 		const stage = document.querySelector<HTMLElement>('[data-testid="landing-actionable-stage"]');
 		const reportButton = document.querySelector<HTMLElement>('[data-testid="report-issue-button"]');
-		if (!banner || !headline || !demo || !stage || !reportButton) throw new Error('mobile actionable slide elements missing');
+		if (!banner || !headline || !copy || !icon || !demo || !stage || !reportButton) throw new Error('mobile actionable slide elements missing');
 
 		const bannerRect = banner.getBoundingClientRect();
 		const headlineRect = headline.getBoundingClientRect();
+		const copyRect = copy.getBoundingClientRect();
+		const iconRect = icon.getBoundingClientRect();
 		const demoRect = demo.getBoundingClientRect();
 		const stageContentRect = (stage.firstElementChild as HTMLElement | null)?.getBoundingClientRect();
 		const demoCenterX = demoRect.left + demoRect.width / 2;
@@ -506,7 +520,12 @@ async function mobileActionableSlideState(page: any): Promise<{
 			headlineFontSize: Number.parseFloat(getComputedStyle(headline).fontSize),
 			headlineOpacity: Number.parseFloat(getComputedStyle(headline).opacity),
 			headlineStableNode: (headline as HTMLElement & { __landingPhraseNodeToken?: string }).__landingPhraseNodeToken === 'mobile-actionable',
+			iconStableNode: (icon as HTMLElement & { __landingIconNodeToken?: string }).__landingIconNodeToken === 'mobile-actionable',
 			headlineBottom: headlineRect.bottom,
+			copyCenterDeltaX: Math.abs((copyRect.left + copyRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
+			copyTop: copyRect.top,
+			iconWidth: iconRect.width,
+			iconOpacity: Number.parseFloat(getComputedStyle(icon).opacity),
 			demoOpacity: Number.parseFloat(getComputedStyle(demo).opacity),
 			demoTop: demoRect.top,
 			demoBottom: demoRect.bottom,
@@ -729,7 +748,7 @@ test.describe('Landing page onboarding refresh', () => {
 		);
 	});
 
-	test('actionable slide shows one centered stage at a time and a regular Luma button', async ({ page }: { page: any }) => {
+	test('actionable slide plays one localized pointer-driven sequence and advances once', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -742,6 +761,10 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Not just a wall of text.', { timeout: 5000 });
 		await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible({ timeout: 5000 });
+		const progressDurationMs = await page.getByTestId('daily-inspiration-carousel-progress').evaluate((progress: HTMLElement) => (
+			Number.parseFloat(getComputedStyle(progress).getPropertyValue('--carousel-progress-duration'))
+		));
+		expect(progressDurationMs, 'Actionable progress must use the one-shot animation duration instead of the generic 20 seconds').toBeLessThan(12000);
 
 		await waitForActionableStage(page, 'user-request');
 		let state = await actionableStageState(page);
@@ -760,7 +783,8 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(state.hasPreview).toBe(false);
 		expect(state.hasButton).toBe(false);
 		await expect(page.getByTestId('landing-actionable-assistant-profile')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('landing-actionable-assistant-message')).toContainText('I found a real Luma event');
+		await expect(page.getByTestId('landing-actionable-assistant-name')).toHaveText('George');
+		await expect(page.getByTestId('landing-actionable-assistant-message')).toContainText('Of course, here you go:');
 
 		await waitForActionableStage(page, 'event-preview');
 		state = await actionableStageState(page);
@@ -774,6 +798,12 @@ test.describe('Landing page onboarding refresh', () => {
 			'data-app-id',
 			'events'
 		);
+		await expect(page.getByTestId('landing-actionable-pointer')).toBeVisible({ timeout: ACTIONABLE_INTERACTION_TIMEOUT_MS });
+		await expect.poll(
+			async () => page.getByTestId('landing-actionable-event-demo').getAttribute('data-interaction-state'),
+			{ timeout: ACTIONABLE_INTERACTION_TIMEOUT_MS }
+		).toBe('preview-clicked');
+		await expect(page.getByTestId('landing-actionable-event-preview')).toHaveAttribute('data-demo-pressed', 'true');
 
 		await waitForActionableStage(page, 'luma-cta');
 		state = await actionableStageState(page);
@@ -783,8 +813,14 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(state.hasPreview).toBe(false);
 		expect(state.hasCtaCard, 'the old custom CTA card must not render').toBe(false);
 		expect(state.hasButton).toBe(true);
+		expect(state.hasPointer).toBe(true);
 		expect(state.buttonText).toBe('Open on Luma');
 		expect(state.buttonBackground).toBe('rgb(255, 85, 59)');
+		await expect.poll(
+			async () => page.getByTestId('landing-actionable-event-demo').getAttribute('data-interaction-state'),
+			{ timeout: ACTIONABLE_INTERACTION_TIMEOUT_MS }
+		).toBe('cta-clicked');
+		await expect(page.getByTestId('landing-actionable-luma-button')).toHaveAttribute('data-demo-pressed', 'true');
 		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toHaveCount(0);
 		await expect(page.getByTestId('landing-actionable-event-map')).toHaveCount(0);
 		await expect(page.getByTestId('guest-intro-video-shell')).toHaveCount(0);
@@ -824,6 +860,11 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.sceneAnimation).toBe('none');
 		expect(metrics.activeStage).toBe('luma-cta');
 		expect(metrics.buttonText).toBe('Open on Luma');
+
+		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0, { timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
+		await page.waitForTimeout(1200);
+		await expect(page.getByTestId('landing-actionable-user-message')).toHaveCount(0);
 	});
 
 	test('mobile actionable slide compacts copy above the animation', async ({ page }: { page: any }) => {
@@ -844,13 +885,24 @@ test.describe('Landing page onboarding refresh', () => {
 		await page.getByTestId('daily-inspiration-phrase').evaluate((headline: HTMLElement & { __landingPhraseNodeToken?: string }) => {
 			headline.__landingPhraseNodeToken = 'mobile-actionable';
 		});
+		await page.getByTestId('guest-feature-inline-icon').evaluate((icon: HTMLElement & { __landingIconNodeToken?: string }) => {
+			icon.__landingIconNodeToken = 'mobile-actionable';
+		});
 
 		await page.waitForTimeout(MOBILE_HEADING_COMPACT_SETTLE_MS);
 		await waitForActionableStage(page, 'assistant-response');
 		const compactActionable = await mobileActionableSlideState(page);
 		expect(compactActionable.headlineStableNode, 'mobile compaction should resize the same headline node instead of replacing it').toBe(true);
+		expect(compactActionable.iconStableNode, 'mobile compaction should preserve the same category icon node').toBe(true);
 		expect(compactActionable.headlineFontSize, 'headline should shrink into the compact top caption').toBeLessThanOrEqual(initialActionable.headlineFontSize * 0.72);
-		expect(compactActionable.headlineOpacity, 'compact headline should stay visibly present instead of fading away').toBeGreaterThanOrEqual(0.88);
+		expect(compactActionable.headlineOpacity, 'compact headline should settle near half opacity').toBeGreaterThanOrEqual(0.45);
+		expect(compactActionable.headlineOpacity, 'compact headline should settle near half opacity').toBeLessThanOrEqual(0.58);
+		expect(compactActionable.iconWidth, 'the category icon should shrink but remain visible').toBeGreaterThan(12);
+		expect(compactActionable.iconWidth, 'the category icon should shrink with the caption').toBeLessThan(initialActionable.iconWidth * 0.72);
+		expect(compactActionable.iconOpacity, 'the compact category icon should share the half-opacity treatment').toBeGreaterThanOrEqual(0.45);
+		expect(compactActionable.iconOpacity, 'the compact category icon should share the half-opacity treatment').toBeLessThanOrEqual(0.58);
+		expect(compactActionable.copyCenterDeltaX, 'the compact headline/icon group should be horizontally centered').toBeLessThanOrEqual(3);
+		expect(compactActionable.copyTop, 'the compact headline/icon group should move to the banner top').toBeLessThan(initialActionable.copyTop - 20);
 		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
 		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
 		expect(compactActionable.demoBottom, 'demo must fit inside the banner instead of being clipped by it').toBeLessThanOrEqual(compactActionable.bannerBottom);
