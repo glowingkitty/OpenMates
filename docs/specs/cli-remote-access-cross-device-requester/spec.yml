@@ -124,7 +124,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 51fdd17559765f0d2a127c12702b4a214b3a1ec3
+  subject_commit: 808db44
 
 approvals:
   product_contract:
@@ -185,14 +185,25 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-03"
     reason: Users need production CLI context, source selection, cleartext output, and stable errors.
+  - id: ATTEMPT-3
+    task_id: TASK-2A
+    approach: Run Team lifecycle, membership, and offboarding CLI verifiers against the real dev API before Project implementation.
+    outcome: blocked
+    recorded_at: "2026-08-03T13:23:38Z"
+    reason: The first Team create request returned HTTP 404 FEATURE_DISABLED because platform:teams is not enabled in backend_config.yml.
 
 handoff:
   current_task_id: TASK-2A
-  next_action: Verify the required Teams V1 primitives against the real dev API before writing Project feature tests or source code.
+  next_action: Resolve whether Teams may be enabled on dev, then restart the API under the Docker lock and rerun the prerequisite command.
   command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_membership.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_offboarding.py --api-url https://api.dev.openmates.org
   expected_outcome: Team lifecycle, active context, membership/key access, role enforcement, and offboarding probes pass so A-1 can be confirmed.
-  blocker: null
-  last_verified_commit: 51fdd17559765f0d2a127c12702b4a214b3a1ec3
+  blocker:
+    task_id: TASK-2A
+    requires_user_input: true
+    reason: platform:teams is intentionally disabled in the shared backend configuration, so the real dev prerequisite cannot execute; enabling it may expose unfinished Teams V1 behavior.
+    question: Should platform:teams be enabled on the dev server for this implementation while remaining disabled by default for production/self-hosted deployments until Teams V1 is fully verified?
+    next_action: If approved, add a dev-only Teams feature override, restart api under the Docker lock, and rerun T-TEAMS-PREREQUISITE-LIVE.
+  last_verified_commit: 808db44
 
 scenarios:
   - id: S-1
@@ -336,9 +347,10 @@ assumptions:
     text: The Teams V1 membership, active-context, key-access, and role primitives required by this feature are green before Team Project implementation starts.
     category: permissions
     required_before: task_execution
-    status: checking
+    status: blocked
     evidence:
       - {source: docs/specs/teams-v1/spec.yml, summary: "Product contract is approved, but its current handoff still requires deployed CLI/dev verification; TASK-2 must confirm the needed primitives or explicitly implement the missing subset here."}
+      - {source: "T-TEAMS-PREREQUISITE-LIVE run local-teams-prerequisite-2026-08-03T13:23:38Z", summary: "POST /v1/teams returned HTTP 404 FEATURE_DISABLED because platform:teams is not enabled."}
   - id: A-2
     text: Team Project keys can be wrapped by Team key epoch 1 without exposing raw keys to the backend.
     category: encryption
@@ -447,7 +459,16 @@ tests:
       - Membership approval gives an active member the Team key path while viewer/member/admin/owner roles remain distinguishable.
       - Member removal revokes future Team API/key access and managed client state through the real dev contract.
     red_phase: {required: false, expected: not_applicable_existing_prerequisite, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: failed
+        command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_membership.py --api-url https://api.dev.openmates.org && python3 scripts/verify_teams_cli_offboarding.py --api-url https://api.dev.openmates.org
+        run_id: local-teams-prerequisite-2026-08-03T13:23:38Z
+        subject_commit: 808db44
+        timestamp: "2026-08-03T13:23:38Z"
+        reason: Team create returned HTTP 404 FEATURE_DISABLED before membership or offboarding probes could run.
   - id: T-BACKEND-PROJECT-CONTEXT
     type: pytest
     file: backend/tests/test_projects.py
@@ -749,14 +770,14 @@ tasks:
     independently_deployable: true
   - id: TASK-2A
     title: Verify Teams lifecycle and key-access prerequisites
-    status: pending
-    phase: checking_assumptions
+    status: blocked
+    phase: blocked
     covers: {scenarios: [S-5, S-6, S-7], acceptance_criteria: [AC-5, AC-6, AC-7]}
     expected_files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml]
     verification_ids: [T-TEAMS-PREREQUISITE-LIVE]
     dependencies: [TASK-1]
     ownership: {files: [docs/specs/cli-remote-access-cross-device-requester/spec.yml], shared_files: [scripts/verify_teams_cli_lifecycle.py, scripts/verify_teams_cli_membership.py, scripts/verify_teams_cli_offboarding.py]}
-    blockers: []
+    blockers: [User decision required before enabling platform:teams on dev; current real Team API returns FEATURE_DISABLED.]
     follow_up_tasks: [TASK-2]
     independently_deployable: true
   - id: TASK-2
