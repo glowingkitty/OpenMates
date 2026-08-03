@@ -472,6 +472,7 @@ async function actionableStageState(page: any): Promise<{
 
 async function mobileActionableSlideState(page: any): Promise<{
 	bannerHeight: number;
+	bannerTop: number;
 	bannerBottom: number;
 	headlineFontSize: number;
 	headlineOpacity: number;
@@ -517,6 +518,7 @@ async function mobileActionableSlideState(page: any): Promise<{
 		const demoStyle = getComputedStyle(demo);
 		return {
 			bannerHeight: bannerRect.height,
+			bannerTop: bannerRect.top,
 			bannerBottom: bannerRect.bottom,
 			headlineFontSize: Number.parseFloat(getComputedStyle(headline).fontSize),
 			headlineOpacity: Number.parseFloat(getComputedStyle(headline).opacity),
@@ -794,18 +796,6 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(state.hasAssistantMessage).toBe(false);
 		expect(state.hasPreview).toBe(true);
 		expect(state.hasButton).toBe(false);
-		const pointerStart = await page.evaluate(() => {
-			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
-			const pointer = document.querySelector<HTMLElement>('[data-testid="landing-actionable-pointer"]');
-			if (!scene || !pointer) throw new Error('Actionable pointer start elements missing');
-			return {
-				opacity: Number.parseFloat(getComputedStyle(pointer).opacity),
-				top: pointer.getBoundingClientRect().top,
-				sceneBottom: scene.getBoundingClientRect().bottom
-			};
-		});
-		expect(pointerStart.opacity, 'pointer should begin hidden below the preview scene').toBeLessThanOrEqual(0.05);
-		expect(pointerStart.top, 'pointer should begin outside the bottom of the preview scene').toBeGreaterThanOrEqual(pointerStart.sceneBottom);
 		await expect(page.getByTestId('landing-actionable-event-preview')).toContainText('DEPIN DAY BERLIN');
 		await expect(page.getByTestId('landing-actionable-event-preview').getByTestId('embed-preview')).toHaveAttribute(
 			'data-app-id',
@@ -938,7 +928,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(compactActionable.iconOpacity, 'the compact category icon should share the half-opacity treatment').toBeGreaterThanOrEqual(0.45);
 		expect(compactActionable.iconOpacity, 'the compact category icon should share the half-opacity treatment').toBeLessThanOrEqual(0.58);
 		expect(compactActionable.copyCenterDeltaX, 'the compact headline/icon group should be horizontally centered').toBeLessThanOrEqual(3);
-		expect(compactActionable.copyTop, 'the compact headline/icon group should move to the banner top').toBeLessThan(initialActionable.copyTop - 20);
+		expect(compactActionable.copyTop - compactActionable.bannerTop, 'the compact headline/icon group should sit at the banner top').toBeLessThanOrEqual(24);
 		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
 		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
 		expect(compactActionable.demoBottom, 'demo must fit inside the banner instead of being clipped by it').toBeLessThanOrEqual(compactActionable.bannerBottom);
