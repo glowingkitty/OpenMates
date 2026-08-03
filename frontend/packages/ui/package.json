@@ -93,7 +93,7 @@
     "@opentelemetry/sdk-trace-web": "^2.8.0",
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
-    "@sveltejs/kit": "2.60.1",
+    "@sveltejs/kit": "2.69.1",
     "@tiptap/core": "3.26.0",
     "@tiptap/extension-highlight": "3.26.0",
     "@tiptap/extension-link": "3.26.0",

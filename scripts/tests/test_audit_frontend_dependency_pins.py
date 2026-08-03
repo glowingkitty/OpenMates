@@ -31,7 +31,7 @@ snapshots:
 def test_audit_accepts_expected_frontend_pins() -> None:
     lockfile = make_lockfile(
         """
-  '@sveltejs/kit@2.60.1':
+  '@sveltejs/kit@2.69.1':
     resolution: {{integrity: sha512-ok}}
 
   '@tiptap/core@3.26.0':
@@ -57,7 +57,7 @@ def test_audit_accepts_expected_frontend_pins() -> None:
 def test_audit_rejects_duplicate_prosemirror_model_versions() -> None:
     lockfile = make_lockfile(
         """
-  '@sveltejs/kit@2.60.1':
+  '@sveltejs/kit@2.69.1':
     resolution: {{integrity: sha512-ok}}
 
   '@tiptap/core@3.26.0':
@@ -82,7 +82,7 @@ def test_audit_rejects_duplicate_prosemirror_model_versions() -> None:
 def test_audit_rejects_tiptap_train_drift() -> None:
     lockfile = make_lockfile(
         """
-  '@sveltejs/kit@2.60.1':
+  '@sveltejs/kit@2.69.1':
     resolution: {{integrity: sha512-ok}}
 
   '@tiptap/core@3.26.1':
