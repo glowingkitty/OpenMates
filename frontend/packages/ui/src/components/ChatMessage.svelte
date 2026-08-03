@@ -2697,7 +2697,7 @@
 
           // --- Images: download original image with prompt-based filename and metadata ---
           if (selectedAppId === 'images' && action === 'download') {
-            const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
+            const files = decodedContent.files as { original?: { s3_key: string; format?: string; aes_nonce?: string; encryption?: string } } | undefined;
             const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
             const aesKey = decodedContent.aes_key as string | undefined;
             const aesNonce = decodedContent.aes_nonce as string | undefined;
@@ -2705,7 +2705,8 @@
             const imageModel = decodedContent.model as string | undefined;
             const imageGeneratedAt = decodedContent.generated_at as string | undefined;
 
-            if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+            const { hasMediaEncryptionMetadata } = await import('../services/encryption/mediaEncryption');
+            if (files?.original?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(files.original, aesNonce)) {
               try {
                 const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
                 const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
@@ -2713,7 +2714,8 @@
                   s3BaseUrl,
                   files.original.s3_key,
                   aesKey,
-                  aesNonce
+                  aesNonce ?? '',
+                  files.original
                 );
                 const ext = files.original.format || 'png';
                 

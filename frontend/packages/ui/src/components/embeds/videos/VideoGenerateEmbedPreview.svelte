@@ -10,6 +10,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
   interface VideoFileVariant {
     s3_key: string;
@@ -17,6 +18,8 @@
     format?: string;
     mime_type?: string;
     duration_seconds?: number;
+    aes_nonce?: string;
+    encryption?: string;
   }
 
   interface Props {
@@ -77,7 +80,7 @@
       videoUrl = previewVideoUrl;
       return;
     }
-    if (currentStatus === 'finished' && !videoUrl && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && currentAesNonce) {
+    if (currentStatus === 'finished' && !videoUrl && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && hasMediaEncryptionMetadata(currentFiles.original, currentAesNonce)) {
       loadVideo();
     }
   });
@@ -91,7 +94,7 @@
     if (!file?.s3_key) return;
     try {
       videoError = undefined;
-      videoUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'video/mp4');
+      videoUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'video/mp4', file);
       retainedS3Key = file.s3_key;
     } catch (err) {
       videoError = err instanceof Error ? err.message : 'Failed to load video';

@@ -27,6 +27,7 @@
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
   /** Max display length for the filename in the embed header title (chars) */
   const MAX_FILENAME_LENGTH = 30;
@@ -73,9 +74,9 @@
   let s3BaseUrl = $derived(typeof dc.s3BaseUrl === 'string' ? dc.s3BaseUrl : (typeof dc.s3_base_url === 'string' ? dc.s3_base_url : undefined));
   let files = $derived(
     (typeof dc.files === 'object' && dc.files !== null ? dc.files : undefined) as {
-      preview?: { s3_key: string; width: number; height: number; format: string };
-      full?: { s3_key: string; width: number; height: number; format: string };
-      original?: { s3_key: string; width: number; height: number; format: string };
+      preview?: { s3_key: string; width: number; height: number; format: string; aes_nonce?: string; encryption?: string };
+      full?: { s3_key: string; width: number; height: number; format: string; aes_nonce?: string; encryption?: string };
+      original?: { s3_key: string; width: number; height: number; format: string; aes_nonce?: string; encryption?: string };
     } | undefined
   );
   let aesKey = $derived(typeof dc.aesKey === 'string' ? dc.aesKey : (typeof dc.aes_key === 'string' ? dc.aes_key : undefined));
@@ -169,7 +170,8 @@
    * already-rendered image, even when the viewer is not authenticated.
    */
   let headerSubtitle = $derived.by(() => {
-    const hasRenderableSource = !!src || !!(files && s3BaseUrl && aesKey && aesNonce);
+    const selectedFile = files?.full || files?.preview;
+    const hasRenderableSource = !!src || !!(selectedFile && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(selectedFile, aesNonce));
     if (!isAuthenticated && !hasRenderableSource) {
       return $text('app_skills.images.view.signup_to_upload');
     }
@@ -198,7 +200,7 @@
    */
   async function loadFullImage() {
     if (fullImageUrl) return;
-    if (!s3BaseUrl || !aesKey || !aesNonce) return; // guard — caller should check
+    if (!s3BaseUrl || !aesKey) return; // guard — caller should check
 
     // Prevent infinite retry loops — give up after MAX_FULL_IMAGE_RETRIES attempts
     if (loadRetryCount >= MAX_FULL_IMAGE_RETRIES) {
@@ -223,7 +225,7 @@
 
     // Step 2: Load the full-res variant (prefer 'full', fall back to 'preview')
     const fullFileData = files?.full || files?.preview;
-    if (!fullFileData?.s3_key) return;
+    if (!fullFileData?.s3_key || !hasMediaEncryptionMetadata(fullFileData, aesNonce)) return;
 
     // Check LRU cache first — avoids redundant S3 fetches
     const cachedFull = getCachedImageUrl(fullFileData.s3_key);
@@ -243,7 +245,7 @@
         `[ImageEmbedFullscreen] Loading full image from S3 (attempt ${loadRetryCount}/${MAX_FULL_IMAGE_RETRIES}):`,
         fullFileData.s3_key,
       );
-      const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce ?? '', fullFileData);
       fullImageUrl = URL.createObjectURL(blob);
       retainedFullKey = fullFileData.s3_key;
       retainCachedImage(fullFileData.s3_key);
@@ -280,7 +282,8 @@
 
     if (!fullImageUrl && !isLoadingImage && !imageError) {
       // Use the locally-read values so the compiler knows they're dependencies.
-      if (!currentS3 || !currentKey || !currentNonce) {
+      const selectedFile = files?.full || files?.preview;
+      if (!currentS3 || !currentKey || !hasMediaEncryptionMetadata(selectedFile, currentNonce)) {
         // Blob path: use local src when S3 is not available
         if (currentSrc) {
           fullImageUrl = currentSrc;
@@ -305,12 +308,12 @@
    * Only available when S3 data is present (authenticated users).
    */
   async function handleDownload() {
-    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) return;
+    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(files.original, aesNonce)) return;
     if (isDownloading) return;
 
     isDownloading = true;
     try {
-      const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce ?? '', files.original);
       const ext = files.original.format || 'bin';
       // Use the original filename if it already has an extension, otherwise append
       const downloadName = filename.includes('.') ? filename : `${filename}.${ext}`;

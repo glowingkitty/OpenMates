@@ -25,13 +25,19 @@ import { tipTapToCanonicalMarkdown, tipTapToReadableMarkdown } from "../message_
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
 import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 import { fetchAndDecryptImage } from "../components/embeds/images/imageEmbedCrypto";
+import { hasMediaEncryptionMetadata } from "./encryption/mediaEncryption";
 import {
   generateImageFilename,
   embedPngMetadata,
 } from "../components/embeds/images/imageDownloadUtils";
 
 type DecodedEmbedContent = Record<string, unknown>;
-type ImageFileEntry = { s3_key?: string; format?: string };
+type ImageFileEntry = {
+  s3_key?: string;
+  format?: string;
+  aes_nonce?: string;
+  encryption?: string;
+};
 
 function isRecord(value: unknown): value is DecodedEmbedContent {
   return !!value && typeof value === "object";
@@ -592,6 +598,7 @@ async function loadImageEmbedsRecursively(
     s3_key: string;
     aes_key: string;
     aes_nonce: string;
+    variant: ImageFileEntry;
     format: string;
   }>
 > {
@@ -607,6 +614,7 @@ async function loadImageEmbedsRecursively(
     s3_key: string;
     aes_key: string;
     aes_nonce: string;
+    variant: ImageFileEntry;
     format: string;
   }> = [];
 
@@ -710,12 +718,13 @@ async function loadImageEmbedsRecursively(
             s3_key: "",
             aes_key: "",
             aes_nonce: "",
+            variant: fileEntry || {},
             format: fileEntry?.format || "png",
           });
         } else if (
           decodedContent.aes_key &&
-          decodedContent.aes_nonce &&
-          fileEntry?.s3_key
+          fileEntry?.s3_key &&
+          hasMediaEncryptionMetadata(fileEntry, stringValue(decodedContent.aes_nonce))
         ) {
           const isUpload = decodedContent.skill_id === "upload";
           imageEmbeds.push({
@@ -733,6 +742,7 @@ async function loadImageEmbedsRecursively(
             s3_key: fileEntry.s3_key,
             aes_key: stringValue(decodedContent.aes_key) || "",
             aes_nonce: stringValue(decodedContent.aes_nonce) || "",
+            variant: fileEntry,
             format: fileEntry.format || "png",
           });
         }
@@ -890,6 +900,7 @@ export async function getImageEmbedsForChat(messages: Message[]): Promise<
               imageInfo.s3_key,
               imageInfo.aes_key,
               imageInfo.aes_nonce,
+              imageInfo.variant,
             );
 
         // For PNG images, embed metadata (prompt, model, etc.)

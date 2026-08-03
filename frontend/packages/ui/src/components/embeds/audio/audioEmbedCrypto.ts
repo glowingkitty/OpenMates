@@ -80,6 +80,10 @@ export class AudioDecryptError extends Error {
 }
 
 import { fetchWithPresignedUrl } from "../../../services/presignedUrlService";
+import {
+  decryptMediaPayload,
+  MediaEncryptionError,
+} from "../../../services/encryption/mediaEncryption";
 
 // ---------------------------------------------------------------------------
 
@@ -137,6 +141,7 @@ export async function fetchAndDecryptAudio(
   aesKeyBase64: string,
   nonceBase64: string,
   mimeType: string = "audio/webm",
+  variant: unknown = {},
 ): Promise<string> {
   // Return cached blob URL if available
   const cached = audioCache.get(s3Key);
@@ -167,40 +172,19 @@ export async function fetchAndDecryptAudio(
     throw new AudioNetworkError(s3Key, fetchErr);
   }
 
-  // Decode base64 key and nonce. Newer upload artefacts prefix the nonce to
-  // the ciphertext and store aes_nonce as an empty string, matching images/PDFs.
-  const NONCE_BYTES = 12;
-  const aesKeyBytes = base64ToArrayBuffer(aesKeyBase64);
-  const nonceBytes = nonceBase64
-    ? base64ToArrayBuffer(nonceBase64)
-    : encryptedData.slice(0, NONCE_BYTES);
-  const ciphertext = nonceBase64 ? encryptedData : encryptedData.slice(NONCE_BYTES);
-
-  // Import AES key — throws DOMException("DataError") if key bytes are invalid
-  let cryptoKey: CryptoKey;
-  try {
-    cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      aesKeyBytes,
-      { name: "AES-GCM" },
-      false,
-      ["decrypt"],
-    );
-  } catch (importErr) {
-    throw new AudioDecryptError("importKey", importErr);
-  }
-
-  // Decrypt using AES-256-GCM.
-  // Throws DOMException("OperationError") if the key/nonce doesn't match the ciphertext.
   let decryptedData: ArrayBuffer;
   try {
-    decryptedData = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: nonceBytes },
-      cryptoKey,
-      ciphertext,
-    );
+    decryptedData = await decryptMediaPayload({
+      encryptedData,
+      aesKeyBase64,
+      variant,
+      legacyNonceBase64: nonceBase64,
+    });
   } catch (decryptErr) {
-    throw new AudioDecryptError("decrypt", decryptErr);
+    const stage = decryptErr instanceof MediaEncryptionError && decryptErr.stage === "importKey"
+      ? "importKey"
+      : "decrypt";
+    throw new AudioDecryptError(stage, decryptErr);
   }
 
   // Create blob URL and cache it
@@ -209,18 +193,4 @@ export async function fetchAndDecryptAudio(
   audioCache.set(s3Key, { blobUrl, refCount: 1, revokeTimer: null });
 
   return blobUrl;
-}
-
-/**
- * Convert a base64 string to an ArrayBuffer.
- * Handles both standard and URL-safe base64.
- */
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const normalized = base64.replace(/-/g, "+").replace(/_/g, "/");
-  const binaryString = atob(normalized);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
 }
