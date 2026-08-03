@@ -915,7 +915,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(initialActionable.bannerHeight, 'regular mobile guest banner should be 20px taller').toBeGreaterThanOrEqual(190);
 		expect(initialActionable.headlineFontSize, 'mobile headline should be large before the demo appears').toBeGreaterThanOrEqual(24);
 		expect(initialActionable.demoOpacity, 'demo should not be visible during the large-heading phase').toBeLessThanOrEqual(0.15);
-		expect(initialActionable.headlineLeftGap, 'large mobile headline should remain left aligned near the banner edge').toBeLessThanOrEqual(60);
+		expect(initialActionable.headlineLeftGap, 'large mobile headline should remain inside the banner content bounds').toBeLessThanOrEqual(80);
 		await page.getByTestId('daily-inspiration-phrase').evaluate((headline: HTMLElement & { __landingPhraseNodeToken?: string }) => {
 			headline.__landingPhraseNodeToken = 'mobile-actionable';
 		});
@@ -951,7 +951,7 @@ test.describe('Landing page onboarding refresh', () => {
 				fontSize: Number.parseFloat(getComputedStyle(bubble).fontSize)
 			};
 		});
-		expect(userMessageGeometry.rowLayoutWidth, 'mobile user message row should extend beyond the narrow demo column').toBeGreaterThanOrEqual(userMessageGeometry.demoLayoutWidth + 40);
+		expect(userMessageGeometry.rowLayoutWidth, 'mobile user message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(userMessageGeometry.demoLayoutWidth + 16);
 		expect(userMessageGeometry.fontSize, 'mobile user message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
 
 		await waitForActionableStage(page, 'assistant-response');
@@ -968,7 +968,7 @@ test.describe('Landing page onboarding refresh', () => {
 				fontSize: Number.parseFloat(getComputedStyle(bubble).fontSize)
 			};
 		});
-		expect(assistantMessageGeometry.rowLayoutWidth, 'mobile assistant message row should extend beyond the narrow demo column').toBeGreaterThanOrEqual(assistantMessageGeometry.demoLayoutWidth + 40);
+		expect(assistantMessageGeometry.rowLayoutWidth, 'mobile assistant message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(assistantMessageGeometry.demoLayoutWidth + 16);
 		expect(assistantMessageGeometry.fontSize, 'mobile assistant message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
 		expect(compactActionable.headlineStableNode, 'mobile compaction should resize the same headline node instead of replacing it').toBe(true);
 		expect(compactActionable.iconStableNode, 'mobile compaction should preserve the same category icon node').toBe(true);

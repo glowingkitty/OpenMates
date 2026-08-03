@@ -183,7 +183,6 @@
                   rsvpLabel={$text('demo_chats.for_everyone.landing_actionable_event_rsvps')}
                   onFullscreen={noop}
                 />
-                <div class="landing-actionable-preview-title" data-testid="landing-actionable-event-title">{$text('demo_chats.for_everyone.landing_actionable_event_title')}</div>
               </div>
             {:else}
               <div
@@ -364,20 +363,6 @@
     max-height: 200px;
   }
 
-  .landing-actionable-preview-title {
-    position: absolute;
-    left: 20px;
-    top: 20px;
-    z-index: var(--z-index-raised);
-    max-width: 150px;
-    color: rgba(255, 255, 255, 0.96);
-    font-size: 0.92rem;
-    line-height: 1.08;
-    font-weight: 800;
-    letter-spacing: -0.025em;
-    pointer-events: none;
-  }
-
   .landing-actionable-luma-button {
     min-width: 0 !important;
     height: auto !important;
@@ -505,7 +490,7 @@
     .landing-actionable-message-stage {
       position: relative;
       left: 50%;
-      width: min(calc(100% + 48px), 360px);
+      width: min(calc(100% + 20px), 320px);
       transform: translateX(-50%);
     }
 

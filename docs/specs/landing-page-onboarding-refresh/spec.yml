@@ -467,6 +467,7 @@ scenarios:
       - On mobile, the existing headline and category icon nodes fade out at full size, switch while hidden into a centered compact top caption with the icon on the left, then fade back in at approximately 0.5 opacity; desktop keeps the side-by-side layout.
       - The first user-message stage starts only after the compact mobile heading has completed its fade-in, and both chat message containers render wider and larger than the previous compact treatment.
       - The preview is fully visible and centered during its center dwell at desktop and mobile sizes.
+      - The event title appears only inside the real event preview; no separate title overlays its date or metadata.
       - The animation plays once, the progress bar reaches 100% at the final clicked state, and the carousel advances to the privacy slide without repeating.
       - The slide does not show the rejected simplified fullscreen/map surface.
       - The animation is visually faithful to real OpenMates chat and events embed styling without mounting a full interactive chat runtime.

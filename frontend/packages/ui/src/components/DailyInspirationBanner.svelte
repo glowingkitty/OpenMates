@@ -3474,8 +3474,8 @@
     .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy {
       inset: auto;
       top: 50%;
-      left: -48px;
-      width: calc(100% + 96px);
+      left: 0;
+      width: 100%;
       height: auto;
       padding-inline: clamp(28px, 7vw, 44px);
       box-sizing: border-box;
@@ -3597,8 +3597,8 @@
     @keyframes landingActionableHeadingSwap {
       0% {
         top: 50%;
-        left: -48px;
-        width: calc(100% + 96px);
+        left: 0;
+        width: 100%;
         padding-inline: clamp(28px, 7vw, 44px);
         opacity: 1;
         transform: translateY(-50%);
@@ -3608,8 +3608,8 @@
       }
       29% {
         top: 50%;
-        left: -48px;
-        width: calc(100% + 96px);
+        left: 0;
+        width: 100%;
         padding-inline: clamp(28px, 7vw, 44px);
         transform: translateY(-50%);
       }
