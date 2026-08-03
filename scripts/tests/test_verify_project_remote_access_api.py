@@ -7,9 +7,37 @@ separate session stores and device identities before the live Node process.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import scripts.verify_project_remote_access_api as verifier
+
+
+def test_cli_loader_preserves_relative_js_imports_from_dist(tmp_path: Path) -> None:
+    dist_dir = tmp_path / "frontend" / "packages" / "openmates-cli" / "dist"
+    dist_dir.mkdir(parents=True)
+    (dist_dir / "entry.js").write_text(
+        'import { value } from "./chunk.js"; console.log(value);\n',
+        encoding="utf-8",
+    )
+    (dist_dir / "chunk.js").write_text('export const value = "dist-loaded";\n', encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            "node",
+            "--experimental-strip-types",
+            "--loader",
+            str(verifier.CLI_DIR / "tests" / "loader.mjs"),
+            str(dist_dir / "entry.js"),
+        ],
+        cwd=verifier.ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "dist-loaded"
 
 
 def test_live_verifier_builds_then_uses_isolated_authenticated_sessions(monkeypatch) -> None:

@@ -4,9 +4,13 @@
 
 export async function resolve(specifier, context, nextResolve) {
   const parentUrl = context.parentURL ?? '';
-  const isWorkspaceImport = parentUrl.includes('/frontend/packages/') && !parentUrl.includes('/node_modules/');
+  const isWorkspaceTypeScriptParent =
+    parentUrl.includes('/frontend/packages/') &&
+    !parentUrl.includes('/node_modules/') &&
+    !parentUrl.includes('/dist/') &&
+    /\.tsx?$/.test(parentUrl);
 
-  if (!isWorkspaceImport) {
+  if (!isWorkspaceTypeScriptParent) {
     return nextResolve(specifier, context);
   }
 
