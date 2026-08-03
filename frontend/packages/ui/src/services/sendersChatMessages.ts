@@ -19,7 +19,6 @@ import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncr
 import {
 	decryptChatKeyWithMasterKey,
 	encryptChatKeyWithMasterKey,
-	generateEmbedKey,
 	deriveEmbedKeyFromChatKey,
 	encryptWithEmbedKey,
 	wrapEmbedKeyWithMasterKey,
@@ -1136,16 +1135,7 @@ export async function sendNewMessageImpl(
 							// Derive embed key deterministically from chat key — all tabs produce the same result.
 							// This prevents multi-tab race conditions where different tabs generate different
 							// random keys for the same embed (causing permanent key/content mismatch on reload).
-							let embedKey: Uint8Array;
-							if (chatKey) {
-								embedKey = await deriveEmbedKeyFromChatKey(chatKey, embed.embed_id);
-							} else {
-								// Fallback to random (should not happen — chatKey is validated above)
-								embedKey = generateEmbedKey();
-								console.warn(
-									`[ChatSyncService:Senders] ⚠️ Chat key unavailable for HKDF, using random key for embed ${embed.embed_id}`
-								);
-							}
+							const embedKey = await deriveEmbedKeyFromChatKey(chatKey, embed.embed_id);
 							const hashedEmbedId = await computeSHA256(embed.embed_id);
 
 							// Encrypt embed data with the embed key
