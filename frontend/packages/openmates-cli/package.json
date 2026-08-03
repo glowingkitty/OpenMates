@@ -14,8 +14,8 @@
     "templates"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/cli.ts --format esm --dts --clean",
-    "dev": "tsup src/index.ts src/cli.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test:unit:crypto": "node --test --experimental-strip-types tests/crypto.test.ts",
     "test:unit:storage": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/storage.test.ts",

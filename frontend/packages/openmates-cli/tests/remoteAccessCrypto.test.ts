@@ -19,6 +19,10 @@ import {
   sealRemoteAccessEnvelope,
   type RemoteAccessCryptoIdentity,
 } from "../src/remoteAccessCrypto.ts";
+import {
+  createProjectRemoteAccessHandshake,
+  deriveProjectRemoteAccessSessionKey,
+} from "../../ui/src/services/projectRemoteAccessCrypto.ts";
 
 
 const identity: RemoteAccessCryptoIdentity = {
@@ -28,6 +32,16 @@ const identity: RemoteAccessCryptoIdentity = {
   sourceSessionId: "session-1",
   requestingClientId: "browser-1",
   keyEpoch: 1,
+};
+
+const teamIdentity: RemoteAccessCryptoIdentity = {
+  ...identity,
+  contextType: "team",
+  contextId: "team-1",
+  hostMemberId: "member-host",
+  hostDeviceId: "host-device-team",
+  requesterMemberId: "member-requester",
+  requesterDeviceId: "requester-device-team",
 };
 
 
@@ -45,6 +59,7 @@ describe("remote-access envelope encryption", () => {
     );
 
     assert.deepEqual(requesterKey, sourceKey);
+    assert.equal(requester.handshake.version, 1);
     assert.equal("privateKey" in requester.handshake, false);
   });
 
@@ -140,5 +155,57 @@ describe("remote-access envelope encryption", () => {
       ),
       /invalid remote-access key or envelope field/,
     );
+  });
+
+  it("derives matching Team keys with the versioned workspace and peer transcript", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requester = await createRemoteAccessHandshake(projectKey, teamIdentity, "requester");
+    const source = await createRemoteAccessHandshake(projectKey, teamIdentity, "source");
+    const requesterKey = await deriveRemoteAccessSessionKey(
+      projectKey, teamIdentity, "requester", requester.privateKey, requester.handshake, source.handshake,
+    );
+    const sourceKey = await deriveRemoteAccessSessionKey(
+      projectKey, teamIdentity, "source", source.privateKey, source.handshake, requester.handshake,
+    );
+
+    assert.equal(requester.handshake.version, 2);
+    assert.deepEqual(requesterKey, sourceKey);
+  });
+
+  it("rejects Personal/Team scope and host/requester member or device substitution", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requester = await createRemoteAccessHandshake(projectKey, teamIdentity, "requester");
+    const source = await createRemoteAccessHandshake(projectKey, teamIdentity, "source");
+    const substitutions: RemoteAccessCryptoIdentity[] = [
+      { ...teamIdentity, contextType: "personal" },
+      { ...teamIdentity, contextId: "team-2" },
+      { ...teamIdentity, hostMemberId: "different-host" },
+      { ...teamIdentity, hostDeviceId: "different-host-device" },
+      { ...teamIdentity, requesterMemberId: "different-requester" },
+      { ...teamIdentity, requesterDeviceId: "different-requester-device" },
+    ];
+
+    for (const substituted of substitutions) {
+      await assert.rejects(
+        () => deriveRemoteAccessSessionKey(
+          projectKey, substituted, "requester", requester.privateKey, requester.handshake, source.handshake,
+        ),
+        /handshake authentication failed/,
+      );
+    }
+  });
+
+  it("keeps CLI source and browser requester transcript v2 interoperable", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requester = await createProjectRemoteAccessHandshake(projectKey, teamIdentity, "requester");
+    const source = await createRemoteAccessHandshake(projectKey, teamIdentity, "source");
+    const requesterKey = await deriveProjectRemoteAccessSessionKey(
+      projectKey, teamIdentity, "requester", requester.privateKey, requester.handshake, source.handshake,
+    );
+    const sourceKey = await deriveRemoteAccessSessionKey(
+      projectKey, teamIdentity, "source", source.privateKey, source.handshake, requester.handshake,
+    );
+
+    assert.deepEqual(requesterKey, sourceKey);
   });
 });

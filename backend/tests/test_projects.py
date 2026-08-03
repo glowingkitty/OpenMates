@@ -426,6 +426,48 @@ async def test_team_children_and_sources_use_team_scope_and_attacher() -> None:
 
 
 @pytest.mark.anyio
+async def test_removed_team_member_sources_are_retained_offline() -> None:
+    directus = SimpleNamespace(
+        get_items=AsyncMock(return_value=[{"id": "source-1"}, {"id": "source-2"}]),
+        update_item=AsyncMock(return_value=True),
+    )
+    methods = ProjectMethods(directus)
+
+    count = await methods.mark_team_member_sources_offline(
+        "team-1", "member-1", updated_at=123
+    )
+
+    assert count == 2
+    params = directus.get_items.await_args.kwargs["params"]
+    assert params["filter[hashed_team_id][_eq]"] == hash_id("team-1")
+    assert params["filter[attached_by_user_hash][_eq]"] == hash_id("member-1")
+    assert all(
+        call.args[2] == {"status": "offline", "updated_at": 123}
+        for call in directus.update_item.await_args_list
+    )
+
+
+@pytest.mark.anyio
+async def test_deleted_team_sources_are_retained_offline() -> None:
+    directus = SimpleNamespace(
+        get_items=AsyncMock(return_value=[{"id": "source-1"}, {"id": "source-2"}]),
+        update_item=AsyncMock(return_value=True),
+    )
+    methods = ProjectMethods(directus)
+
+    count = await methods.mark_team_sources_offline("team-1", updated_at=124)
+
+    assert count == 2
+    params = directus.get_items.await_args.kwargs["params"]
+    assert params["filter[hashed_team_id][_eq]"] == hash_id("team-1")
+    assert "filter[attached_by_user_hash][_eq]" not in params
+    assert all(
+        call.args[2] == {"status": "offline", "updated_at": 124}
+        for call in directus.update_item.await_args_list
+    )
+
+
+@pytest.mark.anyio
 async def test_personal_scope_remains_explicitly_team_null() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[])

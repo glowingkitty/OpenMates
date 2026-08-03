@@ -319,6 +319,57 @@ class ProjectMethods:
             return False
         return bool(await self.directus_service.delete_item("project_sources", source["id"]))
 
+    async def mark_team_member_sources_offline(
+        self,
+        team_id: str,
+        member_user_id: str,
+        *,
+        updated_at: int,
+    ) -> int:
+        """Retain a removed member's Team sources while disabling future hosting."""
+        rows = await self.directus_service.get_items(
+            "project_sources",
+            params={
+                "filter[hashed_team_id][_eq]": hash_id(team_id),
+                "filter[attached_by_user_hash][_eq]": hash_id(member_user_id),
+                "fields": "id",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Failed to list removed Team member sources")
+        for row in rows:
+            if not await self.directus_service.update_item(
+                "project_sources",
+                row["id"],
+                {"status": "offline", "updated_at": updated_at},
+            ):
+                raise RuntimeError("Failed to mark removed Team member source offline")
+        return len(rows)
+
+    async def mark_team_sources_offline(self, team_id: str, *, updated_at: int) -> int:
+        """Retain a deleted Team's sources while disabling all future hosting."""
+        rows = await self.directus_service.get_items(
+            "project_sources",
+            params={
+                "filter[hashed_team_id][_eq]": hash_id(team_id),
+                "fields": "id",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Failed to list Team sources")
+        for row in rows:
+            if not await self.directus_service.update_item(
+                "project_sources",
+                row["id"],
+                {"status": "offline", "updated_at": updated_at},
+            ):
+                raise RuntimeError("Failed to mark Team source offline")
+        return len(rows)
+
     async def get_project_settings(
         self,
         project_id: str,

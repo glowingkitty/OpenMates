@@ -9,7 +9,7 @@ import time
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_project_ask_pipeline
@@ -309,6 +309,8 @@ class ProjectSourceCreateRequest(BaseModel):
 
 
 class ProjectRemoteAccessRequestCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     request_id: str = Field(min_length=1, max_length=128)
     requesting_client_id: str = Field(min_length=1, max_length=128)
     operation: Literal["list", "search", "read_text"]
@@ -634,9 +636,10 @@ async def list_project_sources(
         else:
             try:
                 binding = await service.get_active_binding(
-                    team_id or current_user.id,
+                    current_user.id,
                     project_id,
                     str(source.get("source_id") or ""),
+                    team_id=team_id,
                     now=now,
                 )
                 status_value = "connected"
@@ -716,9 +719,10 @@ async def delete_project_source(
 
     service = ProjectRemoteAccessService(request.app.state.cache_service)
     await service.revoke_source(
-        user_id=team_id or current_user.id,
+        user_id=current_user.id,
         project_id=project_id,
         source_id=source_id,
+        team_id=team_id,
     )
     if not await directus_service.project.delete_source(
         project_id,
@@ -737,29 +741,53 @@ async def create_project_remote_access_request(
     source_id: str,
     body: ProjectRemoteAccessRequestCreate,
     request: Request,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     """Create an opaque request on the first-party encrypted bridge."""
 
-    project = await directus_service.project.get_project(project_id, current_user.id)
-    source = await directus_service.project.get_source(project_id, current_user.id, source_id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
+    source = await directus_service.project.get_source(
+        project_id, current_user.id, source_id, team_id=team_id
+    )
     if not project or not source:
         raise HTTPException(status_code=404, detail="Source not found")
     if source.get("status") == "revoked":
         raise HTTPException(status_code=409, detail="SOURCE_REVOKED")
     service = ProjectRemoteAccessService(request.app.state.cache_service)
+    requester_device_hash = await _authenticated_request_device_hash(request, current_user.id)
+
+    async def validate_team_host(host_user_id: str) -> bool:
+        try:
+            await directus_service.team.require_team_role(team_id, host_user_id, TEAM_READ_ROLES)
+        except TeamPermissionError:
+            return False
+        return True
+
+    async def mark_team_host_offline(host_user_id: str) -> None:
+        await directus_service.project.mark_team_member_sources_offline(
+            team_id,
+            host_user_id,
+            updated_at=int(time.time()),
+        )
+
     try:
         return await service.create_request(
             user_id=current_user.id,
+            team_id=team_id,
             project_id=project_id,
             source_id=source_id,
             request_id=body.request_id,
             requesting_client_id=body.requesting_client_id,
+            requesting_device_fingerprint_hash=requester_device_hash,
             operation=body.operation,
             key_epoch=body.key_epoch,
             encrypted_envelope=body.encrypted_envelope,
             now=int(time.time()),
+            validate_team_host=validate_team_host if team_id else None,
+            mark_team_host_offline=mark_team_host_offline if team_id else None,
         )
     except ProjectRemoteAccessError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
@@ -773,27 +801,56 @@ async def get_project_remote_access_request_result(
     request_id: str,
     requesting_client_id: str,
     request: Request,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     """Return an opaque result only to its authenticated requesting client."""
 
-    project = await directus_service.project.get_project(project_id, current_user.id)
-    source = await directus_service.project.get_source(project_id, current_user.id, source_id)
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
+    source = await directus_service.project.get_source(
+        project_id, current_user.id, source_id, team_id=team_id
+    )
     if not project or not source:
         raise HTTPException(status_code=404, detail="Source not found")
     service = ProjectRemoteAccessService(request.app.state.cache_service)
+    requester_device_hash = await _authenticated_request_device_hash(request, current_user.id)
     try:
         return await service.get_request_result(
             user_id=current_user.id,
+            team_id=team_id,
             project_id=project_id,
             source_id=source_id,
             request_id=request_id,
             requesting_client_id=requesting_client_id,
+            requesting_device_fingerprint_hash=requester_device_hash,
             now=int(time.time()),
         )
     except ProjectRemoteAccessError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+
+
+async def _authenticated_request_device_hash(request: Request, user_id: str) -> str:
+    """Resolve the current session's server-associated WebSocket identity."""
+    auth_info = getattr(getattr(request, "state", None), "auth_info", None)
+    connection_hash = auth_info.get("connection_hash") if isinstance(auth_info, dict) else None
+    refresh_token = request.cookies.get("auth_refresh_token")
+    if not connection_hash and not refresh_token:
+        raise HTTPException(status_code=401, detail="FIRST_PARTY_SESSION_REQUIRED")
+    if not connection_hash:
+        assert refresh_token is not None
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        token_map = await request.app.state.cache_service.get(f"user_tokens:{user_id}") or {}
+        metadata = token_map.get(token_hash) if isinstance(token_map, dict) else None
+        connection_hash = metadata.get("connection_hash") if isinstance(metadata, dict) else None
+    if (
+        not isinstance(connection_hash, str)
+        or len(connection_hash) != 64
+        or any(character not in "0123456789abcdef" for character in connection_hash)
+    ):
+        raise HTTPException(status_code=409, detail="REQUESTER_DEVICE_IDENTITY_UNAVAILABLE")
+    return connection_hash
 
 
 @router.get("/{project_id}/settings")
@@ -882,9 +939,10 @@ async def _revoke_project_sources(
         source_id = str(source.get("source_id") or "")
         if source_id:
             await service.revoke_source(
-                user_id=team_id or user_id,
+                user_id=user_id,
                 project_id=project_id,
                 source_id=source_id,
+                team_id=team_id,
             )
 
 

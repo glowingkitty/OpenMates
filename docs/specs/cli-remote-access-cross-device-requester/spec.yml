@@ -124,7 +124,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: c5d62bf
+  subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-review-fixes
 
 approvals:
   product_contract:
@@ -224,16 +224,46 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-03T15:46:30Z"
     reason: Four verifier helper tests, Ruff, py_compile, help smoke, spec validation, and diff hygiene passed; the user explicitly deferred the live dev run until after deployment.
+  - id: ATTEMPT-8
+    task_id: TASK-3
+    approach: Add Personal/Team namespace, peer identity, offboarding, takeover, stale-session, and transcript-v2 tests before bridge implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-03T17:08:23Z"
+    reason: The backend red run produced 6 expected Team failures while all 18 existing Personal cases passed; the first crypto red command was dependency-blocked before assertions because the isolated worktree had no tweetnacl installation.
+  - id: ATTEMPT-9
+    task_id: TASK-3
+    approach: Implement context-scoped routing, Team REST/WebSocket authorization, member revocation, stale protection, transcript v2, and an isolated Personal/Team live verifier mode.
+    outcome: succeeded
+    recorded_at: "2026-08-03T17:08:23Z"
+    reason: Focused backend, CLI/browser crypto interoperability, targeted TypeScript, adjacent Project/Team, privacy, Ruff, py_compile, verifier syntax, spec, and diff checks passed; the real dev gate remains intentionally unrun until deployment.
+  - id: ATTEMPT-10
+    task_id: TASK-3
+    approach: Add review regression tests for offboarding side-effect ordering and compensation, stale cached host membership at delivery, authenticated requester device identity, Team deletion, and Personal transcript-v1 compatibility before applying minimal fixes.
+    outcome: succeeded
+    recorded_at: "2026-08-03T17:34:33Z"
+    reason: The red run produced 13 expected backend failures and one expected crypto compatibility failure; the initial review fixes passed with server-derived session identity, host revalidation under the bridge lock, and Personal v1 plus Team v2 crypto behavior. ATTEMPT-11 supersedes the initial member-removal ordering.
+  - id: ATTEMPT-11
+    task_id: TASK-3
+    approach: Reorder member offboarding so durable membership deactivation establishes the fail-closed gate before runtime and wrapper cleanup that may fail.
+    outcome: succeeded
+    recorded_at: "2026-08-03T17:46:22Z"
+    reason: Membership status uses the existing removed state; 121 focused and adjacent backend tests pass with membership deactivation first, an explicit cache-failure ordering regression, stale cache rejected by lifecycle revalidation, source offlining, and wrapper revocation. Crypto, build, privacy, Ruff, py_compile, spec validation, and diff hygiene also pass.
+  - id: ATTEMPT-12
+    task_id: TASK-3
+    approach: Replace placeholder live relay strings with the compiled CLI crypto implementation and isolate host/requester authentication into two same-account sessions and device identities.
+    outcome: succeeded
+    recorded_at: "2026-08-03T18:04:54Z"
+    reason: The verifier now builds and imports dist/remoteAccessCrypto.js, exercises Personal v1 and Team v2 transcript/result-envelope compatibility, and adds deterministic wrong-context replay, takeover/stale-session, and cross-session polling denial probes. Cross-account and removed-member live probes remain explicitly not_run without a separately approved second account; backend unit coverage remains green.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Deploy the additive schema/migration, API, and direct REST verifier changes in a later authorized session, then run Personal/Team proof before TASK-3.
-  command: python3 scripts/verify_projects_api.py --api-url https://api.dev.openmates.org --personal-and-team
-  expected_outcome: Personal/Team CRUD, children, settings, role denials, source removal, and encrypted persistence pass through the real dev API.
+  current_task_id: TASK-3
+  next_action: After an authorized commit/deploy, run the crypto-backed Personal/Team REST and WebSocket verifier and record T-API-REMOTE-LIVE before handing off TASK-4; local review regressions are green.
+  command: python3 scripts/verify_project_remote_access_api.py --api-url https://api.dev.openmates.org --personal-and-team
+  expected_outcome: Two independently authenticated same-account device sessions prove Personal v1 and Team v2 crypto, opaque routing, wrong-context replay rejection, cross-session polling denial, confirmed takeover, stale-session denial, disconnect, and cleanup through api.dev.openmates.org. Cross-account and removed-member live probes report not_run unless a separately approved second account is available; backend unit coverage remains authoritative for those cases.
   blocker:
-    reason: The user explicitly prohibited commit and deploy in this session, so the implemented scripts/verify_projects_api.py cannot test these worktree changes against dev yet.
-    blocking_tasks: [TASK-2]
-  last_verified_commit: d14c5bc27b7879cfe9db4198fcba1eecb078232e
+    reason: The user explicitly prohibited commit and deploy, so the changed Team REST/WebSocket implementation is not present on api.dev.openmates.org and the live verifier must not run yet.
+    blocking_tasks: [TASK-3]
+  last_verified_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
 
 scenarios:
   - id: S-1
@@ -528,11 +558,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_projects.py backend/tests/test_setup_schemas.py
-        run_id: local-backend-project-context-green-2026-08-03T15:35:39Z
-        subject_commit: d14c5bc27b7879cfe9db4198fcba1eecb078232e
-        timestamp: "2026-08-03T15:35:39Z"
-        reason: 58 TASK-2 and migration tests passed against uncommitted changes atop the recorded subject base; 70 adjacent source/bridge/wrapper/move tests and 31 ask/Personal-history tests also passed.
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_auth_dependencies.py backend/tests/test_project_remote_access_bridge.py backend/tests/test_projects.py backend/tests/test_teams_lifecycle.py backend/tests/test_teams_membership.py backend/tests/test_teams_permissions.py backend/tests/test_teams_routes.py -k "not billing and not bank_transfer"
+        run_id: local-backend-project-context-review-green-2026-08-03T17:46:22Z
+        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
+        timestamp: "2026-08-03T17:46:22Z"
+        reason: 121 auth-device, Project, bridge, Team lifecycle, membership, permission, route, move, wrapper, source-offlining, cache-failure, and offboarding cases passed with durable member deactivation before fallible runtime and wrapper cleanup; three unrelated cloud-only bank-transfer tests were deselected because cloud billing is disabled locally.
   - id: T-BACKEND-REMOTE-TEAM
     type: pytest
     file: backend/tests/test_project_remote_access_bridge.py
@@ -542,10 +572,32 @@ tests:
       - Same-account Personal and active Team role requests succeed while cross-scope requests fail.
       - Host membership is rechecked throughout source/request lifecycle.
       - Host removal invalidates work and leaves durable source offline.
+      - Member offboarding persists removed membership before fallible runtime/source/wrapper cleanup; Team deletion revokes runtime routing and offlines sources before durable deletion.
+      - Wrapper or cache cleanup failure leaves removed membership fail-closed, and stale cached hosts fail lifecycle revalidation.
+      - Request delivery revalidates the cached host under the bridge state lock and revokes/offlines an invalid host before publish.
+      - Requester device identity comes from authenticated server-side session metadata; client-supplied fingerprint fields are rejected.
       - Confirmed takeover is atomic and stale session messages cannot overwrite replacement state.
       - Rate, size, timeout, replay, stale, selection, and offline errors are stable.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_project_remote_access_bridge.py
+        run_id: local-backend-remote-team-red-2026-08-03
+        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062
+        timestamp: "2026-08-03T17:08:23Z"
+        reason: 6 new Team cases failed on the missing team_id service contract while 18 legacy Personal cases passed.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_auth_dependencies.py backend/tests/test_project_remote_access_bridge.py backend/tests/test_projects.py backend/tests/test_teams_lifecycle.py backend/tests/test_teams_membership.py backend/tests/test_teams_permissions.py backend/tests/test_teams_routes.py -k "not billing and not bank_transfer"
+        run_id: local-backend-remote-team-review-green-2026-08-03T17:46:22Z
+        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
+        timestamp: "2026-08-03T17:46:22Z"
+        reason: 121 focused and adjacent auth-device, Personal/Team bridge, Project, membership, permission, fail-closed cache/wrapper failure, offboarding, deletion, takeover, stale-session, route, replay, and compatibility cases passed; three unrelated cloud-only bank-transfer tests were deselected after their local server-edition 404 baseline was confirmed.
   - id: T-REMOTE-CRYPTO
     type: unit
     file: frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
@@ -553,10 +605,29 @@ tests:
     covers: [AC-3, AC-5]
     assertions:
       - Personal/Team peers derive matching ephemeral keys from the correct Project key.
+      - Existing Personal identities continue to emit and consume transcript v1 while expanded Team identities require transcript v2.
       - Wrong context, identity, key, nonce, substitution, and replay are rejected.
       - Relay envelopes expose no plaintext arguments/results.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access-crypto
+        run_id: local-remote-crypto-red-dependency-blocked-2026-08-03
+        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062
+        timestamp: "2026-08-03T17:08:23Z"
+        reason: The pre-implementation command failed before assertions with ERR_MODULE_NOT_FOUND for tweetnacl because dependencies were not installed in the isolated worktree; backend red evidence independently proved the missing Team contract.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access-crypto
+        run_id: local-remote-crypto-review-green-2026-08-03T17:44:28Z
+        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
+        timestamp: "2026-08-03T17:44:28Z"
+        reason: 8 Personal transcript-v1 compatibility, Team transcript-v2, substitution, replay, envelope, and CLI/browser interoperability tests passed against uncommitted TASK-3 review fixes.
   - id: T-API-REMOTE-LIVE
     type: manual
     file: scripts/verify_project_remote_access_api.py
@@ -564,7 +635,9 @@ tests:
     covers: [AC-3, AC-5, AC-7]
     assertions:
       - Real Personal/Team REST and WebSocket lifecycle passes against dev.
-      - Unauthorized, cross-account, removed-member, wrong-context, replay, and rate probes fail through the network contract.
+      - Two independently authenticated same-account device sessions exercise compiled CLI Personal-v1 and Team-v2 transcript/envelope compatibility.
+      - Unauthenticated, wrong-project/context, crypto replay, completion replay, cross-session polling, takeover, and stale-session probes fail through the network contract.
+      - Cross-account and removed-member live probes are reported as not_run when no separately approved second account is available; focused backend tests retain those denial guarantees.
       - Persistence and logs contain no decrypted operation payloads.
     red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
     green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
@@ -578,7 +651,16 @@ tests:
       - Real unauthenticated, wrong-context, viewer, member-attacher, admin, owner, conflict, and rate-limit probes match the endpoint classification.
       - API responses/persistence contain encrypted metadata and wrappers, never plaintext or raw keys.
     red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/verify_projects_api.py --api-url https://api.dev.openmates.org --personal-and-team
+        run_id: live-project-context-2026-08-03T16:40:25Z
+        subject_commit: a7fec7710
+        timestamp: "2026-08-03T16:40:25Z"
+        reason: Real Personal and Team Project context proof passed against deployed API commit f7cb2c6 with verifier commit a7fec77; encrypted persistence, role denials, source removal, and cleanup completed through api.dev.openmates.org.
   - id: T-CLI-PROJECTS-UNIT
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
@@ -652,8 +734,26 @@ tests:
       - Requester/Team paths preserve first-party access and opaque relay payloads.
       - Sensitive host, path, content, key, and ciphertext data stays out of outputs/logs/persistence.
       - SDK facades expose no live file methods.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: python3 scripts/audit_cli_remote_access_privacy.py
+        run_id: local-privacy-review-red-not-applicable-2026-08-03
+        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062
+        timestamp: "2026-08-03T17:34:33Z"
+        reason: The existing privacy audit already covered this boundary; the review concerns were reproduced red by backend and crypto tests before implementation rather than by changing the deterministic audit.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_cli_remote_access_privacy.py
+        run_id: local-privacy-review-green-2026-08-03T17:44:28Z
+        subject_commit: 9b4e9d0f6229c249aff262377a68c1f237982062-plus-local-fail-closed-fixes
+        timestamp: "2026-08-03T17:44:28Z"
+        reason: The first-party opaque relay, output/log redaction, and no-live-SDK boundary audit passed after server-derived requester identity and offboarding changes.
   - id: T-PLAYWRIGHT-REMOTE-REGRESSION
     type: playwright
     file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
@@ -837,26 +937,26 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Add Team-aware Project persistence and authorization
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers: {scenarios: [S-1, S-2, S-6], acceptance_criteria: [AC-1, AC-2, AC-6]}
     expected_files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/directus/setup/migrate_project_owner_context.sql, backend/core/directus/setup/setup_schemas.py, backend/core/directus/Dockerfile.setup.selfhost, backend/core/docker-compose.yml, backend/core/docker-compose.selfhost.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/services/team_workspace_service.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py, backend/tests/test_project_remote_sources.py, backend/tests/test_setup_schemas.py, backend/tests/test_teams_move_authorization.py, backend/tests/test_workspace_ask_routes.py, scripts/verify_projects_api.py, scripts/tests/test_verify_projects_api.py]
     verification_ids: [T-BACKEND-PROJECT-CONTEXT, T-API-PROJECT-CONTEXT-LIVE]
     dependencies: [TASK-2A]
     ownership: {files: [backend/core/directus/schemas/projects.yml, backend/core/directus/schemas/project_sources.yml, backend/core/directus/schemas/project_folders.yml, backend/core/directus/schemas/project_items.yml, backend/core/directus/schemas/project_settings.yml, backend/core/directus/setup/migrate_project_owner_context.sql, backend/core/directus/setup/setup_schemas.py, backend/core/directus/Dockerfile.setup.selfhost, backend/core/docker-compose.yml, backend/core/docker-compose.selfhost.yml, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/services/team_workspace_service.py, backend/core/api/app/routes/projects.py, backend/tests/test_projects.py, backend/tests/test_project_remote_sources.py, backend/tests/test_setup_schemas.py, backend/tests/test_teams_move_authorization.py, backend/tests/test_workspace_ask_routes.py, scripts/verify_projects_api.py, scripts/tests/test_verify_projects_api.py], shared_files: []}
-    blockers: [T-API-PROJECT-CONTEXT-LIVE requires a later commit/deploy because this session explicitly forbids commit and deploy.]
+    blockers: []
     follow_up_tasks: [TASK-3]
     independently_deployable: true
   - id: TASK-3
     title: Extend bridge routing to Team hosts and requesters
-    status: pending
-    phase: working_tasks
+    status: in_progress
+    phase: running_checks
     covers: {scenarios: [S-3, S-5, S-7, S-9], acceptance_criteria: [AC-3, AC-5, AC-7, AC-9]}
-    expected_files: [backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/routes/websockets.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/src/remoteAccessCrypto.ts, frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts, scripts/verify_project_remote_access_api.py]
+    expected_files: [backend/core/api/app/routes/auth_routes/auth_dependencies.py, backend/core/api/app/services/directus/project_methods.py, backend/core/api/app/services/directus/team_methods.py, backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/routes/projects.py, backend/core/api/app/routes/teams.py, backend/core/api/app/routes/websockets.py, backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py, backend/tests/test_auth_dependencies.py, backend/tests/test_projects.py, backend/tests/test_project_remote_access_bridge.py, backend/tests/test_teams_lifecycle.py, backend/tests/test_teams_routes.py, frontend/packages/openmates-cli/src/remoteAccessCrypto.ts, frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts, frontend/packages/ui/src/services/projectRemoteAccessCrypto.ts, scripts/project_remote_access_live.mjs, scripts/verify_project_remote_access_api.py]
     verification_ids: [T-BACKEND-REMOTE-TEAM, T-REMOTE-CRYPTO, T-API-REMOTE-LIVE]
     dependencies: [TASK-2]
     ownership: {files: [backend/core/api/app/services/project_remote_access_service.py, backend/core/api/app/routes/websockets.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/src/remoteAccessCrypto.ts, frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts, scripts/verify_project_remote_access_api.py], shared_files: [backend/core/api/app/routes/projects.py]}
-    blockers: []
+    blockers: [T-API-REMOTE-LIVE requires an authorized commit/deploy; this session explicitly forbids both and the verifier was intentionally not run against stale dev code.]
     follow_up_tasks: [TASK-4]
     independently_deployable: true
   - id: TASK-4

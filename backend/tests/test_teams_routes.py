@@ -11,6 +11,8 @@ import sys
 import types
 from types import SimpleNamespace
 
+import pytest
+
 
 if "redis" not in sys.modules:
     redis_module = types.ModuleType("redis")
@@ -63,6 +65,7 @@ class FakeTeamService:
     def __init__(self) -> None:
         self.created_payload = None
         self.updated_payload = None
+        self.events: list[str] = []
 
     async def list_teams(self, user_id: str):
         assert user_id == "alice"
@@ -88,6 +91,7 @@ class FakeTeamService:
     async def delete_team(self, team_id: str, user_id: str):
         assert team_id == "team-1"
         assert user_id == "alice"
+        self.events.append("delete_team")
         return True
 
     async def create_invite(self, team_id: str, user_id: str, payload: dict):
@@ -112,7 +116,27 @@ class FakeTeamService:
         assert user_id == "alice"
         assert member_user_id == "bob"
         assert removed_at == 200
+        self.events.append("remove_member")
         return True
+
+    async def prepare_member_removal(self, team_id: str, user_id: str, member_user_id: str):
+        assert team_id == "team-1"
+        assert user_id == "alice"
+        assert member_user_id == "bob"
+        return {"role": "member"}
+
+    async def deactivate_member(self, membership: dict, *, removed_at: int):
+        assert membership == {"role": "member"}
+        assert removed_at == 200
+        self.events.append("deactivate_member")
+
+    async def revoke_member_key_wrappers(
+        self, team_id: str, member_user_id: str, *, revoked_at: int
+    ):
+        assert team_id == "team-1"
+        assert member_user_id == "bob"
+        assert revoked_at == 200
+        self.events.append("revoke_member_wrappers")
 
     async def set_member_role(self, team_id: str, user_id: str, member_user_id: str, role: str, updated_at=None):
         assert team_id == "team-1"
@@ -123,7 +147,7 @@ class FakeTeamService:
     async def require_team_role(self, team_id: str, actor_user_id: str, roles: set[str]):
         assert team_id == "team-1"
         assert actor_user_id == "alice"
-        assert "admin" in roles
+        assert "owner" in roles
         return {"role": "owner"}
 
 
@@ -178,16 +202,51 @@ class FakePaymentService:
 class FakeCacheService:
     def __init__(self) -> None:
         self.cached_orders = []
+        self.values = {}
 
     async def set_bank_transfer_order(self, **kwargs):
         self.cached_orders.append(kwargs)
         return True
 
+    async def get(self, key: str):
+        return self.values.get(key)
+
+    async def set(self, key: str, value, ttl=None):
+        del ttl
+        self.values[key] = value
+        return True
+
+    async def delete(self, key: str):
+        self.values.pop(key, None)
+        return True
+
+    async def publish_event(self, channel: str, event: dict):
+        del channel, event
+        return True
+
+
+class FailingRevocationCacheService(FakeCacheService):
+    async def get(self, key: str):
+        del key
+        raise RuntimeError("cache unavailable")
+
 
 class FakeDirectusService(SimpleNamespace):
     def __init__(self, team_service) -> None:
         super().__init__(team=team_service)
+        self.project = self
+        self.offlined_source_members = []
         self.bank_transfer_rows = []
+
+    async def mark_team_member_sources_offline(self, team_id: str, member_user_id: str, *, updated_at: int):
+        self.team.events.append("offline_member_sources")
+        self.offlined_source_members.append((team_id, member_user_id, updated_at))
+        return 1
+
+    async def mark_team_sources_offline(self, team_id: str, *, updated_at: int):
+        del team_id, updated_at
+        self.team.events.append("offline_team_sources")
+        return 1
 
     async def get_items(self, collection: str, params: dict, **_kwargs):
         assert collection == "pending_bank_transfers"
@@ -268,7 +327,8 @@ def test_teams_routes_expose_lifecycle_contract() -> None:
 
 
 def test_teams_routes_expose_invite_and_member_contract() -> None:
-    client = build_client(FakeTeamService())
+    service = FakeTeamService()
+    client = build_client(service)
 
     invite_response = client.post("/v1/teams/team-1/invites", json={"invite_id": "invite-1", "role": "viewer", "created_at": 100})
     assert invite_response.status_code == 200
@@ -284,11 +344,39 @@ def test_teams_routes_expose_invite_and_member_contract() -> None:
 
     remove_response = client.post("/v1/teams/team-1/members/bob/remove", json={"removed_at": 200})
     assert remove_response.status_code == 200
+    offlined = client.app.state.directus_service.offlined_source_members
+    assert offlined and offlined[0][:2] == ("team-1", "bob")
+    assert service.events == [
+        "deactivate_member",
+        "offline_member_sources",
+        "revoke_member_wrappers",
+    ]
     assert remove_response.json() == {"success": True}
 
     role_response = client.patch("/v1/teams/team-1/members/bob", json={"role": "viewer", "updated_at": 210})
     assert role_response.status_code == 200
     assert role_response.json()["membership"]["role"] == "viewer"
+
+
+def test_team_delete_offlines_sources_before_durable_team_deletion() -> None:
+    service = FakeTeamService()
+    client = build_client(service)
+
+    response = client.delete("/v1/teams/team-1")
+
+    assert response.status_code == 200
+    assert service.events == ["offline_team_sources", "delete_team"]
+
+
+def test_member_removal_stays_fail_closed_if_cache_revocation_fails() -> None:
+    service = FakeTeamService()
+    client = build_client(service)
+    client.app.state.cache_service = FailingRevocationCacheService()
+
+    with pytest.raises(RuntimeError, match="cache unavailable"):
+        client.post("/v1/teams/team-1/members/bob/remove", json={"removed_at": 200})
+
+    assert service.events == ["deactivate_member"]
 
 
 def test_team_permission_error_maps_to_403() -> None:

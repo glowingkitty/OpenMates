@@ -9,7 +9,6 @@
 
 import nacl from "tweetnacl";
 
-const PROTOCOL_VERSION = 1;
 const KEY_BYTES = 32;
 const NONCE_BYTES = 12;
 const MAX_PAYLOAD_BYTES = 200 * 1024;
@@ -19,22 +18,28 @@ export type ProjectRemoteAccessDirection = "request" | "result";
 
 export interface ProjectRemoteAccessCryptoIdentity {
   ownerId: string;
+  contextType?: "personal" | "team";
+  contextId?: string;
   projectId: string;
   sourceId: string;
   sourceSessionId: string;
   requestingClientId: string;
+  hostMemberId?: string;
+  hostDeviceId?: string;
+  requesterMemberId?: string;
+  requesterDeviceId?: string;
   keyEpoch: number;
 }
 
 export interface ProjectRemoteAccessHandshake {
-  version: 1;
+  version: 1 | 2;
   role: ProjectRemoteAccessRole;
   publicKey: string;
   authenticationTag: string;
 }
 
 export interface ProjectRemoteAccessEnvelope {
-  version: 1;
+  version: 1 | 2;
   nonce: string;
   ciphertext: string;
 }
@@ -58,13 +63,14 @@ export async function createProjectRemoteAccessHandshake(
 ): Promise<{ privateKey: string; handshake: ProjectRemoteAccessHandshake }> {
   assertKey(projectKey, "Project");
   validateIdentity(identity);
+  const protocolVersion = protocolVersionForIdentity(identity);
   const privateKey = crypto.getRandomValues(new Uint8Array(KEY_BYTES));
   const publicKey = nacl.scalarMult.base(privateKey);
   const publicKeyText = toBase64Url(publicKey);
   return {
     privateKey: toBase64Url(privateKey),
     handshake: {
-      version: PROTOCOL_VERSION,
+      version: protocolVersion,
       role,
       publicKey: publicKeyText,
       authenticationTag: await authenticateHandshake(projectKey, identity, role, publicKeyText),
@@ -82,6 +88,7 @@ export async function deriveProjectRemoteAccessSessionKey(
 ): Promise<Uint8Array> {
   assertKey(projectKey, "Project");
   validateIdentity(identity);
+  const protocolVersion = protocolVersionForIdentity(identity);
   const remoteRole: ProjectRemoteAccessRole = localRole === "requester" ? "source" : "requester";
   if (localHandshake.role !== localRole || remoteHandshake.role !== remoteRole) {
     throw new Error("handshake authentication failed");
@@ -97,7 +104,7 @@ export async function deriveProjectRemoteAccessSessionKey(
   const sourcePublicKey = localRole === "source" ? localHandshake.publicKey : remoteHandshake.publicKey;
   return hkdf(
     sharedSecret,
-    new TextEncoder().encode("openmates:project-remote-access:v1"),
+    new TextEncoder().encode(`openmates:project-remote-access:v${protocolVersion}`),
     await digest(transcript(identity, requesterPublicKey, sourcePublicKey)),
   );
 }
@@ -112,7 +119,7 @@ export async function openProjectRemoteAccessEnvelope(
 ): Promise<Uint8Array> {
   assertKey(sessionKey, "source-session");
   validateIdentity(identity);
-  if (envelope.version !== PROTOCOL_VERSION || !requestId) throw new Error("invalid remote-access envelope");
+  if (envelope.version !== protocolVersionForIdentity(identity) || !requestId) throw new Error("invalid remote-access envelope");
   replayGuard.assertUnused(envelope.nonce);
   const nonce = fromBase64Url(envelope.nonce, NONCE_BYTES);
   const ciphertext = fromBase64Url(envelope.ciphertext);
@@ -157,7 +164,7 @@ async function verifyHandshake(
   identity: ProjectRemoteAccessCryptoIdentity,
   handshake: ProjectRemoteAccessHandshake,
 ): Promise<void> {
-  if (handshake.version !== PROTOCOL_VERSION) throw new Error("handshake authentication failed");
+  if (handshake.version !== protocolVersionForIdentity(identity)) throw new Error("handshake authentication failed");
   fromBase64Url(handshake.publicKey, KEY_BYTES);
   const expected = fromBase64Url(
     await authenticateHandshake(projectKey, identity, handshake.role, handshake.publicKey),
@@ -172,7 +179,8 @@ function handshakeAad(
   role: ProjectRemoteAccessRole,
   publicKey: string,
 ): Uint8Array {
-  return encode(["OMRA-HANDSHAKE-1", ...identityValues(identity), role, publicKey]);
+  const version = protocolVersionForIdentity(identity);
+  return encode([`OMRA-HANDSHAKE-${version}`, ...identityValues(identity), role, publicKey]);
 }
 
 function transcript(
@@ -180,7 +188,8 @@ function transcript(
   requesterPublicKey: string,
   sourcePublicKey: string,
 ): Uint8Array {
-  return encode(["OMRA-TRANSCRIPT-1", ...identityValues(identity), requesterPublicKey, sourcePublicKey]);
+  const version = protocolVersionForIdentity(identity);
+  return encode([`OMRA-TRANSCRIPT-${version}`, ...identityValues(identity), requesterPublicKey, sourcePublicKey]);
 }
 
 function envelopeAad(
@@ -188,18 +197,39 @@ function envelopeAad(
   requestId: string,
   direction: ProjectRemoteAccessDirection,
 ): Uint8Array {
-  return encode(["OMRA-ENVELOPE-1", ...identityValues(identity), requestId, direction]);
+  const version = protocolVersionForIdentity(identity);
+  return encode([`OMRA-ENVELOPE-${version}`, ...identityValues(identity), requestId, direction]);
 }
 
 function identityValues(identity: ProjectRemoteAccessCryptoIdentity): Array<string | number> {
+  if (protocolVersionForIdentity(identity) === 1) {
+    return [
+      identity.ownerId,
+      identity.projectId,
+      identity.sourceId,
+      identity.sourceSessionId,
+      identity.requestingClientId,
+      identity.keyEpoch,
+    ];
+  }
   return [
     identity.ownerId,
+    identity.contextType ?? "personal",
+    identity.contextId ?? identity.ownerId,
     identity.projectId,
     identity.sourceId,
     identity.sourceSessionId,
     identity.requestingClientId,
+    identity.hostMemberId ?? identity.ownerId,
+    identity.hostDeviceId ?? identity.sourceSessionId,
+    identity.requesterMemberId ?? identity.ownerId,
+    identity.requesterDeviceId ?? identity.requestingClientId,
     identity.keyEpoch,
   ];
+}
+
+function protocolVersionForIdentity(identity: ProjectRemoteAccessCryptoIdentity): 1 | 2 {
+  return identity.contextType === "team" ? 2 : 1;
 }
 
 function encode(values: Array<string | number>): Uint8Array {
@@ -221,7 +251,14 @@ async function digest(value: Uint8Array): Promise<Uint8Array> {
 }
 
 function validateIdentity(identity: ProjectRemoteAccessCryptoIdentity): void {
-  const strings = [identity.ownerId, identity.projectId, identity.sourceId, identity.sourceSessionId, identity.requestingClientId];
+  const strings = identityValues(identity).filter((value): value is string => typeof value === "string");
+  if (identity.contextType !== undefined && !["personal", "team"].includes(identity.contextType)) {
+    throw new Error("invalid remote-access identity");
+  }
+  if (identity.contextType === "team" && (
+    !identity.contextId || !identity.hostMemberId || !identity.hostDeviceId
+    || !identity.requesterMemberId || !identity.requesterDeviceId
+  )) throw new Error("invalid remote-access identity");
   if (strings.some((value) => !value || value.length > 128) || !Number.isInteger(identity.keyEpoch) || identity.keyEpoch < 1) {
     throw new Error("invalid remote-access identity");
   }

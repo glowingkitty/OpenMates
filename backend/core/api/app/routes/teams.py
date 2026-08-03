@@ -10,8 +10,9 @@ import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
 from pathlib import Path
-import uuid
+import time
 from typing import TYPE_CHECKING, Any, Literal
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
@@ -21,6 +22,7 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus.team_methods import PENDING_ACCESS_APPROVAL_STATUS, TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_teams_enabled
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.project_remote_access_service import ProjectRemoteAccessService
 from backend.core.api.app.services.team_billing_service import TEAM_BILLING_ROLES, TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services.team_data_portability_service import TeamDataPortabilityError, TeamDataPortabilityService
 from backend.core.api.app.services.team_invite_email_service import TeamInviteEmailService
@@ -376,8 +378,14 @@ async def delete_team(
     current_user: User = Depends(_current_user),
     directus_service: "DirectusService" = Depends(get_directus_service),
 ) -> dict[str, Any]:
-    del request, response
+    del response
     try:
+        await directus_service.team.require_team_role(team_id, current_user.id, {"owner"})
+        await ProjectRemoteAccessService(request.app.state.cache_service).revoke_team(team_id=team_id)
+        await directus_service.project.mark_team_sources_offline(
+            team_id,
+            updated_at=int(time.time()),
+        )
         deleted = await directus_service.team.delete_team(team_id, current_user.id)
     except Exception as exc:  # noqa: BLE001 - converted by typed handler
         _handle_team_error(exc)
@@ -635,13 +643,34 @@ async def remove_team_member(
     current_user: User = Depends(_current_user),
     directus_service: "DirectusService" = Depends(get_directus_service),
 ) -> dict[str, Any]:
-    del request, response
+    del response
     try:
-        removed = await directus_service.team.remove_member(team_id, current_user.id, member_user_id, removed_at=body.removed_at if body else None)
+        removable = await directus_service.team.prepare_member_removal(
+            team_id, current_user.id, member_user_id
+        )
     except Exception as exc:  # noqa: BLE001 - converted by typed handler
         _handle_team_error(exc)
-    if not removed:
+    if not removable:
         raise HTTPException(status_code=404, detail="Member not found")
+    removed_at = int(body.removed_at if body and body.removed_at else time.time())
+    await directus_service.team.deactivate_member(removable, removed_at=removed_at)
+    await ProjectRemoteAccessService(request.app.state.cache_service).revoke_member(
+        team_id=team_id,
+        member_user_id=member_user_id,
+    )
+    await directus_service.project.mark_team_member_sources_offline(
+        team_id,
+        member_user_id,
+        updated_at=int(time.time()),
+    )
+    try:
+        await directus_service.team.revoke_member_key_wrappers(
+            team_id,
+            member_user_id,
+            revoked_at=removed_at,
+        )
+    except Exception as exc:  # noqa: BLE001 - converted by typed handler
+        _handle_team_error(exc)
     return {"success": True}
 
 

@@ -3182,7 +3182,9 @@ async def websocket_endpoint(
                 await handle_project_remote_access_heartbeat(
                     websocket=websocket,
                     cache_service=cache_service,
+                    directus_service=directus_service,
                     user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                 )
 
@@ -3190,7 +3192,9 @@ async def websocket_endpoint(
                 await handle_project_remote_access_disconnect(
                     websocket=websocket,
                     cache_service=cache_service,
+                    directus_service=directus_service,
                     user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                 )
 
@@ -3198,6 +3202,7 @@ async def websocket_endpoint(
                 await handle_project_remote_access_complete(
                     websocket=websocket,
                     cache_service=cache_service,
+                    directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,

@@ -11,8 +11,7 @@
 import { webcrypto } from "node:crypto";
 import nacl from "tweetnacl";
 
-const cryptoApi = globalThis.crypto ?? webcrypto;
-const PROTOCOL_VERSION = 1;
+const cryptoApi = (globalThis.crypto ?? webcrypto) as Crypto;
 const KEY_BYTES = 32;
 const NONCE_BYTES = 12;
 const MAX_PAYLOAD_BYTES = 200 * 1024;
@@ -22,22 +21,28 @@ export type RemoteAccessDirection = "request" | "result";
 
 export interface RemoteAccessCryptoIdentity {
   ownerId: string;
+  contextType?: "personal" | "team";
+  contextId?: string;
   projectId: string;
   sourceId: string;
   sourceSessionId: string;
   requestingClientId: string;
+  hostMemberId?: string;
+  hostDeviceId?: string;
+  requesterMemberId?: string;
+  requesterDeviceId?: string;
   keyEpoch: number;
 }
 
 export interface RemoteAccessHandshake {
-  version: 1;
+  version: 1 | 2;
   role: RemoteAccessRole;
   publicKey: string;
   authenticationTag: string;
 }
 
 export interface RemoteAccessEnvelope {
-  version: 1;
+  version: 1 | 2;
   nonce: string;
   ciphertext: string;
 }
@@ -61,13 +66,14 @@ export async function createRemoteAccessHandshake(
 ): Promise<{ privateKey: string; handshake: RemoteAccessHandshake }> {
   assertProjectKey(projectKey);
   validateIdentity(identity);
+  const protocolVersion = protocolVersionForIdentity(identity);
   const privateKey = cryptoApi.getRandomValues(new Uint8Array(KEY_BYTES));
   const publicKey = nacl.scalarMult.base(privateKey);
   const publicKeyText = toBase64Url(publicKey);
   return {
     privateKey: toBase64Url(privateKey),
     handshake: {
-      version: PROTOCOL_VERSION,
+      version: protocolVersion,
       role,
       publicKey: publicKeyText,
       authenticationTag: await authenticateHandshake(projectKey, identity, role, publicKeyText),
@@ -85,6 +91,7 @@ export async function deriveRemoteAccessSessionKey(
 ): Promise<Uint8Array> {
   assertProjectKey(projectKey);
   validateIdentity(identity);
+  const protocolVersion = protocolVersionForIdentity(identity);
   const remoteRole: RemoteAccessRole = localRole === "requester" ? "source" : "requester";
   if (localHandshake.role !== localRole || remoteHandshake.role !== remoteRole) {
     throw new Error("handshake authentication failed");
@@ -99,7 +106,7 @@ export async function deriveRemoteAccessSessionKey(
   const sourcePublicKey = localRole === "source" ? localHandshake.publicKey : remoteHandshake.publicKey;
   return hkdf(
     sharedSecret,
-    new TextEncoder().encode("openmates:project-remote-access:v1"),
+    new TextEncoder().encode(`openmates:project-remote-access:v${protocolVersion}`),
     await digest(transcript(identity, requesterPublicKey, sourcePublicKey)),
   );
 }
@@ -113,6 +120,7 @@ export async function sealRemoteAccessEnvelope(
 ): Promise<RemoteAccessEnvelope> {
   assertSessionKey(sessionKey);
   validateIdentity(identity);
+  const protocolVersion = protocolVersionForIdentity(identity);
   if (!requestId || plaintext.length > MAX_PAYLOAD_BYTES) throw new Error("invalid remote-access envelope payload");
   const nonce = cryptoApi.getRandomValues(new Uint8Array(NONCE_BYTES));
   const key = await cryptoApi.subtle.importKey("raw", arrayBuffer(sessionKey), "AES-GCM", false, ["encrypt"]);
@@ -121,7 +129,7 @@ export async function sealRemoteAccessEnvelope(
     key,
     arrayBuffer(plaintext),
   );
-  return { version: PROTOCOL_VERSION, nonce: toBase64Url(nonce), ciphertext: toBase64Url(new Uint8Array(ciphertext)) };
+  return { version: protocolVersion, nonce: toBase64Url(nonce), ciphertext: toBase64Url(new Uint8Array(ciphertext)) };
 }
 
 export async function openRemoteAccessEnvelope(
@@ -134,7 +142,7 @@ export async function openRemoteAccessEnvelope(
 ): Promise<Uint8Array> {
   assertSessionKey(sessionKey);
   validateIdentity(identity);
-  if (envelope.version !== PROTOCOL_VERSION || !requestId) throw new Error("invalid remote-access envelope");
+  if (envelope.version !== protocolVersionForIdentity(identity) || !requestId) throw new Error("invalid remote-access envelope");
   replayGuard.assertUnused(envelope.nonce);
   const nonce = fromBase64Url(envelope.nonce, NONCE_BYTES);
   const ciphertext = fromBase64Url(envelope.ciphertext);
@@ -169,7 +177,7 @@ async function verifyHandshake(
   identity: RemoteAccessCryptoIdentity,
   handshake: RemoteAccessHandshake,
 ): Promise<void> {
-  if (handshake.version !== PROTOCOL_VERSION) throw new Error("handshake authentication failed");
+  if (handshake.version !== protocolVersionForIdentity(identity)) throw new Error("handshake authentication failed");
   fromBase64Url(handshake.publicKey, KEY_BYTES);
   const expected = await authenticateHandshake(projectKey, identity, handshake.role, handshake.publicKey);
   const actualBytes = fromBase64Url(handshake.authenticationTag, KEY_BYTES);
@@ -182,7 +190,8 @@ function handshakeAad(
   role: RemoteAccessRole,
   publicKey: string,
 ): Uint8Array {
-  return encode(["OMRA-HANDSHAKE-1", ...identityValues(identity), role, publicKey]);
+  const version = protocolVersionForIdentity(identity);
+  return encode([`OMRA-HANDSHAKE-${version}`, ...identityValues(identity), role, publicKey]);
 }
 
 function transcript(
@@ -190,7 +199,8 @@ function transcript(
   requesterPublicKey: string,
   sourcePublicKey: string,
 ): Uint8Array {
-  return encode(["OMRA-TRANSCRIPT-1", ...identityValues(identity), requesterPublicKey, sourcePublicKey]);
+  const version = protocolVersionForIdentity(identity);
+  return encode([`OMRA-TRANSCRIPT-${version}`, ...identityValues(identity), requesterPublicKey, sourcePublicKey]);
 }
 
 function envelopeAad(
@@ -198,18 +208,39 @@ function envelopeAad(
   requestId: string,
   direction: RemoteAccessDirection,
 ): Uint8Array {
-  return encode(["OMRA-ENVELOPE-1", ...identityValues(identity), requestId, direction]);
+  const version = protocolVersionForIdentity(identity);
+  return encode([`OMRA-ENVELOPE-${version}`, ...identityValues(identity), requestId, direction]);
 }
 
 function identityValues(identity: RemoteAccessCryptoIdentity): Array<string | number> {
+  if (protocolVersionForIdentity(identity) === 1) {
+    return [
+      identity.ownerId,
+      identity.projectId,
+      identity.sourceId,
+      identity.sourceSessionId,
+      identity.requestingClientId,
+      identity.keyEpoch,
+    ];
+  }
   return [
     identity.ownerId,
+    identity.contextType ?? "personal",
+    identity.contextId ?? identity.ownerId,
     identity.projectId,
     identity.sourceId,
     identity.sourceSessionId,
     identity.requestingClientId,
+    identity.hostMemberId ?? identity.ownerId,
+    identity.hostDeviceId ?? identity.sourceSessionId,
+    identity.requesterMemberId ?? identity.ownerId,
+    identity.requesterDeviceId ?? identity.requestingClientId,
     identity.keyEpoch,
   ];
+}
+
+function protocolVersionForIdentity(identity: RemoteAccessCryptoIdentity): 1 | 2 {
+  return identity.contextType === "team" ? 2 : 1;
 }
 
 function encode(values: Array<string | number>): Uint8Array {
@@ -231,7 +262,14 @@ async function digest(value: Uint8Array): Promise<Uint8Array> {
 }
 
 function validateIdentity(identity: RemoteAccessCryptoIdentity): void {
-  const strings = [identity.ownerId, identity.projectId, identity.sourceId, identity.sourceSessionId, identity.requestingClientId];
+  const strings = identityValues(identity).filter((value): value is string => typeof value === "string");
+  if (identity.contextType !== undefined && !["personal", "team"].includes(identity.contextType)) {
+    throw new Error("invalid remote-access identity");
+  }
+  if (identity.contextType === "team" && (
+    !identity.contextId || !identity.hostMemberId || !identity.hostDeviceId
+    || !identity.requesterMemberId || !identity.requesterDeviceId
+  )) throw new Error("invalid remote-access identity");
   if (strings.some((value) => !value || value.length > 128) || !Number.isInteger(identity.keyEpoch) || identity.keyEpoch < 1) {
     throw new Error("invalid remote-access identity");
   }

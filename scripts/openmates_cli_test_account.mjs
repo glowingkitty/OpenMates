@@ -19,7 +19,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API_URL = "https://api.dev.openmates.org";
 const DEFAULT_WEB_ORIGIN = "https://app.dev.openmates.org";
 const CLI_USER_AGENT = `OpenMates CLI/0.1 (${platform()} ${release()})`;
-const CLI_DEVICE_IDENTITY = `cli:${platform()}:${arch()}`;
+const CLI_DEVICE_IDENTITY = process.env.OPENMATES_CLI_DEVICE_IDENTITY || `cli:${platform()}:${arch()}`;
 const PBKDF2_ITERATIONS = 100_000;
 const AES_GCM_IV_LENGTH = 12;
 
