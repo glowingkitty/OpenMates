@@ -647,15 +647,13 @@
     isGuestActionableSlide
       && isBannerVisible
       && containerWidth > 0
-      && (!isMobileBannerLayout || actionableMobileHeadingReady),
+      && actionableMobileHeadingReady,
   );
   let carouselProgressDurationMs = $derived(
     landingIntroOverlayActive
       ? LANDING_INTRO_TOTAL_MS
       : isGuestActionableSlide
-        ? ACTIONABLE_DEMO_DURATION_MS + (isMobileBannerLayout
-          ? ACTIONABLE_MOBILE_START_DELAY_MS + ACTIONABLE_MOBILE_HEADING_SWAP_MS
-          : 0)
+        ? ACTIONABLE_DEMO_DURATION_MS + ACTIONABLE_MOBILE_START_DELAY_MS + ACTIONABLE_MOBILE_HEADING_SWAP_MS
         : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
 
@@ -720,11 +718,9 @@
 
   /** Whether mobile should alternate between the assistant message and preview. */
   let shouldCycleMobileCard = $derived(
-    isMobileBannerLayout && (
-      isGuestIntroVariant
-        ? !!directVideoMp4Url || hasInfoContent
-        : hasAttachedVideo || hasInfoContent
-    )
+    isGuestIntroVariant
+      ? !!directVideoMp4Url || hasInfoContent
+      : isMobileBannerLayout && (hasAttachedVideo || hasInfoContent)
   );
 
   let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
@@ -1889,6 +1885,7 @@
   .daily-inspiration-wrapper {
     animation: inspirationFadeIn 300ms ease-out;
     width: 100%;
+    height: 100%;
     /* Must be above other chat-side elements so the banner is clickable */
     position: relative;
     z-index: var(--z-index-dropdown);
@@ -1921,13 +1918,12 @@
      Fixed height (240px) so the embed is never cut off.
      position:relative is required for the absolutely-positioned arrows. */
   .daily-inspiration-banner {
-    --daily-inspiration-regular-height: max(35vh, 240px);
     position: relative;
     width: 100%;
     border: none;
     border-radius: var(--radius-6);
-    height: var(--daily-inspiration-regular-height);
-    min-height: 240px;
+    height: 100%;
+    min-height: 0;
     cursor: pointer;
     overflow: hidden;
     transition: filter 0.15s ease, transform 0.1s ease, height 0.3s ease, min-height 0.3s ease;
@@ -1940,13 +1936,12 @@
     touch-action: pan-y;
   }
 
-  /* When settings panel is open or embed fullscreen is side-by-side, revert to
-     fixed height so the banner matches the settings/embed header height.
-     Mirrors the identical rule in ChatHeader.svelte. */
+  /* Settings and side-by-side layouts use the same container-derived height as
+     the surrounding daily-inspiration area. */
   :global(.menu-open) .daily-inspiration-banner,
   :global(.side-by-side-active) .daily-inspiration-banner {
-    height: 240px;
-    min-height: unset;
+    height: 100%;
+    min-height: 0;
   }
 
   .daily-inspiration-banner:hover {
@@ -2033,9 +2028,9 @@
   }
 
   .guest-intro-variant .banner-inner {
-    width: min(calc(100% - 80px), clamp(960px, 72vw, 1480px));
+    width: 100%;
     max-width: none;
-    padding: 8px 40px;
+    padding: clamp(16px, 2.5cqi, 32px) 48px;
     justify-content: center;
     gap: 0;
   }
@@ -2079,9 +2074,10 @@
 
   .guest-intro-variant .banner-content {
     position: relative;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: center;
-    gap: 36px;
+    gap: 14px;
     width: 100%;
     transform: translateZ(0);
     contain: layout;
@@ -2608,10 +2604,10 @@
   .guest-actionable-demo-shell {
     position: relative;
     flex: 0 1 auto;
-    height: calc(100% - 20px);
-    width: auto;
-    min-width: 360px;
-    max-width: min(54vw, 920px);
+    height: auto;
+    width: min(100%, 760px);
+    min-width: 0;
+    max-width: 760px;
     aspect-ratio: 16 / 9;
     border-radius: var(--radius-4);
     border: 1px solid rgba(255, 255, 255, 0.16);
@@ -3347,17 +3343,15 @@
   }
 
   /* ── Mobile adjustments (≤730px) ── */
-  @media (max-width: 730px) {
+  @container chat-side (max-width: 730px) {
     .daily-inspiration-banner {
-      --daily-inspiration-regular-height: 190px;
-      height: 190px;
-      min-height: 190px;
+      height: 100%;
+      min-height: 0;
     }
 
     .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
-      --daily-inspiration-regular-height: 190px;
-      height: 190px;
-      min-height: 190px;
+      height: 100%;
+      min-height: 0;
     }
 
     .daily-inspiration-banner.landing-intro-expanded {
@@ -3368,14 +3362,14 @@
 
     :global(.menu-open) .daily-inspiration-banner,
     :global(.side-by-side-active) .daily-inspiration-banner {
-      height: 190px;
-      min-height: unset;
+      height: 100%;
+      min-height: 0;
     }
 
     :global(.menu-open) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded),
     :global(.side-by-side-active) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
-      height: 190px;
-      min-height: unset;
+      height: 100%;
+      min-height: 0;
     }
 
     .banner-inner {
@@ -3544,6 +3538,8 @@
       line-clamp: 4;
     }
 
+  }
+
     .banner-content.mobile-card-loop {
       position: relative;
       overflow: hidden;
@@ -3703,6 +3699,8 @@
       transition: opacity var(--actionable-mobile-heading-fade-in) ease;
     }
 
+  @container chat-side (max-width: 730px) {
+
     .banner-embed-wrapper {
       width: 140px;
     }
@@ -3726,6 +3724,8 @@
     .banner-info-text p {
       display: none;
     }
+
+  }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
@@ -3758,7 +3758,7 @@
     .banner-content.mobile-card-loop .guest-product-demo-shell,
     .banner-content.mobile-card-loop .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop :global(.landing-actionable-demo) {
-      width: min(100%, 560px);
+      width: min(100%, 760px);
       height: 100%;
       max-height: none;
       min-height: 0;
@@ -3797,6 +3797,8 @@
       height: 100% !important;
       max-height: unset !important;
     }
+
+  @container chat-side (max-width: 730px) {
 
     .banner-mate-profile {
       width: 36px !important;
