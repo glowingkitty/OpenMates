@@ -5204,6 +5204,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
      let isActiveDraftOnlyChat = $derived(isPersistedDraftOnlyChat(currentChat));
+
+     $effect(() => {
+        if (showWelcome && isActiveDraftOnlyChat) {
+            showWelcome = false;
+        }
+     });
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialPublicCompressionCheckpoints);
       let currentMessageWindowHasMoreBefore = $state(false);
       let olderMessageWindowLoading = $state(false);
