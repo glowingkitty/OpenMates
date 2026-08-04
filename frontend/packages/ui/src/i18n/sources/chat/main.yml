@@ -2214,6 +2214,31 @@ header.just_now:
   he: ממש עכשיו
   verified_by_human: []
 
+header.last_saved:
+  context: Timestamp line in a draft-only chat header. {time} is a localized relative or absolute time.
+  en: "Last saved: {time}"
+  de: "Zuletzt gespeichert: {time}"
+  zh: "上次保存：{time}"
+  es: "Último guardado: {time}"
+  fr: "Dernière sauvegarde : {time}"
+  pt: "Último salvamento: {time}"
+  ru: "Последнее сохранение: {time}"
+  ja: "最終保存: {time}"
+  ko: "마지막 저장: {time}"
+  it: "Ultimo salvataggio: {time}"
+  tr: "Son kaydedilme: {time}"
+  vi: "Lưu lần cuối: {time}"
+  id: "Terakhir disimpan: {time}"
+  pl: "Ostatnio zapisano: {time}"
+  nl: "Laatst opgeslagen: {time}"
+  ar: "آخر حفظ: {time}"
+  hi: "पिछली बार सहेजा गया: {time}"
+  th: "บันทึกล่าสุด: {time}"
+  cs: "Naposledy uloženo: {time}"
+  sv: "Senast sparad: {time}"
+  he: "נשמר לאחרונה: {time}"
+  verified_by_human: []
+
 header.previous_chat:
   context: Accessible label for the "previous chat" navigation arrow button shown in the chat header banner
   en: Previous chat

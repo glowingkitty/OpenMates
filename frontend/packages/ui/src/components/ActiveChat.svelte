@@ -74,6 +74,7 @@
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
+    import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
@@ -92,6 +93,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
+    import { isPersistedDraftOnlyChat } from '../utils/chatDraftState';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
@@ -421,19 +423,6 @@
     function shouldPreserveLiveEmbedOnlyDraft(chatId: string): boolean {
         const draftState = get(draftEditorUIState);
         return messageInputHasContent && draftState.currentChatId === chatId;
-    }
-
-    function isEncryptedDraftOnlyChat(chat: Chat | null | undefined): boolean {
-        return !!chat?.chat_id
-            && !isPublicChat(chat.chat_id)
-            && !chat.is_incognito
-            && !chat.is_anonymous
-            && !chat.ideabucket_triggered_at
-            && !!(chat.encrypted_draft_md || chat.encrypted_draft_preview)
-            && (chat.messages_v ?? 0) === 0
-            && (chat.title_v ?? 0) === 0
-            && !chat.encrypted_title
-            && !chat.title;
     }
 
     async function hydrateAuthenticatedDraftOnlyChatMessages(chatId: string, loadGeneration: number): Promise<void> {
@@ -2837,67 +2826,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!isDevHost) return;
 
         const activeChatWindow = window as ActiveChatE2EWindow;
-        const clearLocalDraftRow = (chatId: string): Promise<void> => new Promise((resolve) => {
-            let settled = false;
-            let db: IDBDatabase | null = null;
-            const finish = () => {
-                if (settled) return;
-                settled = true;
-                window.clearTimeout(timeout);
-                db?.close();
-                resolve();
-            };
-            const timeout = window.setTimeout(() => {
-                console.warn('[ActiveChat] E2E raw local draft clear timed out', { chatId });
-                finish();
-            }, 5_000);
-            const request = indexedDB.open('chats_db');
-            request.onerror = () => finish();
-            request.onsuccess = () => {
-                db = request.result;
-                try {
-                    const transaction = db.transaction('chats', 'readwrite');
-                    const store = transaction.objectStore('chats');
-                    const getRequest = store.get(chatId);
-                    getRequest.onerror = () => finish();
-                    getRequest.onsuccess = () => {
-                        const chat = getRequest.result as Chat | undefined;
-                        if (!chat) return finish();
-                        store.put({
-                            ...chat,
-                            encrypted_draft_md: null,
-                            encrypted_draft_preview: null,
-                            draft_v: 0,
-                            updated_at: Math.floor(Date.now() / 1000),
-                        });
-                    };
-                    transaction.oncomplete = () => finish();
-                    transaction.onerror = () => finish();
-                    transaction.onabort = () => finish();
-                } catch {
-                    finish();
-                }
-            };
-        });
         const helper = async ({ chatId, text, version = 0 }: { chatId: string; text: string; version?: number }) => {
             const inputRef = messageInputFieldRef;
             if (!inputRef?.replaceDraftWithPlainText) {
                 throw new Error('Message input draft replacement helper is unavailable');
             }
             if (text.trim().length === 0) {
-                void inputRef.replaceDraftWithPlainText(chatId, '', version, false);
-                await clearLocalDraftRow(chatId);
-                draftEditorUIState.update((state) => state.currentChatId === chatId
-                    ? {
-                        ...state,
-                        currentUserDraftVersion: 0,
-                        hasUnsavedChanges: false,
-                        lastSavedContentMarkdown: null,
-                    }
-                    : state
-                );
-                const { webSocketService } = await import('../services/websocketService');
-                void webSocketService.sendMessage('delete_draft', { chatId });
+                await inputRef.replaceDraftWithPlainText(chatId, '', version, false);
+                await clearCurrentDraft();
                 return { text: inputRef.getTextContent() };
             }
             await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
@@ -2918,7 +2854,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         const loadLocalChatHelper = async ({ chatId, chat }: { chatId: string; chat?: Chat }) => {
             if (!chat) throw new Error(`Local chat ${chatId} is unavailable`);
-            if ($authStore.isAuthenticated && isEncryptedDraftOnlyChat(chat)) {
+            if ($authStore.isAuthenticated && isPersistedDraftOnlyChat(chat)) {
                 await applyAuthenticatedDraftOnlyChatForE2E(chatId, chat);
                 return { chatId };
             }
@@ -4224,6 +4160,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         activeChatDecryptedSummary = null;
     }
 
+    async function applyPersistedDraftHeader(chat: Chat, reason: string): Promise<boolean> {
+        if (!isPersistedDraftOnlyChat(chat)) return false;
+
+        const encryptedPreview = chat.encrypted_draft_preview || chat.encrypted_draft_md;
+        if (!encryptedPreview) return false;
+
+        const preview = await decryptWithMasterKey(encryptedPreview);
+        if (!preview?.trim()) {
+            console.error(`[ActiveChat] ${reason}: Failed to decrypt persisted draft preview for ${chat.chat_id}`);
+            return false;
+        }
+        if (currentChat?.chat_id !== chat.chat_id) return false;
+
+        activeChatDecryptedTitle = preview.trim();
+        activeChatDecryptedCategory = 'general_knowledge';
+        activeChatDecryptedIcon = 'lightbulb';
+        activeChatDecryptedSummary = null;
+        isNewChatGeneratingTitle = false;
+        return true;
+    }
+
     async function remountChatHeaderAfterFullscreenClose() {
         await tick();
         chatHeaderRenderKey += 1;
@@ -4233,10 +4190,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!currentChat || currentChat.chat_id !== chatId) return;
 
         try {
-            const storedChat = await chatDB.getChat(chatId);
+            const wasDraftOnly = isPersistedDraftOnlyChat(currentChat);
+            const [decryptedChat, rawChat] = await Promise.all([
+                chatDB.getChat(chatId),
+                chatDB.getRawChat(chatId),
+            ]);
+            const storedChat = decryptedChat
+                ? { ...decryptedChat, ...(rawChat ?? {}) }
+                : rawChat;
             if (!storedChat) return;
 
             currentChat = { ...currentChat, ...storedChat };
+
+            if (await applyPersistedDraftHeader(currentChat, reason)) {
+                console.info(`[ActiveChat] ${reason}: Refreshed persisted draft header for ${chatId}`);
+                return;
+            }
+
+            if (wasDraftOnly && !isPersistedDraftOnlyChat(currentChat)) {
+                resetChatHeaderState();
+            }
 
             if (storedChat.is_incognito) {
                 const incognitoCategory = storedChat.category || null;
@@ -5229,6 +5202,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+     let isActiveDraftOnlyChat = $derived(isPersistedDraftOnlyChat(currentChat));
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialPublicCompressionCheckpoints);
       let currentMessageWindowHasMoreBefore = $state(false);
       let olderMessageWindowLoading = $state(false);
@@ -5934,48 +5908,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         currentTypingStatus = value;
     });
 
-    // Subscribe to draftEditorUIState to handle newly created chats
+    // Subscribe to draftEditorUIState to activate a new-chat shell only after
+    // its first non-empty draft has been persisted successfully.
     const unsubscribeDraftState = draftEditorUIState.subscribe(async value => {
         if (value.newlyCreatedChatIdToSelect) {
-            console.debug(`[ActiveChat] draftEditorUIState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
-            // Load the newly created chat
-            const newChat = await chatDB.getChat(value.newlyCreatedChatIdToSelect);
-            if (newChat) {
-                currentChat = newChat;
-                // Clear temporary chat ID since we now have a real chat
-                temporaryChatId = null;
-                console.debug("[ActiveChat] Loaded newly created chat, cleared temporary chat ID");
-                
-                // CRITICAL: Sync liveInputText after new chat is created and loaded
-                // This ensures the search term is preserved when a new chat is created from a draft
-                setTimeout(() => {
-                    if (messageInputFieldRef) {
-                        try {
-                            const currentText = messageInputFieldRef.getTextContent();
-                            if (currentText.trim().length > 0 && currentText !== liveInputText) {
-                                liveInputText = currentText;
-                                console.debug('[ActiveChat] Synced liveInputText after new chat creation:', { 
-                                    text: currentText, 
-                                    length: currentText.length 
-                                });
-                            }
-                        } catch (error) {
-                            console.warn('[ActiveChat] Failed to sync liveInputText after new chat creation:', error);
-                        }
-                    }
-                }, 150); // Delay to ensure editor content is stable after chat creation
-                
-                // Notify backend about the active chat
-                chatSyncService.sendSetActiveChat(currentChat.chat_id);
-                
-                // Update URL hash with the new chat ID
-                // This ensures the URL reflects the active chat even when
-                // Chats.svelte is not mounted (e.g., sidebar closed on mobile)
-                activeChatStore.setActiveChat(currentChat.chat_id);
-                console.debug("[ActiveChat] Updated URL hash via draftEditorUIState for chat:", currentChat.chat_id);
-            }
-            // Reset the signal
+            const persistedChatId = value.newlyCreatedChatIdToSelect;
+            console.debug(`[ActiveChat] draftEditorUIState signals new chat to select: ${persistedChatId}`);
             draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
+            let newChat = await chatDB.getChat(persistedChatId).catch((error) => {
+                console.error('[ActiveChat] Failed to read decrypted persisted draft shell:', persistedChatId, error);
+                return null;
+            });
+            if (!newChat) {
+                newChat = await chatDB.getRawChat(persistedChatId).catch((error) => {
+                    console.error('[ActiveChat] Failed to read raw persisted draft shell:', persistedChatId, error);
+                    return null;
+                });
+            }
+            if (newChat) {
+                activeChatStore.setActiveChat(persistedChatId);
+                await loadChat(newChat);
+                temporaryChatId = null;
+                console.debug("[ActiveChat] Activated persisted draft-only chat:", persistedChatId);
+            }
         }
     });
 
@@ -9175,7 +9130,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // For public chats (demo/legal) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
-        const isProvidedDraftOnlyChat = isEncryptedDraftOnlyChat(chat);
+        const isProvidedDraftOnlyChat = isPersistedDraftOnlyChat(chat);
         if (isPublicChat(chat.chat_id)) {
             // Public chats don't need database access - use the provided chat object
             freshChat = chat;
@@ -9260,8 +9215,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           ...currentChat,
                           messages_v: mergedMessagesV,
                           encrypted_draft_md: shouldDropStaleDraftShell ? null : rawChat.encrypted_draft_md ?? chat.encrypted_draft_md ?? currentChat.encrypted_draft_md,
-                          encrypted_draft_preview: shouldDropStaleDraftShell ? null : rawChat.encrypted_draft_preview ?? chat.encrypted_draft_preview ?? currentChat.encrypted_draft_preview,
-                          draft_v: shouldDropStaleDraftShell ? 0 : rawChat.draft_v ?? chat.draft_v ?? currentChat.draft_v,
+                           encrypted_draft_preview: shouldDropStaleDraftShell ? null : rawChat.encrypted_draft_preview ?? chat.encrypted_draft_preview ?? currentChat.encrypted_draft_preview,
+                           draft_v: shouldDropStaleDraftShell ? 0 : rawChat.draft_v ?? chat.draft_v ?? currentChat.draft_v,
+                           updated_at: rawChat.updated_at ?? chat.updated_at ?? currentChat.updated_at,
                           ideabucket: rawChat.ideabucket ?? chat.ideabucket ?? currentChat.ideabucket,
                           ideabucket_processing_window_id: rawChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id ?? currentChat.ideabucket_processing_window_id,
                           ideabucket_triggered_at: rawChat.ideabucket_triggered_at ?? chat.ideabucket_triggered_at ?? currentChat.ideabucket_triggered_at,
@@ -9272,7 +9228,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
              }
          }
 
-          const isCurrentDraftOnlyChat = isEncryptedDraftOnlyChat(currentChat);
+          const isCurrentDraftOnlyChat = isPersistedDraftOnlyChat(currentChat);
 
          // ─── Chat Header: restore title/category/icon for all chat types ────────────────
          // Universal header restoration: handles public/demo, incognito, and regular chats.
@@ -9305,7 +9261,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                }
              : currentChat;
          if (chatForHeader) {
-              if (isPublicChat(chatForHeader.chat_id)) {
+              if (isCurrentDraftOnlyChat) {
+                  await applyPersistedDraftHeader(chatForHeader, 'loadChat');
+              } else if (isPublicChat(chatForHeader.chat_id)) {
                   // Public chats (demo/legal/community): all metadata is cleartext
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
@@ -10889,7 +10847,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // CRITICAL: Sync liveInputText with editor content after draft saves
         // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
         // The textchange event might not fire after draft saves, so we listen for draft save events
-        const handleDraftSaveSync = () => {
+        const handleDraftSaveSync = (event: Event) => {
+            const detail = (event as CustomEvent<{ chat_id?: string }>).detail;
+            const changedChatId = detail?.chat_id;
+            if (changedChatId && changedChatId === currentChat?.chat_id) {
+                void refreshActiveChatHeaderFromStoredChat(changedChatId, 'draft save or sync');
+            }
+
             // Use a delay to ensure the editor content is stable after the save
             // Longer delay for first saves (new chat creation) to ensure editor is fully initialized
             const delay = 200; // Increased delay to handle new chat creation
@@ -10940,7 +10904,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         
         // Listen for local chat list changes (dispatched when drafts are saved)
-        window.addEventListener('localChatListChanged', handleDraftSaveSync);
+        window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleDraftSaveSync);
 
         // Refresh carousel when a chat key loads after initial render (Safari cold-boot race).
         // On iPad/Safari the phased sync can complete and keys can become ready before this
@@ -12252,7 +12216,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListenerCallback);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener
-            window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListenerCallback);
+            window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleDraftSaveSync as EventListenerCallback);
             // Remove chat key-ready carousel refresh listener
             window.removeEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
             // Remove preprocessing step chat refresh listener
@@ -13203,10 +13167,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatTitle={activeChatDecryptedTitle}
                          chatCategory={activeChatDecryptedCategory}
                          chatIcon={activeChatDecryptedIcon}
-                         chatSummary={activeChatDecryptedSummary}
-                         {chatHeaderRenderKey}
-                           chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : activePublicChatCreatedAt}
-                          chatTimeLabel={currentChat && isPublicChat(currentChat.chat_id) ? 'published' : 'started'}
+                          chatSummary={activeChatDecryptedSummary}
+                          isDraftOnly={isActiveDraftOnlyChat}
+                          {chatHeaderRenderKey}
+                            chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (isActiveDraftOnlyChat ? currentChat.updated_at : currentChat.created_at) ?? null : activePublicChatCreatedAt}
+                           chatTimeLabel={isActiveDraftOnlyChat ? 'saved' : currentChat && isPublicChat(currentChat.chat_id) ? 'published' : 'started'}
                           {isNewChatGeneratingTitle}
                          {isNewChatCreditsError}
                          {isCreditsRestored}

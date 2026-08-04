@@ -32,6 +32,7 @@ import {
 } from "../demo_chats";
 import { convertDemoChatToChat } from "../demo_chats/convertToChat";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "../services/drafts/draftConstants";
+import { isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 
 export interface ChatNavigationState {
   /** True when there is a chat before the current one in the sorted list. */
@@ -88,25 +89,11 @@ export function isHeaderNavigableChat(chat: Chat): boolean {
   );
   const hasMessages =
     (chat.messages_v ?? 0) > 0 || (chat.messages?.length ?? 0) > 0;
-  return hasMetadata || hasMessages;
+  return hasMetadata || hasMessages || isPersistedDraftOnlyChat(chat);
 }
 
-function isActiveDraftOnlyChat(chat: Chat, activeChatId: string | null): boolean {
-  return Boolean(
-    activeChatId &&
-      chat.chat_id === activeChatId &&
-      !chat.is_hidden_candidate &&
-      (chat.encrypted_draft_md || chat.encrypted_draft_preview),
-  );
-}
-
-function toHeaderNavigableChats(
-  chats: Chat[],
-  activeChatId: string | null,
-): Chat[] {
-  return chats.filter(
-    (chat) => isHeaderNavigableChat(chat) || isActiveDraftOnlyChat(chat, activeChatId),
-  );
+function toHeaderNavigableChats(chats: Chat[]): Chat[] {
+  return chats.filter(isHeaderNavigableChat);
 }
 
 function updateNavigationFlags(activeChatId: string | null): void {
@@ -131,7 +118,7 @@ function setProvisionalChatNavigationList(
   chats: Chat[],
   activeChatId: string | null,
 ): void {
-  chatList = toHeaderNavigableChats(chats, activeChatId);
+  chatList = toHeaderNavigableChats(chats);
   currentChatId = activeChatId;
 }
 
@@ -143,7 +130,7 @@ export function setChatNavigationList(
   chats: Chat[],
   activeChatId: string | null,
 ): void {
-  chatList = toHeaderNavigableChats(chats, activeChatId);
+  chatList = toHeaderNavigableChats(chats);
   currentChatId = activeChatId;
   chatListOwnedByChatsComponent = true;
   updateNavigationFlags(activeChatId);

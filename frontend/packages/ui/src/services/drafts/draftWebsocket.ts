@@ -156,7 +156,10 @@ const handleDraftUpdated = async (
       // Only messages should update this timestamp for proper sorting
       // Chats with drafts will appear at the top via sorting logic, but won't affect message-based sorting
       // chat.last_edited_overall_timestamp = last_edited_overall_timestamp; // REMOVED
-      chat.updated_at = last_edited_overall_timestamp; // Keep updated_at for internal tracking
+      chat.updated_at = Math.max(
+        last_edited_overall_timestamp || Math.floor(Date.now() / 1000),
+        (chat.updated_at ?? 0) + 1,
+      );
 
       await chatDB.upsertRawChat(chat);
       console.info(

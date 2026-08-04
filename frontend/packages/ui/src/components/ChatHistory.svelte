@@ -1086,6 +1086,7 @@
     chatHeaderRenderKey = 0,
     chatCreatedAt = null,
     chatTimeLabel = 'started',
+    isDraftOnly = false,
     isNewChatGeneratingTitle = false,
     isNewChatCreditsError = false,
     isCreditsRestored = false,
@@ -1128,7 +1129,9 @@
     /** Unix timestamp in seconds of when the chat was created or published. */
     chatCreatedAt?: number | null;
     /** Label variant for the timestamp line in the header banner. */
-    chatTimeLabel?: 'started' | 'published';
+    chatTimeLabel?: 'started' | 'published' | 'saved';
+    /** True when this is a persisted draft shell with no sent messages or generated metadata. */
+    isDraftOnly?: boolean;
     /** True while the server is still generating the title/category/icon for a new chat.
      *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
     isNewChatGeneratingTitle?: boolean;
@@ -1597,6 +1600,7 @@
     !isIncognito &&
     !isExampleChat &&
     !isSharedChat &&
+    !isDraftOnly &&
     !isPublicChat(currentChatId)
   );
 
@@ -1611,7 +1615,7 @@
   //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
   //   f) this is an owned writable chat whose encrypted title is not yet available.
   let showChatHeader = $derived(
-    isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable,
+    isDraftOnly || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable,
   );
 
   async function saveChatHeaderTitle(title: string): Promise<void> {
@@ -2677,6 +2681,7 @@
                 summary={chatSummary}
                 {chatCreatedAt}
                 {chatTimeLabel}
+                {isDraftOnly}
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}

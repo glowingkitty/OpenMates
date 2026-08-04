@@ -400,6 +400,9 @@ function generateDraftPreview(
  * deletes the chat as well. Handles local DB operations and server communication.
  */
 export async function clearCurrentDraft() {
+  draftLifecycleRevision += 1;
+  resaveNeeded = false;
+  saveDraftDebounced.cancel();
   // Export this function
   const editor = getEditorInstance(); // Keep reference to editor for the finally block
   if (!getEditorInstance()) {
@@ -577,6 +580,7 @@ export async function clearCurrentDraft() {
 // causes the debounce to fire, get dropped by the isSaveInProgress guard, and the
 // latest content is never persisted.
 let resaveNeeded = false;
+let draftLifecycleRevision = 0;
 
 const OFFLINE_DRAFT_FLUSH_RETRY_DELAYS_MS = [250, 1_000, 3_000] as const;
 
@@ -590,6 +594,27 @@ function scheduleOfflineDraftFlush(): void {
         );
       });
     }, delayMs);
+  }
+}
+
+async function discardStaleDraftWrite(chatId: string): Promise<void> {
+  try {
+    const messages = await chatDB.getMessagesForChat(chatId);
+    if (!messages || messages.length === 0) {
+      await chatDB.deleteChat(chatId);
+      return;
+    }
+
+    const chat = await chatDB.getRawChat(chatId);
+    if (!chat) return;
+    await chatDB.upsertRawChat({
+      ...chat,
+      encrypted_draft_md: null,
+      encrypted_draft_preview: null,
+      draft_v: 0,
+    });
+  } catch (error) {
+    console.error(`[DraftService] Failed to discard stale draft write for ${chatId}:`, error);
   }
 }
 
@@ -610,6 +635,7 @@ export const saveDraftDebounced = debounce(
 
     const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
+    const lifecycleRevisionAtStart = draftLifecycleRevision;
 
     // Check save lock to prevent duplicate chat creation from concurrent saves.
     // Instead of silently dropping the save (which loses the latest content),
@@ -961,7 +987,7 @@ export const saveDraftDebounced = debounce(
       draftEditorUIState.update((s) => ({
         ...s,
         currentChatId: currentChatIdForOperation,
-        newlyCreatedChatIdToSelect: currentChatIdForOperation,
+        newlyCreatedChatIdToSelect: null,
       }));
     }
 
@@ -978,6 +1004,12 @@ export const saveDraftDebounced = debounce(
     const encryptedPreview = previewText
       ? await encryptWithMasterKey(previewText)
       : null;
+
+    if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+      console.info("[DraftService] Draft save cancelled because its draft lifecycle was cleared.");
+      draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
+      return;
+    }
 
     if (!encryptedMarkdown) {
       console.error(
@@ -1055,11 +1087,15 @@ export const saveDraftDebounced = debounce(
           );
           currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
           userDraft = newChat;
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+            await discardStaleDraftWrite(currentChatIdForOperation);
+            return;
+          }
           draftEditorUIState.update((s) => ({
             ...s,
             currentChatId: currentChatIdForOperation, // This is now the ID of the new chat
             currentUserDraftVersion: userDraft.draft_v,
-            newlyCreatedChatIdToSelect: null,
+            newlyCreatedChatIdToSelect: currentChatIdForOperation,
             hasUnsavedChanges: false,
             lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
             isSaveInProgress: false, // Release lock on success
@@ -1148,11 +1184,16 @@ export const saveDraftDebounced = debounce(
             await chatDB.addChat(chatToCreate);
             userDraft = chatToCreate;
 
+            if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+              await discardStaleDraftWrite(currentChatIdForOperation);
+              return;
+            }
+
             draftEditorUIState.update((s) => ({
               ...s,
               // Keep the same currentChatId - DO NOT change it
               currentUserDraftVersion: userDraft.draft_v,
-              newlyCreatedChatIdToSelect: null,
+              newlyCreatedChatIdToSelect: currentChatIdForOperation,
               hasUnsavedChanges: false,
               lastSavedContentMarkdown: contentMarkdown,
               isSaveInProgress: false, // Release lock on success
@@ -1204,9 +1245,16 @@ export const saveDraftDebounced = debounce(
               existingChat.encrypted_draft_md !== encryptedMarkdown
                 ? versionBeforeSave + 1
                 : versionBeforeSave,
-            updated_at: Math.floor(Date.now() / 1000),
+            updated_at: Math.max(
+              Math.floor(Date.now() / 1000),
+              (existingChat.updated_at ?? 0) + 1,
+            ),
           };
           await chatDB.upsertRawChat(userDraft);
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+            await discardStaleDraftWrite(currentChatIdForOperation);
+            return;
+          }
           if (userDraft) {
             // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
             draftEditorUIState.update((s) => ({
@@ -1242,6 +1290,13 @@ export const saveDraftDebounced = debounce(
           hasUnsavedChanges: true,
           isSaveInProgress: false,
         }));
+        return;
+      }
+
+      if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+        console.info(
+          `[DraftService] Skipping stale draft publication for cleared chat ${currentChatIdForOperation}.`,
+        );
         return;
       }
 

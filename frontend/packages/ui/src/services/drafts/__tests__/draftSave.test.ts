@@ -91,6 +91,7 @@ const mocks = vi.hoisted(() => {
     chatMetadataCache: {
       invalidateChat: vi.fn(),
     },
+    encryptWithMasterKey: vi.fn().mockResolvedValue("encrypted-data"),
     tipTapToCanonicalMarkdown: vi.fn().mockReturnValue(""),
   };
 });
@@ -109,7 +110,7 @@ vi.mock("../../chatSyncService", () => ({
 
 // cryptoService
 vi.mock("../../cryptoService", () => ({
-  encryptWithMasterKey: vi.fn().mockResolvedValue("encrypted-data"),
+  encryptWithMasterKey: mocks.encryptWithMasterKey,
 }));
 
 // authStore
@@ -262,6 +263,7 @@ describe("draftSave", () => {
       encrypted_draft_md: "encrypted-data",
       encrypted_draft_preview: "encrypted-data",
     });
+    mocks.encryptWithMasterKey.mockResolvedValue("encrypted-data");
     mocks.tipTapToCanonicalMarkdown.mockReturnValue("");
   });
 
@@ -325,6 +327,63 @@ describe("draftSave", () => {
 
       expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
       expect(mocks.draftState.hasUnsavedChanges).toBe(true);
+    });
+
+    it("releases the save lock when the draft is cleared during encryption", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("Draft cleared while encrypting");
+
+      let finishEncryption: (value: string) => void = () => undefined;
+      mocks.encryptWithMasterKey.mockImplementationOnce(
+        () => new Promise<string>((resolve) => {
+          finishEncryption = resolve;
+        }),
+      );
+
+      const savePromise = saveDraftDebounced(undefined, editor as never);
+      await vi.waitFor(() => expect(mocks.draftState.isSaveInProgress).toBe(true));
+      await clearCurrentDraft();
+      finishEncryption("encrypted-data");
+      await savePromise;
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).not.toHaveBeenCalled();
+      expect(mocks.draftState.isSaveInProgress).toBe(false);
+    });
+
+    it("removes a first-save shell that finishes persisting after clear", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("Draft cleared during persistence");
+
+      let finishPersistence: (chat: {
+        chat_id: string;
+        draft_v: number;
+        encrypted_draft_md: string;
+        encrypted_draft_preview: string;
+      }) => void = () => undefined;
+      mocks.chatDB.createNewChatWithCurrentUserDraft.mockImplementationOnce(
+        () => new Promise((resolve) => {
+          finishPersistence = resolve;
+        }),
+      );
+
+      const savePromise = saveDraftDebounced(undefined, editor as never);
+      await vi.waitFor(() => {
+        expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
+      });
+      await clearCurrentDraft();
+      finishPersistence({
+        chat_id: "late-created-chat-id",
+        draft_v: 1,
+        encrypted_draft_md: "encrypted-data",
+        encrypted_draft_preview: "encrypted-data",
+      });
+      await savePromise;
+
+      expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("late-created-chat-id");
+      expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
+      expect(mocks.draftState.isSaveInProgress).toBe(false);
     });
   });
 

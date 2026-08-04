@@ -66,6 +66,7 @@
     isCreditsError = false,
     chatCreatedAt = null,
     chatTimeLabel = 'started',
+    isDraftOnly = false,
     /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
      *  and "Incognito Mode" as the title. Overrides all other visual states. */
     isIncognito = false,
@@ -114,7 +115,8 @@
      *  Replaces the "Creating new chat..." shimmer with a static "Not enough credits" state. */
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
-    chatTimeLabel?: 'started' | 'published';
+    chatTimeLabel?: 'started' | 'published' | 'saved';
+    isDraftOnly?: boolean;
     isIncognito?: boolean;
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
@@ -646,6 +648,11 @@
 
   /** Whether to show the creation time line. Only shown once the loaded header is visible. */
   let showTime = $derived(isLoaded && !!formattedTime);
+  let lastSavedLabel = $derived(
+    isDraftOnly && showTime
+      ? $text('chat.header.last_saved', { values: { time: formattedTime } })
+      : '',
+  );
 
   // ─── Highlights pill ───────────────────────────────────────────────────────
   /** True when at least one highlight exists in the chat — render the yellow pill. */
@@ -1086,21 +1093,28 @@
           <WorkspaceDetailHeader
             title={displayTitle}
             description={summary ?? ''}
-            category={category ?? 'general'}
-            icon={icon ?? 'ai'}
-            {writable}
+            category={isDraftOnly ? 'general_knowledge' : category ?? 'general'}
+            icon={isDraftOnly ? 'lightbulb' : icon ?? 'ai'}
+            writable={isDraftOnly ? false : writable}
             {onSaveTitle}
             {onSaveDescription}
-            metadata={showTime ? formattedTime : ''}
+            metadata={!isDraftOnly && showTime ? formattedTime : ''}
             embedded
             {titleTestId}
             descriptionTestId="chat-header-summary"
-            showDescription={showSummary || writable}
+            showDescription={!isDraftOnly && (showSummary || writable)}
             descriptionClampLines={3}
             iconTestId="chat-header-icon"
           />
 
-          {#if isExampleChat}
+          {#if isDraftOnly}
+            <span class="chat-kind-badge" data-testid="draft-chat-badge">{$text('enter_message.draft')}</span>
+            <span
+              class="draft-last-saved"
+              data-testid="draft-chat-last-saved"
+              data-saved-at={chatCreatedAt ?? ''}
+            >{lastSavedLabel}</span>
+          {:else if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
             <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
@@ -1368,6 +1382,14 @@
     background: rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     letter-spacing: 0.02em;
+  }
+
+  .draft-last-saved {
+    display: block;
+    margin-top: var(--spacing-3);
+    color: rgba(255, 255, 255, 0.75);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
   }
 
   /* Highlights pill: yellow chip showing "N highlights" or "N highlights, M
