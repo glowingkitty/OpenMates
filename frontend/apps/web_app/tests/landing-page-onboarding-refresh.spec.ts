@@ -691,7 +691,8 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
 		const regular = await landingIntroOverlayMetrics(page);
 		expect(regular.phase).toBe('regular');
-		expect(regular.bannerHeight, 'regular daily inspiration is smaller than the active chat').toBeLessThan(regular.activeHeight * 0.55);
+		expect(regular.bannerHeight, 'regular daily inspiration respects the compact max height').toBeLessThanOrEqual(DAILY_INSPIRATION_MAX_HEIGHT);
+		expect(regular.bannerHeight, 'regular daily inspiration is smaller than the active chat').toBeLessThan(regular.activeHeight);
 		expect(regular.messageInputOpacity, 'message input is visible after collapse').toBeGreaterThanOrEqual(0.95);
 		expect(regular.welcomeContentOpacity, 'welcome content is visible after collapse').toBeGreaterThanOrEqual(0.95);
 
