@@ -14725,6 +14725,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         .guest-all-examples-grid {
             display: flex;
             flex-direction: column;
+            justify-content: flex-start;
             gap: var(--spacing-4);
         }
 
