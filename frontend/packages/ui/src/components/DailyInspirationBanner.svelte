@@ -3680,6 +3680,11 @@
       margin: 0 auto;
     }
 
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell {
+      aspect-ratio: auto;
+      max-height: 100%;
+    }
+
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
     .banner-content.mobile-card-loop.show-mobile-card .guest-product-demo-shell,

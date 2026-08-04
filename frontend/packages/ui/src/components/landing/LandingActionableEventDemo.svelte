@@ -482,9 +482,11 @@
 
     .landing-actionable-message-stage {
       position: relative;
-      left: 50%;
       width: min(calc(100% + 20px), 320px);
-      transform: translateX(-50%);
+      left: auto;
+      justify-self: center;
+      margin-inline: auto;
+      transform: none;
     }
 
     .landing-actionable-message-stage :global(.message-align-right),

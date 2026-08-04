@@ -901,7 +901,7 @@ test.describe('Landing page onboarding refresh', () => {
 				demoHeight: demoRect.height,
 				demoLeftGap: demoRect.left - bannerRect.left,
 				demoRightGap: bannerRect.right - demoRect.right,
-				headlineDemoGap: demoRect.left - headlineRect.right,
+				demoBelowHeadline: demoRect.top > headlineRect.bottom,
 				sceneAnimation: getComputedStyle(scene).animationName,
 				activeStage: demo.dataset.activeStage,
 				buttonText: ctaButton.textContent?.trim() || ''
@@ -913,7 +913,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.demoHeight).toBeLessThanOrEqual(metrics.bannerHeight);
 		expect(metrics.demoLeftGap).toBeGreaterThanOrEqual(40);
 		expect(metrics.demoRightGap).toBeGreaterThanOrEqual(40);
-		expect(metrics.headlineDemoGap).toBeGreaterThanOrEqual(24);
+		expect(metrics.demoBelowHeadline, 'Actionable demo should sit below the compact heading').toBe(true);
 		expect(metrics.sceneAnimation).toBe('none');
 		expect(metrics.activeStage).toBe('luma-cta');
 		expect(metrics.buttonText).toBe('Open on Luma');
