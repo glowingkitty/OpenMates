@@ -822,7 +822,15 @@ async function storeRecentChats(
 
       // Metadata-only path: save chat and move on (no message processing)
       if (!shouldSyncMessages) {
-        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
+        try {
+          await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
+        } catch (error) {
+          console.error(
+            `[ChatSyncService] Phase 2 - failed to persist chat ${chatId}; continuing sync:`,
+            error,
+          );
+          continue;
+        }
         chatListCache.upsertChat(mergedChat);
         if (keyMismatch) {
           serviceInstance.dispatchEvent(

@@ -440,6 +440,8 @@ export async function decryptChatFromStorage(
 // CHAT CRUD OPERATIONS
 // ============================================================================
 
+const CHAT_TRANSACTION_TIMEOUT_MS = 10_000;
+
 /**
  * Add or update a chat in the database
  */
@@ -505,6 +507,36 @@ export async function addChat(
   delete chatToSave.messages;
 
   return new Promise<void>((resolve, reject) => {
+    let activeTransaction: IDBTransaction | null = transaction ?? null;
+    let ownsActiveTransaction = false;
+    let settled = false;
+
+    function resolveOnce() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(transactionTimeout);
+      resolve();
+    }
+    function rejectOnce(error: unknown) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(transactionTimeout);
+      reject(error);
+    }
+    const transactionTimeout = setTimeout(() => {
+      const timeoutError = new Error(
+        `IndexedDB transaction timed out while saving chat ${chatToSave.chat_id}`,
+      );
+      rejectOnce(timeoutError);
+      if (activeTransaction && ownsActiveTransaction) {
+        try {
+          activeTransaction.abort();
+        } catch {
+          // The transaction may have completed just before the timeout fired.
+        }
+      }
+    }, CHAT_TRANSACTION_TIMEOUT_MS);
+
     (async () => {
       // CRITICAL FIX: Check if external transaction is still active before using it
       if (usesExternalTransaction && transaction) {
@@ -528,6 +560,9 @@ export async function addChat(
             dbInstance.CHATS_STORE_NAME,
             "readwrite",
           );
+          if (settled) return;
+          activeTransaction = newTransaction;
+          ownsActiveTransaction = true;
 
           // CRITICAL FIX: Set up transaction handlers BEFORE queuing any operations
           newTransaction.oncomplete = () => {
@@ -535,7 +570,7 @@ export async function addChat(
               "[ChatDatabase] ✅ New transaction for addChat completed successfully for chat:",
               chatToSave.chat_id,
             );
-            resolve();
+            resolveOnce();
           };
 
           newTransaction.onerror = () => {
@@ -545,7 +580,7 @@ export async function addChat(
               "Error:",
               newTransaction.error,
             );
-            reject(newTransaction.error);
+            rejectOnce(newTransaction.error);
           };
 
           newTransaction.onabort = () => {
@@ -553,7 +588,7 @@ export async function addChat(
               "[ChatDatabase] ❌ New transaction for addChat aborted for chat:",
               chatToSave.chat_id,
             );
-            reject(new Error("Transaction aborted"));
+            rejectOnce(new Error("Transaction aborted"));
           };
 
           const store = newTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
@@ -591,6 +626,9 @@ export async function addChat(
           dbInstance.CHATS_STORE_NAME,
           "readwrite",
         ));
+      if (settled) return;
+      activeTransaction = currentTransaction;
+      ownsActiveTransaction = !usesExternalTransaction;
 
       console.debug(
         `[ChatDatabase] Using ${usesExternalTransaction ? "external" : "internal"} transaction for chat ${chatToSave.chat_id}`,
@@ -606,7 +644,7 @@ export async function addChat(
               "[ChatDatabase] ✅ Transaction for addChat completed successfully for chat:",
               chatToSave.chat_id,
             );
-            resolve();
+            resolveOnce();
           };
           currentTransaction.onerror = () => {
             const error = currentTransaction.error;
@@ -617,7 +655,7 @@ export async function addChat(
               `[ChatDatabase] ❌ Transaction for addChat failed for chat: ${chatToSave.chat_id}, Error: ${errorName} - ${errorMessage}`,
               error,
             );
-            reject(error || new Error("Transaction error"));
+            rejectOnce(error || new Error("Transaction error"));
           };
           currentTransaction.onabort = () => {
             const error = currentTransaction.error;
@@ -639,7 +677,9 @@ export async function addChat(
               );
             }
 
-            reject(error || new Error(`Transaction aborted: ${errorMessage}`));
+            rejectOnce(
+              error || new Error(`Transaction aborted: ${errorMessage}`),
+            );
           };
         }
 
@@ -669,7 +709,7 @@ export async function addChat(
             );
             // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
             // The calling code should wait for transaction.oncomplete
-            resolve(); // Resolve to indicate the operation was queued successfully
+            resolveOnce(); // Resolve to indicate the operation was queued successfully
           }
           // For internal transactions, resolve() is called in oncomplete handler above
         };
@@ -693,7 +733,7 @@ export async function addChat(
             );
           }
 
-          reject(error); // This will also cause the transaction to abort if not handled
+          rejectOnce(error); // This will also cause the transaction to abort if not handled
         };
       } catch (error) {
         // Transaction is no longer active (InvalidStateError or similar)
@@ -711,6 +751,9 @@ export async function addChat(
               dbInstance.CHATS_STORE_NAME,
               "readwrite",
             );
+            if (settled) return;
+            activeTransaction = newTransaction;
+            ownsActiveTransaction = true;
 
             // CRITICAL FIX: Set up transaction handlers BEFORE queuing any operations
             newTransaction.oncomplete = () => {
@@ -718,7 +761,7 @@ export async function addChat(
                 "[ChatDatabase] ✅ New transaction for addChat completed successfully for chat:",
                 chatToSave.chat_id,
               );
-              resolve();
+              resolveOnce();
             };
 
             newTransaction.onerror = () => {
@@ -728,7 +771,7 @@ export async function addChat(
                 "Error:",
                 newTransaction.error,
               );
-              reject(newTransaction.error);
+              rejectOnce(newTransaction.error);
             };
 
             newTransaction.onabort = () => {
@@ -736,7 +779,7 @@ export async function addChat(
                 "[ChatDatabase] ❌ New transaction for addChat aborted for chat:",
                 chatToSave.chat_id,
               );
-              reject(new Error("Transaction aborted"));
+              rejectOnce(new Error("Transaction aborted"));
             };
 
             const store = newTransaction.objectStore(
@@ -764,7 +807,7 @@ export async function addChat(
               `[ChatDatabase] Failed to create new transaction for chat ${chatToSave.chat_id}:`,
               retryError,
             );
-            reject(retryError);
+            rejectOnce(retryError);
           }
         } else {
           // Some other error - rethrow it
@@ -772,10 +815,10 @@ export async function addChat(
             `[ChatDatabase] Unexpected error in addChat for chat ${chatToSave.chat_id}:`,
             error,
           );
-          reject(error);
+          rejectOnce(error);
         }
       }
-    })();
+    })().catch(rejectOnce);
   });
 }
 

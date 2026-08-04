@@ -11,7 +11,7 @@
 // chat is stored without a key. The correct key arrives later via
 // receiveKeyFromServer().
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mocks — must be set up before importing the module under test
@@ -383,6 +383,10 @@ describe("addChat transaction completion", () => {
     mockEncryptChatKeyWithMasterKey.mockResolvedValue("encrypted-existing");
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("aborts and rejects an internal transaction that never settles", async () => {
     const request = {} as IDBRequest;
     const transaction = {
@@ -406,7 +410,6 @@ describe("addChat transaction completion", () => {
 
     await expect(savePromise).rejects.toThrow("timed out");
     expect(transaction.abort).toHaveBeenCalledOnce();
-    vi.useRealTimers();
   });
 });
 
