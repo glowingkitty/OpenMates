@@ -5557,6 +5557,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroResetToken = $state(0);
+    let guestSkipLandingIntro = $state(false);
     let guestLandingIntroOverlayActive = $derived(
         !$authStore.isAuthenticated && guestLandingIntroPhase !== 'regular'
     );
@@ -7227,6 +7228,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     async function handleNewChatClick() {
         console.debug("[ActiveChat] New chat creation initiated");
+        const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
         if (blurTimer) {
             clearTimeout(blurTimer);
             blurTimer = undefined;
@@ -7256,8 +7258,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
             guestAllExamplesVisible = false;
-            guestLandingIntroPhase = 'expanded';
-            guestLandingIntroResetToken += 1;
+            guestSkipLandingIntro = isGuestExampleChat;
+            guestLandingIntroPhase = isGuestExampleChat ? 'regular' : 'expanded';
+            if (!isGuestExampleChat) {
+                guestLandingIntroResetToken += 1;
+            }
         } else {
             guestLandingIntroPhase = 'regular';
         }
@@ -7312,7 +7317,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Auto-focus the message input field on desktop devices only
         // On touch devices, users must manually tap to focus to avoid unwanted keyboard popups
-        if ($authStore.isAuthenticated && isDesktop() && messageInputFieldRef) {
+        if (($authStore.isAuthenticated || isGuestExampleChat) && isDesktop() && messageInputFieldRef) {
             // Use a small delay to ensure the editor is ready after clearing
             setTimeout(() => {
                 if (messageInputFieldRef) {
@@ -12365,6 +12370,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 containerWidth={effectiveChatWidth}
                                 variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
                                 landingIntroResetToken={guestLandingIntroResetToken}
+                                skipLandingIntro={guestSkipLandingIntro}
                             />
                         </div>
                     {/if}
@@ -13373,7 +13379,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <MessageInput
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
-                                    isNewChatContext={showWelcome && !currentChat?.chat_id}
+                                    isNewChatContext={(showWelcome && !currentChat?.chat_id) || isActiveDraftOnlyChat}
                                     showActionButtons={showActionButtons}
                                     inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
                                     activeFocusId={!showWelcome ? activeFocusId : null}
