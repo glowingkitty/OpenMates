@@ -13,6 +13,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const {
 	installAccountImportMock,
 	loginAndOpenImportSettings,
@@ -44,7 +45,10 @@ test.describe('Account Import V1 web flow', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 
 		await installAccountImportMock(page, { importId: 'web-import-mobile' });
-		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
+		await loginToTestAccount(page, () => undefined, async () => undefined, {
+			credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY },
+		});
+		await page.goto('/#settings/account/import', { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('account-import-file-upload')).not.toBeVisible();
 		await expect(page.getByTestId('account-import-source-option-openmates')).toBeVisible();
 		await expect(page.getByTestId('account-import-source-option-other')).toBeVisible();
