@@ -4142,6 +4142,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Triggers the system message to switch from "Buy Credits" to "Resend message" mode.
     // Cleared together with isNewChatCreditsError on resend, follow-up send, or chat switch.
     let isCreditsRestored = $state(false);
+    let cancelledPendingNewChatId = $state<string | null>(null);
+    let cancelledPendingNewChatDraftText = $state<string | null>(null);
     // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
     let activeChatDecryptedTitle = $state<string>(initialPublicChat?.title ?? '');
     let activeChatDecryptedCategory = $state<string | null>(initialPublicChat?.category ?? null);
@@ -6863,6 +6865,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             editCreatedAt?: number,
         };
 
+        if ((newChat || !currentChat?.chat_id) && cancelledPendingNewChatDraftText && (!cancelledPendingNewChatId || cancelledPendingNewChatId === message.chat_id)) {
+            const draftText = cancelledPendingNewChatDraftText;
+            cancelledPendingNewChatId = null;
+            cancelledPendingNewChatDraftText = null;
+            try {
+                await chatDB.deleteChat(message.chat_id);
+                chatListCache.removeChat(message.chat_id);
+                window.dispatchEvent(new CustomEvent('localChatListChanged', {
+                    detail: { chat_id: message.chat_id }
+                }));
+            } catch (err) {
+                console.warn('[ActiveChat] Failed to delete late cancelled new chat locally:', err);
+            }
+            await handleNewChatClick();
+            await restoreCancelledNewChatDraft(draftText);
+            return;
+        }
+
         // Edit mode: truncate currentMessages to remove messages from the edit point
         if (isEditSend && editCreatedAt !== undefined && currentChat?.chat_id) {
             currentMessages = currentMessages.filter(
@@ -7140,6 +7160,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleNewChatCreationCancelled(event: CustomEvent) {
         const { chatId, text } = event.detail as { chatId?: string | null; text?: string };
         const cancelledChatId = chatId || currentChat?.chat_id || temporaryChatId || null;
+        cancelledPendingNewChatId = cancelledChatId;
+        cancelledPendingNewChatDraftText = text || null;
 
         if (cancelledChatId) {
             try {

@@ -3416,7 +3416,7 @@
         if (!activeAITaskId && awaitingAITaskStart) {
             console.info('[MessageInput] Stop clicked before task id is known; will cancel as soon as task starts');
             cancelRequestedWhileAwaiting = true;
-            cancelRequestedChatId = currentChatId ?? null;
+            cancelRequestedChatId = currentChatId ?? get(draftEditorUIState).currentChatId ?? null;
             awaitingAITaskStart = false; // Hide button immediately
             if (awaitingAITaskTimeoutId) {
                 clearTimeout(awaitingAITaskTimeoutId);
@@ -4704,9 +4704,11 @@
         if (editor && !editor.isDestroyed) {
             flushHeavyParsing(editor);
         }
+        const draftStateBeforeSend = get(draftEditorUIState);
+        const pendingNewChatId = currentChatId ?? draftStateBeforeSend.currentChatId ?? null;
         pendingNewChatDraftRestore = isNewChatContext && editor && !editor.isDestroyed
             ? {
-                chatId: currentChatId ?? null,
+                chatId: pendingNewChatId,
                 text: editor.getText()
             }
             : null;
@@ -4742,9 +4744,8 @@
         // marker now that the user is sending. The chat UUID is about to become a real chat,
         // so the usage entry should display under the chat title, not as "Unsent draft".
         if (!currentChatId) {
-            const draftState = get(draftEditorUIState);
-            if (draftState.currentChatId) {
-                unmarkChatIdAsDraftAudio(draftState.currentChatId);
+            if (draftStateBeforeSend.currentChatId) {
+                unmarkChatIdAsDraftAudio(draftStateBeforeSend.currentChatId);
             }
         }
 
