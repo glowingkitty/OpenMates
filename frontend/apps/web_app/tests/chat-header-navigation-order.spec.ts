@@ -108,7 +108,10 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
 
 			if (await page.getByTestId('activity-history-wrapper').isVisible().catch(() => false)) {
-				await page.keyboard.press('Escape');
+				await page
+					.getByTestId('activity-history-wrapper')
+					.getByRole('button', { name: /close/i })
+					.click();
 			}
 			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
 			await page.getByTestId('chat-header-next').click();
