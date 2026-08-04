@@ -26,6 +26,7 @@ API_KEY_ALLOWED_METADATA_SUFFIX = "/metadata"
 API_KEY_FIRST_PARTY_SDK_PRODUCT_PREFIXES = {
     "/v1/user-tasks": ("tasks", "task"),
     "/v1/user-plans": ("plans", "plan"),
+    "/v1/projects": ("projects", "project"),
 }
 FIRST_PARTY_SDK_NAMES = {"npm", "pip"}
 WORKFLOW_EXECUTION_PATH_PARTS = ("/run", "/steps/", "/runs/", "/input")

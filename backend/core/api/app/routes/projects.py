@@ -14,7 +14,7 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_project_ask_pipeline
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.project_methods import ProjectMoveError
@@ -385,7 +385,7 @@ async def list_projects(
     request: Request,
     include_archived: bool = False,
     team_id: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
@@ -405,7 +405,7 @@ async def create_project(
     request: Request,
     body: ProjectCreateRequest,
     team_id: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
@@ -533,7 +533,7 @@ async def get_project(
     request: Request,
     project_id: str,
     team_id: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
@@ -633,7 +633,7 @@ async def update_project(
     project_id: str,
     body: ProjectUpdateRequest,
     team_id: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
@@ -948,7 +948,7 @@ async def delete_project(
     project_id: str,
     confirmation_project_id: str | None = Query(None),
     team_id: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:

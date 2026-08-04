@@ -83,3 +83,44 @@ def test_first_party_sdk_can_use_encrypted_task_and_plan_routes_with_scopes() ->
         _enforce_api_key_route_policy(_request("POST", "/v1/user-plans", headers), limited_info)
     assert exc.value.status_code == 403
     assert exc.value.detail == {"error": "missing_scope", "missing_scope": "plan:write"}
+
+
+def test_first_party_sdk_project_crud_requires_project_scopes() -> None:
+    headers = {"x-openmates-sdk": "npm"}
+    api_key_info = {
+        "api_key_metadata": {
+            "full_access": False,
+            "scopes": {"projects": ["project:read", "project:write"]},
+        }
+    }
+
+    _enforce_api_key_route_policy(_request("GET", "/v1/projects", headers), api_key_info)
+    _enforce_api_key_route_policy(_request("PATCH", "/v1/projects/project-1", headers), api_key_info)
+
+    with pytest.raises(HTTPException) as exc:
+        _enforce_api_key_route_policy(
+            _request("POST", "/v1/projects", headers),
+            {"api_key_metadata": {"full_access": False, "scopes": {"projects": ["project:read"]}}},
+        )
+    assert exc.value.status_code == 403
+    assert exc.value.detail == {"error": "missing_scope", "missing_scope": "project:write"}
+
+    with pytest.raises(HTTPException) as exc:
+        _enforce_api_key_route_policy(_request("GET", "/v1/projects", {"x-openmates-sdk": "other"}), api_key_info)
+    assert exc.value.detail == {"error": "developer_api_access_not_classified"}
+
+
+def test_project_remote_source_routes_remain_session_only() -> None:
+    projects_source = (Path(__file__).resolve().parents[2] / "backend/core/api/app/routes/projects.py").read_text(encoding="utf-8")
+    assert "async def list_projects(" in projects_source
+    assert "async def create_project(" in projects_source
+    assert projects_source.count("Depends(get_current_user_or_api_key)") >= 5
+    for function_name in (
+        "list_project_sources",
+        "create_project_source",
+        "delete_project_source",
+        "create_project_remote_access_request",
+        "get_project_remote_access_request_result",
+    ):
+        function_source = projects_source.split(f"async def {function_name}(", 1)[1].split(") ->", 1)[0]
+        assert "Depends(get_current_user)" in function_source
