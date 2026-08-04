@@ -29,6 +29,7 @@ export function registerEmbedRefIndex(
     skillId: entry.skillId ?? null,
     type: entry.type ?? null,
   };
+  // Final message links may use either the human-readable ref or the stable ID.
   embedRefToIdIndex.set(embedRef, normalizedEntry);
   embedRefToIdIndex.set(entry.embedId, normalizedEntry);
   embedRefIndexVersion.update((n) => n + 1);
