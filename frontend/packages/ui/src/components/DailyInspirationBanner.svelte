@@ -49,6 +49,7 @@
   import LandingPrivacySafetyDemo from './landing/LandingPrivacySafetyDemo.svelte';
   import LandingMatesFocusDemo from './landing/LandingMatesFocusDemo.svelte';
   import LandingPeopleExperienceDemo from './landing/LandingPeopleExperienceDemo.svelte';
+  import LandingHeadingMotion, { type LandingHeadingMotionPhase } from './landing/LandingHeadingMotion.svelte';
   import {
     ACTIONABLE_DEMO_DURATION_MS,
     ACTIONABLE_MOBILE_HEADING_FADE_IN_MS,
@@ -153,13 +154,15 @@
     variant?: 'default' | 'guest-intro';
     /** Increment to force the guest intro carousel back to slide 0. */
     landingIntroResetToken?: number;
+    /** Start after the expanded intro when returning from a guest example chat. */
+    skipLandingIntro?: boolean;
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
     onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
     /** Called while the logged-out intro overlay changes size over the welcome surface. */
     onLandingIntroExpandedChange?: (phase: LandingIntroPhase) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, skipLandingIntro = false, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
@@ -186,6 +189,8 @@
   let showMobileCard = $state(false);
   let actionableMobileHeadingReady = $state(false);
   let actionableMobileHeadingPhase = $state<ActionableMobileHeadingPhase>('large');
+  let guestHeadingMotionPhase = $state<LandingHeadingMotionPhase>('entering');
+  let introHeadingMotionPhase = $state<LandingHeadingMotionPhase>('entering');
   let guestSlidePhase = $state<GuestSlidePhase>('idle');
   let signupSlidePhase = $state<SignupSlidePhase>('idle');
   let pendingGuestSlideIndex = $state<number | null>(null);
@@ -380,6 +385,22 @@
     return () => observer.disconnect();
   });
 
+  $effect(() => {
+    if (!landingIntroOverlayActive) {
+      introHeadingMotionPhase = 'hidden';
+      return;
+    }
+    if (landingIntroPhase === 'fading-out' || landingIntroPhase === 'collapsing') {
+      introHeadingMotionPhase = 'exiting';
+      return;
+    }
+    introHeadingMotionPhase = 'entering';
+    const frame = window.requestAnimationFrame(() => {
+      introHeadingMotionPhase = 'visible';
+    });
+    return () => window.cancelAnimationFrame(frame);
+  });
+
   // Fire `inspiration_viewed` whenever the current inspiration becomes visible.
   $effect(() => {
     if (!isBannerVisible) return;
@@ -411,6 +432,7 @@
       showMobileCard = false;
       actionableMobileHeadingReady = false;
       actionableMobileHeadingPhase = 'large';
+      guestHeadingMotionPhase = 'hidden';
       return;
     }
 
@@ -419,12 +441,14 @@
     showMobileCard = false;
     actionableMobileHeadingReady = false;
     actionableMobileHeadingPhase = 'large';
+    guestHeadingMotionPhase = 'entering';
 
     if (isGuestIntroVariant) {
       if (prefersReducedMotion) {
         showMobileCard = true;
         actionableMobileHeadingReady = true;
         actionableMobileHeadingPhase = 'ready';
+        guestHeadingMotionPhase = 'visible';
         return;
       }
       const headingStartDelayMs = guestProductAnimationKind
@@ -438,14 +462,25 @@
         : ACTIONABLE_MOBILE_HEADING_FADE_IN_MS;
       let headingFadeOutTimeout: number | undefined;
       let headingFadeInTimeout: number | undefined;
+      let headingEntryAnimationFrame: number | undefined;
       let headingSwapAnimationFrame: number | undefined;
+      let headingVisibleAnimationFrame: number | undefined;
+      headingEntryAnimationFrame = window.requestAnimationFrame(() => {
+        guestHeadingMotionPhase = 'visible';
+      });
       const headingStartTimeout = window.setTimeout(() => {
+        guestHeadingMotionPhase = 'exiting';
         actionableMobileHeadingPhase = 'fading-out';
         headingFadeOutTimeout = window.setTimeout(() => {
+          guestHeadingMotionPhase = 'hidden';
           actionableMobileHeadingPhase = 'hidden';
           showMobileCard = true;
           headingSwapAnimationFrame = window.requestAnimationFrame(() => {
             actionableMobileHeadingPhase = 'fading-in';
+            guestHeadingMotionPhase = 'entering';
+            headingVisibleAnimationFrame = window.requestAnimationFrame(() => {
+              guestHeadingMotionPhase = 'visible';
+            });
             headingFadeInTimeout = window.setTimeout(() => {
               actionableMobileHeadingPhase = 'ready';
               actionableMobileHeadingReady = true;
@@ -458,7 +493,9 @@
         window.clearTimeout(headingStartTimeout);
         window.clearTimeout(headingFadeOutTimeout);
         window.clearTimeout(headingFadeInTimeout);
+        window.cancelAnimationFrame(headingEntryAnimationFrame ?? 0);
         window.cancelAnimationFrame(headingSwapAnimationFrame ?? 0);
+        window.cancelAnimationFrame(headingVisibleAnimationFrame ?? 0);
       };
     }
 
@@ -552,6 +589,15 @@
     );
     if (introIndex >= 0 && currentIndex !== introIndex) {
       currentIndex = introIndex;
+    }
+  });
+
+  $effect(() => {
+    if (!isGuestIntroVariant || !skipLandingIntro || visibleInspirations.length < 2) return;
+    landingIntroDismissed = true;
+    landingIntroPhase = 'regular';
+    if (landingIntroIsCurrentSlide) {
+      currentIndex = 1;
     }
   });
 
@@ -1160,6 +1206,13 @@
     landingIntroDismissed = true;
     landingIntroTransitionTimeout = window.setTimeout(() => {
       landingIntroPhase = 'collapsing';
+      if (pendingLandingIntroIndex !== null) {
+        currentIndex = pendingLandingIntroIndex;
+        pendingLandingIntroIndex = null;
+        landingIntroRequestIndex = -1;
+        startLandingIntroRegularReveal();
+        restartProgressAnimation();
+      }
       landingIntroTransitionTimeout = window.setTimeout(() => {
         finishLandingIntroCollapse();
       }, LANDING_INTRO_RESIZE_TRANSITION_MS + 80);
@@ -1167,14 +1220,9 @@
   }
 
   function finishLandingIntroCollapse(): void {
-    if (landingIntroPhase !== 'collapsing' || pendingLandingIntroIndex === null) return;
+    if (landingIntroPhase !== 'collapsing') return;
     window.clearTimeout(landingIntroTransitionTimeout);
-    currentIndex = pendingLandingIntroIndex;
-    pendingLandingIntroIndex = null;
-    landingIntroRequestIndex = -1;
     landingIntroPhase = 'regular';
-    startLandingIntroRegularReveal();
-    restartProgressAnimation();
   }
 
   function startLandingIntroRegularReveal(): void {
@@ -1366,7 +1414,7 @@
         return;
       }
     }
-    if (isMobileBannerLayout && resolvedIndex !== currentIndex) {
+    if (resolvedIndex !== currentIndex) {
       startGuestSlideTransition(resolvedIndex);
       return;
     }
@@ -1377,6 +1425,7 @@
     if (guestSlidePhase !== 'idle') return;
     pendingGuestSlideIndex = resolvedIndex;
     guestSlidePhase = 'fading-out';
+    guestHeadingMotionPhase = 'exiting';
     const fadeDurationMs = prefersReducedMotion ? 0 : GUEST_SLIDE_CONTENT_FADE_MS;
     guestSlideTransitionTimeout = window.setTimeout(() => {
       if (pendingGuestSlideIndex === null) return;
@@ -1401,6 +1450,7 @@
     guestSlideTransitionAnimationFrame = undefined;
     pendingGuestSlideIndex = null;
     guestSlidePhase = 'idle';
+    guestHeadingMotionPhase = 'visible';
   }
 
   // Temporarily disabled with the visit-cycling effect above.
@@ -1584,11 +1634,13 @@
                 data-testid="landing-intro-expanded"
               >
                 <div class="landing-intro-expanded-motion">
-                  <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
-                  <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
-                    <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
-                    <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
-                  </h1>
+                  <LandingHeadingMotion phase={introHeadingMotionPhase} testId="landing-intro-heading-motion">
+                    <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
+                    <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
+                      <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
+                      <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
+                    </h1>
+                  </LandingHeadingMotion>
                   <div class="landing-intro-examples" class:visible={landingIntroExamplesVisible}>
                     <div class="landing-intro-request" data-testid="landing-intro-request" aria-live="polite">
                       {#key landingIntroRequestLabel}
@@ -1681,16 +1733,18 @@
                   data-testid="guest-intro-copy"
                   in:fade={{ duration: 320 }}
                 >
-                  {#if InfoCardIconComponent}
-                    <span class="guest-feature-inline-icon" data-testid="guest-feature-inline-icon" aria-hidden="true">
-                      <InfoCardIconComponent size={44} color="white" />
-                    </span>
-                  {/if}
+                  <LandingHeadingMotion phase={guestHeadingMotionPhase} testId="landing-guest-heading-motion">
+                    {#if InfoCardIconComponent}
+                      <span class="guest-feature-inline-icon" data-testid="guest-feature-inline-icon" aria-hidden="true">
+                        <InfoCardIconComponent size={44} color="white" />
+                      </span>
+                    {/if}
                     <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">
                       {#each guestFeatureHeadlineLines as line, index}
                         <span>{line}</span>{#if index < guestFeatureHeadlineLines.length - 1}<br>{/if}
                       {/each}
                     </span>
+                  </LandingHeadingMotion>
                 </div>
               {/key}
             {/if}

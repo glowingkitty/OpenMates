@@ -84,7 +84,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-mates-focus",
-      phrase: "Get the most out of AI. Without needing deep technical know-how.",
+      phrase: "No deep tech knowledge needed.",
       title: "Work with the right mate",
       assistantResponse:
         "OpenMates can keep a chat focused on learning, planning, building, researching, or another job instead of treating every request the same way.",

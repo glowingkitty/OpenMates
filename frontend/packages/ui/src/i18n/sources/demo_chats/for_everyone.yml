@@ -3152,8 +3152,8 @@ landing_actionable_event_chip_place:
   verified_by_human: []
 landing_privacy_saved_data:
   context: Encryption-at-storage explanation in the privacy landing header story
-  en: Only your devices can unlock your saved data.
-  de: Nur deine Geräte können deine gespeicherten Daten entsperren.
+  en: Only your devices can decrypt all your data.
+  de: Nur deine Geräte können alle deine Daten entschlüsseln.
   zh: Only your devices can unlock your saved data.
   es: Only your devices can unlock your saved data.
   fr: Only your devices can unlock your saved data.
@@ -3176,8 +3176,8 @@ landing_privacy_saved_data:
   verified_by_human: []
 landing_privacy_pii:
   context: Client-side personal-data placeholder explanation in the privacy landing header story
-  en: Personal details are replaced before AI processing.
-  de: Persönliche Angaben werden vor der KI-Verarbeitung ersetzt.
+  en: Personal details are replaced, before the AI sees them.
+  de: Persönliche Angaben werden ersetzt, bevor die KI sie sieht.
   zh: Personal details are replaced before AI processing.
   es: Personal details are replaced before AI processing.
   fr: Personal details are replaced before AI processing.
@@ -3224,8 +3224,8 @@ landing_privacy_memory:
   verified_by_human: []
 landing_privacy_trip_request:
   context: Synthetic travel request in the privacy landing header story
-  en: Recommend places for my next trip.
-  de: Empfiehl mir Orte für meine nächste Reise.
+  en: Recommended places for my next trip?
+  de: Empfohlene Orte für meine nächste Reise?
   zh: Recommend places for my next trip.
   es: Recommend places for my next trip.
   fr: Recommend places for my next trip.
@@ -3248,8 +3248,8 @@ landing_privacy_trip_request:
   verified_by_human: []
 landing_privacy_memory_result:
   context: Memory consent result in the privacy landing header story
-  en: Personalized responses, but only when you want them.
-  de: Personalisierte Antworten, aber nur wenn du sie möchtest.
+  en: Personalized responses. But only when you want them.
+  de: Personalisierte Antworten. Aber nur, wenn du sie möchtest.
   zh: Personalized responses, but only when you want them.
   es: Personalized responses, but only when you want them.
   fr: Personalized responses, but only when you want them.
@@ -3269,6 +3269,30 @@ landing_privacy_memory_result:
   cs: Personalized responses, but only when you want them.
   sv: Personalized responses, but only when you want them.
   he: Personalized responses, but only when you want them.
+  verified_by_human: []
+landing_privacy_originals:
+  context: PII reveal explanation in the privacy landing header story
+  en: Only you can view the originals.
+  de: Nur du kannst die Originale sehen.
+  zh: Only you can view the originals.
+  es: Only you can view the originals.
+  fr: Only you can view the originals.
+  pt: Only you can view the originals.
+  ru: Only you can view the originals.
+  ja: Only you can view the originals.
+  ko: Only you can view the originals.
+  it: Only you can view the originals.
+  tr: Only you can view the originals.
+  vi: Only you can view the originals.
+  id: Only you can view the originals.
+  pl: Only you can view the originals.
+  nl: Only you can view the originals.
+  ar: Only you can view the originals.
+  hi: Only you can view the originals.
+  th: Only you can view the originals.
+  cs: Only you can view the originals.
+  sv: Only you can view the originals.
+  he: Only you can view the originals.
   verified_by_human: []
 landing_privacy_previous_trips:
   context: Selected travel memory label in the privacy landing header story

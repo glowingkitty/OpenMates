@@ -467,14 +467,25 @@ attempts:
       and narrow layouts. Final screenshots on descendant `12fd4b70e` show the
       privacy, mates/focus, and people-first first stages fully contained at both
       viewports with no horizontal overflow or page errors.
+  - id: ATTEMPT-24
+    task_id: TASK-4
+    approach: Deploy and run the user-replaced heading, sub-slide, privacy, copy, and guest New chat contract before runtime edits.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `3e3d93398` deployed Ready as
+      `dpl_BtJRDncLXPqgYXowTi1BFRndBhMq`; GitHub Actions run `30932032884`
+      failed first because `landing-intro-heading-motion` does not exist in the
+      rejected implementation. The same run also captured the guest example-chat
+      New chat test failing under the old slide-0 reset behavior.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the revised focused Playwright contract and preserve expected red evidence before replacing the rejected implementation.
-  command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit <test-contract-commit>
-  expected_outcome: The focused spec fails on the current delayed intro transition, missing unified motion wrappers, old privacy stages, old mates copy, and guest New chat reset behavior.
+  next_action: Deploy the revised runtime implementation and run the focused contract for green evidence.
+  command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit <implementation-commit>
+  expected_outcome: The focused heading, nine-scene privacy, short-copy, timing, reduced-motion, and guest New chat assertions pass.
   blocker: null
-  last_verified_commit: 0abc480
+  last_verified_commit: 3e3d93398
 
 scenarios:
   - id: S-1
@@ -951,9 +962,13 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        reason: The user materially replaced the previously accepted story and navigation contract; new red evidence is required before implementation.
-        timestamp: "2026-08-04"
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 3e3d933
+        run_id: "30932032884"
+        subject_commit: 3e3d93398
+        target: app.dev.openmates.org
+        reason: The current implementation has no shared intro heading-motion wrapper and still uses the rejected story and guest New chat contracts.
+        timestamp: "2026-08-04T17:08:31Z"
       history:
         - status: failed_as_expected
           command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 49fbe8a

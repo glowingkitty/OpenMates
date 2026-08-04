@@ -2,14 +2,16 @@
   /**
    * LandingPrivacySafetyDemo.svelte
    *
-   * Deterministic privacy explainer for encryption-at-storage, client-side PII
-   * placeholders, and explicit memory consent. It is presentation-only and
-   * never handles real visitor data.
+   * Nine-scene privacy story built from product-faithful chat, PII, and memory
+   * permission surfaces. The story is deterministic, presentation-only, and
+   * never reads or writes visitor data or live permission stores.
    */
 
   import { onMount } from 'svelte';
   import { text } from '@repo/ui';
+  import AppSettingsMemoriesPermissionDialog from '../AppSettingsMemoriesPermissionDialog.svelte';
   import { getLucideIcon } from '../../utils/categoryUtils';
+  import LandingSubslideMotion from './LandingSubslideMotion.svelte';
   import {
     PRIVACY_STORY_STAGES,
     type PrivacyStoryStage,
@@ -26,16 +28,42 @@
   let mounted = $state(false);
 
   const LockIcon = getLucideIcon('lock');
+  const UnlockIcon = getLucideIcon('lock-open');
   const MessageIcon = getLucideIcon('message-circle');
   const MemoryIcon = getLucideIcon('brain');
   const ProjectIcon = getLucideIcon('folder');
   const TaskIcon = getLucideIcon('list-check');
-  const CheckIcon = getLucideIcon('check');
+  const FileIcon = getLucideIcon('file-text');
   const PlaneIcon = getLucideIcon('plane');
+  const ShieldIcon = getLucideIcon('shield-check');
 
   let activeStage = $derived<PrivacyStoryStage>(
     PRIVACY_STORY_STAGES[activeStageIndex]?.id ?? PRIVACY_STORY_STAGES[0].id,
   );
+  let activeStageDurationMs = $derived(
+    PRIVACY_STORY_STAGES[activeStageIndex]?.durationMs ?? PRIVACY_STORY_STAGES[0].durationMs,
+  );
+  let tripPreviewCategories = $derived([{
+    key: 'travel.trips',
+    appId: 'travel',
+    displayName: $text('app_settings_memories.travel.trips'),
+    entryCount: 2,
+    selected: true,
+    entries: [
+      {
+        id: 'landing-trip-lisbon',
+        title: $text('demo_chats.for_everyone.landing_privacy_previous_trips'),
+        subtitle: 'Lisbon · 2025',
+        selected: true,
+      },
+      {
+        id: 'landing-trip-favorites',
+        title: $text('demo_chats.for_everyone.landing_privacy_favorite_places'),
+        subtitle: 'Coast · cafés · museums',
+        selected: true,
+      },
+    ],
+  }]);
 
   onMount(() => {
     mounted = true;
@@ -76,42 +104,72 @@
     <div class="privacy-summary" data-testid="landing-privacy-summary">
       <div><LockIcon size={22} /> <span>{$text('demo_chats.for_everyone.landing_privacy_saved_data')}</span></div>
       <div><MessageIcon size={22} /> <span>{$text('demo_chats.for_everyone.landing_privacy_pii')}</span></div>
-      <div><MemoryIcon size={22} /> <span>{$text('demo_chats.for_everyone.landing_privacy_memory')}</span></div>
-    </div>
-  {:else if activeStage === 'encryption'}
-    <div class="privacy-stage encryption-stage" data-testid="landing-privacy-encryption">
-      <div class="data-orbit" aria-hidden="true">
-        <span class="data-icon chat"><MessageIcon size={22} /></span>
-        <span class="data-icon memory"><MemoryIcon size={22} /></span>
-        <span class="data-icon project"><ProjectIcon size={22} /></span>
-        <span class="data-icon task"><TaskIcon size={22} /></span>
-        <span class="lock-core"><LockIcon size={34} /></span>
-      </div>
-      <p>{$text('demo_chats.for_everyone.landing_privacy_saved_data')}</p>
-    </div>
-  {:else if activeStage === 'pii'}
-    <div class="privacy-stage pii-stage">
-      <p class="stage-label">{$text('demo_chats.for_everyone.landing_privacy_pii')}</p>
-      <div class="pii-message pii-user">
-        <span class="pii-original" data-testid="landing-privacy-pii-original">alex@example.com</span>
-        <span class="pii-placeholder" data-testid="landing-privacy-pii-placeholder">[EMAIL_com]</span>
-      </div>
-      <div class="pii-arrow" aria-hidden="true">↓</div>
-      <div class="pii-message pii-assistant">
-        <span class="assistant-placeholder">[EMAIL_com]</span>
-        <span class="assistant-original">alex@example.com</span>
-      </div>
+      <div><MemoryIcon size={22} /> <span>{$text('demo_chats.for_everyone.landing_privacy_memory_result')}</span></div>
     </div>
   {:else}
-    <div class="privacy-stage memory-stage">
-      <div class="memory-request"><PlaneIcon size={18} /> {$text('demo_chats.for_everyone.landing_privacy_trip_request')}</div>
-      <div class="memory-consent" data-testid="landing-privacy-memory-consent">
-        <div class="memory-consent-title"><MemoryIcon size={20} /> {$text('demo_chats.for_everyone.landing_privacy_memory')}</div>
-        <span class="memory-chip"><CheckIcon size={14} /> {$text('demo_chats.for_everyone.landing_privacy_previous_trips')}</span>
-        <span class="memory-chip"><CheckIcon size={14} /> {$text('demo_chats.for_everyone.landing_privacy_favorite_places')}</span>
-      </div>
-      <p>{$text('demo_chats.for_everyone.landing_privacy_memory_result')}</p>
-    </div>
+    {#key activeStage}
+      <LandingSubslideMotion playing={playing} durationMs={activeStageDurationMs} stage={activeStage}>
+        {#if activeStage === 'saved-data-copy'}
+          <div class="privacy-stage copy-stage" data-testid="landing-privacy-saved-data-copy">
+            <ShieldIcon size={38} />
+            <p>{$text('demo_chats.for_everyone.landing_privacy_saved_data')}</p>
+          </div>
+        {:else if activeStage === 'encryption-lock'}
+          <div class="privacy-stage encryption-stage" data-testid="landing-privacy-encryption">
+            <div class="data-orbit">
+              <span class="data-icon chat"><MessageIcon size={21} /></span>
+              <span class="data-icon file"><FileIcon size={21} /></span>
+              <span class="data-icon project"><ProjectIcon size={21} /></span>
+              <span class="data-icon task"><TaskIcon size={21} /></span>
+              <span class="lock-core" data-testid="landing-privacy-lock" data-lock-state="locked">
+                <span class="unlock-icon"><UnlockIcon size={34} /></span>
+                <span class="locked-icon"><LockIcon size={34} /></span>
+              </span>
+            </div>
+          </div>
+        {:else if activeStage === 'pii-copy'}
+          <div class="privacy-stage copy-stage" data-testid="landing-privacy-pii-copy">
+            <MessageIcon size={38} />
+            <p>{$text('demo_chats.for_everyone.landing_privacy_pii')}</p>
+          </div>
+        {:else if activeStage === 'pii-detection'}
+          <div class="privacy-stage message-stage">
+            <div class="user-message-shell">
+              Send the details to <span class="pii-highlight" data-testid="landing-privacy-pii-highlight">alex@example.com</span>
+            </div>
+          </div>
+        {:else if activeStage === 'originals-copy'}
+          <div class="privacy-stage copy-stage" data-testid="landing-privacy-originals-copy">
+            <ShieldIcon size={38} />
+            <p>{$text('demo_chats.for_everyone.landing_privacy_originals')}</p>
+          </div>
+        {:else if activeStage === 'pii-reveal'}
+          <div class="privacy-stage reveal-stage" data-testid="landing-privacy-pii-reveal" data-pii-revealed="true">
+            <div class="assistant-message-shell">
+              <span class="pii-restored pii-hidden">[EMAIL_1]</span>
+              <span class="reveal-arrow" aria-hidden="true">→</span>
+              <span class="pii-restored pii-revealed">alex@example.com</span>
+            </div>
+          </div>
+        {:else if activeStage === 'personalized-copy'}
+          <div class="privacy-stage copy-stage" data-testid="landing-privacy-personalized-copy">
+            <MemoryIcon size={38} />
+            <p>{$text('demo_chats.for_everyone.landing_privacy_memory_result')}</p>
+          </div>
+        {:else if activeStage === 'trip-request'}
+          <div class="privacy-stage message-stage">
+            <div class="user-message-shell trip-request" data-testid="landing-privacy-trip-request">
+              <PlaneIcon size={18} />
+              {$text('demo_chats.for_everyone.landing_privacy_trip_request')}
+            </div>
+          </div>
+        {:else}
+          <div class="privacy-stage permission-stage">
+            <AppSettingsMemoriesPermissionDialog previewMode previewCategories={tripPreviewCategories} />
+          </div>
+        {/if}
+      </LandingSubslideMotion>
+    {/key}
   {/if}
 </div>
 
@@ -131,73 +189,187 @@
     align-content: center;
     width: 100%;
     height: 100%;
-    gap: 10px;
+    gap: var(--spacing-8);
     text-align: center;
-    animation: stageEnter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .privacy-stage p { margin: 0; font-size: clamp(0.78rem, 2.2cqi, 1rem); font-weight: 700; }
+  .copy-stage p {
+    max-width: 30rem;
+    margin: 0;
+    font-size: clamp(1rem, 3.2cqi, 1.45rem);
+    font-weight: 800;
+    line-height: 1.35;
+    text-wrap: balance;
+  }
 
-  .data-orbit { position: relative; width: 210px; height: 96px; }
+  .data-orbit {
+    position: relative;
+    width: 260px;
+    height: 150px;
+  }
+
   .data-icon,
   .lock-core {
     position: absolute;
     display: grid;
     place-items: center;
-    border: 1px solid rgba(255,255,255,.24);
-    background: rgba(255,255,255,.14);
-    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: var(--shadow-md);
     backdrop-filter: blur(10px);
   }
-  .data-icon { width: 42px; height: 42px; border-radius: var(--radius-full); animation: protectData 900ms ease-out both; }
-  .data-icon.chat { left: 0; top: 8px; }
-  .data-icon.memory { right: 0; top: 8px; }
-  .data-icon.project { left: 32px; bottom: 0; }
-  .data-icon.task { right: 32px; bottom: 0; }
-  .lock-core { inset: 18px 72px auto; width: 66px; height: 66px; border-radius: var(--radius-full); background: rgba(255,255,255,.24); animation: closeLock 800ms 400ms cubic-bezier(0.22,1,.36,1) both; }
 
-  .stage-label { opacity: .82; }
-  .pii-message { width: min(88%, 360px); padding: 10px 14px; border-radius: 14px; font-size: clamp(.72rem, 2cqi, .92rem); font-weight: 700; box-shadow: var(--shadow-md); }
-  .pii-user { justify-self: end; background: var(--color-grey-blue); color: var(--color-font-primary); }
-  .pii-assistant { justify-self: start; background: var(--color-grey-0); color: var(--color-font-primary); }
-  .pii-original { padding: 1px 4px; border-radius: 5px; background: var(--color-highlight-yellow); animation: hideOriginal 5s linear both; }
-  .pii-placeholder { display: inline-block; margin-left: -128px; padding: 1px 4px; border-radius: 5px; background: rgba(74,222,128,.24); color: var(--color-font-primary); opacity: 0; animation: showPlaceholder 5s linear both; }
-  .assistant-placeholder { color: var(--color-font-tertiary); animation: hideAssistantPlaceholder 5s linear both; }
-  .assistant-original { display: inline-block; margin-left: -78px; color: var(--color-button-primary); opacity: 0; animation: showAssistantOriginal 5s linear both; }
-  .pii-arrow { opacity: .65; }
-
-  .memory-request { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 14px; background: var(--color-grey-blue); color: var(--color-font-primary); font-size: clamp(.72rem, 2cqi, .9rem); font-weight: 700; }
-  .memory-consent { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: min(90%, 420px); padding: 10px; border-radius: 16px; background: var(--color-grey-0); color: var(--color-font-primary); box-shadow: var(--shadow-md); }
-  .memory-consent-title { display: flex; justify-content: center; align-items: center; gap: 7px; width: 100%; font-size: .78rem; font-weight: 800; }
-  .memory-chip { display: flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: var(--radius-full); background: var(--color-grey-20); font-size: .68rem; font-weight: 700; }
-
-  .privacy-summary { grid-template-columns: repeat(3, minmax(0,1fr)); }
-  .privacy-summary div { display: grid; place-items: center; gap: 7px; font-size: clamp(.66rem, 1.8cqi, .82rem); font-weight: 700; }
-
-  @container chat-side (max-width: 560px) {
-    .privacy-stage, .privacy-summary { gap: 5px; }
-    .privacy-stage p { font-size: .68rem; }
-    .data-orbit { width: 180px; height: 76px; }
-    .data-icon { width: 34px; height: 34px; }
-    .data-icon.chat, .data-icon.memory { top: 4px; }
-    .data-icon.project { left: 28px; }
-    .data-icon.task { right: 28px; }
-    .lock-core { inset: 11px 63px auto; width: 54px; height: 54px; }
-    .pii-message { padding: 6px 10px; }
-    .memory-request { padding: 5px 9px; }
-    .memory-consent { gap: 3px; padding: 5px; }
-    .memory-chip { padding: 3px 6px; }
+  .data-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--radius-full);
+    animation: floatProtectedData 2.8s ease-in-out infinite;
   }
 
-  @keyframes stageEnter { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
-  @keyframes protectData { from { opacity: .3; transform: scale(.86); } to { opacity: 1; transform: none; } }
-  @keyframes closeLock { from { opacity: .4; transform: scale(.82) rotate(-8deg); } to { opacity: 1; transform: none; } }
-  @keyframes hideOriginal { 0%,30% { opacity: 1; } 42%,100% { opacity: 0; } }
-  @keyframes showPlaceholder { 0%,34% { opacity: 0; } 46%,100% { opacity: 1; } }
-  @keyframes hideAssistantPlaceholder { 0%,62% { opacity: 1; } 76%,100% { opacity: 0; } }
-  @keyframes showAssistantOriginal { 0%,68% { opacity: 0; } 82%,100% { opacity: 1; } }
+  .data-icon.chat { inset: 4px auto auto 18px; }
+  .data-icon.file { inset: 4px 18px auto auto; animation-delay: -0.7s; }
+  .data-icon.project { inset: auto auto 4px 42px; animation-delay: -1.4s; }
+  .data-icon.task { inset: auto 42px 4px auto; animation-delay: -2.1s; }
+
+  .lock-core {
+    inset: 38px 91px auto;
+    width: 78px;
+    height: 78px;
+    overflow: hidden;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .unlock-icon,
+  .locked-icon {
+    position: absolute;
+    display: grid;
+    place-items: center;
+  }
+
+  .unlock-icon { animation: unlockExit 3s both; }
+  .locked-icon { animation: lockEnter 3s both; }
+
+  .message-stage,
+  .reveal-stage {
+    padding-inline: var(--spacing-12);
+  }
+
+  .user-message-shell,
+  .assistant-message-shell {
+    position: relative;
+    width: min(88%, 28rem);
+    padding: var(--spacing-8) var(--spacing-10);
+    border-radius: var(--radius-6);
+    color: var(--color-font-primary);
+    font-size: clamp(0.84rem, 2.4cqi, 1.05rem);
+    font-weight: 600;
+    line-height: 1.5;
+    box-shadow: var(--shadow-md);
+  }
+
+  .user-message-shell {
+    justify-self: end;
+    background: var(--color-grey-blue);
+    text-align: start;
+  }
+
+  .user-message-shell::after {
+    position: absolute;
+    inset: auto -6px 4px auto;
+    width: 14px;
+    height: 16px;
+    background: inherit;
+    clip-path: polygon(0 0, 100% 100%, 0 72%);
+    content: '';
+  }
+
+  .assistant-message-shell {
+    display: flex;
+    justify-self: start;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-6);
+    background: var(--color-grey-0);
+  }
+
+  .assistant-message-shell::before {
+    position: absolute;
+    inset: auto auto 4px -6px;
+    width: 14px;
+    height: 16px;
+    background: inherit;
+    clip-path: polygon(100% 0, 0 100%, 100% 72%);
+    content: '';
+  }
+
+  .pii-highlight {
+    padding: 0 2px;
+    border-radius: 2px;
+    background-color: rgba(250, 204, 21, 0.35);
+    color: var(--color-font-primary);
+    font-weight: 600;
+  }
+
+  .pii-restored { font-weight: 600; }
+  .pii-hidden { color: #4ade80; }
+  .pii-revealed { color: #f59e0b; }
+  .reveal-arrow { color: var(--color-font-tertiary); }
+  .trip-request { display: flex; align-items: center; gap: var(--spacing-4); }
+
+  .permission-stage {
+    width: min(100%, 520px);
+  }
+
+  .privacy-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .privacy-summary div {
+    display: grid;
+    place-items: center;
+    gap: var(--spacing-4);
+    font-size: clamp(0.68rem, 1.8cqi, 0.86rem);
+    font-weight: 700;
+  }
+
+  @container chat-side (max-width: 560px) {
+    .privacy-stage,
+    .privacy-summary { gap: var(--spacing-4); }
+    .copy-stage p { font-size: 0.9rem; }
+    .data-orbit { width: 220px; height: 110px; }
+    .data-icon { width: 38px; height: 38px; }
+    .data-icon.chat { inset: 2px auto auto 12px; }
+    .data-icon.file { inset: 2px 12px auto auto; }
+    .data-icon.project { inset: auto auto 2px 34px; }
+    .data-icon.task { inset: auto 34px 2px auto; }
+    .lock-core { inset: 25px 78px auto; width: 64px; height: 64px; }
+    .message-stage,
+    .reveal-stage { padding-inline: var(--spacing-4); }
+    .user-message-shell,
+    .assistant-message-shell { padding: var(--spacing-6) var(--spacing-8); }
+    .permission-stage { width: min(122%, 520px); }
+  }
+
+  @keyframes floatProtectedData {
+    0%, 100% { transform: translate3d(0, -3px, 0); }
+    50% { transform: translate3d(0, 4px, 0); }
+  }
+
+  @keyframes unlockExit {
+    0%, 28% { opacity: 1; transform: translate3d(0, 0, 0) rotate(-7deg); }
+    48%, 100% { opacity: 0; transform: translate3d(0, -18px, 0) rotate(5deg); }
+  }
+
+  @keyframes lockEnter {
+    0%, 32% { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.8); }
+    54%, 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    .privacy-stage, .privacy-summary, .data-icon, .lock-core, .pii-original, .pii-placeholder, .assistant-placeholder, .assistant-original { animation: none !important; }
+    .data-icon,
+    .unlock-icon,
+    .locked-icon { animation: none; }
+    .unlock-icon { display: none; }
   }
 </style>

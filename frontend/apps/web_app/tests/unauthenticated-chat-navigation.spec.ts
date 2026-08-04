@@ -134,7 +134,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		const finalNewChatButton = getNewChatButton(page);
 		await expect(finalNewChatButton).toBeVisible({ timeout: 8000 });
 		await finalNewChatButton.click();
-		await expectSlideZeroIntro(page);
+		await expectBlankFocusedComposer(page);
 
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 8000 });

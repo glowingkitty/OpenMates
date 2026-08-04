@@ -11,6 +11,7 @@
   import { text } from '@repo/ui';
   import { getLucideIcon } from '../../utils/categoryUtils';
   import EventEmbedPreview from '../embeds/events/EventEmbedPreview.svelte';
+  import LandingSubslideMotion from './LandingSubslideMotion.svelte';
   import {
     ACTIONABLE_CTA_CLICK_MS,
     ACTIONABLE_CTA_POINTER_TARGET_MS,
@@ -146,9 +147,8 @@
         class="landing-actionable-stage"
         data-testid="landing-actionable-stage"
         data-stage={activeStage}
-        style={`--actionable-stage-duration: ${activeStageDurationMs}ms`}
       >
-        <div class="landing-actionable-stage-motion">
+        <LandingSubslideMotion {playing} durationMs={activeStageDurationMs} stage={activeStage}>
           <div class="landing-actionable-stage-content" data-testid="landing-actionable-stage-content" data-stage={activeStage}>
             {#if activeStage === 'user-request'}
               <div class="chat-message user landing-actionable-message-stage" data-testid="landing-actionable-user-row">
@@ -194,7 +194,7 @@
               </div>
             {/if}
           </div>
-        </div>
+        </LandingSubslideMotion>
       </div>
     {/key}
 
@@ -241,49 +241,11 @@
     box-sizing: border-box;
   }
 
-  .landing-actionable-stage-motion {
-    display: grid;
-    place-items: center;
-    width: 100%;
-    height: 100%;
-    transform-origin: center;
-  }
-
-  .playing .landing-actionable-stage-motion {
-    animation: landingActionableStageFlow var(--actionable-stage-duration) linear both;
-  }
-
-  .landing-actionable-demo:not(.playing) .landing-actionable-stage-motion {
-    opacity: 0;
-  }
-
   .landing-actionable-stage-content {
     display: grid;
     place-items: center;
     width: 100%;
     transform-origin: center;
-  }
-
-  @keyframes landingActionableStageFlow {
-    0% {
-      opacity: 0;
-      transform: translate3d(0, 36px, 0) scale(0.72);
-      animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    30% {
-      opacity: 1;
-      transform: translate3d(0, 4px, 0) scale(0.96);
-      animation-timing-function: linear;
-    }
-    68% {
-      opacity: 1;
-      transform: translate3d(0, -4px, 0) scale(1);
-      animation-timing-function: cubic-bezier(0.7, 0, 1, 0.5);
-    }
-    100% {
-      opacity: 0;
-      transform: translate3d(0, -36px, 0) scale(0.78);
-    }
   }
 
   .landing-actionable-message-stage {
@@ -527,10 +489,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .playing .landing-actionable-stage-motion {
-      animation-name: landingActionableStageFade;
-    }
-
     .landing-actionable-pointer,
     .landing-actionable-preview,
     .landing-actionable-luma-button {
@@ -538,8 +496,4 @@
     }
   }
 
-  @keyframes landingActionableStageFade {
-    0%, 100% { opacity: 0; }
-    16%, 84% { opacity: 1; }
-  }
 </style>

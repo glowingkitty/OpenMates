@@ -11,9 +11,15 @@ export const PRODUCT_STORY_HEADING_SWAP_MS = PRODUCT_STORY_HEADING_FADE_OUT_MS
   + PRODUCT_STORY_HEADING_FADE_IN_MS;
 
 export const PRIVACY_STORY_STAGES = [
-  { id: 'encryption', durationMs: 5000 },
-  { id: 'pii', durationMs: 5000 },
-  { id: 'memory', durationMs: 5000 },
+  { id: 'saved-data-copy', durationMs: 1600 },
+  { id: 'encryption-lock', durationMs: 3000 },
+  { id: 'pii-copy', durationMs: 1600 },
+  { id: 'pii-detection', durationMs: 2400 },
+  { id: 'originals-copy', durationMs: 1600 },
+  { id: 'pii-reveal', durationMs: 2400 },
+  { id: 'personalized-copy', durationMs: 1600 },
+  { id: 'trip-request', durationMs: 1800 },
+  { id: 'memory-permission', durationMs: 4000 },
 ] as const;
 
 export const MATES_FOCUS_STORY_STAGES = [
