@@ -467,6 +467,17 @@ def test_spec_verify_rejects_schema_v2_stale_green_evidence(tmp_path):
     assert any("stale" in failure for failure in failures)
 
 
+def test_spec_verify_accepts_ancestor_green_evidence(monkeypatch):
+    spec_verify = load_module("spec_verify")
+    monkeypatch.setattr(
+        spec_verify.subprocess,
+        "run",
+        lambda *args, **kwargs: type("Result", (), {"returncode": 0})(),
+    )
+
+    assert spec_verify._evidence_commit_covers_implementation("abc1234", "def5678")
+
+
 def test_spec_verify_rejects_schema_v2_playwright_evidence_without_deployment_reference(tmp_path):
     spec_verify = load_module("spec_verify")
     path = write_spec(

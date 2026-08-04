@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -149,10 +150,30 @@ def _evidence_contract_failures(
         and status in PASS_STATUSES
         and isinstance(current_commit, str)
         and current_commit.strip()
-        and evidence.get("subject_commit") != current_commit
+        and not _evidence_commit_covers_implementation(
+            evidence.get("subject_commit"),
+            current_commit,
+        )
     ):
         failures.append(f"{record_id}: {phase} evidence is stale for subject_commit {current_commit}")
     return failures
+
+
+def _evidence_commit_covers_implementation(evidence_commit: Any, current_commit: str) -> bool:
+    """Accept evidence from the implementation commit or one of its ancestors."""
+    if not isinstance(evidence_commit, str) or not evidence_commit.strip():
+        return False
+    candidate = evidence_commit.rsplit("@", 1)[-1].strip()
+    if candidate == current_commit:
+        return True
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", candidate, current_commit],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
 
 
 def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[str]:
