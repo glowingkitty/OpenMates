@@ -42,6 +42,7 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
     ],
     "scripts/worktree-reconciliation-setup.sh": [
         "worktree-reconciliation.service",
+        "git fetch origin dev",
         "worktree reconcile --target origin/dev --idle-hours 48 --apply-safe",
         "OnUnitActiveSec=1h",
     ],

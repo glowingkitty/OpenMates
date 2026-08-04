@@ -21,7 +21,7 @@ Description=OpenMates agent worktree reconciliation
 [Service]
 Type=oneshot
 WorkingDirectory=$PROJECT_ROOT
-ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe
+ExecStart=/bin/bash -lc 'git fetch origin dev && /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe'
 EOF
 
 cat > "$SYSTEMD_DIR/worktree-reconciliation.timer" <<EOF

@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from argparse import Namespace
 from pathlib import Path
+
+import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -156,3 +159,28 @@ def test_reconciliation_only_filter_limits_immediate_review_scope(monkeypatch):
     )
 
     assert [item["session_id"] for item in report["items"]] == ["selected"]
+
+
+def test_cli_refuses_lower_idle_threshold_without_only_scope(monkeypatch, capsys):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(
+        sessions,
+        "reconcile_session_worktrees",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unsafe reconciliation started")),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        sessions.cmd_worktree(
+            Namespace(
+                worktree_action="reconcile",
+                target="origin/dev",
+                idle_hours=0,
+                apply_safe=True,
+                approve_obsolete=["selected"],
+                only=[],
+                format="text",
+            )
+        )
+
+    assert exc_info.value.code == 2
+    assert "--only" in capsys.readouterr().err

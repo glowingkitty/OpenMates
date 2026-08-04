@@ -5996,6 +5996,12 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print(f"  - {session_id}")
         return
     if args.worktree_action == "reconcile":
+        if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS and not args.only:
+            print(
+                f"Error: --idle-hours below {WORKTREE_CLEANUP_IDLE_HOURS} requires at least one --only SESSION_ID",
+                file=sys.stderr,
+            )
+            sys.exit(2)
         try:
             report = reconcile_session_worktrees(
                 target_ref=args.target,
@@ -8358,14 +8364,14 @@ def main() -> None:
         action="append",
         default=[],
         metavar="SESSION_ID",
-        help="Mark a reviewed stale worktree obsolete; repeat for multiple IDs",
+        help="Mark reviewed work obsolete; immediate cleanup also requires matching --only and --idle-hours 0",
     )
     p_worktree_reconcile.add_argument(
         "--only",
         action="append",
         default=[],
         metavar="SESSION_ID",
-        help="Limit reconciliation to an explicit session ID; repeat for multiple IDs",
+        help="Limit reconciliation to an explicit session ID; required before lowering --idle-hours",
     )
     p_worktree_reconcile.add_argument("--format", choices=["text", "json"], default="text")
     p_worktree_readiness = p_worktree_sub.add_parser(
