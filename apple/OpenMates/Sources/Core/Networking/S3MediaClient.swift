@@ -97,7 +97,7 @@ actor S3MediaClient {
         encodedNonce: String?,
         encryption: String?
     ) throws -> Data {
-        let keyData = decodeKeyMaterial(encodedKey)
+        let keyData = decodeKeyMaterial(encodedKey, expectedByteCount: 32)
 
         guard keyData.count == 32 else { throw S3Error.invalidKey }
 
@@ -117,7 +117,7 @@ actor S3MediaClient {
             nonceData = data.prefix(nonceLength)
             encryptedBody = data.dropFirst(nonceLength)
         } else {
-            nonceData = decodeKeyMaterial(encodedNonce!)
+            nonceData = decodeKeyMaterial(encodedNonce!, expectedByteCount: nonceLength)
             guard nonceData.count == nonceLength else { throw S3Error.invalidNonce }
             encryptedBody = data[...]
         }
@@ -131,7 +131,11 @@ actor S3MediaClient {
         return try AES.GCM.open(sealedBox, using: key)
     }
 
-    private static func decodeKeyMaterial(_ value: String) -> Data {
+    private static func decodeKeyMaterial(_ value: String, expectedByteCount: Int) -> Data {
+        if value.count == expectedByteCount * 2,
+           value.unicodeScalars.allSatisfy({ CharacterSet.hexadecimalDigits.contains($0) }) {
+            return Data(hexString: value)
+        }
         if let base64 = Data(base64Encoded: value), !base64.isEmpty {
             return base64
         }
