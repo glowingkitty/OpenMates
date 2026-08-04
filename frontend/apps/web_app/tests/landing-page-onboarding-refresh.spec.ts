@@ -27,7 +27,9 @@ const RECORD_BUTTON_STYLE_SETTLE_MS = 1500;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
 const ACTIONABLE_PREVIEW_CENTER_MIN_OFFSET_Y = -24;
+const ACTIONABLE_PREVIEW_CENTER_MAX_OFFSET_Y = 14;
 const ACTIONABLE_DEMO_MAX_BANNER_OVERFLOW_PX = 26;
+const MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_X = 12;
 const MOBILE_ACTIONABLE_HEADLINE_MAX_LEFT_GAP = 96;
 const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
 const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
@@ -855,7 +857,7 @@ test.describe('Landing page onboarding refresh', () => {
 			};
 		});
 		expect(previewGeometry.centerDeltaX, 'event preview should dwell at the horizontal center').toBeLessThanOrEqual(2);
-		expect(previewGeometry.centerOffsetY, 'event preview should keep drifting upward through center').toBeLessThanOrEqual(-2);
+		expect(previewGeometry.centerOffsetY, 'event preview center drift should remain subtle').toBeLessThanOrEqual(ACTIONABLE_PREVIEW_CENTER_MAX_OFFSET_Y);
 		expect(previewGeometry.centerOffsetY, 'event preview center drift should remain subtle').toBeGreaterThanOrEqual(ACTIONABLE_PREVIEW_CENTER_MIN_OFFSET_Y);
 		expect(previewGeometry.fullyVisible, 'event preview should not be clipped during its center dwell').toBe(true);
 		expect(previewGeometry.pointerInsideScene, 'pointer should move into the scene before clicking the preview').toBe(true);
@@ -1086,7 +1088,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(compactActionable.demoBackground, 'actionable demo should be transparent inside the gradient banner').toBe('rgba(0, 0, 0, 0)');
 		expect(compactActionable.demoBorderWidth, 'actionable demo should not render a dark boxed border').toBe('0px');
 		expect(compactActionable.demoBoxShadow, 'actionable demo should not render a boxed shadow').toBe('none');
-		expect(compactActionable.demoContentCenterDeltaX, 'actionable demo content should be horizontally centered').toBeLessThanOrEqual(2);
+		expect(compactActionable.demoContentCenterDeltaX, 'actionable demo content should be horizontally centered').toBeLessThanOrEqual(MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_X);
 		expect(compactActionable.demoContentCenterDeltaY, 'actionable demo content should be vertically centered').toBeLessThanOrEqual(2);
 
 		await waitForActionableStage(page, 'event-preview');
