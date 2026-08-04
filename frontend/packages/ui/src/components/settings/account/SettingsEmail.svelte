@@ -46,11 +46,12 @@
     let hasPasskey = $state(false);
     let has2FA = $state(false);
     let hasPassword = $state(false);
+    let authMethodsLoaded = $state(false);
 
     let normalizedNewEmail = $derived(newEmail.trim().toLowerCase());
     let canRequestCode = $derived(!!normalizedNewEmail && normalizedNewEmail !== email && !isRequestingCode);
     let canVerifyCode = $derived(codeSent && verificationCode.length === 6 && !isVerifyingCode);
-    let canConfirmChange = $derived(codeVerified && !isConfirming);
+    let canConfirmChange = $derived(codeVerified && authMethodsLoaded && !isConfirming);
 
     onMount(async () => {
         await Promise.all([loadEmail(), fetchAuthMethods()]);
@@ -67,21 +68,25 @@
     }
 
     async function fetchAuthMethods() {
+        authMethodsLoaded = false;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                hasPasskey = data.has_passkey || false;
-                has2FA = data.has_2fa || false;
-                hasPassword = data.has_password || false;
+            if (!response.ok) {
+                throw new Error('Failed to load authentication methods');
             }
+            const data = await response.json();
+            hasPasskey = data.has_passkey || false;
+            has2FA = data.has_2fa || false;
+            hasPassword = data.has_password || false;
+            authMethodsLoaded = true;
         } catch (error) {
             console.error('[SettingsEmail] Error fetching auth methods:', error);
+            errorMessage = error instanceof Error ? error.message : 'Failed to load authentication methods';
         }
     }
 
@@ -284,6 +289,13 @@
     {/if}
     {#if errorMessage}
         <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
+        {#if !authMethodsLoaded}
+            <SettingsButtonGroup align="left">
+                <SettingsButton variant="secondary" onClick={fetchAuthMethods} dataTestid="email-auth-methods-retry">
+                    {$text('common.retry')}
+                </SettingsButton>
+            </SettingsButtonGroup>
+        {/if}
     {/if}
 
     <SettingsInput

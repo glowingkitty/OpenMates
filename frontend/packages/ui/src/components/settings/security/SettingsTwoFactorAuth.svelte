@@ -74,6 +74,7 @@ Props:
     
     /** Error and success messages */
     let errorMessage = $state<string | null>(null);
+    let authMethodsLoaded = $state(false);
     let successMessage = $state<string | null>(null);
     
     /** 2FA setup data */
@@ -136,22 +137,26 @@ Props:
      * Fetch user's authentication methods.
      */
     async function fetchAuthMethods() {
+        authMethodsLoaded = false;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                hasPasskey = data.has_passkey || false;
-                hasPassword = data.has_password || false;
-                has2FA = data.has_2fa || false;
-                console.log('[SettingsTwoFactorAuth] Auth methods:', { hasPasskey, hasPassword, has2FA });
+            if (!response.ok) {
+                throw new Error('Failed to load authentication methods');
             }
+            const data = await response.json();
+            hasPasskey = data.has_passkey || false;
+            hasPassword = data.has_password || false;
+            has2FA = data.has_2fa || false;
+            authMethodsLoaded = true;
+            console.log('[SettingsTwoFactorAuth] Auth methods:', { hasPasskey, hasPassword, has2FA });
         } catch (error) {
             console.error('[SettingsTwoFactorAuth] Error fetching auth methods:', error);
+            errorMessage = error instanceof Error ? error.message : 'Failed to load authentication methods';
         }
     }
 
@@ -200,6 +205,7 @@ Props:
      * Start 2FA setup (Change App) - requires authentication first.
      */
     function startSetup() {
+        if (!authMethodsLoaded) return;
         isResetBackupCodesFlow = false;
         isDisable2FAFlow = false;
         currentStep = 'auth';
@@ -212,6 +218,7 @@ Props:
      * generating new backup codes via the standalone endpoint.
      */
     function startResetBackupCodes() {
+        if (!authMethodsLoaded) return;
         isResetBackupCodesFlow = true;
         isDisable2FAFlow = false;
         currentStep = 'auth';
@@ -223,6 +230,7 @@ Props:
      * confirmation that the account will be less protected.
      */
     function startDisable2FA() {
+        if (!authMethodsLoaded) return;
         isResetBackupCodesFlow = false;
         isDisable2FAFlow = true;
         currentStep = 'auth';
@@ -662,20 +670,26 @@ Props:
             {#if successMessage}
                 <div class="success-message" data-testid="success-message">{successMessage}</div>
             {/if}
+            {#if errorMessage && !authMethodsLoaded}
+                <div class="error-message" data-testid="tfa-auth-methods-error" role="alert">{errorMessage}</div>
+                <button class="btn-secondary" data-testid="tfa-auth-methods-retry" onclick={fetchAuthMethods}>
+                    {$text('common.retry')}
+                </button>
+            {/if}
             
             <div class="action-buttons">
                 {#if tfaEnabled}
-                    <button class="btn-primary" data-testid="tfa-change-app-button" onclick={startSetup}>
+                    <button class="btn-primary" data-testid="tfa-change-app-button" onclick={startSetup} disabled={!authMethodsLoaded}>
                         {$text('settings.security.tfa_change_app')}
                     </button>
-                    <button class="btn-secondary" data-testid="tfa-reset-backup-codes-button" onclick={startResetBackupCodes}>
+                    <button class="btn-secondary" data-testid="tfa-reset-backup-codes-button" onclick={startResetBackupCodes} disabled={!authMethodsLoaded}>
                         {$text('settings.security.tfa_reset_backup_codes')}
                     </button>
-                    <button class="btn-danger" data-testid="tfa-disable-button" onclick={startDisable2FA}>
+                    <button class="btn-danger" data-testid="tfa-disable-button" onclick={startDisable2FA} disabled={!authMethodsLoaded}>
                         {$text('settings.security.tfa_disable')}
                     </button>
                 {:else}
-                    <button class="btn-primary" data-testid="tfa-enable-button" onclick={startSetup}>
+                    <button class="btn-primary" data-testid="tfa-enable-button" onclick={startSetup} disabled={!authMethodsLoaded}>
                         {$text('settings.security.tfa_enable')}
                     </button>
                 {/if}

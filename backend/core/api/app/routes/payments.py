@@ -3797,69 +3797,6 @@ async def list_payment_methods(
         logger.error(f"Error listing payment methods for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-class UserAuthMethodsResponse(BaseModel):
-    has_passkey: bool
-    has_2fa: bool
-    has_password: bool  # Whether user has password login method configured
-    has_recovery_key: bool  # Whether user has recovery key configured
-
-@router.get("/user-auth-methods", response_model=UserAuthMethodsResponse)
-@limiter.limit("30/minute")  # Less sensitive read operation
-async def get_user_auth_methods(
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service)
-):
-    """
-    Check what authentication methods are available for the user.
-    Returns whether user has passkey, 2FA, and/or password configured.
-    """
-    logger.info(f"Checking authentication methods for user {current_user.id}")
-    
-    try:
-        # Check for passkeys
-        has_passkey = False
-        try:
-            passkeys = await directus_service.get_user_passkeys_by_user_id(current_user.id)
-            has_passkey = len(passkeys) > 0
-        except Exception as e:
-            logger.warning(f"Error checking passkeys for user {current_user.id}: {e}")
-        
-        # Check for 2FA - verify encrypted_tfa_secret exists
-        has_2fa = False
-        try:
-            user_fields = await directus_service.get_user_fields_direct(current_user.id, ["encrypted_tfa_secret"])
-            has_2fa = bool(user_fields and user_fields.get("encrypted_tfa_secret"))
-        except Exception as e:
-            logger.warning(f"Error checking 2FA for user {current_user.id}: {e}")
-        
-        # Check for password login method by querying encryption_keys table
-        has_password = False
-        try:
-            import hashlib
-            hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
-            encryption_key = await directus_service.get_encryption_key(hashed_user_id, "password")
-            has_password = encryption_key is not None
-        except Exception as e:
-            logger.warning(f"Error checking password for user {current_user.id}: {e}")
-        
-        # Check for recovery key
-        has_recovery_key = False
-        try:
-            import hashlib
-            hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
-            recovery_key = await directus_service.get_encryption_key(hashed_user_id, "recovery_key")
-            has_recovery_key = recovery_key is not None
-        except Exception as e:
-            logger.warning(f"Error checking recovery key for user {current_user.id}: {e}")
-        
-        logger.info(f"User {current_user.id} auth methods - passkey: {has_passkey}, 2FA: {has_2fa}, password: {has_password}, recovery_key: {has_recovery_key}")
-        return UserAuthMethodsResponse(has_passkey=has_passkey, has_2fa=has_2fa, has_password=has_password, has_recovery_key=has_recovery_key)
-        
-    except Exception as e:
-        logger.error(f"Error checking auth methods for user {current_user.id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
 @router.post("/process-payment-with-saved-method", response_model=ProcessPaymentWithSavedMethodResponse)
 @limiter.limit("5/minute")  # Sensitive operation - prevent abuse
 async def process_payment_with_saved_method(

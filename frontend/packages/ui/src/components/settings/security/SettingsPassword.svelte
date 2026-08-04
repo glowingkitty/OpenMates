@@ -127,7 +127,7 @@ This ensures users can never have a password without 2FA enabled.
         errorMessage = null;
 
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
@@ -416,13 +416,21 @@ This ensures users can never have a password without 2FA enabled.
     }
 </script>
 
-<div class="password-settings-container">
+<div class="password-settings-container" data-testid="password-settings-container">
     {#if isLoading}
         <!-- Loading State -->
         <div class="loading-container">
             <div class="loading-spinner"></div>
             <p>{$text('common.loading')}</p>
         </div>
+    {:else if currentStep === 'loading'}
+        <div class="error-message" data-testid="password-settings-error">
+            <div class="icon icon_error"></div>
+            <span>{errorMessage}</span>
+        </div>
+        <button class="submit-btn" data-testid="password-settings-retry" onclick={fetchAuthMethods}>
+            {$text('common.retry')}
+        </button>
     {:else if currentStep === 'auth'}
         <!-- Authentication Step -->
         <div class="auth-step">

@@ -134,6 +134,7 @@ export function getUploadEndpoint(path: string = ""): string {
 // API endpoints
 export const apiEndpoints = {
   auth: {
+    methods: "/v1/auth/methods", // Current user's available authentication methods
     // Session management
     lookup: "/v1/auth/lookup", // Email-only first step to get available login methods
     login: "/v1/auth/login", // Login with username/email and password
@@ -260,7 +261,6 @@ export const apiEndpoints = {
     listPaymentMethods: "/v1/payments/payment-methods", // List all saved payment methods for user
     processPaymentWithSavedMethod:
       "/v1/payments/process-payment-with-saved-method", // Process payment with saved payment method
-    getUserAuthMethods: "/v1/payments/user-auth-methods", // Get user authentication methods (passkey/2FA)
     createSubscription: "/v1/payments/create-subscription", // Create monthly auto top-up subscription
     getSubscription: "/v1/payments/subscription", // Get user's subscription details
     cancelSubscription: "/v1/payments/cancel-subscription", // Cancel monthly subscription

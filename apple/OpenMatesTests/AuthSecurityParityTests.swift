@@ -7,6 +7,11 @@ import XCTest
 
 @MainActor
 final class AuthSecurityParityTests: XCTestCase {
+    func testAuthMethodDiscoveryUsesCoreAuthRoute() {
+        XCTAssertEqual(AccountSecurityService.authMethodsPath, "/v1/auth/methods")
+        XCTAssertFalse(AccountSecurityService.authMethodsPath.contains("/payments/"))
+    }
+
     func testAuthFlowResetClearsSensitiveLookupState() {
         let state = AuthFlowState()
         state.authMode = .login

@@ -7,13 +7,14 @@ import Foundation
 
 actor AccountSecurityService {
     static let shared = AccountSecurityService()
+    static let authMethodsPath = "/v1/auth/methods"
 
     private let api = APIClient.shared
 
     private init() {}
 
     func authMethods() async throws -> AuthMethods {
-        try await api.request(.get, path: "/v1/payments/user-auth-methods")
+        try await api.request(.get, path: Self.authMethodsPath)
     }
 
     func passkeys() async throws -> [PasskeyRecord] {

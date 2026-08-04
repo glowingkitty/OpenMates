@@ -71,6 +71,7 @@ Supports both saved payment methods and new payment form
     let showPaymentForm = $state(false);
     let showAuthModal = $state(false);
     let authMethods: { has_passkey: boolean; has_2fa: boolean } | null = $state(null);
+    let authMethodsError = $state<string | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
@@ -194,8 +195,9 @@ Supports both saved payment methods and new payment form
         }
 
         // Check authentication methods
+        authMethodsError = null;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 credentials: 'include'
             });
             
@@ -207,14 +209,11 @@ Supports both saved payment methods and new payment form
                     await handleAuthSuccess();
                 }
             } else {
-                console.error('Failed to get auth methods');
-                // Proceed without auth modal (shouldn't happen, but handle gracefully)
-                await processPayment();
+                throw new Error('Failed to load authentication methods');
             }
         } catch (error) {
             console.error('Error getting auth methods:', error);
-            // Proceed without auth modal
-            await processPayment();
+            authMethodsError = error instanceof Error ? error.message : 'Failed to load authentication methods';
         }
     }
 
@@ -433,6 +432,13 @@ Supports both saved payment methods and new payment form
         >
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
+
+        {#if authMethodsError}
+            <div data-testid="gift-card-auth-methods-error" role="alert">{authMethodsError}</div>
+            <button data-testid="gift-card-auth-methods-retry" onclick={handleBuyNow}>
+                {$text('common.retry')}
+            </button>
+        {/if}
 
 
     </div>

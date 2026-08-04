@@ -27,6 +27,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     
     /** Whether the auth methods are loading */
     let isLoading = $state(true);
+    let authMethodsError = $state<string | null>(null);
 
     // ========================================================================
     // DERIVED
@@ -52,8 +53,9 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
      */
     async function fetchAuthMethods() {
         isLoading = true;
+        authMethodsError = null;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
@@ -66,16 +68,14 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
                 hasRecoveryKey = data.has_recovery_key || false;
                 console.log('[SettingsSecurity] Auth methods loaded:', { hasPassword, has2FA, hasRecoveryKey });
             } else {
-                console.error('[SettingsSecurity] Failed to fetch auth methods');
-                hasPassword = null;
-                has2FA = null;
-                hasRecoveryKey = null;
+                throw new Error('Failed to load authentication methods');
             }
         } catch (error) {
             console.error('[SettingsSecurity] Error fetching auth methods:', error);
             hasPassword = null;
             has2FA = null;
             hasRecoveryKey = null;
+            authMethodsError = error instanceof Error ? error.message : 'Failed to load authentication methods';
         } finally {
             isLoading = false;
         }
@@ -194,6 +194,14 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
 
 <!-- Security settings are hidden in restricted (pair) sessions to protect the account -->
 {#if !$isRestrictedSession}
+    {#if authMethodsError}
+        <div data-testid="security-auth-methods-error" role="alert">
+            <p>{authMethodsError}</p>
+            <button data-testid="security-auth-methods-retry" onclick={fetchAuthMethods}>
+                {$text('common.retry')}
+            </button>
+        </div>
+    {/if}
     <!-- Passkeys Section -->
     <SettingsItem
         type="submenu"

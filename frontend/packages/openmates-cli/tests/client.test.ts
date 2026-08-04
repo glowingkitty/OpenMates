@@ -109,6 +109,17 @@ describe("OpenMatesClient session API URL", () => {
     rmSync(serverConfigPath, { force: true });
   });
 
+  it("keeps authentication capability discovery out of payment routes", () => {
+    const source = readFileSync(new URL("../src/client.ts", import.meta.url), "utf8");
+    const methodStart = source.indexOf("async getAuthMethodsStatus");
+    const methodEnd = source.indexOf("async requestActionEmailCode", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+
+    assert.ok(methodStart >= 0, "getAuthMethodsStatus should remain available");
+    assert.match(methodSource, /\/v1\/auth\/methods/);
+    assert.doesNotMatch(methodSource, /\/v1\/payments\//);
+  });
+
   it("manages application preview lifecycle through authenticated embed preview endpoints", async () => {
     const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown>; cookie?: string }> = [];
     const embedId = "12345678-1234-4234-9234-123456789abc";
