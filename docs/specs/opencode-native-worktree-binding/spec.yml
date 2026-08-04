@@ -96,13 +96,13 @@ implementation_state:
 
 approvals:
   product_contract:
-    status: pending
-    approved_at: ""
-    reason: Awaiting review of the written executable contract.
+    status: approved
+    approved_at: "2026-08-04T00:00:00Z"
+    reason: User approved the native binding, deterministic bootstrap, grandfathered rollout, and disposable integration contract.
   implementation_plan:
-    status: pending
-    approved_at: ""
-    reason: Run plan-from-spec after product-contract approval.
+    status: approved
+    approved_at: "2026-08-04T00:00:00Z"
+    reason: The plan uses only architecture decisions already approved in the product contract and introduces no additional trust or migration boundary.
 
 decisions:
   - id: D-1
@@ -163,9 +163,9 @@ attempts:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Approve the product contract, then run plan-from-spec and tasks-from-spec.
-  command: python3 scripts/spec_validate.py docs/specs/opencode-native-worktree-binding/spec.yml
-  expected_outcome: The schema-version-2 executable spec validates.
+  next_action: Write and run the isolated native-directory and bootstrap assumption tests before implementation code.
+  command: python3 scripts/verify_opencode_native_worktree.py --isolated
+  expected_outcome: The red verifier fails because the runtime capability harness and native binding implementation do not exist yet.
   blocker: null
   last_verified_commit: eb6139578acf84908d23d68eb9e8cdf299e8f3f1
 
@@ -530,6 +530,18 @@ verifications:
       timestamp: ""
       actor: user
       next_action: Confirm real chats work normally in native directories and failed deploys no longer contaminate root.
+  - id: V-DEPENDENT-HANDOFF
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-9, AC-10]
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+      actor: implementation
+      next_action: Send the completion follow-up to OpenCode session ses_0337a6457ffeHABo226rQNyQw4 and record successful delivery.
 
 implementation_plan:
   spec_path: docs/specs/opencode-native-worktree-binding/spec.yml
@@ -666,6 +678,21 @@ tasks:
     verification_ids: [T-LIVE-OPENCODE, T-REGRESSION-WORKTREE, T-SCOPE-AUDIT, V-USER-CONFIRMATION]
     dependencies: [TASK-6]
     ownership: {files: [scripts/audit_native_worktree_scope.py, docs/specs/opencode-native-worktree-binding/spec.yml], shared_files: [docs/specs/agent-presence-coordination/spec.yml]}
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: false
+  - id: TASK-8
+    title: Notify the dependent OpenCode implementation chat
+    status: pending
+    phase: running_checks
+    covers: {scenarios: [S-8], acceptance_criteria: [AC-9, AC-10]}
+    expected_files: [docs/specs/opencode-native-worktree-binding/spec.yml]
+    verification:
+      - Send one follow-up message to https://code.dev.openmates.org/L2hvbWUvc3VwZXJkZXYvcHJvamVjdHMvT3Blbk1hdGVz/session/ses_0337a6457ffeHABo226rQNyQw4 only after this implementation is complete.
+      - Tell the dependent OpenCode chat that the native worktree binding prerequisite is complete and it should proceed with its implementation.
+    verification_ids: [V-DEPENDENT-HANDOFF]
+    dependencies: [TASK-7]
+    ownership: {files: [docs/specs/opencode-native-worktree-binding/spec.yml], shared_files: []}
     blockers: []
     follow_up_tasks: []
     independently_deployable: false

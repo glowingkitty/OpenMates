@@ -143,6 +143,11 @@ approvals:
     approved_at: ""
     reason: Storage and live-harness details must be confirmed by assumption checks before implementation.
 
+dependencies:
+  - id: opencode-native-worktree-binding
+    relationship: blocked_by
+    reason: Presence must consume the stabilized OpenCode session, repository session, child, and native worktree identity chain after its pilot is accepted.
+
 decisions:
   - id: D-1
     status: active

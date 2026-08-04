@@ -35,7 +35,7 @@ async function runAfterShell(command, text) {
 }
 
 test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest"]);
+  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "nativeBindingDecisionForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
 });
 

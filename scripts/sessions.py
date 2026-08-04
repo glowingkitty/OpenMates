@@ -64,15 +64,38 @@ from typing import Optional
 # Constants
 # ---------------------------------------------------------------------------
 
+
+def _resolve_control_plane_root(checkout_root: Path) -> Path:
+    """Resolve the main checkout that owns shared session and lock state."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(checkout_root),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return checkout_root
+    if result.returncode != 0 or not result.stdout.strip():
+        return checkout_root
+    common_dir = Path(result.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = checkout_root / common_dir
+    common_dir = common_dir.resolve()
+    return common_dir.parent if common_dir.name == ".git" else checkout_root
+
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
-TASKS_DIR = PROJECT_ROOT / ".claude" / "tasks"
+CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
+SESSIONS_FILE = CONTROL_PLANE_ROOT / ".claude" / "sessions.json"
+TASKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "tasks"
 TASKS_META_FILE = TASKS_DIR / ".meta.json"
-AGENT_WORKTREES_DIR = PROJECT_ROOT / ".openmates-agent-worktrees"
+AGENT_WORKTREES_DIR = CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
 WORKTREE_PATH_PREFIX_RE = re.compile(r"^(?:\.openmates-agent-worktrees|\.agent-worktrees)/agent-[^/]+/")
-PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
-OPENCODE_STALE_READ_STATE_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.json"
-OPENCODE_STALE_READ_LOCK_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.lock"
+PROJECT_INDEX_FILE = CONTROL_PLANE_ROOT / ".claude" / "project-index.json"
+OPENCODE_STALE_READ_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.json"
+OPENCODE_STALE_READ_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.lock"
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
@@ -80,13 +103,16 @@ STALE_LOCK_MINUTES = 5
 VERCEL_DEPLOY_LOCK_MINUTES = 90
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
+WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
+WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered"}
+INTEGRATION_WORKTREE_PREFIX = "integration-"
 STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 5  # Number of recent git commits to show at session start
 CONTRIBUTING_GUIDES_DIR = PROJECT_ROOT / "docs" / "contributing" / "guides"
 CONTRIBUTING_STANDARDS_DIR = PROJECT_ROOT / "docs" / "contributing" / "standards"
 DESIGN_GUIDE_DIR = PROJECT_ROOT / "docs" / "design-guide"
 ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
-ENV_FILE = PROJECT_ROOT / ".env"
+ENV_FILE = CONTROL_PLANE_ROOT / ".env"
 VISUAL_SMOKE_UI_PATH_RE = re.compile(
     r"^(frontend/packages/ui/src/.+\.(svelte|css|ts)|frontend/apps/web_app/src/routes/.+\.(svelte|css|ts))$"
 )
@@ -575,6 +601,63 @@ def _session_worktree_path(session_id: str) -> Path:
     return AGENT_WORKTREES_DIR / _safe_worktree_name(session_id)
 
 
+def is_valid_managed_worktree_path(path: str | Path) -> bool:
+    """Return whether path is one direct managed source-worktree child."""
+    candidate = Path(path).resolve()
+    root = AGENT_WORKTREES_DIR.resolve()
+    try:
+        relative = candidate.relative_to(root)
+    except ValueError:
+        return False
+    return len(relative.parts) == 1 and relative.name.startswith("agent-")
+
+
+def validate_worktree_binding_mode(session: dict) -> str:
+    """Validate and return one mutually exclusive worktree binding mode."""
+    mode = str(session.get("binding_mode") or "legacy_grandfathered")
+    if mode not in WORKTREE_BINDING_MODES:
+        raise ValueError(f"Invalid worktree binding mode: {mode}")
+    return mode
+
+
+def bootstrap_session_worktree(worktree_path: str | Path) -> dict:
+    """Install cached dependencies and generate prerequisites in one worktree."""
+    worktree = Path(worktree_path).resolve()
+    commands = [
+        ["pnpm", "install", "--offline", "--frozen-lockfile", "--ignore-scripts"],
+        ["node", "frontend/packages/ui/scripts/build-tokens.js"],
+        ["node", "frontend/packages/ui/scripts/build-translations.js"],
+        ["node", "frontend/packages/ui/scripts/validate-locales.js"],
+    ]
+    started = time.monotonic()
+    for index, command in enumerate(commands):
+        try:
+            rc, stdout, stderr = _run_cmd(
+                command,
+                cwd=str(worktree),
+                timeout=WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return {
+                "status": "failed",
+                "reason": "dependency_install_failed" if index == 0 else "prerequisite_generation_failed",
+                "message": str(exc),
+                "duration_ms": round((time.monotonic() - started) * 1000),
+            }
+        if rc != 0:
+            return {
+                "status": "failed",
+                "reason": "dependency_install_failed" if index == 0 else "prerequisite_generation_failed",
+                "message": stderr or stdout or f"Command failed: {' '.join(command)}",
+                "duration_ms": round((time.monotonic() - started) * 1000),
+            }
+    return {
+        "status": "ready",
+        "completed_at": _now_iso(),
+        "duration_ms": round((time.monotonic() - started) * 1000),
+    }
+
+
 def ensure_session_worktree(session_id: str) -> dict:
     """Ensure one session has an active local git worktree and metadata."""
     created: dict | None = None
@@ -596,6 +679,8 @@ def ensure_session_worktree(session_id: str) -> dict:
 
     base_commit = _current_git_sha()
     path = _session_worktree_path(session_id)
+    if not is_valid_managed_worktree_path(path):
+        raise RuntimeError(f"Refusing nested or unmanaged session worktree path: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         rc, _stdout, stderr = _run_cmd(["git", "worktree", "add", str(path), base_commit])
@@ -609,6 +694,9 @@ def ensure_session_worktree(session_id: str) -> dict:
         "created_at": _now_iso(),
         "last_active": _now_iso(),
     }
+    session_data = _load_sessions().get("sessions", {}).get(session_id, {})
+    if session_data.get("opencode_session_id"):
+        metadata["bootstrap"] = bootstrap_session_worktree(path)
 
     def store(data: dict) -> dict:
         session = data.get("sessions", {}).get(session_id)
@@ -949,12 +1037,19 @@ def _worktree_patch_id(metadata: dict, files: list[str] | None = None) -> str:
         tracked_files = []
     diff_command = ["git", "diff", "--binary", str(base_commit), "--"]
     if files is None or tracked_files:
-        rc, stdout, stderr = _run_cmd(diff_command + tracked_files, cwd=str(worktree_path))
-        if rc != 0:
-            raise RuntimeError(f"Failed to hash worktree diff: {stderr}")
+        result = subprocess.run(
+            diff_command + tracked_files,
+            cwd=str(worktree_path),
+            capture_output=True,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(f"Failed to hash worktree diff: {detail}")
+        diff_bytes = result.stdout
     else:
-        stdout = ""
-    digest = hashlib.sha256(stdout.encode("utf-8"))
+        diff_bytes = b""
+    digest = hashlib.sha256(diff_bytes)
     for relative_path in sorted(untracked_files):
         path = Path(worktree_path) / relative_path
         digest.update(relative_path.encode("utf-8"))
@@ -989,6 +1084,40 @@ def _snapshot_file_states(base_path: Path, files: list[str]) -> dict[str, dict]:
     return states
 
 
+def _snapshot_worktree_base_states(metadata: dict, files: list[str]) -> dict[str, dict]:
+    """Return selected file states from the source worktree's recorded base."""
+    worktree_path = Path(str(metadata.get("path") or ""))
+    base_commit = str(metadata.get("base_commit") or "")
+    if not worktree_path.is_dir() or not base_commit:
+        raise RuntimeError("Worktree base metadata is incomplete")
+    states: dict[str, dict] = {}
+    for relative_path in files:
+        content = subprocess.run(
+            ["git", "show", f"{base_commit}:{relative_path}"],
+            cwd=str(worktree_path),
+            capture_output=True,
+            timeout=30,
+        )
+        if content.returncode != 0:
+            states[relative_path] = {"exists": False}
+            continue
+        mode = subprocess.run(
+            ["git", "ls-tree", base_commit, "--", relative_path],
+            cwd=str(worktree_path),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if mode.returncode != 0 or not mode.stdout.strip():
+            raise RuntimeError(f"Could not inspect base file mode: {relative_path}")
+        states[relative_path] = {
+            "exists": True,
+            "sha256": hashlib.sha256(content.stdout).hexdigest(),
+            "executable": mode.stdout.split(maxsplit=1)[0] == "100755",
+        }
+    return states
+
+
 def _worktree_root_patch_action(session_id: str, patch_id: str, files: list[str]) -> str:
     """Return apply, applied, refresh, or conflict for a worktree integration retry."""
     metadata = _load_sessions().get("sessions", {}).get(session_id, {}).get("worktree")
@@ -997,10 +1126,20 @@ def _worktree_root_patch_action(session_id: str, patch_id: str, files: list[str]
     if metadata.get("root_applied_patch_id") == patch_id:
         return "applied" if _root_files_match_worktree(metadata, files) else "conflict"
     recorded_states = metadata.get("root_applied_files")
-    if not isinstance(recorded_states, dict) or not set(files).issubset(recorded_states):
+    if not isinstance(recorded_states, dict):
         return "conflict"
-    expected = {relative_path: recorded_states[relative_path] for relative_path in files}
-    return "refresh" if _snapshot_file_states(PROJECT_ROOT, files) == expected else "conflict"
+    missing_files = [relative_path for relative_path in files if relative_path not in recorded_states]
+    base_states: dict[str, dict] = {}
+    if missing_files:
+        try:
+            base_states = _snapshot_worktree_base_states(metadata, missing_files)
+        except RuntimeError:
+            return "conflict"
+    expected = {
+        relative_path: recorded_states.get(relative_path, base_states.get(relative_path))
+        for relative_path in files
+    }
+    return "refresh" if _snapshot_file_states(CONTROL_PLANE_ROOT, files) == expected else "conflict"
 
 
 def _record_worktree_root_patch(session_id: str, patch_id: str, files: list[str] | None = None) -> None:
@@ -1015,7 +1154,7 @@ def _record_worktree_root_patch(session_id: str, patch_id: str, files: list[str]
         metadata["root_applied_patch_id"] = patch_id
         metadata["root_applied_at"] = _now_iso()
         if files is not None:
-            metadata["root_applied_files"] = _snapshot_file_states(PROJECT_ROOT, files)
+            metadata["root_applied_files"] = _snapshot_file_states(CONTROL_PLANE_ROOT, files)
 
     _mutate_sessions(record)
 
@@ -1027,7 +1166,7 @@ def _sync_worktree_files_to_root(metadata: dict, files: list[str]) -> None:
         raise RuntimeError("Session worktree path is missing")
     for relative_path in files:
         source = Path(worktree_path) / relative_path
-        destination = PROJECT_ROOT / relative_path
+        destination = CONTROL_PLANE_ROOT / relative_path
         if source.exists():
             if not source.is_file():
                 raise RuntimeError(f"Unsupported non-file deploy path: {relative_path}")
@@ -1039,7 +1178,13 @@ def _sync_worktree_files_to_root(metadata: dict, files: list[str]) -> None:
             destination.unlink()
 
 
-def _mark_worktree_deployed(session_id: str, patch_id: str, commit_hash: str) -> None:
+def _mark_worktree_deployed(
+    session_id: str,
+    patch_id: str,
+    commit_hash: str,
+    *,
+    integration: dict | None = None,
+) -> None:
     """Mark a worktree merged and clear its matching blocked deploy record."""
     def mark(data: dict) -> None:
         metadata = data.get("sessions", {}).get(session_id, {}).get("worktree")
@@ -1049,6 +1194,16 @@ def _mark_worktree_deployed(session_id: str, patch_id: str, commit_hash: str) ->
             metadata["last_active"] = _now_iso()
             metadata.pop("pending_commit", None)
             metadata.pop("pending_commit_patch_id", None)
+            if integration:
+                metadata["integration"] = {
+                    "id": integration.get("id"),
+                    "patch_id": patch_id,
+                    "source_base": integration.get("source_base"),
+                    "final_base": integration.get("prepared_base"),
+                    "commit": commit_hash,
+                    "completed_at": _now_iso(),
+                    "status": "merged",
+                }
         if patch_id:
             data["deploy_queue"] = [
                 item
@@ -1113,7 +1268,7 @@ def _root_files_match_worktree(metadata: dict, files: list[str]) -> bool:
         return False
     for relative_path in files:
         source = Path(worktree_path) / relative_path
-        destination = PROJECT_ROOT / relative_path
+        destination = CONTROL_PLANE_ROOT / relative_path
         if source.exists() != destination.exists():
             return False
         if not source.exists():
@@ -1151,7 +1306,7 @@ def _apply_worktree_diff_to_root(metadata: dict, files: list[str]) -> None:
         if diff_result.stdout:
             apply_result = subprocess.run(
                 ["git", "apply", "--whitespace=nowarn", "-"],
-                cwd=str(PROJECT_ROOT),
+                cwd=str(CONTROL_PLANE_ROOT),
                 input=diff_result.stdout,
                 capture_output=True,
                 timeout=120,
@@ -1160,13 +1315,196 @@ def _apply_worktree_diff_to_root(metadata: dict, files: list[str]) -> None:
                 raise RuntimeError(apply_result.stderr.decode("utf-8", errors="replace").strip())
     for relative_path in sorted(untracked):
         source = Path(worktree_path) / relative_path
-        destination = PROJECT_ROOT / relative_path
+        destination = CONTROL_PLANE_ROOT / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         if source.is_file():
             shutil.copy2(source, destination)
 
 
-def enqueue_worktree_deploy(session_id: str, title: str, patch_id: str, *, reason: str) -> dict:
+class IntegrationConflict(RuntimeError):
+    """A selected source patch cannot be reproduced on the requested dev base."""
+
+    def __init__(self, message: str, *, patch_id: str, source_base: str, final_base: str):
+        super().__init__(message)
+        self.patch_id = patch_id
+        self.source_base = source_base
+        self.final_base = final_base
+
+
+def _integration_worktree_path(session_id: str) -> Path:
+    """Return a unique direct child reserved for disposable integration state."""
+    safe_session_id = re.sub(r"[^a-zA-Z0-9_-]", "-", session_id)[:32] or "unknown"
+    return AGENT_WORKTREES_DIR / f"{INTEGRATION_WORKTREE_PREFIX}{safe_session_id}-{secrets.token_hex(6)}"
+
+
+def _is_integration_worktree_path(path: Path) -> bool:
+    """Return whether path is a direct managed disposable integration checkout."""
+    try:
+        resolved = path.resolve(strict=False)
+        parent = AGENT_WORKTREES_DIR.resolve(strict=False)
+    except OSError:
+        return False
+    return bool(
+        resolved.parent == parent
+        and re.fullmatch(r"integration-[A-Za-z0-9_-]+-[0-9a-f]{12}", resolved.name)
+    )
+
+
+def _remove_integration_worktree(integration: dict) -> None:
+    """Remove only a recognized disposable integration worktree."""
+    path = Path(str(integration.get("path") or ""))
+    if not _is_integration_worktree_path(path):
+        raise RuntimeError(f"Refusing to remove unmanaged integration path: {path}")
+    if not path.exists():
+        return
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "worktree", "remove", "--force", str(path)],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not remove integration worktree {path}: {stderr}")
+
+
+def _apply_worktree_diff_to_checkout(
+    source_metadata: dict,
+    files: list[str],
+    checkout_root: Path,
+    *,
+    patch_id: str,
+    prepared_base: str,
+) -> None:
+    """Apply selected source changes to a clean integration checkout and stage them."""
+    source_path = Path(str(source_metadata.get("path") or ""))
+    source_base = str(source_metadata.get("base_commit") or "")
+    if not source_path.is_dir() or not source_base:
+        raise RuntimeError("Session source worktree metadata is incomplete")
+    current_patch_id = _worktree_patch_id(source_metadata, files)
+    if current_patch_id != patch_id:
+        raise IntegrationConflict(
+            "Session source patch changed during integration preparation",
+            patch_id=patch_id,
+            source_base=source_base,
+            final_base=prepared_base,
+        )
+
+    untracked = _worktree_untracked_files(source_metadata) & set(files)
+    tracked_files = [relative_path for relative_path in files if relative_path not in untracked]
+    if tracked_files:
+        diff_result = subprocess.run(
+                ["git", "diff", "--binary", source_base, "--", *tracked_files],
+                cwd=str(source_path),
+                capture_output=True,
+                timeout=120,
+            )
+        if diff_result.returncode != 0:
+            raise RuntimeError(diff_result.stderr.decode("utf-8", errors="replace").strip())
+        if diff_result.stdout:
+            apply_command = ["git", "apply", "--index", "--whitespace=nowarn"]
+            if prepared_base != source_base:
+                apply_command.append("--3way")
+            apply_result = subprocess.run(
+                [*apply_command, "-"],
+                cwd=str(checkout_root),
+                input=diff_result.stdout,
+                capture_output=True,
+                timeout=120,
+            )
+            if apply_result.returncode != 0:
+                detail = apply_result.stderr.decode("utf-8", errors="replace").strip()
+                raise IntegrationConflict(
+                    detail or "Selected patch conflicts with current origin/dev",
+                    patch_id=patch_id,
+                    source_base=source_base,
+                    final_base=prepared_base,
+                )
+
+    for relative_path in sorted(untracked):
+        source = source_path / relative_path
+        destination = checkout_root / relative_path
+        if not source.is_file() or source.is_symlink():
+            raise RuntimeError(f"Unsupported untracked deploy path: {relative_path}")
+        if destination.exists() or destination.is_symlink():
+            raise IntegrationConflict(
+                f"Untracked source path already exists on current dev: {relative_path}",
+                patch_id=patch_id,
+                source_base=source_base,
+                final_base=prepared_base,
+            )
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        rc, _stdout, stderr = _run_cmd(["git", "add", "--", relative_path], cwd=str(checkout_root))
+        if rc != 0:
+            raise RuntimeError(f"Could not stage untracked deploy path {relative_path}: {stderr}")
+
+
+def _prepare_integration_worktree(
+    session_id: str,
+    source_metadata: dict,
+    files: list[str],
+    patch_id: str,
+    prepared_base: str,
+) -> dict:
+    """Create and populate one disposable exact-base integration checkout."""
+    if not files or not patch_id or not prepared_base:
+        raise ValueError("Integration preparation requires files, patch ID, and base commit")
+    AGENT_WORKTREES_DIR.mkdir(parents=True, exist_ok=True)
+    path = _integration_worktree_path(session_id)
+    integration = {
+        "id": path.name,
+        "path": str(path),
+        "session_id": session_id,
+        "patch_id": patch_id,
+        "source_base": str(source_metadata.get("base_commit") or ""),
+        "prepared_base": prepared_base,
+        "files": sorted(files),
+        "created_at": _now_iso(),
+    }
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "worktree", "add", "--detach", str(path), prepared_base],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not create integration worktree at {prepared_base[:9]}: {stderr}")
+    try:
+        _apply_worktree_diff_to_checkout(
+            source_metadata,
+            files,
+            path,
+            patch_id=patch_id,
+            prepared_base=prepared_base,
+        )
+    except Exception:
+        _remove_integration_worktree(integration)
+        raise
+    return integration
+
+
+def _rebuild_integration_worktree(
+    integration: dict,
+    source_metadata: dict,
+    files: list[str],
+    prepared_base: str,
+) -> dict:
+    """Discard stale prepared state and reproduce the same patch on a newer base."""
+    _remove_integration_worktree(integration)
+    return _prepare_integration_worktree(
+        str(integration.get("session_id") or "unknown"),
+        source_metadata,
+        files,
+        str(integration.get("patch_id") or ""),
+        prepared_base,
+    )
+
+
+def enqueue_worktree_deploy(
+    session_id: str,
+    title: str,
+    patch_id: str,
+    *,
+    reason: str,
+    integration: dict | None = None,
+    final_base: str = "",
+) -> dict:
     """Record a visible blocked deploy item for manual retry."""
     now = _now_iso()
     item = {
@@ -1180,6 +1518,15 @@ def enqueue_worktree_deploy(session_id: str, title: str, patch_id: str, *, reaso
         "updated_at": now,
         "next_action": "Resolve the root integration conflict, then rerun sessions.py deploy.",
     }
+    if integration:
+        item.update(
+            {
+                "integration_id": integration.get("id"),
+                "source_base": integration.get("source_base"),
+                "final_base": final_base or integration.get("prepared_base"),
+                "next_action": "Resolve the source patch conflict against current origin/dev, then rerun sessions.py deploy.",
+            }
+        )
 
     def store(data: dict) -> dict:
         queue = data.setdefault("deploy_queue", [])
@@ -1195,12 +1542,10 @@ def enqueue_worktree_deploy(session_id: str, title: str, patch_id: str, *, reaso
 
 def _validate_managed_worktree_path(path: str | Path) -> Path:
     managed_path = Path(path).resolve()
-    try:
-        managed_path.relative_to(AGENT_WORKTREES_DIR.resolve())
-    except ValueError as exc:
-        raise RuntimeError(f"Refusing to remove worktree outside {AGENT_WORKTREES_DIR}: {managed_path}") from exc
-    if not managed_path.name.startswith("agent-"):
-        raise RuntimeError(f"Refusing to remove non-agent worktree: {managed_path}")
+    if not is_valid_managed_worktree_path(managed_path):
+        raise RuntimeError(
+            f"Refusing agent worktree outside or nested beneath {AGENT_WORKTREES_DIR}: {managed_path}"
+        )
     return managed_path
 
 
@@ -1320,9 +1665,10 @@ def _discover_worktree_candidates() -> list[dict]:
                 continue
         paths[str(resolved)] = dict(item)
     if AGENT_WORKTREES_DIR.exists():
-        for path in AGENT_WORKTREES_DIR.glob("agent-*"):
-            if path.is_dir():
-                paths.setdefault(str(path.resolve()), {"path": str(path.resolve())})
+        for pattern in ("agent-*", f"{INTEGRATION_WORKTREE_PREFIX}*"):
+            for path in AGENT_WORKTREES_DIR.glob(pattern):
+                if path.is_dir():
+                    paths.setdefault(str(path.resolve()), {"path": str(path.resolve())})
     paths.update({path: {"path": path, **entry} for path, entry in by_path.items() if path not in paths})
 
     candidates: list[dict] = []
@@ -1335,6 +1681,7 @@ def _discover_worktree_candidates() -> list[dict]:
         metadata = registered.get("metadata") if isinstance(registered.get("metadata"), dict) else {}
         session = registered.get("session") if isinstance(registered.get("session"), dict) else {}
         session_id = str(registered.get("session_id") or _worktree_candidate_id(resolved_path, metadata))
+        worktree_kind = "integration" if _is_integration_worktree_path(path) else "source"
         inspection_error = ""
         try:
             changed_files = _candidate_changed_files(path, metadata)
@@ -1354,6 +1701,8 @@ def _discover_worktree_candidates() -> list[dict]:
                 "linked": bool(linked_item.get("head")),
                 "registered": bool(registered),
                 "metadata": metadata,
+                "worktree_kind": worktree_kind,
+                "binding_mode": validate_worktree_binding_mode(session) if registered else "",
                 "last_active": last_active,
                 "idle_hours": idle_hours,
                 "changed_files": changed_files,
@@ -1405,6 +1754,9 @@ def _classify_worktree_candidate(
     if candidate_idle_hours < idle_threshold:
         result.update(classification="recent_active", reason_code="recent_activity")
         return result
+    if result.get("worktree_kind") == "integration":
+        result.update(classification="disposable_integration", reason_code="reproducible_integration_state")
+        return result
     if session_id in approved_obsolete:
         result.update(classification="superseded", reason_code="review_approved_obsolete")
         return result
@@ -1414,7 +1766,8 @@ def _classify_worktree_candidate(
     if result.get("classification") in {"integrated", "duplicated", "superseded", "unique_stale", "uncertain"}:
         return result
     metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
-    deployed_patch = str(metadata.get("root_applied_patch_id") or "")
+    integration = metadata.get("integration") if isinstance(metadata.get("integration"), dict) else {}
+    deployed_patch = str(metadata.get("root_applied_patch_id") or integration.get("patch_id") or "")
     merged_commit = str(metadata.get("merged_commit") or "")
     if deployed_patch and merged_commit and _git_is_ancestor(merged_commit, target_ref):
         try:
@@ -1440,7 +1793,12 @@ def _classify_worktree_candidate(
 
 
 def _remove_reconciled_worktree(candidate: dict) -> None:
-    path = _validate_managed_worktree_path(str(candidate.get("path") or ""))
+    candidate_path = Path(str(candidate.get("path") or ""))
+    path = (
+        candidate_path.resolve()
+        if _is_integration_worktree_path(candidate_path)
+        else _validate_managed_worktree_path(candidate_path)
+    )
     rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(path)])
     if rc != 0 and path.exists():
         if candidate.get("linked"):
@@ -1528,7 +1886,7 @@ def reconcile_session_worktrees(
             item = _classify_worktree_candidate(candidate, target_commit, idle_hours, approved)
         items.append(item)
 
-    safe_classes = {"integrated", "duplicated", "superseded"}
+    safe_classes = {"integrated", "duplicated", "superseded", "disposable_integration"}
     deletable = [
         item for item in items
         if item.get("classification") in safe_classes and float(item.get("idle_hours", float("inf"))) >= idle_hours
@@ -1636,7 +1994,8 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
             current_patch = _worktree_patch_id(metadata)
         except (OSError, RuntimeError):
             current_patch = ""
-        deployed_patch = str(metadata.get("root_applied_patch_id") or "")
+        integration = metadata.get("integration") if isinstance(metadata.get("integration"), dict) else {}
+        deployed_patch = str(metadata.get("root_applied_patch_id") or integration.get("patch_id") or "")
         merged_commit = str(metadata.get("merged_commit") or "")
         integrated = (
             not session.get("writing")
@@ -1668,10 +2027,10 @@ def cleanup_session_worktrees(*, idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS) 
 
 def _is_root_checkout_path(path: Path) -> bool:
     try:
-        path.resolve().relative_to(PROJECT_ROOT.resolve())
-        return True
+        relative = path.resolve().relative_to(CONTROL_PLANE_ROOT.resolve())
     except ValueError:
         return False
+    return not relative.parts or relative.parts[0] not in {AGENT_WORKTREES_DIR.name, ".agent-worktrees"}
 
 
 def evaluate_root_guard(action: str, target_path: str | Path, *, session_id: str = "") -> dict:
@@ -2010,7 +2369,7 @@ def _run_cmd(cmd: list[str], cwd: str | None = None, timeout: int = 120) -> tupl
     """Run a command and return (returncode, stdout, stderr)."""
     result = subprocess.run(
         cmd,
-        cwd=cwd or str(PROJECT_ROOT),
+        cwd=cwd or str(CONTROL_PLANE_ROOT),
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -2044,7 +2403,7 @@ def _get_vercel_token_for_deploy_gate() -> str:
 
 
 def _load_web_app_vercel_project_config() -> tuple[str, str]:
-    project_json = PROJECT_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
+    project_json = CONTROL_PLANE_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
     try:
         data = json.loads(project_json.read_text())
     except FileNotFoundError as exc:
@@ -2153,7 +2512,7 @@ def _get_dirty_files() -> set[str]:
     # breaking the fixed-offset parsing at line[3:].
     result = subprocess.run(
         ["git", "status", "--porcelain", "-uall"],
-        cwd=str(PROJECT_ROOT),
+        cwd=str(CONTROL_PLANE_ROOT),
         capture_output=True,
         text=True,
         timeout=120,
@@ -2177,17 +2536,29 @@ def _get_dirty_files() -> set[str]:
     return dirty
 
 
-def _get_staged_files() -> set[str]:
+def _get_staged_files(*, checkout_root: Path | None = None) -> set[str]:
     """Return set of file paths currently in the git index (staged for commit)."""
-    rc, stdout, _ = _run_cmd(["git", "diff", "--name-only", "--cached"])
+    rc, stdout, _ = _run_cmd(
+        ["git", "diff", "--name-only", "--cached"],
+        cwd=str(checkout_root or CONTROL_PLANE_ROOT),
+    )
     if rc != 0 or not stdout:
         return set()
     return {line.strip() for line in stdout.splitlines() if line.strip()}
 
 
-def _validate_staged_deploy_files(to_commit: set[str], *, context: str) -> bool:
+def _validate_staged_deploy_files(
+    to_commit: set[str],
+    *,
+    context: str,
+    checkout_root: Path | None = None,
+) -> bool:
     """Ensure the staged index still points at exactly this deploy's file set."""
-    staged_files = _get_staged_files()
+    staged_files = (
+        _get_staged_files()
+        if checkout_root is None
+        else _get_staged_files(checkout_root=checkout_root)
+    )
     missing_staged = sorted(to_commit - staged_files)
     foreign_staged = sorted(staged_files - to_commit)
     if not missing_staged and not foreign_staged:
@@ -3615,6 +3986,33 @@ def bind_opencode_session(data: dict, session_id: str, opencode_session_id: str)
     sessions[session_id]["opencode_session_id"] = opencode_session_id
 
 
+def record_worktree_binding(
+    *,
+    opencode_session_id: str,
+    mode: str,
+    directory: str = "",
+    reason: str = "",
+) -> dict:
+    """Persist one native or pilot-fallback binding result atomically."""
+    if mode not in {"native", "pilot_fallback"}:
+        raise ValueError(f"Unsupported binding result mode: {mode}")
+
+    def update(data: dict) -> dict:
+        session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
+        session = data["sessions"][session_id]
+        worktree = session.get("worktree") or {}
+        expected = Path(str(worktree.get("path") or "")).resolve()
+        if mode == "native" and (not directory or Path(directory).resolve() != expected):
+            raise RuntimeError("Native OpenCode directory does not match the session worktree")
+        session["binding_mode"] = mode
+        session["binding_updated_at"] = _now_iso()
+        session["binding_failure_reason"] = reason if mode == "pilot_fallback" else ""
+        session["last_active"] = _now_iso()
+        return {"session_id": session_id, "mode": mode, "worktree_path": str(expected), "reason": reason}
+
+    return _mutate_sessions(update)
+
+
 def register_session_record(
     session_record: dict,
     opencode_session_id: str | None = None,
@@ -3695,6 +4093,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     # which case auto-tracking gracefully degrades to silent no-op rather
     # than the previous race-prone max(last_active) fallback that caused
     # ghost ownership across unrelated sessions.
+    opencode_session_id = getattr(args, "opencode_session", None)
     session_record: dict = {
         "task": args.task or "(pending)",
         "mode": mode,
@@ -3707,8 +4106,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         "linear_issue_id": None,
         "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
         "opencode_session_id": None,
+        "binding_mode": "pending" if opencode_session_id and mode != "question" else "legacy_grandfathered",
     }
-    opencode_session_id = getattr(args, "opencode_session", None)
     sid, pruned, cleared_locks, data = register_session_record(
         session_record,
         opencode_session_id,
@@ -5106,7 +5505,7 @@ def _get_lint_flags(files: list[str]) -> list[str]:
     return flags
 
 
-def _run_lint(files: list[str]) -> tuple[int, str, str]:
+def _run_lint(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """Run linter on specific files. Returns (returncode, stdout, stderr)."""
     lint_flags = _get_lint_flags(files)
     if not lint_flags:
@@ -5115,7 +5514,7 @@ def _run_lint(files: list[str]) -> tuple[int, str, str]:
     for f in files:
         path_args += ["--path", f]
     cmd = ["./scripts/lint_changed.sh"] + lint_flags + path_args
-    return _run_cmd(cmd, timeout=LINT_TIMEOUT)
+    return _run_cmd(cmd, cwd=str(checkout_root or CONTROL_PLANE_ROOT), timeout=LINT_TIMEOUT)
 
 
 
@@ -5296,20 +5695,20 @@ def _get_unpushed_files() -> list[str]:
     return [line.strip() for line in stdout.splitlines() if line.strip()]
 
 
-def _run_embed_registry_validation() -> tuple[int, str, str]:
+def _run_embed_registry_validation(*, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """Run the generated embed registry check used by the Vercel build."""
     return _run_cmd(
         ["npm", "run", "generate-embed-registry"],
-        cwd=str(PROJECT_ROOT / "frontend" / "packages" / "ui"),
+        cwd=str((checkout_root or CONTROL_PLANE_ROOT) / "frontend" / "packages" / "ui"),
         timeout=180,
     )
 
 
-def _enforce_embed_registry_validation(files: list[str]) -> None:
+def _enforce_embed_registry_validation(files: list[str], *, checkout_root: Path | None = None) -> None:
     if not _should_validate_embed_registry(files):
         return
     print("Running embed registry validation (generate-embed-registry)...")
-    rc, stdout, stderr = _run_embed_registry_validation()
+    rc, stdout, stderr = _run_embed_registry_validation(checkout_root=checkout_root)
     if rc != 0:
         print("EMBED REGISTRY VALIDATION FAILED — aborting deploy:", file=sys.stderr)
         if stdout:
@@ -5320,11 +5719,15 @@ def _enforce_embed_registry_validation(files: list[str]) -> None:
     print("Embed registry: PASSED")
 
 
-def _run_sdk_cleartext_audit(command: list[str]) -> tuple[int, str, str]:
-    return _run_cmd(command, timeout=180)
+def _run_sdk_cleartext_audit(
+    command: list[str],
+    *,
+    checkout_root: Path | None = None,
+) -> tuple[int, str, str]:
+    return _run_cmd(command, cwd=str(checkout_root or CONTROL_PLANE_ROOT), timeout=180)
 
 
-def _enforce_sdk_cleartext_gate(files: list[str]) -> None:
+def _enforce_sdk_cleartext_gate(files: list[str], *, checkout_root: Path | None = None) -> None:
     if not _should_run_sdk_cleartext_gate(files):
         return
     checks = (
@@ -5335,7 +5738,10 @@ def _enforce_sdk_cleartext_gate(files: list[str]) -> None:
     )
     print("Running SDK cleartext parity/boundary audits...")
     for command in checks:
-        rc, stdout, stderr = _run_sdk_cleartext_audit(command)
+        if checkout_root is None:
+            rc, stdout, stderr = _run_sdk_cleartext_audit(command)
+        else:
+            rc, stdout, stderr = _run_sdk_cleartext_audit(command, checkout_root=checkout_root)
         if rc != 0:
             print("SDK CLEARTEXT GATE FAILED — aborting deploy:", file=sys.stderr)
             print("  " + " ".join(command), file=sys.stderr)
@@ -5347,7 +5753,7 @@ def _enforce_sdk_cleartext_gate(files: list[str]) -> None:
     print("SDK cleartext gate: PASSED")
 
 
-def _run_translation_validation() -> tuple[int, str, str]:
+def _run_translation_validation(*, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """
     Run `npm run validate:locales` inside frontend/packages/ui.
     Returns (returncode, stdout, stderr).
@@ -5357,7 +5763,7 @@ def _run_translation_validation() -> tuple[int, str, str]:
     import subprocess
     result = subprocess.run(
         ["npm", "run", "validate:locales"],
-        cwd=os.path.join(os.path.dirname(__file__), "..", "frontend", "packages", "ui"),
+        cwd=str((checkout_root or CONTROL_PLANE_ROOT) / "frontend" / "packages" / "ui"),
         capture_output=True,
         text=True,
         timeout=120,
@@ -5365,7 +5771,7 @@ def _run_translation_validation() -> tuple[int, str, str]:
     return result.returncode, result.stdout, result.stderr
 
 
-def _run_translation_build() -> tuple[int, str, str]:
+def _run_translation_build(*, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """
     Generate ignored locale JSON artifacts from YAML sources before validation.
     Returns (returncode, stdout, stderr).
@@ -5373,12 +5779,73 @@ def _run_translation_build() -> tuple[int, str, str]:
     import subprocess
     result = subprocess.run(
         ["npm", "run", "build:translations"],
-        cwd=os.path.join(os.path.dirname(__file__), "..", "frontend", "packages", "ui"),
+        cwd=str((checkout_root or CONTROL_PLANE_ROOT) / "frontend" / "packages" / "ui"),
         capture_output=True,
         text=True,
         timeout=180,
     )
     return result.returncode, result.stdout, result.stderr
+
+
+def _run_deploy_gates(
+    files: list[str],
+    *,
+    checkout_root: Path,
+    no_verify: bool,
+    skip_tests_reason: str | None,
+    require_parity: bool,
+) -> None:
+    """Run source-dependent deploy gates against one authoritative checkout."""
+    lint_flags = _get_lint_flags(files)
+    if lint_flags and not no_verify:
+        print("Running linter...")
+        rc, stdout, stderr = _run_lint(files, checkout_root=checkout_root)
+        if rc != 0:
+            print("LINT FAILED — aborting deploy:", file=sys.stderr)
+            if stdout:
+                print(stdout, file=sys.stderr)
+            if stderr:
+                print(stderr, file=sys.stderr)
+            raise RuntimeError("lint gate failed")
+        print("Lint: PASSED")
+    elif lint_flags:
+        print("Lint: SKIPPED (--no-verify)")
+
+    if _has_frontend_files(files):
+        print("Generating locale JSON (build:translations)...")
+        rc, stdout, stderr = _run_translation_build(checkout_root=checkout_root)
+        if rc != 0:
+            detail = stderr or stdout or "translation build failed"
+            raise RuntimeError(detail)
+        print("Translations build: PASSED")
+        print("Running translation validation (validate:locales)...")
+        rc, stdout, stderr = _run_translation_validation(checkout_root=checkout_root)
+        if rc != 0:
+            detail = stderr or stdout or "translation validation failed"
+            raise RuntimeError(detail)
+        print("Translations: PASSED")
+
+    _run_test_enforcement_gate(files, skip_tests_reason, checkout_root=checkout_root)
+    _enforce_sdk_cleartext_gate(files, checkout_root=checkout_root)
+
+    if require_parity:
+        print("Checking latest parity evidence...")
+        rc, stdout, stderr = _run_cmd(
+            [sys.executable, "scripts/verify_parity.py", "--check", "--no-skips"],
+            cwd=str(checkout_root),
+        )
+        if rc != 0:
+            detail = stderr or stdout or "parity evidence check failed"
+            raise RuntimeError(detail)
+        print("Parity evidence: PASSED")
+
+    _run_pytest_gate(
+        files,
+        skip_reason=skip_tests_reason,
+        no_verify=no_verify,
+        checkout_root=checkout_root,
+    )
+    _enforce_embed_registry_validation(files, checkout_root=checkout_root)
 
 
 def cmd_prepare_deploy(args: argparse.Namespace) -> None:
@@ -5527,6 +5994,206 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     print("== END DEPLOYMENT PLAN ==")
 
 
+def _fetch_origin_dev_commit() -> str:
+    """Fetch and return the exact current origin/dev commit."""
+    rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(CONTROL_PLANE_ROOT))
+    if rc != 0:
+        raise RuntimeError(f"Could not fetch origin/dev: {stderr}")
+    rc, stdout, stderr = _run_cmd(["git", "rev-parse", "origin/dev"], cwd=str(CONTROL_PLANE_ROOT))
+    if rc != 0 or not stdout:
+        raise RuntimeError(f"Could not resolve origin/dev: {stderr}")
+    return stdout.strip()
+
+
+def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
+    """Build the existing deploy commit message without checkout side effects."""
+    commit_msg = args.title
+    if args.message:
+        commit_msg += "\n\n" + args.message
+    linked_task_id = session.get("task_id")
+    if linked_task_id:
+        linked_task = _load_task(linked_task_id)
+        if linked_task:
+            task_summary = linked_task.get("summary", "").strip()
+            if task_summary:
+                commit_msg += "\n\n" + task_summary
+    return commit_msg
+
+
+def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
+    """Provide ignored frontend prerequisites only when selected files need them."""
+    if not _has_frontend_files(files):
+        return
+    result = bootstrap_session_worktree(checkout_root)
+    if result.get("status") != "ready":
+        raise RuntimeError(
+            f"Integration bootstrap failed ({result.get('reason', 'unknown')}): "
+            f"{result.get('message', 'no detail')}"
+        )
+
+
+def _deploy_native_worktree(
+    args: argparse.Namespace,
+    session: dict,
+    worktree_metadata: dict,
+    to_commit: list[str],
+    patch_id: str,
+) -> None:
+    """Validate and push one native session patch without modifying root."""
+    sid = args.session
+    no_verify = getattr(args, "no_verify", False)
+    skip_tests_reason = getattr(args, "skip_tests_reason", None)
+    require_parity = getattr(args, "require_parity", False)
+    integration: dict | None = None
+    deploy_lock_held = False
+    commit_hash_full = ""
+
+    try:
+        prepared_base = _fetch_origin_dev_commit()
+        integration = _prepare_integration_worktree(
+            sid,
+            worktree_metadata,
+            to_commit,
+            patch_id,
+            prepared_base,
+        )
+
+        while True:
+            checkout_root = Path(integration["path"])
+            _bootstrap_integration_for_files(checkout_root, to_commit)
+            _run_deploy_gates(
+                to_commit,
+                checkout_root=checkout_root,
+                no_verify=no_verify,
+                skip_tests_reason=skip_tests_reason,
+                require_parity=require_parity,
+            )
+
+            _wait_and_acquire_session_lock(
+                "vercel_deploy",
+                sid,
+                phase="finalizing_integration_worktree",
+                timeout=getattr(args, "lock_timeout", None),
+                poll=getattr(args, "lock_poll", 30),
+            )
+            deploy_lock_held = True
+            final_base = _fetch_origin_dev_commit()
+            if final_base != integration["prepared_base"]:
+                _release_session_lock("vercel_deploy", released_by=sid)
+                deploy_lock_held = False
+                print(
+                    f"origin/dev advanced from {integration['prepared_base'][:9]} to {final_base[:9]}; "
+                    "rebuilding and rerunning gates."
+                )
+                integration = _rebuild_integration_worktree(
+                    integration,
+                    worktree_metadata,
+                    to_commit,
+                    final_base,
+                )
+                continue
+
+            print("Checking Vercel web app build machine...")
+            _enforce_vercel_standard_build_machine()
+            print("Vercel build machine: standard/fixed")
+            if not _validate_staged_deploy_files(
+                set(to_commit),
+                context="before integration commit",
+                checkout_root=checkout_root,
+            ):
+                raise RuntimeError("Integration staged-file validation failed")
+
+            commit_cmd = ["git", "commit", "-m", _integration_commit_message(args, session)]
+            if no_verify:
+                commit_cmd.append("--no-verify")
+            os.environ["OPENMATES_SKIP_PRECOMMIT_LOCALES"] = "1"
+            try:
+                rc, _stdout, stderr = _run_cmd(commit_cmd, cwd=str(checkout_root), timeout=300)
+            finally:
+                os.environ.pop("OPENMATES_SKIP_PRECOMMIT_LOCALES", None)
+            if rc != 0:
+                raise RuntimeError(f"git commit failed in integration worktree: {stderr}")
+
+            rc, commit_hash_full, stderr = _run_cmd(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(checkout_root),
+            )
+            commit_hash_full = commit_hash_full.strip()
+            if rc != 0 or not commit_hash_full:
+                raise RuntimeError(f"Could not resolve integration commit: {stderr}")
+
+            print("Pushing integration commit to origin dev...")
+            rc, _stdout, stderr = _run_cmd(
+                ["git", "push", "origin", "HEAD:refs/heads/dev"],
+                cwd=str(checkout_root),
+                timeout=300,
+            )
+            if rc != 0:
+                raise RuntimeError(f"git push failed: {stderr}")
+            _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
+            deploy_lock_held = False
+            break
+    except IntegrationConflict as exc:
+        item = enqueue_worktree_deploy(
+            sid,
+            args.title,
+            patch_id,
+            reason=str(exc),
+            integration=integration,
+            final_base=exc.final_base,
+        )
+        print(f"WORKTREE INTEGRATION BLOCKED — {item['id']}: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except RuntimeError as exc:
+        print(f"WORKTREE DEPLOY FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        if integration:
+            try:
+                _remove_integration_worktree(integration)
+            except RuntimeError as cleanup_error:
+                print(f"Integration cleanup warning: {cleanup_error}", file=sys.stderr)
+
+    _save_last_deploy_sha(commit_hash_full)
+    _mark_worktree_deployed(sid, patch_id, commit_hash_full, integration=integration)
+    commit_hash = commit_hash_full[:7]
+    print()
+    print("== DEPLOYED ==")
+    print(f"Commit: {commit_hash}")
+    print(f"Files: {len(to_commit)}")
+    for relative_path in sorted(to_commit):
+        print(f"  {relative_path}")
+    print("Branch: dev")
+
+    related = _find_related_docs(to_commit)
+    if related:
+        print()
+        print("Verify these architecture docs are still accurate:")
+        for doc in related:
+            print(f"  - docs/architecture/{doc}")
+
+    if getattr(args, "end_session", False):
+        latest_data = _load_sessions()
+        latest_session = latest_data.get("sessions", {}).get(sid, session)
+        _enforce_visual_smoke_end_gate(
+            sid,
+            latest_session,
+            to_commit,
+            skip_reason=getattr(args, "skip_visual_smoke_reason", None),
+            commit_sha=commit_hash_full,
+        )
+        try:
+            finalize_session_worktree(sid, target_ref=commit_hash_full)
+        except RuntimeError as exc:
+            print(f"DEPLOYED BUT SESSION FINALIZATION BLOCKED — {exc}", file=sys.stderr)
+            print(f"Retry after resolving residual work: python3 scripts/sessions.py end --session {sid}", file=sys.stderr)
+            sys.exit(1)
+        _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
+        print(f"\nSession {sid} ended.")
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
     data = _load_sessions()
@@ -5661,6 +6328,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
             print(f"  ? {f}{tag}")
         print()
+
+    if worktree_metadata and to_commit and validate_worktree_binding_mode(session) == "native":
+        _deploy_native_worktree(args, session, worktree_metadata, to_commit, worktree_patch_id)
+        return
 
     if worktree_metadata and to_commit:
         deploy_lock_held = False
@@ -5833,8 +6504,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     else:
         # Separate existing files from deleted files — git add fails on deleted files,
         # but they may already be staged via git rm. Only add files that exist on disk.
-        files_to_add = [f for f in to_commit if (PROJECT_ROOT / f).exists()]
-        deleted_files = [f for f in to_commit if not (PROJECT_ROOT / f).exists()]
+        files_to_add = [f for f in to_commit if (CONTROL_PLANE_ROOT / f).exists()]
+        deleted_files = [f for f in to_commit if not (CONTROL_PLANE_ROOT / f).exists()]
 
         if deleted_files:
             # Ensure deleted files are staged (git rm --cached is safe even if already staged)
@@ -5988,6 +6659,19 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         print(f"Base: {metadata.get('base_commit', '')[:9]}")
         print(f"Status: {metadata.get('status', 'active')}")
         print("Use this path as the working directory for source edits.")
+        return
+    if args.worktree_action == "binding":
+        try:
+            result = record_worktree_binding(
+                opencode_session_id=args.opencode_session,
+                mode=args.mode,
+                directory=args.directory or "",
+                reason=args.reason or "",
+            )
+        except (RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, sort_keys=True))
         return
     if args.worktree_action == "cleanup":
         deleted = cleanup_session_worktrees(idle_hours=args.idle_hours)
@@ -6361,13 +7045,14 @@ _DOCS_DIRS = {
 }
 
 
-def _find_tests_for_file(filepath: str) -> dict:
+def _find_tests_for_file(filepath: str, *, checkout_root: Path | None = None) -> dict:
     """
     Search for existing unit and E2E tests related to a source file.
 
     Returns dict with 'unit_tests', 'e2e_tests', 'e2e_specs' (spec filenames
     for run_tests.py), 'verdict' (covered/partial/none), and 'suggestions'.
     """
+    root = checkout_root or PROJECT_ROOT
     path = Path(filepath)
     stem = path.stem  # e.g., "chatStore" from "chatStore.ts"
     suffix = path.suffix  # e.g., ".ts"
@@ -6396,7 +7081,7 @@ def _find_tests_for_file(filepath: str) -> dict:
             candidate = pattern.format(stem=stem, parent=parent, app=app)
         except (KeyError, IndexError):
             continue
-        full_path = PROJECT_ROOT / candidate
+        full_path = root / candidate
         if full_path.exists():
             result["unit_tests"].append(candidate)
 
@@ -6407,13 +7092,14 @@ def _find_tests_for_file(filepath: str) -> dict:
         f"**/*{stem}*.test.*",
         f"**/*{stem}*.spec.*",
     ]:
-        for match in PROJECT_ROOT.glob(test_glob_pattern):
-            rel = str(match.relative_to(PROJECT_ROOT))
+        for match in root.glob(test_glob_pattern):
+            rel = str(match.relative_to(root))
             if rel not in result["unit_tests"] and "node_modules" not in rel:
                 result["unit_tests"].append(rel)
 
     # --- Search for E2E tests referencing this file/component ---
-    if _E2E_SPEC_DIR.exists():
+    e2e_spec_dir = root / "frontend" / "apps" / "web_app" / "tests"
+    if e2e_spec_dir.exists():
         # Build search terms: stem, kebab-case, parent directory context
         search_terms = [stem]
 
@@ -6430,7 +7116,7 @@ def _find_tests_for_file(filepath: str) -> dict:
         # (e.g., "events" from backend/apps/events/ matches skill-events-*.spec.ts)
         filename_terms = _extract_context_terms(filepath)
 
-        for spec_file in sorted(_E2E_SPEC_DIR.glob("*.spec.ts")):
+        for spec_file in sorted(e2e_spec_dir.glob("*.spec.ts")):
             try:
                 spec_name_lower = spec_file.stem.replace(".spec", "").lower()
 
@@ -6450,7 +7136,7 @@ def _find_tests_for_file(filepath: str) -> dict:
                             break
 
                 if filename_match or content_match:
-                    rel = str(spec_file.relative_to(PROJECT_ROOT))
+                    rel = str(spec_file.relative_to(root))
                     spec_name = spec_file.name
                     if rel not in result["e2e_tests"]:
                         result["e2e_tests"].append(rel)
@@ -6644,6 +7330,8 @@ def _find_docs_for_file(filepath: str) -> dict:
 def _run_test_enforcement_gate(
     files_to_commit: list[str],
     skip_reason: str | None = None,
+    *,
+    checkout_root: Path | None = None,
 ) -> None:
     """Check test coverage for files being deployed and warn if specs exist but
     weren't verified.  Called from cmd_deploy.
@@ -6685,7 +7373,7 @@ def _run_test_enforcement_gate(
     uncovered: list[str] = []
 
     for filepath in non_exempt:
-        result = _find_tests_for_file(filepath)
+        result = _find_tests_for_file(filepath, checkout_root=checkout_root)
         for spec in result.get("e2e_specs", []):
             if spec not in all_specs:
                 all_specs.append(spec)
@@ -6695,7 +7383,7 @@ def _run_test_enforcement_gate(
     # Check if any related specs were run in the current session
     # by looking at test-results/last-run.json
     specs_run_recently: set[str] = set()
-    last_run_path = PROJECT_ROOT / "test-results" / "last-run.json"
+    last_run_path = CONTROL_PLANE_ROOT / "test-results" / "last-run.json"
     if last_run_path.exists():
         try:
             import json as _json
@@ -6781,7 +7469,7 @@ def _is_pytest_test_file(path: str) -> bool:
 def _resolve_pytest_venv() -> Path | None:
     """Return a usable python interpreter for pytest, matching run_tests.py."""
     candidates = [
-        PROJECT_ROOT / "backend" / ".venv" / "bin" / "python3",
+        CONTROL_PLANE_ROOT / "backend" / ".venv" / "bin" / "python3",
         Path("/OpenMates/.venv/bin/python3"),
     ]
     for candidate in candidates:
@@ -6790,10 +7478,15 @@ def _resolve_pytest_venv() -> Path | None:
     return None
 
 
-def _collect_pytest_targets(files_to_commit: list[str]) -> list[str]:
+def _collect_pytest_targets(
+    files_to_commit: list[str],
+    *,
+    checkout_root: Path | None = None,
+) -> list[str]:
     """Return a deduplicated, filtered list of pytest test files related to
     the backend Python files in the current commit.
     """
+    root = checkout_root or PROJECT_ROOT
     targets: list[str] = []
     seen: set[str] = set()
 
@@ -6806,7 +7499,7 @@ def _collect_pytest_targets(files_to_commit: list[str]) -> list[str]:
         if _is_pytest_test_file(filepath):
             candidates.append(filepath)
         else:
-            result = _find_tests_for_file(filepath)
+            result = _find_tests_for_file(filepath, checkout_root=root)
             for unit_test in result.get("unit_tests", []):
                 if _is_backend_py(unit_test) and _is_pytest_test_file(unit_test):
                     candidates.append(unit_test)
@@ -6816,7 +7509,7 @@ def _collect_pytest_targets(files_to_commit: list[str]) -> list[str]:
                 continue
             if _is_pytest_gate_ignored(candidate):
                 continue
-            if not (PROJECT_ROOT / candidate).is_file():
+            if not (root / candidate).is_file():
                 continue
             seen.add(candidate)
             targets.append(candidate)
@@ -6829,6 +7522,7 @@ def _run_pytest_gate(
     *,
     skip_reason: str | None = None,
     no_verify: bool = False,
+    checkout_root: Path | None = None,
 ) -> None:
     """Hard-block deploy if related pytest unit tests fail.
 
@@ -6849,7 +7543,8 @@ def _run_pytest_gate(
         print("Pytest gate: SKIPPED (no backend python files changed)")
         return
 
-    targets = _collect_pytest_targets(files_to_commit)
+    root = checkout_root or PROJECT_ROOT
+    targets = _collect_pytest_targets(files_to_commit, checkout_root=root)
     if not targets:
         print("Pytest gate: SKIPPED (no related pytest tests found)")
         return
@@ -6874,7 +7569,7 @@ def _run_pytest_gate(
     try:
         result = subprocess.run(
             cmd,
-            cwd=str(PROJECT_ROOT),
+            cwd=str(root),
             capture_output=True,
             text=True,
             timeout=_PYTEST_GATE_TIMEOUT_SECONDS,
@@ -8348,6 +9043,11 @@ def main() -> None:
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
     p_worktree_ensure = p_worktree_sub.add_parser("ensure", help="Create or show this session's worktree")
     p_worktree_ensure.add_argument("--session", "-s", required=True, help="Session ID")
+    p_worktree_binding = p_worktree_sub.add_parser("binding", help="Record an OpenCode native-binding result")
+    p_worktree_binding.add_argument("--opencode-session", required=True, help="OpenCode session ID")
+    p_worktree_binding.add_argument("--mode", required=True, choices=["native", "pilot_fallback"])
+    p_worktree_binding.add_argument("--directory", help="Canonical native session directory")
+    p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
     p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Delete safely classified stale worktrees")
     p_worktree_cleanup.add_argument(
         "--idle-hours",

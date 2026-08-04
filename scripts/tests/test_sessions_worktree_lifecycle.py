@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -61,10 +62,36 @@ def test_ensure_session_worktree_creates_deterministic_metadata(monkeypatch, tmp
     assert data["sessions"]["abcd"]["worktree"] == metadata
 
 
-def test_default_agent_worktree_directory_stays_inside_project_root():
+def test_default_agent_worktree_directory_stays_inside_control_plane_root():
     sessions = load_sessions_module()
 
-    assert sessions.AGENT_WORKTREES_DIR == sessions.PROJECT_ROOT / ".openmates-agent-worktrees"
+    assert sessions.AGENT_WORKTREES_DIR == sessions.CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
+    assert sessions.SESSIONS_FILE == sessions.CONTROL_PLANE_ROOT / ".claude" / "sessions.json"
+
+
+def test_linked_worktree_resolves_shared_control_plane_root(tmp_path):
+    sessions = load_sessions_module()
+    root = tmp_path / "root"
+    worktree = tmp_path / "agent-abcd"
+    subprocess.run(["git", "init", str(root)], check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "tests@openmates.invalid"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "OpenMates Tests"], cwd=root, check=True)
+    (root / "file.txt").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "file.txt"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-m", "fixture"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "worktree", "add", "--detach", str(worktree)], cwd=root, check=True, capture_output=True)
+
+    assert sessions._resolve_control_plane_root(worktree) == root.resolve()
+
+
+def test_root_guard_excludes_current_and_legacy_managed_worktrees(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", tmp_path / ".openmates-agent-worktrees")
+
+    assert sessions._is_root_checkout_path(tmp_path / "frontend" / "source.ts") is True
+    assert sessions._is_root_checkout_path(tmp_path / ".openmates-agent-worktrees" / "agent-new" / "source.ts") is False
+    assert sessions._is_root_checkout_path(tmp_path / ".agent-worktrees" / "agent-legacy" / "source.ts") is False
 
 
 def test_ensure_session_worktree_reuses_existing_metadata(monkeypatch, tmp_path):

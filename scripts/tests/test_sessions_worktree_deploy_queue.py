@@ -124,6 +124,7 @@ def test_pending_worktree_commit_accepts_matching_rebased_head(monkeypatch, tmp_
         path.parent.mkdir(parents=True)
         path.write_text("same content\n", encoding="utf-8")
     monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
     monkeypatch.setattr(
         sessions,
         "_load_sessions",
@@ -187,6 +188,7 @@ def test_worktree_retry_blocks_root_drift_and_refreshes_safe_amendment(monkeypat
         encoding="utf-8",
     )
     monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
 
     sessions._record_worktree_root_patch("abcd", "patch-one", [relative_path])
@@ -200,3 +202,49 @@ def test_worktree_retry_blocks_root_drift_and_refreshes_safe_amendment(monkeypat
     assert sessions._worktree_root_patch_action("abcd", "patch-two", [relative_path]) == "refresh"
     sessions._sync_worktree_files_to_root({"path": str(worktree)}, [relative_path])
     assert (root / relative_path).read_text(encoding="utf-8") == "amended\n"
+
+
+def test_worktree_retry_can_safely_expand_files_unchanged_from_source_base(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    root = tmp_path / "root"
+    worktree = tmp_path / "worktree"
+    first = "docs/spec.yml"
+    added = "scripts/new.py"
+    for base in (root, worktree):
+        path = base / first
+        path.parent.mkdir(parents=True)
+        path.write_text("integrated\n", encoding="utf-8")
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "abcd": {
+                        "worktree": {
+                            "path": str(worktree),
+                            "base_commit": "base",
+                        }
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    sessions._record_worktree_root_patch("abcd", "first-patch", [first])
+    (worktree / first).write_text("amended\n", encoding="utf-8")
+    (worktree / added).parent.mkdir(parents=True)
+    (worktree / added).write_text("new\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sessions,
+        "_snapshot_worktree_base_states",
+        lambda _metadata, files: {relative_path: {"exists": False} for relative_path in files},
+    )
+
+    assert sessions._worktree_root_patch_action("abcd", "expanded-patch", [first, added]) == "refresh"
+
+    (root / added).parent.mkdir(parents=True)
+    (root / added).write_text("foreign\n", encoding="utf-8")
+    assert sessions._worktree_root_patch_action("abcd", "expanded-patch", [first, added]) == "conflict"

@@ -15,6 +15,12 @@ Multiple agent sessions can work on the codebase at the same time. Use **`script
 
 File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
 
+New mutating OpenCode chats bind their native `session.directory` to the direct
+`agent-<session>` worktree created by `sessions.py`. Relative file tools, Bash,
+generators, tests, and newly created child sessions therefore share one working
+directory. Existing chats remain explicitly grandfathered; pilot failures use
+visible path rewriting until strict rollout is approved.
+
 ---
 
 ## Quick Reference
@@ -175,11 +181,17 @@ python3 scripts/sessions.py deploy --session <ID> \
 
 This:
 
-1. Runs the linter on all files to be committed — **aborts if lint fails**
-2. Applies the session worktree diff to the root checkout under the short dev deploy push lock
-3. Stages only the selected files, commits with the provided title/message, and pushes `dev`
-4. Records the resulting commit for commit-scoped deployed verification
-5. Lists related architecture docs that may need updating
+1. Fetches the exact current `origin/dev` commit and creates a unique detached `integration-<session>-<nonce>` worktree
+2. Applies and stages only the selected source-worktree patch there, including deletions, binary changes, executable bits, and untracked files
+3. Runs lint, generated-prerequisite, translation, parity, pytest, SDK, and embed gates in that integration checkout; a failure leaves root, source, and `dev` unchanged
+4. Takes the short dev deploy push lock, refreshes `origin/dev`, and rebuilds plus reruns gates outside the lock if the validated base advanced
+5. Commits in the detached integration checkout and pushes `HEAD:refs/heads/dev` without force
+6. Records the patch, source base, final base, integration identity, and resulting commit for reconciliation and commit-scoped verification
+7. Removes disposable integration state while retaining any unique or uncertain source worktree state
+
+Grandfathered and pilot-fallback chats continue through the legacy root
+integration path until they naturally finish. Native and legacy paths never mix
+within one session.
 
 To exclude specific files from the commit:
 

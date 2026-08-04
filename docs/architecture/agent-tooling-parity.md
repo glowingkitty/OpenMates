@@ -50,7 +50,7 @@ Some lifecycle events are tool-specific. Codex supports `UserPromptSubmit` direc
 
 ## Session Worktrees
 
-Agent edit sessions use automatic local worktrees managed by `scripts/sessions.py`. OpenCode is the primary runtime, but the durable contract remains in `sessions.py` so Claude-compatible and Codex-compatible paths can share the same session metadata, blocked-deploy records, cleanup, and verification policy.
+Agent edit sessions use automatic local worktrees managed by `scripts/sessions.py`. OpenCode is the primary runtime, but the durable contract remains in `sessions.py` so Claude-compatible and Codex-compatible paths can share the same session metadata, blocked-deploy records, cleanup, and verification policy. New mutating OpenCode chats natively bind `session.directory` to that worktree before source edits; relative file tools, Bash, generators, tests, and new child sessions then use the same directory without hidden rewriting. Pilot fallback and grandfathered sessions remain explicit migration states rather than mixed execution modes.
 
 The repository root checkout is the control plane. Use it for orchestration commands such as `sessions.py status`, `sessions.py worktree ensure`, `sessions.py deploy`, diagnostics, and deploy verification. Ordinary source edits should happen in the path printed by:
 
@@ -58,9 +58,9 @@ The repository root checkout is the control plane. Use it for orchestration comm
 python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
 ```
 
-`dev` remains the only integration and deploy branch. Session worktrees are disposable local workspaces, not long-lived user-managed branches. Deploy integration reads the session worktree diff, applies only the intended file set to `dev` in a short guarded window, commits through `sessions.py deploy`, and records the resulting commit for verification.
+`dev` remains the only integration and deploy branch. Session worktrees are disposable local workspaces, not long-lived user-managed branches. Native deploys reproduce only the selected source patch in a unique detached integration worktree based on an exact fetched `origin/dev` commit. Source-dependent gates and commit hooks run there, leaving root unchanged on failure. Finalization briefly locks, refreshes `origin/dev`, and either pushes the validated detached `HEAD:refs/heads/dev` without force or releases the lock to rebuild and rerun gates on the newer base. Grandfathered sessions retain the legacy root path until they finish.
 
-Worktree reconciliation compares the session registry, Git-linked worktrees, and physical agent-worktree directories against an exact `origin/dev` commit. Report-only reconciliation is the default. Safe application may delete a worktree only after 48 hours without activity when its content is integrated, duplicated, or review-approved as superseded. Deletion retains a compact source-free manifest for 30 days; recent, unique, and uncertain work remains visible.
+Worktree reconciliation compares the session registry, Git-linked worktrees, and physical agent-worktree directories against an exact `origin/dev` commit. It distinguishes native, pilot-fallback, grandfathered source worktrees, and nonce-shaped disposable integration worktrees. Report-only reconciliation is the default. Safe application may delete a source worktree only after 48 hours without activity when its content is integrated, duplicated, or review-approved as superseded; stale integration worktrees are reproducible and may be removed under the same idle threshold. Deletion retains a compact source-free manifest for 30 days; recent, unique, and uncertain source work remains visible.
 
 Session finalization is transactional: a fully deployed worktree is removed before session metadata, while residual changes keep the session in a pending state. Pull-request preparation runs `sessions.py worktree release-readiness`; explicitly confirmed recent work may be excluded, but stale, blocked, orphaned, malformed, or unresolved work blocks the PR.
 

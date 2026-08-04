@@ -57,11 +57,11 @@ def test_worktree_patch_id_is_scoped_to_selected_files(monkeypatch, tmp_path):
     excluded.write_text("first", encoding="utf-8")
     commands = []
 
-    def fake_run(cmd, cwd=None):
+    def fake_run(cmd, **_kwargs):
         commands.append(cmd)
-        return 0, "tracked diff", ""
+        return SimpleNamespace(returncode=0, stdout=b"tracked diff", stderr=b"")
 
-    monkeypatch.setattr(sessions, "_run_cmd", fake_run)
+    monkeypatch.setattr(sessions.subprocess, "run", fake_run)
     monkeypatch.setattr(sessions, "_worktree_untracked_files", lambda _metadata: {"included.txt", "excluded.txt"})
     metadata = {"path": str(tmp_path), "base_commit": "abc123"}
 
@@ -91,6 +91,7 @@ def test_apply_worktree_diff_with_only_untracked_file_skips_tracked_diff(monkeyp
         return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
 
     monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
     monkeypatch.setattr(sessions, "_worktree_untracked_files", lambda _metadata: {"new.txt"})
     monkeypatch.setattr(sessions.subprocess, "run", fake_run)
 

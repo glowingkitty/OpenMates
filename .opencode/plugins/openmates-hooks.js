@@ -207,6 +207,91 @@ function activeWorktreePath(sessionID) {
   return "";
 }
 
+export function nativeBindingDecisionForTest({ session = {}, currentDirectory = "", strict = false } = {}) {
+  const worktreePath = session?.worktree?.status === "active" ? session.worktree.path || "" : "";
+  const mode = session?.binding_mode || "legacy_grandfathered";
+  if (mode === "native" && worktreePath && resolve(currentDirectory) === resolve(worktreePath)) {
+    return { decision: "native", rewrite: false, block: false, worktreePath };
+  }
+  if (mode === "pilot_fallback" && !strict) {
+    return {
+      decision: "pilot_fallback",
+      rewrite: true,
+      block: false,
+      worktreePath,
+      reason: session.binding_failure_reason || "native_binding_failed",
+    };
+  }
+  if (mode === "pending" || mode === "native" || (mode === "pilot_fallback" && strict)) {
+    return {
+      decision: "blocked",
+      rewrite: false,
+      block: true,
+      worktreePath,
+      reason: "Native binding is required before source edits",
+    };
+  }
+  return { decision: "legacy_grandfathered", rewrite: true, block: false, worktreePath };
+}
+
+async function sessionDirectory(client, sessionID, directory = "") {
+  if (!client?.session?.get || !sessionID) return "";
+  try {
+    const result = await client.session.get(directory ? { sessionID, directory } : { sessionID });
+    return result?.data?.directory || result?.directory || "";
+  } catch {
+    return "";
+  }
+}
+
+async function nativeBindingDecision(client, sessionID) {
+  const record = activeSessionRecord(sessionID);
+  if (!record) return nativeBindingDecisionForTest();
+  const worktreePath = record.session?.worktree?.path || "";
+  const currentDirectory = record.session?.binding_mode === "native"
+    ? await sessionDirectory(client, sessionID, worktreePath)
+    : activeCwd();
+  return nativeBindingDecisionForTest({
+    session: record.session,
+    currentDirectory,
+    strict: String(process.env.OPENMATES_NATIVE_WORKTREE_MODE || "pilot").toLowerCase() === "strict",
+  });
+}
+
+function recordNativeBinding(sessionID, mode, directory = "", reason = "") {
+  const args = ["scripts/sessions.py", "worktree", "binding", "--opencode-session", sessionID, "--mode", mode];
+  if (directory) args.push("--directory", directory);
+  if (reason) args.push("--reason", reason);
+  const result = spawnSync("python3", args, { cwd: PROJECT_ROOT, encoding: "utf8" });
+  if (result.status !== 0) throw new Error((result.stderr || result.stdout || "Failed to record native binding").trim());
+}
+
+async function bindNativeWorktree(client, sessionID) {
+  const record = activeSessionRecord(sessionID);
+  const worktreePath = record?.session?.worktree?.path;
+  if (!client || !record || !worktreePath || record.session.binding_mode !== "pending") return;
+  if (record.session?.worktree?.bootstrap?.status !== "ready") {
+    recordNativeBinding(sessionID, "pilot_fallback", "", "worktree_bootstrap_failed");
+    return;
+  }
+  try {
+    const move = client?.experimental?.controlPlane?.moveSession;
+    if (typeof move !== "function") throw new Error("move_session_unavailable");
+    await move(
+      { sessionID, destination: { directory: worktreePath }, moveChanges: false },
+      { throwOnError: true },
+    );
+    const movedDirectory = await sessionDirectory(client, sessionID, worktreePath);
+    if (!movedDirectory || resolve(movedDirectory) !== resolve(worktreePath)) {
+      throw new Error("move_session_directory_mismatch");
+    }
+    recordNativeBinding(sessionID, "native", worktreePath);
+  } catch (error) {
+    const reason = error instanceof Error && error.message ? error.message.slice(0, 160) : "native_binding_failed";
+    recordNativeBinding(sessionID, "pilot_fallback", "", reason);
+  }
+}
+
 function pathInProjectRoot(file) {
   if (!file) return false;
   const relativePath = relative(resolve(PROJECT_ROOT), resolve(file));
@@ -580,6 +665,10 @@ export function editedFilesForTest(args, cwd = activeCwd()) {
   return [...files].sort();
 }
 
+export function editedFilesForBindingForTest(args, binding = {}) {
+  return editedFilesForTest(args, binding.worktreePath || activeCwd());
+}
+
 function explicitFilesForTest(args, cwd = activeCwd()) {
   const input = toolInput(args);
   const explicit = input.file_path || input.filePath || input.path;
@@ -615,7 +704,7 @@ function runEditLease(action, files, sessionID) {
   if (result.status !== 0) throw new Error(stderr || stdout || `OpenCode edit lease failed with exit ${result.status}`);
 }
 
-export const OpenMatesHooks = async () => ({
+export const OpenMatesHooks = async ({ client } = {}) => ({
   "shell.env": async (input, output) => {
     if (!input?.sessionID) return;
     output.env ||= {};
@@ -628,15 +717,16 @@ export const OpenMatesHooks = async () => ({
     if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
     bindSessionStart(input, output);
     if (READ_TOOLS.has(tool)) {
-      const worktreePath = activeWorktreePath(input.sessionID);
-      if (worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, worktreePath);
+      const binding = await nativeBindingDecision(client, input.sessionID);
+      if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
     }
     if (EDIT_TOOLS.has(tool)) {
-      const worktreePath = activeWorktreePath(input.sessionID);
-      if (worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, worktreePath);
-      const files = editedFilesForTest(output?.args || input?.args);
+      const binding = await nativeBindingDecision(client, input.sessionID);
+      if (binding.block) throw new Error(binding.reason);
+      if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
+      const files = editedFilesForBindingForTest(output?.args || input?.args, binding);
       runStaleRead("check", files, input.sessionID);
-      guardRootEdit(files, input.sessionID, worktreePath);
+      guardRootEdit(files, input.sessionID, binding.worktreePath);
       runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
       runEditLease("acquire", files, input.sessionID);
       return;
@@ -650,10 +740,15 @@ export const OpenMatesHooks = async () => ({
       if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
       appendCommandDoctorHint(command, output);
       appendFailedTestLeaseHint(command, output);
+      if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) await bindNativeWorktree(client, input.sessionID);
     }
-    if (READ_TOOLS.has(tool)) runStaleRead("record", explicitFilesForTest(toolArgs(input, output)), input.sessionID);
+    if (READ_TOOLS.has(tool)) {
+      const binding = await nativeBindingDecision(client, input.sessionID);
+      runStaleRead("record", explicitFilesForTest(toolArgs(input, output), binding.worktreePath || activeCwd()), input.sessionID);
+    }
     if (!EDIT_TOOLS.has(tool)) return;
-    const files = editedFilesForTest(toolArgs(input, output));
+    const binding = await nativeBindingDecision(client, input.sessionID);
+    const files = editedFilesForBindingForTest(toolArgs(input, output), binding);
     try {
       runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output)), input.sessionID);
       runStaleRead("sync", files, input.sessionID);
