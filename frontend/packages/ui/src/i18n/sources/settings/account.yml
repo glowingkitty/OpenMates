@@ -3686,6 +3686,78 @@ import_description:
   sv: Importera chattar från OpenMates, ChatGPT, Claude, Gemini, OpenCode eller en annan AI-assistent med ZIP- eller JSON-filer som stöds. Meddelanden granskas och krypteras på den här enheten före lagring.
   he: ייבא שיחות מ-OpenMates, ChatGPT, Claude, Gemini, OpenCode או מסייע AI אחר באמצעות קובצי ZIP או JSON נתמכים. ההודעות נסרקות ומוצפנות במכשיר הזה לפני האחסון.
   verified_by_human: []
+import_native_deferred:
+  context: Native Apple Account Import V1 explanation while file parsing is deferred to web and CLI
+  en: To preserve the same safety scanning and on-device encryption guarantees, import files through the web app or OpenMates CLI. Imported chats sync back to this device.
+  de: Um dieselben Sicherheitsprüfungen und die Verschlüsselung auf dem Gerät zu gewährleisten, importiere Dateien über die Web-App oder OpenMates CLI. Importierte Chats werden anschließend mit diesem Gerät synchronisiert.
+  zh: 为确保同等的安全扫描和设备端加密保障，请通过网页应用或 OpenMates CLI 导入文件。导入的聊天将同步回此设备。
+  es: Para mantener las mismas garantías de análisis de seguridad y cifrado en el dispositivo, importa los archivos mediante la aplicación web o la CLI de OpenMates. Los chats importados se sincronizarán con este dispositivo.
+  fr: Pour conserver les mêmes garanties d’analyse de sécurité et de chiffrement sur l’appareil, importez les fichiers via l’application web ou OpenMates CLI. Les chats importés seront synchronisés avec cet appareil.
+  pt: Para manter as mesmas garantias de verificação de segurança e criptografia no dispositivo, importe arquivos pelo aplicativo web ou pela CLI do OpenMates. Os chats importados serão sincronizados com este dispositivo.
+  ru: Чтобы обеспечить те же гарантии проверки безопасности и шифрования на устройстве, импортируйте файлы через веб-приложение или OpenMates CLI. Импортированные чаты синхронизируются с этим устройством.
+  ja: 同等の安全スキャンとデバイス上の暗号化を保証するため、ウェブアプリまたは OpenMates CLI からファイルをインポートしてください。インポートしたチャットはこのデバイスに同期されます。
+  ko: 동일한 안전 검사 및 기기 내 암호화 보장을 유지하려면 웹 앱 또는 OpenMates CLI를 통해 파일을 가져오세요. 가져온 채팅은 이 기기에 동기화됩니다.
+  it: Per mantenere le stesse garanzie di scansione di sicurezza e crittografia sul dispositivo, importa i file tramite l’app web o OpenMates CLI. Le chat importate verranno sincronizzate con questo dispositivo.
+  tr: Aynı güvenlik taraması ve cihaz içi şifreleme güvencelerini korumak için dosyaları web uygulaması veya OpenMates CLI üzerinden içe aktarın. İçe aktarılan sohbetler bu cihazla eşitlenir.
+  vi: Để duy trì cùng mức đảm bảo về quét an toàn và mã hóa trên thiết bị, hãy nhập tệp qua ứng dụng web hoặc OpenMates CLI. Các cuộc trò chuyện đã nhập sẽ đồng bộ lại với thiết bị này.
+  id: Untuk mempertahankan jaminan pemindaian keamanan dan enkripsi di perangkat yang sama, impor file melalui aplikasi web atau OpenMates CLI. Chat yang diimpor akan disinkronkan kembali ke perangkat ini.
+  pl: Aby zachować te same gwarancje skanowania bezpieczeństwa i szyfrowania na urządzeniu, zaimportuj pliki przez aplikację internetową lub OpenMates CLI. Zaimportowane czaty zostaną zsynchronizowane z tym urządzeniem.
+  nl: Importeer bestanden via de webapp of OpenMates CLI om dezelfde garanties voor veiligheidsscans en versleuteling op het apparaat te behouden. Geïmporteerde chats worden met dit apparaat gesynchroniseerd.
+  ar: للحفاظ على ضمانات فحص الأمان والتشفير على الجهاز نفسها، استورد الملفات عبر تطبيق الويب أو OpenMates CLI. ستتم مزامنة المحادثات المستوردة مع هذا الجهاز.
+  hi: समान सुरक्षा स्कैनिंग और डिवाइस पर एन्क्रिप्शन की गारंटी बनाए रखने के लिए, वेब ऐप या OpenMates CLI के माध्यम से फ़ाइलें आयात करें। आयात की गई चैट इस डिवाइस पर सिंक हो जाएंगी।
+  th: เพื่อคงการรับประกันด้านการสแกนความปลอดภัยและการเข้ารหัสบนอุปกรณ์แบบเดียวกัน ให้นำเข้าไฟล์ผ่านเว็บแอปหรือ OpenMates CLI แชทที่นำเข้าจะซิงค์กลับมายังอุปกรณ์นี้
+  cs: Chcete-li zachovat stejné záruky bezpečnostní kontroly a šifrování v zařízení, importujte soubory prostřednictvím webové aplikace nebo OpenMates CLI. Importované chaty se synchronizují s tímto zařízením.
+  sv: Importera filer via webbappen eller OpenMates CLI för att behålla samma garantier för säkerhetsskanning och kryptering på enheten. Importerade chattar synkroniseras med den här enheten.
+  he: כדי לשמור על אותן הבטחות של סריקת אבטחה והצפנה במכשיר, יש לייבא קבצים דרך אפליקציית האינטרנט או OpenMates CLI. הצ׳אטים שיובאו יסונכרנו עם מכשיר זה.
+  verified_by_human: []
+import_open_web:
+  context: Button opening the verified Account Import V1 web flow from an Apple app
+  en: Open secure web import
+  de: Sicheren Web-Import öffnen
+  zh: 打开安全网页导入
+  es: Abrir importación web segura
+  fr: Ouvrir l’importation web sécurisée
+  pt: Abrir importação segura pela web
+  ru: Открыть безопасный веб-импорт
+  ja: 安全なウェブインポートを開く
+  ko: 안전한 웹 가져오기 열기
+  it: Apri l’importazione web sicura
+  tr: Güvenli web içe aktarmayı aç
+  vi: Mở tính năng nhập an toàn trên web
+  id: Buka impor web aman
+  pl: Otwórz bezpieczny import internetowy
+  nl: Veilige webimport openen
+  ar: فتح الاستيراد الآمن عبر الويب
+  hi: सुरक्षित वेब आयात खोलें
+  th: เปิดการนำเข้าผ่านเว็บอย่างปลอดภัย
+  cs: Otevřít bezpečný webový import
+  sv: Öppna säker webbimport
+  he: פתיחת ייבוא מאובטח באינטרנט
+  verified_by_human: []
+import_source_other_assistant_name:
+  context: Display name for an imported assistant whose selected source is Other
+  en: AI assistant
+  de: KI-Assistent
+  zh: AI 助手
+  es: Asistente de IA
+  fr: Assistant IA
+  pt: Assistente de IA
+  ru: ИИ-ассистент
+  ja: AI アシスタント
+  ko: AI 어시스턴트
+  it: Assistente IA
+  tr: Yapay zeka asistanı
+  vi: Trợ lý AI
+  id: Asisten AI
+  pl: Asystent AI
+  nl: AI-assistent
+  ar: مساعد ذكاء اصطناعي
+  hi: AI सहायक
+  th: ผู้ช่วย AI
+  cs: AI asistent
+  sv: AI-assistent
+  he: עוזר AI
+  verified_by_human: []
 import_choose_file:
   context: Accessible label for the Account Import V1 ZIP or JSON file picker
   en: Choose a ZIP or JSON file to import

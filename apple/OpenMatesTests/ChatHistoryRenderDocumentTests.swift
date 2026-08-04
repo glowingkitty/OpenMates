@@ -34,7 +34,8 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
             encryptedModelName: try await crypto.encryptContent("gemini-import", key: key)
         )
 
-        let decrypted = try XCTUnwrap(await ChatViewModel.decryptMessagesForDisplay([message], chatId: chatId).first)
+        let decryptedMessages = await ChatViewModel.decryptMessagesForDisplay([message], chatId: chatId)
+        let decrypted = try XCTUnwrap(decryptedMessages.first)
 
         XCTAssertEqual(decrypted.content, "Synthetic imported reply")
         XCTAssertEqual(decrypted.senderName, "Gemini")
@@ -52,6 +53,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(ImportedAssistantProvider.resolve(category: "gemini")?.iconName, "google")
         XCTAssertEqual(ImportedAssistantProvider.resolve(category: "opencode")?.iconName, "coding")
         XCTAssertEqual(ImportedAssistantProvider.resolve(category: "other")?.displayName, "AI assistant")
+        XCTAssertNil(ImportedAssistantProvider.resolve(category: "openmates", isOfficialOpenMatesChat: true))
         XCTAssertNil(ImportedAssistantProvider.resolve(category: "research"))
     }
 

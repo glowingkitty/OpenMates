@@ -3086,6 +3086,27 @@ enum ChatMessageStreamingRenderPolicy {
     }
 }
 
+struct ImportedAssistantProvider: Equatable {
+    let category: String
+    let displayNameKey: String
+    let iconName: String
+
+    var displayName: String { AppStrings.localized(displayNameKey) }
+
+    static func resolve(category: String?, isOfficialOpenMatesChat: Bool = false) -> Self? {
+        guard !isOfficialOpenMatesChat else { return nil }
+        switch category {
+        case "openmates": return Self(category: "openmates", displayNameKey: "settings.account.import_source_openmates", iconName: "openmates")
+        case "chatgpt": return Self(category: "chatgpt", displayNameKey: "settings.account.import_source_chatgpt", iconName: "openai")
+        case "claude": return Self(category: "claude", displayNameKey: "settings.account.import_source_claude", iconName: "claude")
+        case "gemini": return Self(category: "gemini", displayNameKey: "settings.account.import_source_gemini", iconName: "google")
+        case "opencode": return Self(category: "opencode", displayNameKey: "settings.account.import_source_opencode", iconName: "coding")
+        case "other": return Self(category: "other", displayNameKey: "settings.account.import_source_other_assistant_name", iconName: "ai")
+        default: return nil
+        }
+    }
+}
+
 struct MessageBubble: View {
     let message: Message
     let chatId: String
@@ -3118,7 +3139,13 @@ struct MessageBubble: View {
         }
         return sizeClass == .compact
     }
-    private var assistantCategory: String? { message.appId ?? appId }
+    private var assistantCategory: String? { message.category ?? message.appId ?? appId }
+    private var importedProvider: ImportedAssistantProvider? {
+        ImportedAssistantProvider.resolve(
+            category: assistantCategory,
+            isOfficialOpenMatesChat: isOpenMatesOfficial
+        )
+    }
     private var resolvedAccessibilityIdentifier: String {
         accessibilityIdentifier ?? (isUser ? "message-user" : (isSystem ? "message-system" : "message-assistant"))
     }
@@ -3318,6 +3345,15 @@ struct MessageBubble: View {
                     .scaledToFill()
                     .frame(width: avatarSize, height: avatarSize)
                     .clipShape(Circle())
+            } else if let importedProvider {
+                Circle()
+                    .fill(avatarGradient)
+                    .frame(width: avatarSize, height: avatarSize)
+                    .overlay {
+                        Icon(importedProvider.iconName, size: avatarIconSize)
+                            .foregroundStyle(.white)
+                    }
+                    .accessibilityIdentifier("imported-provider-profile")
             } else {
                 assistantCategoryAvatar
                     .overlay(alignment: .bottomTrailing) {
@@ -3379,6 +3415,9 @@ struct MessageBubble: View {
         }
         if isOpenMatesOfficial {
             return AppStrings.openMatesName
+        }
+        if let importedProvider {
+            return importedProvider.displayName
         }
         guard let assistantCategory else {
             return AppStrings.openMatesName

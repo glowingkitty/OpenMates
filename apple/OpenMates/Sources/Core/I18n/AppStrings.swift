@@ -187,6 +187,8 @@ enum AppStrings {
     static var exportSuccess: String { L("settings.account.export_success") }
     static var exportFilename: String { L("settings.account.export") }
     static var importDescription: String { L("settings.account.import_description") }
+    static var importNativeDeferred: String { L("settings.account.import_native_deferred") }
+    static var importOpenWeb: String { L("settings.account.import_open_web") }
     static var importChooseFile: String { L("settings.account.import_choose_file") }
     static var importing: String { L("settings.account.import_importing") }
     static var importSafetyNotice: String { L("settings.account.import_safety_notice") }

@@ -563,8 +563,8 @@ final class ChatViewModel: ObservableObject {
         )
     }
 
-    /// Decrypt encrypted_content for a batch of messages using the per-chat key.
-    private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+    /// Decrypt encrypted message content and identity using the per-chat key.
+    static func decryptMessagesForDisplay(_ messages: [Message], chatId: String) async -> [Message] {
         let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
         if encryptedCount > 0, !ChatKeyManager.shared.hasKey(for: chatId) {
             print("[ChatViewModel][decrypt] messages skipped chat=\(chatId.prefix(8)) encrypted=\(encryptedCount) reason=missingChatKey")
@@ -596,9 +596,34 @@ final class ChatViewModel: ObservableObject {
                     encryptedContent: encryptedThinkingContent
                 )
             }
+            if msg.senderName == nil,
+               let encryptedSenderName = msg.encryptedSenderName {
+                msg.senderName = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedSenderName
+                )
+            }
+            if msg.category == nil,
+               let encryptedCategory = msg.encryptedCategory {
+                msg.category = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedCategory
+                )
+            }
+            if msg.modelName == nil,
+               let encryptedModelName = msg.encryptedModelName {
+                msg.modelName = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedModelName
+                )
+            }
             result.append(msg)
         }
         return result
+    }
+
+    private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+        await Self.decryptMessagesForDisplay(messages, chatId: chatId)
     }
 
     private func decryptEmbeds(
