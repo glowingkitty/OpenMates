@@ -1,7 +1,7 @@
 schema_version: 2
 id: encryption-randomness-hardening
 title: Encryption Randomness Hardening Without Legacy Data Rewrites
-status: approved
+status: verified
 
 goal: >
   Eliminate unsafe encryption randomness and nonce handling while guaranteeing
@@ -121,7 +121,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 107e1d9c05bd8688b2973b3a641090ac6d5bb570
+  subject_commit: d87fc0847f8b30907bd03d9638f02f4b024b1266
 
 approvals:
   product_contract:
@@ -291,14 +291,20 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-04T13:14:00Z"
     notes: The upload image and packaged-manifest import smoke passed, but no app-uploads container or backend/upload/.env exists on this machine. upload.openmates.org is the shared separate production VM for dev and prod, so deployment requires operator-provided runtime access and explicit production authorization.
+  - id: ATTEMPT-11
+    task_id: TASK-15
+    approach: Activate the reader-gated manifest, deploy the exact upload image, and exercise a unique image through the public dev upload and signed REST download routes.
+    outcome: succeeded
+    recorded_at: "2026-08-04T15:22:00Z"
+    notes: The shared upload VM ran revision a12d660 with write_version 2. Public upload, explicit v2 metadata, distinct nonce prefixes, Vault-only persistence, signed REST plaintext recovery, and complete Directus/S3 cleanup all passed without exposing credentials or identifiers.
 
 handoff:
-  current_task_id: TASK-14
-  next_action: Deploy commit 12fd4b7 to the dedicated upload VM, then atomically set write_version 2 and execute TASK-15 read-back checks.
-  command: operator deploy of backend/upload to upload.openmates.org required
-  expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
-  blocker: {status: blocked, reason: "Dedicated upload VM deployment requires its protected backend/upload/.env and explicit production authorization because one service handles both dev and prod uploads.", owner: release_operator}
-  last_verified_commit: 66b6630dd
+  current_task_id: TASK-16
+  next_action: No remaining implementation task; signed domain-policy activation is tracked separately in F-4.
+  command: python3 scripts/spec_verify.py docs/specs/encryption-randomness-hardening/spec.yml
+  expected_outcome: All required red, green, deployed, production-audit, and Apple evidence passes final spec verification.
+  blocker: {status: none, reason: "All in-scope encryption hardening tasks and verification gates are complete."}
+  last_verified_commit: d87fc0847
 
 scenarios:
   - id: S-1
@@ -431,8 +437,8 @@ scenarios:
 acceptance_criteria:
   - {id: AC-1, scenario: S-1, text: "Frozen legacy chat and wrapper fixtures decrypt unchanged, and browser cache identity cannot collide at 32 bits.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-WEB-CRYPTO]}
   - {id: AC-2, scenario: S-2, text: "Backend, web, and Apple decrypt legacy media fixtures without writes.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-BACKEND-MEDIA, T-WEB-MEDIA, V-APPLE]}
-  - {id: AC-3, scenario: S-3, text: "Every new multi-variant media encryption uses a distinct nonce and the exact versioned nonce-prefixed v2 format, proven through actual R2 output in backend, web, and Apple readers.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BACKEND-MEDIA, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
-  - {id: AC-4, scenario: S-4, text: "Media v2 writers cannot activate before the checked-in R1 evidence manifest passes, and post-activation rollback cannot target a pre-R1 build.", required: true, status: pending, coverage_status: covered, verification_scope: plan, verification_ids: [T-RANDOMNESS-AUDIT, T-ROLLOUT-GATE, V-REST-MEDIA-READER, V-WEB-DEPLOYED, V-APPLE, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
+  - {id: AC-3, scenario: S-3, text: "Every new multi-variant media encryption uses a distinct nonce and the exact versioned nonce-prefixed v2 format, proven through actual R2 output in backend, web, and Apple readers.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BACKEND-MEDIA, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
+  - {id: AC-4, scenario: S-4, text: "Media v2 writers cannot activate before the checked-in R1 evidence manifest passes, and post-activation rollback cannot target a pre-R1 build.", required: true, status: satisfied, coverage_status: covered, verification_scope: plan, verification_ids: [T-RANDOMNESS-AUDIT, T-ROLLOUT-GATE, V-REST-MEDIA-READER, V-WEB-DEPLOYED, V-APPLE, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
   - {id: AC-5, scenario: S-5, text: "Invoice regeneration appends a verified immutable version row/object, never updates the original encrypted row, and leaves unrelated invoices unchanged.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-INVOICE-REGEN, V-REST-INVOICE]}
   - {id: AC-6, scenario: S-6, text: "Legacy short links decrypt while new links use at least 128 bits of unbiased secret entropy with unchanged KDF semantics.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-SHORT-LINK, V-WEB-DEPLOYED, V-APPLE]}
   - {id: AC-7, scenario: S-7, text: "Unsupported password PBKDF2, email SHA-256, and passkey HKDF derivation fail before persistence and none returns all-zero material.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-WEB-CRYPTO, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
@@ -440,11 +446,11 @@ acceptance_criteria:
   - {id: AC-9, scenario: S-9, text: "Legacy CLI session files remain byte-identical and readable; stronger storage uses a separate verified file/slot and preserves the original indefinitely.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-STORAGE, V-CLI, V-NPM-SDK, V-PIP-SDK]}
   - {id: AC-10, scenario: S-10, text: "Domain policy readers preserve immutable legacy encrypted bundles and unchanged startup behavior; optional signed compatibility remains inactive.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY]}
   - {id: AC-11, scenario: S-11, text: "Security generators use CSPRNG and unbiased sampling; new human-transcribed variable code characters exclude `0` and `O` while legacy values remain accepted.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-RANDOMNESS-AUDIT, T-SECURITY-CODES]}
-  - {id: AC-12, scenario: S-2, text: "No task mutates, deletes, or bulk re-encrypts existing ciphertext or removes a legacy reader.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-NO-MIGRATION-GUARD, V-SECURITY-REVIEW]}
+  - {id: AC-12, scenario: S-2, text: "No task mutates, deletes, or bulk re-encrypts existing ciphertext or removes a legacy reader.", required: true, status: satisfied, coverage_status: covered, verification_scope: manual, verification_ids: [T-NO-MIGRATION-GUARD, V-SECURITY-REVIEW]}
   - {id: AC-13, scenario: S-12, text: "A conclusive read-only production SSH audit covers every eligible AES-GCM wrapper and NaCl encrypted-email collection without exposure or mutation; any match or incomplete scan requires an approved recovery spec before zero-return removal.", required: true, status: satisfied, coverage_status: covered, verification_scope: manual, verification_ids: [T-ZERO-KEY-AUDIT, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
   - {id: AC-14, scenario: S-13, text: "Backend and workers retain unchanged encrypted domain-policy behavior and client response contracts; signed-policy activation is explicitly deferred outside this spec.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY, V-DOMAIN-IMAGES]}
   - {id: AC-15, scenario: S-14, text: "Apple PBKDF2 and secure RNG failures are explicit and cannot return zero key material or deterministic credentials.", required: true, status: satisfied, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-CRYPTO-FAILURE, V-APPLE]}
-  - {id: AC-16, scenario: S-15, text: "New media v2 records omit raw server-side AES keys and missing chat keys abort embed persistence, while legacy records remain readable.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-MEDIA, T-WEB-CRYPTO, V-REST-MEDIA-WRITER]}
+  - {id: AC-16, scenario: S-15, text: "New media v2 records omit raw server-side AES keys and missing chat keys abort embed persistence, while legacy records remain readable.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-MEDIA, T-WEB-CRYPTO, V-REST-MEDIA-WRITER]}
 
 assumptions:
   - id: A-1
@@ -474,11 +480,12 @@ assumptions:
     text: Current production call sites do not reach the password, email-key, or passkey-HKDF zero branches during ordinary browser use, but historical password/API/recovery wrappers, passkey wrappers, and encrypted-email records have not yet been audited.
     category: data_safety
     required_before: completion
-    status: checking
+    status: confirmed
     evidence:
       - {source: frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte, summary: "Signup wrapping runs in a browser submit handler."}
       - {source: frontend/packages/ui/src/services/hiddenChatService.ts, summary: "Hidden-chat derivation is browser-guarded before calling the shared KDF."}
       - {source: "git blame 3b92f7acd7 and 4f287fcbca", summary: "The zero return originated as an SSR/import-safety fallback, not a documented ciphertext format."}
+      - {source: "production read-only audit 2026-08-03", summary: "A complete stable 3FA SSH scan covered 3555 eligible records across all six present categories with zero matches and zero errors; the optional post-production collection was confirmed absent."}
     blocker_contract: Removal of any of the three zero returns requires a conclusive negative production audit across PBKDF-derived wrappers, passkey-HKDF wrappers, and NaCl encrypted-email records; any positive or unavailable audit blocks all three removals and requires a separate approved recovery spec.
   - id: A-5
     text: Frontend, CLI, pip, and Apple do not decrypt or require plaintext domain-policy files.
@@ -628,7 +635,7 @@ tests:
     command: python3 scripts/tests.py run --suite vitest
     covers: [AC-1, AC-7, AC-16]
     assertions: [FNV collisions cannot share cached keys, Node or worker WebCrypto derives the same PBKDF2/email SHA-256/passkey HKDF bytes as browser, absent WebCrypto throws typed errors, no derivation returns all-zero bytes, missing chat key aborts embed persistence, ciphertext headers remain unchanged.]
-    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --suite vitest --expected-commit <red-commit>", run_id: "30830773255,30831724415", timestamp: "2026-08-03T16:21:32Z", reason: "Run 30830773255 collected 681 tests and failed the three typed unsupported-WebCrypto assertions plus random embed-key fallback guard at 5c26e3c56. Run 30831724415 collected 683 tests and failed both deterministic colliding-FNV encrypt/decrypt cache-isolation assertions at 7575f4c3b while the frozen OM header assertion passed."}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --suite vitest --expected-commit <red-commit>", run_id: "30830773255,30831724415", subject_commit: "7575f4c3b", timestamp: "2026-08-03T16:21:32Z", reason: "Run 30830773255 collected 681 tests and failed the three typed unsupported-WebCrypto assertions plus random embed-key fallback guard at 5c26e3c56. Run 30831724415 collected 683 tests and failed both deterministic colliding-FNV encrypt/decrypt cache-isolation assertions at 7575f4c3b while the frozen OM header assertion passed."}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --expected-commit ca793f374", run_id: "30832947231", subject_commit: "ca793f374", timestamp: "2026-08-03T16:37:48Z", notes: "683/683 tests passed. Implementation commits b19f7ae4b and 23986fa5a provide typed fail-closed derivation, remove the random embed persistence fallback, isolate exact keys inside FNV cache buckets, and preserve legacy ciphertext headers."}}
   - id: T-WEB-MEDIA
     type: vitest
@@ -660,7 +667,7 @@ tests:
     command: python3 scripts/tests.py run --suite cli-unit
     covers: [AC-9]
     assertions: [All legacy tiers load without changing file bytes, failed load preserves original, explicit save writes and reopens a separate versioned slot, legacy file remains byte-identical.]
-    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "HOME=/tmp/opencode/encryption-cli-red-home npm run test:unit:storage", run_id: "local-2026-08-03T12:34:00Z", timestamp: "2026-08-03T12:34:00Z", reason: "Legacy load rewrote session.json into encrypted storage instead of preserving bytes."}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "HOME=/tmp/opencode/encryption-cli-red-home npm run test:unit:storage", run_id: "local-2026-08-03T12:34:00Z", subject_commit: "107e1d9c05", timestamp: "2026-08-03T12:34:00Z", reason: "Legacy load rewrote session.json into encrypted storage instead of preserving bytes."}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "npm run test:unit:storage", run_id: "local-task9-cli-storage-2026-08-03", subject_commit: "3d2221b8f", timestamp: "2026-08-03T21:17:00Z", notes: "15/15 tests passed, including byte-identical legacy read, separate stronger storage, permissions, clear/purge behavior, and keychain-aware round trips."}}
   - id: T-DOMAIN-POLICY
     type: pytest
@@ -676,7 +683,7 @@ tests:
     command: python3 -m pytest backend/tests/test_zero_key_exposure_audit.py
     covers: [AC-13]
     assertions: [Synthetic zero-wrapped AES-GCM and zero-key NaCl email records are detected by authentication, correctly derived records are not flagged, decrypted bytes are never returned or logged, audit performs no update/delete calls, positive results produce a blocking sanitized finding.]
-    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -c 'from scripts import audit_zero_key_exposure as audit; audit._record_matches = lambda *_args: False; from backend.tests import test_zero_key_exposure_audit as test_module; test_module.test_detects_every_eligible_zero_key_format_without_flagging_nonzero_records()'", run_id: "local-mutation-2026-08-03T15:55:18Z", timestamp: "2026-08-03T15:55:18Z", reason: "In-memory mutation disabled authenticated matching; the primary detector test failed because the report was not blocking, proving the test rejects the missing behavior."}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -c 'from scripts import audit_zero_key_exposure as audit; audit._record_matches = lambda *_args: False; from backend.tests import test_zero_key_exposure_audit as test_module; test_module.test_detects_every_eligible_zero_key_format_without_flagging_nonzero_records()'", run_id: "local-mutation-2026-08-03T15:55:18Z", subject_commit: "9a6517f5b", timestamp: "2026-08-03T15:55:18Z", reason: "In-memory mutation disabled authenticated matching; the primary detector test failed because the report was not blocking, proving the test rejects the missing behavior."}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_zero_key_exposure_audit.py", run_id: "local-2026-08-03T15:55:18Z", subject_commit: "9a6517f5b", timestamp: "2026-08-03T15:55:18Z", notes: "29 focused tests passed, including authenticated AES-GCM/NaCl detection, stable snapshots, read-only Directus access, sanitization, and optional-schema ambiguity guards."}}
   - id: T-APPLE-CRYPTO-FAILURE
     type: unit
@@ -708,16 +715,16 @@ tests:
     command: python3 scripts/audit_media_encryption_rollout.py
     covers: [AC-4]
     assertions: [V2 activation fails with missing stale or non-passing R1 evidence, manifest pins the minimum R1 commit, activation is atomic, disabling writers preserves v2 reads, rollback below R1 is rejected.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/audit_media_encryption_rollout.py", run_id: "local-task14-red-2026-08-04T10:33:00Z", subject_commit: "63e156d", timestamp: "2026-08-04T10:33:00Z", reason: "The red contract failed because the deterministic rollout audit and shared writer boundary did not yet exist."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_media_encryption_rollout.py", run_id: "local-task14-activation-2026-08-04T15:01:00Z", subject_commit: "a12d660da", timestamp: "2026-08-04T15:01:00Z", notes: "The activated write_version 2 manifest pinned all required R1 evidence and minimum reader commit; the deterministic rollback and packaging guard passed."}}
   - id: T-NO-MIGRATION-GUARD
     type: lint
     file: scripts/audit_encryption_migration_scope.py
     command: python3 scripts/audit_encryption_migration_scope.py
     covers: [AC-12]
     assertions: [No historical rewrite entry point, legacy readers and fixtures remain, legacy schema fields are not removed, runtime write spies prove legacy media sessions and invoice rows remain byte-identical, invoice regeneration only appends a version row/object.]
-    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/audit_encryption_migration_scope.py", run_id: "local-2026-08-03T12:31:00Z", timestamp: "2026-08-03T12:31:00Z", reason: "Audit detected CLI saveSession write-on-read in the protected legacy reader block."}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_encryption_migration_scope.py", run_id: "local-2026-08-03T12:49:33Z", subject_commit: "working-tree@107e1d9c05bd8688b2973b3a641090ac6d5bb570", timestamp: "2026-08-03T12:49:33Z"}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/audit_encryption_migration_scope.py", run_id: "local-2026-08-03T12:31:00Z", subject_commit: "107e1d9c05", timestamp: "2026-08-03T12:31:00Z", reason: "Audit detected CLI saveSession write-on-read in the protected legacy reader block."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_encryption_migration_scope.py && python3 scripts/verify_encryption_compatibility.py", run_id: "local-final-no-migration-d87fc0847", subject_commit: "d87fc0847", timestamp: "2026-08-04T15:46:00Z", notes: "The final guard passed after following the shared R1 decoder: five immutable files, ten reader guards, all protected schema fields, no write-on-read session behavior, and no historical rewrite entry point."}}
   - id: T-WEB-E2E
     type: playwright
     file: frontend/apps/web_app/tests/media-encryption-compatibility.spec.ts
@@ -726,17 +733,17 @@ tests:
     covers: [AC-2, AC-3, AC-6]
     assertions: [A frozen legacy media chat renders, a checked-in v2 reader fixture renders while R1 legacy writers remain active, a legacy short link resolves, no decryption error is shown.]
     red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "task10-web-e2e-added-with-reader", timestamp: "2026-08-03T22:49:00Z", reason: "The deployed E2E contract was added with the reader implementation after the earlier unit-level red phase; run 30860760857 exposed only test selector defects and is not misrepresented as product red evidence."}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed, command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit 248c72497", run_id: "30861853666", subject_commit: "248c72497", target: "https://app.dev.openmates.org", deployment_reference: "dpl_BLj7xXDZ5aaMVwx7qwNnz1VTBvNN", timestamp: "2026-08-03T23:21:00Z", notes: "The deployed preview rendered deterministic legacy external-nonce and explicit v2 nonce-prefixed PNGs through production browser readers; the deployed six-character legacy shared link also resolved without decryption errors."}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed, command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit baef9d763", run_id: "30924983681", subject_commit: "baef9d763", target: "https://app.dev.openmates.org", deployment_reference: "dpl_HwDpCJEk9ufiZQCcYtSakXPCta6D", timestamp: "2026-08-04T15:39:44Z", notes: "The exact deployed descendant of R2 activation rendered deterministic legacy external-nonce and explicit v2 nonce-prefixed PNGs through production browser readers; the deployed legacy shared link also resolved without decryption errors."}}
 
 verifications:
   - {id: V-REST-MEDIA-READER, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-4], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "redacted short-lived signed-token GET to /v1/generated-assets/<asset>/files/<variant>/download plus invalid-token GET", run_id: "task10-rest-reader-external-2026-08-04", subject_commit: "8d38e16b3", summary: "After the operator applied the committed dev Caddyfile, the external signed download returned HTTP 200, image/webp, and 14436 plaintext bytes. An invalid token reached FastAPI and returned HTTP 403. The surface is signed-token gated, rate-limited to 120/minute, has no credit charge, and returns decrypted plaintext.", timestamp: "2026-08-04T08:24:17Z", actor: OpenCode}}
-  - {id: V-REST-MEDIA-WRITER, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: blocked, target: "https://api.dev.openmates.org", evidence: {status: partial, command: "docker exec api python /app/backend/scripts/verify_media_vault_roundtrip.py", run_id: "dev-vault-media-roundtrip-2026-08-04T13:17:00Z", subject_commit: "de5c5f2c7", summary: "Real dev Vault wrap, wrapped-key-only temporary persistence, signed REST download, exact plaintext recovery, and cleanup passed. Final writer evidence remains blocked because upload.openmates.org is a separate shared dev/prod VM and write_version remains 1 until commit 12fd4b7 is deployed there.", timestamp: "2026-08-04T13:17:00Z", actor: OpenCode}}
+  - {id: V-REST-MEDIA-WRITER, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "read auth_refresh_token from local session via stdin | docker exec -i api python /app/backend/scripts/verify_media_r2_upload.py", run_id: "dev-public-r2-upload-2026-08-04T15:22:00Z", subject_commit: "9dd9a1a81", summary: "The first-party public upload route produced three explicit aes-gcm-nonce-prefixed-v1 variants with distinct 12-byte prefixes. Directus stored a Vault-wrapped key and no raw key or external nonce; signed REST returned exact plaintext; temporary Directus and S3 resources were fully removed. Upload is cookie-authenticated, existing upload limits apply, image upload adds no generation credit charge, and the signed download returns authorized decrypted plaintext.", timestamp: "2026-08-04T15:22:00Z", actor: OpenCode}}
   - {id: V-REST-INVOICE, kind: automated_test, phase: green, required_for_done: true, covers: [AC-5], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "openmates --api-url https://api.dev.openmates.org settings billing invoices list --json && openmates --api-url https://api.dev.openmates.org settings billing invoices download <stable-invoice-id> --output <temporary-directory>", run_id: "task8-live-overlay-v2-2026-08-03", subject_commit: "6bfa3a793", summary: "The authorized OpenMatesCloud overlay imported with billing enabled; unauthenticated invoice access returned 401. Authenticated CLI list and legacy v1 download passed. A scoped append-only regeneration then Vault-unwrapped the current invoice, published v2 only after authenticated S3 read-back, and left one verified v2 row with complete encrypted metadata. Downloading the same stable logical ID after publication returned a valid 24,218-byte PDF; temporary PDFs were removed.", timestamp: "2026-08-03T21:11:46Z", actor: OpenCode}}
   - {id: V-CLI, kind: automated_test, phase: green, required_for_done: true, covers: [AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "Real authenticated CLI daily, weekly, and monthly usage-overview calls passed against dev; the same session also proved invoice list/download before TASK-9. The verifier used isolated temporary auth state and reported valid period, totals, freshness, and token-coverage contracts.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
   - {id: V-NPM-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8, AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "The locally built npm SDK made a real authenticated usage-overview call against dev and returned the canonical contract in 0.333 seconds. Its temporary API key/device was approved through the first-party session and revoked by the verifier.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
   - {id: V-PIP-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "The source-checkout pip SDK made a real authenticated usage-overview call against dev and returned the canonical contract in 0.305 seconds. Its temporary API key/device was approved through the first-party session and revoked by the verifier.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
   - {id: V-WEB-DEPLOYED, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: passed, target: "https://app.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit 248c72497", run_id: "30861853666", subject_commit: "248c72497", deployment_reference: "dpl_BLj7xXDZ5aaMVwx7qwNnz1VTBvNN", summary: "Deployed production readers rendered checked-in deterministic legacy and explicit v2 encrypted PNGs, and the deployed legacy six-character shared link resolved without decryption errors.", timestamp: "2026-08-03T23:21:00Z", actor: OpenCode}}
-  - {id: V-WEB-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, target: "https://app.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", deployment_reference: "", summary: "", timestamp: ""}}
+  - {id: V-WEB-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: passed, target: "https://app.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/tests.py run --spec cli-file-upload.spec.ts --gate-deploy --expected-commit 9dd9a1a8 && python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit baef9d763", run_id: "30924180761,30924983681", subject_commit: "baef9d763", deployment_reference: "dpl_HwDpCJEk9ufiZQCcYtSakXPCta6D", summary: "A real image upload completed through the CLI/browser contract after R2 activation, and the exact deployed production web reader rendered explicit nonce-prefixed v2 plus frozen legacy media without decryption errors.", timestamp: "2026-08-04T15:39:44Z", actor: OpenCode}}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
@@ -745,11 +752,11 @@ verifications:
     status: passed
     target: https://app.dev.openmates.org
     viewports: [laptop, mobile]
-    evidence: {status: passed, summary: "Reviewed laptop and mobile screenshots after R1 deployment. Defects: none; no overflow, broken images, implementation error text, loading stalls, console errors, page errors, response errors, or request failures. Accepted differences: the mobile rotating hero was captured between slide-content transitions; primary controls and the example-chat rail remained visible and responsive.", run_id: "test-results/visual-smoke/2026-08-04T08-25-24-090Z/summary.json", subject_commit: "21c5f2725", timestamp: "2026-08-04T08:25:56Z", actor: OpenCode}
-  - {id: V-USER-CONFIRMATION, kind: user_confirmation, phase: final, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: passed, evidence: {status: passed, summary: "User explicitly delegated the requested R1 checks to OpenCode. A fresh exact-commit deployed Playwright run rendered frozen legacy and explicit v2 encrypted media, resolved the legacy six-character shared link, and showed the Shared chat UI without content-decryption errors; the captured final screenshot was reviewed. This records delegated verification, not a claim that the user manually inspected the UI.", command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit c48dffc0b", run_id: "30896650619", subject_commit: "c48dffc0b", timestamp: "2026-08-04T09:32:51Z", actor: OpenCode, delegation: "user instruction 2026-08-04: go ahead and test these things yourself"}}
+    evidence: {status: passed, command: "node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session 508d", target: "https://app.dev.openmates.org/", viewports: [laptop, mobile], reason: "The media-reader UI had no visual redesign; the required deployed R1 rendering surface was reviewed in both required viewports before activation.", summary: "Reviewed laptop and mobile screenshots after R1 deployment. Defects: none; no overflow, broken images, implementation error text, loading stalls, console errors, page errors, response errors, or request failures. Accepted differences: the mobile rotating hero was captured between slide-content transitions; primary controls and the example-chat rail remained visible and responsive.", run_id: "test-results/visual-smoke/2026-08-04T08-25-24-090Z/summary.json", subject_commit: "21c5f2725", timestamp: "2026-08-04T08:25:56Z", actor: OpenCode}
+  - {id: V-USER-CONFIRMATION, kind: user_confirmation, phase: final, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: passed, evidence: {status: passed, reason: "The user explicitly delegated these checks to OpenCode rather than requiring a separate manual inspection.", summary: "User explicitly delegated the requested R1 checks to OpenCode. A fresh exact-commit deployed Playwright run rendered frozen legacy and explicit v2 encrypted media, resolved the legacy six-character shared link, and showed the Shared chat UI without content-decryption errors; the captured final screenshot was reviewed. This records delegated verification, not a claim that the user manually inspected the UI.", command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit c48dffc0b", run_id: "30896650619", subject_commit: "c48dffc0b", timestamp: "2026-08-04T09:32:51Z", actor: OpenCode, delegation: "user instruction 2026-08-04: go ahead and test these things yourself"}}
   - {id: V-APPLE, kind: automated_test, phase: final, required_for_done: true, covers: [AC-2, AC-4, AC-6, AC-8, AC-15], status: passed, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/ChatManagementSharingParityTests/testDurableShortLinksUseWebTwoHundredThousandRoundDerivation && python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests && python3 scripts/apple_remote.py build-ios --simulator 'iPhone 17'", run_id: "apple-remote-task13-final-2026-08-04T10:19:03Z", subject_commit: "500a44e79", summary: "The Apple short-link parity test passed with a 22-character unbiased SecureRandom Base62 secret and unchanged PBKDF2 contract; all four crypto/media failure tests passed; the full iPhone 17 simulator build succeeded. Legacy external-nonce and explicit aes-gcm-nonce-prefixed-v1 media are readable, unknown markers fail closed, PBKDF2 and SecRandom failures throw, and no zero or deterministic secret is returned.", timestamp: "2026-08-04T10:19:03Z", actor: OpenCode}}
-  - {id: V-APPLE-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
-  - {id: V-ZERO-KEY-AUDIT, kind: manual_check, phase: green, required_for_done: true, covers: [AC-13], status: passed, evidence: {status: passed, command: "docker exec -i api python - --env dev --read-only < scripts/audit_zero_key_exposure.py", run_id: "dev-zero-key-2026-08-03T15:54:15Z", subject_commit: "9a6517f5b", summary: "Complete stable read-only scan: 10795 eligible and scanned records across seven categories, zero matches, zero errors, and no findings.", timestamp: "2026-08-03T15:54:15Z"}}
+  - {id: V-APPLE-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: passed, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests", run_id: "apple-remote-task15-r2-2026-08-04T15:40:57Z", subject_commit: "d87fc0847", summary: "All four native crypto/media tests passed after web R2 verification. Apple decrypted legacy external-nonce and explicit aes-gcm-nonce-prefixed-v1 media to identical plaintext, rejected unknown markers, and retained fail-closed PBKDF2 and secure RNG behavior; simulator cleanup completed.", timestamp: "2026-08-04T15:40:57Z", actor: OpenCode}}
+  - {id: V-ZERO-KEY-AUDIT, kind: manual_check, phase: green, required_for_done: true, covers: [AC-13], status: passed, evidence: {status: passed, reason: "A live read-only dev data scan was required because fixture tests cannot prove historical rows contain no zero-derived material.", command: "docker exec -i api python - --env dev --read-only < scripts/audit_zero_key_exposure.py", run_id: "dev-zero-key-2026-08-03T15:54:15Z", subject_commit: "9a6517f5b", summary: "Complete stable read-only scan: 10795 eligible and scanned records across seven categories, zero matches, zero errors, and no findings.", timestamp: "2026-08-03T15:54:15Z"}}
   - id: V-ZERO-KEY-PROD-SSH
     kind: manual_check
     phase: final
@@ -761,10 +768,11 @@ verifications:
       command: "prod-ssh 3FA session; run validated audit_zero_key_exposure.py --env prod --read-only"
       run_id: "prod-zero-key-2026-08-03T15:54:15Z"
       subject_commit: "9a6517f5b"
+      reason: "Production data could only be assessed through the approved temporary 3FA SSH read-only audit; no mutation or private values were emitted."
       summary: "Complete stable read-only scan through temporary 3FA SSH: 3555 eligible and scanned records across six present categories, zero matches, zero errors, and no findings; the optional post-production chat_key_wrappers collection was twice confirmed absent and therefore had zero eligible records. The SSH master was closed immediately after the audit."
       timestamp: "2026-08-03T15:54:15Z"
   - {id: V-DOMAIN-IMAGES, kind: automated_test, phase: green, required_for_done: false, covers: [AC-14], status: skipped, evidence: {status: skipped, command: "python3 scripts/audit_domain_security.py --verify-api-worker-selfhost-images", run_id: "local-task7-image-contract", subject_commit: "660811d17", summary: "Image inclusion contracts passed. Production signed-bundle activation is outside this spec by explicit user decision; existing encrypted policy behavior remains unchanged.", reason: "The user explicitly deferred signed domain-policy activation to follow-up F-4.", recheck_condition: "Run this verification when F-4 activates canonical signed domain-policy bundles.", timestamp: "2026-08-04T14:59:23Z", actor: OpenCode}}
-  - {id: V-SECURITY-REVIEW, kind: manual_check, phase: final, required_for_done: true, covers: [AC-12], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
+  - {id: V-SECURITY-REVIEW, kind: manual_check, phase: final, required_for_done: true, covers: [AC-12], status: passed, evidence: {status: passed, reason: "Final review combined immutable fixture hashes, deterministic no-migration analysis, focused writer tests, deployed readers, and read-only data audits because no single automated test covers the complete no-rewrite boundary.", command: "python3 scripts/audit_crypto_randomness.py && python3 scripts/audit_encryption_migration_scope.py && python3 scripts/audit_media_encryption_rollout.py && python3 scripts/verify_encryption_compatibility.py", run_id: "final-security-review-d87fc0847", subject_commit: "d87fc0847", summary: "No historical rewrite entry point, protected-field update, legacy-reader removal, insecure randomness path, premature writer activation, raw v2 key persistence, or unresolved in-scope blocker remains. Historical ciphertext was not migrated or modified.", timestamp: "2026-08-04T15:46:00Z", actor: OpenCode}}
 
 implementation_plan:
   spec_path: docs/specs/encryption-randomness-hardening/spec.yml
@@ -1149,8 +1157,8 @@ tasks:
     independently_deployable: true
   - id: TASK-14
     title: Activate R2 nonce-prefixed writers and Vault-only key persistence
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-4, S-15]
       acceptance_criteria: [AC-3, AC-4, AC-16]
@@ -1159,13 +1167,13 @@ tasks:
     verification_ids: [T-BACKEND-MEDIA, T-ROLLOUT-GATE, V-REST-MEDIA-WRITER]
     dependencies: [TASK-13]
     ownership: {files: [config/media_encryption_rollout.yml, scripts/audit_media_encryption_rollout.py, backend/tests/test_media_encryption_compatibility.py], shared_files: [backend/upload/services/file_encryption.py, backend/upload/routes/upload_route.py, backend/apps/images/tasks/generate_task.py, backend/apps/images/tasks/vectorize_task.py, backend/apps/videos/tasks/render_remotion_task.py, backend/shared/python_utils/generated_assets/service.py]}
-    blockers: [A-7 and every R1 evidence ID must pass before write_version 2.]
+    blockers: []
     follow_up_tasks: [TASK-15]
     independently_deployable: true
   - id: TASK-15
     title: Prove actual R2 output and R1 rollback readability
-    status: pending
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-4]
       acceptance_criteria: [AC-3, AC-4]
@@ -1179,8 +1187,8 @@ tasks:
     independently_deployable: false
   - id: TASK-16
     title: Complete final security review and spec verification
-    status: pending
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12, S-13, S-14, S-15]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16]
