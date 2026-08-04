@@ -146,6 +146,26 @@ def test_amended_patch_uses_last_deployed_commit_as_integration_base(monkeypatch
     sessions._remove_integration_worktree(integration)
 
 
+def test_successful_integration_fast_forwards_dirty_control_plane_without_losing_unrelated_files(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source, base = create_fixture(tmp_path)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    next_checkout = tmp_path / "next"
+    git(root, "worktree", "add", "--detach", str(next_checkout), base)
+    (next_checkout / "changed.txt").write_text("deployed\n", encoding="utf-8")
+    git(next_checkout, "add", "changed.txt")
+    git(next_checkout, "commit", "-m", "next deploy")
+    deployed = git(next_checkout, "rev-parse", "HEAD")
+    unrelated = root / "unrelated.local"
+    unrelated.write_text("keep me\n", encoding="utf-8")
+
+    sessions._fast_forward_control_plane(deployed)
+
+    assert git(root, "rev-parse", "HEAD") == deployed
+    assert (root / "changed.txt").read_text(encoding="utf-8") == "deployed\n"
+    assert unrelated.read_text(encoding="utf-8") == "keep me\n"
+
+
 def test_gate_runner_uses_integration_checkout(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     checkout = tmp_path / "integration"

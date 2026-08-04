@@ -764,15 +764,17 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     if isinstance(metadata, dict) and metadata.get("path"):
         changed = set(_worktree_changed_files(metadata))
         deployed_states = metadata.get("root_applied_files")
-        if isinstance(deployed_states, dict):
+        if metadata.get("merged_commit"):
+            current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
+            baseline_states = _snapshot_worktree_base_states(metadata, sorted(changed))
+            changed = {
+                relative_path
+                for relative_path in changed
+                if current_states.get(relative_path) != baseline_states.get(relative_path)
+            }
+        elif isinstance(deployed_states, dict):
             current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
             baseline_states = dict(deployed_states)
-            missing = [relative_path for relative_path in changed if relative_path not in baseline_states]
-            if missing and metadata.get("merged_commit"):
-                try:
-                    baseline_states.update(_snapshot_worktree_base_states(metadata, missing))
-                except RuntimeError:
-                    pass
             changed = {
                 relative_path
                 for relative_path in changed
@@ -6108,6 +6110,25 @@ def _fetch_origin_dev_commit() -> str:
     return stdout.strip()
 
 
+def _fast_forward_control_plane(commit_hash: str) -> None:
+    """Advance the local dev checkout after a successful integration push."""
+    if not commit_hash:
+        raise RuntimeError("Cannot fast-forward the control plane without a commit hash")
+    current = _current_git_sha(CONTROL_PLANE_ROOT)
+    if current == commit_hash:
+        return
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge", "--ff-only", commit_hash],
+        cwd=str(CONTROL_PLANE_ROOT),
+        timeout=300,
+    )
+    if rc != 0 or _current_git_sha(CONTROL_PLANE_ROOT) != commit_hash:
+        raise RuntimeError(
+            "Integration pushed successfully, but the local control-plane checkout could not fast-forward: "
+            f"{stderr or 'HEAD did not reach the pushed commit'}"
+        )
+
+
 def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
     """Build the existing deploy commit message without checkout side effects."""
     commit_msg = args.title
@@ -6233,6 +6254,7 @@ def _deploy_native_worktree(
             )
             if rc != 0:
                 raise RuntimeError(f"git push failed: {stderr}")
+            _fast_forward_control_plane(commit_hash_full)
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
             deploy_lock_held = False
             break

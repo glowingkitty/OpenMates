@@ -216,6 +216,18 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-04T23:50:00Z"
     reason: Files first added by the prior deploy already exist in merged_commit; later edits must be treated as tracked amendments relative to that effective integration base.
+  - id: ATTEMPT-10
+    task_id: TASK-6
+    approach: Push a successful disposable integration commit without advancing the local control-plane checkout.
+    outcome: rejected
+    recorded_at: "2026-08-04T23:58:00Z"
+    reason: Restarted OpenCode loaded the previous local plugin despite origin/dev containing the fix; successful pushes must fast-forward local dev under the same short lock while preserving unrelated dirty files.
+  - id: ATTEMPT-11
+    task_id: TASK-6
+    approach: Select repeat-deploy files against stale legacy root_applied_files after a newer merged_commit exists.
+    outcome: rejected
+    recorded_at: "2026-08-05T00:04:00Z"
+    reason: The preview included files already present in the last deployed commit; merged_commit must be authoritative for every retained-worktree state comparison.
 
 handoff:
   current_task_id: TASK-4
@@ -560,6 +572,7 @@ tests:
       - exact-base integration reproduces selected tracked, deleted, executable, and untracked changes
       - a retained worktree amendment uses its last deployed commit as the next integration diff base
       - gates and commit use integration cwd and all pre-push failures leave root/source/dev unchanged
+      - after a successful push, local dev fast-forwards to the deployed commit without discarding unrelated dirty files
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-red-integration-worktree", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:45:00Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-green-integration-worktree", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-PYTEST-INTEGRATION-CONCURRENCY
