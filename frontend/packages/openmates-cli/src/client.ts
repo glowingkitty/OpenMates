@@ -9620,7 +9620,7 @@ export class OpenMatesClient {
   async getAuthMethodsStatus(): Promise<AuthMethodsStatus> {
     this.requireSession();
     const response = await this.http.get<AuthMethodsStatus>(
-      "/v1/payments/user-auth-methods",
+      "/v1/auth/methods",
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
