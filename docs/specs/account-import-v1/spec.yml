@@ -337,14 +337,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-04T20:10:00Z"
     notes: "Test commit 6941203 added immediate and eventual imported-title assertions for mobile and desktop Other-provider flows; run 30943006887 passed before product changes, confirming the earlier Untitled chat artifact was screenshot timing rather than a reproducible persistent defect. Locale commit c0ae33c completed 39 Account Import keys across all 21 supported locales; translation generation/validation passed, settings-translation-coverage run 30946117830 passed, and Account Import run 30946186186 passed against READY c0ae33c. Final settings and code reviews found no violations or security findings. Authenticated artifacts showed correct titles, source selection, provider identity, and compression history with no objective defects."
+  - id: ATTEMPT-17
+    task_id: TASK-17
+    approach: Replace the obsolete native plaintext import path with a localized web/CLI deferral, decrypt imported provider identity during sync rendering, and verify provider mapping plus official OpenMates avatar precedence on the remote Mac.
+    outcome: succeeded
+    recorded_at: "2026-08-04T20:45:21Z"
+    notes: "Implementation commit 58e2e91 removed native YAML/ZIP submission to the legacy endpoint, added the active-server web import fragment, decrypted encrypted sender/category/model metadata, and rendered six imported provider identities. The first remote test compile exposed missing main-actor isolation; fix c21ce05 corrected it. ChatHistoryRenderDocumentTests passed 8/8, the focused SettingsFullParityTests deferral contract passed 1/1, the iPhone 17 simulator build succeeded, translation generation/validation covered all 21 locales, and apple_chat_parity_audit.py passed."
 
 handoff:
   current_task_id: TASK-17
-  next_action: Replace the legacy native import endpoint with a native-safe web deferral and render encrypted imported-provider identity in synced Apple chats.
-  command: 'python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"'
-  expected_outcome: Native import no longer exposes the legacy plaintext path, imported provider identity renders after sync, and Apple build/tests pass.
+  next_action: Remediate inherited historical evidence gaps reported by spec_verify.py if full-spec closure is required; TASK-17 and V-APPLE-IMPACT are complete.
+  command: 'python3 scripts/spec_verify.py docs/specs/account-import-v1/spec.yml'
+  expected_outcome: Apple verification remains green; only inherited pre-TASK-17 evidence gaps may remain.
   blocker: null
-  last_verified_commit: c0ae33c70
+  last_verified_commit: c21ce05
 
 scenarios:
   - id: S-1
@@ -1238,9 +1244,9 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-9, AC-14]
-    status: pending
+    status: passed
     description: Apple parity or native-safe deferral verified after web/user confirmation.
-    evidence: { command: "python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios", timestamp: "", result: "", subject_commit: "" }
+    evidence: { command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing 'OpenMatesTests/ChatHistoryRenderDocumentTests'; python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing 'OpenMatesTests/SettingsFullParityTests/testAccountImportDefersToEncryptedWebFlow'; python3 scripts/apple_remote.py build-ios --simulator 'iPhone 17'", run_id: "apple-remote-account-import-task-17", timestamp: "2026-08-04T20:45:21Z", result: passed, subject_commit: c21ce05, notes: "Chat render/decryption suite passed 8/8, focused native-safe deferral test passed 1/1, and the full iOS simulator build succeeded. Native file parsing defers to the verified web/CLI flow; synced imported chats decrypt and render provider identity without overriding official OpenMates avatars." }
 
 implementation_plan:
   status: ready
@@ -1838,8 +1844,8 @@ tasks:
     independently_deployable: false
   - id: TASK-17
     title: Implement or explicitly defer Apple provider-identity parity
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-9, S-14]
       acceptance_criteria: [AC-9, AC-14]
@@ -1854,8 +1860,7 @@ tasks:
         - apple/OpenMates/Sources/Settings
         - apple/OpenMates/Sources/Chat
       shared_files: []
-    blockers:
-      - User confirmation of deployed web behavior is required first.
+    blockers: []
     follow_up_tasks: []
     independently_deployable: false
 
