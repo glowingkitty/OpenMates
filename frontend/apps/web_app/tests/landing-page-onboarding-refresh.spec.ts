@@ -1351,11 +1351,51 @@ test.describe('Landing page onboarding refresh', () => {
 		}
 
 		await expect(page.getByTestId('landing-signup-cta')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('landing-signup-cta')).toContainText('Start using OpenMates:');
+		await expect(page.getByTestId('landing-signup-cta')).toHaveAttribute('data-stage', 'benefits');
 		await expect(page.getByTestId('landing-signup-benefits')).toBeVisible();
 		await expect(page.getByTestId('landing-signup-benefits')).toContainText('No ads');
+		await expect(page.getByTestId('landing-signup-cta-button')).toBeHidden();
+		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Open OpenMates GitHub repository' })).toBeVisible();
+		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('role');
+		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('tabindex');
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCSS('cursor', 'default');
+		const benefitRects = await page.getByTestId('landing-signup-benefit').evaluateAll((items: HTMLElement[]) => (
+			items.map((item) => item.getBoundingClientRect())
+		));
+		const benefitsSurface = await page.getByTestId('landing-signup-benefits').evaluate((element: HTMLElement) => {
+			const stageStyle = getComputedStyle(element.parentElement as HTMLElement);
+			return {
+				backgroundColor: stageStyle.backgroundColor,
+				boxShadow: stageStyle.boxShadow
+			};
+		});
+		expect(benefitRects).toHaveLength(4);
+		expect(Math.abs(benefitRects[0].top - benefitRects[1].top)).toBeLessThanOrEqual(2);
+		expect(Math.abs(benefitRects[2].top - benefitRects[3].top)).toBeLessThanOrEqual(2);
+		expect(benefitRects[1].left - benefitRects[0].left).toBeGreaterThan(20);
+		expect(benefitsSurface.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+		expect(benefitsSurface.boxShadow).toBe('none');
 		await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
 		await expect(page.getByTestId('daily-inspiration-previous')).toBeVisible();
+
+		await expect(page.getByTestId('landing-signup-cta')).toHaveAttribute('data-stage', 'cta', { timeout: 6000 });
+		await expect(page.getByTestId('landing-signup-cta')).toContainText('Start using OpenMates');
+		await expect(page.getByTestId('landing-signup-benefits')).toBeHidden();
+		await expect(page.getByTestId('landing-signup-cta-button')).toBeVisible();
+		await expect(page.getByTestId('header-login-signup-btn')).toBeHidden();
+		await expect(page.getByRole('link', { name: 'Open OpenMates GitHub repository' })).toBeVisible();
+		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('role');
+		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('tabindex');
+
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expect(page.getByTestId('landing-signup-cta')).toHaveCount(0);
+		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('landing-signup-cta')).toHaveAttribute('data-stage', 'benefits');
+		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+		await expect(page.getByTestId('landing-signup-cta')).toHaveAttribute('data-stage', 'cta', { timeout: 6000 });
+		await expect(page.getByTestId('header-login-signup-btn')).toBeHidden();
 
 		await page.evaluate(() => {
 			const trackedWindow = window as Window & { __landingSignupEventCount?: number };
@@ -1365,13 +1405,17 @@ test.describe('Landing page onboarding refresh', () => {
 			});
 		});
 
-		await page.getByTestId('daily-inspiration-banner').click({ position: { x: 920, y: 120 } });
+		await page.getByTestId('landing-signup-cta-button').click();
 		await expect.poll(async () => page.evaluate(() => {
 			const trackedWindow = window as Window & { __landingSignupEventCount?: number };
 			return trackedWindow.__landingSignupEventCount ?? 0;
 		}), { timeout: 1000 }).toBe(1);
 		await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 5000 });
 		await expect.poll(async () => page.evaluate(() => window.location.hash), { timeout: 1000 }).not.toContain('#signup/');
+
+		await page.getByTestId('login-wrapper').getByRole('button', { name: 'Demo', exact: true }).click();
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
 	});
 
 	test('guest example chat follow-up input matches the adjacent new-chat CTA height', async ({ page }: { page: any }) => {

@@ -38,6 +38,7 @@
   import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
+  import { introBannerVisible } from '../stores/uiStateStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
   import { appsMetadata } from '../data/appsMetadata';
   import { resolveIconName } from '../utils/iconNameResolver';
@@ -83,6 +84,8 @@
   const LANDING_INTRO_REGULAR_REVEAL_MS = 520;
   const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
   const GUEST_SLIDE_CONTENT_FADE_MS = 320;
+  const SIGNUP_BENEFITS_HOLD_MS = 2800;
+  const SIGNUP_STAGE_TRANSITION_MS = 420;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
@@ -124,6 +127,7 @@
   type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
   type ActionableMobileHeadingPhase = 'large' | 'fading-out' | 'hidden' | 'fading-in' | 'ready';
   type GuestSlidePhase = 'idle' | 'fading-out' | 'hidden' | 'fading-in';
+  type SignupSlidePhase = 'idle' | 'benefits-in' | 'benefits' | 'benefits-out' | 'cta-in' | 'cta';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -183,6 +187,7 @@
   let actionableMobileHeadingReady = $state(false);
   let actionableMobileHeadingPhase = $state<ActionableMobileHeadingPhase>('large');
   let guestSlidePhase = $state<GuestSlidePhase>('idle');
+  let signupSlidePhase = $state<SignupSlidePhase>('idle');
   let pendingGuestSlideIndex = $state<number | null>(null);
 
   // Touch gesture state for mobile carousel swipes.
@@ -215,6 +220,9 @@
   let landingIntroRailSyncAnimationFrame: number | undefined;
   let guestSlideTransitionTimeout: number | undefined;
   let guestSlideTransitionAnimationFrame: number | undefined;
+  let signupStageTimeout: number | undefined;
+  let signupStageTransitionTimeout: number | undefined;
+  let signupStageAnimationFrame: number | undefined;
   let lastLandingIntroResetToken = $state(0);
   let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
@@ -287,6 +295,10 @@
     window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
     window.clearTimeout(guestSlideTransitionTimeout);
     window.cancelAnimationFrame(guestSlideTransitionAnimationFrame ?? 0);
+    window.clearTimeout(signupStageTimeout);
+    window.clearTimeout(signupStageTransitionTimeout);
+    window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
+    introBannerVisible.set(false);
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
@@ -498,6 +510,12 @@
     isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_SIGNUP_CTA_ID,
   );
   let shouldHoldOnFinalSlide = $derived(isGuestSignupCtaSlide && currentIndex === visibleInspirations.length - 1);
+  let signupBenefitsVisible = $derived(
+    signupSlidePhase === 'benefits-in'
+      || signupSlidePhase === 'benefits'
+      || signupSlidePhase === 'benefits-out',
+  );
+  let signupCtaVisible = $derived(signupSlidePhase === 'cta-in' || signupSlidePhase === 'cta');
   let guestProductAnimationKind = $derived.by(() => {
     if (!isGuestIntroVariant || landingIntroOverlayActive) return '';
     if (current?.inspiration_id === 'openmates-privacy-safety') return 'privacy';
@@ -535,6 +553,50 @@
     if (introIndex >= 0 && currentIndex !== introIndex) {
       currentIndex = introIndex;
     }
+  });
+
+  $effect(() => {
+    window.clearTimeout(signupStageTimeout);
+    window.clearTimeout(signupStageTransitionTimeout);
+    window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
+
+    if (!isGuestSignupCtaSlide) {
+      signupSlidePhase = 'idle';
+      return;
+    }
+
+    signupSlidePhase = prefersReducedMotion ? 'benefits' : 'benefits-in';
+    if (!prefersReducedMotion) {
+      signupStageAnimationFrame = window.requestAnimationFrame(() => {
+        signupSlidePhase = 'benefits';
+      });
+    }
+
+    signupStageTimeout = window.setTimeout(() => {
+      if (prefersReducedMotion) {
+        signupSlidePhase = 'cta';
+        return;
+      }
+
+      signupSlidePhase = 'benefits-out';
+      signupStageTransitionTimeout = window.setTimeout(() => {
+        signupSlidePhase = 'cta-in';
+        signupStageAnimationFrame = window.requestAnimationFrame(() => {
+          signupSlidePhase = 'cta';
+        });
+      }, SIGNUP_STAGE_TRANSITION_MS);
+    }, SIGNUP_BENEFITS_HOLD_MS);
+
+    return () => {
+      window.clearTimeout(signupStageTimeout);
+      window.clearTimeout(signupStageTransitionTimeout);
+      window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
+    };
+  });
+
+  $effect(() => {
+    introBannerVisible.set(isGuestSignupCtaSlide && signupCtaVisible && isBannerVisible);
+    return () => introBannerVisible.set(false);
   });
 
   $effect(() => {
@@ -923,7 +985,6 @@
     if (isGuestSignupCtaSlide) {
       e.stopPropagation();
       e.preventDefault();
-      openSignup();
       return;
     }
     if (isGuestIntroVariant) {
@@ -1427,9 +1488,11 @@
       since carousel arrow <button> elements live inside the card.
       Fixed height of 240px so the embed is never cut off.
     -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="daily-inspiration-banner"
       class:guest-intro-variant={isGuestIntroVariant}
+      class:guest-signup-slide={isGuestSignupCtaSlide}
       class:landing-intro-overlay-active={landingIntroOverlayActive}
       class:landing-intro-expanded={landingIntroUsesFullHeight}
       class:landing-intro-fading-out={landingIntroPhase === 'fading-out'}
@@ -1456,9 +1519,9 @@
       ontouchend={handleTouchEnd}
       ontouchcancel={handleTouchEnd}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
-      role="button"
-      tabindex="0"
-      aria-label={current.phrase}
+      role={isGuestSignupCtaSlide ? undefined : 'button'}
+      tabindex={isGuestSignupCtaSlide ? undefined : 0}
+      aria-label={isGuestSignupCtaSlide ? undefined : current.phrase}
     >
       <!-- ── Living gradient orbs — same Creative Code technique as ChatHeader.svelte.
            Three soft radial-gradient blobs morph shape and drift behind all content.
@@ -1570,6 +1633,44 @@
                   </div>
                 </div>
               </div>
+            {:else if isGuestSignupCtaSlide}
+              <div
+                class="guest-signup-sequence"
+                data-testid="landing-signup-cta"
+                data-stage={signupCtaVisible ? 'cta' : 'benefits'}
+              >
+                <div
+                  class="guest-signup-stage guest-signup-benefits-stage"
+                  class:stage-visible={signupSlidePhase === 'benefits'}
+                  class:stage-entering={signupSlidePhase === 'benefits-in'}
+                  class:stage-exiting={signupSlidePhase === 'benefits-out'}
+                  aria-hidden={!signupBenefitsVisible}
+                >
+                  <ul
+                    class="guest-signup-benefits-list"
+                    data-testid="landing-signup-benefits"
+                    aria-label={current.feature?.description ?? current.phrase}
+                  >
+                    {#each current.follow_up_suggestions ?? [] as reason}
+                      <li data-testid="landing-signup-benefit">
+                        <span class="guest-signup-benefit-check" aria-hidden="true">✓</span>
+                        <span>{reason}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+                <div
+                  class="guest-signup-stage guest-signup-cta"
+                  class:stage-visible={signupSlidePhase === 'cta'}
+                  class:stage-entering={signupSlidePhase === 'cta-in'}
+                  aria-hidden={!signupCtaVisible}
+                >
+                  <h2>{current.phrase}</h2>
+                  <button class="guest-signup-cta-button" data-testid="landing-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
+                    {current.title ?? current.phrase}
+                  </button>
+                </div>
+              </div>
             {:else}
               {#key current.inspiration_id}
                 <div
@@ -1580,14 +1681,6 @@
                   data-testid="guest-intro-copy"
                   in:fade={{ duration: 320 }}
                 >
-                  {#if isGuestSignupCtaSlide}
-                    <div class="guest-signup-cta" data-testid="landing-signup-cta">
-                      <h2>{current.phrase}</h2>
-                      <button class="guest-signup-cta-button" data-testid="landing-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
-                        {current.title ?? current.phrase}
-                      </button>
-                    </div>
-                  {:else}
                   {#if InfoCardIconComponent}
                     <span class="guest-feature-inline-icon" data-testid="guest-feature-inline-icon" aria-hidden="true">
                       <InfoCardIconComponent size={44} color="white" />
@@ -1598,7 +1691,6 @@
                         <span>{line}</span>{#if index < guestFeatureHeadlineLines.length - 1}<br>{/if}
                       {/each}
                     </span>
-                  {/if}
                 </div>
               {/key}
             {/if}
@@ -1643,20 +1735,7 @@
           {:else if isGuestIntroVariant}
             {#key current.inspiration_id}
               {#if isGuestSignupCtaSlide}
-                <div
-                  class="guest-product-demo-shell guest-signup-benefits-shell"
-                  data-testid="landing-signup-benefits"
-                  in:fade={{ duration: 320 }}
-                >
-                  <ul class="guest-signup-benefits-list" aria-label={current.feature?.description ?? current.phrase}>
-                    {#each current.follow_up_suggestions ?? [] as reason, index}
-                      <li style={`--benefit-index: ${index}`}>
-                        <span class="guest-signup-benefit-check" aria-hidden="true">✓</span>
-                        <span>{reason}</span>
-                      </li>
-                    {/each}
-                  </ul>
-                </div>
+                <!-- The final slide sequence owns the full banner content area. -->
               {:else if isGuestActionableSlide}
                 <div class="guest-actionable-demo-shell" in:fade={{ duration: 320 }}>
                   <LandingActionableEventDemo playing={actionablePlaybackActive} onComplete={handleActionableDemoComplete} />
@@ -1955,6 +2034,10 @@
     touch-action: pan-y;
   }
 
+  .daily-inspiration-banner.guest-signup-slide {
+    cursor: default;
+  }
+
   /* Settings and side-by-side layouts use the same container-derived height as
      the surrounding daily-inspiration area. */
   :global(.menu-open) .daily-inspiration-banner,
@@ -1963,11 +2046,11 @@
     min-height: 0;
   }
 
-  .daily-inspiration-banner:hover {
+  .daily-inspiration-banner:not(.guest-signup-slide):hover {
     filter: brightness(1.07);
   }
 
-  .daily-inspiration-banner:active {
+  .daily-inspiration-banner:not(.guest-signup-slide):active {
     transform: scale(0.995);
   }
 
@@ -2524,11 +2607,53 @@
     height: 100%;
   }
 
+  .guest-signup-sequence {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: min(240px, 100%);
+  }
+
+  .guest-signup-stage {
+    grid-area: 1 / 1;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(18px);
+    transition:
+      opacity 420ms ease,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0s linear 420ms;
+  }
+
+  .guest-signup-stage.stage-entering,
+  .guest-signup-stage.stage-visible,
+  .guest-signup-stage.stage-exiting {
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  .guest-signup-stage.stage-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .guest-signup-stage.stage-exiting {
+    transform: translateY(-18px);
+  }
+
+  .guest-signup-benefits-stage {
+    width: min(100%, 720px);
+  }
+
   .guest-signup-cta {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: clamp(18px, 1.8vw, 28px);
+    text-align: center;
   }
 
   .guest-signup-cta h2 {
@@ -2541,14 +2666,11 @@
     text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
   }
 
-  .guest-signup-benefits-shell {
-    padding: clamp(22px, 3vw, 46px);
-  }
-
   .guest-signup-benefits-list {
     display: grid;
-    gap: clamp(12px, 1.2vw, 20px);
-    width: min(100%, 560px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(22px, 2.4vw, 40px) clamp(30px, 5vw, 80px);
+    width: 100%;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -2564,14 +2686,7 @@
     font-weight: 750;
     letter-spacing: -0.03em;
     text-shadow: 0 2px 18px rgba(0, 0, 0, 0.22);
-    opacity: 0;
-    transform: translate3d(18px, 8px, 0) scale(0.98);
-    animation:
-      landingSignupBenefitIn 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
-      landingSignupBenefitFloat 5.4s ease-in-out infinite;
-    animation-delay:
-      calc(90ms * var(--benefit-index)),
-      calc(720ms + 90ms * var(--benefit-index));
+    justify-content: flex-start;
   }
 
   .guest-signup-benefit-check {
@@ -2584,18 +2699,6 @@
     font-size: 1.25em;
     line-height: 1;
     text-shadow: none;
-  }
-
-  @keyframes landingSignupBenefitIn {
-    to {
-      opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-  }
-
-  @keyframes landingSignupBenefitFloat {
-    0%, 100% { transform: translate3d(0, 0, 0); }
-    50% { transform: translate3d(0, -4px, 0); }
   }
 
   .guest-signup-cta-button {
@@ -3193,8 +3296,10 @@
     .landing-intro-app-rail-row,
     .landing-intro-app-rail,
     .guest-product-demo-shell::before,
+    .guest-signup-stage,
     .guest-signup-benefits-list li {
       animation: none !important;
+      transition: none !important;
     }
 
     .landing-intro-app-rail-primary {
@@ -3395,13 +3500,14 @@
     }
 
     .guest-signup-benefits-list {
-      gap: 6px 10px;
+      gap: 14px 12px;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .guest-signup-benefits-list li {
       gap: 7px;
-      font-size: clamp(0.72rem, 3.4vw, 0.96rem);
+      justify-content: center;
+      font-size: clamp(0.82rem, 3.8vw, 1.05rem);
     }
 
     .guest-signup-cta-button {

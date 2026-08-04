@@ -526,7 +526,7 @@
                 {#if !docsMode}
                     <div
                         class="right-section"
-                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible}
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
                     >
                         <a
                             class="github-repo-button"
@@ -539,6 +539,7 @@
                         </a>
                         <button
                             class="login-signup-button"
+                            class:cta-hidden={$introBannerVisible}
                             data-testid="header-login-signup-btn"
                             onclick={(e) => {
                                 e.preventDefault();
@@ -964,6 +965,13 @@
         background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
         box-shadow: none;
+    }
+
+    .login-signup-button.cta-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateX(16px);
     }
 
     /* Docs/Chat tab toggle — centered in header when in docs mode */

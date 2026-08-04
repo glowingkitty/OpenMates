@@ -120,7 +120,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: SIGNUP_CTA_INSPIRATION_ID,
-      phrase: "Start using OpenMates:",
+      phrase: "Start using OpenMates",
       title: "Signup",
       assistantResponse: "Create your OpenMates account to start using a private, pay-per-use AI workspace.",
       suggestions: ["No ads", "No subscription", "Privacy focus", "Pay per use"],

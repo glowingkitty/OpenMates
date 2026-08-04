@@ -72,8 +72,8 @@ export const loginInterfaceOpen = writable<boolean>(false);
 // with "Stay logged in" already enabled.
 export const loginStayLoggedInRequested = writable<boolean>(false);
 
-// True when the intro chat header banner is intersecting the viewport.
-// Used to hide the header Sign Up button while the banner CTA is visible.
+// True while the landing intro's final signup CTA is visible.
+// Used to avoid showing duplicate signup actions in the banner and app header.
 export const introBannerVisible = writable<boolean>(false);
 
 // --- Potentially add other global UI states here in the future ---
