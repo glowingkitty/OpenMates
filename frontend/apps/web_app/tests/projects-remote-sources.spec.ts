@@ -2,6 +2,7 @@
 export {};
 
 const { spawn, spawnSync } = require('node:child_process');
+const { homedir } = require('node:os');
 const { resolve } = require('node:path');
 const { test, expect } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -14,6 +15,7 @@ const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openma
 const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 const REPO_ROOT = resolve(__dirname, '../../../..');
 const CLI_DIR = resolve(REPO_ROOT, 'frontend/packages/openmates-cli');
+const CLI_SESSION_PATH = resolve(homedir(), '.openmates/session.json');
 
 function projectHashUrlPattern(projectId: string): RegExp {
   return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
@@ -85,7 +87,11 @@ test.describe('Projects remote sources', () => {
         'serve',
         API_BASE_URL,
       ],
-      { cwd: REPO_ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] },
+      {
+        cwd: REPO_ROOT,
+        env: { ...process.env, OPENMATES_REMOTE_HOST_SESSION: CLI_SESSION_PATH },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
     );
     let fixture: Record<string, string> | null = null;
     try {
