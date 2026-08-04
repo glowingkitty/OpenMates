@@ -279,13 +279,25 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-04T10:33:00Z"
     notes: Collection failed because the shared encrypt_media_variants boundary and deterministic audit_media_encryption_rollout module did not exist; the red contracts were preserved in commit 63e156d.
+  - id: ATTEMPT-9
+    task_id: TASK-14
+    approach: Deploy staged R2 writers with write_version 1, rebuild the API and image/video workers, then run a temporary wrapped-key-only v2 object through the real generated-asset REST download path.
+    outcome: succeeded
+    recorded_at: "2026-08-04T13:17:00Z"
+    notes: The verifier used real dev Vault, Directus, S3, and api.dev.openmates.org; wrap, raw-key omission, REST download, plaintext equality, and cleanup all passed without printing identifiers, tokens, keys, or content.
+  - id: ATTEMPT-10
+    task_id: TASK-14
+    approach: Rebuild the dedicated upload service locally before atomic write_version 2 activation.
+    outcome: blocked
+    recorded_at: "2026-08-04T13:14:00Z"
+    notes: The upload image and packaged-manifest import smoke passed, but no app-uploads container or backend/upload/.env exists on this machine. upload.openmates.org is the shared separate production VM for dev and prod, so deployment requires operator-provided runtime access and explicit production authorization.
 
 handoff:
   current_task_id: TASK-14
-  next_action: Implement the red R2 writer and rollout contracts while keeping write_version 1 until real dev Vault proof passes.
-  command: python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_media_encryption_rollout.py
+  next_action: Deploy commit 12fd4b7 to the dedicated upload VM, then atomically set write_version 2 and execute TASK-15 read-back checks.
+  command: operator deploy of backend/upload to upload.openmates.org required
   expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
-  blocker: null
+  blocker: {status: blocked, reason: "Dedicated upload VM deployment requires its protected backend/upload/.env and explicit production authorization because one service handles both dev and prod uploads.", owner: release_operator}
   last_verified_commit: 66b6630dd
 
 scenarios:
@@ -490,10 +502,11 @@ assumptions:
     text: Authorized backend media readers can obtain new v2 AES keys from Vault-wrapped material without requiring raw aes_key persistence.
     category: media_key_boundary
     required_before: completion
-    status: checking
+    status: confirmed
     evidence:
       - {source: backend/upload/routes/upload_route.py, summary: "Upload records already persist vault_wrapped_aes_key and vault_key_id context for server-side use."}
       - {source: backend/core/api/app/routes/generated_assets_api.py, summary: "Generated-asset reads already have an authorized backend decryption boundary that can be adapted to unwrap v2 keys."}
+      - {source: "docker exec api python /app/backend/scripts/verify_media_vault_roundtrip.py", summary: "Real dev Vault wrap, wrapped-key-only Directus persistence, S3 download through api.dev.openmates.org, exact plaintext recovery, and cleanup all passed at de5c5f2c7."}
   - id: A-8
     text: A protected release-signing environment can custody an Ed25519 private key and produce reviewed domain-policy signatures without exposing the key to builds or repository history.
     category: release_signing
@@ -601,7 +614,7 @@ tests:
     covers: [AC-2, AC-3, AC-4]
     assertions: [Legacy nonce and raw-key fallback decrypts, all new variants have distinct nonces, v2 bytes are nonce then ciphertext and tag, v2 rows store only Vault-wrapped server keys, the explicit marker selects v2, duplicate/RNG/Vault failure persists nothing, premature writer enablement fails.]
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_media_encryption_rollout.py -q", run_id: "local-task14-red-2026-08-04T10:33:00Z", subject_commit: "63e156d", timestamp: "2026-08-04T10:33:00Z", reason: "Collection failed because encrypt_media_variants and audit_media_encryption_rollout were intentionally absent before TASK-14 implementation."}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_media_encryption_rollout.py && python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_media_encryption_rollout.py backend/tests/test_generated_model_streaming_storage.py backend/tests/test_encrypted_embed_images.py -q", run_id: "local-task14-green-31", subject_commit: "12fd4b70e", timestamp: "2026-08-04T13:00:00Z", notes: "31 focused tests passed for unique nonce-prefixed variants, duplicate rejection, Vault-only v2 indexing, legacy/v2 readers, rollout validation, and runtime packaging. The upload image built and loaded the packaged version-1 manifest successfully."}}
   - id: T-INVOICE-REGEN
     type: pytest
     file: backend/tests/test_invoice_encryption_regeneration.py
@@ -718,7 +731,7 @@ tests:
 
 verifications:
   - {id: V-REST-MEDIA-READER, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-4], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "redacted short-lived signed-token GET to /v1/generated-assets/<asset>/files/<variant>/download plus invalid-token GET", run_id: "task10-rest-reader-external-2026-08-04", subject_commit: "8d38e16b3", summary: "After the operator applied the committed dev Caddyfile, the external signed download returned HTTP 200, image/webp, and 14436 plaintext bytes. An invalid token reached FastAPI and returned HTTP 403. The surface is signed-token gated, rate-limited to 120/minute, has no credit charge, and returns decrypted plaintext.", timestamp: "2026-08-04T08:24:17Z", actor: OpenCode}}
-  - {id: V-REST-MEDIA-WRITER, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
+  - {id: V-REST-MEDIA-WRITER, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: blocked, target: "https://api.dev.openmates.org", evidence: {status: partial, command: "docker exec api python /app/backend/scripts/verify_media_vault_roundtrip.py", run_id: "dev-vault-media-roundtrip-2026-08-04T13:17:00Z", subject_commit: "de5c5f2c7", summary: "Real dev Vault wrap, wrapped-key-only temporary persistence, signed REST download, exact plaintext recovery, and cleanup passed. Final writer evidence remains blocked because upload.openmates.org is a separate shared dev/prod VM and write_version remains 1 until commit 12fd4b7 is deployed there.", timestamp: "2026-08-04T13:17:00Z", actor: OpenCode}}
   - {id: V-REST-INVOICE, kind: automated_test, phase: green, required_for_done: true, covers: [AC-5], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "openmates --api-url https://api.dev.openmates.org settings billing invoices list --json && openmates --api-url https://api.dev.openmates.org settings billing invoices download <stable-invoice-id> --output <temporary-directory>", run_id: "task8-live-overlay-v2-2026-08-03", subject_commit: "6bfa3a793", summary: "The authorized OpenMatesCloud overlay imported with billing enabled; unauthenticated invoice access returned 401. Authenticated CLI list and legacy v1 download passed. A scoped append-only regeneration then Vault-unwrapped the current invoice, published v2 only after authenticated S3 read-back, and left one verified v2 row with complete encrypted metadata. Downloading the same stable logical ID after publication returned a valid 24,218-byte PDF; temporary PDFs were removed.", timestamp: "2026-08-03T21:11:46Z", actor: OpenCode}}
   - {id: V-CLI, kind: automated_test, phase: green, required_for_done: true, covers: [AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "Real authenticated CLI daily, weekly, and monthly usage-overview calls passed against dev; the same session also proved invoice list/download before TASK-9. The verifier used isolated temporary auth state and reported valid period, totals, freshness, and token-coverage contracts.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
   - {id: V-NPM-SDK, kind: automated_test, phase: green, required_for_done: true, covers: [AC-8, AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "The locally built npm SDK made a real authenticated usage-overview call against dev and returned the canonical contract in 0.333 seconds. Its temporary API key/device was approved through the first-party session and revoked by the verifier.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
