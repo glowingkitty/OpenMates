@@ -32,6 +32,7 @@ type ImportMockConfig = {
 	scanFailures?: Array<Record<string, unknown>>;
 	scanChats?: Array<Record<string, unknown>>;
 	messagesBlocked?: Array<Record<string, unknown>>;
+	compressionSummary?: string;
 };
 
 function buildClaudeExportJson(chatCount: number, options: { duplicateTitle?: string } = {}): string {
@@ -282,10 +283,44 @@ async function installAccountImportMock(page: any, config: ImportMockConfig = {}
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
+					batch_id: body?.batch_id,
+					sequence: body?.sequence,
+					status: 'acknowledged',
 					chats: config.scanChats ?? body?.chats ?? [],
 					credits_reserved: config.estimatedCredits ?? 1,
 					messages_blocked: config.messagesBlocked ?? [],
 					failures: config.scanFailures ?? [],
+				}),
+			});
+			return;
+		}
+
+		if (request.method() === 'POST' && /^\/v1\/account-imports\/[^/]+\/confirm$/.test(url.pathname)) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'confirmed' }) });
+			return;
+		}
+
+		if (request.method() === 'GET' && /^\/v1\/account-imports\/[^/]+\/status$/.test(url.pathname)) {
+			const scanCalls = calls.filter((call) => call.path.endsWith('/scan')).length;
+			const compressionCalls = calls.filter((call) => call.path.endsWith('/compress')).length;
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ last_scan_sequence: scanCalls - 1, last_compression_sequence: compressionCalls - 1 }),
+			});
+			return;
+		}
+
+		if (request.method() === 'POST' && /^\/v1\/account-imports\/[^/]+\/compress$/.test(url.pathname)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					batch_id: body?.batch_id,
+					sequence: body?.sequence,
+					status: 'acknowledged',
+					summary: config.compressionSummary ?? 'Synthetic sanitized compression summary',
+					failures: [],
 				}),
 			});
 			return;
@@ -355,6 +390,24 @@ async function uploadClaudeJson(page: any, chatCount: number, options: { duplica
 	});
 }
 
+async function selectImportSource(page: any, source: string): Promise<void> {
+	await page.getByTestId(`account-import-source-option-${source}`).click();
+}
+
+async function uploadGenericJson(page: any): Promise<void> {
+	await page.getByTestId('account-import-file-upload-input').setInputFiles({
+		name: 'generic-transcript.json',
+		mimeType: 'application/json',
+		buffer: Buffer.from(JSON.stringify({
+			title: 'Synthetic generic web import chat',
+			messages: [
+				{ role: 'user', content: 'Synthetic generic web import user message' },
+				{ role: 'assistant', content: 'Synthetic generic web import assistant message', model: 'synthetic-model' },
+			],
+		}), 'utf8'),
+	});
+}
+
 async function uploadOpenCodeJson(page: any): Promise<void> {
 	await page.getByTestId('account-import-file-upload-input').setInputFiles({
 		name: 'opencode-session.json',
@@ -399,8 +452,10 @@ module.exports = {
 	loginAndOpenImportSettings,
 	openImportSettings,
 	persistPayloads,
+	selectImportSource,
 	uploadChatGPTZip,
 	uploadClaudeJson,
+	uploadGenericJson,
 	uploadOpenCodeJson,
 	uploadOpenMatesZip,
 	writePersistArtifacts,

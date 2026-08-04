@@ -639,4 +639,140 @@ describe("chatImportService Account Import V1", () => {
     expect(JSON.stringify(parsed)).not.toContain("Private reasoning must not import.");
     expect(JSON.stringify(parsed)).not.toContain("Tool output must not import.");
   });
+
+  it("strictly parses generic Gemini and Other transcripts independently from source identity", async () => {
+    const service = await import("../chatImportService");
+    const file = {
+      name: "generic-transcript.json",
+      text: async () => JSON.stringify({
+        title: "Synthetic generic transcript",
+        messages: [
+          { role: "user", content: "Synthetic generic question" },
+          { role: "assistant", content: "Synthetic generic answer", model: "synthetic-model" },
+        ],
+      }),
+    } as File;
+
+    const gemini = await service.parseImportFile(file, "gemini");
+    const other = await service.parseImportFile(file, "other");
+
+    expect(gemini.parserFormat).toBe("generic");
+    expect(gemini.source).toBe("gemini");
+    expect(gemini.chats[0].messages[1].imported_assistant_identity).toEqual({
+      category: "gemini",
+      sender_name: "Gemini",
+      model_name: "synthetic-model",
+    });
+    expect(other.chats[0].messages[1].imported_assistant_identity).toEqual({
+      category: "other",
+      sender_name: "AI assistant",
+      model_name: "synthetic-model",
+    });
+
+    await expect(service.parseImportFile({
+      name: "raw-gemini-takeout.json",
+      text: async () => JSON.stringify({ conversations: [{ turns: [] }] }),
+    } as File, "gemini")).rejects.toThrow("generic role/content JSON");
+    await expect(service.parseImportFile({
+      name: "ambiguous.json",
+      text: async () => JSON.stringify({ messages: [{ role: "assistant", text: "wrong key" }] }),
+    } as File, "other")).rejects.toThrow("role and content");
+  });
+
+  it("confirms then resumes bounded scan and compression cursors before encrypted persistence", async () => {
+    const requests: Array<{ path: string; method: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathFromUrl(input);
+      const method = init?.method ?? "GET";
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      requests.push({ path, method, body });
+      if (path.endsWith("/confirm")) return new Response(JSON.stringify({ status: "confirmed" }));
+      if (path.endsWith("/status")) {
+        const statusCalls = requests.filter((request) => request.path.endsWith("/status")).length;
+        return new Response(JSON.stringify({
+          last_scan_sequence: statusCalls === 1 ? -1 : 1,
+          last_compression_sequence: statusCalls < 3 ? -1 : 1,
+        }));
+      }
+      if (path.endsWith("/scan")) {
+        return new Response(JSON.stringify({
+          batch_id: body.batch_id,
+          sequence: body.sequence,
+          status: "acknowledged",
+          chats: body.chats,
+          messages_blocked: [],
+          failures: [],
+        }));
+      }
+      if (path.endsWith("/compress")) {
+        return new Response(JSON.stringify({
+          batch_id: body.batch_id,
+          sequence: body.sequence,
+          status: "acknowledged",
+          summary: `sanitized summary ${Number(body.sequence) + 1}`,
+          failures: [],
+        }));
+      }
+      if (path.endsWith("/persist-encrypted")) {
+        const chats = body.chats as Array<{ chat_id: string }>;
+        return new Response(JSON.stringify({ status: "complete", imported_chat_ids: chats.map((chat) => chat.chat_id), encrypted_record_counts: { chats: 1, messages: 5 }, failures: [] }));
+      }
+      if (path.endsWith("/complete")) return new Response(JSON.stringify({ status: "complete", imported_count: 1, credits_charged: 1, credits_released: 1, failures: [] }));
+      return new Response(JSON.stringify({ detail: "unexpected request" }), { status: 500 });
+    }));
+
+    const service = await import("../chatImportService");
+    const parsed = await service.parseImportFile({
+      name: "generic-transcript.json",
+      text: async () => JSON.stringify({
+        title: "Long synthetic transcript",
+        messages: [
+          { role: "user", content: "Question one" },
+          { role: "assistant", content: "Answer one", model: "synthetic-model" },
+          { role: "user", content: "Question two" },
+          { role: "assistant", content: "Answer two", model: "synthetic-model" },
+        ],
+      }),
+    } as File, "gemini");
+
+    await service.importChats(parsed, parsed.chats, {
+      import_id: "import-resume",
+      default_selection_count: 1,
+      max_batch_count: 1,
+      duplicate_fingerprints: [],
+      estimated_credits: 2,
+      can_import: true,
+      reason: "paid_import_available",
+    }, undefined, { maxMessagesPerBatch: 2 });
+
+    expect(requests.map((request) => `${request.method} ${request.path}`)).toEqual([
+      "POST /v1/account-imports/import-resume/confirm",
+      "GET /v1/account-imports/import-resume/status",
+      "POST /v1/account-imports/import-resume/scan",
+      "POST /v1/account-imports/import-resume/scan",
+      "GET /v1/account-imports/import-resume/status",
+      "POST /v1/account-imports/import-resume/compress",
+      "POST /v1/account-imports/import-resume/compress",
+      "GET /v1/account-imports/import-resume/status",
+      "POST /v1/account-imports/import-resume/persist-encrypted",
+      "POST /v1/account-imports/import-resume/complete",
+    ]);
+    const compressionBodies = requests.filter((request) => request.path.endsWith("/compress")).map((request) => request.body);
+    expect(compressionBodies[0]).not.toHaveProperty("prior_summary");
+    expect(compressionBodies[1].prior_summary).toBe("sanitized summary 1");
+    const persistBody = requests.find((request) => request.path.endsWith("/persist-encrypted"))!.body;
+    expect(JSON.stringify(persistBody)).not.toContain("sanitized summary");
+    const messages = (persistBody.chats as Array<{ messages: Array<Record<string, unknown>> }>)[0].messages;
+    expect(messages[1]).toMatchObject({
+      encrypted_sender_name: expect.stringContaining("encrypted:"),
+      encrypted_category: expect.stringContaining("encrypted:"),
+      encrypted_model_name: expect.stringContaining("encrypted:"),
+    });
+    expect(messages.at(-1)).toMatchObject({
+      role: "system",
+      encrypted_content: expect.stringContaining("encrypted:"),
+      encrypted_category: expect.stringContaining("encrypted:"),
+    });
+    expect(messages[1]).not.toHaveProperty("avatar_key");
+  });
 });
