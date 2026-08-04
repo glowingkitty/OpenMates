@@ -265,3 +265,76 @@ def test_discord_failure_embeds_respect_aggregate_character_limit():
     for embed in fitted[1:]:
         assert "**Critical product areas**" in embed["description"]
         assert "Billing & payments" in embed["description"]
+
+
+def test_email_summaries_match_grouped_failure_structure_without_causes():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="2026-08-03T03:00:02Z",
+        git_sha="79b5ef7b5",
+        git_branch="dev<script>alert(1)</script>",
+        environment="development<img>",
+        duration_seconds=15438.5,
+        summary={
+            "total": 4,
+            "passed": 1,
+            "failed": 3,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={
+            "playwright": {
+                "tests": [
+                    {
+                        "file": "signup-flow-stripe-managed.spec.ts",
+                        "status": "failed",
+                        "error": "Expected page: must not be emailed",
+                    },
+                    {
+                        "file": "chat-flow.spec.ts",
+                        "status": "failed",
+                        "error": "Timeout: must not be emailed",
+                    },
+                    {"file": "green.spec.ts", "status": "passed"},
+                ]
+            },
+            "pytest_unit": {
+                "tests": [
+                    {
+                        "name": "tests/test_billing_routes.py::test_invoice",
+                        "status": "failed",
+                        "error": "KeyError: must not be emailed",
+                    }
+                ]
+            },
+        },
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+
+    text = service._build_summary_text(result)
+    html = service._build_summary_html(result)
+
+    assert "Playwright · 2 failures · 2 files" in text
+    assert "Billing & payments: 1 failed file" in text
+    assert "Signup & authentication: 1 failed file" in text
+    assert "Core chat: 1 failed file" in text
+    assert "signup-flow-stripe-managed.spec.ts" in text
+    assert "chat-flow.spec.ts" in text
+    assert "Pytest unit · 1 failure · 1 file" in text
+    assert "tests/test_billing_routes.py" in text
+
+    assert "Playwright · 2 failures · 2 files" in html
+    assert "Billing &amp; payments: 1 failed file" in html
+    assert "signup-flow-stripe-managed.spec.ts" in html
+    assert "tests/test_billing_routes.py" in html
+    assert "dev&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "development&lt;img&gt;" in html
+    assert "<script>" not in html
+    assert "development<img>" not in html
+
+    for cause in ("Expected page", "Timeout", "KeyError", "must not be emailed"):
+        assert cause not in text
+        assert cause not in html

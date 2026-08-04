@@ -58,6 +58,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from html import escape
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -330,7 +331,11 @@ def _primary_product_area(searchable: str) -> str:
     return DEFAULT_PRODUCT_AREA
 
 
-def _build_discord_failure_embeds(suites: dict, color: int) -> list[dict]:
+def _build_discord_failure_embeds(
+    suites: dict,
+    color: int,
+    truncate_descriptions: bool = True,
+) -> list[dict]:
     """Build one product-area-grouped Discord embed per failing suite."""
     suite_failures: list[tuple[str, int, dict[str, int], dict[str, list[str]]]] = []
     for suite_name, suite_data in suites.items():
@@ -358,8 +363,9 @@ def _build_discord_failure_embeds(suites: dict, color: int) -> list[dict]:
     for suite_name, failure_count, failed_file_counts, failed_file_searchable in suite_failures:
         category_label = suite_name.replace("_", " ").capitalize()
         file_label = "file" if len(failed_file_counts) == 1 else "files"
+        suite_failure_label = "failure" if failure_count == 1 else "failures"
         title = (
-            f"{category_label} · {failure_count} failures · "
+            f"{category_label} · {failure_count} {suite_failure_label} · "
             f"{len(failed_file_counts)} {file_label}"
         )
 
@@ -399,12 +405,28 @@ def _build_discord_failure_embeds(suites: dict, color: int) -> list[dict]:
                 count_suffix = f" — {count} failures" if count > 1 else ""
                 lines.append(f"• `{test_file}`{count_suffix}")
 
+        description = (
+            _fit_discord_description(lines)
+            if truncate_descriptions
+            else "\n".join(lines)
+        )
         embeds.append({
             "title": title,
-            "description": _fit_discord_description(lines),
+            "description": description,
             "color": color,
         })
     return embeds
+
+
+def _plain_notification_text(value: str) -> str:
+    """Remove Discord markdown while preserving the grouped report structure."""
+    return (
+        value.replace("**", "")
+        .replace("`", "")
+        .replace("🔴", "FAIL")
+        .replace("🟢", "OK")
+        .replace("•", "-")
+    )
 
 
 def _limit_discord_failure_embeds(embeds: list[dict], color: int) -> list[dict]:
@@ -3676,28 +3698,10 @@ class NotificationService:
         status_color = "#22c55e" if problem_count == 0 else "#ef4444"
         status_text = "ALL PASSED" if problem_count == 0 else _problem_summary_label(s).upper()
 
-        # Collect failed tests — prefer structured Playwright errors over GHA logs
-        failed_rows = ""
-        for suite_name, suite_data in result.suites.items():
-            for t in suite_data.get("tests", []):
-                if _is_problem_status(t.get("status", "")):
-                    # Use first structured Playwright error if available
-                    pw_errors = t.get("playwright_errors", [])
-                    if pw_errors:
-                        error = (pw_errors[0].get("message") or "")[:500].replace("<", "&lt;")
-                    else:
-                        error = (t.get("error") or "")[:300].replace("<", "&lt;")
-                    name = t.get("file", t.get("name", "?"))
-                    failed_rows += (
-                        f"<tr><td style='padding:4px 8px'>{suite_name}</td>"
-                        f"<td style='padding:4px 8px'>{name}</td>"
-                        f"<td style='padding:4px 8px;font-size:12px;color:#888'>"
-                        f"<pre style='margin:0;white-space:pre-wrap;max-width:500px'>{error}</pre>"
-                        f"</td></tr>"
-                    )
-
         dur_min = int(result.duration_seconds // 60)
         dur_sec = int(result.duration_seconds % 60)
+        git_ref = escape(f"{result.git_sha}@{result.git_branch}")
+        environment = escape(str(result.environment))
 
         html = f"""<html><body style="font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:20px">
 <h2 style="color:{status_color}">{status_text}</h2>
@@ -3709,16 +3713,27 @@ class NotificationService:
 <tr><td style="padding:4px 12px 4px 0;color:#888">Skipped</td><td>{s['skipped']}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Not started</td><td>{s.get('not_started', 0)}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Duration</td><td>{dur_min}m {dur_sec}s</td></tr>
-<tr><td style="padding:4px 12px 4px 0;color:#888">Git</td><td>{result.git_sha}@{result.git_branch}</td></tr>
-<tr><td style="padding:4px 12px 4px 0;color:#888">Environment</td><td>{result.environment}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#888">Git</td><td>{git_ref}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#888">Environment</td><td>{environment}</td></tr>
 </table>"""
 
-        if failed_rows:
-            html += f"""<h3 style="color:#ef4444;margin-top:20px">Failed Tests / Dispatch Errors</h3>
-<table style="border-collapse:collapse;width:100%;font-size:13px">
-<tr style="color:#888"><th style="text-align:left;padding:4px 8px">Suite</th><th style="text-align:left;padding:4px 8px">Test</th><th style="text-align:left;padding:4px 8px">Error</th></tr>
-{failed_rows}
-</table>"""
+        if problem_count:
+            html += '<h3 style="color:#ef4444;margin-top:20px">Failures by suite and product area</h3>'
+            failure_embeds = _build_discord_failure_embeds(
+                result.suites,
+                color=0xEF4444,
+                truncate_descriptions=False,
+            )
+            for failure_embed in failure_embeds:
+                title = escape(str(failure_embed["title"]))
+                description = escape(
+                    _plain_notification_text(str(failure_embed["description"]))
+                )
+                html += (
+                    f'<h4 style="margin:18px 0 6px">{title}</h4>'
+                    f'<pre style="margin:0;white-space:pre-wrap;font-size:13px">'
+                    f'{description}</pre>'
+                )
 
         html += "</body></html>"
         return html
@@ -3741,21 +3756,17 @@ class NotificationService:
         ]
 
         if _problem_count(s) > 0:
-            lines.append("Failed Tests / Dispatch Errors:")
+            lines.append("Failures by suite and product area:")
             lines.append("-" * 40)
-            for suite_name, suite_data in result.suites.items():
-                for t in suite_data.get("tests", []):
-                    if _is_problem_status(t.get("status", "")):
-                        name = t.get("file", t.get("name", "?"))
-                        # Prefer structured Playwright error
-                        pw_errors = t.get("playwright_errors", [])
-                        if pw_errors:
-                            error = (pw_errors[0].get("message") or "")[:400]
-                        else:
-                            error = (t.get("error") or "")[:200]
-                        lines.append(f"  [{suite_name}] {name}")
-                        if error:
-                            lines.append(f"    {error}")
+            failure_embeds = _build_discord_failure_embeds(
+                result.suites,
+                color=0xEF4444,
+                truncate_descriptions=False,
+            )
+            for failure_embed in failure_embeds:
+                lines.append(str(failure_embed["title"]))
+                lines.append(_plain_notification_text(str(failure_embed["description"])))
+                lines.append("")
             lines.append("")
 
         return "\n".join(lines)
