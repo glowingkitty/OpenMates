@@ -193,6 +193,28 @@ async def _authenticate_sdk_request(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
+async def _authenticate_sdk_surface_request(
+    request: Request,
+    surface: str,
+    response: Response,
+) -> dict[str, Any]:
+    if request.headers.get("Authorization", "").startswith("Bearer "):
+        return await _authenticate_sdk_request(request)
+    if surface != "memories":
+        raise HTTPException(status_code=401, detail="Missing API key bearer token")
+
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+
+    current_user = await get_current_user(
+        directus_service=request.app.state.directus_service,
+        cache_service=request.app.state.cache_service,
+        refresh_token=request.cookies.get("auth_refresh_token"),
+        response=response,
+        request=request,
+    )
+    return {"user_id": current_user.id, "api_key_metadata": {}}
+
+
 def _require_chat_scope(api_key_info: dict[str, Any], scope: str) -> None:
     try:
         ApiKeyAuthorizationService().require_chat_scope(
@@ -1337,9 +1359,13 @@ async def _sdk_parity_placeholder(
     surface: str,
     path: str = "",
     body: dict[str, Any] | None = None,
+    response: Response | None = None,
 ) -> Any:
-    api_key_info = await _authenticate_sdk_request(request)
-    required_scope = _require_sdk_scope_for_surface(api_key_info, surface, request.method, path)
+    is_api_key_request = request.headers.get("Authorization", "").startswith("Bearer ")
+    api_key_info = await _authenticate_sdk_surface_request(request, surface, response or Response())
+    required_scope = None
+    if is_api_key_request:
+        required_scope = _require_sdk_scope_for_surface(api_key_info, surface, request.method, path)
     result = await _dispatch_sdk_surface(request, api_key_info, surface, path, body)
     if result is not None:
         return result
@@ -2259,9 +2285,10 @@ async def _authenticate_connected_account_skill_request(request: Request, respon
 async def sdk_surface_root(
     request: Request,
     surface: str,
+    response: Response,
     body: dict[str, Any] | None = Body(default=None),
 ) -> Any:
-    return await _sdk_parity_placeholder(request, surface, body=body)
+    return await _sdk_parity_placeholder(request, surface, body=body, response=response)
 
 
 @router.api_route(
@@ -2272,9 +2299,10 @@ async def sdk_surface_path(
     request: Request,
     surface: str,
     path: str,
+    response: Response,
     body: dict[str, Any] | None = Body(default=None),
 ) -> Any:
-    return await _sdk_parity_placeholder(request, surface, path=path, body=body)
+    return await _sdk_parity_placeholder(request, surface, path=path, body=body, response=response)
 
 
 async def create_sdk_session_for_api_key(

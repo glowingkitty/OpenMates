@@ -11,7 +11,7 @@ import hashlib
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 
 from backend.core.api.app.routes import sdk as sdk_routes
 from backend.core.api.app.routes.sdk import (
@@ -225,12 +225,14 @@ class _FakeConnectionManager:
 
 
 class _FakeRequest:
-    def __init__(self, method="GET", query_params=None):
+    def __init__(self, method="GET", query_params=None, headers=None, cookies=None):
         directus_service = _FakeDirectusService()
         cache_service = _FakeCacheService()
         connection_manager = _FakeConnectionManager()
         self.method = method
         self.query_params = query_params or {}
+        self.headers = headers or {}
+        self.cookies = cookies or {}
         self.app = SimpleNamespace(
             state=SimpleNamespace(
                 directus_service=directus_service,
@@ -531,6 +533,33 @@ async def test_sdk_dispatch_memory_types_uses_apps_api_route(monkeypatch):
     )
 
     assert result == {"apps": [{"id": "calendar", "memory": True}]}
+
+
+@pytest.mark.asyncio
+async def test_sdk_memories_accept_first_party_session_auth(monkeypatch):
+    async def fake_session_auth(**kwargs):
+        assert kwargs["refresh_token"] == "session-token"
+        return SimpleNamespace(id="user-1")
+
+    from backend.core.api.app.routes.auth_routes import auth_dependencies
+
+    monkeypatch.setattr(auth_dependencies, "get_current_user", fake_session_auth)
+    request = _FakeRequest(cookies={"auth_refresh_token": "session-token"})
+
+    result = await sdk_routes.sdk_surface_root(request, "memories", Response(), None)
+
+    assert result == {"memories": []}
+
+
+@pytest.mark.asyncio
+async def test_sdk_non_memory_surfaces_still_require_api_key():
+    request = _FakeRequest(cookies={"auth_refresh_token": "session-token"})
+
+    with pytest.raises(HTTPException) as exc:
+        await sdk_routes.sdk_surface_root(request, "billing", Response(), None)
+
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Missing API key bearer token"
 
 
 @pytest.mark.asyncio

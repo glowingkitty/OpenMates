@@ -53,6 +53,7 @@ from backend.core.api.app.routes import code_notebook_execution  # noqa: E402 # 
 from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
 from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
+from backend.core.api.app.routes import referrals  # noqa: E402 # Authenticated referral program routes
 from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
@@ -1339,6 +1340,7 @@ def create_app() -> FastAPI:
     app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)
     app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
+    app.include_router(referrals.router, include_in_schema=False)  # Referral status and attribution - authenticated first-party clients
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
 
     # Wikipedia proxy — web app only; prevents user IP from being exposed to Wikimedia

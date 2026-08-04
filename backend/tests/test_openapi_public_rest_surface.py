@@ -23,6 +23,8 @@ MAIN_API_PATH = REPO_ROOT / "backend/core/api/main.py"
 def test_openapi_hides_runtime_only_and_encrypted_product_routes() -> None:
     main_source = MAIN_API_PATH.read_text(encoding="utf-8")
 
+    assert "from backend.core.api.app.routes import referrals" in main_source
+    assert "app.include_router(referrals.router, include_in_schema=False)" in main_source
     assert "app.include_router(geocode.router, include_in_schema=False)" in main_source
     assert "app.include_router(analytics_beacon.router, include_in_schema=False)" in main_source
     assert "app.include_router(default_inspirations.router, include_in_schema=False)" in main_source
