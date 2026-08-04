@@ -198,6 +198,24 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-04T22:25:00Z"
     reason: The legacy plugin SDK did not expose moveSession, prior native records disagreed with OpenCode storage, and restart guards prevented existing canceled chats from continuing or repairing themselves.
+  - id: ATTEMPT-7
+    task_id: TASK-4
+    approach: Replace output.args with a new routed object inside tool.execute.before.
+    outcome: rejected
+    recorded_at: "2026-08-04T23:38:00Z"
+    reason: The live restart pilot reconstructed environment identity, but OpenCode executed the original args object, so parent and child Bash remained in root; routing must mutate that object in place.
+  - id: ATTEMPT-8
+    task_id: TASK-6
+    approach: Reapply an amended retained-worktree patch from its original creation base after an earlier successful deploy.
+    outcome: rejected
+    recorded_at: "2026-08-04T23:45:00Z"
+    reason: The disposable integration correctly blocked conflicts because the historical patch was already present on dev; repeat deploys must diff selected amendments from the recorded merged_commit.
+  - id: ATTEMPT-9
+    task_id: TASK-6
+    approach: Classify files as untracked using only the retained source worktree's original index during a repeat deploy.
+    outcome: rejected
+    recorded_at: "2026-08-04T23:50:00Z"
+    reason: Files first added by the prior deploy already exist in merged_commit; later edits must be treated as tracked amendments relative to that effective integration base.
 
 handoff:
   current_task_id: TASK-4
@@ -494,6 +512,7 @@ tests:
     assertions:
       - route active and retained merged worktrees regardless of obsolete native, pending, or fallback labels
       - rewrite read, glob, grep, and edit paths and force Bash workdir
+      - mutate the original OpenCode execution args object rather than replacing the hook wrapper property
       - resolve Task children through parentID without plugin-local state
       - preserve reads and lifecycle repair when mutation routing is unresolved
       - every rejection includes Reason and Next guidance
@@ -539,6 +558,7 @@ tests:
     covers: [AC-6]
     assertions:
       - exact-base integration reproduces selected tracked, deleted, executable, and untracked changes
+      - a retained worktree amendment uses its last deployed commit as the next integration diff base
       - gates and commit use integration cwd and all pre-push failures leave root/source/dev unchanged
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-red-integration-worktree", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:45:00Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-green-integration-worktree", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}

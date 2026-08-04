@@ -111,6 +111,41 @@ def test_selected_patch_is_reproduced_without_mutating_root_or_source(monkeypatc
     assert not checkout.exists()
 
 
+def test_amended_patch_uses_last_deployed_commit_as_integration_base(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, source, base = create_fixture(tmp_path)
+    integrations = root / ".openmates-agent-worktrees"
+    integrations.mkdir()
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+
+    (root / "changed.txt").write_text("after\n", encoding="utf-8")
+    (root / "new.bin").write_bytes((source / "new.bin").read_bytes())
+    git(root, "add", "changed.txt", "new.bin")
+    git(root, "commit", "-m", "first deploy")
+    deployed = git(root, "rev-parse", "HEAD")
+    (source / "changed.txt").write_text("amended\n", encoding="utf-8")
+    (source / "new.bin").write_bytes(b"amended binary")
+    metadata = {"path": str(source), "base_commit": base, "merged_commit": deployed}
+    files = ["changed.txt", "new.bin"]
+
+    integration = sessions._prepare_integration_worktree(
+        "abcd",
+        metadata,
+        files,
+        sessions._worktree_patch_id(metadata, files),
+        deployed,
+    )
+    checkout = Path(integration["path"])
+
+    assert integration["source_base"] == deployed
+    assert (checkout / "changed.txt").read_text(encoding="utf-8") == "amended\n"
+    assert (checkout / "new.bin").read_bytes() == b"amended binary"
+    assert set(git(checkout, "diff", "--cached", "--name-only").splitlines()) == set(files)
+    sessions._remove_integration_worktree(integration)
+
+
 def test_gate_runner_uses_integration_checkout(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     checkout = tmp_path / "integration"

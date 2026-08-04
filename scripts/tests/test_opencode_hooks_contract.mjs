@@ -27,13 +27,19 @@ const routedTestData = {
 };
 
 async function runBeforeShell(command) {
+  const result = await runBeforeShellWithExecutionArgs(command);
+  return result.executionArgs;
+}
+
+async function runBeforeShellWithExecutionArgs(command) {
   const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
-  const output = { args: { command } };
+  const executionArgs = { command, workdir: "/model-selected-root" };
+  const output = { args: executionArgs };
   await hooks["tool.execute.before"](
-    { tool: "bash", args: { command }, sessionID: "test-session" },
+    { tool: "bash", sessionID: "test-session" },
     output,
   );
-  return output.args;
+  return { executionArgs, output };
 }
 
 async function runAfterShell(command, text) {
@@ -62,8 +68,9 @@ test("root-hosted routing forces tool paths and shell workdir", () => {
 });
 
 test("loaded hook overwrites model-provided shell workdir", async () => {
-  const args = await runBeforeShell("pwd");
-  assert.equal(args.workdir, process.cwd());
+  const { executionArgs, output } = await runBeforeShellWithExecutionArgs("pwd");
+  assert.strictEqual(output.args, executionArgs);
+  assert.equal(executionArgs.workdir, process.cwd());
 });
 
 test("blocking hook messages always explain reason and next action", async () => {

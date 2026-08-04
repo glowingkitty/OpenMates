@@ -53,6 +53,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -1398,7 +1399,7 @@ def _apply_worktree_diff_to_checkout(
 ) -> None:
     """Apply selected source changes to a clean integration checkout and stage them."""
     source_path = Path(str(source_metadata.get("path") or ""))
-    source_base = str(source_metadata.get("base_commit") or "")
+    source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
     current_patch_id = _worktree_patch_id(source_metadata, files)
@@ -1411,11 +1412,32 @@ def _apply_worktree_diff_to_checkout(
         )
 
     untracked = _worktree_untracked_files(source_metadata) & set(files)
+    if source_base != str(source_metadata.get("base_commit") or ""):
+        untracked = {
+            relative_path
+            for relative_path in untracked
+            if _run_cmd(
+                ["git", "cat-file", "-e", f"{source_base}:{relative_path}"],
+                cwd=str(source_path),
+            )[0] != 0
+        }
     tracked_files = [relative_path for relative_path in files if relative_path not in untracked]
     if tracked_files:
-        diff_result = subprocess.run(
+        with tempfile.TemporaryDirectory(prefix="openmates-integration-index-") as temp_dir:
+            index_env = {**os.environ, "GIT_INDEX_FILE": str(Path(temp_dir) / "index")}
+            read_tree_result = subprocess.run(
+                ["git", "read-tree", source_base],
+                cwd=str(source_path),
+                env=index_env,
+                capture_output=True,
+                timeout=120,
+            )
+            if read_tree_result.returncode != 0:
+                raise RuntimeError(read_tree_result.stderr.decode("utf-8", errors="replace").strip())
+            diff_result = subprocess.run(
                 ["git", "diff", "--binary", source_base, "--", *tracked_files],
                 cwd=str(source_path),
+                env=index_env,
                 capture_output=True,
                 timeout=120,
             )
@@ -1477,7 +1499,7 @@ def _prepare_integration_worktree(
         "path": str(path),
         "session_id": session_id,
         "patch_id": patch_id,
-        "source_base": str(source_metadata.get("base_commit") or ""),
+        "source_base": str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or ""),
         "prepared_base": prepared_base,
         "files": sorted(files),
         "created_at": _now_iso(),

@@ -60,6 +60,17 @@ function toolArgs(input, output) {
   return output?.args ?? input?.args ?? {};
 }
 
+function replaceToolArgs(output, current, routed) {
+  if (!current || typeof current !== "object" || Array.isArray(current)) {
+    output.args = routed;
+    return routed;
+  }
+  for (const key of Object.keys(current)) delete current[key];
+  Object.assign(current, routed);
+  output.args = current;
+  return current;
+}
+
 function bashCommand(args) {
   if (typeof args === "string") return args;
   if (!args || typeof args !== "object") return "";
@@ -846,7 +857,9 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       }
 
       if (route.worktreePath) {
-        output.args = routeLocalToolArgsForTest(tool, output?.args || input?.args, route.worktreePath);
+        const currentArgs = output?.args || input?.args;
+        const routedArgs = routeLocalToolArgsForTest(tool, currentArgs, route.worktreePath);
+        replaceToolArgs(output, currentArgs, routedArgs);
       }
       if (EDIT_TOOLS.has(tool)) {
         const files = editedFilesForTest(output?.args || input?.args, route.worktreePath || instanceDirectory);
