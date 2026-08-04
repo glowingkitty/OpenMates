@@ -84,15 +84,26 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[2], { timeout: 4000 });
 		await expect(page.getByTestId('landing-privacy-pii-copy')).toContainText('Personal details are replaced, before the AI sees them.');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[3], { timeout: 4000 });
+		await expect(page.getByTestId('landing-privacy-pii-message')).toContainText('Prepare an email to alex@example.com');
+		await expect(page.getByTestId('landing-privacy-pii-message')).toHaveAttribute('data-pii-state', 'plain');
+		await expect(page.getByTestId('landing-privacy-pii-message')).toHaveAttribute('data-pii-state', 'highlighted', { timeout: 1200 });
 		await expect(page.getByTestId('landing-privacy-pii-highlight')).toHaveCSS('background-color', 'rgba(250, 204, 21, 0.35)');
+		await expect(page.getByTestId('landing-privacy-pii-message')).toHaveAttribute('data-pii-state', 'placeholder', { timeout: 1200 });
+		await expect(page.getByTestId('landing-privacy-pii-placeholder')).toHaveText('[EMAIL_1]');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[4], { timeout: 4000 });
 		await expect(page.getByTestId('landing-privacy-originals-copy')).toContainText('Only you can view the originals.');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[5], { timeout: 4000 });
-		await expect(page.getByTestId('landing-privacy-pii-reveal')).toHaveAttribute('data-pii-revealed', 'true');
+		await expect(page.getByTestId('landing-privacy-pii-reveal')).toHaveAttribute('data-pii-state', 'placeholder');
+		await expect(page.getByTestId('landing-privacy-assistant-name')).toHaveText(/Burton/);
+		await expect(page.getByTestId('landing-privacy-assistant-profile')).toHaveAttribute('data-mate-id', 'business_development');
+		await expect(page.getByTestId('landing-privacy-assistant-message')).toContainText('Ok, preparing an email to [EMAIL_1]');
+		await expect(page.getByTestId('landing-privacy-pii-reveal')).toHaveAttribute('data-pii-state', 'original', { timeout: 1600 });
+		await expect(page.getByTestId('landing-privacy-assistant-message')).toContainText('Ok, preparing an email to alex@example.com');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[6], { timeout: 4000 });
 		await expect(page.getByTestId('landing-privacy-personalized-copy')).toContainText('Personalized responses. But only when you want them.');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[7], { timeout: 4000 });
 		await expect(page.getByTestId('landing-privacy-trip-request')).toContainText('Recommended places for my next trip?');
+		expect(await page.getByTestId('landing-privacy-trip-request').evaluate((message: HTMLElement) => message.querySelector('svg') === null)).toBe(true);
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[8], { timeout: 4000 });
 		await expect(page.getByTestId('app-settings-memories-permission-card')).toBeVisible();
 		await expect(page.getByTestId('landing-memory-category-name')).toContainText(/Trips|Reisen/);
@@ -162,6 +173,16 @@ test.describe('Landing page header stories', () => {
 		const piiCopy = page.getByTestId('landing-privacy-pii-copy');
 		expect(await piiCopy.evaluate((stage: HTMLElement) => stage.querySelector('svg') === null)).toBe(true);
 		expect(await piiCopy.evaluate((stage: HTMLElement) => Number.parseFloat(getComputedStyle(stage.querySelector('p')!).fontSize))).toBeGreaterThanOrEqual(20);
+
+		await expect(page.getByTestId('landing-privacy-originals-copy')).toBeVisible({ timeout: 8000 });
+		const originalsCopy = page.getByTestId('landing-privacy-originals-copy');
+		expect(await originalsCopy.evaluate((stage: HTMLElement) => stage.querySelector('svg') === null)).toBe(true);
+		expect(await originalsCopy.evaluate((stage: HTMLElement) => Number.parseFloat(getComputedStyle(stage.querySelector('p')!).fontSize))).toBeGreaterThanOrEqual(20);
+
+		await expect(page.getByTestId('landing-privacy-personalized-copy')).toBeVisible({ timeout: 8000 });
+		const personalizedCopy = page.getByTestId('landing-privacy-personalized-copy');
+		expect(await personalizedCopy.evaluate((stage: HTMLElement) => stage.querySelector('svg') === null)).toBe(true);
+		expect(await personalizedCopy.evaluate((stage: HTMLElement) => Number.parseFloat(getComputedStyle(stage.querySelector('p')!).fontSize))).toBeGreaterThanOrEqual(20);
 
 		await expect(page.getByTestId('app-settings-memories-permission-card')).toBeVisible({ timeout: 20000 });
 		const permissionContained = await page.evaluate(() => {
