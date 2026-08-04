@@ -263,7 +263,12 @@ class EmbedMethods:
                 'limit': -1,
             }
             try:
-                response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
+                response = await self.directus_service.get_items(
+                    'embeds',
+                    params=params,
+                    no_cache=True,
+                    admin_required=True,
+                )
             except Exception as e:
                 logger.error(f"Error fetching embeds by hashed_embed_ids: {e}", exc_info=True)
                 continue

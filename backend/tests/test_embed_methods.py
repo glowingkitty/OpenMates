@@ -66,3 +66,21 @@ async def test_update_embed_rejects_vault_encrypted_content() -> None:
 
     with pytest.raises(ValueError, match="client-side encrypted"):
         await methods.update_embed("embed-vault", {"encrypted_content": "vault:v1:ciphertext"})
+
+
+@pytest.mark.asyncio
+async def test_get_embeds_by_hashed_embed_ids_uses_admin_read() -> None:
+    EmbedMethods = _load_embed_methods_class()
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[{"embed_id": "pdf-embed"}])
+
+    methods = EmbedMethods(directus)
+    embeds = await methods.get_embeds_by_hashed_embed_ids(["hash-pdf"])
+
+    assert embeds == [{"embed_id": "pdf-embed"}]
+    directus.get_items.assert_awaited_once()
+    call = directus.get_items.await_args
+    assert call.args[0] == "embeds"
+    assert call.kwargs["params"]["filter[hashed_embed_id][_in]"] == "hash-pdf"
+    assert call.kwargs["no_cache"] is True
+    assert call.kwargs["admin_required"] is True

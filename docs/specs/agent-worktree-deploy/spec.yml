@@ -183,6 +183,13 @@ decisions:
   decision: Keep worktrees as the parallel-agent isolation mechanism and repair finalization and reconciliation.
   reason: Worktrees isolate indexes and file content more safely than returning parallel agents to the shared root checkout.
   decided_at: '2026-08-04T00:00:00Z'
+- id: D-11
+  status: active
+  decision: Integrate the reviewed `04e6` admin-authenticated shared-embed key-hash lookup and delete the remaining reviewed
+    stale worktrees.
+  reason: Batched review found this was the only meaningful stale behavior absent from dev; all other stale unique patches were
+    duplicate or superseded.
+  decided_at: '2026-08-04T00:00:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -316,6 +323,16 @@ scenarios:
   - Explicitly excluded recent active work is listed and does not block readiness.
   - Stale, blocked, orphaned, unique unresolved, malformed, or unclassified worktrees block readiness.
   - The report provides concrete reconciliation commands and must pass again after cleanup before PR preparation continues.
+- id: S-10
+  title: Meaningful stale work is integrated without overwriting newer dev changes
+  given:
+  - Batched review finds a stale worktree with meaningful behavior absent from current dev.
+  when:
+  - The behavior is selected for integration.
+  then:
+  - A focused red test is added against current dev behavior.
+  - The smallest compatible change is reapplied on the current dev base rather than merging the stale snapshot wholesale.
+  - Focused green tests pass before the stale source worktree is removed.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
@@ -431,6 +448,16 @@ acceptance_criteria:
   verification_ids:
   - T-PYTEST-WORKTREE-PR-READINESS
   - T-AUDIT-DOCS
+- id: AC-12
+  scenario: S-10
+  text: Meaningful unique stale behavior is reapplied test-first on current dev without overwriting newer file content before its
+    source worktree is deleted.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-PYTEST-STALE-INTEGRATION
 tests:
 - id: T-PYTEST-WORKTREE-LIFECYCLE
   type: pytest
@@ -720,6 +747,23 @@ tests:
     required: true
     expected: pass
     evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-green-20260804-1038, subject_commit: worktree-85ef-c23c93472, timestamp: '2026-08-04T10:38:39Z'}
+- id: T-PYTEST-STALE-INTEGRATION
+  type: pytest
+  file: backend/tests/test_embed_methods.py
+  command: python3 -m pytest backend/tests/test_embed_methods.py backend/tests/test_share_chat_window_loading.py
+  covers:
+  - AC-12
+  assertions:
+  - Shared embed lookup by hashed embed ID requests an admin-authenticated Directus read.
+  - Existing shared-chat manifest and bounded window behavior remains green.
+  red_phase:
+    required: true
+    expected: fail
+    evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_embed_methods.py", run_id: local-stale-integration-red-20260804, subject_commit: 49fbe8aa5, timestamp: '2026-08-04T11:16:00Z'}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: passed, command: "python3 -m pytest backend/tests/test_embed_methods.py backend/tests/test_share_chat_window_loading.py", run_id: local-stale-integration-green-20260804, subject_commit: worktree-a002-49fbe8aa5, timestamp: '2026-08-04T11:17:00Z'}
 assumptions:
 - id: A-1
   text: Existing `sessions.py` metadata can be extended without replacing `.claude/sessions.json` as the shared state file.
@@ -882,6 +926,10 @@ implementation_plan:
     reason: Prove inventory, classification, safe apply, orphan handling, and manifest retention.
   - path: scripts/tests/test_sessions_worktree_pr_readiness.py
     reason: Prove release readiness blocking and explicit active exclusions.
+  - path: backend/core/api/app/services/directus/embed_methods.py
+    reason: Reapply the sole meaningful stale shared-embed lookup fix on current dev.
+  - path: backend/tests/test_embed_methods.py
+    reason: Prove shared embed key-hash fallback uses the required admin-authenticated Directus read.
   - path: scripts/tests/test_sessions_root_guard.py
     reason: New deterministic root guard coverage.
   - path: scripts/tests/test_opencode_worktree_guards.mjs
@@ -1287,12 +1335,16 @@ tasks:
   status: pending
   phase: running_checks
   covers:
-    scenarios: [S-7, S-8, S-9]
-    acceptance_criteria: [AC-8, AC-9, AC-10, AC-11]
-  expected_files: [.claude/sessions.json]
+    scenarios: [S-7, S-8, S-9, S-10]
+    acceptance_criteria: [AC-8, AC-9, AC-10, AC-11, AC-12]
+  expected_files:
+  - .claude/sessions.json
+  - backend/core/api/app/services/directus/embed_methods.py
+  - backend/tests/test_embed_methods.py
   verification_ids:
   - T-PYTEST-WORKTREE-RECONCILIATION
   - T-PYTEST-WORKTREE-PR-READINESS
+  - T-PYTEST-STALE-INTEGRATION
   dependencies: [TASK-12, TASK-13]
   blockers: []
   follow_up_tasks: [TASK-15]
