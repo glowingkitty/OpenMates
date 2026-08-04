@@ -43,7 +43,7 @@ enum ShareLinkCrypto {
         let passwordEnabled = password?.isEmpty == false
 
         if let password, passwordEnabled {
-            let passwordKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+            let passwordKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
                 password: password,
                 salt: Data("\(passwordSaltPrefix)\(identifier)".utf8)
             )
@@ -58,7 +58,7 @@ enum ShareLinkCrypto {
             "duration_seconds": String(duration.rawValue),
             "pwd": passwordEnabled ? "1" : "0"
         ])
-        let identifierKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+        let identifierKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: identifier,
             salt: Data(shareSalt.utf8)
         )
@@ -68,7 +68,7 @@ enum ShareLinkCrypto {
     static func encryptedShortURL(_ longURL: URL) async throws -> (token: String, shortKey: String, encryptedURL: String) {
         let token = randomBase62(length: 8)
         let shortKey = randomBase62(length: 6)
-        let encryptionKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+        let encryptionKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: shortKey,
             salt: Data("\(shortURLSaltPrefix)\(token)".utf8),
             iterations: 200_000

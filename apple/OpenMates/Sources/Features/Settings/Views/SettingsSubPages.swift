@@ -412,7 +412,7 @@ struct SettingsPasswordView: View {
                     hashedEmail: await CryptoManager.shared.hashEmail(email),
                     lookupHash: await CryptoManager.shared.hashKey(currentPassword, salt: emailSalt)
                 )
-                let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+                let wrappingKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
                     password: newPassword,
                     salt: passwordSalt
                 )
@@ -793,7 +793,7 @@ struct SettingsRecoveryKeyView: View {
         )
         let key = try secureRecoveryKey()
         let wrappingSalt = try randomBytes(count: 16)
-        let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+        let wrappingKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: key,
             salt: wrappingSalt
         )

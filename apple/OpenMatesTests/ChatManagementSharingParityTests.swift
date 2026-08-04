@@ -207,7 +207,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
             encryptedBlob,
             identifier: identifier
         )
-        let passwordKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+        let passwordKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: password,
             salt: Data("openmates-pwd-\(identifier)".utf8)
         )
@@ -224,7 +224,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
     func testDurableShortLinksUseWebTwoHundredThousandRoundDerivation() async throws {
         let longURL = try XCTUnwrap(URL(string: "https://app.example.invalid/share/chat/chat-share-fixture#key=opaque"))
         let encrypted = try await ShareLinkCrypto.encryptedShortURL(longURL)
-        let shortKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+        let shortKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: encrypted.shortKey,
             salt: Data("omts-v1-\(encrypted.token)".utf8),
             iterations: 200_000
@@ -246,7 +246,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         _ encryptedBlob: String,
         identifier: String
     ) async throws -> [String: String] {
-        let identifierKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+        let identifierKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: identifier,
             salt: Data("openmates-share-v1".utf8)
         )

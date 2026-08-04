@@ -261,7 +261,7 @@ enum PairLoginRuntime {
             "user_email_salt": credentials.userEmailSalt,
             "master_key_exported": masterKeyExported,
         ])
-        let pairKey = await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
+        let pairKey = try await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
         let encrypted = try await CryptoManager.shared.encrypt(bundleJSON, using: pairKey)
         let response: PairAuthorizeResponse = try await APIClient.shared.request(
             .post,
@@ -290,7 +290,7 @@ enum PairLoginRuntime {
             throw AuthError.missingAuthData
         }
 
-        let pairKey = await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
+        let pairKey = try await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
         let plaintext = try await CryptoManager.shared.decryptAESGCM(
             ciphertext: encryptedData,
             iv: ivData,

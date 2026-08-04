@@ -285,7 +285,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
             }
             """.utf8
         )
-        let pairKey = await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
+        let pairKey = try await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
         let encrypted = try await CryptoManager.shared.encrypt(bundleJSON, using: pairKey)
         let response = PairCompleteResponse(
             success: true,

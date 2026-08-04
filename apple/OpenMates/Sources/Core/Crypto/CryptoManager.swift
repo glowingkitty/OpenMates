@@ -77,6 +77,8 @@ enum SecureRandom {
 actor CryptoManager {
     static let shared = CryptoManager()
 
+    typealias PBKDF2Derivation = @Sendable (Data, Data, UInt32) -> (status: Int32, key: Data)
+
     struct RecoveryEnvelope: Equatable, Sendable {
         let v: Int
         let epk: String
@@ -133,18 +135,31 @@ actor CryptoManager {
     func deriveWrappingKeyFromPassword(
         password: String,
         salt: Data,
-        iterations: UInt32 = 100_000
-    ) -> SymmetricKey {
-        var derivedKey = Data(count: 32) // 256 bits
-        let passwordData = password.data(using: .utf8)!
+        iterations: UInt32 = 100_000,
+        derivation: PBKDF2Derivation? = nil
+    ) throws -> SymmetricKey {
+        let result = (derivation ?? Self.pbkdf2)(Data(password.utf8), salt, iterations)
+        guard result.status == kCCSuccess, result.key.count == 32 else {
+            throw CryptoError.keyDerivationFailed
+        }
+        return SymmetricKey(data: result.key)
+    }
 
+    /// Derive the pair-login bundle key from PIN + token.
+    /// Mirrors SettingsSessionsPairInitiate.svelte: PBKDF2-SHA256(PIN, upperToken, 100k) → AES-256-GCM.
+    func derivePairLoginKey(pin: String, token: String) throws -> SymmetricKey {
+        try deriveWrappingKeyFromPassword(password: pin, salt: Data(token.uppercased().utf8))
+    }
+
+    private static func pbkdf2(password: Data, salt: Data, iterations: UInt32) -> (status: Int32, key: Data) {
+        var derivedKey = Data(count: 32)
         let status = derivedKey.withUnsafeMutableBytes { derivedBytes in
-            passwordData.withUnsafeBytes { passwordBytes in
+            password.withUnsafeBytes { passwordBytes in
                 salt.withUnsafeBytes { saltBytes in
                     CCKeyDerivationPBKDF(
                         CCPBKDFAlgorithm(kCCPBKDF2),
                         passwordBytes.baseAddress?.assumingMemoryBound(to: Int8.self),
-                        passwordData.count,
+                        password.count,
                         saltBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         salt.count,
                         CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
@@ -155,17 +170,7 @@ actor CryptoManager {
                 }
             }
         }
-        if status != kCCSuccess {
-            assertionFailure("PBKDF2 derivation failed with status \(status)")
-        }
-
-        return SymmetricKey(data: derivedKey)
-    }
-
-    /// Derive the pair-login bundle key from PIN + token.
-    /// Mirrors SettingsSessionsPairInitiate.svelte: PBKDF2-SHA256(PIN, upperToken, 100k) → AES-256-GCM.
-    func derivePairLoginKey(pin: String, token: String) -> SymmetricKey {
-        deriveWrappingKeyFromPassword(password: pin, salt: Data(token.uppercased().utf8))
+        return (status, derivedKey)
     }
 
     // MARK: - Master key operations
@@ -605,6 +610,7 @@ actor CryptoManager {
         case invalidSharedSecret
         case payloadTooLarge
         case unsupportedRecoveryEnvelope
+        case keyDerivationFailed
 
         var errorDescription: String? {
             switch self {
@@ -620,6 +626,7 @@ actor CryptoManager {
             case .invalidSharedSecret: return "Invalid X25519 shared secret"
             case .payloadTooLarge: return "Recovery payload exceeds 16 MiB"
             case .unsupportedRecoveryEnvelope: return "Unsupported recovery envelope"
+            case .keyDerivationFailed: return "Password key derivation failed"
             }
         }
     }

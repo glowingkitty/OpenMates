@@ -86,6 +86,7 @@ struct EncryptedImageView: View {
     let s3Key: String?
     let aesKey: String?
     let aesNonce: String?
+    let encryption: String?
     let contentMode: ContentMode
 
     @State private var imageData: Data?
@@ -115,7 +116,7 @@ struct EncryptedImageView: View {
     }
 
     private func loadImage() async {
-        guard let s3Url, let aesKey, let aesNonce else {
+        guard let s3Url, let aesKey, aesNonce != nil || encryption != nil else {
             error = "Missing encryption keys"
             isLoading = false
             return
@@ -125,6 +126,7 @@ struct EncryptedImageView: View {
                 s3Url: s3Url,
                 aesKeyHex: aesKey,
                 aesNonceHex: aesNonce,
+                encryption: encryption,
                 s3Key: s3Key
             )
         } catch {
@@ -236,6 +238,7 @@ struct TappableEncryptedImageView: View {
     let s3Key: String?
     let aesKey: String?
     let aesNonce: String?
+    let encryption: String?
     let filename: String?
 
     @State private var imageData: Data?
@@ -273,7 +276,7 @@ struct TappableEncryptedImageView: View {
     }
 
     private func loadImage() async {
-        guard let s3Url, let aesKey, let aesNonce else {
+        guard let s3Url, let aesKey, aesNonce != nil || encryption != nil else {
             error = "Missing encryption keys"
             isLoading = false
             return
@@ -283,6 +286,7 @@ struct TappableEncryptedImageView: View {
                 s3Url: s3Url,
                 aesKeyHex: aesKey,
                 aesNonceHex: aesNonce,
+                encryption: encryption,
                 s3Key: s3Key
             )
         } catch {
@@ -619,7 +623,8 @@ private struct GeneratedAudioControl: View {
                     data = try await URLSession.shared.data(from: url).0
                 } else {
                     data = try await S3MediaClient.shared.fetchAndDecrypt(
-                        s3Url: mediaURL, aesKeyHex: payload.aesKey ?? "", aesNonceHex: payload.aesNonce ?? "", s3Key: payload.s3Key
+                        s3Url: mediaURL, aesKeyHex: payload.aesKey ?? "", aesNonceHex: payload.aesNonce,
+                        encryption: payload.encryption, s3Key: payload.s3Key
                     )
                 }
                 #if os(iOS)
@@ -664,10 +669,11 @@ private struct GeneratedVideoPlayer: View {
 
     private func loadEncryptedVideo() async {
         guard payload.directURL == nil, let mediaURL = payload.mediaURL,
-              let aesKey = payload.aesKey, let aesNonce = payload.aesNonce else { return }
+              let aesKey = payload.aesKey, payload.aesNonce != nil || payload.encryption != nil else { return }
         do {
             let data = try await S3MediaClient.shared.fetchAndDecrypt(
-                s3Url: mediaURL, aesKeyHex: aesKey, aesNonceHex: aesNonce, s3Key: payload.s3Key
+                s3Url: mediaURL, aesKeyHex: aesKey, aesNonceHex: payload.aesNonce,
+                encryption: payload.encryption, s3Key: payload.s3Key
             )
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("openmates-generated-video", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -695,6 +701,7 @@ private struct GeneratedMediaPayload {
     let s3Key: String?
     let aesKey: String?
     let aesNonce: String?
+    let encryption: String?
 
     init(_ data: [String: AnyCodable]?) {
         prompt = EmbedMediaPayload.string(data, keys: ["prompt"])
@@ -711,6 +718,7 @@ private struct GeneratedMediaPayload {
         mediaURL = directURL ?? EmbedMediaPayload.s3URL(from: data)
         aesKey = EmbedMediaPayload.string(data, keys: ["aes_key"])
         aesNonce = EmbedMediaPayload.string(data, keys: ["aes_nonce"])
+        encryption = EmbedMediaPayload.encryption(from: data)
     }
 
     var modeLabel: String? {
@@ -766,6 +774,7 @@ struct RecordingRenderer: View {
     private var s3Key: String? { EmbedMediaPayload.s3Key(from: data) }
     private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
     private var aesNonce: String? { EmbedMediaPayload.string(data, keys: ["aes_nonce"]) }
+    private var encryption: String? { EmbedMediaPayload.encryption(from: data) }
     private var isProcessing: Bool { ["uploading", "transcribing", "processing"].contains(status) }
     private var isError: Bool { status == "error" }
     private var activeTranscript: String? {
@@ -966,7 +975,7 @@ struct RecordingRenderer: View {
     }
 
     private var hasPlayableMetadata: Bool {
-        directURL != nil || (s3Url != nil && aesKey != nil && aesNonce != nil)
+        directURL != nil || (s3Url != nil && aesKey != nil && (aesNonce != nil || encryption != nil))
     }
 
     private var effectiveDuration: Double {
@@ -1004,11 +1013,12 @@ struct RecordingRenderer: View {
                 let audioData: Data
                 if let directURL, let url = URL(string: directURL) {
                     audioData = try await URLSession.shared.data(from: url).0
-                } else if let s3Url, let aesKey, let aesNonce {
+                } else if let s3Url, let aesKey, aesNonce != nil || encryption != nil {
                     audioData = try await S3MediaClient.shared.fetchAndDecrypt(
                         s3Url: s3Url,
                         aesKeyHex: aesKey,
                         aesNonceHex: aesNonce,
+                        encryption: encryption,
                         s3Key: s3Key
                     )
                 } else {
@@ -1103,6 +1113,7 @@ struct PDFRenderer: View {
     private var s3Key: String? { EmbedMediaPayload.s3Key(from: data) }
     private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
     private var aesNonce: String? { EmbedMediaPayload.string(data, keys: ["aes_nonce"]) }
+    private var encryption: String? { EmbedMediaPayload.encryption(from: data) }
 
     @State private var pdfData: Data?
     @State private var isLoading = false
@@ -1159,7 +1170,7 @@ struct PDFRenderer: View {
     }
 
     private func loadPDF() {
-        guard let s3Url, let aesKey, let aesNonce else {
+        guard let s3Url, let aesKey, aesNonce != nil || encryption != nil else {
             loadError = "Missing encryption keys"
             return
         }
@@ -1170,6 +1181,7 @@ struct PDFRenderer: View {
                     s3Url: s3Url,
                     aesKeyHex: aesKey,
                     aesNonceHex: aesNonce,
+                    encryption: encryption,
                     s3Key: s3Key
                 )
             } catch {

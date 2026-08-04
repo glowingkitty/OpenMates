@@ -185,8 +185,12 @@ struct RemotionVideoCreateRenderer: View {
 
     @ViewBuilder
     private var fullscreenVideo: some View {
-        if let videoS3URL = model.videoS3URL, let aesKey = model.aesKey, let aesNonce = model.aesNonce {
-            EncryptedVideoPlayer(s3Url: videoS3URL, aesKey: aesKey, aesNonce: aesNonce, filename: model.filename)
+        if let videoS3URL = model.videoS3URL, let aesKey = model.aesKey,
+           model.aesNonce != nil || model.videoEncryption != nil {
+            EncryptedVideoPlayer(
+                s3Url: videoS3URL, aesKey: aesKey, aesNonce: model.aesNonce,
+                encryption: model.videoEncryption, filename: model.filename
+            )
                 .frame(minHeight: 240)
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
         } else if model.hasThumbnail {
@@ -204,8 +208,12 @@ struct RemotionVideoCreateRenderer: View {
 
     @ViewBuilder
     private var thumbnailView: some View {
-        if let thumbnailS3URL = model.thumbnailS3URL, let aesKey = model.aesKey, let aesNonce = model.aesNonce {
-            EncryptedImageView(s3Url: thumbnailS3URL, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce, contentMode: .fill)
+        if let thumbnailS3URL = model.thumbnailS3URL, let aesKey = model.aesKey,
+           model.aesNonce != nil || model.thumbnailEncryption != nil {
+            EncryptedImageView(
+                s3Url: thumbnailS3URL, s3Key: nil, aesKey: aesKey, aesNonce: model.aesNonce,
+                encryption: model.thumbnailEncryption, contentMode: .fill
+            )
         } else if let thumbnailURL = model.thumbnailURL, let url = URL(string: thumbnailURL) {
             CachedRemoteImage(url: url) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
@@ -270,6 +278,8 @@ private struct RemotionVideoCreateModel {
     let thumbnailURL: String?
     let thumbnailS3URL: String?
     let videoS3URL: String?
+    let thumbnailEncryption: String?
+    let videoEncryption: String?
     let chatId: String?
     let manifest: RemotionTimelineManifest
 
@@ -287,6 +297,8 @@ private struct RemotionVideoCreateModel {
         let s3BaseURL = Self.string(data, ["s3_base_url"])
         thumbnailS3URL = Self.mediaS3URL(data: data, baseURL: s3BaseURL, fileKey: "thumbnail")
         videoS3URL = Self.mediaS3URL(data: data, baseURL: s3BaseURL, fileKey: "original")
+        thumbnailEncryption = Self.mediaEncryption(data: data, fileKey: "thumbnail")
+        videoEncryption = Self.mediaEncryption(data: data, fileKey: "original")
         manifest = RemotionTimelineManifest(source: source)
     }
 
@@ -319,6 +331,12 @@ private struct RemotionVideoCreateModel {
         guard !s3Key.hasPrefix("http://"), !s3Key.hasPrefix("https://") else { return s3Key }
         guard let baseURL, !baseURL.isEmpty else { return nil }
         return baseURL.hasSuffix("/") ? "\(baseURL)\(s3Key)" : "\(baseURL)/\(s3Key)"
+    }
+
+    private static func mediaEncryption(data: [String: AnyCodable]?, fileKey: String) -> String? {
+        guard let files = data?["files"]?.value as? [String: Any],
+              let file = files[fileKey] as? [String: Any] else { return nil }
+        return file["encryption"] as? String
     }
 }
 
@@ -432,7 +450,8 @@ private struct RemotionTimelinePreview: View {
 private struct EncryptedVideoPlayer: View {
     let s3Url: String
     let aesKey: String
-    let aesNonce: String
+    let aesNonce: String?
+    let encryption: String?
     let filename: String
 
     @State private var temporaryURL: URL?
@@ -459,7 +478,9 @@ private struct EncryptedVideoPlayer: View {
 
     private func loadVideo() async {
         do {
-            let data = try await S3MediaClient.shared.fetchAndDecrypt(s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce)
+            let data = try await S3MediaClient.shared.fetchAndDecrypt(
+                s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce, encryption: encryption
+            )
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("openmates-remotion-video", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let sanitized = filename.replacingOccurrences(of: "/", with: "-")

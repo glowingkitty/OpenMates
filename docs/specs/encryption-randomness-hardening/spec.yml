@@ -664,9 +664,9 @@ tests:
     type: unit
     file: apple/OpenMatesTests/CryptoFailureTests.swift
     command: python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests
-    covers: [AC-15]
-    assertions: [Injected CommonCrypto failure throws before key return, injected SecRandomCopyBytes failure throws before PIN/secret return, no zero key or deterministic credential is produced, existing vectors remain readable.]
-    red_phase: {required: true, expected: fail, evidence: {status: "", run_id: "", timestamp: ""}}
+    covers: [AC-2, AC-15]
+    assertions: [Injected CommonCrypto failure throws before key return, injected SecRandomCopyBytes failure throws before PIN/secret return, no zero key or deterministic credential is produced, legacy external-nonce and explicit nonce-prefixed media vectors remain readable, unknown media markers fail closed.]
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/apple_remote.py sync-repo --branch dev && python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests", run_id: "apple-remote-task13-red-2026-08-04T09:47:57Z", subject_commit: "7d0d4cda0", timestamp: "2026-08-04T09:47:57Z", reason: "After syncing the clean remote checkout, CryptoFailureTests failed to compile because the production PBKDF2 API had no injectable throwing failure contract and S3MediaClient exposed neither an explicit encryption marker nor a testable strict decoder."}}
     green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-SECURITY-CODES
     type: pytest

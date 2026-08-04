@@ -420,7 +420,7 @@ final class AuthManager: ObservableObject {
             throw AuthError.missingAuthData
         }
 
-        let wrappingKey = await crypto.deriveWrappingKeyFromPassword(
+        let wrappingKey = try await crypto.deriveWrappingKeyFromPassword(
             password: password, salt: saltData
         )
         let masterKey = try await crypto.unwrapMasterKey(

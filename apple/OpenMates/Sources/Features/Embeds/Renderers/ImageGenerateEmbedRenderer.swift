@@ -19,13 +19,14 @@ struct ImageGenerateEmbedRenderer: View {
     private var s3BaseUrl: String? { data?["s3_base_url"]?.value as? String }
     private var aesKey: String? { data?["aes_key"]?.value as? String }
     private var aesNonce: String? { data?["aes_nonce"]?.value as? String }
+    private var encryption: String? { EmbedMediaPayload.encryption(from: data) }
 
     var body: some View {
         switch mode {
         case .preview:
             if let s3BaseUrl, let aesKey {
                 EncryptedImageView(
-                    s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce,
+                    s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
                     contentMode: .fill
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -61,7 +62,7 @@ struct ImageGenerateEmbedRenderer: View {
             HStack(alignment: .center, spacing: 0) {
                 if let s3BaseUrl, let aesKey {
                     EncryptedImageView(
-                        s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce,
+                        s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
                         contentMode: .fit
                     )
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))

@@ -206,7 +206,7 @@ struct SettingsAPIKeysView: View {
                 }
                 let rawKey = "sk-api-\(try Self.randomToken(length: 32))"
                 let salt = try Self.randomData(count: 16)
-                let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(password: rawKey, salt: salt)
+                let wrappingKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(password: rawKey, salt: salt)
                 let wrapped = try await CryptoManager.shared.encrypt(masterKey.withUnsafeBytes { Data($0) }, using: wrappingKey)
                 let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
                 let prefix = String(rawKey.prefix(12)) + "..."

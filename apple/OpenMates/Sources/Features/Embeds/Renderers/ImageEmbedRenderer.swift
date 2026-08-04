@@ -18,13 +18,14 @@ struct ImageEmbedRenderer: View {
     private var s3Key: String? { EmbedMediaPayload.s3Key(from: data) }
     private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
     private var aesNonce: String? { EmbedMediaPayload.string(data, keys: ["aes_nonce"]) }
+    private var encryption: String? { EmbedMediaPayload.encryption(from: data) }
 
     var body: some View {
         switch mode {
         case .preview:
             if s3Url != nil && aesKey != nil {
                 EncryptedImageView(
-                    s3Url: s3Url, s3Key: s3Key, aesKey: aesKey, aesNonce: aesNonce,
+                    s3Url: s3Url, s3Key: s3Key, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
                     contentMode: .fill
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -49,6 +50,7 @@ struct ImageEmbedRenderer: View {
                         s3Key: s3Key,
                         aesKey: aesKey,
                         aesNonce: aesNonce,
+                        encryption: encryption,
                         filename: filename
                     )
                 }

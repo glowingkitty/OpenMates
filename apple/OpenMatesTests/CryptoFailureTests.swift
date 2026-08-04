@@ -30,8 +30,8 @@ final class CryptoFailureTests: XCTestCase {
 
     func testLegacyAndExplicitV2MediaDecryptToSamePlaintext() throws {
         let plaintext = Data("apple-media-fixture".utf8)
-        let keyData = Data(0..<32)
-        let nonceData = Data(0..<12)
+        let keyData = Data((0..<32).map(UInt8.init))
+        let nonceData = Data((0..<12).map(UInt8.init))
         let key = SymmetricKey(data: keyData)
         let nonce = try AES.GCM.Nonce(data: nonceData)
         let sealed = try AES.GCM.seal(plaintext, using: key, nonce: nonce)
