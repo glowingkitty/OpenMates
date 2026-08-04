@@ -25,6 +25,9 @@ const MOBILE_SLIDE_FADE_SETTLE_MS = 1200;
 const ACTIONABLE_INTERACTION_TIMEOUT_MS = 5000;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
+const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
+const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
+const DAILY_INSPIRATION_MAX_HEIGHT = 420;
 const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
 const LANDING_INTRO_REQUESTS = [
 	'Find doctor appointments',
@@ -899,6 +902,65 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
 		await page.waitForTimeout(1200);
 		await expect(page.getByTestId('landing-actionable-user-message')).toHaveCount(0);
+	});
+
+	test('collapsed guest inspirations scale proportionally and keep the heading above the animation', async ({ page }: { page: any }) => {
+		test.setTimeout(180000);
+		const viewports = [
+			{ width: 393, height: 852 },
+			{ width: 600, height: 900 },
+			{ width: 731, height: 960 },
+			{ width: 1024, height: 900 },
+			{ width: 1280, height: 900 }
+		];
+
+		for (const viewport of viewports) {
+			await page.setViewportSize(viewport);
+			await page.goto(getE2EDebugUrl(`/?collapsed-guest-layout=${viewport.width}`), { waitUntil: 'domcontentloaded' });
+			await page.waitForLoadState('networkidle');
+			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+			await skipExpandedLandingIntro(page);
+			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-actionable-heading-phase', 'ready', {
+				timeout: MOBILE_HEADING_COMPACT_SETTLE_MS + 1500
+			});
+			await waitForActionableStage(page, 'user-request');
+
+			const metrics = await page.evaluate(() => {
+				const area = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-area"]');
+				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+				const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
+				const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
+				if (!area || !banner || !headline || !demo) throw new Error('Collapsed guest inspiration elements missing');
+				const areaRect = area.getBoundingClientRect();
+				const bannerRect = banner.getBoundingClientRect();
+				const headlineRect = headline.getBoundingClientRect();
+				const demoRect = demo.getBoundingClientRect();
+				return {
+					areaHeight: areaRect.height,
+					bannerWidth: bannerRect.width,
+					bannerHeight: bannerRect.height,
+					headingCenterDeltaX: Math.abs((headlineRect.left + headlineRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
+					demoCenterDeltaX: Math.abs((demoRect.left + demoRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
+					demoBelowHeading: demoRect.top > headlineRect.bottom,
+					demoInsideBanner: demoRect.top >= bannerRect.top && demoRect.bottom <= bannerRect.bottom + 1
+				};
+			});
+			const expectedHeight = Math.min(
+				DAILY_INSPIRATION_MAX_HEIGHT,
+				Math.max(
+					DAILY_INSPIRATION_REFERENCE_HEIGHT,
+					metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH
+				)
+			);
+
+			expect(metrics.bannerHeight, `${viewport.width}px: banner should preserve the mobile aspect ratio until capped`).toBeCloseTo(expectedHeight, 0);
+			expect(metrics.areaHeight, `${viewport.width}px: reserved area should match the banner`).toBeCloseTo(metrics.bannerHeight, 0);
+			expect(metrics.headingCenterDeltaX, `${viewport.width}px: compact heading should be centered`).toBeLessThanOrEqual(3);
+			expect(metrics.demoCenterDeltaX, `${viewport.width}px: animation should be centered`).toBeLessThanOrEqual(3);
+			expect(metrics.demoBelowHeading, `${viewport.width}px: animation should sit below the heading`).toBe(true);
+			expect(metrics.demoInsideBanner, `${viewport.width}px: animation should remain inside the banner`).toBe(true);
+		}
 	});
 
 	test('mobile actionable slide compacts copy above the animation', async ({ page }: { page: any }) => {

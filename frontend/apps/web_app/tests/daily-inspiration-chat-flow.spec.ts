@@ -83,6 +83,9 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const CHAT_CTA_PATTERN = /(?:start chat|open chat)/i;
 const PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS = 30000;
 const CAROUSEL_STEP_WAIT_MS = 300;
+const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
+const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
+const DAILY_INSPIRATION_MAX_HEIGHT = 420;
 
 async function waitForStartChatInspiration(page: any, log: (message: string, data?: unknown) => void) {
 	const inspirationBanner = page.getByTestId('daily-inspiration-banner').first();
@@ -177,6 +180,47 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await expect(inspirationBanner).toBeVisible({ timeout: 15000 });
 	log('Daily inspiration banner is visible.');
 	await screenshot(page, 'inspiration-banner-visible');
+
+	for (const viewport of [
+		{ width: 393, height: 852 },
+		{ width: 600, height: 900 },
+		{ width: 731, height: 960 },
+		{ width: 1280, height: 900 }
+	]) {
+		await page.setViewportSize(viewport);
+		await page.waitForTimeout(250);
+		const metrics = await page.evaluate(() => {
+			const area = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-area"]');
+			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+			const phrase = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
+			const cta = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-cta-text"]');
+			if (!area || !banner || !phrase || !cta) throw new Error('Authenticated inspiration layout elements missing');
+			const areaRect = area.getBoundingClientRect();
+			const bannerRect = banner.getBoundingClientRect();
+			const phraseRect = phrase.getBoundingClientRect();
+			const ctaRect = cta.getBoundingClientRect();
+			return {
+				areaHeight: areaRect.height,
+				bannerWidth: bannerRect.width,
+				bannerHeight: bannerRect.height,
+				contentInsideBanner: phraseRect.top >= bannerRect.top
+					&& phraseRect.bottom <= bannerRect.bottom
+					&& ctaRect.top >= bannerRect.top
+					&& ctaRect.bottom <= bannerRect.bottom
+			};
+		});
+		const expectedHeight = Math.min(
+			DAILY_INSPIRATION_MAX_HEIGHT,
+			Math.max(
+				DAILY_INSPIRATION_REFERENCE_HEIGHT,
+				metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH
+			)
+		);
+		expect(metrics.bannerHeight, `${viewport.width}px: authenticated banner should scale proportionally`).toBeCloseTo(expectedHeight, 0);
+		expect(metrics.areaHeight, `${viewport.width}px: authenticated area should match the banner`).toBeCloseTo(metrics.bannerHeight, 0);
+		expect(metrics.contentInsideBanner, `${viewport.width}px: authenticated banner content should remain visible`).toBe(true);
+	}
+	await page.setViewportSize({ width: 1280, height: 800 });
 
 	const inspirationPhrase = page.getByTestId('daily-inspiration-phrase');
 	const initialCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
