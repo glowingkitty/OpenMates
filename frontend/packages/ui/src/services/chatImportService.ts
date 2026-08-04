@@ -123,6 +123,27 @@ interface ImportStatusResponse {
   last_compression_sequence: number;
 }
 
+interface SanitizedImportBatch {
+  messages: ParsedImportMessage[];
+  scanSequence: number;
+  sourceFingerprint: string;
+  chunkIndex: number;
+}
+
+interface ImportResumeState {
+  signature: string;
+  confirmed: boolean;
+  batches: ReturnType<typeof buildMessageBatches>;
+  sanitizedChats: ParsedImportChat[];
+  sanitizedBatches: SanitizedImportBatch[];
+  summaries: Map<string, string>;
+  scan: ImportScanResponse;
+  lastScanSequence: number;
+  lastCompressionSequence: number;
+  encryptedPackage?: Awaited<ReturnType<typeof buildEncryptedImportPackage>>;
+  persistence?: ImportPersistResponse;
+}
+
 export interface ImportPersistResponse {
   status: "complete" | "partial" | string;
   imported_chat_ids: string[];
@@ -179,6 +200,11 @@ export type ImportProgressCallback = (
 ) => void;
 
 const recentImportedChats = new Map<string, RecentImportedChatData>();
+const importResumeStates = new Map<string, ImportResumeState>();
+
+export function clearImportResumeState(importId: string | null | undefined): void {
+  if (importId) importResumeStates.delete(importId);
+}
 
 export function getRecentImportedChatData(
   chatId: string,
@@ -310,21 +336,45 @@ export async function importChats(
   }
 
   const importId = preview.import_id;
-  onProgress?.("confirming", "Confirming selected chats...");
-  await postImportJson(apiEndpoints.accountImports.confirm(importId), {
-    selected_fingerprints: selectedChats.map((chat) => chat.source_fingerprint),
-  }, "Import confirmation failed");
-  const initialStatus = await getImportStatus(importId);
-  if (initialStatus.last_scan_sequence !== -1 || initialStatus.last_compression_sequence !== -1) {
-    throw new Error("This import already advanced. Retry from the device that holds its sanitized batch state.");
+  const maxMessagesPerBatch = options.maxMessagesPerBatch ?? IMPORT_MESSAGE_BATCH_SIZE;
+  const signature = JSON.stringify({
+    source: parsed.source,
+    fingerprints: selectedChats.map((chat) => chat.source_fingerprint),
+    maxMessagesPerBatch,
+  });
+  let state = importResumeStates.get(importId);
+  if (state && state.signature !== signature) {
+    clearImportResumeState(importId);
+    throw new Error("Import resume state does not match the selected chats. Start a new import preview.");
+  }
+  if (!state) {
+    state = {
+      signature,
+      confirmed: false,
+      batches: buildMessageBatches(selectedChats, maxMessagesPerBatch),
+      sanitizedChats: selectedChats.map((chat) => ({ ...chat, messages: [] as ParsedImportMessage[] })),
+      sanitizedBatches: [],
+      summaries: new Map<string, string>(),
+      scan: { chats: [], credits_reserved: 0, messages_blocked: [], failures: [] },
+      lastScanSequence: -1,
+      lastCompressionSequence: -1,
+    };
+    importResumeStates.set(importId, state);
   }
 
-  const batches = buildMessageBatches(selectedChats, options.maxMessagesPerBatch ?? IMPORT_MESSAGE_BATCH_SIZE);
-  const sanitizedChats = selectedChats.map((chat) => ({ ...chat, messages: [] as ParsedImportMessage[] }));
-  const sanitizedBatches: Array<{ messages: ParsedImportMessage[]; scanSequence: number; sourceFingerprint: string; chunkIndex: number }> = [];
-  let scan: ImportScanResponse = { chats: [], credits_reserved: 0, messages_blocked: [], failures: [] };
+  if (!state.confirmed) {
+    onProgress?.("confirming", "Confirming selected chats...");
+    await postImportJson(apiEndpoints.accountImports.confirm(importId), {
+      selected_fingerprints: selectedChats.map((chat) => chat.source_fingerprint),
+    }, "Import confirmation failed");
+    state.confirmed = true;
+  }
+  const initialStatus = await getImportStatus(importId);
+  assertResumeCursors(importId, state, initialStatus);
+
+  const { batches, sanitizedChats, sanitizedBatches, summaries } = state;
   onProgress?.("scanning", `Safety-scanning ${selectedChats.length} chat(s)...`);
-  for (let sequence = 0; sequence < batches.length; sequence++) {
+  for (let sequence = initialStatus.last_scan_sequence + 1; sequence < batches.length; sequence++) {
     const batch = batches[sequence];
     const scanResponse = await postImportJson<ImportScanResponse>(apiEndpoints.accountImports.scan(importId), {
       batch_id: batch.batchId,
@@ -337,29 +387,33 @@ export async function importChats(
     }
     if (scanResponse.failures?.length) {
       await completeFailedImport(importId, scanResponse.failures);
+      clearImportResumeState(importId);
       throw new Error("Import scan failed for one or more selected chats. No content was imported; try again.");
     }
     const sanitizedChat = scanResponse.chats[0];
     if (!sanitizedChat && scanResponse.messages_blocked?.length) {
-      scan = scanResponse;
+      state.scan = mergeScanResponses(state.scan, scanResponse);
+      state.lastScanSequence = sequence;
       continue;
     }
     if (!sanitizedChat) throw new Error("Import scan failed: response omitted the sanitized batch.");
     sanitizedChats[batch.chatIndex].messages.push(...sanitizedChat.messages);
     sanitizedBatches.push({ messages: sanitizedChat.messages, scanSequence: sequence, sourceFingerprint: batch.sourceFingerprint, chunkIndex: batch.chunkIndex });
-    scan = scanResponse;
+    state.scan = mergeScanResponses(state.scan, scanResponse);
+    state.lastScanSequence = sequence;
   }
   const postScanStatus = await getImportStatus(importId);
+  assertResumeCursors(importId, state, postScanStatus);
   if (postScanStatus.last_scan_sequence !== batches.length - 1) {
     throw new Error("Import scan status cursor did not advance as expected. Retry the import.");
   }
   if (sanitizedChats.every((chat) => chat.messages.length === 0)) {
+    clearImportResumeState(importId);
     throw new Error("Import scan blocked all selected chats. No content was imported.");
   }
 
-  const summaries = new Map<string, string>();
   onProgress?.("compressing", "Compressing sanitized imported chats...");
-  for (let sequence = 0; sequence < sanitizedBatches.length; sequence++) {
+  for (let sequence = postScanStatus.last_compression_sequence + 1; sequence < sanitizedBatches.length; sequence++) {
     const batch = sanitizedBatches[sequence];
     const batchId = `compress-${batch.sourceFingerprint.slice(0, 16)}-${batch.chunkIndex}`;
     const priorSummary = summaries.get(batch.sourceFingerprint);
@@ -380,30 +434,37 @@ export async function importChats(
       throw new Error("Import compression failed retryably. No content was persisted; try again.");
     }
     if (compression.summary?.trim()) summaries.set(batch.sourceFingerprint, compression.summary);
+    state.lastCompressionSequence = sequence;
   }
   const postCompressionStatus = await getImportStatus(importId);
+  assertResumeCursors(importId, state, postCompressionStatus);
   if (postCompressionStatus.last_compression_sequence !== sanitizedBatches.length - 1) {
     throw new Error("Import compression status cursor did not advance as expected. Retry the import.");
   }
   const chatsWithSummaries = sanitizedChats.map((chat) => appendCompressionSummary(chat, summaries.get(chat.source_fingerprint)));
 
   onProgress?.("encrypting", "Encrypting imported chats on this device...");
-  const encryptedPackage = await buildEncryptedImportPackage(chatsWithSummaries);
+  const encryptedPackage = state.encryptedPackage ?? await buildEncryptedImportPackage(chatsWithSummaries);
+  state.encryptedPackage = encryptedPackage;
 
-  onProgress?.("persisting", "Saving encrypted imported chats...");
-  const persistResponse = await fetch(
-    getApiEndpoint(apiEndpoints.accountImports.persistEncrypted(importId)),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ chats: encryptedPackage.chats }),
-    },
-  );
-  const persistence = await readJsonResponse<ImportPersistResponse>(
-    persistResponse,
-    "Encrypted import persistence failed",
-  );
+  let persistence = state.persistence;
+  if (!persistence) {
+    onProgress?.("persisting", "Saving encrypted imported chats...");
+    const persistResponse = await fetch(
+      getApiEndpoint(apiEndpoints.accountImports.persistEncrypted(importId)),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ chats: encryptedPackage.chats }),
+      },
+    );
+    persistence = await readJsonResponse<ImportPersistResponse>(
+      persistResponse,
+      "Encrypted import persistence failed",
+    );
+    state.persistence = persistence;
+  }
 
   onProgress?.("completing", "Finalizing import...");
   const completeResponse = await fetch(
@@ -428,6 +489,7 @@ export async function importChats(
     completeResponse,
     "Import completion failed",
   );
+  clearImportResumeState(importId);
 
   await cacheAcceptedImportsLocally(
     encryptedPackage.localChats,
@@ -451,7 +513,7 @@ export async function importChats(
         chat_id: chatId,
         title: local?.source.title ?? null,
         messages_imported: importedMessages.length,
-        messages_blocked: countBlockedMessages(scan.messages_blocked ?? [], local?.source.source_chat_id),
+        messages_blocked: countBlockedMessages(state.scan.messages_blocked ?? [], local?.source.source_chat_id),
         credits_charged: complete.credits_charged ?? 0,
         messages: local?.source.messages.filter(
           (message, index) => message.provider_metadata.import_type !== COMPRESSION_SUMMARY_CATEGORY && !failedMessageIds.has(local.messages[index]?.message_id ?? ""),
@@ -465,7 +527,7 @@ export async function importChats(
     total_credits_charged: complete.credits_charged ?? 0,
     import_id: importId,
     preview,
-    scan,
+    scan: state.scan,
     persistence,
     complete,
   };
@@ -499,6 +561,36 @@ async function completeFailedImport(
 async function getImportStatus(importId: string): Promise<ImportStatusResponse> {
   const response = await fetch(getApiEndpoint(apiEndpoints.accountImports.status(importId)), { credentials: "include" });
   return readJsonResponse<ImportStatusResponse>(response, "Import status check failed");
+}
+
+function assertResumeCursors(
+  importId: string,
+  state: ImportResumeState,
+  status: ImportStatusResponse,
+): void {
+  const scanCursorValid = status.last_scan_sequence === state.lastScanSequence
+    && status.last_scan_sequence >= -1
+    && status.last_scan_sequence < state.batches.length;
+  const compressionCursorValid = status.last_compression_sequence === state.lastCompressionSequence
+    && status.last_compression_sequence >= -1
+    && status.last_compression_sequence < state.sanitizedBatches.length;
+  if (scanCursorValid && compressionCursorValid) return;
+
+  clearImportResumeState(importId);
+  throw new Error("Import resume cursor does not match this tab's retained sanitized state. Start a new import preview.");
+}
+
+function mergeScanResponses(
+  previous: ImportScanResponse,
+  current: ImportScanResponse,
+): ImportScanResponse {
+  return {
+    ...current,
+    chats: [...previous.chats, ...current.chats],
+    credits_reserved: Math.max(previous.credits_reserved, current.credits_reserved),
+    messages_blocked: [...previous.messages_blocked, ...current.messages_blocked],
+    failures: [...previous.failures, ...current.failures],
+  };
 }
 
 async function postImportJson<T = Record<string, unknown>>(
@@ -1099,6 +1191,7 @@ async function buildEncryptedImportPackage(chats: ParsedImportChat[]): Promise<{
     const createdAt = parseImportTimestamp(source.created_at, now);
     const updatedAt = parseImportTimestamp(source.updated_at, createdAt);
     const title = source.title || DEFAULT_TITLE;
+    const encryptedTitle = await encryptWithChatKey(title, chatKey);
     const messages: Message[] = [];
     const encryptedMessages: Array<Record<string, unknown>> = [];
     let previousUserMessageId: string | null = null;
@@ -1150,7 +1243,7 @@ async function buildEncryptedImportPackage(chats: ParsedImportChat[]): Promise<{
     const chat: Chat = {
       chat_id: chatId,
       title,
-      encrypted_title: null,
+      encrypted_title: encryptedTitle,
       encrypted_chat_key: encryptedChatKey,
       messages_v: messages.length,
       title_v: title ? 1 : 0,
@@ -1164,7 +1257,7 @@ async function buildEncryptedImportPackage(chats: ParsedImportChat[]): Promise<{
     localChats.push({ source, chat, messages });
     encryptedChats.push({
       chat_id: chatId,
-      encrypted_title: await encryptWithChatKey(title, chatKey),
+      encrypted_title: encryptedTitle,
       encrypted_chat_key: encryptedChatKey,
       created_at: createdAt,
       updated_at: updatedAt,

@@ -2782,17 +2782,6 @@
                       `}
                       in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
-                    {#if showForgottenMessages && isCompressionSummaryMessage(msg)}
-                      <div class="forgotten-messages-boundary-toggle">
-                        <button
-                          class="forgotten-messages-btn"
-                          data-testid="hide-forgotten-messages-at-boundary"
-                          onclick={() => { void toggleForgottenMessages(); }}
-                        >
-                          {$text('chat.compression.hide_forgotten')}
-                        </button>
-                      </div>
-                    {/if}
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
@@ -3329,12 +3318,6 @@
     justify-content: center;
     gap: var(--spacing-2);
     padding: 8px 0 4px;
-  }
-
-  .forgotten-messages-boundary-toggle {
-    display: flex;
-    justify-content: center;
-    padding: 2px 0 var(--spacing-4);
   }
 
   .forgotten-messages-btn {

@@ -13,6 +13,7 @@
         previewImport,
         estimateImportCost,
         importChats,
+        clearImportResumeState,
         type ParsedAccountImport,
         type ImportCostEstimate,
         type ImportPreviewResponse,
@@ -25,6 +26,7 @@
     import SettingsCard from '../elements/SettingsCard.svelte';
     import SettingsCheckboxList from '../elements/SettingsCheckboxList.svelte';
     import SettingsDetailRow from '../elements/SettingsDetailRow.svelte';
+    import SettingsDropdown from '../elements/SettingsDropdown.svelte';
     import SettingsFileUpload from '../elements/SettingsFileUpload.svelte';
     import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
     import SettingsProgressBar from '../elements/SettingsProgressBar.svelte';
@@ -36,6 +38,11 @@
         description?: string;
         icon?: string;
         checked: boolean;
+    };
+
+    type SourceOption = {
+        value: AccountImportSource;
+        label: string;
     };
 
     let selectedFile = $state<File | null>(null);
@@ -70,14 +77,14 @@
             };
         }) ?? []
     );
-    let sourceOptions = $derived<ChatOption[]>(
+    let sourceOptions = $derived<SourceOption[]>(
         (['openmates', 'chatgpt', 'claude', 'gemini', 'opencode', 'other'] as AccountImportSource[]).map((source) => ({
-            id: source,
+            value: source,
             label: $text(`settings.account.import_source_${source}`),
-            description: $text(`settings.account.import_source_${source}_description`),
-            icon: 'icon_ai',
-            checked: selectedSource === source,
         }))
+    );
+    let selectedSourceDescription = $derived(
+        selectedSource ? $text(`settings.account.import_source_${selectedSource}_description`) : ''
     );
 
     const progressCallback: ImportProgressCallback = (phase) => {
@@ -188,13 +195,14 @@
         }
     }
 
-    function selectSource(id: string, checked: boolean): void {
-        if (!checked) return;
+    function selectSource(id: string): void {
+        if (!id) return;
         clearImportData();
         selectedSource = id as AccountImportSource;
     }
 
     function clearImportData(): void {
+        clearImportResumeState(preview?.import_id);
         selectedFile = null;
         parsedImport = null;
         preview = null;
@@ -250,13 +258,19 @@
     {:else}
         {#if !isImporting}
             <SettingsSectionHeading title={$text('settings.account.import_title')} icon="download" />
-            <SettingsCard padding="sm" ariaLabel={$text('settings.account.import_source_heading')}>
-                <SettingsCheckboxList
-                    options={sourceOptions}
-                    onChange={selectSource}
-                    dataTestid="account-import-source"
-                />
-            </SettingsCard>
+            <SettingsDropdown
+                value={selectedSource ?? ''}
+                options={sourceOptions}
+                placeholder={$text('settings.account.import_source_heading')}
+                ariaLabel={$text('settings.account.import_source_heading')}
+                dataTestid="account-import-source"
+                onChange={selectSource}
+            />
+            {#if selectedSource}
+                <SettingsInfoBox type="info" icon="icon_info">
+                    <p data-testid="account-import-source-description">{selectedSourceDescription}</p>
+                </SettingsInfoBox>
+            {/if}
             {#if selectedSource === 'gemini' || selectedSource === 'other'}
                 <SettingsInfoBox type="info" icon="icon_info">
                     <p data-testid={selectedSource === 'gemini' ? 'account-import-gemini-generic-note' : 'account-import-other-generic-note'}>

@@ -319,12 +319,18 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-04T17:40:42Z"
     notes: "Production implementation deployed in b9b0e62; final mobile/provider test refinement deployed in ddbcb51. Vitest run 30920983043 passed 706/706. Deployed Playwright runs 30933944334 (main), 30924847553 (limits), and 30924039255 (dedupe) passed. Artifact privacy scan and settings consistency audit passed, and authenticated laptop/mobile screenshots were reviewed with no objective defects."
+  - id: ATTEMPT-14
+    task_id: TASK-15
+    approach: Add review-finding regressions before changing production code for dropdown selection, same-tab cursor resumption, encrypted checkpoints, scanner behavior, imported titles, and duplicate compression controls.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-04T18:16:13Z"
+    notes: "Tests-only commit a5d55d8 reproduced both root causes. Vitest run 30936499015 passed 709/710 and failed because the second call rejected the advanced scan cursor instead of resuming retained state. Deployed Playwright run 30937027324 failed because account-import-source was a checkbox list rather than a combobox."
 
 handoff:
   current_task_id: TASK-15
-  next_action: Deploy the review-finding test contract and record expected-red Vitest and Playwright evidence before changing Account Import production code.
-  command: python3 scripts/tests.py run --suite vitest && python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit <test-contract-commit>
-  expected_outcome: Tests fail on advanced-cursor retries, checkbox source selection, duplicate forgotten-message controls, and imported headers missing their encrypted title.
+  next_action: Deploy the Account Import review fixes, then run replacement Vitest and exact-commit Playwright evidence before reviewing authenticated laptop/mobile artifacts.
+  command: 'python3 scripts/sessions.py deploy --session 0cac --title "fix: close account import review findings" --message "Implement same-tab resume, canonical source selection, encrypted checkpoint/title persistence, translations, and compression-history visual fixes."'
+  expected_outcome: Replacement Vitest and deployed Playwright runs pass all review-finding assertions before TASK-15 evidence is restored.
   blocker: null
   last_verified_commit: ddbcb51c949af1be7dae41934c02a9567da43534
 

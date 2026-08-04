@@ -72,6 +72,7 @@ test.describe('Account Import V1 web flow', () => {
 		await expect(sourceSelect.getByRole('option', { name: 'Other' })).toBeAttached();
 		await expect(page.getByTestId('account-import-file-upload')).not.toBeVisible();
 		await selectImportSource(page, 'other');
+		await expect(page.getByTestId('account-import-source-description')).toContainText('Generic role/content JSON');
 		await expect(page.getByTestId('account-import-file-upload')).toBeVisible();
 		await page.screenshot({ path: testInfo.outputPath('mobile-source-selection.png'), fullPage: true });
 		await uploadGenericJson(page);
@@ -104,7 +105,7 @@ test.describe('Account Import V1 web flow', () => {
 		await expect(page.getByTestId('import-preview-summary')).toContainText('Chats found');
 		await expect(page.getByTestId('import-preview-summary')).toContainText('1');
 		await page.getByTestId('account-import-start').click();
-		await expect(page.getByTestId('import-results-container')).toContainText('2', { timeout: 30000 });
+		await expect(page.getByTestId('import-results-container')).toContainText('3 messages imported', { timeout: 30000 });
 
 		const paths = calls.map((call: { path: string }) => call.path);
 		expect(paths).toContain('/v1/account-imports/preview');

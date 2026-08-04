@@ -3666,49 +3666,49 @@ import_description:
   context: Description shown on the Account Import V1 page
   en: Import chats from OpenMates, ChatGPT, Claude, Gemini, OpenCode, or another AI assistant. Messages are safety-scanned, compressed when needed, and encrypted on this device before storage.
   de: Importiere Chats aus OpenMates, ChatGPT, Claude, Gemini, OpenCode oder einem anderen KI-Assistenten. Nachrichten werden sicherheitsgeprüft, bei Bedarf komprimiert und vor der Speicherung auf diesem Gerät verschlüsselt.
-  zh: 从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。
-  es: Importa chats desde un archivo YAML de OpenMates exportado previamente. Cada mensaje se analiza por seguridad antes de almacenarse.
-  fr: Importez des chats depuis un fichier YAML OpenMates précédemment exporté. Chaque message est analysé pour la sécurité avant stockage.
-  pt: Importe conversas de um arquivo YAML do OpenMates exportado anteriormente. Cada mensagem é verificada por segurança antes do armazenamento.
-  ru: Импортируйте чаты из ранее экспортированного файла OpenMates YAML. Каждое сообщение проверяется на безопасность перед сохранением.
-  ja: 以前にエクスポートしたOpenMates YAMLファイルからチャットをインポートします。各メッセージは保存前にセキュリティスキャンされます。
-  ko: 이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다。
-  it: Importa le chat da un file YAML OpenMates precedentemente esportato. Ogni messaggio viene analizzato per la sicurezza prima dell'archiviazione.
-  tr: OpenMates dışa aktarma ZIP veya YAML dosyasından sohbetleri içe aktarın. Her mesaj depolanmadan önce güvenlik taramasından geçirilir.
-  vi: Nhập chats từ tệp ZIP hoặc YAML xuất khẩu OpenMates. Mỗi tin nhắn được quét an toàn trước khi lưu trữ.
-  id: Impor obrolan dari file ZIP atau YAML ekspor OpenMates. Setiap pesan dipindai keamanan sebelum disimpan.
-  pl: Importuj czaty z pliku ZIP lub YAML eksportu OpenMates. Każda wiadomość jest skanowana pod kątem bezpieczeństwa przed zapisaniem.
-  nl: Importeer chats uit een OpenMates export ZIP- of YAML-bestand. Elk bericht wordt vóór opslag gescand op veiligheid.
-  ar: استورد المحادثات من ملف ZIP أو YAML لتصدير OpenMates. يتم فحص كل رسالة أمنيًا قبل التخزين.
-  hi: OpenMates एक्सपोर्ट ZIP या YAML फ़ाइल से चैट आयात करें। प्रत्येक संदेश को संग्रहीत करने से पहले सुरक्षा स्कैन किया जाता है।
-  th: นำเข้าแชทจากไฟล์ ZIP หรือ YAML ของ OpenMates แต่ละข้อความจะถูกสแกนความปลอดภัยก่อนจัดเก็บ
-  cs: Importujte chaty ze souboru ZIP nebo YAML exportu OpenMates. Každá zpráva je před uložením prověřena z hlediska bezpečnosti.
-  sv: Importera chattar från en OpenMates export ZIP- eller YAML-fil. Varje meddelande genomsöks för säkerhet innan lagring.
-  he: ייבא שיחות מקובץ ZIP או YAML של ייצוא OpenMates. כל הודעה נסרקת לאבטחה לפני האחסון.
+  zh: 使用受支持的 ZIP 或 JSON 文件，从 OpenMates、ChatGPT、Claude、Gemini、OpenCode 或其他 AI 助手导入聊天。消息会先经过安全扫描，并在存储前于此设备上加密。
+  es: Importa chats de OpenMates, ChatGPT, Claude, Gemini, OpenCode u otro asistente de IA mediante archivos ZIP o JSON compatibles. Los mensajes se analizan y se cifran en este dispositivo antes de almacenarse.
+  fr: Importez des chats depuis OpenMates, ChatGPT, Claude, Gemini, OpenCode ou un autre assistant IA avec des fichiers ZIP ou JSON compatibles. Les messages sont analysés puis chiffrés sur cet appareil avant stockage.
+  pt: Importe conversas do OpenMates, ChatGPT, Claude, Gemini, OpenCode ou de outro assistente de IA usando arquivos ZIP ou JSON compatíveis. As mensagens são verificadas e criptografadas neste dispositivo antes do armazenamento.
+  ru: Импортируйте чаты из OpenMates, ChatGPT, Claude, Gemini, OpenCode или другого ИИ-ассистента с помощью поддерживаемых файлов ZIP или JSON. Сообщения проверяются и шифруются на этом устройстве перед сохранением.
+  ja: 対応する ZIP または JSON ファイルを使って、OpenMates、ChatGPT、Claude、Gemini、OpenCode、その他の AI アシスタントからチャットをインポートします。メッセージは安全性を確認し、この端末で暗号化してから保存されます。
+  ko: 지원되는 ZIP 또는 JSON 파일로 OpenMates, ChatGPT, Claude, Gemini, OpenCode 또는 기타 AI 어시스턴트의 채팅을 가져옵니다. 메시지는 안전 검사를 거쳐 이 기기에서 암호화된 후 저장됩니다.
+  it: Importa chat da OpenMates, ChatGPT, Claude, Gemini, OpenCode o un altro assistente IA usando file ZIP o JSON supportati. I messaggi vengono controllati e cifrati su questo dispositivo prima dell'archiviazione.
+  tr: Desteklenen ZIP veya JSON dosyalarıyla OpenMates, ChatGPT, Claude, Gemini, OpenCode ya da başka bir yapay zeka asistanından sohbetleri içe aktarın. Mesajlar depolanmadan önce taranır ve bu cihazda şifrelenir.
+  vi: Nhập cuộc trò chuyện từ OpenMates, ChatGPT, Claude, Gemini, OpenCode hoặc trợ lý AI khác bằng tệp ZIP hay JSON được hỗ trợ. Tin nhắn được quét an toàn và mã hóa trên thiết bị này trước khi lưu.
+  id: Impor obrolan dari OpenMates, ChatGPT, Claude, Gemini, OpenCode, atau asisten AI lain dengan file ZIP atau JSON yang didukung. Pesan dipindai dan dienkripsi di perangkat ini sebelum disimpan.
+  pl: Importuj czaty z OpenMates, ChatGPT, Claude, Gemini, OpenCode lub innego asystenta AI przy użyciu obsługiwanych plików ZIP albo JSON. Wiadomości są skanowane i szyfrowane na tym urządzeniu przed zapisaniem.
+  nl: Importeer chats uit OpenMates, ChatGPT, Claude, Gemini, OpenCode of een andere AI-assistent met ondersteunde ZIP- of JSON-bestanden. Berichten worden gescand en op dit apparaat versleuteld voordat ze worden opgeslagen.
+  ar: استورد المحادثات من OpenMates أو ChatGPT أو Claude أو Gemini أو OpenCode أو مساعد ذكاء اصطناعي آخر باستخدام ملفات ZIP أو JSON المدعومة. تُفحص الرسائل وتُشفّر على هذا الجهاز قبل التخزين.
+  hi: समर्थित ZIP या JSON फ़ाइलों से OpenMates, ChatGPT, Claude, Gemini, OpenCode या किसी अन्य AI सहायक की चैट आयात करें। संदेशों की सुरक्षा जाँच होती है और संग्रहण से पहले इसी डिवाइस पर एन्क्रिप्ट किया जाता है।
+  th: นำเข้าแชทจาก OpenMates, ChatGPT, Claude, Gemini, OpenCode หรือผู้ช่วย AI อื่นด้วยไฟล์ ZIP หรือ JSON ที่รองรับ ข้อความจะถูกตรวจสอบและเข้ารหัสบนอุปกรณ์นี้ก่อนจัดเก็บ
+  cs: Importujte chaty z OpenMates, ChatGPT, Claude, Gemini, OpenCode nebo jiného AI asistenta pomocí podporovaných souborů ZIP či JSON. Zprávy se před uložením zkontrolují a zašifrují na tomto zařízení.
+  sv: Importera chattar från OpenMates, ChatGPT, Claude, Gemini, OpenCode eller en annan AI-assistent med ZIP- eller JSON-filer som stöds. Meddelanden granskas och krypteras på den här enheten före lagring.
+  he: ייבא שיחות מ-OpenMates, ChatGPT, Claude, Gemini, OpenCode או מסייע AI אחר באמצעות קובצי ZIP או JSON נתמכים. ההודעות נסרקות ומוצפנות במכשיר הזה לפני האחסון.
   verified_by_human: []
 import_choose_file:
   context: Accessible label for the Account Import V1 ZIP or JSON file picker
   en: Choose a ZIP or JSON file to import
   de: ZIP- oder JSON-Datei zum Importieren auswählen
-  zh: 选择要导入的.zip或.yml文件
-  es: Elige un archivo .zip o .yml para importar
-  fr: Choisir un fichier .zip ou .yml à importer
-  pt: Escolha um arquivo .zip ou .yml para importar
-  ru: Выберите файл .zip или .yml для импорта
-  ja: インポートする.zipまたは.ymlファイルを選択
-  ko: 가져올 .zip 또는 .yml 파일 선택
-  it: Scegli un file .zip o .yml da importare
-  tr: İçe aktarmak için .zip veya .yml dosyası seçin
-  vi: Chọn tệp .zip hoặc .yml để nhập
-  id: Pilih file .zip atau .yml untuk diimpor
-  pl: Wybierz plik .zip lub .yml do importu
-  nl: Kies een .zip- of .yml-bestand om te importeren
-  ar: اختر ملف .zip أو .yml للاستيراد
-  hi: आयात करने के लिए .zip या .yml फ़ाइल चुनें
-  th: เลือกไฟล์ .zip หรือ .yml เพื่อนำเข้า
-  cs: Vyberte soubor .zip nebo .yml k importu
-  sv: Välj en .zip- eller .yml-fil att importera
-  he: בחר קובץ .zip או .yml לייבוא
+  zh: 选择受支持的 ZIP 或 JSON 文件进行导入
+  es: Elige un archivo ZIP o JSON compatible para importar
+  fr: Choisir un fichier ZIP ou JSON compatible à importer
+  pt: Escolha um arquivo ZIP ou JSON compatível para importar
+  ru: Выберите поддерживаемый файл ZIP или JSON для импорта
+  ja: インポートする対応 ZIP または JSON ファイルを選択
+  ko: 가져올 지원 ZIP 또는 JSON 파일 선택
+  it: Scegli un file ZIP o JSON supportato da importare
+  tr: İçe aktarmak için desteklenen bir ZIP veya JSON dosyası seçin
+  vi: Chọn tệp ZIP hoặc JSON được hỗ trợ để nhập
+  id: Pilih file ZIP atau JSON yang didukung untuk diimpor
+  pl: Wybierz obsługiwany plik ZIP lub JSON do importu
+  nl: Kies een ondersteund ZIP- of JSON-bestand om te importeren
+  ar: اختر ملف ZIP أو JSON مدعومًا للاستيراد
+  hi: आयात करने के लिए समर्थित ZIP या JSON फ़ाइल चुनें
+  th: เลือกไฟล์ ZIP หรือ JSON ที่รองรับเพื่อนำเข้า
+  cs: Vyberte podporovaný soubor ZIP nebo JSON k importu
+  sv: Välj en ZIP- eller JSON-fil som stöds för import
+  he: בחר קובץ ZIP או JSON נתמך לייבוא
   verified_by_human: []
 import_source_heading:
   context: Heading and accessible label for the required account import source selector

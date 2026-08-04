@@ -216,7 +216,10 @@ describe("chatImportService Account Import V1", () => {
     expect(JSON.stringify(persistBody)).not.toContain("Synthetic system import instruction");
     expect(persistedChat).not.toHaveProperty("title");
     expect(persistedMessages[0]).not.toHaveProperty("content");
-    expect(mocks.addChat).toHaveBeenCalledOnce();
+    expect(mocks.addChat).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Sensitive web import",
+      encrypted_title: `encrypted:${Buffer.from("Sensitive web import").toString("base64")}`,
+    }));
     expect(mocks.batchSaveMessages).toHaveBeenCalledOnce();
   });
 
