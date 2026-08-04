@@ -27,6 +27,7 @@ const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
 const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
 const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
+const DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT = 250;
 const DAILY_INSPIRATION_MAX_HEIGHT = 420;
 const DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO = 0.35;
 const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
@@ -951,14 +952,12 @@ test.describe('Landing page onboarding refresh', () => {
 					demoInsideBanner: demoRect.top >= bannerRect.top && demoRect.bottom <= bannerRect.bottom + 1
 				};
 			});
-			const expectedHeight = Math.min(
-				DAILY_INSPIRATION_MAX_HEIGHT,
-				Math.max(
-					DAILY_INSPIRATION_REFERENCE_HEIGHT,
-					Math.min(
-						metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH,
-						viewport.height * DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO
-					)
+			const expectedHeight = Math.max(
+				viewport.width <= 730 ? DAILY_INSPIRATION_REFERENCE_HEIGHT : DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT,
+				Math.min(
+					DAILY_INSPIRATION_MAX_HEIGHT,
+					metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH,
+					viewport.height * DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO
 				)
 			);
 

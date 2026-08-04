@@ -15833,14 +15833,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex: 0 0 var(--daily-inspiration-area-height);
         width: 100%;
         height: var(--daily-inspiration-area-height);
+        min-height: 250px;
+        max-height: 35dvh;
         box-sizing: border-box;
     }
 
     .daily-inspiration-area.landing-intro-overlay-active {
         --daily-inspiration-area-height: max(35vh, 240px);
+        min-height: 0;
+        max-height: none;
     }
 
     @media (max-width: 730px) {
+        .daily-inspiration-area {
+            min-height: 190px;
+        }
+
         .daily-inspiration-area.landing-intro-overlay-active {
             --daily-inspiration-area-height: 190px;
         }

@@ -85,7 +85,9 @@ const PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS = 30000;
 const CAROUSEL_STEP_WAIT_MS = 300;
 const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
 const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
+const DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT = 250;
 const DAILY_INSPIRATION_MAX_HEIGHT = 420;
+const DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO = 0.35;
 
 async function waitForStartChatInspiration(page: any, log: (message: string, data?: unknown) => void) {
 	const inspirationBanner = page.getByTestId('daily-inspiration-banner').first();
@@ -185,6 +187,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 		{ width: 393, height: 852 },
 		{ width: 600, height: 900 },
 		{ width: 731, height: 960 },
+		{ width: 1280, height: 720 },
 		{ width: 1280, height: 900 }
 	]) {
 		await page.setViewportSize(viewport);
@@ -209,11 +212,12 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 					&& ctaRect.bottom <= bannerRect.bottom
 			};
 		});
-		const expectedHeight = Math.min(
-			DAILY_INSPIRATION_MAX_HEIGHT,
-			Math.max(
-				DAILY_INSPIRATION_REFERENCE_HEIGHT,
-				metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH
+		const expectedHeight = Math.max(
+			viewport.width <= 730 ? DAILY_INSPIRATION_REFERENCE_HEIGHT : DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT,
+			Math.min(
+				DAILY_INSPIRATION_MAX_HEIGHT,
+				metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH,
+				viewport.height * DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO
 			)
 		);
 		expect(metrics.bannerHeight, `${viewport.width}px: authenticated banner should scale proportionally`).toBeCloseTo(expectedHeight, 0);
