@@ -49,7 +49,7 @@ test.describe('Account Import V1 dedupe warnings', () => {
 		await expect(page.getByText(/may already have been imported/i)).toBeVisible({ timeout: 15000 });
 		await expect(page.getByText(/will create new chats/i)).toBeVisible();
 		await page.getByTestId('account-import-start').click();
-		await expect(page.getByTestId('import-results-container')).toContainText('2', { timeout: 30000 });
+		await expect(page.getByTestId('import-results-container')).toContainText('3 messages imported', { timeout: 30000 });
 
 		const persistBody = persistPayloads(calls)[0] as { chats: Array<Record<string, unknown>> };
 		expect(persistBody.chats[0].chat_id).toBeTruthy();
