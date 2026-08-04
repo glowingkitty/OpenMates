@@ -21,6 +21,9 @@ scope:
     - Signup promotion of guest selections into encrypted synced account data named `encrypted_topic_preferences` or an equivalent explicit encrypted field.
     - Settings > Account > Interests editing on web, with CLI and Apple parity for reading/updating the same encrypted preferences.
     - Tests and docs for the privacy-preserving behavior and new default landing flow.
+    - A 34-tag registry weighted toward freelancers, solo businesses, small teams, and practical personal-life app skills.
+    - Selecting interests moves the guest product carousel to the terminal `Start using OpenMates` slide.
+    - Continuing with interests shows the ten highest-ranked example chats and keeps that ranking stable while product slides change.
   out:
     - Server-side profiling, analytics-based personalization, or cleartext interest storage.
     - ML/LLM-based ranking for v1; all selection is deterministic client-side.
@@ -142,6 +145,21 @@ scenarios:
       - New-chat suggestions prioritize relevant prompts such as learning to code, using OpenMates from CLI/API, hiding personal data, and finding developer tutorial videos.
       - The Continue action does not focus or open the message input; the visitor must click the input manually.
       - The same selected tags and registry order always produce the same ranked output.
+      - The example-chat rail contains at most ten ranked example chats from the complete public example-chat pool.
+      - Moving backward or forward through product slides does not restore slide-specific examples after Continue.
+
+  - id: S-9
+    title: Guest reopens the work-and-life interest selector from product discovery
+    given:
+      - A logged-out visitor skipped or completed interest selection.
+      - The Select interests action is visible below the example-chat rail.
+    when:
+      - The visitor presses Select interests.
+    then:
+      - The interest selector opens.
+      - The product carousel moves to the terminal `openmates-signup-cta` slide.
+      - The registry offers 34 canonical tags: 21 work-oriented tags and 13 everyday personal-life tags.
+      - Selected tags remain first and the next ten available tags are re-ranked after each selection.
 
   - id: S-4
     title: Guest interests are session-only before signup
@@ -237,6 +255,12 @@ acceptance_criteria:
   - id: AC-11
     scenario: S-8
     text: Logged-out product explainer inspirations are used only as guest/default content and do not replace authenticated personalized inspirations.
+  - id: AC-12
+    scenario: S-9
+    text: Select interests moves the guest carousel to `openmates-signup-cta`; Continue shows only the first ten deterministic interest-ranked public example chats, and later product-slide navigation does not replace them.
+  - id: AC-13
+    scenario: S-9
+    text: The canonical registry contains 34 localized tags split into 21 work-oriented and 13 everyday-life tags, preserves legacy stored selections through explicit aliases, and maps every tag only to registered public example-chat IDs.
 
 contracts:
   data:
@@ -275,6 +299,9 @@ contracts:
     - Unselected tags are scored by relation to selected tags, shared surfaces, shared category, and stable default order.
     - Content scoring uses explicit registry matches first, then metadata tags/app-skill/category matches, then featured/default fallback order.
     - Dedupe by content ID and apply variety penalties to avoid showing too many cards from one category when multiple tags are selected.
+    - Before Continue, product slides may choose their own curated example chats.
+    - After Continue, selected interests take precedence over the active product slide until the selector is completed again or the guest session ends.
+    - Interest-ranked example output is limited to ten cards after shared-by-others cards are handled separately.
 
 tests:
   - id: T-VITEST-SMART-SELECTION
@@ -286,11 +313,14 @@ tests:
       - AC-4
       - AC-10
       - AC-11
+      - AC-13
     assertions:
       - selected tags stay first and related tags move next without hiding unrelated tags
       - software_development plus privacy ranks developer, CLI, and PII inspirations before generic defaults
       - selected tag ranking dedupes example chats and remains deterministic across repeated runs
       - authenticated personalized inspirations outrank logged-out product explainer defaults when present
+      - the registry contains 34 canonical tags and every example-chat mapping resolves to a registered public example chat
+      - legacy persisted tag IDs migrate deterministically to canonical tag IDs
     red_phase:
       required: true
       expected: fail
@@ -312,6 +342,8 @@ tests:
     command: python3 scripts/tests.py run -- --suite vitest
     covers:
       - AC-5
+      - AC-12
+      - AC-13
       - AC-6
       - AC-7
     assertions:
@@ -356,6 +388,8 @@ tests:
       - after selected tags move left, the first unselected tag is centered instead of the rail jumping back to the start
       - Continue reveals/reranks developer/CLI/privacy daily inspirations, intro/example chats, and suggestions
       - reload in same session preserves selected tags while no localStorage cleartext interest key exists
+      - Select interests moves the product carousel to the terminal signup slide
+      - Continue renders ten interest-ranked example chats whose IDs and order remain stable after product-slide navigation
     red_phase:
       required: true
       expected: fail
@@ -487,6 +521,7 @@ implementation_plan:
     - python3 scripts/spec_validate.py docs/specs/guest-interest-smart-selection/spec.yml
     - python3 scripts/spec_verify.py docs/specs/guest-interest-smart-selection/spec.yml --phase red
     - python3 scripts/spec_verify.py docs/specs/guest-interest-smart-selection/spec.yml --phase green
+    - python3 scripts/audit_sdk_cli_parity.py
   verification_order:
     - Unit/vitest smart-selection and encrypted preference tests first.
     - CLI account/settings parity tests second.
@@ -588,6 +623,32 @@ tasks:
     verification:
       - T-APPLE-INTERESTS
     independently_deployable: false
+  - id: TASK-6
+    title: Refresh work-and-life taxonomy and persist interest-ranked guest examples
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-9
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-12
+        - AC-13
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/interestTags.ts
+      - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    verification:
+      - T-VITEST-SMART-SELECTION
+      - T-PLAYWRIGHT-GUEST-LANDING
+      - T-CLI-INTERESTS
+    independently_deployable: true
 
 risks:
   - Existing Playwright specs currently expect logged-out `/` to auto-navigate to `demo-for-everyone`; these must be intentionally updated with the product change.

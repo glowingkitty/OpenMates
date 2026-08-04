@@ -9,8 +9,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   INTEREST_TAGS,
+  normalizeInterestTagIds,
   type InterestTagId,
 } from "../interestTags";
+import { ALL_EXAMPLE_CHATS } from "../exampleChatData";
 import {
   rankDailyInspirationsByInterests,
   rankExampleChatIdsByInterests,
@@ -20,6 +22,55 @@ import {
 } from "../guestSmartSelection";
 
 describe("guestSmartSelection", () => {
+  it("defines the approved 21-work and 13-personal tag taxonomy", () => {
+    expect(INTEREST_TAGS).toHaveLength(34);
+    expect(INTEREST_TAGS.filter((tag) => tag.audience === "work")).toHaveLength(21);
+    expect(INTEREST_TAGS.filter((tag) => tag.audience === "personal")).toHaveLength(13);
+    expect(INTEREST_TAGS.slice(0, 10).map((tag) => tag.id)).toEqual([
+      "marketing",
+      "software_development",
+      "finance_bookkeeping",
+      "ui_ux_design",
+      "business_planning",
+      "content_creation",
+      "project_management",
+      "admin_operations",
+      "find_local_events",
+      "plan_trips",
+    ]);
+  });
+
+  it("maps every interest to registered public example chats", () => {
+    const registeredIds = new Set(ALL_EXAMPLE_CHATS.map((chat) => chat.chat_id));
+    const unknownMappings = INTEREST_TAGS.flatMap((tag) =>
+      tag.exampleChats
+        .filter((chatId) => !registeredIds.has(chatId))
+        .map((chatId) => `${tag.id}:${chatId}`),
+    );
+
+    expect(unknownMappings).toEqual([]);
+    expect(INTEREST_TAGS.filter((tag) => tag.exampleChats.length === 0)).toEqual([]);
+  });
+
+  it("migrates legacy stored tag IDs to canonical tags", () => {
+    expect(normalizeInterestTagIds([
+      "marketing_sales",
+      "finance",
+      "design",
+      "find_events",
+      "marketing_sales",
+    ])).toEqual([
+      "marketing",
+      "sales",
+      "finance_bookkeeping",
+      "personal_finances",
+      "ui_ux_design",
+      "branding_images",
+      "find_local_events",
+      "events_networking",
+    ]);
+  });
+
   it("uses interest translation keys for every guest-selectable tag", () => {
     const source = readFileSync(
       new URL("../../i18n/sources/chat/interests.yml", import.meta.url),
@@ -46,25 +97,25 @@ describe("guestSmartSelection", () => {
     expect(rankedIds).toEqual(
       expect.arrayContaining(INTEREST_TAGS.map((tag) => tag.id)),
     );
-    expect(rankedIds.indexOf("run_code")).toBeGreaterThan(0);
-    expect(rankedIds.indexOf("run_code")).toBeLessThan(
+    expect(rankedIds.indexOf("automation_workflows")).toBeGreaterThan(0);
+    expect(rankedIds.indexOf("automation_workflows")).toBeLessThan(
       rankedIds.indexOf("find_apartments"),
     );
-    expect(rankedIds.indexOf("privacy")).toBeLessThan(
-      rankedIds.indexOf("find_restaurant"),
+    expect(rankedIds.indexOf("privacy_personal_data")).toBeLessThan(
+      rankedIds.indexOf("find_restaurants_cafes"),
     );
   });
 
   it("keeps multiple selected tags first in selection order and ignores invalid duplicates", () => {
     const rankedIds = rankInterestTagsForSelection([
-      "privacy",
+      "privacy_personal_data",
       "unknown_tag",
       "software_development",
-      "privacy",
+      "privacy_personal_data",
     ]).map((tag) => tag.id);
 
     expect(rankedIds.slice(0, 2)).toEqual([
-      "privacy",
+      "privacy_personal_data",
       "software_development",
     ]);
     expect(rankedIds).toEqual(Array.from(new Set(rankedIds)));
@@ -85,7 +136,7 @@ describe("guestSmartSelection", () => {
 
     const ranked = rankDailyInspirationsByInterests(inspirations, [
       "software_development",
-      "privacy",
+      "privacy_personal_data",
     ]).map((inspiration) => inspiration.inspiration_id);
 
     expect(ranked.slice(0, 4)).toEqual([
@@ -102,7 +153,7 @@ describe("guestSmartSelection", () => {
   it("dedupes ranked example chats and remains deterministic", () => {
     const selected: InterestTagId[] = [
       "software_development",
-      "privacy",
+      "privacy_personal_data",
     ];
     const exampleIds = [
       "example-gigantic-airplanes",
@@ -150,7 +201,7 @@ describe("guestSmartSelection", () => {
           "chat.new_chat_suggestions.cybersecurity",
           "chat.new_chat_suggestions.discover_video_search",
         ],
-        ["software_development", "privacy"],
+        ["software_development", "privacy_personal_data"],
       ).slice(0, 2),
     ).toEqual([
       "chat.new_chat_suggestions.cybersecurity",
@@ -171,7 +222,7 @@ describe("guestSmartSelection", () => {
           personalized: true,
         },
       ],
-      ["privacy"],
+      ["privacy_personal_data"],
     );
 
     expect(ranked[0].inspiration_id).toBe("personalized-user-topic");

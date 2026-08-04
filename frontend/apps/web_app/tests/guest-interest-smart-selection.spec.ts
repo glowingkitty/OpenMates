@@ -16,9 +16,9 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const GUEST_TOPIC_PREFERENCES_STORAGE_KEY = 'openmates.guest_interest_tags.v1';
 const SELECTED_INTEREST_TAGS = [
 	'software_development',
-	'privacy',
-	'run_code',
-	'build_electronics'
+	'privacy_personal_data',
+	'automation_workflows',
+	'project_management'
 ];
 const LANDING_INTRO_REQUESTS = [
 	'Find doctor appointments',
@@ -41,6 +41,14 @@ async function interestTagOrder(page: any): Promise<string[]> {
 async function visibleSuggestionIds(page: any): Promise<string[]> {
 	return page.getByTestId('new-chat-suggestion-card').evaluateAll(
 		(nodes: Element[]) => nodes.map((node) => node.getAttribute('data-suggestion-id') || '')
+	);
+}
+
+async function visibleExampleChatIds(page: any): Promise<string[]> {
+	return page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').evaluateAll(
+		(nodes: Element[]) => nodes
+			.map((node) => node.getAttribute('data-chat-id') || '')
+			.filter((id) => id.startsWith('example-'))
 	);
 }
 
@@ -314,6 +322,11 @@ test.describe('Guest interest smart selection', () => {
 
 		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
+			'data-current-inspiration-id',
+			'openmates-signup-cta',
+			{ timeout: 5000 }
+		);
 		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
 		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
 		await expect(page.getByText('Explore what you can do:')).toHaveCount(0);
@@ -330,11 +343,11 @@ test.describe('Guest interest smart selection', () => {
 		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
 		expect(defaultTagOrder.slice(0, 10)).toEqual(
 			expect.arrayContaining([
-				'privacy',
-				'learning',
-				'writing',
-				'find_restaurant',
-				'find_apartments'
+				'marketing',
+				'software_development',
+				'finance_bookkeeping',
+				'ui_ux_design',
+				'plan_trips'
 			])
 		);
 		expect(defaultTagOrder.indexOf('software_development')).toBeGreaterThan(0);
@@ -356,10 +369,10 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
-		await clickInterestTag(page, 'privacy');
-		await clickInterestTag(page, 'run_code');
+		await clickInterestTag(page, 'privacy_personal_data');
+		await clickInterestTag(page, 'automation_workflows');
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
-		await clickInterestTag(page, 'build_electronics');
+		await clickInterestTag(page, 'project_management');
 		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
 
 		const tagOrder = await interestTagOrder(page);
@@ -373,10 +386,10 @@ test.describe('Guest interest smart selection', () => {
 		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
 		expect(await firstAvailableTagCenterDelta(page)).toBeLessThanOrEqual(32);
 		expect(tagOrder).toEqual(
-			expect.arrayContaining(['privacy', 'run_code', 'build_electronics', 'diy_projects'])
+			expect.arrayContaining(['privacy_personal_data', 'automation_workflows', 'project_management', 'admin_operations'])
 		);
-		expect(tagOrder).toContain('electrical_engineering');
-		await expect(page.getByTestId('interest-tag-electrical_engineering')).toContainText('electronics');
+		expect(tagOrder).toContain('admin_operations');
+		await expect(page.getByTestId('interest-tag-admin_operations')).toContainText('admin');
 		await expect(page.getByText('Elton')).toHaveCount(0);
 
 		const storageStateBeforeContinue = await page.evaluate((key: string) => ({
@@ -400,9 +413,13 @@ test.describe('Guest interest smart selection', () => {
 		}), GUEST_TOPIC_PREFERENCES_STORAGE_KEY);
 		expect(storageStateAfterContinue.localValue).toBeNull();
 		expect(storageStateAfterContinue.sessionValue).toContain('software_development');
-		expect(storageStateAfterContinue.sessionValue).toContain('privacy');
+		expect(storageStateAfterContinue.sessionValue).toContain('privacy_personal_data');
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
 		await expectFirstCardIsExampleChat(page);
+		await expect.poll(async () => (await visibleExampleChatIds(page)).length, { timeout: 15000 }).toBe(10);
+		const interestRankedExampleIds = await visibleExampleChatIds(page);
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expect.poll(async () => await visibleExampleChatIds(page), { timeout: 5000 }).toEqual(interestRankedExampleIds);
 		await expect(page.getByTestId('example-chat-badge').first()).toContainText('Example chat', { timeout: 15000 });
 		await page.getByTestId('message-editor').click();
 		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
