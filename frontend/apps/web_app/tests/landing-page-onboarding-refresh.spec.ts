@@ -701,8 +701,8 @@ test.describe('Landing page onboarding refresh', () => {
 		await waitForExpandedIntroToCoverActiveChat(page);
 		const restored = await landingIntroOverlayMetrics(page);
 		expect(restored.bannerActiveBottomDelta, 'returning to slide one expands over active chat bottom').toBeLessThanOrEqual(2);
-		expect(restored.messageInputOpacity, 'message input fades out when slide one expands again').toBeLessThanOrEqual(0.05);
-		expect(restored.welcomeContentOpacity, 'welcome content fades out when slide one expands again').toBeLessThanOrEqual(0.05);
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).messageInputOpacity, { timeout: 2000 }).toBeLessThanOrEqual(0.05);
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).welcomeContentOpacity, { timeout: 2000 }).toBeLessThanOrEqual(0.05);
 	});
 
 	test('touch guest prompt and example cards stay fixed when intro advances to slide two', async ({ page }: { page: any }) => {
