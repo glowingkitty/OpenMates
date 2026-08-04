@@ -59,7 +59,7 @@ test.describe('Account Import V1 web flow', () => {
 		await page.getByTestId('account-import-start').click();
 		await expect(page.getByTestId('import-results-container')).toContainText('2 messages imported', { timeout: 30000 });
 		const persistBody = persistPayloads(calls)[0] as { chats: Array<Record<string, unknown>> };
-		await openImportedChat(page, String(persistBody.chats[0].chat_id));
+		await page.goto(`/#chat-id=${String(persistBody.chats[0].chat_id)}`, { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'AI assistant' })).toBeVisible();
 		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'other');
 		await page.screenshot({ path: testInfo.outputPath('mobile-other-provider.png'), fullPage: true });
