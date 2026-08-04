@@ -38,6 +38,21 @@ async function openImportedChat(page: any, chatId: string): Promise<void> {
 }
 
 test.describe('Account Import V1 web flow', () => {
+	test('shows explicit import source selection on mobile', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(180000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await installAccountImportMock(page, { importId: 'web-import-mobile' });
+		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
+		await expect(page.getByTestId('account-import-file-upload')).not.toBeVisible();
+		await expect(page.getByTestId('account-import-source-option-openmates')).toBeVisible();
+		await expect(page.getByTestId('account-import-source-option-other')).toBeVisible();
+		await selectImportSource(page, 'gemini');
+		await expect(page.getByTestId('account-import-file-upload')).toBeVisible();
+		await page.screenshot({ path: testInfo.outputPath('mobile-source-selection.png'), fullPage: true });
+	});
+
 	test('imports Claude JSON through scan and encrypted persistence', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
