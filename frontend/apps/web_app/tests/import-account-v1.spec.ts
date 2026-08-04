@@ -44,7 +44,7 @@ test.describe('Account Import V1 web flow', () => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await installAccountImportMock(page, { importId: 'web-import-mobile' });
+		const calls = await installAccountImportMock(page, { importId: 'web-import-mobile' });
 		await loginToTestAccount(page, () => undefined, async () => undefined, {
 			credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY },
 		});
@@ -52,9 +52,17 @@ test.describe('Account Import V1 web flow', () => {
 		await expect(page.getByTestId('account-import-file-upload')).not.toBeVisible();
 		await expect(page.getByTestId('account-import-source-option-openmates')).toBeVisible();
 		await expect(page.getByTestId('account-import-source-option-other')).toBeVisible();
-		await selectImportSource(page, 'gemini');
+		await selectImportSource(page, 'other');
 		await expect(page.getByTestId('account-import-file-upload')).toBeVisible();
 		await page.screenshot({ path: testInfo.outputPath('mobile-source-selection.png'), fullPage: true });
+		await uploadGenericJson(page);
+		await page.getByTestId('account-import-start').click();
+		await expect(page.getByTestId('import-results-container')).toContainText('2 messages imported', { timeout: 30000 });
+		const persistBody = persistPayloads(calls)[0] as { chats: Array<Record<string, unknown>> };
+		await openImportedChat(page, String(persistBody.chats[0].chat_id));
+		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'AI assistant' })).toBeVisible();
+		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'other');
+		await page.screenshot({ path: testInfo.outputPath('mobile-other-provider.png'), fullPage: true });
 	});
 
 	test('imports Claude JSON through scan and encrypted persistence', async ({ page }: { page: any }, testInfo: any) => {
