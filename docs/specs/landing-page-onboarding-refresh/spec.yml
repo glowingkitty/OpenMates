@@ -435,15 +435,34 @@ attempts:
       Commit `49fbe8aa5` deployed Ready and focused GitHub Actions run
       `30904122256` failed because `landing-privacy-safety-demo` did not exist in
       the generic illustration implementation. This is the preserved TASK-4 red phase.
+  - id: ATTEMPT-23
+    task_id: TASK-4
+    approach: Deploy the coordinated stories, run the focused contract, then inspect interaction screenshots at laptop and mobile widths.
+    outcome: succeeded
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `0340d8ed8` passed the focused Playwright contract in GitHub Actions
+      run `30908695123`. Reviewed interaction screenshots then exposed mobile
+      story-body clipping; commit `0abc480` constrained the compact story shell
+      and narrow layouts. Final screenshots on descendant `12fd4b70e` show the
+      privacy, mates/focus, and people-first first stages fully contained at both
+      viewports with no horizontal overflow or page errors.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the statically verified TASK-4 implementation, wait for Vercel Ready, then run the focused Playwright contract and reviewed laptop/mobile visual smoke.
-  command: >-
-    python3 scripts/sessions.py deploy --session a3a3 --title "feat: add landing header product stories" --message "Implement coordinated privacy, mates, focus mode, provider, and platform landing timelines."
-  expected_outcome: The scoped implementation deploys to dev for exact-commit Playwright and visual verification.
-  blocker: null
-  last_verified_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
+  next_action: Ask the user to visually confirm the deployed privacy, mates/focus, and people-first landing stories.
+  command: manual review of https://app.dev.openmates.org/
+  expected_outcome: User confirms the new explanatory slides are readable and visually correct, or identifies a remaining issue to fix.
+  blocker:
+    kind: user_visual_confirmation
+    task_id: TASK-4
+    requires_user_input: true
+    reason: >
+      Focused deployed Playwright and reviewed laptop/mobile screenshots are green,
+      but this user-visible landing UI requires final user visual confirmation.
+    question: Do the deployed privacy, mates/focus, and people-first landing stories look and behave correctly to you?
+    next_action: If the user confirms, record the confirmation and continue only the separately scoped deferred landing tasks.
+  last_verified_commit: 0abc480
 
 scenarios:
   - id: S-1
@@ -899,9 +918,18 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        subject_commit: ""
-        timestamp: "2026-08-04"
+        status: passed
+        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 0340d8e
+        run_id: "30908695123"
+        subject_commit: 0340d8ed8
+        target: app.dev.openmates.org
+        deployment_reference: dpl_GfzZeXUYooepVu3tVga369nKnuPC
+        summary: >
+          Both focused tests passed, covering coordinated timelines, heading-gated
+          playback, metadata-backed content, terminal signup, and reduced motion.
+          The later `0abc480` change is mobile layout-only and is covered by the
+          reviewed visual-smoke evidence below.
+        timestamp: "2026-08-04T12:26:00Z"
 
 verifications:
   - id: V-USER-PHASE1
@@ -959,17 +987,28 @@ verifications:
       - AC-7
       - AC-8
       - AC-9
-    status: pending
+    status: passed
     route: https://app.dev.openmates.org/
     viewports:
       - laptop
       - mobile
     evidence:
-      status: pending
-      summary: Awaiting reviewed deployed laptop and mobile screenshots.
-      run_id: ""
-      subject_commit: ""
-      timestamp: "2026-08-04"
+      status: passed
+      reason: Reviewed deployed screenshots cover the required final visual verification for TASK-4.
+      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session a3a3
+      summary: >
+        Reviewed baseline plus privacy, mates/focus, and people-first interaction
+        screenshots at laptop and mobile widths. Defects: initial mobile story-body
+        clipping was fixed in commit `0abc480`; final screenshots show no overflow,
+        overlap, broken media, loading stalls, or page errors. Accepted differences:
+        compact mobile headings use the existing two-line ellipsis treatment.
+      run_id: test-results/visual-smoke/2026-08-04T13-09-45-524Z/summary.json
+      subject_commit: 12fd4b70e
+      target: https://app.dev.openmates.org/
+      viewports:
+        - laptop
+        - mobile
+      timestamp: "2026-08-04T13:14:09Z"
 
 implementation_plan:
   spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml
@@ -1149,7 +1188,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Implement remaining header explanatory slides
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
