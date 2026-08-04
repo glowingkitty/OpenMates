@@ -273,11 +273,17 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-03T21:24:00Z"
     notes: CLI storage passed 15 tests, backend/pip recovery passed 14 tests, the audit checked 82 command entries and four workflow transports, and real CLI/npm/pip usage calls passed with isolated temporary auth state and revoked SDK keys.
+  - id: ATTEMPT-8
+    task_id: TASK-14
+    approach: Add focused writer, Vault-only persistence, and rollout-manifest contracts before implementing R2.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-04T10:33:00Z"
+    notes: Collection failed because the shared encrypt_media_variants boundary and deterministic audit_media_encryption_rollout module did not exist; the red contracts were preserved in commit 63e156d.
 
 handoff:
   current_task_id: TASK-14
-  next_action: Satisfy A-7 with authorized wrapped-key media read evidence before activating v2 writers.
-  command: pending authorized wrapped-key media proof
+  next_action: Implement the red R2 writer and rollout contracts while keeping write_version 1 until real dev Vault proof passes.
+  command: python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_media_encryption_rollout.py
   expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
   blocker: null
   last_verified_commit: 66b6630dd
@@ -591,11 +597,11 @@ tests:
   - id: T-BACKEND-MEDIA
     type: pytest
     file: backend/tests/test_media_encryption_compatibility.py
-    command: python3 -m pytest backend/tests/test_media_encryption_compatibility.py
+    command: python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_media_encryption_rollout.py
     covers: [AC-2, AC-3, AC-4]
     assertions: [Legacy nonce and raw-key fallback decrypts, all new variants have distinct nonces, v2 bytes are nonce then ciphertext and tag, v2 rows store only Vault-wrapped server keys, the explicit marker selects v2, duplicate/RNG/Vault failure persists nothing, premature writer enablement fails.]
-    red_phase: {required: true, expected: fail, evidence: {status: missing_test, run_id: "task10-backend-red-not-retained", timestamp: "2026-08-03T22:34:00Z", reason: "The backend compatibility tests were authored before implementation, but no durable pre-implementation run identifier was retained."}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_generated_model_streaming_storage.py backend/tests/test_encrypted_embed_images.py", run_id: "local-task10-backend-24", subject_commit: "1e7e5d996", timestamp: "2026-08-03T22:41:00Z", notes: "24 focused tests passed for frozen legacy payloads, explicit nonce-prefixed v2, unknown-marker rejection, wrapped-key-only v2 Vault unwrap, direct REST decoding, and worker image decoding."}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_media_encryption_compatibility.py backend/tests/test_media_encryption_rollout.py -q", run_id: "local-task14-red-2026-08-04T10:33:00Z", subject_commit: "63e156d", timestamp: "2026-08-04T10:33:00Z", reason: "Collection failed because encrypt_media_variants and audit_media_encryption_rollout were intentionally absent before TASK-14 implementation."}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-INVOICE-REGEN
     type: pytest
     file: backend/tests/test_invoice_encryption_regeneration.py
@@ -1131,7 +1137,7 @@ tasks:
     independently_deployable: true
   - id: TASK-14
     title: Activate R2 nonce-prefixed writers and Vault-only key persistence
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4, S-15]
