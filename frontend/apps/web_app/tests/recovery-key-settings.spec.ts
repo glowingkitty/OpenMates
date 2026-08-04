@@ -182,7 +182,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await expect(page.getByTestId('password-settings-error')).toHaveCount(0);
 	logCheckpoint('Password settings loaded from the core auth endpoint.');
 
-	await page.getByTestId('settings-back-button').click();
+	await page.getByTestId('banner-back-button').first().click();
 	await expect(page.getByRole('menuitem', { name: /recovery.*key/i })).toBeVisible({ timeout: 10000 });
 
 	await page.getByRole('menuitem', { name: /recovery.*key/i }).click();
