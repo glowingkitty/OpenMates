@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-worktree-deploy
 title: Agent Worktree Deploy Isolation and Reconciliation
-status: implementing
+status: verified
 goal: 'Replace the shared-checkout deployment workflow with automatic ephemeral session worktrees that isolate agent edits,
   integrate through the existing dev branch only for the shortest practical window, verify deploys against the relevant commit,
   and reconcile workspaces without overwriting newer dev commits or allowing forgotten worktrees to accumulate.
@@ -116,7 +116,7 @@ clarification:
     '
   approved_by_user: true
 implementation_state:
-  subject_commit: c23c93472
+  subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
 approvals:
   product_contract:
     status: approved
@@ -210,14 +210,23 @@ attempts:
   outcome: rejected
   recorded_at: '2026-08-04T00:00:00Z'
   reason: This created hundreds of linked worktrees that no longer have discoverable lifecycle metadata.
+- id: ATTEMPT-4
+  task_id: TASK-14
+  approach: Run report-only reconciliation, delete 117 deterministically integrated or duplicated stale worktrees, batch-review
+    135 unique or uncertain stale worktrees, delete 132 reviewed-obsolete cases, integrate the sole meaningful `04e6` behavior,
+    and remove four known obsolete blocked sessions plus the three remediation worktrees through targeted reconciliation.
+  outcome: succeeded
+  recorded_at: '2026-08-04T11:40:00Z'
+  reason: Final reconciliation against edc427391 inspected 226 worktrees and classified all 226 as recent-active, with no stale,
+    malformed, uncertain, or unique unresolved worktrees. The state retained 257 source-free deletion manifests and two new
+    concurrent blocked deploys that were intentionally not modified.
 handoff:
-  current_task_id: TASK-14
-  next_action: Deploy the tested reconciliation controller, run report-only reconciliation from the root control plane, then
-    apply only safe and explicitly reviewed stale deletions.
+  current_task_id: TASK-15
+  next_action: No implementation action remains; hourly reconciliation will retain recent work and clean eligible stale work.
   command: python3 scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48
-  expected_outcome: Every current agent worktree is classified without mutation before the one-time safe cleanup.
+  expected_outcome: Current worktrees remain recent-active or are safely classified when they cross the 48-hour threshold.
   blocker: null
-  last_verified_commit: c23c93472
+  last_verified_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
 scenarios:
 - id: S-1
   title: Agent starts in an isolated worktree
@@ -380,7 +389,7 @@ acceptance_criteria:
   text: Deploy and session end remove fully integrated worktrees before deleting metadata and preserve a visible pending state
     when residual changes remain.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: custom
   verification_ids:
@@ -411,7 +420,7 @@ acceptance_criteria:
   text: Report-only reconciliation inventories registered, linked, physical, and orphaned worktrees without modifying state and
     emits deterministic classifications against an exact `origin/dev` commit.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: custom
   verification_ids:
@@ -421,7 +430,7 @@ acceptance_criteria:
   text: Safe cleanup automatically deletes worktrees idle for 48 hours only when they are integrated, duplicated, or superseded
     with high confidence, without applying their content to dev.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: custom
   verification_ids:
@@ -432,7 +441,7 @@ acceptance_criteria:
   text: Automatic deletion retains a source-free compact manifest for 30 days while unique or uncertain stale work remains visible
     for a decision.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: custom
   verification_ids:
@@ -442,7 +451,7 @@ acceptance_criteria:
   text: Pull-request readiness allows explicitly excluded recent work and blocks stale, blocked, orphaned, malformed, or unresolved
     worktree state against the exact release commit.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: custom
   verification_ids:
@@ -453,7 +462,7 @@ acceptance_criteria:
   text: Meaningful unique stale behavior is reapplied test-first on current dev without overwriting newer file content before its
     source worktree is deleted.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: related_backend
   verification_ids:
@@ -484,9 +493,9 @@ tests:
     evidence:
       status: passed
       command: python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py
-      run_id: local-green-worktree-lifecycle
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:07Z'
+      run_id: local-final-worktree-suite-20260804
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:40:00Z'
 - id: T-PYTEST-DEPLOY-INTEGRATION
   type: pytest
   file: scripts/tests/test_sessions_worktree_deploy.py
@@ -512,9 +521,9 @@ tests:
     evidence:
       status: passed
       command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy.py
-      run_id: local-green-worktree-deploy
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:07Z'
+      run_id: local-final-worktree-suite-20260804
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:40:00Z'
 - id: T-PYTEST-DEPLOY-QUEUE
   type: pytest
   file: scripts/tests/test_sessions_worktree_deploy_queue.py
@@ -540,9 +549,9 @@ tests:
     evidence:
       status: passed
       command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy_queue.py
-      run_id: local-green-worktree-queue
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:07Z'
+      run_id: local-final-worktree-suite-20260804
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:40:00Z'
 - id: T-PYTEST-COMMIT-VERIFICATION
   type: pytest
   file: scripts/tests/test_commit_scoped_deploy_verification.py
@@ -568,9 +577,9 @@ tests:
     evidence:
       status: passed
       command: python3 -m pytest scripts/tests/test_commit_scoped_deploy_verification.py
-      run_id: local-green-commit-verification
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:08Z'
+      run_id: local-final-commit-verification-20260804
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:42:00Z'
 - id: T-PYTEST-WORKTREE-CLEANUP
   type: pytest
   file: scripts/tests/test_sessions_worktree_cleanup.py
@@ -599,8 +608,8 @@ tests:
       status: passed
       command: python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py
       run_id: local-remediation-green-20260804-1038
-      subject_commit: worktree-85ef-c23c93472
-      timestamp: '2026-08-04T10:38:39Z'
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:40:00Z'
 - id: T-NODE-HOOK-GUARDS
   type: unit
   file: scripts/tests/test_opencode_worktree_guards.mjs
@@ -627,9 +636,9 @@ tests:
     evidence:
       status: passed
       command: node --test scripts/tests/test_opencode_worktree_guards.mjs
-      run_id: local-green-opencode-guards
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:08Z'
+      run_id: local-final-opencode-guards-20260804
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:40:00Z'
 - id: T-PYTEST-ROOT-GUARD
   type: pytest
   file: scripts/tests/test_sessions_root_guard.py
@@ -655,9 +664,9 @@ tests:
     evidence:
       status: passed
       command: python3 -m pytest scripts/tests/test_sessions_root_guard.py
-      run_id: local-green-root-guard
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:08Z'
+      run_id: local-final-worktree-suite-20260804
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:40:00Z'
 - id: T-AUDIT-DOCS
   type: lint
   file: scripts/audit_worktree_deploy_contract.py
@@ -686,8 +695,8 @@ tests:
       status: passed
       command: python3 scripts/audit_worktree_deploy_contract.py
       run_id: local-remediation-audit-20260804-1038
-      subject_commit: worktree-85ef-c23c93472
-      timestamp: '2026-08-04T10:38:39Z'
+      subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+      timestamp: '2026-08-04T11:40:00Z'
 - id: T-PYTEST-WORKTREE-FINALIZATION
   type: pytest
   file: scripts/tests/test_sessions_worktree_finalization.py
@@ -706,7 +715,7 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-green-20260804-1038, subject_commit: worktree-85ef-c23c93472, timestamp: '2026-08-04T10:38:39Z'}
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-final-green-20260804, subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75, timestamp: '2026-08-04T11:40:00Z'}
 - id: T-PYTEST-WORKTREE-RECONCILIATION
   type: pytest
   file: scripts/tests/test_sessions_worktree_reconciliation.py
@@ -728,7 +737,7 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-green-20260804-1038, subject_commit: worktree-85ef-c23c93472, timestamp: '2026-08-04T10:38:39Z'}
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-final-green-20260804, subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75, timestamp: '2026-08-04T11:40:00Z'}
 - id: T-PYTEST-WORKTREE-PR-READINESS
   type: pytest
   file: scripts/tests/test_sessions_worktree_pr_readiness.py
@@ -746,7 +755,7 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-green-20260804-1038, subject_commit: worktree-85ef-c23c93472, timestamp: '2026-08-04T10:38:39Z'}
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-final-green-20260804, subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75, timestamp: '2026-08-04T11:40:00Z'}
 - id: T-PYTEST-STALE-INTEGRATION
   type: pytest
   file: backend/tests/test_embed_methods.py
@@ -763,7 +772,7 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {status: passed, command: "python3 -m pytest backend/tests/test_embed_methods.py backend/tests/test_share_chat_window_loading.py", run_id: local-stale-integration-green-20260804, subject_commit: worktree-a002-49fbe8aa5, timestamp: '2026-08-04T11:17:00Z'}
+    evidence: {status: passed, command: "python3 -m pytest backend/tests/test_embed_methods.py backend/tests/test_share_chat_window_loading.py", run_id: local-stale-integration-final-20260804, subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75, timestamp: '2026-08-04T11:40:00Z'}
 assumptions:
 - id: A-1
   text: Existing `sessions.py` metadata can be extended without replacing `.claude/sessions.json` as the shared state file.
@@ -811,7 +820,7 @@ verifications:
 - id: V-SPEC-VALIDATE
   kind: deterministic_check
   phase: final
-  status: pending
+  status: passed
   covers:
   - AC-1
   - AC-2
@@ -824,18 +833,19 @@ verifications:
   - AC-9
   - AC-10
   - AC-11
+  - AC-12
   required_for_done: true
   command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
   evidence:
-    status: ''
-    command: ''
-    run_id: ''
-    subject_commit: ''
-    timestamp: ''
+    status: passed
+    command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
+    run_id: local-final-spec-validate-20260804
+    subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+    timestamp: '2026-08-04T11:40:00Z'
 - id: V-SPEC-VERIFY
   kind: deterministic_check
   phase: final
-  status: pending
+  status: passed
   covers:
   - AC-1
   - AC-2
@@ -848,14 +858,15 @@ verifications:
   - AC-9
   - AC-10
   - AC-11
+  - AC-12
   required_for_done: true
   command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
   evidence:
-    status: ''
-    command: ''
-    run_id: ''
-    subject_commit: ''
-    timestamp: ''
+    status: passed
+    command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
+    run_id: local-final-spec-verify-20260804
+    subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+    timestamp: '2026-08-04T11:40:00Z'
 implementation_plan:
   spec_path: docs/specs/agent-worktree-deploy/spec.yml
   architecture: 'Keep `scripts/sessions.py` as the single lifecycle controller and extend it with report-only reconciliation,
@@ -1332,8 +1343,8 @@ tasks:
     shared_files: []
 - id: TASK-14
   title: Reconcile and safely clean the current worktree backlog
-  status: pending
-  phase: running_checks
+  status: done
+  phase: complete
   covers:
     scenarios: [S-7, S-8, S-9, S-10]
     acceptance_criteria: [AC-8, AC-9, AC-10, AC-11, AC-12]
@@ -1354,8 +1365,8 @@ tasks:
     shared_files: [.openmates-agent-worktrees]
 - id: TASK-15
   title: Run final focused checks and verify the resumed spec
-  status: pending
-  phase: running_checks
+  status: done
+  phase: complete
   covers:
     scenarios: [S-5, S-7, S-8, S-9]
     acceptance_criteria: [AC-5, AC-8, AC-9, AC-10, AC-11]
