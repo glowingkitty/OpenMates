@@ -2678,6 +2678,8 @@
 
   .guest-signup-benefits-list li {
     display: flex;
+    width: 100%;
+    min-width: 0;
     align-items: center;
     gap: clamp(10px, 1vw, 16px);
     color: rgba(255, 255, 255, 0.96);
@@ -3506,7 +3508,7 @@
 
     .guest-signup-benefits-list li {
       gap: 7px;
-      justify-content: center;
+      justify-content: flex-start;
       font-size: clamp(0.82rem, 3.8vw, 1.05rem);
     }
 
