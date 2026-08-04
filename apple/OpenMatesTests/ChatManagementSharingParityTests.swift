@@ -239,7 +239,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(shortURL.path, "/s/\(encrypted.token)")
         XCTAssertEqual(shortURL.fragment, encrypted.shortKey)
         XCTAssertEqual(encrypted.token.count, 8)
-        XCTAssertEqual(encrypted.shortKey.count, 6)
+        XCTAssertEqual(encrypted.shortKey.count, 22)
     }
 
     private func decryptShareBlob(
