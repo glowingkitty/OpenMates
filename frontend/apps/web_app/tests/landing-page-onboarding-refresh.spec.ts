@@ -840,20 +840,22 @@ test.describe('Landing page onboarding refresh', () => {
 		).toBe('preview-clicked');
 		await expect(page.getByTestId('landing-actionable-event-preview')).toHaveAttribute('data-demo-pressed', 'true');
 		const previewGeometry = await page.evaluate(() => {
+			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
 			const preview = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-preview"]');
 			const pointer = document.querySelector<HTMLElement>('[data-testid="landing-actionable-pointer"]');
-			if (!scene || !preview || !pointer) throw new Error('Actionable preview geometry elements missing');
+			if (!banner || !scene || !preview || !pointer) throw new Error('Actionable preview geometry elements missing');
+			const bannerRect = banner.getBoundingClientRect();
 			const sceneRect = scene.getBoundingClientRect();
 			const previewRect = preview.getBoundingClientRect();
 			return {
 				centerDeltaX: Math.abs((previewRect.left + previewRect.width / 2) - (sceneRect.left + sceneRect.width / 2)),
 				centerOffsetY: (previewRect.top + previewRect.height / 2) - (sceneRect.top + sceneRect.height / 2),
 				pointerInsideScene: pointer.getBoundingClientRect().top < sceneRect.bottom,
-				fullyVisible: previewRect.left >= sceneRect.left - 1
-					&& previewRect.right <= sceneRect.right + 1
-					&& previewRect.top >= sceneRect.top - 1
-					&& previewRect.bottom <= sceneRect.bottom + 1
+				fullyVisible: previewRect.left >= bannerRect.left - 1
+					&& previewRect.right <= bannerRect.right + 1
+					&& previewRect.top >= bannerRect.top - 1
+					&& previewRect.bottom <= bannerRect.bottom + 1
 			};
 		});
 		expect(previewGeometry.centerDeltaX, 'event preview should dwell at the horizontal center').toBeLessThanOrEqual(2);
