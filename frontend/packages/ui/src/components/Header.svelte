@@ -953,6 +953,7 @@
     .login-signup-button {
         border: none;
         margin: 0;
+        min-width: 0;
         padding: var(--spacing-4) var(--spacing-6);
         border-radius: var(--radius-3);
         background: var(--color-button-primary);
