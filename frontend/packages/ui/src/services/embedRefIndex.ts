@@ -23,12 +23,14 @@ export function registerEmbedRefIndex(
   entry: EmbedRefIndexEntry,
 ): void {
   if (!embedRef || !entry.embedId) return;
-  embedRefToIdIndex.set(embedRef, {
+  const normalizedEntry = {
     embedId: entry.embedId,
     appId: entry.appId ?? null,
     skillId: entry.skillId ?? null,
     type: entry.type ?? null,
-  });
+  };
+  embedRefToIdIndex.set(embedRef, normalizedEntry);
+  embedRefToIdIndex.set(entry.embedId, normalizedEntry);
   embedRefIndexVersion.update((n) => n + 1);
 }
 
