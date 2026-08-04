@@ -331,14 +331,26 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-04T19:03:18Z"
     notes: "Runtime commit a3cb738 passed Vitest run 30938849037 (710/710) and deployed Account Import run 30939328133. Test-only commit 5e5f3ec corrected the dedupe fixture's stale result assertion; replacement runs 30941083031 (dedupe) and 30941202786 (limits) passed against the READY a3cb738 runtime. Privacy, settings, and SDK/CLI parity audits passed. Authenticated laptop/mobile artifacts were reviewed with no objective defects."
+  - id: ATTEMPT-16
+    task_id: TASK-15
+    approach: Gate the previously observed imported-title screenshot timing, complete all Account Import translations, and replace final deployed web, translation, audit, and visual evidence.
+    outcome: succeeded
+    recorded_at: "2026-08-04T20:10:00Z"
+    notes: "Test commit 6941203 added immediate and eventual imported-title assertions for mobile and desktop Other-provider flows; run 30943006887 passed before product changes, confirming the earlier Untitled chat artifact was screenshot timing rather than a reproducible persistent defect. Locale commit c0ae33c completed 39 Account Import keys across all 21 supported locales; translation generation/validation passed, settings-translation-coverage run 30946117830 passed, and Account Import run 30946186186 passed against READY c0ae33c. Final settings and code reviews found no violations or security findings. Authenticated artifacts showed correct titles, source selection, provider identity, and compression history with no objective defects."
 
 handoff:
   current_task_id: TASK-16
   next_action: Ask the user to review the deployed Account Import UI and imported-chat behavior before any Apple parity work starts.
   command: 'Open https://app.dev.openmates.org/#settings/account/import and confirm the source selection, copy, import flow, and imported chat presentation.'
   expected_outcome: User confirmation completes TASK-16 and unlocks Apple parity assessment.
-  blocker: null
-  last_verified_commit: 5e5f3ecf5
+  blocker:
+    kind: user_visual_confirmation
+    task_id: TASK-16
+    requires_user_input: true
+    reason: Automated Account Import, translation, privacy, settings, code-review, and authenticated laptop/mobile visual evidence is green, but the user-visible web flow requires final user confirmation before Apple parity starts.
+    question: Does the deployed Account Import flow at https://app.dev.openmates.org/#settings/account/import work and look correct, including source selection, explanatory copy, import progress, imported titles, and provider identity?
+    next_action: Record the user's confirmation in V-USER-CONFIRMATION and TASK-16, then begin TASK-17 Apple parity assessment.
+  last_verified_commit: c0ae33c70
 
 scenarios:
   - id: S-1
@@ -1051,7 +1063,7 @@ tests:
       - UI reports skipped unsupported OpenMates domains
       - imported chat opens and displays decrypted content after sync
     red_phase: { required: false, expected: fail_or_not_run, evidence: { status: failed_as_expected, command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit 1dedbee61", run_id: "gha-30915677115", subject_commit: "f534480dc95e6576e591603d215cfb233296886e", timestamp: "2026-08-04T13:48:42Z", reason: "The deployed pre-implementation UI did not satisfy explicit source-selection and resumable provider-identity assertions." } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit a3cb738", run_id: "gha-30939328133", subject_commit: "a3cb73885b5ab009053181d7269de3e2cf87caaa", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_2STDHC3Giv3wqYxJads1YKbWmGGj READY for a3cb738", timestamp: "2026-08-04T18:38:40Z", notes: "All review-finding assertions passed, including canonical source dropdown, scanner failure, encrypted checkpoints and raw IndexedDB, imported title, system-role scanning, and one forgotten-history toggle." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit c0ae33c", run_id: "gha-30946186186", subject_commit: "c0ae33c70", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_Fy9PVk79wBvHKudsVJ4A7vxy7qe8 READY for c0ae33c", timestamp: "2026-08-04T20:08:08Z", notes: "All Account Import scenarios passed, including immediate and eventual imported title assertions, canonical source dropdown, scanner failure, encrypted checkpoints and raw IndexedDB, provider identity, system-role scanning, and one forgotten-history toggle." } }
   - id: T-WEB-LIMITS
     type: playwright
     file: frontend/apps/web_app/tests/import-account-limits.spec.ts
@@ -1218,7 +1230,7 @@ verifications:
     covers: [AC-8, AC-14, AC-15]
     status: passed
     description: Reviewed deployed Account Import UI and imported provider rendering at laptop and mobile viewports.
-    evidence: { command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit a3cb738", run_id: "gha-30939328133", subject_commit: "a3cb73885b5ab009053181d7269de3e2cf87caaa", timestamp: "2026-08-04T19:05:00Z", route: "https://app.dev.openmates.org/#settings/account/import", viewports: [laptop, mobile], screenshots: ["run-30939328133/mobile-source-selection.png", "run-30939328133/mobile-other-provider.png", "run-30939328133/compression-history-expanded.png", "run-30939328133/test-finished-1.png"], notes: "Reviewed authenticated screenshots. Defects: none; source selection, imported provider identity, active title, compression history, and the single forgotten-history toggle render without clipping or overflow. Accepted differences: the existing account security reminder overlays portions of settings and desktop chat screenshots." }
+    evidence: { command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit c0ae33c", run_id: "gha-30946186186", subject_commit: "c0ae33c70", timestamp: "2026-08-04T20:10:00Z", route: "https://app.dev.openmates.org/#settings/account/import", viewports: [laptop, mobile], screenshots: ["test-results/screenshots/current/import-account-v1/mobile-source-selection.png", "test-results/screenshots/current/import-account-v1/mobile-other-provider.png", "test-results/screenshots/current/import-account-v1/compression-history-expanded.png", "test-results/screenshots/current/import-account-v1/test-finished-1.png"], notes: "Reviewed authenticated screenshots. Defects: none; source selection, generic provider identity, active imported titles, compression history, and the single forgotten-history toggle render without clipping or overflow. Accepted differences: the expected test-account security reminder overlays portions of settings and desktop chat screenshots; the generic visual-smoke helper reaches the login guard, so authenticated spec screenshots are the primary route evidence." }
   - id: V-USER-CONFIRMATION
     kind: manual_check
     phase: green
