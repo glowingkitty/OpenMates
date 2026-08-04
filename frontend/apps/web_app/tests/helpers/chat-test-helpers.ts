@@ -1355,6 +1355,7 @@ async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
 }
 
 module.exports = {
+	fillMessageEditor,
 	loginToTestAccount,
 	submitPasswordAndHandleOtp,
 	openSignupInterface,
