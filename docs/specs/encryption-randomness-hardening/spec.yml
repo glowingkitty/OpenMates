@@ -211,9 +211,9 @@ decisions:
     decided_at: "2026-08-03"
   - id: D-13
     status: active
-    decision: Replace source-derived Fernet policy assets with canonical Ed25519-signed backend-only policy bundles while retaining the legacy loader for rollback.
-    reason: The frontend has no policy-decryption requirement; signatures provide real release authorship without Vault startup coupling or pretending public constants are secret.
-    decided_at: "2026-08-03"
+    decision: Keep the existing encrypted domain-policy behavior authoritative and defer signed-policy activation to a separate follow-up; retain the optional compatibility loader without publishing signed production assets.
+    reason: The user confirmed that this hardening spec must leave blocked-domain policy encryption and activation behavior unchanged.
+    decided_at: "2026-08-04"
   - id: D-4
     status: active
     decision: Historical ciphertext migration requires a separate spec and approval.
@@ -438,11 +438,11 @@ acceptance_criteria:
   - {id: AC-7, scenario: S-7, text: "Unsupported password PBKDF2, email SHA-256, and passkey HKDF derivation fail before persistence and none returns all-zero material.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-WEB-CRYPTO, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
   - {id: AC-8, scenario: S-8, text: "Production recovery sealing is random-only while v1 vectors remain compatible.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-RECOVERY-PARITY, V-APPLE]}
   - {id: AC-9, scenario: S-9, text: "Legacy CLI session files remain byte-identical and readable; stronger storage uses a separate verified file/slot and preserves the original indefinitely.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-STORAGE, V-CLI, V-NPM-SDK, V-PIP-SDK]}
-  - {id: AC-10, scenario: S-10, text: "Domain policy readers support immutable legacy and new bundles through rollback.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY]}
+  - {id: AC-10, scenario: S-10, text: "Domain policy readers preserve immutable legacy encrypted bundles and unchanged startup behavior; optional signed compatibility remains inactive.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY]}
   - {id: AC-11, scenario: S-11, text: "Security generators use CSPRNG and unbiased sampling; new human-transcribed variable code characters exclude `0` and `O` while legacy values remain accepted.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-RANDOMNESS-AUDIT, T-SECURITY-CODES]}
   - {id: AC-12, scenario: S-2, text: "No task mutates, deletes, or bulk re-encrypts existing ciphertext or removes a legacy reader.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-NO-MIGRATION-GUARD, V-SECURITY-REVIEW]}
   - {id: AC-13, scenario: S-12, text: "A conclusive read-only production SSH audit covers every eligible AES-GCM wrapper and NaCl encrypted-email collection without exposure or mutation; any match or incomplete scan requires an approved recovery spec before zero-return removal.", required: true, status: satisfied, coverage_status: covered, verification_scope: manual, verification_ids: [T-ZERO-KEY-AUDIT, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
-  - {id: AC-14, scenario: S-13, text: "Backend and workers verify canonical signed domain policy locally while all client response contracts remain unchanged and legacy startup remains rollback-compatible.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY, V-DOMAIN-IMAGES]}
+  - {id: AC-14, scenario: S-13, text: "Backend and workers retain unchanged encrypted domain-policy behavior and client response contracts; signed-policy activation is explicitly deferred outside this spec.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY, V-DOMAIN-IMAGES]}
   - {id: AC-15, scenario: S-14, text: "Apple PBKDF2 and secure RNG failures are explicit and cannot return zero key material or deterministic credentials.", required: true, status: satisfied, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-CRYPTO-FAILURE, V-APPLE]}
   - {id: AC-16, scenario: S-15, text: "New media v2 records omit raw server-side AES keys and missing chat keys abort embed persistence, while legacy records remain readable.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-MEDIA, T-WEB-CRYPTO, V-REST-MEDIA-WRITER]}
 
@@ -508,13 +508,12 @@ assumptions:
       - {source: backend/core/api/app/routes/generated_assets_api.py, summary: "Generated-asset reads already have an authorized backend decryption boundary that can be adapted to unwrap v2 keys."}
       - {source: "docker exec api python /app/backend/scripts/verify_media_vault_roundtrip.py", summary: "Real dev Vault wrap, wrapped-key-only Directus persistence, S3 download through api.dev.openmates.org, exact plaintext recovery, and cleanup all passed at de5c5f2c7."}
   - id: A-8
-    text: A protected release-signing environment can custody an Ed25519 private key and produce reviewed domain-policy signatures without exposing the key to builds or repository history.
-    category: release_signing
+    text: Signed domain-policy activation is intentionally deferred while existing encrypted domain-policy behavior remains unchanged.
+    category: scope
     required_before: completion
-    status: checking
+    status: confirmed
     evidence:
-      - {source: .github/workflows/publish-selfhost-images.yml, summary: "Published API/self-host images already build in GitHub Actions and can enforce signed-policy verification before publication."}
-    blocker_contract: Signed policy activation is blocked until a release owner provisions the private key in a protected GitHub environment, records backup/rotation ownership, and proves the signing workflow without exposing secret material.
+      - {source: "user clarification 2026-08-04", summary: "Defer signing domain policy activation and keep encrypted behavior unchanged."}
 
 contracts:
   api:
@@ -764,7 +763,7 @@ verifications:
       subject_commit: "9a6517f5b"
       summary: "Complete stable read-only scan through temporary 3FA SSH: 3555 eligible and scanned records across six present categories, zero matches, zero errors, and no findings; the optional post-production chat_key_wrappers collection was twice confirmed absent and therefore had zero eligible records. The SSH master was closed immediately after the audit."
       timestamp: "2026-08-03T15:54:15Z"
-  - {id: V-DOMAIN-IMAGES, kind: automated_test, phase: green, required_for_done: true, covers: [AC-14], status: blocked, evidence: {status: blocked, command: "python3 scripts/audit_domain_security.py --signed-bundle --verify-api-worker-selfhost-images", run_id: "local-task7-image-contract", subject_commit: "660811d17", summary: "API, worker, and self-host image copy contracts plus publication workflow enforcement pass. Full signed-bundle publication verification remains blocked until A-8 supplies the protected production signing key and approved public artifacts.", timestamp: "2026-08-03T19:37:51Z"}}
+  - {id: V-DOMAIN-IMAGES, kind: automated_test, phase: green, required_for_done: false, covers: [AC-14], status: skipped, evidence: {status: skipped, command: "python3 scripts/audit_domain_security.py --verify-api-worker-selfhost-images", run_id: "local-task7-image-contract", subject_commit: "660811d17", summary: "Image inclusion contracts passed. Production signed-bundle activation is outside this spec by explicit user decision; existing encrypted policy behavior remains unchanged.", reason: "The user explicitly deferred signed domain-policy activation to follow-up F-4.", recheck_condition: "Run this verification when F-4 activates canonical signed domain-policy bundles.", timestamp: "2026-08-04T14:59:23Z", actor: OpenCode}}
   - {id: V-SECURITY-REVIEW, kind: manual_check, phase: final, required_for_done: true, covers: [AC-12], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
 
 implementation_plan:
@@ -917,7 +916,7 @@ implementation_plan:
     - A-5 is confirmed; domain-policy work has no frontend decryption task.
     - A-6 is confirmed; exact entropy and rate/attempt controls are frozen in security-code tests before generator changes.
     - A-7 must be proven through a real dev Vault unwrap and media download specifically before P-5 R2 activation or raw aes_key omission; it does not block earlier fixture/reader work.
-    - A-8 must be confirmed by the release owner before signed-policy activation; policy reader/test work may proceed with test keys, but production signing never uses a repository test key.
+    - Signed domain-policy activation is deferred to F-4; this spec preserves existing encrypted policy behavior and does not provision or publish production signing material.
   acceptance_coverage:
     - "AC-1/AC-2/AC-12: shared fixtures, runtime write spies, and security review."
     - "AC-3/AC-4: backend writer tests, rollout audit, R1 manifest, and actual R2 REST/web/Apple read-back."
@@ -1044,9 +1043,9 @@ tasks:
     follow_up_tasks: [TASK-9, TASK-10, TASK-13]
     independently_deployable: true
   - id: TASK-7
-    title: Add signed backend domain-policy compatibility loading
-    status: blocked
-    phase: blocked
+    title: Preserve encrypted domain policy with inactive signed compatibility loading
+    status: done
+    phase: complete
     covers:
       scenarios: [S-10, S-13]
       acceptance_criteria: [AC-10, AC-14]
@@ -1055,7 +1054,7 @@ tasks:
     verification_ids: [T-DOMAIN-POLICY, V-DOMAIN-IMAGES]
     dependencies: [TASK-2]
     ownership: {files: [backend/core/api/app/services/domain_security.py, scripts/sign_domain_security_policy.py, .github/workflows/sign-domain-security-policy.yml], shared_files: [backend/core/api/app/services/domain_security_policy.json, backend/core/api/app/services/domain_security_policy.sig]}
-    blockers: [Production activation requires confirmed A-8 release signing custody.]
+    blockers: []
     follow_up_tasks: [TASK-16]
     independently_deployable: true
   - id: TASK-8
@@ -1227,5 +1226,13 @@ related_follow_ups:
     sources:
       - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
       - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+  - id: F-4
+    severity: medium
+    status: deferred
+    finding: Activate canonical Ed25519-signed backend domain-policy bundles in a separately approved release-signing task.
+    reason_not_blocking: The user explicitly chose to keep existing encrypted domain-policy behavior unchanged in this hardening spec; optional signed compatibility remains inactive.
+    sources:
+      - .github/workflows/sign-domain-security-policy.yml
+      - backend/core/api/app/services/domain_security.py
 
 open_questions: []
