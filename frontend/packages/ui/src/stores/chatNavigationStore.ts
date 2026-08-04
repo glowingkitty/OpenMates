@@ -84,17 +84,29 @@ export function isHeaderNavigableChat(chat: Chat): boolean {
       chat.encrypted_title ||
       chat.encrypted_chat_summary ||
       chat.encrypted_icon ||
-      chat.encrypted_category ||
-      chat.encrypted_draft_md ||
-      chat.encrypted_draft_preview,
+      chat.encrypted_category,
   );
   const hasMessages =
     (chat.messages_v ?? 0) > 0 || (chat.messages?.length ?? 0) > 0;
   return hasMetadata || hasMessages;
 }
 
-function toHeaderNavigableChats(chats: Chat[]): Chat[] {
-  return chats.filter(isHeaderNavigableChat);
+function isActiveDraftOnlyChat(chat: Chat, activeChatId: string | null): boolean {
+  return Boolean(
+    activeChatId &&
+      chat.chat_id === activeChatId &&
+      !chat.is_hidden_candidate &&
+      (chat.encrypted_draft_md || chat.encrypted_draft_preview),
+  );
+}
+
+function toHeaderNavigableChats(
+  chats: Chat[],
+  activeChatId: string | null,
+): Chat[] {
+  return chats.filter(
+    (chat) => isHeaderNavigableChat(chat) || isActiveDraftOnlyChat(chat, activeChatId),
+  );
 }
 
 function updateNavigationFlags(activeChatId: string | null): void {
@@ -119,7 +131,7 @@ function setProvisionalChatNavigationList(
   chats: Chat[],
   activeChatId: string | null,
 ): void {
-  chatList = toHeaderNavigableChats(chats);
+  chatList = toHeaderNavigableChats(chats, activeChatId);
   currentChatId = activeChatId;
 }
 
@@ -131,7 +143,7 @@ export function setChatNavigationList(
   chats: Chat[],
   activeChatId: string | null,
 ): void {
-  chatList = toHeaderNavigableChats(chats);
+  chatList = toHeaderNavigableChats(chats, activeChatId);
   currentChatId = activeChatId;
   chatListOwnedByChatsComponent = true;
   updateNavigationFlags(activeChatId);
