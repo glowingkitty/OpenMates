@@ -78,6 +78,15 @@ class ChatMetadataCache {
         chat.encrypted_active_focus_id,
     );
     if (hasEncryptedChatMetadata && !chatKeyManager.getKeySync(chatId)) {
+      if (
+        !this.chatsAwaitingKeys.has(chatId) &&
+        this.chatsAwaitingKeys.size >= CACHE_MAX_SIZE
+      ) {
+        const oldestChatId = this.chatsAwaitingKeys.values().next().value;
+        if (oldestChatId) {
+          this.chatsAwaitingKeys.delete(oldestChatId);
+        }
+      }
       this.chatsAwaitingKeys.add(chatId);
     }
 

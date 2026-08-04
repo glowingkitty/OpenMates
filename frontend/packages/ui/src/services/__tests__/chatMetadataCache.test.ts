@@ -107,6 +107,26 @@ describe("ChatMetadataCache", () => {
         detail: { chatId: "requested-chat" },
       });
     });
+
+    it("bounds chats that keep waiting for unavailable keys", async () => {
+      const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      await Promise.all(
+        Array.from({ length: 1001 }, (_, index) =>
+          chatMetadataCache.getDecryptedMetadata({
+            chat_id: `waiting-chat-${index}`,
+            encrypted_title: "encrypted-title",
+          } as Chat),
+        ),
+      );
+
+      keyReadyMock.listener?.("waiting-chat-0");
+      expect(dispatchEventSpy).not.toHaveBeenCalled();
+
+      keyReadyMock.listener?.("waiting-chat-1000");
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────
