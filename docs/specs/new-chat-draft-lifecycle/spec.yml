@@ -387,6 +387,8 @@ tests:
     covers: [AC-3]
     assertions:
       - previous and next controls can open draft-only and regular chats in chronological order with sidebar closed
+      - dismissing the mobile keyboard preserves the active draft text, route, and header
+      - the persisted draft appears in the sidebar and Continue carousel under the same chat ID
     red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org } }
     green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: "" } }
   - id: T-APPLE-001
