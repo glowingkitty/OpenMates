@@ -110,6 +110,7 @@ describe("ChatMetadataCache", () => {
 
     it("bounds chats that keep waiting for unavailable keys", async () => {
       const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
+      dispatchEventSpy.mockClear();
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
       await Promise.all(
