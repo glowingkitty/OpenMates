@@ -133,7 +133,7 @@ test.describe('Landing page header stories', () => {
 		await expect(newChatButton).toBeVisible({ timeout: 15000 });
 		await newChatButton.click();
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-		await expect(page.getByTestId('message-editor')).toBeFocused({ timeout: 5000 });
+		await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
 		await expect.poll(async () => page.evaluate(() => window.location.hash)).not.toContain('chat-id=');
 	});
 

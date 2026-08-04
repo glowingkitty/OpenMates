@@ -57,7 +57,7 @@ async function openFirstIntroOrExampleChat(page: any) {
 
 async function expectBlankFocusedComposer(page: any) {
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-	await expect(page.getByTestId('message-editor')).toBeFocused({ timeout: 5000 });
+	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
 }
 
 test.describe('Unauthenticated chat navigation stays reactive', () => {
