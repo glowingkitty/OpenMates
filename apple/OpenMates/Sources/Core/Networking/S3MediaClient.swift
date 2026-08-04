@@ -133,7 +133,9 @@ actor S3MediaClient {
 
     private static func decodeKeyMaterial(_ value: String, expectedByteCount: Int) -> Data {
         if value.count == expectedByteCount * 2,
-           value.unicodeScalars.allSatisfy({ CharacterSet.hexadecimalDigits.contains($0) }) {
+           value.utf8.allSatisfy({ byte in
+               (48...57).contains(byte) || (65...70).contains(byte) || (97...102).contains(byte)
+           }) {
             return Data(hexString: value)
         }
         if let base64 = Data(base64Encoded: value), !base64.isEmpty {
