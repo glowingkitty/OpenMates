@@ -339,17 +339,11 @@ attempts:
     notes: "Test commit 6941203 added immediate and eventual imported-title assertions for mobile and desktop Other-provider flows; run 30943006887 passed before product changes, confirming the earlier Untitled chat artifact was screenshot timing rather than a reproducible persistent defect. Locale commit c0ae33c completed 39 Account Import keys across all 21 supported locales; translation generation/validation passed, settings-translation-coverage run 30946117830 passed, and Account Import run 30946186186 passed against READY c0ae33c. Final settings and code reviews found no violations or security findings. Authenticated artifacts showed correct titles, source selection, provider identity, and compression history with no objective defects."
 
 handoff:
-  current_task_id: TASK-16
-  next_action: Ask the user to review the deployed Account Import UI and imported-chat behavior before any Apple parity work starts.
-  command: 'Open https://app.dev.openmates.org/#settings/account/import and confirm the source selection, copy, import flow, and imported chat presentation.'
-  expected_outcome: User confirmation completes TASK-16 and unlocks Apple parity assessment.
-  blocker:
-    kind: user_visual_confirmation
-    task_id: TASK-16
-    requires_user_input: true
-    reason: Automated Account Import, translation, privacy, settings, code-review, and authenticated laptop/mobile visual evidence is green, but the user-visible web flow requires final user confirmation before Apple parity starts.
-    question: Does the deployed Account Import flow at https://app.dev.openmates.org/#settings/account/import work and look correct, including source selection, explanatory copy, import progress, imported titles, and provider identity?
-    next_action: Record the user's confirmation in V-USER-CONFIRMATION and TASK-16, then begin TASK-17 Apple parity assessment.
+  current_task_id: TASK-17
+  next_action: Replace the legacy native import endpoint with a native-safe web deferral and render encrypted imported-provider identity in synced Apple chats.
+  command: 'python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"'
+  expected_outcome: Native import no longer exposes the legacy plaintext path, imported provider identity renders after sync, and Apple build/tests pass.
+  blocker: null
   last_verified_commit: c0ae33c70
 
 scenarios:
@@ -1236,9 +1230,9 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-8, AC-9, AC-14]
-    status: pending
+    status: passed
     description: User confirms deployed dev web import UI behavior, copy, visual quality, and imported-chat usability before Apple parity starts.
-    evidence: { actor: "", timestamp: "", result: "", notes: "" }
+    evidence: { actor: user, timestamp: "2026-08-04", result: approved, notes: "User considered the web phase complete after confirming that the deployed spec.ts test exercised the web UI import flow; import-account-v1.spec.ts passed against c0ae33c in run 30946186186." }
   - id: V-APPLE-IMPACT
     kind: manual_check
     phase: final
@@ -1821,8 +1815,8 @@ tasks:
     independently_deployable: false
   - id: TASK-16
     title: Verify deployed import behavior and obtain user confirmation
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-11, S-12, S-13, S-14, S-15]
       acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
@@ -1839,8 +1833,7 @@ tasks:
         - docs/architecture/core/account-backup.md
         - docs/specs/account-import-v1/spec.yml
       shared_files: []
-    blockers:
-      - Requires deployed Playwright and reviewed laptop/mobile visual smoke before user confirmation.
+    blockers: []
     follow_up_tasks: [TASK-17]
     independently_deployable: false
   - id: TASK-17

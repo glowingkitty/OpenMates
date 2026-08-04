@@ -20,6 +20,13 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(apiKeyDeviceAccessTypeLabel("rest_api"), "REST API")
     }
 
+    func testAccountImportDefersToEncryptedWebFlow() throws {
+        XCTAssertFalse(ChatImportView.nativeImportEnabled)
+        let url = try XCTUnwrap(ChatImportView.webImportURL(baseURL: URL(string: "https://app.example.invalid")!))
+        XCTAssertEqual(url.host, "app.example.invalid")
+        XCTAssertEqual(url.fragment, "settings/account/import")
+    }
+
     func testNativeSettingsRouteInventoryCoversWebBaseRoutes() {
         let missing = SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.coveredWebBaseRoutes)
         XCTAssertTrue(missing.isEmpty, "Missing native settings route coverage: \(missing.sorted())")

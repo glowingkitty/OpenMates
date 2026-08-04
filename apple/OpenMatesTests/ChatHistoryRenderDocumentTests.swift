@@ -4,12 +4,57 @@
 // Uses synthetic content and placeholder identifiers only.
 // Guards message-scoped parsing from moving back into SwiftUI body evaluation.
 
+import CryptoKit
 import SwiftData
 import XCTest
 @testable import OpenMates
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    func testImportedProviderMetadataDecryptsIntoRenderIdentity() async throws {
+        let chatId = "chat-imported-provider"
+        let key = SymmetricKey(data: Data(repeating: 7, count: 32))
+        ChatKeyManager.shared.setKey(key, for: chatId)
+        defer { ChatKeyManager.shared.removeKey(for: chatId) }
+
+        let crypto = CryptoManager.shared
+        let message = Message(
+            id: "message-imported-provider",
+            chatId: chatId,
+            role: .assistant,
+            content: nil,
+            encryptedContent: try await crypto.encryptContent("Synthetic imported reply", key: key),
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil,
+            encryptedSenderName: try await crypto.encryptContent("Gemini", key: key),
+            encryptedCategory: try await crypto.encryptContent("gemini", key: key),
+            encryptedModelName: try await crypto.encryptContent("gemini-import", key: key)
+        )
+
+        let decrypted = try XCTUnwrap(await ChatViewModel.decryptMessagesForDisplay([message], chatId: chatId).first)
+
+        XCTAssertEqual(decrypted.content, "Synthetic imported reply")
+        XCTAssertEqual(decrypted.senderName, "Gemini")
+        XCTAssertEqual(decrypted.category, "gemini")
+        XCTAssertEqual(decrypted.modelName, "gemini-import")
+        XCTAssertEqual(decrypted.renderDocumentForDisplay?.identity.senderName, "Gemini")
+        XCTAssertEqual(decrypted.renderDocumentForDisplay?.identity.category, "gemini")
+        XCTAssertEqual(decrypted.renderDocumentForDisplay?.identity.modelName, "gemini-import")
+    }
+
+    func testImportedProviderMappingMatchesWebContract() {
+        XCTAssertEqual(ImportedAssistantProvider.resolve(category: "openmates")?.iconName, "openmates")
+        XCTAssertEqual(ImportedAssistantProvider.resolve(category: "chatgpt")?.iconName, "openai")
+        XCTAssertEqual(ImportedAssistantProvider.resolve(category: "claude")?.iconName, "claude")
+        XCTAssertEqual(ImportedAssistantProvider.resolve(category: "gemini")?.iconName, "google")
+        XCTAssertEqual(ImportedAssistantProvider.resolve(category: "opencode")?.iconName, "coding")
+        XCTAssertEqual(ImportedAssistantProvider.resolve(category: "other")?.displayName, "AI assistant")
+        XCTAssertNil(ImportedAssistantProvider.resolve(category: "research"))
+    }
+
     func testStableMessageBuildsOrderedWebSemanticBlocksOnce() throws {
         let content = """
         # Synthetic result
