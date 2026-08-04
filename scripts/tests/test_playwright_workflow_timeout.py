@@ -38,9 +38,9 @@ def test_signup_invite_secret_is_scoped_to_invite_required_specs() -> None:
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
 
     assert (
-        "E2E_SIGNUP_INVITE_CODE: ${{ (contains(github.event.inputs.spec, 'signup') "
-        "|| github.event.inputs.spec == 'referral-signup-purchase.spec.ts' "
-        "|| github.event.inputs.spec == 'create-test-account.spec.ts') "
+        "E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') "
+        "|| inputs.spec == 'referral-signup-purchase.spec.ts' "
+        "|| inputs.spec == 'create-test-account.spec.ts') "
         "&& secrets.E2E_SIGNUP_INVITE_CODE || '' }}"
     ) in workflow
     assert 'echo "OPENMATES_TEST_ACCOUNT_API_KEY=${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}" >> "$GITHUB_ENV"' in workflow
@@ -53,3 +53,11 @@ def test_cli_account_login_failure_exits_with_original_status() -> None:
 
     assert "else\n              login_status=$?" in workflow
     assert "exit \"$login_status\"" in workflow
+
+
+def test_expanded_accounts_use_environment_secret_capacity() -> None:
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert "environment: e2e-tests" in workflow
+    assert 'SECRET_SCOPE_ARGS=(--env e2e-tests)' in workflow
+    assert 'gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" "${SECRET_SCOPE_ARGS[@]}"' in workflow

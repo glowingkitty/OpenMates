@@ -94,7 +94,7 @@ PROD_SMOKE_SUITE_PAID_CHAT = "paid-chat"
 PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH = "app-skill-web-search"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
-MAX_ACCOUNTS = 20
+MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
@@ -6676,7 +6676,7 @@ def main() -> int:
                         help="Target environment (default: development)")
     parser.add_argument("--max-concurrent", type=int, default=20,
                         help="Max concurrent GitHub Actions runners (default: 20)")
-    parser.add_argument("--account", type=int, choices=range(1, 21), metavar="1-20", default=None,
+    parser.add_argument("--account", type=int, choices=range(1, MAX_ACCOUNTS + 1), metavar=f"1-{MAX_ACCOUNTS}", default=None,
                         help="Pin a single Playwright spec to a specific GitHub Actions test-account slot")
     parser.add_argument("--create-account-slot", type=int, choices=range(14, 21), metavar="14-20", default=None,
                         help="Provision a reserved auth-test account slot via cli-provision-auth-accounts.spec.ts")

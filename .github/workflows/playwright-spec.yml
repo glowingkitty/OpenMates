@@ -20,7 +20,7 @@ on:
         required: true
         type: string
       account:
-        description: "Test account number (1-20)"
+        description: "Test account number (1-27)"
         required: true
         type: string
         default: "1"
@@ -132,6 +132,7 @@ permissions:
 jobs:
   run-spec:
     runs-on: ubuntu-latest
+    environment: e2e-tests
     steps:
       - uses: actions/checkout@v4
         with:
@@ -476,12 +477,16 @@ jobs:
             EMAIL="${CREDS[1]}"
             PASSWORD="${CREDS[2]}"
             OTP_KEY="${CREDS[3]}"
+            SECRET_SCOPE_ARGS=()
+            if [ "$SLOT" -ge 21 ]; then
+              SECRET_SCOPE_ARGS=(--env e2e-tests)
+            fi
             rm -f "$CREDS_FILE"
             rm -f "$ENV_FILE"
             echo "Updating OPENMATES_TEST_ACCOUNT_${SLOT}_* after account provisioning..."
-            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" --body "$EMAIL"
-            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" --body "$PASSWORD"
-            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" --body "$OTP_KEY"
+            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" "${SECRET_SCOPE_ARGS[@]}" --body "$EMAIL"
+            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" "${SECRET_SCOPE_ARGS[@]}" --body "$PASSWORD"
+            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" "${SECRET_SCOPE_ARGS[@]}" --body "$OTP_KEY"
             echo "✅ Updated OPENMATES_TEST_ACCOUNT_${SLOT}_* secrets"
           fi
       - name: Sanitize artifact name

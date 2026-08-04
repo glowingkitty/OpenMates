@@ -1439,16 +1439,16 @@ async function assertNoMissingTranslations(page: any): Promise<void> {
 }
 
 /**
- * Retrieve test account credentials for a given worker slot (1-5).
+ * Retrieve test account credentials for a given worker slot.
  *
- * The runner passes PLAYWRIGHT_WORKER_SLOT=1..5 to each container so that
+ * The runner passes PLAYWRIGHT_WORKER_SLOT to each container so that
  * parallel Playwright workers use separate accounts and avoid test collisions.
  *
  * Env var naming convention:
  *   Slot 1: OPENMATES_TEST_ACCOUNT_1_EMAIL  (or fallback: OPENMATES_TEST_ACCOUNT_EMAIL)
  *   Slot 2: OPENMATES_TEST_ACCOUNT_2_EMAIL
  *   ...
- *   Slot 20: OPENMATES_TEST_ACCOUNT_20_EMAIL
+ *   Slot 27: OPENMATES_TEST_ACCOUNT_27_EMAIL
  *
  * When the numbered slot vars are not set (e.g. running a single test manually),
  * we fall back to the base OPENMATES_TEST_ACCOUNT_* vars for backward compatibility.

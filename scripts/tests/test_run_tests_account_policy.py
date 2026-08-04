@@ -42,23 +42,25 @@ def test_reserved_specs_use_reserved_accounts_for_single_spec_dispatch():
 
 def test_regular_specs_use_normal_accounts_and_skip_reserved_slots():
     run_tests = load_run_tests_module()
-    regular_specs = [f"regular-{index}.spec.ts" for index in range(13)]
+    regular_specs = [f"regular-{index}.spec.ts" for index in range(20)]
 
     plan = run_tests.build_playwright_dispatch_plan(regular_specs, batch_size=20)
     assigned_accounts = [account for _batch, _spec, account in plan]
 
+    assert run_tests.MAX_ACCOUNTS == 27
+    assert assigned_accounts == [*range(1, 14), *range(21, 28)]
     assert assigned_accounts == list(run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)
     assert not set(assigned_accounts) & set(run_tests.RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS)
 
 
 def test_batch_size_is_capped_to_normal_account_pool():
     run_tests = load_run_tests_module()
-    regular_specs = [f"regular-{index}.spec.ts" for index in range(14)]
+    regular_specs = [f"regular-{index}.spec.ts" for index in range(21)]
 
     plan = run_tests.build_playwright_dispatch_plan(regular_specs, batch_size=20)
 
-    assert plan[12] == (0, "regular-12.spec.ts", 13)
-    assert plan[13] == (1, "regular-13.spec.ts", 1)
+    assert plan[19] == (0, "regular-19.spec.ts", 27)
+    assert plan[20] == (1, "regular-20.spec.ts", 1)
 
 
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
@@ -170,7 +172,7 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
     result = orchestrator._run_playwright()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], list(range(2, 14))]
+    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
     assert captured["normal_account_slots"] == (2,)
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
 
@@ -320,7 +322,7 @@ def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_p
     result = orchestrator._run_cli_integration()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], list(range(2, 14))]
+    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
     assert dispatch_accounts == [2]
     assert captured_git_sha == {"git_sha": "full-abc123"}
     assert result.tests[0] == {

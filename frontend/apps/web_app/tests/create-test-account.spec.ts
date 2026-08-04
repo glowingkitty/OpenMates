@@ -7,7 +7,7 @@
  * tests. Current product signup finishes before post-account 2FA/payment setup.
  *
  * Environment:
- *   CREATE_ACCOUNT_SLOT  — slot number (1-20), determines email/password
+ *   CREATE_ACCOUNT_SLOT  — slot number (1-27), determines email/password
  *   SIGNUP_TEST_EMAIL_DOMAINS — Mailosaur test domain
  *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN — Gmail API credentials (preferred)
  *   MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID — Mailosaur credentials (fallback)
@@ -56,7 +56,7 @@ test.describe('Create persistent test account', () => {
 		context: any;
 	}) => {
 		const slot = parseInt(CREATE_ACCOUNT_SLOT || '', 10);
-		test.skip(!CREATE_ACCOUNT_SLOT || isNaN(slot), 'CREATE_ACCOUNT_SLOT env var is required (1-20).');
+		test.skip(!CREATE_ACCOUNT_SLOT || isNaN(slot), 'CREATE_ACCOUNT_SLOT env var is required (1-27).');
 		test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
 
 		const emailClient = createEmailClient();

@@ -339,7 +339,9 @@ python3 scripts/tests.py run --daily --dry-run-notify
 
 Hourly/prod archives: `test-results/hourly-dev/run-*.json`, `test-results/hourly-prod/run-*.json`, `test-results/prod-paid-chat/run-*.json`, and `test-results/prod-app-skill/run-*.json` (rotated to last 7 days).
 
-Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
+Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of up to 20 concurrent runners, each with a separate test account. The 27-slot inventory uses slots 1-13 and 21-27 for normal tests while reserving slots 14-20 for credential-mutating tests. Batch-level fail-fast: current batch finishes, then stops if any failures.
+
+Slots 21-27 are stored as `e2e-tests` GitHub Environment secrets because the repository-level secret namespace is capped at 100 entries. The Playwright job attaches that environment without deployment protection rules; test account secrets must never be copied into source, logs, or artifacts.
 
 Development dispatches pin the checked-out source to the commit whose Vercel deployment passed the readiness gate, so a moving `dev` branch cannot change the test implementation after dispatch.
 
@@ -358,7 +360,7 @@ Most specs use the normal account pool. Specs that rotate, reset, or delete pers
 | 19 | `settings-change-email.spec.ts` | Email roundtrip mutates the account login identifier. |
 | 20 | `api-keys-flow.spec.ts` | API-key lifecycle tests create/delete developer credentials. |
 
-`scripts/run_tests.py` applies this mapping for full-suite, only-failed, and single-spec dispatches. Normal specs are assigned only from slots 1-13. If you add a spec that changes password, email, 2FA, recovery keys, backup codes, API keys, passkeys, or account data destructively, first add it to the reserved policy and document the slot here.
+`scripts/run_tests.py` applies this mapping for full-suite, only-failed, and single-spec dispatches. Normal specs are assigned only from slots 1-13 and 21-27, allowing 20 concurrent normal specs without touching reserved credentials. If you add a spec that changes password, email, 2FA, recovery keys, backup codes, API keys, passkeys, or account data destructively, first add it to the reserved policy and document the slot here.
 
 Use `cli-provision-auth-accounts.spec.ts` with `CREATE_ACCOUNT_SLOT` to provision reserved auth-test accounts for slots 14-20 when a slot secret is missing or intentionally rotated. The workflow reads the reusable dev-only invite from the `E2E_SIGNUP_INVITE_CODE` repository secret and exposes it to the CLI only through `OPENMATES_CLI_SIGNUP_INVITE_CODE`. The utility writes credential artifacts to the GitHub Actions artifact bundle; copy them into the matching `OPENMATES_TEST_ACCOUNT_<slot>_*` repository secrets and never commit generated credentials.
 

@@ -104,7 +104,8 @@ def load_env_values() -> dict[str, str]:
 
 def available_test_account_slots() -> list[str]:
     values = load_env_values()
-    slots = [str(index) for index in range(1, 21) if values.get(f"OPENMATES_TEST_ACCOUNT_{index}_EMAIL")]
+    normal_slots = (*range(1, 14), *range(21, 28))
+    slots = [str(index) for index in normal_slots if values.get(f"OPENMATES_TEST_ACCOUNT_{index}_EMAIL")]
     if values.get("OPENMATES_TEST_ACCOUNT_EMAIL"):
         slots.append("")
     return slots
