@@ -77,6 +77,7 @@ Users should store them securely (offline, in a safe place).
 
     /** Error message to display */
     let errorMessage = $state<string>('');
+    let authMethodsLoaded = $state(false);
 
     /** Success message to display */
     let successMessage = $state<string>('');
@@ -106,6 +107,7 @@ Users should store them securely (offline, in a safe place).
      */
     async function fetchRecoveryKeyStatus() {
         isLoading = true;
+        authMethodsLoaded = false;
         try {
             // Check user profile for consent_recovery_key_stored_timestamp
             const profile = $userProfile;
@@ -116,7 +118,7 @@ Users should store them securely (offline, in a safe place).
             }
 
             // Always fetch auth methods from server - needed for SecurityAuth component
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
@@ -132,18 +134,15 @@ Users should store them securely (offline, in a safe place).
                 hasPasskey = data.has_passkey || false;
                 hasPassword = data.has_password || false;
                 has2FA = data.has_2fa || false;
+                authMethodsLoaded = true;
                 console.log('[SettingsRecoveryKey] Auth methods loaded:', { hasPasskey, hasPassword, has2FA, hasRecoveryKey });
             } else {
                 console.error('[SettingsRecoveryKey] Failed to fetch auth methods');
-                if (hasRecoveryKey === null) {
-                    hasRecoveryKey = false;
-                }
+                throw new Error('Failed to load authentication methods');
             }
         } catch (error) {
             console.error('[SettingsRecoveryKey] Error fetching recovery key status:', error);
-            if (hasRecoveryKey === null) {
-                hasRecoveryKey = false;
-            }
+            errorMessage = error instanceof Error ? error.message : 'Failed to load authentication methods';
         } finally {
             isLoading = false;
         }
@@ -534,6 +533,15 @@ Users should store them securely (offline, in a safe place).
                 <div class="loading-container">
                     <div class="spinner small"></div>
                 </div>
+            {:else if !authMethodsLoaded}
+                <div class="error-message" data-testid="recovery-key-auth-methods-error" role="alert" in:fade>
+                    {errorMessage}
+                </div>
+                <div class="action-section">
+                    <button class="primary-button" data-testid="recovery-key-auth-methods-retry" onclick={fetchRecoveryKeyStatus}>
+                        {$text('common.retry')}
+                    </button>
+                </div>
             {:else}
                 <div class="status-section">
                     <div class="status-row">
@@ -605,7 +613,7 @@ Users should store them securely (offline, in a safe place).
     }
 
     .status-section {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-radius: var(--radius-5);
         padding: var(--spacing-8);
         margin-bottom: var(--spacing-12);
@@ -887,7 +895,7 @@ Users should store them securely (offline, in a safe place).
 
     .important-notice {
         padding: var(--spacing-8);
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-radius: var(--radius-5);
     }
 
@@ -905,7 +913,7 @@ Users should store them securely (offline, in a safe place).
         flex-direction: column;
         gap: var(--spacing-4);
         padding: var(--spacing-8);
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-radius: var(--radius-5);
     }
 
