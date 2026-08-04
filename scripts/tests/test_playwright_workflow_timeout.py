@@ -55,11 +55,23 @@ def test_cli_account_login_failure_exits_with_original_status() -> None:
     assert "exit \"$login_status\"" in workflow
 
 
-def test_expanded_accounts_use_environment_secret_capacity() -> None:
+def test_expanded_accounts_use_one_consolidated_repository_secret() -> None:
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
 
-    assert "environment: e2e-tests" in workflow
-    assert "migrate_account_secrets_to_environment:" in workflow
+    assert "environment: e2e-tests" not in workflow
+    assert "migrate_account_secrets_to_expanded_bundle:" in workflow
     assert "Secret migration is limited to expanded normal account slots 21-27." in workflow
-    assert 'SECRET_SCOPE_ARGS=(--env e2e-tests)' in workflow
-    assert 'gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" "${SECRET_SCOPE_ARGS[@]}"' in workflow
+    assert "secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON" in workflow
+    assert "gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON" in workflow
+    assert "--env e2e-tests" not in workflow
+    assert 'echo "::add-mask::$EMAIL"' in workflow
+    assert 'echo "OPENMATES_TEST_ACCOUNT_1_EMAIL=$EMAIL"' in workflow
+    assert 'gh secret delete "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL"' in workflow
+    assert "inputs.migrate_account_secrets_to_expanded_bundle }}\" = \"true\"" in workflow
+    assert "playwright-account-secret-writes" in workflow
+
+    bundle_writes = workflow.split("gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON")
+    assert len(bundle_writes) == 4
+    for preceding_workflow in bundle_writes[:-1]:
+        current_step = preceding_workflow.rsplit("      - name:", 1)[-1]
+        assert "EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}" in current_step

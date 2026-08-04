@@ -57,8 +57,8 @@ on:
         description: "Allow credential-mutating utility specs to update repository secrets."
         type: boolean
         default: true
-      migrate_account_secrets_to_environment:
-        description: "Copy the selected expanded account credentials into the e2e-tests environment."
+      migrate_account_secrets_to_expanded_bundle:
+        description: "Move the selected expanded account credentials into the consolidated encrypted secret."
         type: boolean
         default: false
   workflow_call:
@@ -100,7 +100,7 @@ on:
         required: false
         type: boolean
         default: false
-      migrate_account_secrets_to_environment:
+      migrate_account_secrets_to_expanded_bundle:
         required: false
         type: boolean
         default: false
@@ -108,6 +108,7 @@ on:
       E2E_DEV_API_URL: {required: true}
       E2E_DEV_TEST_BASE_URL: {required: true}
       OPENMATES_TEST_ACCOUNT_API_KEY: {required: false}
+      OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON: {required: false}
       TEST_ACCOUNT_EMAIL: {required: true}
       TEST_ACCOUNT_PASSWORD: {required: true}
       TEST_ACCOUNT_OTP_KEY: {required: true}
@@ -131,7 +132,7 @@ on:
       GH_SECRETS_TOKEN: {required: false}
 
 concurrency:
-  group: playwright-account-${{ inputs.account }}
+  group: ${{ (inputs.migrate_account_secrets_to_expanded_bundle || inputs.create_account_slot != '') && 'playwright-account-secret-writes' || format('playwright-account-{0}', inputs.account) }}
   cancel-in-progress: false
 
 permissions:
@@ -140,7 +141,6 @@ permissions:
 jobs:
   run-spec:
     runs-on: ubuntu-latest
-    environment: e2e-tests
     steps:
       - uses: actions/checkout@v4
         with:
@@ -150,13 +150,67 @@ jobs:
         with:
           node-version: "24"
       - uses: pnpm/action-setup@v4
-      - name: Migrate expanded account secrets to environment
-        if: inputs.migrate_account_secrets_to_environment
+      - name: Load selected test account credentials
+        env:
+          DIRECT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
+          DIRECT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
+          DIRECT_OTP_KEY: ${{ secrets.TEST_ACCOUNT_OTP_KEY != '' && secrets.TEST_ACCOUNT_OTP_KEY || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account)] }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
+        run: |
+          set -euo pipefail
+          SLOT="${{ inputs.account }}"
+          if [ "$SLOT" -ge 21 ]; then
+            mapfile -t CREDS < <(python3 - "$SLOT" <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          account = data.get(sys.argv[1]) or {}
+          print(account.get("email", ""))
+          print(account.get("password", ""))
+          print(account.get("otpKey", ""))
+          PY
+            )
+            EMAIL="${CREDS[0]}"
+            PASSWORD="${CREDS[1]}"
+            OTP_KEY="${CREDS[2]}"
+            if [ -z "$EMAIL" ] && [ -z "$PASSWORD" ] && [ -z "$OTP_KEY" ] && [ "${{ inputs.migrate_account_secrets_to_expanded_bundle }}" = "true" ]; then
+              EMAIL="$DIRECT_EMAIL"
+              PASSWORD="$DIRECT_PASSWORD"
+              OTP_KEY="$DIRECT_OTP_KEY"
+            fi
+          else
+            EMAIL="$DIRECT_EMAIL"
+            PASSWORD="$DIRECT_PASSWORD"
+            OTP_KEY="$DIRECT_OTP_KEY"
+          fi
+
+          if [ -z "$EMAIL" ] || [ -z "$PASSWORD" ] || [ -z "$OTP_KEY" ]; then
+            if [ "${{ inputs.spec }}" = "create-test-account.spec.ts" ]; then
+              echo "Slot $SLOT has no existing credentials; account creation will provision them."
+              exit 0
+            fi
+            echo "Slot $SLOT does not have complete configured credentials." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$EMAIL"
+          echo "::add-mask::$PASSWORD"
+          echo "::add-mask::$OTP_KEY"
+          {
+            echo "OPENMATES_TEST_ACCOUNT_EMAIL=$EMAIL"
+            echo "OPENMATES_TEST_ACCOUNT_PASSWORD=$PASSWORD"
+            echo "OPENMATES_TEST_ACCOUNT_OTP_KEY=$OTP_KEY"
+            echo "OPENMATES_TEST_ACCOUNT_1_EMAIL=$EMAIL"
+            echo "OPENMATES_TEST_ACCOUNT_1_PASSWORD=$PASSWORD"
+            echo "OPENMATES_TEST_ACCOUNT_1_OTP_KEY=$OTP_KEY"
+          } >> "$GITHUB_ENV"
+      - name: Migrate expanded account secrets to consolidated bundle
+        if: inputs.migrate_account_secrets_to_expanded_bundle
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
-          CURRENT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
-          CURRENT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
-          CURRENT_OTP_KEY: ${{ secrets.TEST_ACCOUNT_OTP_KEY != '' && secrets.TEST_ACCOUNT_OTP_KEY || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account)] }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
         run: |
           set -euo pipefail
           SLOT="${{ inputs.account }}"
@@ -164,14 +218,25 @@ jobs:
             echo "Secret migration is limited to expanded normal account slots 21-27." >&2
             exit 1
           fi
-          if [ -z "$CURRENT_EMAIL" ] || [ -z "$CURRENT_PASSWORD" ] || [ -z "$CURRENT_OTP_KEY" ]; then
-            echo "Slot $SLOT does not have complete source credentials to migrate." >&2
-            exit 1
-          fi
-          gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" --env e2e-tests --body "$CURRENT_EMAIL"
-          gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" --env e2e-tests --body "$CURRENT_PASSWORD"
-          gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" --env e2e-tests --body "$CURRENT_OTP_KEY"
-          echo "Migrated expanded account slot $SLOT to e2e-tests environment secrets."
+          python3 - "$SLOT" > /tmp/expanded-test-accounts.json <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          data[sys.argv[1]] = {
+              "email": os.environ["OPENMATES_TEST_ACCOUNT_EMAIL"],
+              "password": os.environ["OPENMATES_TEST_ACCOUNT_PASSWORD"],
+              "otpKey": os.environ["OPENMATES_TEST_ACCOUNT_OTP_KEY"],
+          }
+          print(json.dumps(data, separators=(",", ":")))
+          PY
+          gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON < /tmp/expanded-test-accounts.json
+          rm -f /tmp/expanded-test-accounts.json
+          gh secret delete "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL"
+          gh secret delete "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD"
+          gh secret delete "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY"
+          echo "Migrated expanded account slot $SLOT into the consolidated secret."
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build openmates CLI (required by cli-skills-* specs)
@@ -294,9 +359,6 @@ jobs:
           echo "OPENMATES_CI_API_KEY_ID=$api_key_id" >> "$GITHUB_ENV"
           echo "Prepared fresh CLI API key for $SPEC."
         env:
-          OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
-          OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
-          OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets.TEST_ACCOUNT_OTP_KEY != '' && secrets.TEST_ACCOUNT_OTP_KEY || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
       - name: Run CLI integration checks
         if: inputs.spec == '__cli_integration_code_docs__'
@@ -372,9 +434,6 @@ jobs:
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
           OPENMATES_E2E_API_URL: ${{ secrets.E2E_DEV_API_URL }}
-          OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
-          OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
-          OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets.TEST_ACCOUNT_OTP_KEY != '' && secrets.TEST_ACCOUNT_OTP_KEY || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
           PLAYWRIGHT_WORKER_SLOT: "1"
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
@@ -432,20 +491,44 @@ jobs:
         if: always() && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
         run: |
+          set -euo pipefail
           OTP_FILE="frontend/apps/web_app/artifacts/new_otp_key.txt"
           if [ -f "$OTP_FILE" ]; then
             NEW_KEY=$(cat "$OTP_FILE")
+            echo "::add-mask::$NEW_KEY"
             ACCOUNT="${{ inputs.account }}"
-            SECRET_NAME="OPENMATES_TEST_ACCOUNT_${ACCOUNT}_OTP_KEY"
-            echo "Updating $SECRET_NAME after credential-mutating test..."
-            gh secret set "$SECRET_NAME" --body "$NEW_KEY" && echo "✅ Updated $SECRET_NAME" || echo "⚠️ Failed to update $SECRET_NAME"
+            if [ "$ACCOUNT" -ge 21 ]; then
+              export NEW_KEY
+              python3 - "$ACCOUNT" > /tmp/expanded-test-accounts.json <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          account = data.get(sys.argv[1]) or {}
+          if not account:
+              raise SystemExit(f"Expanded account {sys.argv[1]} is missing from the bundle")
+          account["otpKey"] = os.environ["NEW_KEY"]
+          data[sys.argv[1]] = account
+          print(json.dumps(data, separators=(",", ":")))
+          PY
+              gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON < /tmp/expanded-test-accounts.json
+              rm -f /tmp/expanded-test-accounts.json
+              echo "✅ Updated expanded account $ACCOUNT OTP key"
+            else
+              SECRET_NAME="OPENMATES_TEST_ACCOUNT_${ACCOUNT}_OTP_KEY"
+              gh secret set "$SECRET_NAME" --body "$NEW_KEY"
+              echo "✅ Updated $SECRET_NAME"
+            fi
           fi
       - name: Update API key if changed by test
         if: always() && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
         run: |
+          set -euo pipefail
           API_KEY_FILE="frontend/apps/web_app/artifacts/api_key.txt"
           if [ -f "$API_KEY_FILE" ]; then
             NEW_API_KEY=$(cat "$API_KEY_FILE")
@@ -471,6 +554,7 @@ jobs:
         if: always() && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
         run: |
           CREDS_FILE="frontend/apps/web_app/artifacts/test_account_credentials.json"
           ENV_FILE="frontend/apps/web_app/artifacts/cli-slot-${{ inputs.create_account_slot }}.env"
@@ -507,16 +591,34 @@ jobs:
             EMAIL="${CREDS[1]}"
             PASSWORD="${CREDS[2]}"
             OTP_KEY="${CREDS[3]}"
-            SECRET_SCOPE_ARGS=()
-            if [ "$SLOT" -ge 21 ]; then
-              SECRET_SCOPE_ARGS=(--env e2e-tests)
-            fi
+            echo "::add-mask::$EMAIL"
+            echo "::add-mask::$PASSWORD"
+            echo "::add-mask::$OTP_KEY"
             rm -f "$CREDS_FILE"
             rm -f "$ENV_FILE"
             echo "Updating OPENMATES_TEST_ACCOUNT_${SLOT}_* after account provisioning..."
-            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" "${SECRET_SCOPE_ARGS[@]}" --body "$EMAIL"
-            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" "${SECRET_SCOPE_ARGS[@]}" --body "$PASSWORD"
-            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" "${SECRET_SCOPE_ARGS[@]}" --body "$OTP_KEY"
+            if [ "$SLOT" -ge 21 ]; then
+              export EMAIL PASSWORD OTP_KEY
+              python3 - "$SLOT" > /tmp/expanded-test-accounts.json <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          data[sys.argv[1]] = {
+              "email": os.environ["EMAIL"],
+              "password": os.environ["PASSWORD"],
+              "otpKey": os.environ["OTP_KEY"],
+          }
+          print(json.dumps(data, separators=(",", ":")))
+          PY
+              gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON < /tmp/expanded-test-accounts.json
+              rm -f /tmp/expanded-test-accounts.json
+            else
+              gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" --body "$EMAIL"
+              gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" --body "$PASSWORD"
+              gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" --body "$OTP_KEY"
+            fi
             echo "✅ Updated OPENMATES_TEST_ACCOUNT_${SLOT}_* secrets"
           fi
       - name: Sanitize artifact name

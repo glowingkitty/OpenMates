@@ -341,9 +341,9 @@ Hourly/prod archives: `test-results/hourly-dev/run-*.json`, `test-results/hourly
 
 Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of up to 20 concurrent runners, each with a separate test account. The 27-slot inventory uses slots 1-13 and 21-27 for normal tests while reserving slots 14-20 for credential-mutating tests. Batch-level fail-fast: current batch finishes, then stops if any failures.
 
-Slots 21-27 are stored as `e2e-tests` GitHub Environment secrets because the repository-level secret namespace is capped at 100 entries. The Playwright job attaches that environment without deployment protection rules; test account secrets must never be copied into source, logs, or artifacts.
+Slots 21-27 are stored together in the encrypted `OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON` repository secret because GitHub caps the repository-level namespace at 100 entries. The JSON object is keyed by slot and each value contains `email`, `password`, and `otpKey`; the workflow selects and masks only the requested slot. Test account secrets must never be copied into source, logs, or artifacts.
 
-To migrate an already-provisioned expanded slot from repository secrets without exposing its values, dispatch `playwright-spec.yml` for that slot with `migrate_account_secrets_to_environment=true`. The migration is restricted to slots 21-27 and fails closed when any source credential is missing.
+To migrate an already-provisioned expanded slot from individual repository secrets without exposing its values, dispatch `playwright-spec.yml` for that slot with `migrate_account_secrets_to_expanded_bundle=true`. The migration is restricted to slots 21-27, fails closed when any source credential is missing, writes the consolidated secret before deleting that slot's individual secrets, and must be run sequentially to avoid concurrent read-modify-write updates.
 
 Development dispatches pin the checked-out source to the commit whose Vercel deployment passed the readiness gate, so a moving `dev` branch cannot change the test implementation after dispatch.
 

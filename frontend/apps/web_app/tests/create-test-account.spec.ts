@@ -56,7 +56,10 @@ test.describe('Create persistent test account', () => {
 		context: any;
 	}) => {
 		const slot = parseInt(CREATE_ACCOUNT_SLOT || '', 10);
-		test.skip(!CREATE_ACCOUNT_SLOT || isNaN(slot), 'CREATE_ACCOUNT_SLOT env var is required (1-27).');
+		test.skip(
+			!CREATE_ACCOUNT_SLOT || isNaN(slot) || slot < 1 || slot > 27,
+			'CREATE_ACCOUNT_SLOT env var is required (1-27).'
+		);
 		test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
 
 		const emailClient = createEmailClient();
