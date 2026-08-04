@@ -2359,7 +2359,7 @@
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: scale(0.9);
+      transform: scale(0.92);
       margin-bottom: 4px;
     }
 
@@ -3319,7 +3319,7 @@
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: scale(0.9);
+      transform: scale(0.92);
       margin-bottom: 6px;
     }
 
