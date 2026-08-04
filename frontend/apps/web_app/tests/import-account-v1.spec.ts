@@ -36,8 +36,6 @@ async function openImportedChat(page: any, chatId: string): Promise<void> {
 	const importedChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 	await expect(importedChat).toBeVisible({ timeout: 15000 });
 	await importedChat.click();
-	const forgottenMessages = page.getByRole('button', { name: /show old forgotten messages/i });
-	if (await forgottenMessages.isVisible({ timeout: 2000 }).catch(() => false)) await forgottenMessages.click();
 }
 
 test.describe('Account Import V1 web flow', () => {
@@ -214,6 +212,8 @@ test.describe('Account Import V1 web flow', () => {
 		expect(JSON.stringify(persistBody)).not.toContain('Synthetic sanitized compression summary');
 		const importedChatId = String((persistBody.chats[0] as Record<string, unknown>).chat_id);
 		await openImportedChat(page, importedChatId);
+		await expect(page.getByTestId('show-forgotten-messages')).toBeVisible({ timeout: 15000 });
+		await page.getByTestId('show-forgotten-messages').click();
 		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'Gemini' })).toBeVisible();
 		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'gemini');
 		writePersistArtifacts(testInfo, calls, 'account-import-gemini-persist.json');
