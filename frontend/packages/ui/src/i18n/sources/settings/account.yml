@@ -3663,9 +3663,9 @@ import_title:
   he: ייבוא שיחות
   verified_by_human: []
 import_description:
-  context: Description shown on the import page (supports ZIP and YAML)
-  en: Import chats from an OpenMates export ZIP or YAML file. Each message is safety-scanned before storage.
-  de: Chats aus einer zuvor exportierten OpenMates-YAML-Datei importieren. Jede Nachricht wird vor der Speicherung auf Sicherheit geprüft.
+  context: Description shown on the Account Import V1 page
+  en: Import chats from OpenMates, ChatGPT, Claude, Gemini, OpenCode, or another AI assistant. Messages are safety-scanned, compressed when needed, and encrypted on this device before storage.
+  de: Importiere Chats aus OpenMates, ChatGPT, Claude, Gemini, OpenCode oder einem anderen KI-Assistenten. Nachrichten werden sicherheitsgeprüft, bei Bedarf komprimiert und vor der Speicherung auf diesem Gerät verschlüsselt.
   zh: 从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。
   es: Importa chats desde un archivo YAML de OpenMates exportado previamente. Cada mensaje se analiza por seguridad antes de almacenarse.
   fr: Importez des chats depuis un fichier YAML OpenMates précédemment exporté. Chaque message est analysé pour la sécurité avant stockage.
@@ -3687,9 +3687,9 @@ import_description:
   he: ייבא שיחות מקובץ ZIP או YAML של ייצוא OpenMates. כל הודעה נסרקת לאבטחה לפני האחסון.
   verified_by_human: []
 import_choose_file:
-  context: Placeholder text for the file picker on the import page (accepts ZIP or YAML)
-  en: Choose a .zip or .yml file to import
-  de: .zip- oder .yml-Datei zum Importieren auswählen
+  context: Accessible label for the Account Import V1 ZIP or JSON file picker
+  en: Choose a ZIP or JSON file to import
+  de: ZIP- oder JSON-Datei zum Importieren auswählen
   zh: 选择要导入的.zip或.yml文件
   es: Elige un archivo .zip o .yml para importar
   fr: Choisir un fichier .zip ou .yml à importer
@@ -3709,6 +3709,201 @@ import_choose_file:
   cs: Vyberte soubor .zip nebo .yml k importu
   sv: Välj en .zip- eller .yml-fil att importera
   he: בחר קובץ .zip או .yml לייבוא
+  verified_by_human: []
+import_source_heading:
+  context: Heading and accessible label for the required account import source selector
+  en: Choose the source shown for imported assistant messages
+  de: Wähle die Quelle, die für importierte Assistentennachrichten angezeigt wird
+  verified_by_human: []
+import_source_openmates:
+  context: Account import source option
+  en: OpenMates
+  de: OpenMates
+  verified_by_human: []
+import_source_openmates_description:
+  context: Account import source option description
+  en: OpenMates Export V1 archive
+  de: OpenMates Export V1-Archiv
+  verified_by_human: []
+import_source_chatgpt:
+  context: Account import source option
+  en: ChatGPT
+  de: ChatGPT
+  verified_by_human: []
+import_source_chatgpt_description:
+  context: Account import source option description
+  en: Official ChatGPT export
+  de: Offizieller ChatGPT-Export
+  verified_by_human: []
+import_source_claude:
+  context: Account import source option
+  en: Claude
+  de: Claude
+  verified_by_human: []
+import_source_claude_description:
+  context: Account import source option description
+  en: Official Claude export
+  de: Offizieller Claude-Export
+  verified_by_human: []
+import_source_gemini:
+  context: Account import source option
+  en: Gemini
+  de: Gemini
+  verified_by_human: []
+import_source_gemini_description:
+  context: Account import source option description
+  en: Generic role/content JSON shown with Gemini identity
+  de: Generisches Rollen-/Inhalt-JSON mit Gemini-Identität
+  verified_by_human: []
+import_source_opencode:
+  context: Account import source option
+  en: OpenCode
+  de: OpenCode
+  verified_by_human: []
+import_source_opencode_description:
+  context: Account import source option description
+  en: OpenCode CLI transcript export
+  de: OpenCode CLI-Transkriptexport
+  verified_by_human: []
+import_source_other:
+  context: Account import source option
+  en: Other
+  de: Andere
+  verified_by_human: []
+import_source_other_description:
+  context: Account import source option description
+  en: Generic role/content JSON shown as AI assistant
+  de: Generisches Rollen-/Inhalt-JSON als KI-Assistent
+  verified_by_human: []
+import_gemini_generic_note:
+  context: Explicit limitation shown after selecting Gemini import
+  en: Use the documented generic role/content JSON format. Raw Gemini Takeout exports are not supported yet.
+  de: Verwende das dokumentierte generische Rollen-/Inhalt-JSON. Rohe Gemini Takeout-Exporte werden noch nicht unterstützt.
+  verified_by_human: []
+import_other_generic_note:
+  context: Format guidance shown after selecting Other import
+  en: Use the documented generic JSON format with a messages array containing role and content strings.
+  de: Verwende das dokumentierte generische JSON mit einem messages-Array aus role- und content-Zeichenfolgen.
+  verified_by_human: []
+import_file_label:
+  context: Import file picker label after a source is selected
+  en: Select a supported ZIP or JSON transcript
+  de: Unterstütztes ZIP- oder JSON-Transkript auswählen
+  verified_by_human: []
+import_insufficient_credits:
+  context: Error when import allowance and credits are insufficient
+  en: You do not have enough free allowance or credits for this import.
+  de: Dein kostenloses Kontingent oder Guthaben reicht für diesen Import nicht aus.
+  verified_by_human: []
+import_unavailable:
+  context: Generic account import availability error; reason is a server reason code
+  en: "Import is not available: {reason}"
+  de: "Import ist nicht verfügbar: {reason}"
+  verified_by_human: []
+import_batch_limit_error:
+  context: Error when too many chats are selected
+  en: Select {count} chats or fewer for this import.
+  de: Wähle höchstens {count} Chats für diesen Import aus.
+  verified_by_human: []
+import_preview:
+  context: Accessible label for import preview card
+  en: Import preview
+  de: Importvorschau
+  verified_by_human: []
+import_chats_found:
+  context: Import preview row label
+  en: Chats found
+  de: Gefundene Chats
+  verified_by_human: []
+import_default_selection:
+  context: Import preview row label
+  en: Default selection
+  de: Standardauswahl
+  verified_by_human: []
+import_batch_limit:
+  context: Import preview row label
+  en: Batch limit
+  de: Stapellimit
+  verified_by_human: []
+import_free_remaining:
+  context: Import preview row label
+  en: Free allowance remaining
+  de: Verbleibendes kostenloses Kontingent
+  verified_by_human: []
+import_skipped_domains:
+  context: OpenMates archive import explanation; domains is a comma-separated list
+  en: "This OpenMates archive also contains {domains}. Account Import V1 imports chats, referenced embeds, and uploads only. Other domains are tracked in OPE-588."
+  de: "Dieses OpenMates-Archiv enthält auch {domains}. Account Import V1 importiert nur Chats, referenzierte Einbettungen und Uploads. Andere Bereiche werden in OPE-588 verfolgt."
+  verified_by_human: []
+import_duplicate_warning:
+  context: Warning for likely duplicate imported chats
+  en: "{count} selected chat(s) may already have been imported. Continuing will create new chats and will never merge or overwrite existing chats."
+  de: "{count} ausgewählte Chats wurden möglicherweise bereits importiert. Beim Fortfahren werden neue Chats erstellt; bestehende Chats werden nie zusammengeführt oder überschrieben."
+  verified_by_human: []
+import_select_default:
+  context: Button restoring the default import chat selection
+  en: Select default
+  de: Standard auswählen
+  verified_by_human: []
+import_possible_duplicate:
+  context: Label for a likely duplicate import chat; title is the chat title
+  en: "{title} (possible duplicate)"
+  de: "{title} (mögliches Duplikat)"
+  verified_by_human: []
+import_results:
+  context: Accessible label for imported chat results card
+  en: Imported chats
+  de: Importierte Chats
+  verified_by_human: []
+import_result:
+  context: Accessible label for one imported chat result
+  en: Imported chat result
+  de: Ergebnis des importierten Chats
+  verified_by_human: []
+import_progress_parsing:
+  context: Account import progress phase
+  en: Reading and validating the import file...
+  de: Importdatei wird gelesen und geprüft...
+  verified_by_human: []
+import_progress_previewing:
+  context: Account import progress phase
+  en: Checking import limits and estimated cost...
+  de: Importlimits und geschätzte Kosten werden geprüft...
+  verified_by_human: []
+import_progress_confirming:
+  context: Account import progress phase
+  en: Confirming the selected chats...
+  de: Ausgewählte Chats werden bestätigt...
+  verified_by_human: []
+import_progress_scanning:
+  context: Account import progress phase
+  en: Safety-scanning imported messages...
+  de: Importierte Nachrichten werden auf Sicherheit geprüft...
+  verified_by_human: []
+import_progress_compressing:
+  context: Account import progress phase
+  en: Compressing sanitized imported messages...
+  de: Bereinigte importierte Nachrichten werden komprimiert...
+  verified_by_human: []
+import_progress_encrypting:
+  context: Account import progress phase
+  en: Encrypting imported chats on this device...
+  de: Importierte Chats werden auf diesem Gerät verschlüsselt...
+  verified_by_human: []
+import_progress_persisting:
+  context: Account import progress phase
+  en: Saving encrypted imported chats...
+  de: Verschlüsselte importierte Chats werden gespeichert...
+  verified_by_human: []
+import_progress_completing:
+  context: Account import progress phase
+  en: Finalizing the import...
+  de: Import wird abgeschlossen...
+  verified_by_human: []
+import_progress_done:
+  context: Account import progress phase
+  en: Import complete.
+  de: Import abgeschlossen.
   verified_by_human: []
 import_select_chats:
   context: Header for the chat selection list on the import page

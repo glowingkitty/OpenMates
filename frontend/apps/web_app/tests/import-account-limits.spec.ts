@@ -15,6 +15,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	installAccountImportMock,
 	loginAndOpenImportSettings,
+	selectImportSource,
 	uploadClaudeJson,
 } = require('./helpers/account-import-test-helpers');
 
@@ -33,6 +34,7 @@ test.describe('Account Import V1 limits', () => {
 			estimatedCredits: 20,
 		});
 		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
+		await selectImportSource(page, 'claude');
 		await uploadClaudeJson(page, 31);
 
 		const summary = page.getByTestId('import-preview-summary');
@@ -63,6 +65,7 @@ test.describe('Account Import V1 limits', () => {
 			reason: 'insufficient_credits',
 		});
 		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
+		await selectImportSource(page, 'claude');
 		await uploadClaudeJson(page, 1);
 
 		await expect(page.getByText(/not have enough free allowance or credits/i)).toBeVisible({ timeout: 15000 });

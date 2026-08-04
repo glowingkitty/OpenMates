@@ -4,6 +4,24 @@
 
 import * as LucideIcons from "@lucide/svelte";
 
+export const IMPORTED_ASSISTANT_PROVIDERS: Record<
+  string,
+  { displayName: string; iconName: string }
+> = {
+  openmates: { displayName: "OpenMates", iconName: "openmates" },
+  chatgpt: { displayName: "ChatGPT", iconName: "openai" },
+  claude: { displayName: "Claude", iconName: "claude" },
+  gemini: { displayName: "Gemini", iconName: "google" },
+  opencode: { displayName: "OpenCode", iconName: "coding" },
+  other: { displayName: "AI assistant", iconName: "ai" },
+};
+
+export function getImportedAssistantProvider(
+  category: string | undefined,
+): { displayName: string; iconName: string } | null {
+  return category ? IMPORTED_ASSISTANT_PROVIDERS[category] ?? null : null;
+}
+
 /**
  * Category gradient colors configuration
  */

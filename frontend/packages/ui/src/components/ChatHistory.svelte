@@ -2791,6 +2791,7 @@
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
+                        sender_name={msg.sender_name}
                         model_name={msg.model_name}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}

@@ -240,8 +240,14 @@ export const apiEndpoints = {
   },
   accountImports: {
     preview: "/v1/account-imports/preview", // Account Import V1 preview/limits/cost estimate
+    confirm: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/confirm`, // Explicitly confirm selected fingerprints
     scan: (importId: string) =>
       `/v1/account-imports/${encodeURIComponent(importId)}/scan`, // Transient plaintext safety scan
+    status: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/status`, // Metadata-only resumable cursors
+    compress: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/compress`, // Transient sanitized compression
     persistEncrypted: (importId: string) =>
       `/v1/account-imports/${encodeURIComponent(importId)}/persist-encrypted`, // Persist client-encrypted imported records
     complete: (importId: string) =>

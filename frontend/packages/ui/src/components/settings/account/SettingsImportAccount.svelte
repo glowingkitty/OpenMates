@@ -1,9 +1,8 @@
 <!--
     Import Account Settings - Account Import V1
-    Allows users to import Claude/ChatGPT/OpenCode exports and OpenMates Export V1
-    archives. The browser parses locally, the server transiently scans selected
-    plaintext, and this client encrypts chats/messages before permanent
-    persistence. Legacy plaintext import endpoints remain disabled.
+    Requires an explicit source identity before local parser validation. The
+    server transiently scans and compresses bounded sanitized batches, while the
+    browser encrypts chats, provider identity, and checkpoints before persistence.
 -->
 
 <script lang="ts">
@@ -19,6 +18,7 @@
         type ImportPreviewResponse,
         type ImportedChatResult,
         type ImportProgressCallback,
+        type AccountImportSource,
     } from '../../../services/chatImportService';
     import SettingsButton from '../elements/SettingsButton.svelte';
     import SettingsButtonGroup from '../elements/SettingsButtonGroup.svelte';
@@ -39,6 +39,7 @@
     };
 
     let selectedFile = $state<File | null>(null);
+    let selectedSource = $state<AccountImportSource | null>(null);
     let parsedImport = $state<ParsedAccountImport | null>(null);
     let preview = $state<ImportPreviewResponse | null>(null);
     let selectedIndices = $state<Set<number>>(new Set());
@@ -62,22 +63,35 @@
             const title = chat.title || $text('settings.account.import_untitled');
             return {
                 id: String(index),
-                label: duplicate ? `${title} (possible duplicate)` : title,
+                label: duplicate ? $text('settings.account.import_possible_duplicate', { values: { title } }) : title,
                 description: `${messageCount} ${$text('settings.account.import_messages_count')}`,
                 icon: chat.provider === 'claude' || chat.provider === 'chatgpt' || chat.provider === 'opencode' ? 'icon_ai' : 'icon_chat',
                 checked: selectedIndices.has(index),
             };
         }) ?? []
     );
+    let sourceOptions = $derived<ChatOption[]>(
+        (['openmates', 'chatgpt', 'claude', 'gemini', 'opencode', 'other'] as AccountImportSource[]).map((source) => ({
+            id: source,
+            label: $text(`settings.account.import_source_${source}`),
+            description: $text(`settings.account.import_source_${source}_description`),
+            icon: 'icon_ai',
+            checked: selectedSource === source,
+        }))
+    );
 
-    const progressCallback: ImportProgressCallback = (phase, detail) => {
-        importStatus = detail;
+    const progressCallback: ImportProgressCallback = (phase) => {
+        importStatus = $text(`settings.account.import_progress_${phase}`);
         importProgress = phase === 'parsing'
             ? 10
             : phase === 'previewing'
                 ? 20
+                : phase === 'confirming'
+                    ? 30
                 : phase === 'scanning'
                     ? 45
+                    : phase === 'compressing'
+                        ? 58
                     : phase === 'encrypting'
                         ? 65
                         : phase === 'persisting'
@@ -88,11 +102,12 @@
     };
 
     async function handleFileSelected(file: File): Promise<void> {
-        resetState();
+        if (!selectedSource) return;
+        clearImportData();
         selectedFile = file;
         importStatus = $text('settings.account.import_scanning');
         try {
-            const parsed = await parseImportFile(file, progressCallback);
+            const parsed = await parseImportFile(file, selectedSource, progressCallback);
             const previewResult = await previewImport(parsed, progressCallback);
             parsedImport = parsed;
             preview = previewResult;
@@ -105,8 +120,8 @@
             costEstimate = estimateImportCost(parsed.chats.slice(0, defaultCount));
             if (!previewResult.can_import) {
                 errorMessage = previewResult.reason === 'insufficient_credits'
-                    ? 'You do not have enough free allowance or credits for this import.'
-                    : `Import is not available: ${previewResult.reason}`;
+                    ? $text('settings.account.import_insufficient_credits')
+                    : $text('settings.account.import_unavailable', { values: { reason: previewResult.reason } });
             }
         } catch (error) {
             errorMessage = error instanceof Error ? error.message : String(error);
@@ -123,7 +138,7 @@
         const next = new Set(selectedIndices);
         if (checked) {
             if (!next.has(index) && next.size >= preview.max_batch_count) {
-                errorMessage = `Select ${preview.max_batch_count} chats or fewer for this import.`;
+                errorMessage = $text('settings.account.import_batch_limit_error', { values: { count: preview.max_batch_count } });
                 return;
             }
             next.add(index);
@@ -173,7 +188,13 @@
         }
     }
 
-    function resetState(): void {
+    function selectSource(id: string, checked: boolean): void {
+        if (!checked) return;
+        clearImportData();
+        selectedSource = id as AccountImportSource;
+    }
+
+    function clearImportData(): void {
         selectedFile = null;
         parsedImport = null;
         preview = null;
@@ -186,6 +207,11 @@
         totalCreditsCharged = 0;
         errorMessage = null;
     }
+
+    function resetState(): void {
+        selectedSource = null;
+        clearImportData();
+    }
 </script>
 
 <SettingsInfoBox type="info" icon="icon_info">
@@ -197,13 +223,13 @@
             <span>{$text('settings.account.import_success')}</span>
         </SettingsInfoBox>
 
-        <SettingsCard padding="sm" ariaLabel="Imported chats">
+        <SettingsCard padding="sm" ariaLabel={$text('settings.account.import_results')}>
             <div data-testid="import-results-container">
                 {#each importResults as result}
                     <SettingsDetailRow
                         label={result.title || $text('settings.account.import_untitled')}
                         value={`${result.messages_imported} ${$text('settings.account.import_messages_imported')}${result.messages_blocked > 0 ? ` / ${result.messages_blocked} ${$text('settings.account.import_messages_blocked')}` : ''}`}
-                        ariaLabel="Imported chat result"
+                        ariaLabel={$text('settings.account.import_result')}
                     />
                 {/each}
             </div>
@@ -224,24 +250,42 @@
     {:else}
         {#if !isImporting}
             <SettingsSectionHeading title={$text('settings.account.import_title')} icon="download" />
-            <SettingsFileUpload
-                accept=".zip,.json"
-                label={selectedFile ? selectedFile.name : 'Select Claude, ChatGPT, OpenCode, or OpenMates export'}
-                disabled={!$authStore.isAuthenticated}
-                ariaLabel={$text('settings.account.import_choose_file')}
-                dataTestid="account-import-file-upload"
-                onFileSelected={handleFileSelected}
-            />
+            <SettingsCard padding="sm" ariaLabel={$text('settings.account.import_source_heading')}>
+                <SettingsCheckboxList
+                    options={sourceOptions}
+                    onChange={selectSource}
+                    dataTestid="account-import-source"
+                />
+            </SettingsCard>
+            {#if selectedSource === 'gemini' || selectedSource === 'other'}
+                <SettingsInfoBox type="info" icon="icon_info">
+                    <p data-testid={selectedSource === 'gemini' ? 'account-import-gemini-generic-note' : 'account-import-other-generic-note'}>
+                        {selectedSource === 'gemini'
+                            ? $text('settings.account.import_gemini_generic_note')
+                            : $text('settings.account.import_other_generic_note')}
+                    </p>
+                </SettingsInfoBox>
+            {/if}
+            {#if selectedSource}
+                <SettingsFileUpload
+                    accept=".zip,.json"
+                    label={selectedFile ? selectedFile.name : $text('settings.account.import_file_label')}
+                    disabled={!$authStore.isAuthenticated}
+                    ariaLabel={$text('settings.account.import_choose_file')}
+                    dataTestid="account-import-file-upload"
+                    onFileSelected={handleFileSelected}
+                />
+            {/if}
         {/if}
 
         {#if parsedImport && preview && !isImporting}
-            <SettingsCard padding="sm" ariaLabel="Import preview">
+            <SettingsCard padding="sm" ariaLabel={$text('settings.account.import_preview')}>
                 <div data-testid="import-preview-summary">
-                    <SettingsDetailRow label="Chats found" value={String(parsedImport.chats.length)} />
-                    <SettingsDetailRow label="Default selection" value={String(preview.default_selection_count)} />
-                    <SettingsDetailRow label="Batch limit" value={String(preview.max_batch_count)} />
+                    <SettingsDetailRow label={$text('settings.account.import_chats_found')} value={String(parsedImport.chats.length)} />
+                    <SettingsDetailRow label={$text('settings.account.import_default_selection')} value={String(preview.default_selection_count)} />
+                    <SettingsDetailRow label={$text('settings.account.import_batch_limit')} value={String(preview.max_batch_count)} />
                     {#if preview.free_remaining !== undefined}
-                        <SettingsDetailRow label="Free allowance remaining" value={String(preview.free_remaining)} />
+                        <SettingsDetailRow label={$text('settings.account.import_free_remaining')} value={String(preview.free_remaining)} />
                     {/if}
                 </div>
             </SettingsCard>
@@ -249,8 +293,7 @@
             {#if parsedImport.skippedDomains.length > 0}
                 <SettingsInfoBox type="info" icon="icon_info">
                     <p>
-                        This OpenMates archive also contains {parsedImport.skippedDomains.join(', ')}.
-                        Account Import V1 imports chats, referenced embeds, and uploads only. Other domains are tracked in OPE-588.
+                        {$text('settings.account.import_skipped_domains', { values: { domains: parsedImport.skippedDomains.join(', ') } })}
                     </p>
                 </SettingsInfoBox>
             {/if}
@@ -258,8 +301,7 @@
             {#if preview.duplicate_fingerprints.length > 0}
                 <SettingsInfoBox type="warning" icon="icon_warning">
                     <p>
-                        {preview.duplicate_fingerprints.length} selected chat(s) may already have been imported.
-                        Continuing will create new chats and will not merge or overwrite existing chats.
+                        {$text('settings.account.import_duplicate_warning', { values: { count: preview.duplicate_fingerprints.length } })}
                     </p>
                 </SettingsInfoBox>
             {/if}
@@ -268,7 +310,7 @@
             <SettingsCard padding="sm">
                 <SettingsButtonGroup align="space-between">
                     <SettingsButton variant="ghost" size="sm" onClick={selectDefault} dataTestid="account-import-select-default">
-                        Select default
+                        {$text('settings.account.import_select_default')}
                     </SettingsButton>
                     <SettingsButton variant="ghost" size="sm" onClick={deselectAll} dataTestid="account-import-deselect-all">
                         {$text('settings.account.import_deselect_all')}

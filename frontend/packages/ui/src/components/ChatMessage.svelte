@@ -88,7 +88,7 @@
   import type { TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
   import { chatDebugStore } from '../stores/chatDebugStore';
-  import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
+  import { getCategoryGradientColors, getImportedAssistantProvider, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
   import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
@@ -1105,6 +1105,8 @@
                     category === 'openmates_official' ? 'OpenMates' :
                     category ? $text(`mates.${category}`) :
                     'Assistant');
+  let importedProvider = $derived(role === 'assistant' ? getImportedAssistantProvider(category) : null);
+  let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
 
   // animated prop is now included in the main $props() call above
 
@@ -3116,7 +3118,18 @@
 <div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:mobile-stacked={effectiveRole === 'assistant' && shouldStackMobile}>
   {#if effectiveRole === 'assistant'}
     <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
-    {#if isMateClickable}
+    {#if importedProvider}
+      <div
+        class="imported-provider-profile"
+        class:imported-provider-profile-small-mobile={shouldStackMobile}
+        data-testid="imported-provider-profile"
+        data-provider-category={category}
+        role="img"
+        aria-label={assistantDisplayName}
+      >
+        <Icon name={importedProvider.iconName} type="provider" size={shouldStackMobile ? '25px' : '60px'} noMargin={true} noAnimation={true} ariaHidden={true} />
+      </div>
+    {:else if isMateClickable}
       <button
         type="button"
         class="mate-profile-link"
@@ -3164,9 +3177,9 @@
             class="chat-mate-name chat-mate-name-link"
             data-testid="chat-mate-name"
             onclick={openMateSettings}
-          >{displayName}</button>
+          >{assistantDisplayName}</button>
         {:else}
-          <div class="chat-mate-name" data-testid="chat-mate-name">{displayName}</div>
+          <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
         {/if}
       {/if}
 
@@ -3645,6 +3658,26 @@
 {/if}
 
 <style>
+  .imported-provider-profile {
+    width: 3.75rem;
+    height: 3.75rem;
+    margin: var(--mate-profile-margin);
+    border-radius: var(--radius-full);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-xs);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .imported-provider-profile-small-mobile {
+    width: 1.5625rem;
+    height: 1.5625rem;
+    margin-block: 0 0.5rem;
+    margin-inline: 0;
+  }
+
   /* System message notice: smaller text, centered, used for credit errors etc. */
   .chat-message.system {
     display: flex;

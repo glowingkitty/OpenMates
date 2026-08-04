@@ -1,10 +1,9 @@
 // frontend/packages/ui/src/services/chatImportService.ts
 //
 // Account Import V1 browser service for Settings -> Account -> Import.
-// Parses Claude/ChatGPT/OpenCode exports and OpenMates Export V1 archives locally,
-// then uses the preview -> scan -> client-encrypt -> persist-encrypted ->
-// complete control-plane contract. Permanent server persistence must receive
-// only client-encrypted private chat/message fields.
+// Parses provider exports locally, then uses the resumable preview -> confirm ->
+// scan -> status -> compress -> encrypt -> persist -> complete contract.
+// Permanent server persistence receives only client-encrypted private fields.
 //
 // Spec: docs/specs/account-import-v1/spec.yml
 
@@ -18,9 +17,27 @@ import type { Chat, Message } from "../types/chat";
 
 const DEFAULT_TITLE = "Imported chat";
 const CHARS_PER_TOKEN = 4;
+const IMPORT_MESSAGE_BATCH_SIZE = 250;
+const COMPRESSION_SUMMARY_CATEGORY = "compression_summary";
 
-export type AccountImportSource = "claude" | "chatgpt" | "opencode" | "openmates";
-export type ImportFileType = "claude-json" | "claude-zip" | "chatgpt-json" | "chatgpt-zip" | "opencode-json" | "openmates-zip";
+export type AccountImportSource = "openmates" | "chatgpt" | "claude" | "gemini" | "opencode" | "other";
+export type AccountImportParserFormat = "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
+export type ImportFileType = "claude-json" | "claude-zip" | "chatgpt-json" | "chatgpt-zip" | "opencode-json" | "openmates-zip" | "generic-json";
+
+export interface ImportedAssistantIdentity {
+  category: AccountImportSource;
+  sender_name: string;
+  model_name: string;
+}
+
+const SOURCE_IDENTITIES: Record<AccountImportSource, ImportedAssistantIdentity> = {
+  openmates: { category: "openmates", sender_name: "OpenMates", model_name: "OpenMates" },
+  chatgpt: { category: "chatgpt", sender_name: "ChatGPT", model_name: "ChatGPT" },
+  claude: { category: "claude", sender_name: "Claude", model_name: "Claude" },
+  gemini: { category: "gemini", sender_name: "Gemini", model_name: "Gemini" },
+  opencode: { category: "opencode", sender_name: "OpenCode", model_name: "OpenCode" },
+  other: { category: "other", sender_name: "AI assistant", model_name: "Other" },
+};
 
 export interface ParsedImportMessage {
   role: "user" | "assistant" | "system";
@@ -28,6 +45,7 @@ export interface ParsedImportMessage {
   created_at?: string | null;
   source_message_id?: string | null;
   provider_metadata: Record<string, unknown>;
+  imported_assistant_identity?: ImportedAssistantIdentity | null;
 }
 
 export interface ParsedImportUpload {
@@ -40,6 +58,8 @@ export interface ParsedImportUpload {
 
 export interface ParsedImportChat {
   provider: AccountImportSource;
+  parser_format?: AccountImportParserFormat;
+  selected_source?: AccountImportSource;
   source_chat_id: string;
   source_fingerprint: string;
   title?: string | null;
@@ -54,6 +74,7 @@ export interface ParsedImportChat {
 
 export interface ParsedAccountImport {
   source: AccountImportSource;
+  parserFormat?: AccountImportParserFormat;
   fileType: ImportFileType;
   chats: ParsedImportChat[];
   skippedDomains: string[];
@@ -79,10 +100,27 @@ export interface ImportPreviewResponse {
 }
 
 export interface ImportScanResponse {
+  batch_id?: string;
+  sequence?: number;
+  status?: "acknowledged" | "failed";
   chats: ParsedImportChat[];
   credits_reserved: number;
   messages_blocked: Array<Record<string, unknown>>;
   failures: Array<Record<string, unknown>>;
+}
+
+interface ImportCompressionResponse {
+  batch_id: string;
+  sequence: number;
+  status: "acknowledged" | "failed";
+  summary?: string;
+  retryable?: boolean;
+  failures: Array<Record<string, unknown>>;
+}
+
+interface ImportStatusResponse {
+  last_scan_sequence: number;
+  last_compression_sequence: number;
 }
 
 export interface ImportPersistResponse {
@@ -127,7 +165,9 @@ export interface RecentImportedChatData {
 export type ImportProgressPhase =
   | "parsing"
   | "previewing"
+  | "confirming"
   | "scanning"
+  | "compressing"
   | "encrypting"
   | "persisting"
   | "completing"
@@ -175,14 +215,22 @@ export function estimateImportCost(
 
 export async function parseImportFile(
   file: File,
-  onProgress?: ImportProgressCallback,
+  selectedSourceOrProgress?: AccountImportSource | ImportProgressCallback,
+  progressCallback?: ImportProgressCallback,
 ): Promise<ParsedAccountImport> {
+  const selectedSource = typeof selectedSourceOrProgress === "string" ? selectedSourceOrProgress : undefined;
+  const onProgress = typeof selectedSourceOrProgress === "function" ? selectedSourceOrProgress : progressCallback;
   onProgress?.("parsing", "Reading import file...");
   const lowerName = file.name.toLowerCase();
 
   if (lowerName.endsWith(".json")) {
     const raw = await file.text();
-    return parseProviderConversations(JSON.parse(raw), "json", file.name);
+    const payload = JSON.parse(raw);
+    if (selectedSource === "gemini" || selectedSource === "other") {
+      return parseGenericTranscript(payload, selectedSource, file.name);
+    }
+    const parsed = await parseProviderConversations(payload, "json", file.name);
+    return applySelectedSource(parsed, selectedSource ?? parsed.source);
   }
 
   if (!lowerName.endsWith(".zip")) {
@@ -204,11 +252,13 @@ export async function parseImportFile(
   const conversationsFile = findZipFileByBasename(zip, "conversations.json");
   if (conversationsFile) {
     const raw = await conversationsFile.async("string");
-    return parseProviderConversations(JSON.parse(raw), "zip", file.name);
+    const parsed = await parseProviderConversations(JSON.parse(raw), "zip", file.name);
+    return applySelectedSource(parsed, selectedSource ?? parsed.source);
   }
 
   if (zip.file("manifest.yml")) {
-    return parseOpenMatesArchive(zip, file.name);
+    const parsed = await parseOpenMatesArchive(zip, file.name);
+    return applySelectedSource(parsed, selectedSource ?? parsed.source);
   }
 
   throw new Error(
@@ -230,9 +280,11 @@ export async function previewImport(
       credentials: "include",
       body: JSON.stringify({
         source: parsed.source,
+        parser_format: parsed.parserFormat ?? parserFormatForFileType(parsed.fileType),
         chat_count: parsed.chats.length,
         source_fingerprints: parsed.chats.map((chat) => chat.source_fingerprint),
         estimated_tokens: estimate.totalInputTokens,
+        estimated_tokens_by_chat: parsed.chats.map((chat) => estimateImportCost([chat]).totalInputTokens),
         estimated_bytes: new TextEncoder().encode(
           JSON.stringify({ source: parsed.source, chats: parsed.chats }),
         ).byteLength,
@@ -247,6 +299,7 @@ export async function importChats(
   selectedChats: ParsedImportChat[],
   preview: ImportPreviewResponse,
   onProgress?: ImportProgressCallback,
+  options: { maxMessagesPerBatch?: number } = {},
 ): Promise<ImportChatApiResponse> {
   if (selectedChats.length === 0) throw new Error("No chats selected for import.");
   if (!preview.can_import) {
@@ -257,34 +310,85 @@ export async function importChats(
   }
 
   const importId = preview.import_id;
+  onProgress?.("confirming", "Confirming selected chats...");
+  await postImportJson(apiEndpoints.accountImports.confirm(importId), {
+    selected_fingerprints: selectedChats.map((chat) => chat.source_fingerprint),
+  }, "Import confirmation failed");
+  const initialStatus = await getImportStatus(importId);
+  if (initialStatus.last_scan_sequence !== -1 || initialStatus.last_compression_sequence !== -1) {
+    throw new Error("This import already advanced. Retry from the device that holds its sanitized batch state.");
+  }
+
+  const batches = buildMessageBatches(selectedChats, options.maxMessagesPerBatch ?? IMPORT_MESSAGE_BATCH_SIZE);
+  const sanitizedChats = selectedChats.map((chat) => ({ ...chat, messages: [] as ParsedImportMessage[] }));
+  const sanitizedBatches: Array<{ messages: ParsedImportMessage[]; scanSequence: number; sourceFingerprint: string; chunkIndex: number }> = [];
+  let scan: ImportScanResponse = { chats: [], credits_reserved: 0, messages_blocked: [], failures: [] };
   onProgress?.("scanning", `Safety-scanning ${selectedChats.length} chat(s)...`);
-  const scanResponse = await fetch(
-    getApiEndpoint(apiEndpoints.accountImports.scan(importId)),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ chats: selectedChats }),
-    },
-  );
-  const scan = await readJsonResponse<ImportScanResponse>(
-    scanResponse,
-    "Import scan failed",
-  );
-  if (!Array.isArray(scan.chats)) {
-    throw new Error("Import scan failed: response did not include sanitized chats.");
+  for (let sequence = 0; sequence < batches.length; sequence++) {
+    const batch = batches[sequence];
+    const scanResponse = await postImportJson<ImportScanResponse>(apiEndpoints.accountImports.scan(importId), {
+      batch_id: batch.batchId,
+      sequence,
+      final_batch: sequence === batches.length - 1,
+      chats: [batch.chat],
+    }, "Import scan failed");
+    if (scanResponse.status !== "acknowledged" || scanResponse.sequence !== sequence || scanResponse.batch_id !== batch.batchId || !Array.isArray(scanResponse.chats)) {
+      throw new Error("Import scan failed: batch was not acknowledged at the expected cursor.");
+    }
+    if (scanResponse.failures?.length) {
+      await completeFailedImport(importId, scanResponse.failures);
+      throw new Error("Import scan failed for one or more selected chats. No content was imported; try again.");
+    }
+    const sanitizedChat = scanResponse.chats[0];
+    if (!sanitizedChat && scanResponse.messages_blocked?.length) {
+      scan = scanResponse;
+      continue;
+    }
+    if (!sanitizedChat) throw new Error("Import scan failed: response omitted the sanitized batch.");
+    sanitizedChats[batch.chatIndex].messages.push(...sanitizedChat.messages);
+    sanitizedBatches.push({ messages: sanitizedChat.messages, scanSequence: sequence, sourceFingerprint: batch.sourceFingerprint, chunkIndex: batch.chunkIndex });
+    scan = scanResponse;
   }
-  if (Array.isArray(scan.failures) && scan.failures.length > 0) {
-    await completeFailedImport(importId, scan.failures);
-    throw new Error("Import scan failed for one or more selected chats. No content was imported.");
+  const postScanStatus = await getImportStatus(importId);
+  if (postScanStatus.last_scan_sequence !== batches.length - 1) {
+    throw new Error("Import scan status cursor did not advance as expected. Retry the import.");
   }
-  const sanitizedChats = scan.chats;
-  if (sanitizedChats.length === 0) {
+  if (sanitizedChats.every((chat) => chat.messages.length === 0)) {
     throw new Error("Import scan blocked all selected chats. No content was imported.");
   }
 
+  const summaries = new Map<string, string>();
+  onProgress?.("compressing", "Compressing sanitized imported chats...");
+  for (let sequence = 0; sequence < sanitizedBatches.length; sequence++) {
+    const batch = sanitizedBatches[sequence];
+    const batchId = `compress-${batch.sourceFingerprint.slice(0, 16)}-${batch.chunkIndex}`;
+    const priorSummary = summaries.get(batch.sourceFingerprint);
+    const finalChatBatch = sanitizedBatches[sequence + 1]?.sourceFingerprint !== batch.sourceFingerprint;
+    const compression = await postImportJson<ImportCompressionResponse>(apiEndpoints.accountImports.compress(importId), {
+      batch_id: batchId,
+      sequence,
+      final_batch: finalChatBatch,
+      scan_sequence: batch.scanSequence,
+      source_fingerprint: batch.sourceFingerprint,
+      sanitized_messages: batch.messages,
+      ...(priorSummary ? { prior_summary: priorSummary } : {}),
+    }, "Import compression failed");
+    if (compression.status !== "acknowledged" || compression.sequence !== sequence || compression.batch_id !== batchId) {
+      throw new Error("Import compression failed: batch was not acknowledged at the expected cursor.");
+    }
+    if (compression.failures?.length) {
+      throw new Error("Import compression failed retryably. No content was persisted; try again.");
+    }
+    if (compression.summary?.trim()) summaries.set(batch.sourceFingerprint, compression.summary);
+  }
+  const postCompressionStatus = await getImportStatus(importId);
+  if (postCompressionStatus.last_compression_sequence !== sanitizedBatches.length - 1) {
+    throw new Error("Import compression status cursor did not advance as expected. Retry the import.");
+  }
+  const chatsWithSummaries = sanitizedChats.map((chat) => appendCompressionSummary(chat, summaries.get(chat.source_fingerprint)));
+
   onProgress?.("encrypting", "Encrypting imported chats on this device...");
-  const encryptedPackage = await buildEncryptedImportPackage(sanitizedChats);
+  const encryptedPackage = await buildEncryptedImportPackage(chatsWithSummaries);
 
   onProgress?.("persisting", "Saving encrypted imported chats...");
   const persistResponse = await fetch(
@@ -342,14 +446,15 @@ export async function importChats(
       const acceptedMessages = local?.messages.filter(
         (message) => !failedMessageIds.has(message.message_id),
       ) ?? [];
+      const importedMessages = acceptedMessages.filter((message) => message.category !== COMPRESSION_SUMMARY_CATEGORY);
       return {
         chat_id: chatId,
         title: local?.source.title ?? null,
-        messages_imported: acceptedMessages.length,
+        messages_imported: importedMessages.length,
         messages_blocked: countBlockedMessages(scan.messages_blocked ?? [], local?.source.source_chat_id),
         credits_charged: complete.credits_charged ?? 0,
         messages: local?.source.messages.filter(
-          (_message, index) => !failedMessageIds.has(local.messages[index]?.message_id ?? ""),
+          (message, index) => message.provider_metadata.import_type !== COMPRESSION_SUMMARY_CATEGORY && !failedMessageIds.has(local.messages[index]?.message_id ?? ""),
         ),
       } satisfies ImportedChatResult;
     });
@@ -389,6 +494,25 @@ async function completeFailedImport(
   } catch (error) {
     console.warn("[ChatImport] Failed to finalize failed import:", error);
   }
+}
+
+async function getImportStatus(importId: string): Promise<ImportStatusResponse> {
+  const response = await fetch(getApiEndpoint(apiEndpoints.accountImports.status(importId)), { credentials: "include" });
+  return readJsonResponse<ImportStatusResponse>(response, "Import status check failed");
+}
+
+async function postImportJson<T = Record<string, unknown>>(
+  endpoint: string,
+  body: Record<string, unknown>,
+  label: string,
+): Promise<T> {
+  const response = await fetch(getApiEndpoint(endpoint), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return readJsonResponse<T>(response, label);
 }
 
 function normalizeRole(value: unknown): "user" | "assistant" | "system" {
@@ -474,6 +598,97 @@ async function parseProviderConversations(
   return parseClaudeConversations(raw, container === "zip" ? "claude-zip" : "claude-json", sourceName);
 }
 
+function parserFormatForFileType(fileType: ImportFileType): AccountImportParserFormat {
+  if (fileType.startsWith("chatgpt")) return "chatgpt";
+  if (fileType.startsWith("opencode")) return "opencode";
+  if (fileType.startsWith("openmates")) return "openmates";
+  if (fileType.startsWith("generic")) return "generic";
+  return "claude";
+}
+
+function applySelectedSource(
+  parsed: Omit<ParsedAccountImport, "parserFormat"> & { parserFormat?: AccountImportParserFormat },
+  selectedSource: AccountImportSource,
+): ParsedAccountImport {
+  const parserFormat = parsed.parserFormat ?? parserFormatForFileType(parsed.fileType);
+  const sourceIdentity = SOURCE_IDENTITIES[selectedSource];
+  return {
+    ...parsed,
+    source: selectedSource,
+    parserFormat,
+    chats: parsed.chats.map((chat) => ({
+      ...chat,
+      provider: selectedSource,
+      parser_format: parserFormat,
+      selected_source: selectedSource,
+      messages: chat.messages.map((message) => {
+        const modelName = typeof message.provider_metadata.model === "string" && message.provider_metadata.model.trim()
+          ? message.provider_metadata.model
+          : sourceIdentity.model_name;
+        return {
+          ...message,
+          imported_assistant_identity: message.role === "assistant"
+            ? { ...sourceIdentity, model_name: modelName }
+            : null,
+        };
+      }),
+    })),
+  };
+}
+
+async function parseGenericTranscript(
+  raw: unknown,
+  selectedSource: Extract<AccountImportSource, "gemini" | "other">,
+  sourceName: string,
+): Promise<ParsedAccountImport> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("Generic role/content JSON must be an object with a messages array.");
+  }
+  const transcript = raw as Record<string, unknown>;
+  if (!Array.isArray(transcript.messages)) {
+    throw new Error("Gemini and Other require generic role/content JSON; raw Gemini Takeout exports are not supported yet.");
+  }
+  const messages = transcript.messages.map((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`Generic message ${index + 1} must contain role and content.`);
+    }
+    const message = item as Record<string, unknown>;
+    if ((message.role !== "user" && message.role !== "assistant" && message.role !== "system") || typeof message.content !== "string") {
+      throw new Error(`Generic message ${index + 1} must contain a valid role and content string.`);
+    }
+    return {
+      role: message.role,
+      content: message.content,
+      created_at: typeof message.created_at === "string" ? message.created_at : null,
+      source_message_id: typeof message.id === "string" ? message.id : null,
+      provider_metadata: {
+        ...(typeof message.model === "string" ? { model: message.model } : {}),
+        ...(message.metadata && typeof message.metadata === "object" && !Array.isArray(message.metadata)
+          ? message.metadata as Record<string, unknown>
+          : {}),
+      },
+    } satisfies ParsedImportMessage;
+  });
+  if (messages.length === 0) throw new Error("Generic role/content JSON contains no messages.");
+  const sourceChatId = typeof transcript.id === "string" && transcript.id.trim()
+    ? transcript.id
+    : `generic-${sourceName}`;
+  const chat: ParsedImportChat = {
+    provider: selectedSource,
+    source_chat_id: sourceChatId,
+    source_fingerprint: await stableFingerprint("other", sourceChatId, messages),
+    title: typeof transcript.title === "string" ? transcript.title : null,
+    created_at: typeof transcript.created_at === "string" ? transcript.created_at : null,
+    updated_at: typeof transcript.updated_at === "string" ? transcript.updated_at : null,
+    messages,
+    embeds: [],
+    uploads: [],
+    provider_labels: ["generic"],
+    source_metadata: { source_name: sourceName, message_count: messages.length },
+  };
+  return applySelectedSource({ source: selectedSource, parserFormat: "generic", fileType: "generic-json", chats: [chat], skippedDomains: [] }, selectedSource);
+}
+
 function openCodeTimestamp(value: unknown): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? new Date(value).toISOString()
@@ -542,7 +757,7 @@ async function parseOpenCodeTranscript(
     provider_labels: ["opencode"],
     source_metadata: { source_name: sourceName, message_count: messages.length },
   };
-  return { source: "opencode", fileType: "opencode-json", chats: [chat], skippedDomains: [] };
+  return { source: "opencode", parserFormat: "opencode", fileType: "opencode-json", chats: [chat], skippedDomains: [] };
 }
 
 async function parseClaudeConversations(
@@ -598,7 +813,7 @@ async function parseClaudeConversations(
     });
   }
 
-  return { source: "claude", fileType, chats: newestFirst(chats), skippedDomains: [] };
+  return { source: "claude", parserFormat: "claude", fileType, chats: newestFirst(chats), skippedDomains: [] };
 }
 
 function chatGPTTimestamp(value: unknown): string | null {
@@ -703,7 +918,7 @@ async function parseChatGPTConversations(
     });
   }
 
-  return { source: "chatgpt", fileType, chats: newestFirst(chats), skippedDomains: [] };
+  return { source: "chatgpt", parserFormat: "chatgpt", fileType, chats: newestFirst(chats), skippedDomains: [] };
 }
 
 async function parseOpenMatesArchive(
@@ -781,7 +996,7 @@ async function parseOpenMatesArchive(
     });
   }
 
-  return { source: "openmates", fileType: "openmates-zip", chats: newestFirst(chats), skippedDomains };
+  return { source: "openmates", parserFormat: "openmates", fileType: "openmates-zip", chats: newestFirst(chats), skippedDomains };
 }
 
 async function readYamlRecordsById(
@@ -835,6 +1050,41 @@ function newestFirst(chats: ParsedImportChat[]): ParsedImportChat[] {
   });
 }
 
+function buildMessageBatches(chats: ParsedImportChat[], maxMessages: number): Array<{
+  chatIndex: number;
+  chunkIndex: number;
+  sourceFingerprint: string;
+  batchId: string;
+  chat: ParsedImportChat;
+}> {
+  if (!Number.isInteger(maxMessages) || maxMessages <= 0) throw new Error("Import message batch size must be positive.");
+  return chats.flatMap((chat, chatIndex) => {
+    const chunkCount = Math.max(1, Math.ceil(chat.messages.length / maxMessages));
+    return Array.from({ length: chunkCount }, (_, chunkIndex) => ({
+      chatIndex,
+      chunkIndex,
+      sourceFingerprint: chat.source_fingerprint,
+      batchId: `scan-${chat.source_fingerprint.slice(0, 16)}-${chunkIndex}`,
+      chat: { ...chat, messages: chat.messages.slice(chunkIndex * maxMessages, (chunkIndex + 1) * maxMessages) },
+    }));
+  });
+}
+
+function appendCompressionSummary(chat: ParsedImportChat, summary: string | undefined): ParsedImportChat {
+  if (!summary?.trim()) return chat;
+  return {
+    ...chat,
+    messages: [...chat.messages, {
+      role: "system",
+      content: summary,
+      created_at: null,
+      source_message_id: null,
+      provider_metadata: { import_type: COMPRESSION_SUMMARY_CATEGORY },
+      imported_assistant_identity: null,
+    }],
+  };
+}
+
 async function buildEncryptedImportPackage(chats: ParsedImportChat[]): Promise<{
   chats: Array<Record<string, unknown>>;
   localChats: Array<{ source: ParsedImportChat; chat: Chat; messages: Message[] }>;
@@ -856,8 +1106,10 @@ async function buildEncryptedImportPackage(chats: ParsedImportChat[]): Promise<{
     for (const sourceMessage of source.messages) {
       const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
       const messageCreatedAt = parseImportTimestamp(sourceMessage.created_at, updatedAt);
+      const identity = sourceMessage.role === "assistant" ? sourceMessage.imported_assistant_identity : null;
+      const isCompressionSummary = sourceMessage.provider_metadata.import_type === COMPRESSION_SUMMARY_CATEGORY;
       const senderName = sourceMessage.role === "assistant"
-        ? "Assistant"
+        ? identity?.sender_name ?? "AI assistant"
         : sourceMessage.role === "system"
           ? "System"
           : "User";
@@ -866,6 +1118,13 @@ async function buildEncryptedImportPackage(chats: ParsedImportChat[]): Promise<{
         role: sourceMessage.role,
         encrypted_content: await encryptWithChatKey(sourceMessage.content, chatKey),
         encrypted_sender_name: await encryptWithChatKey(senderName, chatKey),
+        ...(identity ? {
+          encrypted_category: await encryptWithChatKey(identity.category, chatKey),
+          encrypted_model_name: await encryptWithChatKey(identity.model_name, chatKey),
+        } : isCompressionSummary ? {
+          encrypted_category: await encryptWithChatKey(COMPRESSION_SUMMARY_CATEGORY, chatKey),
+          encrypted_model_name: await encryptWithChatKey(source.selected_source ?? source.provider, chatKey),
+        } : {}),
         created_at: messageCreatedAt,
         updated_at: now,
         ...(sourceMessage.role === "assistant" && previousUserMessageId
@@ -879,6 +1138,11 @@ async function buildEncryptedImportPackage(chats: ParsedImportChat[]): Promise<{
         created_at: messageCreatedAt,
         status: "synced",
         content: sourceMessage.content,
+        ...(identity ? {
+          sender_name: identity.sender_name,
+          category: identity.category,
+          model_name: identity.model_name,
+        } : isCompressionSummary ? { category: COMPRESSION_SUMMARY_CATEGORY } : {}),
       });
       if (sourceMessage.role === "user") previousUserMessageId = messageId;
     }
@@ -1007,6 +1271,9 @@ async function readJsonResponse<T>(response: Response, label: string): Promise<T
   }
   if (response.status === 402) {
     throw new Error("Insufficient credits to import. Please top up your balance.");
+  }
+  if ((data as { retryable?: unknown }).retryable === true) {
+    throw new Error(`${detail || label}. Nothing was persisted; try again.`);
   }
   throw new Error(detail || `${label} (HTTP ${response.status})`);
 }

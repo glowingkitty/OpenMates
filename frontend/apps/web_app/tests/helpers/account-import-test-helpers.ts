@@ -319,7 +319,7 @@ async function installAccountImportMock(page: any, config: ImportMockConfig = {}
 					batch_id: body?.batch_id,
 					sequence: body?.sequence,
 					status: 'acknowledged',
-					summary: config.compressionSummary ?? 'Synthetic sanitized compression summary',
+					...(config.compressionSummary ? { summary: config.compressionSummary } : {}),
 					failures: [],
 				}),
 			});
@@ -374,7 +374,7 @@ async function openImportSettings(page: any): Promise<void> {
 	await settingsMenu.getByRole('menuitem', { name: /^account$/i }).click();
 	await settingsMenu.getByRole('menuitem', { name: /import/i }).click();
 
-	await expect(page.getByTestId('account-import-file-upload')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('account-import-source')).toBeVisible({ timeout: 15000 });
 }
 
 async function loginAndOpenImportSettings(page: any, credentials: Record<string, string>): Promise<void> {

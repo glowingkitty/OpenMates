@@ -37,6 +37,33 @@ function pathFromUrl(input: RequestInfo | URL): string {
   return new URL(String(input)).pathname;
 }
 
+function resumableControlResponse(
+  path: string,
+  body: Record<string, unknown>,
+  requests: Array<{ path: string; body: Record<string, unknown> }>,
+): Response | null {
+  if (path.endsWith("/confirm")) return new Response(JSON.stringify({ status: "confirmed" }));
+  if (path.endsWith("/status")) {
+    return new Response(JSON.stringify({
+      last_scan_sequence: requests.filter((request) => request.path.endsWith("/scan")).length - 1,
+      last_compression_sequence: requests.filter((request) => request.path.endsWith("/compress")).length - 1,
+    }));
+  }
+  if (path.endsWith("/compress")) {
+    return new Response(JSON.stringify({
+      batch_id: body.batch_id,
+      sequence: body.sequence,
+      status: "acknowledged",
+      failures: [],
+    }));
+  }
+  return null;
+}
+
+function acknowledgedScan(body: Record<string, unknown>, values: Record<string, unknown>): Record<string, unknown> {
+  return { batch_id: body.batch_id, sequence: body.sequence, status: "acknowledged", ...values };
+}
+
 describe("chatImportService Account Import V1", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,6 +104,8 @@ describe("chatImportService Account Import V1", () => {
       const path = pathFromUrl(input);
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
       if (path === "/v1/account-imports/preview") {
         return new Response(JSON.stringify({
           import_id: "import-1",
@@ -89,12 +118,12 @@ describe("chatImportService Account Import V1", () => {
         }));
       }
       if (path === "/v1/account-imports/import-1/scan") {
-        return new Response(JSON.stringify({
+        return new Response(JSON.stringify(acknowledgedScan(body, {
           chats: body.chats,
           credits_reserved: 1,
           messages_blocked: [],
           failures: [],
-        }));
+        })));
       }
       if (path === "/v1/account-imports/import-1/persist-encrypted") {
         return new Response(JSON.stringify({
@@ -145,13 +174,18 @@ describe("chatImportService Account Import V1", () => {
     expect(result.complete.status).toBe("complete");
     expect(requests.map((request) => request.path)).toEqual([
       "/v1/account-imports/preview",
+      "/v1/account-imports/import-1/confirm",
+      "/v1/account-imports/import-1/status",
       "/v1/account-imports/import-1/scan",
+      "/v1/account-imports/import-1/status",
+      "/v1/account-imports/import-1/compress",
+      "/v1/account-imports/import-1/status",
       "/v1/account-imports/import-1/persist-encrypted",
       "/v1/account-imports/import-1/complete",
     ]);
     expect(requests.some((request) => request.path === "/v1/settings/import-chat")).toBe(false);
 
-    const persistBody = requests[2].body as { chats: Array<Record<string, unknown>> };
+    const persistBody = requests.find((request) => request.path.endsWith("/persist-encrypted"))!.body as { chats: Array<Record<string, unknown>> };
     const persistedChat = persistBody.chats[0];
     expect(String(persistedChat.encrypted_title)).not.toContain("Sensitive web import");
     const persistedMessages = persistedChat.messages as Array<Record<string, unknown>>;
@@ -168,13 +202,15 @@ describe("chatImportService Account Import V1", () => {
       const path = pathFromUrl(input);
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
       if (path === "/v1/account-imports/import-1/scan") {
-        return new Response(JSON.stringify({
+        return new Response(JSON.stringify(acknowledgedScan(body, {
           chats: [],
           credits_reserved: 0,
           messages_blocked: [{ source_chat_id: "source-chat-1", source_message_id: "message-1" }],
           failures: [],
-        }));
+        })));
       }
       return new Response(JSON.stringify({ detail: "unexpected request" }), { status: 500 });
     }));
@@ -216,7 +252,10 @@ describe("chatImportService Account Import V1", () => {
     })).rejects.toThrow("Import scan blocked all selected chats");
 
     expect(requests.map((request) => request.path)).toEqual([
+      "/v1/account-imports/import-1/confirm",
+      "/v1/account-imports/import-1/status",
       "/v1/account-imports/import-1/scan",
+      "/v1/account-imports/import-1/status",
     ]);
     expect(mocks.createAndPersistKey).not.toHaveBeenCalled();
     expect(mocks.encryptWithChatKey).not.toHaveBeenCalled();
@@ -230,13 +269,15 @@ describe("chatImportService Account Import V1", () => {
       const path = pathFromUrl(input);
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
       if (path === "/v1/account-imports/import-1/scan") {
-        return new Response(JSON.stringify({
+        return new Response(JSON.stringify(acknowledgedScan(body, {
           chats: body.chats,
           credits_reserved: 1,
           messages_blocked: [],
           failures: [{ source_chat_id: "source-chat-1", reason: "scanner_timeout" }],
-        }));
+        })));
       }
       if (path === "/v1/account-imports/import-1/complete") {
         return new Response(JSON.stringify({
@@ -287,10 +328,12 @@ describe("chatImportService Account Import V1", () => {
     })).rejects.toThrow("Import scan failed for one or more selected chats");
 
     expect(requests.map((request) => request.path)).toEqual([
+      "/v1/account-imports/import-1/confirm",
+      "/v1/account-imports/import-1/status",
       "/v1/account-imports/import-1/scan",
       "/v1/account-imports/import-1/complete",
     ]);
-    expect(requests[1].body).toMatchObject({
+    expect(requests.find((request) => request.path.endsWith("/complete"))!.body).toMatchObject({
       imported_chat_ids: [],
       source_fingerprints: [],
       client_failures: [{ source_chat_id: "source-chat-1", reason: "scanner_timeout" }],
@@ -308,13 +351,15 @@ describe("chatImportService Account Import V1", () => {
       const path = pathFromUrl(input);
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
       if (path === "/v1/account-imports/import-1/scan") {
-        return new Response(JSON.stringify({
+        return new Response(JSON.stringify(acknowledgedScan(body, {
           chats: body.chats,
           credits_reserved: 1,
           messages_blocked: [],
           failures: [],
-        }));
+        })));
       }
       if (path === "/v1/account-imports/import-1/persist-encrypted") {
         const chats = body.chats as Array<{ messages: Array<{ message_id: string }> }>;
@@ -391,7 +436,7 @@ describe("chatImportService Account Import V1", () => {
       chat_id: "uuid-1",
       messages_v: 1,
     }));
-    expect(requests[2].body).toMatchObject({
+    expect(requests.find((request) => request.path.endsWith("/complete"))!.body).toMatchObject({
       imported_chat_ids: ["uuid-1"],
       source_fingerprints: [],
       encrypted_record_counts: { chats: 1, messages: 1 },
@@ -408,13 +453,15 @@ describe("chatImportService Account Import V1", () => {
       const path = pathFromUrl(input);
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
       if (path === "/v1/account-imports/import-1/scan") {
-        return new Response(JSON.stringify({
+        return new Response(JSON.stringify(acknowledgedScan(body, {
           chats: body.chats,
           credits_reserved: 1,
           messages_blocked: [],
           failures: [],
-        }));
+        })));
       }
       if (path === "/v1/account-imports/import-1/persist-encrypted") {
         return new Response(JSON.stringify({
@@ -473,7 +520,7 @@ describe("chatImportService Account Import V1", () => {
     });
 
     expect(result.imported).toEqual([]);
-    expect(requests[2].body).toMatchObject({
+    expect(requests.find((request) => request.path.endsWith("/complete"))!.body).toMatchObject({
       imported_chat_ids: ["uuid-1"],
       source_fingerprints: [],
       encrypted_record_counts: { chats: 0, messages: 0 },

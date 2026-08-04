@@ -28,6 +28,15 @@ const {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+async function openImportedChat(page: any, chatId: string): Promise<void> {
+	await page.getByTestId('icon-button-close').first().click();
+	const sidebarToggle = page.getByTestId('sidebar-toggle');
+	if (await sidebarToggle.isVisible({ timeout: 2000 }).catch(() => false)) await sidebarToggle.click();
+	const importedChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+	await expect(importedChat).toBeVisible({ timeout: 15000 });
+	await importedChat.click();
+}
+
 test.describe('Account Import V1 web flow', () => {
 	test('imports Claude JSON through scan and encrypted persistence', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
@@ -147,7 +156,7 @@ test.describe('Account Import V1 web flow', () => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-		const calls = await installAccountImportMock(page, { importId: 'web-import-gemini' });
+		const calls = await installAccountImportMock(page, { importId: 'web-import-gemini', compressionSummary: 'Synthetic sanitized compression summary' });
 		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
 		await selectImportSource(page, 'gemini');
 		await expect(page.getByTestId('account-import-gemini-generic-note')).toContainText('Gemini Takeout');
@@ -174,6 +183,27 @@ test.describe('Account Import V1 web flow', () => {
 		expect(assistant).not.toHaveProperty('avatar_key');
 		expect(JSON.stringify(persistBody)).not.toContain('Synthetic generic web import');
 		expect(JSON.stringify(persistBody)).not.toContain('Synthetic sanitized compression summary');
+		const importedChatId = String((persistBody.chats[0] as Record<string, unknown>).chat_id);
+		await openImportedChat(page, importedChatId);
+		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'Gemini' })).toBeVisible();
+		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'gemini');
 		writePersistArtifacts(testInfo, calls, 'account-import-gemini-persist.json');
+	});
+
+	test('renders Other imports as a generic AI assistant rather than a mate', async ({ page }: { page: any }) => {
+		test.setTimeout(180000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		const calls = await installAccountImportMock(page, { importId: 'web-import-other' });
+		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
+		await selectImportSource(page, 'other');
+		await uploadGenericJson(page);
+		await page.getByTestId('account-import-start').click();
+		await expect(page.getByTestId('import-results-container')).toContainText('2 messages imported', { timeout: 30000 });
+		const persistBody = persistPayloads(calls)[0] as { chats: Array<Record<string, unknown>> };
+		await openImportedChat(page, String(persistBody.chats[0].chat_id));
+		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'AI assistant' })).toBeVisible();
+		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'other');
+		await expect(page.getByTestId('mate-profile')).toHaveCount(0);
 	});
 });
