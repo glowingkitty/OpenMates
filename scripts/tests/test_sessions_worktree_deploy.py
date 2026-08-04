@@ -131,6 +131,32 @@ def test_session_deploy_files_accept_legacy_worktree_tracking(monkeypatch, tmp_p
     assert sessions._session_deploy_files(session, exclude=set()) == ["scripts/sessions.py"]
 
 
+def test_merged_worktree_deploy_selects_only_changes_after_recorded_snapshot(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    unchanged = tmp_path / "unchanged.py"
+    amended = tmp_path / "amended.py"
+    unchanged.write_text("same\n", encoding="utf-8")
+    amended.write_text("after\n", encoding="utf-8")
+    session = {
+        "modified_files": ["unchanged.py", "amended.py"],
+        "worktree": {
+            "path": str(tmp_path),
+            "status": "merged",
+            "root_applied_files": {
+                "unchanged.py": sessions._snapshot_file_states(tmp_path, ["unchanged.py"])["unchanged.py"],
+                "amended.py": {
+                    "exists": True,
+                    "sha256": "previous",
+                    "executable": False,
+                },
+            },
+        },
+    }
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: ["unchanged.py", "amended.py"])
+
+    assert sessions._session_deploy_files(session, exclude=set()) == ["amended.py"]
+
+
 def test_relative_repo_path_prefers_session_worktree(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     repo = tmp_path / "OpenMates"

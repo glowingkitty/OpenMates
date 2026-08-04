@@ -755,6 +755,14 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
         changed = set(_worktree_changed_files(metadata))
+        deployed_states = metadata.get("root_applied_files")
+        if isinstance(deployed_states, dict):
+            current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
+            changed = {
+                relative_path
+                for relative_path in changed
+                if current_states.get(relative_path) != deployed_states.get(relative_path)
+            }
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
         if tracked:
             changed &= tracked
