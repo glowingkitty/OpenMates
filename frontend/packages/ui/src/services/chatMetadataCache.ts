@@ -152,7 +152,10 @@ class ChatMetadataCache {
         }
         if (chatKey) {
           const { decryptWithChatKey } = await import("./cryptoService");
-          title = await decryptWithChatKey(chat.encrypted_title, chatKey);
+          title = await decryptWithChatKey(chat.encrypted_title, chatKey, {
+            chatId: chat.chat_id,
+            fieldName: "encrypted_title",
+          });
           if (!title) {
             console.warn(
               `[ChatMetadataCache] Failed to decrypt title for chat ${chat.chat_id}`,
@@ -189,19 +192,34 @@ class ChatMetadataCache {
         const [iconResult, categoryResult, summaryResult, tagsResult, focusResult] =
           await Promise.all([
             chat.encrypted_icon
-              ? decryptWithChatKey(chat.encrypted_icon, chatKey)
+              ? decryptWithChatKey(chat.encrypted_icon, chatKey, {
+                  chatId: chat.chat_id,
+                  fieldName: "encrypted_icon",
+                })
               : null,
             chat.encrypted_category
-              ? decryptWithChatKey(chat.encrypted_category, chatKey)
+              ? decryptWithChatKey(chat.encrypted_category, chatKey, {
+                  chatId: chat.chat_id,
+                  fieldName: "encrypted_category",
+                })
               : null,
             chat.encrypted_chat_summary
-              ? decryptWithChatKey(chat.encrypted_chat_summary, chatKey)
+              ? decryptWithChatKey(chat.encrypted_chat_summary, chatKey, {
+                  chatId: chat.chat_id,
+                  fieldName: "encrypted_chat_summary",
+                })
               : null,
             chat.encrypted_chat_tags
-              ? decryptWithChatKey(chat.encrypted_chat_tags, chatKey)
+              ? decryptWithChatKey(chat.encrypted_chat_tags, chatKey, {
+                  chatId: chat.chat_id,
+                  fieldName: "encrypted_chat_tags",
+                })
               : null,
             chat.encrypted_active_focus_id
-              ? decryptWithChatKey(chat.encrypted_active_focus_id, chatKey)
+              ? decryptWithChatKey(chat.encrypted_active_focus_id, chatKey, {
+                  chatId: chat.chat_id,
+                  fieldName: "encrypted_active_focus_id",
+                })
               : null,
           ]);
 

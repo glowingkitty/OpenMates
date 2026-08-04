@@ -84,7 +84,9 @@ export function isHeaderNavigableChat(chat: Chat): boolean {
       chat.encrypted_title ||
       chat.encrypted_chat_summary ||
       chat.encrypted_icon ||
-      chat.encrypted_category,
+      chat.encrypted_category ||
+      chat.encrypted_draft_md ||
+      chat.encrypted_draft_preview,
   );
   const hasMessages =
     (chat.messages_v ?? 0) > 0 || (chat.messages?.length ?? 0) > 0;
