@@ -43,25 +43,10 @@ describe("ChatMetadataCache", () => {
   beforeEach(() => {
     chatMetadataCache.clearAll();
     vi.useFakeTimers();
-    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
-    vi.stubGlobal(
-      "CustomEvent",
-      class MockCustomEvent {
-        public detail: { chatId: string };
-
-        constructor(
-          public type: string,
-          init: { detail: { chatId: string } },
-        ) {
-          this.detail = init.detail;
-        }
-      },
-    );
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -95,7 +80,7 @@ describe("ChatMetadataCache", () => {
 
   describe("key-ready notifications", () => {
     it("ignores bulk-loaded keys when metadata was never requested", () => {
-      const dispatchEventSpy = vi.mocked(window.dispatchEvent);
+      const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
       const consoleInfoSpy = vi
         .spyOn(console, "info")
         .mockImplementation(() => undefined);
@@ -107,7 +92,7 @@ describe("ChatMetadataCache", () => {
     });
 
     it("retries a chat whose metadata request was waiting for its key", async () => {
-      const dispatchEventSpy = vi.mocked(window.dispatchEvent);
+      const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
       await chatMetadataCache.getDecryptedMetadata({
