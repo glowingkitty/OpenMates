@@ -55,7 +55,21 @@ def main() -> int:
 
     run(["npm", "run", "build"], cwd=CLI_DIR)
 
-    scenarios = [args.scenario] if args.scenario != "all" else ["direct-rest-contract", "generic-import", "npm-sdk-generic-import", "pip-sdk-generic-import"]
+    scenarios = [args.scenario] if args.scenario != "all" else [
+        "direct-rest-contract",
+        "generic-import",
+        "claude-import",
+        "chatgpt-import",
+        "opencode-import",
+        "openmates-v1-import",
+        "limits-and-costs",
+        "npm-sdk-generic-import",
+        "npm-sdk-chatgpt-import",
+        "npm-sdk-opencode-import",
+        "pip-sdk-generic-import",
+        "pip-sdk-chatgpt-import",
+        "pip-sdk-opencode-import",
+    ]
     results: dict[str, str] = {}
     api_key_id = ""
     try:

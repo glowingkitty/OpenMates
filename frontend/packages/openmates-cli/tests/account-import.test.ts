@@ -21,7 +21,7 @@ process.env.HOME = tempHome;
 mkdirSync(join(tempHome, ".openmates"), { recursive: true, mode: 0o700 });
 
 const { OpenMatesClient } = await import("../src/client.ts");
-const { parseClaudeImportBuffer, parseChatGPTImportBuffer, parseGenericImportBuffer, parseOpenCodeImportBuffer, parseOpenMatesImportBuffer } = await import("../src/accountImport.ts");
+const { buildAccountImportMessageBatches, parseClaudeImportBuffer, parseChatGPTImportBuffer, parseGenericImportBuffer, parseOpenCodeImportBuffer, parseOpenMatesImportBuffer } = await import("../src/accountImport.ts");
 
 after(() => {
   if (originalHome === undefined) delete process.env.HOME;
@@ -107,6 +107,19 @@ describe("account import parser", () => {
       parseGenericImportBuffer(Buffer.from(JSON.stringify({ conversations: [] })), "takeout.json", "gemini"),
       /generic role\/content/i,
     );
+    for (const ambiguous of [
+      { messages: [{ role: "user", content: "text", tool_calls: [] }] },
+      { messages: [{ role: "assistant", content: "text", reasoning: "hidden" }] },
+      { messages: [{ role: "user", content: "text", attachments: [] }] },
+      { messages: [{ role: "user", content: "text", arbitrary: true }] },
+      { messages: [{ role: "user", content: "text" }], mapping: {} },
+      { messages: [{ role: "user", content: "text" }], unknown: true },
+    ]) {
+      await assert.rejects(
+        parseGenericImportBuffer(Buffer.from(JSON.stringify(ambiguous)), "generic.json", "other"),
+        /unknown|unsupported|role\/content/i,
+      );
+    }
   });
 
   it("discovers OpenMates V1 chat files and skipped domains", async () => {
@@ -203,6 +216,19 @@ describe("account import parser", () => {
     assert.equal(JSON.stringify(parsed).includes("Private reasoning must not import."), false);
     assert.equal(JSON.stringify(parsed).includes("Tool output must not import."), false);
     assert.equal(JSON.stringify(parsed).includes("cHJpdmF0ZQ=="), false);
+  });
+
+  it("splits arbitrarily long chats into stable bounded message batches", async () => {
+    const parsed = await parseGenericImportBuffer(Buffer.from(JSON.stringify({
+      id: "long-generic-chat",
+      messages: Array.from({ length: 501 }, (_, index) => ({ role: "user", content: `Synthetic message ${index}` })),
+    })), "generic.json", "other");
+    const batches = buildAccountImportMessageBatches(parsed.chats);
+
+    assert.deepEqual(batches.map((batch) => batch.chat.messages.length), [250, 250, 1]);
+    assert.deepEqual(batches.map((batch) => batch.chunkIndex), [0, 1, 2]);
+    assert.equal(new Set(batches.map((batch) => batch.batchId)).size, 3);
+    assert.deepEqual(buildAccountImportMessageBatches(parsed.chats).map((batch) => batch.batchId), batches.map((batch) => batch.batchId));
   });
 });
 

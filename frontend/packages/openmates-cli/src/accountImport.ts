@@ -13,6 +13,8 @@ import JSZip from "jszip";
 
 const ENCRYPTED_ZIP_MAGIC = "OMZIP1";
 const ENCRYPTED_ZIP_KEY_BYTES = 32;
+export const ACCOUNT_IMPORT_MESSAGE_BATCH_SIZE = 250;
+export const COMPRESSION_SUMMARY_CATEGORY = "compression_summary";
 
 export type AccountImportSource = "openmates" | "chatgpt" | "claude" | "gemini" | "opencode" | "other";
 export type AccountImportParserFormat = "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
@@ -71,6 +73,52 @@ export interface ParsedAccountImport {
   parserFormat: AccountImportParserFormat;
   chats: ParsedImportChat[];
   skippedDomains: string[];
+}
+
+export interface AccountImportMessageBatch {
+  chatIndex: number;
+  chunkIndex: number;
+  sourceFingerprint: string;
+  batchId: string;
+  chat: ParsedImportChat;
+}
+
+export function buildAccountImportMessageBatches(
+  chats: ParsedImportChat[],
+  maxMessages = ACCOUNT_IMPORT_MESSAGE_BATCH_SIZE,
+): AccountImportMessageBatch[] {
+  if (!Number.isInteger(maxMessages) || maxMessages <= 0) throw new Error("Account import message batch size must be positive");
+  return chats.flatMap((chat, chatIndex) => {
+    const chunkCount = Math.max(1, Math.ceil(chat.messages.length / maxMessages));
+    return Array.from({ length: chunkCount }, (_, chunkIndex) => ({
+      chatIndex,
+      chunkIndex,
+      sourceFingerprint: chat.source_fingerprint,
+      batchId: `scan-${chat.source_fingerprint.slice(0, 16)}-${chunkIndex}`,
+      chat: {
+        ...chat,
+        messages: chat.messages.slice(chunkIndex * maxMessages, (chunkIndex + 1) * maxMessages),
+      },
+    }));
+  });
+}
+
+export function appendCompressionSummary(
+  chat: ParsedImportChat,
+  summary: string | undefined,
+): ParsedImportChat {
+  if (!summary?.trim()) return chat;
+  return {
+    ...chat,
+    messages: [...chat.messages, {
+      role: "system",
+      content: summary,
+      created_at: null,
+      source_message_id: null,
+      provider_metadata: { import_type: COMPRESSION_SUMMARY_CATEGORY },
+      imported_assistant_identity: null,
+    }],
+  };
 }
 
 function fingerprint(provider: AccountImportParserFormat, sourceChatId: string, messages: ParsedImportMessage[]): string {
@@ -456,6 +504,11 @@ export async function parseGenericImportBuffer(
   }
   const chats = rawChats.map((rawChat, chatIndex) => {
     const chat = rawChat as Record<string, unknown>;
+    const allowedChatFields = new Set(["id", "title", "created_at", "updated_at", "messages"]);
+    const unknownChatFields = Object.keys(chat).filter((key) => !allowedChatFields.has(key));
+    if (unknownChatFields.length > 0) {
+      throw new Error(`Generic role/content transcript contains unknown chat fields: ${unknownChatFields.join(", ")}`);
+    }
     const rawMessages = chat.messages as unknown[];
     if (rawMessages.length === 0) throw new Error("Generic role/content transcript messages must not be empty");
     const messages = rawMessages.map((rawMessage, messageIndex) => {
@@ -463,6 +516,11 @@ export async function parseGenericImportBuffer(
         throw new Error(`Generic role/content message ${messageIndex + 1} must be an object`);
       }
       const message = rawMessage as Record<string, unknown>;
+      const allowedMessageFields = new Set(["id", "role", "content", "created_at"]);
+      const unknownMessageFields = Object.keys(message).filter((key) => !allowedMessageFields.has(key));
+      if (unknownMessageFields.length > 0) {
+        throw new Error(`Generic role/content message ${messageIndex + 1} contains unknown fields: ${unknownMessageFields.join(", ")}`);
+      }
       if (!Object.prototype.hasOwnProperty.call(message, "role") || !Object.prototype.hasOwnProperty.call(message, "content")) {
         throw new Error(`Generic role/content message ${messageIndex + 1} requires role and content`);
       }

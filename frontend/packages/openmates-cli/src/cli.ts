@@ -93,6 +93,8 @@ import {
   writeAccountExportArchive,
 } from "./accountExportArchive.js";
 import {
+  appendCompressionSummary,
+  buildAccountImportMessageBatches,
   parseClaudeImportBuffer,
   parseChatGPTImportBuffer,
   parseGenericImportBuffer,
@@ -7172,42 +7174,61 @@ async function runAccountImport(
   const selectedChats = parsed.chats.slice(0, selectedCount);
   const selectedFingerprints = selectedChats.map((chat) => chat.source_fingerprint);
   const confirmation = await client.confirmAccountImport(importId, selectedFingerprints);
-  const status = await client.getAccountImportStatus(importId);
-  const sanitizedChats: typeof selectedChats = [];
+  const initialStatus = await client.getAccountImportStatus(importId);
+  if (Number(initialStatus.last_scan_sequence ?? -1) !== -1 || Number(initialStatus.last_compression_sequence ?? -1) !== -1) {
+    throw new Error("Resuming this import requires the client-held sanitized batch state.");
+  }
+  const batches = buildAccountImportMessageBatches(selectedChats);
+  const sanitizedChats = selectedChats.map((chat) => ({ ...chat, messages: [] as typeof chat.messages }));
+  const sanitizedBatches: Array<{ messages: typeof selectedChats[number]["messages"]; scanSequence: number; sourceFingerprint: string; chatIndex: number }> = [];
   const scanBatches = [];
   const compressionBatches = [];
-  for (let sequence = 0; sequence < selectedChats.length; sequence++) {
-    const finalBatch = sequence === selectedChats.length - 1;
+  for (let sequence = 0; sequence < batches.length; sequence++) {
+    const batch = batches[sequence];
+    const finalBatch = sequence === batches.length - 1;
     const scanned = await client.scanAccountImport(importId, {
-      batchId: `scan-${sequence}`,
+      batchId: batch.batchId,
       sequence,
       finalBatch,
-      chats: [selectedChats[sequence] as unknown as Record<string, unknown>],
+      chats: [batch.chat as unknown as Record<string, unknown>],
     });
-    if (scanned.status !== "acknowledged" || !Array.isArray(scanned.chats)) throw new Error("Account import scan batch was not acknowledged.");
+    if (scanned.status !== "acknowledged" || scanned.sequence !== sequence || scanned.batch_id !== batch.batchId || !Array.isArray(scanned.chats)) throw new Error("Account import scan batch was not acknowledged at the expected cursor.");
     scanBatches.push(scanned);
     const sanitizedChat = scanned.chats[0] as unknown as typeof selectedChats[number] | undefined;
     if (!sanitizedChat) throw new Error("Account import scan acknowledgement omitted the sanitized chat.");
-    sanitizedChats.push(sanitizedChat);
+    sanitizedChats[batch.chatIndex].messages.push(...sanitizedChat.messages);
+    sanitizedBatches.push({ messages: sanitizedChat.messages, scanSequence: sequence, sourceFingerprint: batch.sourceFingerprint, chatIndex: batch.chatIndex });
+  }
+  const postScanStatus = await client.getAccountImportStatus(importId);
+  if (Number(postScanStatus.last_scan_sequence) !== batches.length - 1) throw new Error("Account import scan status cursor did not advance as expected.");
+  const summaries = new Map<string, string>();
+  for (let sequence = 0; sequence < sanitizedBatches.length; sequence++) {
+    const batch = sanitizedBatches[sequence];
+    const finalBatch = sanitizedBatches[sequence + 1]?.sourceFingerprint !== batch.sourceFingerprint;
     const compressed = await client.compressAccountImport(importId, {
-      batchId: `compress-${sequence}`,
+      batchId: `compress-${batch.sourceFingerprint.slice(0, 16)}-${batches[sequence].chunkIndex}`,
       sequence,
       finalBatch,
-      scanSequence: sequence,
-      sourceFingerprint: sanitizedChat.source_fingerprint,
-      sanitizedMessages: sanitizedChat.messages as unknown as Array<Record<string, unknown>>,
+      scanSequence: batch.scanSequence,
+      sourceFingerprint: batch.sourceFingerprint,
+      sanitizedMessages: batch.messages as unknown as Array<Record<string, unknown>>,
+      priorSummary: summaries.get(batch.sourceFingerprint),
     });
-    if (compressed.status !== "acknowledged") throw new Error("Account import compression batch was not acknowledged.");
+    if (compressed.status !== "acknowledged" || compressed.sequence !== sequence) throw new Error("Account import compression batch was not acknowledged at the expected cursor.");
     compressionBatches.push(compressed);
+    if (typeof compressed.summary === "string" && compressed.summary.trim()) summaries.set(batch.sourceFingerprint, compressed.summary);
   }
-  const persisted = await client.persistEncryptedAccountImport(importId, sanitizedChats);
+  const postCompressionStatus = await client.getAccountImportStatus(importId);
+  if (Number(postCompressionStatus.last_compression_sequence) !== sanitizedBatches.length - 1) throw new Error("Account import compression status cursor did not advance as expected.");
+  const persistedChats = sanitizedChats.map((chat) => appendCompressionSummary(chat, summaries.get(chat.source_fingerprint)));
+  const persisted = await client.persistEncryptedAccountImport(importId, persistedChats);
   const complete = await client.completeAccountImport(importId, {
     importedChatIds: Array.isArray(persisted.imported_chat_ids) ? persisted.imported_chat_ids : [],
-    sourceFingerprints: sanitizedChats.map((chat) => chat.source_fingerprint),
+    sourceFingerprints: persistedChats.map((chat) => chat.source_fingerprint),
     encryptedRecordCounts: persisted.encrypted_record_counts ?? { chats: 0, messages: 0 },
     clientFailures: persisted.failures ?? [],
   });
-  return { ...result, import_id: importId, confirmation, status, scan: scanBatches.at(-1), scan_batches: scanBatches, compression: compressionBatches.at(-1), compression_batches: compressionBatches, persistence: persisted, complete };
+  return { ...result, import_id: importId, confirmation, initial_status: initialStatus, post_scan_status: postScanStatus, scan: scanBatches.at(-1), scan_batches: scanBatches, compression: compressionBatches.at(-1), compression_batches: compressionBatches, post_compression_status: postCompressionStatus, persistence: persisted, complete };
 }
 
 function printAccountImportPreview(result: Record<string, unknown>, flags: Record<string, string | boolean>): void {

@@ -928,6 +928,8 @@ ACCOUNT_IMPORT_SOURCE_IDENTITIES: dict[str, dict[str, str]] = {
     "opencode": {"category": "opencode", "sender_name": "OpenCode", "model_name": "OpenCode", "avatar_key": "opencode"},
     "other": {"category": "other", "sender_name": "AI assistant", "model_name": "Other", "avatar_key": "ai-star"},
 }
+ACCOUNT_IMPORT_MESSAGE_BATCH_SIZE = 250
+COMPRESSION_SUMMARY_CATEGORY = "compression_summary"
 
 
 def _finalize_account_import(parsed: dict[str, Any], parser_format: str, selected_source: str) -> dict[str, Any]:
@@ -943,6 +945,41 @@ def _finalize_account_import(parsed: dict[str, Any], parser_format: str, selecte
         for message in chat.get("messages", []):
             message["imported_assistant_identity"] = dict(identity) if message.get("role") == "assistant" else None
     return parsed
+
+
+def _account_import_message_batches(chats: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    batches: list[dict[str, Any]] = []
+    for chat_index, chat in enumerate(chats):
+        messages = chat.get("messages") if isinstance(chat.get("messages"), list) else []
+        chunk_count = max(1, (len(messages) + ACCOUNT_IMPORT_MESSAGE_BATCH_SIZE - 1) // ACCOUNT_IMPORT_MESSAGE_BATCH_SIZE)
+        for chunk_index in range(chunk_count):
+            fingerprint = str(chat.get("source_fingerprint") or "")
+            batch_chat = dict(chat)
+            start = chunk_index * ACCOUNT_IMPORT_MESSAGE_BATCH_SIZE
+            batch_chat["messages"] = messages[start:start + ACCOUNT_IMPORT_MESSAGE_BATCH_SIZE]
+            batches.append({
+                "chat_index": chat_index,
+                "chunk_index": chunk_index,
+                "source_fingerprint": fingerprint,
+                "batch_id": f"scan-{fingerprint[:16]}-{chunk_index}",
+                "chat": batch_chat,
+            })
+    return batches
+
+
+def _append_compression_summary(chat: dict[str, Any], summary: str | None) -> dict[str, Any]:
+    if not isinstance(summary, str) or not summary.strip():
+        return chat
+    result = dict(chat)
+    result["messages"] = [*chat.get("messages", []), {
+        "role": "system",
+        "content": summary,
+        "created_at": None,
+        "source_message_id": None,
+        "provider_metadata": {"import_type": COMPRESSION_SUMMARY_CATEGORY},
+        "imported_assistant_identity": None,
+    }]
+    return result
 
 
 def _read_import_zip_text(raw: bytes, required_name: str) -> str:
@@ -4433,6 +4470,10 @@ class OpenMatesAccount:
             raise OpenMatesConfigError("Generic role/content transcript must contain chat objects with messages arrays")
         chats: list[dict[str, Any]] = []
         for chat_index, raw_chat in enumerate(raw_chats):
+            allowed_chat_fields = {"id", "title", "created_at", "updated_at", "messages"}
+            unknown_chat_fields = sorted(set(raw_chat) - allowed_chat_fields)
+            if unknown_chat_fields:
+                raise OpenMatesConfigError(f"Generic role/content transcript contains unknown chat fields: {', '.join(unknown_chat_fields)}")
             raw_messages = raw_chat["messages"]
             if not raw_messages:
                 raise OpenMatesConfigError("Generic role/content transcript messages must not be empty")
@@ -4440,6 +4481,10 @@ class OpenMatesAccount:
             for message_index, raw_message in enumerate(raw_messages):
                 if not isinstance(raw_message, dict) or "role" not in raw_message or "content" not in raw_message:
                     raise OpenMatesConfigError(f"Generic role/content message {message_index + 1} requires role and content")
+                allowed_message_fields = {"id", "role", "content", "created_at"}
+                unknown_message_fields = sorted(set(raw_message) - allowed_message_fields)
+                if unknown_message_fields:
+                    raise OpenMatesConfigError(f"Generic role/content message {message_index + 1} contains unknown fields: {', '.join(unknown_message_fields)}")
                 role = raw_message["role"]
                 content = raw_message["content"]
                 if role not in {"user", "assistant", "system"} or not isinstance(content, str) or not content.strip():
@@ -4518,6 +4563,8 @@ class OpenMatesAccount:
                 message_id = str(uuid.uuid4())
                 role = str(message.get("role") or "user")
                 identity = message.get("imported_assistant_identity") if role == "assistant" and isinstance(message.get("imported_assistant_identity"), dict) else None
+                metadata = message.get("provider_metadata") if isinstance(message.get("provider_metadata"), dict) else {}
+                is_compression_summary = metadata.get("import_type") == COMPRESSION_SUMMARY_CATEGORY
                 row = {
                     "message_id": message_id,
                     "role": role,
@@ -4529,6 +4576,9 @@ class OpenMatesAccount:
                 if identity:
                     row["encrypted_category"] = _encrypt_aes_gcm_text(str(identity["category"]), chat_key)
                     row["encrypted_model_name"] = _encrypt_aes_gcm_text(str(identity["model_name"]), chat_key)
+                elif is_compression_summary:
+                    row["encrypted_category"] = _encrypt_aes_gcm_text(COMPRESSION_SUMMARY_CATEGORY, chat_key)
+                    row["encrypted_model_name"] = _encrypt_aes_gcm_text(str(chat.get("selected_source") or "other"), chat_key)
                 if role == "assistant" and previous_user_message_id:
                     row["user_message_id"] = previous_user_message_id
                 if role == "user":
@@ -4567,32 +4617,68 @@ class OpenMatesAccount:
         selected_chats = chats[:selected_count]
         selected_fingerprints = [str(chat.get("source_fingerprint") or "") for chat in selected_chats]
         confirmation = self.confirm_import(import_id, selected_fingerprints)
-        status = self.import_status(import_id)
-        scan = self.scan_import(import_id, selected_chats)
-        if scan.get("status") != "acknowledged" or not isinstance(scan.get("chats"), list):
-            raise OpenMatesConfigError("Account import scan was not acknowledged.")
-        sanitized_chats = scan["chats"]
+        initial_status = self.import_status(import_id)
+        if int(initial_status.get("last_scan_sequence", -1)) != -1 or int(initial_status.get("last_compression_sequence", -1)) != -1:
+            raise OpenMatesConfigError("Resuming this import requires the client-held sanitized batch state.")
+        batches = _account_import_message_batches(selected_chats)
+        sanitized_chats = [{**chat, "messages": []} for chat in selected_chats]
+        sanitized_batches: list[dict[str, Any]] = []
+        scan: dict[str, Any] = {}
+        for sequence, batch in enumerate(batches):
+            scan = self.scan_import(
+                import_id,
+                [batch["chat"]],
+                sequence=sequence,
+                final_batch=sequence == len(batches) - 1,
+                batch_id=batch["batch_id"],
+            )
+            if scan.get("status") != "acknowledged" or scan.get("sequence") != sequence or scan.get("batch_id") != batch["batch_id"] or not isinstance(scan.get("chats"), list):
+                raise OpenMatesConfigError("Account import scan batch was not acknowledged at the expected cursor.")
+            if not scan["chats"]:
+                raise OpenMatesConfigError("Account import scan omitted the sanitized batch.")
+            sanitized_messages = scan["chats"][0].get("messages", [])
+            sanitized_chats[batch["chat_index"]]["messages"].extend(sanitized_messages)
+            sanitized_batches.append({
+                "messages": sanitized_messages,
+                "scan_sequence": sequence,
+                "source_fingerprint": batch["source_fingerprint"],
+                "chat_index": batch["chat_index"],
+                "chunk_index": batch["chunk_index"],
+            })
+        post_scan_status = self.import_status(import_id)
+        if int(post_scan_status.get("last_scan_sequence", -1)) != len(batches) - 1:
+            raise OpenMatesConfigError("Account import scan status cursor did not advance as expected.")
+        summaries: dict[str, str] = {}
         compression: dict[str, Any] = {}
-        for index, chat in enumerate(sanitized_chats):
+        for sequence, batch in enumerate(sanitized_batches):
+            final_chat_batch = sequence + 1 == len(sanitized_batches) or sanitized_batches[sequence + 1]["source_fingerprint"] != batch["source_fingerprint"]
             compression = self.compress_import(
                 import_id,
-                sanitized_messages=chat.get("messages", []),
-                scan_sequence=0,
-                source_fingerprint=str(chat.get("source_fingerprint") or ""),
-                sequence=index,
-                final_batch=index == len(sanitized_chats) - 1,
+                sanitized_messages=batch["messages"],
+                scan_sequence=batch["scan_sequence"],
+                source_fingerprint=batch["source_fingerprint"],
+                prior_summary=summaries.get(batch["source_fingerprint"]),
+                sequence=sequence,
+                final_batch=final_chat_batch,
+                batch_id=f"compress-{batch['source_fingerprint'][:16]}-{batch['chunk_index']}",
             )
-            if compression.get("status") != "acknowledged":
-                raise OpenMatesConfigError("Account import compression was not acknowledged.")
-        persistence = self.persist_import(import_id, sanitized_chats)
+            if compression.get("status") != "acknowledged" or compression.get("sequence") != sequence:
+                raise OpenMatesConfigError("Account import compression was not acknowledged at the expected cursor.")
+            if isinstance(compression.get("summary"), str) and compression["summary"].strip():
+                summaries[batch["source_fingerprint"]] = compression["summary"]
+        post_compression_status = self.import_status(import_id)
+        if int(post_compression_status.get("last_compression_sequence", -1)) != len(sanitized_batches) - 1:
+            raise OpenMatesConfigError("Account import compression status cursor did not advance as expected.")
+        persisted_chats = [_append_compression_summary(chat, summaries.get(str(chat.get("source_fingerprint") or ""))) for chat in sanitized_chats]
+        persistence = self.persist_import(import_id, persisted_chats)
         complete = self.complete_import(
             import_id,
             imported_chat_ids=[str(item) for item in persistence.get("imported_chat_ids", [])] if isinstance(persistence.get("imported_chat_ids"), list) else [],
-            source_fingerprints=[str(chat.get("source_fingerprint") or "") for chat in sanitized_chats],
+            source_fingerprints=[str(chat.get("source_fingerprint") or "") for chat in persisted_chats],
             record_counts=persistence.get("encrypted_record_counts") if isinstance(persistence.get("encrypted_record_counts"), dict) else {"chats": 0, "messages": 0},
             client_failures=persistence.get("failures") if isinstance(persistence.get("failures"), list) else [],
         )
-        return {"source": parsed.get("source"), "parsed": parsed, "preview": preview, "import_id": import_id, "confirmation": confirmation, "status": status, "scan": scan, "compression": compression, "persistence": persistence, "complete": complete}
+        return {"source": parsed.get("source"), "parsed": parsed, "preview": preview, "import_id": import_id, "confirmation": confirmation, "initial_status": initial_status, "post_scan_status": post_scan_status, "scan": scan, "compression": compression, "post_compression_status": post_compression_status, "persistence": persistence, "complete": complete}
 
     def export_manifest(self) -> dict[str, Any]:
         return self._client._get("/v1/sdk/account/export/manifest")

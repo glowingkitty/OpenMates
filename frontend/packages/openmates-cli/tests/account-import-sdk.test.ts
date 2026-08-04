@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 const { OpenMates } = await import("../src/sdk.ts");
-const { createApiKeyCryptoMaterial } = await import("../src/crypto.ts");
+const { createApiKeyCryptoMaterial, decryptBytesWithAesGcm, decryptWithAesGcmCombined } = await import("../src/crypto.ts");
 
 describe("account import npm SDK", () => {
   it("exposes ChatGPT import parsing through the account facade", async () => {
@@ -73,6 +73,8 @@ describe("account import npm SDK", () => {
     const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
     const masterKeyB64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     const keyMaterial = await createApiKeyCryptoMaterial("SDK import test", masterKeyB64);
+    let lastScanSequence = -1;
+    let lastCompressionSequence = -1;
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       let raw = "";
       request.on("data", (chunk) => { raw += chunk.toString(); });
@@ -89,15 +91,17 @@ describe("account import npm SDK", () => {
           return;
         }
         if (request.method === "POST" && request.url === "/v1/account-imports/import-1/scan") {
-          response.end(JSON.stringify({ batch_id: "scan-1", sequence: 0, status: "acknowledged", chats: body?.chats ?? [], failures: [] }));
+          lastScanSequence = Number(body?.sequence);
+          response.end(JSON.stringify({ batch_id: body?.batch_id, sequence: body?.sequence, status: "acknowledged", chats: body?.chats ?? [], failures: [] }));
           return;
         }
         if (request.method === "GET" && request.url === "/v1/account-imports/import-1/status") {
-          response.end(JSON.stringify({ status: "processing", last_scan_sequence: 0, last_compression_sequence: -1 }));
+          response.end(JSON.stringify({ status: "processing", last_scan_sequence: lastScanSequence, last_compression_sequence: lastCompressionSequence }));
           return;
         }
         if (request.method === "POST" && request.url === "/v1/account-imports/import-1/compress") {
-          response.end(JSON.stringify({ batch_id: "compress-1", sequence: 0, status: "acknowledged", final_batch: true, usage: {} }));
+          lastCompressionSequence = Number(body?.sequence);
+          response.end(JSON.stringify({ batch_id: body?.batch_id, sequence: body?.sequence, status: "acknowledged", summary: `Synthetic summary ${body?.sequence}`, usage: {} }));
           return;
         }
         if (request.method === "POST" && request.url === "/v1/sdk/session") {
@@ -122,7 +126,11 @@ describe("account import npm SDK", () => {
 
     try {
       const client = new OpenMates({ apiKey: keyMaterial.apiKey, apiUrl: `http://127.0.0.1:${address.port}`, deviceId: "sdk-import-test" });
-      const parsed = await client.account.parseClaudeImport(Buffer.from(JSON.stringify([{ uuid: "chat-1", name: "SDK import", chat_messages: [{ uuid: "msg-1", sender: "human", text: "SDK plaintext message" }] }])));
+      const parsed = await client.account.parseClaudeImport(Buffer.from(JSON.stringify([{
+        uuid: "chat-1",
+        name: "SDK import",
+        chat_messages: Array.from({ length: 251 }, (_, index) => ({ uuid: `msg-${index}`, sender: "human", text: `SDK plaintext message ${index}` })),
+      }])));
       const result = await client.account.importChats(parsed);
       assert.equal(result.complete.status, "complete");
     } finally {
@@ -134,7 +142,11 @@ describe("account import npm SDK", () => {
       "POST /v1/account-imports/import-1/confirm",
       "GET /v1/account-imports/import-1/status",
       "POST /v1/account-imports/import-1/scan",
+      "POST /v1/account-imports/import-1/scan",
+      "GET /v1/account-imports/import-1/status",
       "POST /v1/account-imports/import-1/compress",
+      "POST /v1/account-imports/import-1/compress",
+      "GET /v1/account-imports/import-1/status",
       "POST /v1/sdk/session",
       "POST /v1/account-imports/import-1/persist-encrypted",
       "POST /v1/account-imports/import-1/complete",
@@ -142,16 +154,39 @@ describe("account import npm SDK", () => {
     const previewBody = requests[0].body as Record<string, unknown>;
     assert.equal(previewBody.source, "claude");
     assert.equal(previewBody.chat_count, 1);
+    const fingerprint = (previewBody.source_fingerprints as string[])[0];
     const scanBody = requests[3].body as Record<string, unknown>;
-    assert.equal(scanBody.batch_id, "scan-0");
+    assert.equal(scanBody.batch_id, `scan-${fingerprint.slice(0, 16)}-0`);
     assert.equal(scanBody.sequence, 0);
-    assert.equal(scanBody.final_batch, true);
-    const persistBody = requests[6].body as { chats?: Array<Record<string, unknown>> };
+    assert.equal(scanBody.final_batch, false);
+    assert.equal((scanBody.chats as Array<{ messages: unknown[] }>)[0].messages.length, 250);
+    const secondScanBody = requests[4].body as Record<string, unknown>;
+    assert.equal(secondScanBody.sequence, 1);
+    assert.equal(secondScanBody.final_batch, true);
+    assert.equal((secondScanBody.chats as Array<{ messages: unknown[] }>)[0].messages.length, 1);
+    const secondCompressionBody = requests[7].body as Record<string, unknown>;
+    assert.equal(secondCompressionBody.scan_sequence, 1);
+    assert.equal(secondCompressionBody.prior_summary, "Synthetic summary 0");
+    const finalStatus = requests[8];
+    assert.equal(finalStatus.method, "GET");
+    const persistBody = requests[10].body as { chats?: Array<Record<string, unknown>> };
     assert.equal(persistBody.chats?.length, 1);
     assert.equal(typeof persistBody.chats?.[0]?.encrypted_title, "string");
     assert.equal(String(persistBody.chats?.[0]?.encrypted_title).includes("SDK import"), false);
     const messages = persistBody.chats?.[0]?.messages as Array<Record<string, unknown>>;
+    assert.equal(messages.length, 252);
     assert.equal(typeof messages[0].encrypted_content, "string");
     assert.equal(String(messages[0].encrypted_content).includes("SDK plaintext message"), false);
+    const checkpoint = messages.at(-1) as Record<string, unknown>;
+    assert.equal(checkpoint.role, "system");
+    assert.equal(typeof checkpoint.encrypted_content, "string");
+    assert.equal(typeof checkpoint.encrypted_category, "string");
+    assert.equal(typeof checkpoint.encrypted_sender_name, "string");
+    assert.equal(typeof checkpoint.encrypted_model_name, "string");
+    assert.equal("encrypted_avatar_key" in checkpoint, false);
+    const chatKey = await decryptBytesWithAesGcm(String(persistBody.chats?.[0]?.encrypted_chat_key), Buffer.alloc(32));
+    assert.equal(await decryptWithAesGcmCombined(String(checkpoint.encrypted_content), chatKey), "Synthetic summary 1");
+    assert.equal(await decryptWithAesGcmCombined(String(checkpoint.encrypted_category), chatKey), "compression_summary");
+    assert.equal(await decryptWithAesGcmCombined(String(checkpoint.encrypted_model_name), chatKey), "claude");
   });
 });

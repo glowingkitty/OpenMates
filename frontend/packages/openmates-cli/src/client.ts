@@ -38,6 +38,7 @@ import {
   type ChatCompletionRecoveryEnvelope,
   type SignupCryptoMaterial,
 } from "./crypto.js";
+import { COMPRESSION_SUMMARY_CATEGORY } from "./accountImport.js";
 import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
 import {
   type OpenMatesSession,
@@ -476,6 +477,7 @@ export interface AccountImportEncryptedPersistResponse extends Record<string, un
 }
 
 interface ParsedImportChat {
+  selected_source?: string;
   title?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -490,6 +492,7 @@ interface ParsedImportChat {
       model_name: string;
       avatar_key: string;
     } | null;
+    provider_metadata?: Record<string, unknown>;
   }>;
 }
 
@@ -2976,6 +2979,7 @@ export class OpenMatesClient {
       for (const message of chat.messages) {
         const messageId = randomUUID();
         const identity = message.role === "assistant" ? message.imported_assistant_identity : null;
+        const isCompressionSummary = message.provider_metadata?.import_type === COMPRESSION_SUMMARY_CATEGORY;
         messages.push({
           message_id: messageId,
           role: message.role,
@@ -2984,6 +2988,9 @@ export class OpenMatesClient {
           ...(identity ? {
             encrypted_category: await encryptWithAesGcmCombined(identity.category, chatKey),
             encrypted_model_name: await encryptWithAesGcmCombined(identity.model_name, chatKey),
+          } : isCompressionSummary ? {
+            encrypted_category: await encryptWithAesGcmCombined(COMPRESSION_SUMMARY_CATEGORY, chatKey),
+            encrypted_model_name: await encryptWithAesGcmCombined(chat.selected_source ?? "other", chatKey),
           } : {}),
           created_at: Math.floor((message.created_at ? Date.parse(message.created_at) : Date.now()) / 1000),
           updated_at: Math.floor(Date.now() / 1000),
@@ -9613,7 +9620,7 @@ export class OpenMatesClient {
   async getAuthMethodsStatus(): Promise<AuthMethodsStatus> {
     this.requireSession();
     const response = await this.http.get<AuthMethodsStatus>(
-      "/v1/auth/methods",
+      "/v1/payments/user-auth-methods",
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {

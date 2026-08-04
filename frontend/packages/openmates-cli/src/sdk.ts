@@ -27,6 +27,9 @@ import {
   sanitizeAccountExportManifest,
 } from "./accountExportArchive.js";
 import {
+  appendCompressionSummary,
+  buildAccountImportMessageBatches,
+  COMPRESSION_SUMMARY_CATEGORY,
   parseClaudeImportBuffer,
   parseChatGPTImportBuffer,
   parseGenericImportBuffer,
@@ -2666,6 +2669,7 @@ export class OpenMatesAccount {
       for (const message of chat.messages) {
         const messageId = randomUUID();
         const identity = message.role === "assistant" ? message.imported_assistant_identity : null;
+        const isCompressionSummary = message.provider_metadata.import_type === COMPRESSION_SUMMARY_CATEGORY;
         messages.push({
           message_id: messageId,
           role: message.role,
@@ -2674,6 +2678,9 @@ export class OpenMatesAccount {
           ...(identity ? {
             encrypted_category: await encryptWithAesGcmCombined(identity.category, chatKey),
             encrypted_model_name: await encryptWithAesGcmCombined(identity.model_name, chatKey),
+          } : isCompressionSummary ? {
+            encrypted_category: await encryptWithAesGcmCombined(COMPRESSION_SUMMARY_CATEGORY, chatKey),
+            encrypted_model_name: await encryptWithAesGcmCombined(chat.selected_source, chatKey),
           } : {}),
           created_at: Math.floor((message.created_at ? Date.parse(message.created_at) : Date.now()) / 1000),
           updated_at: Math.floor(Date.now() / 1000),
@@ -2716,32 +2723,58 @@ export class OpenMatesAccount {
     const selectedChats = parsed.chats.slice(0, selectedCount);
     const selectedFingerprints = selectedChats.map((chat) => chat.source_fingerprint);
     const confirmation = await this.confirmImport(importId, selectedFingerprints);
-    const status = await this.importStatus(importId);
-    const scan = await this.scanImport(importId, selectedChats);
-    if (scan.status !== "acknowledged" || !Array.isArray(scan.chats)) throw new OpenMatesConfigError("Account import scan was not acknowledged.");
-    const sanitizedChats = scan.chats as ParsedImportChat[];
-    let compression: Record<string, unknown> = {};
-    for (let index = 0; index < sanitizedChats.length; index++) {
-      const chat = sanitizedChats[index];
-      compression = await this.compressImport(importId, {
-        sanitizedMessages: chat.messages,
-        scanSequence: 0,
-        sourceFingerprint: chat.source_fingerprint,
-        sequence: index,
-        finalBatch: index === sanitizedChats.length - 1,
-      });
-      if (compression.status !== "acknowledged") throw new OpenMatesConfigError("Account import compression was not acknowledged.");
+    const initialStatus = await this.importStatus(importId);
+    if (Number(initialStatus.last_scan_sequence ?? -1) !== -1 || Number(initialStatus.last_compression_sequence ?? -1) !== -1) {
+      throw new OpenMatesConfigError("Resuming this import requires the client-held sanitized batch state.");
     }
-    const persistence = await this.persistImport(importId, sanitizedChats);
+    const batches = buildAccountImportMessageBatches(selectedChats);
+    const sanitizedChats = selectedChats.map((chat) => ({ ...chat, messages: [] as ParsedImportChat["messages"] }));
+    const sanitizedBatches: Array<{ messages: ParsedImportChat["messages"]; scanSequence: number; sourceFingerprint: string; chatIndex: number }> = [];
+    let scan: Record<string, unknown> = {};
+    for (let sequence = 0; sequence < batches.length; sequence++) {
+      const batch = batches[sequence];
+      scan = await this.scanImport(importId, [batch.chat], sequence, sequence === batches.length - 1, batch.batchId);
+      if (scan.status !== "acknowledged" || scan.sequence !== sequence || scan.batch_id !== batch.batchId || !Array.isArray(scan.chats)) {
+        throw new OpenMatesConfigError("Account import scan batch was not acknowledged at the expected cursor.");
+      }
+      const sanitizedChat = scan.chats[0] as ParsedImportChat | undefined;
+      if (!sanitizedChat) throw new OpenMatesConfigError("Account import scan omitted the sanitized batch.");
+      sanitizedChats[batch.chatIndex].messages.push(...sanitizedChat.messages);
+      sanitizedBatches.push({ messages: sanitizedChat.messages, scanSequence: sequence, sourceFingerprint: batch.sourceFingerprint, chatIndex: batch.chatIndex });
+    }
+    const postScanStatus = await this.importStatus(importId);
+    if (Number(postScanStatus.last_scan_sequence) !== batches.length - 1) throw new OpenMatesConfigError("Account import scan status cursor did not advance as expected.");
+    const summaries = new Map<string, string>();
+    let compression: Record<string, unknown> = {};
+    for (let sequence = 0; sequence < sanitizedBatches.length; sequence++) {
+      const batch = sanitizedBatches[sequence];
+      const priorSummary = summaries.get(batch.sourceFingerprint);
+      const finalChatBatch = sanitizedBatches[sequence + 1]?.sourceFingerprint !== batch.sourceFingerprint;
+      compression = await this.compressImport(importId, {
+        sanitizedMessages: batch.messages,
+        scanSequence: batch.scanSequence,
+        sourceFingerprint: batch.sourceFingerprint,
+        priorSummary,
+        sequence,
+        finalBatch: finalChatBatch,
+        batchId: `compress-${batch.sourceFingerprint.slice(0, 16)}-${batches[sequence].chunkIndex}`,
+      });
+      if (compression.status !== "acknowledged" || compression.sequence !== sequence) throw new OpenMatesConfigError("Account import compression was not acknowledged at the expected cursor.");
+      if (typeof compression.summary === "string" && compression.summary.trim()) summaries.set(batch.sourceFingerprint, compression.summary);
+    }
+    const postCompressionStatus = await this.importStatus(importId);
+    if (Number(postCompressionStatus.last_compression_sequence) !== sanitizedBatches.length - 1) throw new OpenMatesConfigError("Account import compression status cursor did not advance as expected.");
+    const persistedChats = sanitizedChats.map((chat) => appendCompressionSummary(chat, summaries.get(chat.source_fingerprint)));
+    const persistence = await this.persistImport(importId, persistedChats);
     const complete = await this.completeImport(importId, {
       importedChatIds: Array.isArray(persistence.imported_chat_ids) ? persistence.imported_chat_ids as string[] : [],
-      sourceFingerprints: sanitizedChats.map((chat) => chat.source_fingerprint),
+      sourceFingerprints: persistedChats.map((chat) => chat.source_fingerprint),
       recordCounts: typeof persistence.encrypted_record_counts === "object" && persistence.encrypted_record_counts !== null
         ? persistence.encrypted_record_counts as Record<string, number>
         : { chats: 0, messages: 0 },
       clientFailures: Array.isArray(persistence.failures) ? persistence.failures as Array<Record<string, unknown>> : [],
     });
-    return { source: parsed.source, parsed, preview, import_id: importId, confirmation, status, scan, compression, persistence, complete };
+    return { source: parsed.source, parsed, preview, import_id: importId, confirmation, initial_status: initialStatus, post_scan_status: postScanStatus, scan, compression, post_compression_status: postCompressionStatus, persistence, complete };
   }
 
   async exportManifest(): Promise<Record<string, unknown>> {
