@@ -261,11 +261,16 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 
 | npm | pip | npm inputs | pip inputs | Return |
 | --- | --- | --- | --- | --- |
+| `om.projects.archive()` | `om.projects.archive()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.ask()` | `om.projects.ask()` | `instruction, create, update, updates, exact_delete, exact_deletes` | `instruction, create, update, updates, exact_delete, exact_deletes` | `object` |
-| `om.projects.create()` | `om.projects.create()` | `name, description, icon, color, pinned, archived` | `input` | `object` |
+| `om.projects.create()` | `om.projects.create()` | `name, description, icon, color, pinned, archived, context` | `input, personal, team_id` | `object` |
+| `om.projects.delete()` | `om.projects.delete()` | `id, confirmed` | `id, confirmed, personal, team_id` | `object` |
 | `om.projects.history()` | `om.projects.history()` | `id, limit` | `id, limit` | `list` |
-| `om.projects.list()` | `om.projects.list()` | `include_archived` | `include_archived` | `list` |
+| `om.projects.list()` | `om.projects.list()` | `include_archived` | `personal, team_id, include_archived` | `list` |
 | `om.projects.restore()` | `om.projects.restore()` | `id, entry_id, state` | `id, entry_id, state` | `object` |
+| `om.projects.show()` | `om.projects.show()` | `id, context` | `id, personal, team_id` | `object` |
+| `om.projects.unarchive()` | `om.projects.unarchive()` | `id, context` | `id, personal, team_id` | `object` |
+| `om.projects.update()` | `om.projects.update()` | `id, input, context` | `id, input, personal, team_id` | `object` |
 
 ## `reminders`
 

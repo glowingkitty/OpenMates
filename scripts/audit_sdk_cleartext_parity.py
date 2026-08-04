@@ -391,9 +391,14 @@ def _has_generic_input(inputs: set[str]) -> bool:
     return "input" in inputs
 
 
-def _comparable_input_sets(npm_inputs: tuple[str, ...], pip_inputs: tuple[str, ...]) -> tuple[set[str], set[str]]:
+def _comparable_input_sets(namespace: str, npm_inputs: tuple[str, ...], pip_inputs: tuple[str, ...]) -> tuple[set[str], set[str]]:
     npm_values = set(npm_inputs)
     pip_values = set(pip_inputs)
+    if namespace == "projects":
+        # TypeScript uses a discriminated context object; Python uses keyword arguments.
+        context_inputs = {"context", "personal", "team_id"}
+        npm_values -= context_inputs
+        pip_values -= context_inputs
     if _has_generic_input(npm_values) or _has_generic_input(pip_values):
         return (
             {value for value in npm_values if value in CONTROL_INPUT_NAMES},
@@ -413,7 +418,7 @@ def _compare_methods(namespace: str, npm_methods: dict[str, MethodContract], pip
         if not pip:
             failures.append(f"Missing pip SDK method {namespace}.{npm.name}")
             continue
-        npm_inputs, pip_inputs = _comparable_input_sets(npm.inputs, pip.inputs)
+        npm_inputs, pip_inputs = _comparable_input_sets(namespace, npm.inputs, pip.inputs)
         if npm_inputs != pip_inputs:
             failures.append(
                 f"SDK method input mismatch {namespace}.{npm.name}/{pip.name}: "

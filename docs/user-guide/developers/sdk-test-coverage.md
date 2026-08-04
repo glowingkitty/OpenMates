@@ -159,11 +159,16 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `plans` | `om.plans.updateLearning()` | `om.plans.update_learning()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.updateReferencePattern()` | `om.plans.update_reference_pattern()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.updateVerification()` | `om.plans.update_verification()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
+| `projects` | `om.projects.archive()` | `om.projects.archive()` | direct | direct |
 | `projects` | `om.projects.ask()` | `om.projects.ask()` | direct | direct |
 | `projects` | `om.projects.create()` | `om.projects.create()` | direct | direct |
+| `projects` | `om.projects.delete()` | `om.projects.delete()` | direct | direct |
 | `projects` | `om.projects.history()` | `om.projects.history()` | direct | direct |
 | `projects` | `om.projects.list()` | `om.projects.list()` | direct | direct |
 | `projects` | `om.projects.restore()` | `om.projects.restore()` | direct | direct |
+| `projects` | `om.projects.show()` | `om.projects.show()` | direct | direct |
+| `projects` | `om.projects.unarchive()` | `om.projects.unarchive()` | direct | direct |
+| `projects` | `om.projects.update()` | `om.projects.update()` | direct | direct |
 | `reminders` | `om.reminders.delete()` | `om.reminders.delete()` | direct | direct |
 | `reminders` | `om.reminders.list()` | `om.reminders.list()` | direct | direct |
 | `reminders` | `om.reminders.update()` | `om.reminders.update()` | direct | direct |
