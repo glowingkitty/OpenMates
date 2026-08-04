@@ -59,5 +59,7 @@ def test_expanded_accounts_use_environment_secret_capacity() -> None:
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
 
     assert "environment: e2e-tests" in workflow
+    assert "migrate_account_secrets_to_environment:" in workflow
+    assert "Secret migration is limited to expanded normal account slots 21-27." in workflow
     assert 'SECRET_SCOPE_ARGS=(--env e2e-tests)' in workflow
     assert 'gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" "${SECRET_SCOPE_ARGS[@]}"' in workflow

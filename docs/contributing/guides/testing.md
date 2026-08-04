@@ -343,6 +343,8 @@ Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in bat
 
 Slots 21-27 are stored as `e2e-tests` GitHub Environment secrets because the repository-level secret namespace is capped at 100 entries. The Playwright job attaches that environment without deployment protection rules; test account secrets must never be copied into source, logs, or artifacts.
 
+To migrate an already-provisioned expanded slot from repository secrets without exposing its values, dispatch `playwright-spec.yml` for that slot with `migrate_account_secrets_to_environment=true`. The migration is restricted to slots 21-27 and fails closed when any source credential is missing.
+
 Development dispatches pin the checked-out source to the commit whose Vercel deployment passed the readiness gate, so a moving `dev` branch cannot change the test implementation after dispatch.
 
 ### Reserved E2E Credential Accounts

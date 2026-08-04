@@ -57,6 +57,10 @@ on:
         description: "Allow credential-mutating utility specs to update repository secrets."
         type: boolean
         default: true
+      migrate_account_secrets_to_environment:
+        description: "Copy the selected expanded account credentials into the e2e-tests environment."
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       spec:
@@ -93,6 +97,10 @@ on:
         required: true
         type: string
       allow_credential_updates:
+        required: false
+        type: boolean
+        default: false
+      migrate_account_secrets_to_environment:
         required: false
         type: boolean
         default: false
@@ -142,6 +150,28 @@ jobs:
         with:
           node-version: "24"
       - uses: pnpm/action-setup@v4
+      - name: Migrate expanded account secrets to environment
+        if: inputs.migrate_account_secrets_to_environment
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          CURRENT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
+          CURRENT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
+          CURRENT_OTP_KEY: ${{ secrets.TEST_ACCOUNT_OTP_KEY != '' && secrets.TEST_ACCOUNT_OTP_KEY || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account)] }}
+        run: |
+          set -euo pipefail
+          SLOT="${{ inputs.account }}"
+          if [ "$SLOT" -lt 21 ] || [ "$SLOT" -gt 27 ]; then
+            echo "Secret migration is limited to expanded normal account slots 21-27." >&2
+            exit 1
+          fi
+          if [ -z "$CURRENT_EMAIL" ] || [ -z "$CURRENT_PASSWORD" ] || [ -z "$CURRENT_OTP_KEY" ]; then
+            echo "Slot $SLOT does not have complete source credentials to migrate." >&2
+            exit 1
+          fi
+          gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" --env e2e-tests --body "$CURRENT_EMAIL"
+          gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" --env e2e-tests --body "$CURRENT_PASSWORD"
+          gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" --env e2e-tests --body "$CURRENT_OTP_KEY"
+          echo "Migrated expanded account slot $SLOT to e2e-tests environment secrets."
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build openmates CLI (required by cli-skills-* specs)
