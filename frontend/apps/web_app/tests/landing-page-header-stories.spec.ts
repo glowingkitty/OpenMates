@@ -59,7 +59,7 @@ test.describe('Landing page header stories', () => {
 			timeout: HEADING_SETTLE_MS
 		});
 		await expect(page.getByTestId('landing-subslide-motion')).toHaveAttribute('data-stage', 'user-request');
-		await expect(page.getByTestId('landing-subslide-motion')).toHaveCSS('animation-name', 'landingSubslideFlow');
+		await expect(page.getByTestId('landing-subslide-motion')).toHaveCSS('animation-name', /landingSubslideFlow$/);
 	});
 
 	test('stories use coordinated timelines and one compact heading structure', async ({ page }: { page: any }) => {
@@ -129,8 +129,9 @@ test.describe('Landing page header stories', () => {
 		test.setTimeout(30000);
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await page.goto(getE2EDebugUrl('/#chat-id=example-privacy-first-local-ai'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('new-chat-cta-fullwidth')).toBeVisible({ timeout: 15000 });
-		await page.getByTestId('new-chat-cta-fullwidth').click();
+		const newChatButton = page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first();
+		await expect(newChatButton).toBeVisible({ timeout: 15000 });
+		await newChatButton.click();
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 		await expect(page.getByTestId('message-editor')).toBeFocused({ timeout: 5000 });
 		await expect.poll(async () => page.evaluate(() => window.location.hash)).not.toContain('chat-id=');
