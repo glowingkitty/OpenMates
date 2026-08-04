@@ -92,7 +92,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 39351223366dab425046189800ed6ef9ade49171
+  subject_commit: b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff
 
 approvals:
   product_contract:
@@ -166,8 +166,13 @@ handoff:
   next_action: Restart or open a fresh OpenCode chat so the deployed plugin loads, then review pilot binding, bootstrap, child-directory, and root-cleanliness diagnostics before enabling strict mode.
   command: python3 scripts/sessions.py status --json
   expected_outcome: New mutating chats record native binding and execute from their direct session worktree while existing chats remain grandfathered.
-  blocker: null
-  last_verified_commit: 39351223366dab425046189800ed6ef9ade49171
+  blocker:
+    task_id: TASK-4
+    requires_user_input: true
+    reason: The deployed OpenCode plugin is loaded only by a fresh or restarted chat, and strict rollout requires user acceptance of live pilot evidence.
+    question: Please open or restart one mutating OpenCode chat with the deployed plugin and confirm it starts and works normally from its session worktree; should that successful pilot enable strict mode?
+    next_action: Inspect the fresh chat binding_mode, bootstrap result, actual session directory, child directory, and root cleanliness, then record V-PILOT-REVIEW and enable strict mode if approved.
+  last_verified_commit: b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff
 
 dependencies:
   - id: agent-worktree-deploy
@@ -428,7 +433,7 @@ tests:
       - pilot failure records fallback while strict failure blocks source edits
       - no binding action creates an unsolicited prompt or assistant turn
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-red-native-binding", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-green-native-binding", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-green-native-binding", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-PYTEST-LIFECYCLE
     type: pytest
     file: scripts/tests/test_sessions_native_worktree_lifecycle.py
@@ -438,7 +443,7 @@ tests:
       - binding modes are mutually exclusive and grandfathered sessions are never moved
       - managed worktrees cannot be nested beneath managed worktrees
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-red-native-lifecycle", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-green-native-lifecycle", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-green-native-lifecycle", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-PYTEST-BOOTSTRAP
     type: pytest
     file: scripts/tests/test_sessions_worktree_bootstrap.py
@@ -448,7 +453,7 @@ tests:
       - bootstrap is idempotent and bounded and makes a scoped lint probe executable
       - root dependencies remain unchanged and failure cannot report native-ready
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-red-worktree-bootstrap", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-green-worktree-bootstrap", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-green-worktree-bootstrap", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-LIVE-OPENCODE
     type: unit
     file: scripts/verify_opencode_native_worktree.py
@@ -460,7 +465,7 @@ tests:
       - relative read, edit, Bash pwd, and new child use the worktree while root stays clean
       - finally cleanup removes only synthetic state
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 scripts/verify_opencode_native_worktree.py --isolated", run_id: "local-red-live-opencode", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_opencode_native_worktree.py --isolated", run_id: "local-green-live-opencode", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_opencode_native_worktree.py --isolated", run_id: "local-green-live-opencode", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-PYTEST-INTEGRATION
     type: pytest
     file: scripts/tests/test_sessions_integration_worktree.py
@@ -470,7 +475,7 @@ tests:
       - exact-base integration reproduces selected tracked, deleted, executable, and untracked changes
       - gates and commit use integration cwd and all pre-push failures leave root/source/dev unchanged
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-red-integration-worktree", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:45:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-green-integration-worktree", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-green-integration-worktree", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-PYTEST-INTEGRATION-CONCURRENCY
     type: pytest
     file: scripts/tests/test_sessions_integration_concurrency.py
@@ -481,7 +486,7 @@ tests:
       - advanced dev rebuilds and reruns invalidated gates without force push
       - conflict records a blocked item and leaves dev unchanged
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_integration_concurrency.py", run_id: "local-red-integration-concurrency", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:45:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_concurrency.py", run_id: "local-green-integration-concurrency", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_concurrency.py", run_id: "local-green-integration-concurrency", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-PYTEST-RECONCILIATION
     type: pytest
     file: scripts/tests/test_sessions_native_worktree_reconciliation.py
@@ -492,7 +497,7 @@ tests:
       - nested worktrees remain visible and completed integrations leave no orphan metadata
       - cleanup preserves unique or uncertain source work
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: "local-red-native-reconciliation", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:55:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: "local-green-native-reconciliation", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: "local-green-native-reconciliation", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-REGRESSION-WORKTREE
     type: pytest
     file: scripts/tests/test_sessions_worktree_deploy.py
@@ -502,7 +507,7 @@ tests:
       - existing isolation, guards, selection, finalization, reconciliation, and readiness remain green
       - modified_files remains advisory and grandfathered sessions retain a deploy path
     red_phase: {required: false, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_edit_leases.py scripts/tests/test_sessions_stale_read.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py", run_id: "local-green-worktree-regression", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_edit_leases.py scripts/tests/test_sessions_stale_read.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py", run_id: "local-green-worktree-regression", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-SCOPE-AUDIT
     type: unit
     file: scripts/audit_native_worktree_scope.py
@@ -513,7 +518,7 @@ tests:
       - no presence reducer, storage, lifecycle subscription, or collision-delivery behavior is implemented by this spec
       - agent-worktree-deploy safety outcomes remain referenced by regression verification
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "git cat-file -e eb6139578acf84908d23d68eb9e8cdf299e8f3f1:scripts/audit_native_worktree_scope.py", run_id: "local-red-scope-audit-missing", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T20:00:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_native_worktree_scope.py", run_id: "local-green-scope-audit", subject_commit: "39351223366dab425046189800ed6ef9ade49171", timestamp: "2026-08-04T20:31:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_native_worktree_scope.py", run_id: "local-green-scope-audit", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
 
 verifications:
   - id: V-PILOT-REVIEW
