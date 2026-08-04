@@ -135,3 +135,24 @@ def test_remove_unlinked_reviewed_worktree_uses_contained_directory_cleanup(monk
     sessions._remove_reconciled_worktree({"path": str(worktree), "linked": False})
 
     assert removed == [worktree]
+
+
+def test_reconciliation_only_filter_limits_immediate_review_scope(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(
+        sessions,
+        "_discover_worktree_candidates",
+        lambda: [
+            {"session_id": "selected", "path": "/tmp/agent-selected", "idle_hours": 0, "classification": "superseded"},
+            {"session_id": "other", "path": "/tmp/agent-other", "idle_hours": 0, "classification": "integrated"},
+        ],
+    )
+
+    report = sessions.reconcile_session_worktrees(
+        target_ref="origin/dev",
+        idle_hours=0,
+        apply_safe=False,
+        only_session_ids={"selected"},
+    )
+
+    assert [item["session_id"] for item in report["items"]] == ["selected"]

@@ -1508,6 +1508,7 @@ def reconcile_session_worktrees(
     idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS,
     apply_safe: bool = False,
     approved_obsolete: set[str] | None = None,
+    only_session_ids: set[str] | None = None,
 ) -> dict:
     """Report or safely apply reconciliation for all known agent worktrees."""
     approved = set(approved_obsolete or set())
@@ -1517,6 +1518,8 @@ def reconcile_session_worktrees(
     target_commit = target_commit.strip()
     items = []
     for candidate in _discover_worktree_candidates():
+        if only_session_ids and str(candidate.get("session_id")) not in only_session_ids:
+            continue
         if candidate.get("classification"):
             item = dict(candidate)
             if float(item.get("idle_hours", float("inf"))) < idle_hours:
@@ -5999,6 +6002,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
                 idle_hours=args.idle_hours,
                 apply_safe=args.apply_safe,
                 approved_obsolete=set(args.approve_obsolete or []),
+                only_session_ids=set(args.only or []),
             )
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
@@ -8355,6 +8359,13 @@ def main() -> None:
         default=[],
         metavar="SESSION_ID",
         help="Mark a reviewed stale worktree obsolete; repeat for multiple IDs",
+    )
+    p_worktree_reconcile.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        metavar="SESSION_ID",
+        help="Limit reconciliation to an explicit session ID; repeat for multiple IDs",
     )
     p_worktree_reconcile.add_argument("--format", choices=["text", "json"], default="text")
     p_worktree_readiness = p_worktree_sub.add_parser(
