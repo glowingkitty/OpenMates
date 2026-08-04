@@ -174,6 +174,21 @@
   .privacy-summary { grid-template-columns: repeat(3, minmax(0,1fr)); }
   .privacy-summary div { display: grid; place-items: center; gap: 7px; font-size: clamp(.66rem, 1.8cqi, .82rem); font-weight: 700; }
 
+  @container chat-side (max-width: 560px) {
+    .privacy-stage, .privacy-summary { gap: 5px; }
+    .privacy-stage p { font-size: .68rem; }
+    .data-orbit { width: 180px; height: 76px; }
+    .data-icon { width: 34px; height: 34px; }
+    .data-icon.chat, .data-icon.memory { top: 4px; }
+    .data-icon.project { left: 28px; }
+    .data-icon.task { right: 28px; }
+    .lock-core { inset: 11px 63px auto; width: 54px; height: 54px; }
+    .pii-message { padding: 6px 10px; }
+    .memory-request { padding: 5px 9px; }
+    .memory-consent { gap: 3px; padding: 5px; }
+    .memory-chip { padding: 3px 6px; }
+  }
+
   @keyframes stageEnter { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
   @keyframes protectData { from { opacity: .3; transform: scale(.86); } to { opacity: 1; transform: none; } }
   @keyframes closeLock { from { opacity: .4; transform: scale(.82) rotate(-8deg); } to { opacity: 1; transform: none; } }

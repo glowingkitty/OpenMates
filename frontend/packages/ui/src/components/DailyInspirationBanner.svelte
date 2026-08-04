@@ -2359,7 +2359,7 @@
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: scale(0.92);
+      transform: scale(0.9);
       margin-bottom: 4px;
     }
 
@@ -3319,7 +3319,7 @@
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: scale(0.92);
+      transform: scale(0.9);
       margin-bottom: 6px;
     }
 
@@ -3697,6 +3697,11 @@
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell {
       inset-block-start: clamp(42px, 11vw, 48px);
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-story-demo-shell {
+      height: 120px;
+      max-height: 120px;
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {

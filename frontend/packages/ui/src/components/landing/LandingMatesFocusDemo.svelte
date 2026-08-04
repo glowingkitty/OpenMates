@@ -91,7 +91,8 @@
   @container chat-side (max-width: 560px) {
     .mates-focus-demo { grid-template-columns: 1fr; gap: 7px; }
     .story-copy { font-size: .72rem; }
-    .scroll-list { width: min(100%,360px); max-height: 112px; margin: auto; gap: 4px; }
+    .scroll-list { width: min(100%,360px); max-height: none; margin: auto; overflow: visible; padding: 0 5px; }
+    .story-row:not(.active) { display: none; }
     .story-row { min-height: 34px; padding: 3px 8px; grid-template-columns: 28px 1fr auto; }
     .mate-profile, .focus-icon { width: 26px !important; height: 26px !important; }
     .story-row small { display: none; }

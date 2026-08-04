@@ -97,11 +97,13 @@
   .access-node code { max-width: 100%; overflow: hidden; color: var(--color-font-button); font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
 
   @container chat-side (max-width: 560px) {
+    .people-demo { gap: 7px; }
+    .story-copy { font-size: .68rem; }
     .provider-grid { gap: 5px; }
-    .provider-card { min-height: 62px; padding: 5px; }
+    .provider-card { min-height: 58px; padding: 3px; gap: 3px; }
     .provider-card span { font-size: .55rem; }
     .access-flow { gap: 5px; }
-    .access-node { min-height: 66px; padding: 5px; }
+    .access-node { min-height: 58px; padding: 3px; }
     .access-node code { display: none; }
   }
 
