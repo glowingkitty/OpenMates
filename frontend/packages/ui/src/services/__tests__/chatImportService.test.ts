@@ -66,6 +66,7 @@ function acknowledgedScan(body: Record<string, unknown>, values: Record<string, 
 
 describe("chatImportService Account Import V1", () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.clearAllMocks();
     let randomCounter = 0;
     vi.stubGlobal("crypto", {
@@ -118,8 +119,14 @@ describe("chatImportService Account Import V1", () => {
         }));
       }
       if (path === "/v1/account-imports/import-1/scan") {
+        const chats = body.chats as Array<{ messages: Array<Record<string, unknown>> }>;
         return new Response(JSON.stringify(acknowledgedScan(body, {
-          chats: body.chats,
+          chats: chats.map((chat) => ({
+            ...chat,
+            messages: chat.messages.map((message) => message.content === "Synthetic prompt injection payload"
+              ? { ...message, content: "[Prompt injection removed]" }
+              : message),
+          })),
           credits_reserved: 1,
           messages_blocked: [],
           failures: [],
@@ -152,14 +159,20 @@ describe("chatImportService Account Import V1", () => {
           name: "Sensitive web import",
           created_at: "2026-07-18T12:00:00Z",
           updated_at: "2026-07-18T12:05:00Z",
-          chat_messages: [
-            {
-              uuid: "message-1",
-              sender: "human",
-              text: "browser plaintext must not persist",
-              created_at: "2026-07-18T12:01:00Z",
-            },
-          ],
+           chat_messages: [
+             {
+               uuid: "message-1",
+               sender: "human",
+               text: "Synthetic prompt injection payload",
+               created_at: "2026-07-18T12:01:00Z",
+             },
+             {
+               uuid: "message-2",
+               sender: "system",
+               text: "Synthetic system import instruction",
+               created_at: "2026-07-18T12:02:00Z",
+             },
+           ],
         },
       ]);
     const file = {
@@ -189,7 +202,18 @@ describe("chatImportService Account Import V1", () => {
     const persistedChat = persistBody.chats[0];
     expect(String(persistedChat.encrypted_title)).not.toContain("Sensitive web import");
     const persistedMessages = persistedChat.messages as Array<Record<string, unknown>>;
-    expect(String(persistedMessages[0].encrypted_content)).not.toContain("browser plaintext");
+    const scanBody = requests.find((request) => request.path.endsWith("/scan"))!.body as {
+      chats: Array<{ messages: Array<{ role: string; content: string }> }>;
+    };
+    expect(scanBody.chats[0].messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: "system", content: "Synthetic system import instruction" }),
+      expect.objectContaining({ role: "user", content: "Synthetic prompt injection payload" }),
+    ]));
+    expect(persistedMessages[0].encrypted_content).toBe(
+      `encrypted:${Buffer.from("[Prompt injection removed]").toString("base64")}`,
+    );
+    expect(JSON.stringify(persistBody)).not.toContain("Synthetic prompt injection payload");
+    expect(JSON.stringify(persistBody)).not.toContain("Synthetic system import instruction");
     expect(persistedChat).not.toHaveProperty("title");
     expect(persistedMessages[0]).not.toHaveProperty("content");
     expect(mocks.addChat).toHaveBeenCalledOnce();
@@ -338,6 +362,8 @@ describe("chatImportService Account Import V1", () => {
       source_fingerprints: [],
       client_failures: [{ source_chat_id: "source-chat-1", reason: "scanner_timeout" }],
     });
+    expect(requests.some((request) => request.path.endsWith("/persist-encrypted"))).toBe(false);
+    expect(requests.filter((request) => request.path.endsWith("/complete"))).toHaveLength(1);
     expect(mocks.createAndPersistKey).not.toHaveBeenCalled();
     expect(mocks.encryptWithChatKey).not.toHaveBeenCalled();
     expect(mocks.addChat).not.toHaveBeenCalled();
@@ -726,8 +752,12 @@ describe("chatImportService Account Import V1", () => {
     } as File, "other")).rejects.toThrow("role and content");
   });
 
-  it("confirms then resumes bounded scan and compression cursors before encrypted persistence", async () => {
+  it("resumes acknowledged scan and compression batches in the same tab without duplicate work", async () => {
     const requests: Array<{ path: string; method: string; body: Record<string, unknown> }> = [];
+    let scanCursor = -1;
+    let compressionCursor = -1;
+    let statusCalls = 0;
+    let compressionSequenceOneAttempts = 0;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = pathFromUrl(input);
       const method = init?.method ?? "GET";
@@ -735,13 +765,17 @@ describe("chatImportService Account Import V1", () => {
       requests.push({ path, method, body });
       if (path.endsWith("/confirm")) return new Response(JSON.stringify({ status: "confirmed" }));
       if (path.endsWith("/status")) {
-        const statusCalls = requests.filter((request) => request.path.endsWith("/status")).length;
+        statusCalls++;
+        if (statusCalls === 2) {
+          return new Response(JSON.stringify({ detail: "Synthetic status interruption", retryable: true }), { status: 503 });
+        }
         return new Response(JSON.stringify({
-          last_scan_sequence: statusCalls === 1 ? -1 : 1,
-          last_compression_sequence: statusCalls < 3 ? -1 : 1,
+          last_scan_sequence: scanCursor,
+          last_compression_sequence: compressionCursor,
         }));
       }
       if (path.endsWith("/scan")) {
+        scanCursor = Number(body.sequence);
         return new Response(JSON.stringify({
           batch_id: body.batch_id,
           sequence: body.sequence,
@@ -752,6 +786,10 @@ describe("chatImportService Account Import V1", () => {
         }));
       }
       if (path.endsWith("/compress")) {
+        if (Number(body.sequence) === 1 && compressionSequenceOneAttempts++ === 0) {
+          return new Response(JSON.stringify({ detail: "Synthetic compression interruption", retryable: true }), { status: 503 });
+        }
+        compressionCursor = Number(body.sequence);
         return new Response(JSON.stringify({
           batch_id: body.batch_id,
           sequence: body.sequence,
@@ -782,7 +820,7 @@ describe("chatImportService Account Import V1", () => {
       }),
     } as File, "gemini");
 
-    await service.importChats(parsed, parsed.chats, {
+    const preview = {
       import_id: "import-resume",
       default_selection_count: 1,
       max_batch_count: 1,
@@ -790,23 +828,25 @@ describe("chatImportService Account Import V1", () => {
       estimated_credits: 2,
       can_import: true,
       reason: "paid_import_available",
-    }, undefined, { maxMessagesPerBatch: 2 });
+    };
 
-    expect(requests.map((request) => `${request.method} ${request.path}`)).toEqual([
-      "POST /v1/account-imports/import-resume/confirm",
-      "GET /v1/account-imports/import-resume/status",
-      "POST /v1/account-imports/import-resume/scan",
-      "POST /v1/account-imports/import-resume/scan",
-      "GET /v1/account-imports/import-resume/status",
-      "POST /v1/account-imports/import-resume/compress",
-      "POST /v1/account-imports/import-resume/compress",
-      "GET /v1/account-imports/import-resume/status",
-      "POST /v1/account-imports/import-resume/persist-encrypted",
-      "POST /v1/account-imports/import-resume/complete",
-    ]);
+    await expect(service.importChats(parsed, parsed.chats, preview, undefined, { maxMessagesPerBatch: 2 }))
+      .rejects.toThrow("Synthetic status interruption");
+    await expect(service.importChats(parsed, parsed.chats, preview, undefined, { maxMessagesPerBatch: 2 }))
+      .rejects.toThrow("Synthetic compression interruption");
+    const result = await service.importChats(parsed, parsed.chats, preview, undefined, { maxMessagesPerBatch: 2 });
+
+    expect(result.complete.status).toBe("complete");
+
+    expect(requests.filter((request) => request.path.endsWith("/confirm"))).toHaveLength(1);
+    expect(requests.filter((request) => request.path.endsWith("/scan")).map((request) => request.body.sequence)).toEqual([0, 1]);
     const compressionBodies = requests.filter((request) => request.path.endsWith("/compress")).map((request) => request.body);
     expect(compressionBodies[0]).not.toHaveProperty("prior_summary");
     expect(compressionBodies[1].prior_summary).toBe("sanitized summary 1");
+    expect(compressionBodies[2].prior_summary).toBe("sanitized summary 1");
+    expect(compressionBodies.map((body) => body.sequence)).toEqual([0, 1, 1]);
+    expect(requests.filter((request) => request.path.endsWith("/persist-encrypted"))).toHaveLength(1);
+    expect(requests.filter((request) => request.path.endsWith("/complete"))).toHaveLength(1);
     const persistBody = requests.find((request) => request.path.endsWith("/persist-encrypted"))!.body;
     expect(JSON.stringify(persistBody)).not.toContain("sanitized summary");
     const messages = (persistBody.chats as Array<{ messages: Array<Record<string, unknown>> }>)[0].messages;
@@ -817,9 +857,11 @@ describe("chatImportService Account Import V1", () => {
     });
     expect(messages.at(-1)).toMatchObject({
       role: "system",
-      encrypted_content: expect.stringContaining("encrypted:"),
-      encrypted_category: expect.stringContaining("encrypted:"),
+      encrypted_content: `encrypted:${Buffer.from("sanitized summary 2").toString("base64")}`,
+      encrypted_category: `encrypted:${Buffer.from("compression_summary").toString("base64")}`,
     });
+    expect(messages.at(-1)).not.toHaveProperty("content");
+    expect(messages.at(-1)).not.toHaveProperty("category");
     expect(messages[1]).not.toHaveProperty("avatar_key");
   });
 });

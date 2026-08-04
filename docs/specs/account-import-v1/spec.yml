@@ -321,17 +321,11 @@ attempts:
     notes: "Production implementation deployed in b9b0e62; final mobile/provider test refinement deployed in ddbcb51. Vitest run 30920983043 passed 706/706. Deployed Playwright runs 30933944334 (main), 30924847553 (limits), and 30924039255 (dedupe) passed. Artifact privacy scan and settings consistency audit passed, and authenticated laptop/mobile screenshots were reviewed with no objective defects."
 
 handoff:
-  current_task_id: TASK-16
-  next_action: Ask the user to confirm the deployed Account Import UI, source copy, and imported provider rendering on app.dev.openmates.org before any Apple work begins.
-  command: Open https://app.dev.openmates.org/#settings/account/import and import a supported test export.
-  expected_outcome: User confirms the deployed web behavior and visual quality, unblocking TASK-17 Apple parity work.
-  blocker:
-    type: user_confirmation_required
-    task_id: TASK-16
-    requires_user_input: true
-    reason: Automated web and reviewed laptop/mobile evidence are complete, but the required user confirmation gate cannot be self-approved.
-    question: Does the deployed Account Import flow, copy, and imported provider rendering work and look correct on dev?
-    next_action: Record V-USER-CONFIRMATION after the user checks the deployed route; only then begin TASK-17.
+  current_task_id: TASK-15
+  next_action: Deploy the review-finding test contract and record expected-red Vitest and Playwright evidence before changing Account Import production code.
+  command: python3 scripts/tests.py run --suite vitest && python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit <test-contract-commit>
+  expected_outcome: Tests fail on advanced-cursor retries, checkbox source selection, duplicate forgotten-message controls, and imported headers missing their encrypted title.
+  blocker: null
   last_verified_commit: ddbcb51c949af1be7dae41934c02a9567da43534
 
 scenarios:
@@ -1774,8 +1768,8 @@ tasks:
     independently_deployable: false
   - id: TASK-15
     title: Implement web source selection resumability and provider identity rendering
-    status: done
-    phase: complete
+    status: needs_fix
+    phase: working_tasks
     covers:
       scenarios: [S-12, S-13, S-14, S-15]
       acceptance_criteria: [AC-12, AC-13, AC-14, AC-15]

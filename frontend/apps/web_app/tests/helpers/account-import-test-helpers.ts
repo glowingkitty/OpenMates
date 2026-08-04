@@ -33,6 +33,7 @@ type ImportMockConfig = {
 	scanChats?: Array<Record<string, unknown>>;
 	messagesBlocked?: Array<Record<string, unknown>>;
 	compressionSummary?: string;
+	promptInjectionRedaction?: { exact: string; replacement: string };
 };
 
 function buildClaudeExportJson(chatCount: number, options: { duplicateTitle?: string } = {}): string {
@@ -54,6 +55,12 @@ function buildClaudeExportJson(chatCount: number, options: { duplicateTitle?: st
 				sender: 'assistant',
 				text: `Synthetic web import assistant message ${index + 1}`,
 				created_at: new Date(now + index * 60_000 + 30_000).toISOString(),
+			},
+			{
+				uuid: `claude-message-${index + 1}-3`,
+				sender: 'system',
+				text: 'Synthetic imported system message',
+				created_at: new Date(now + index * 60_000 + 40_000).toISOString(),
 			},
 		],
 	})));
@@ -279,6 +286,17 @@ async function installAccountImportMock(page: any, config: ImportMockConfig = {}
 		}
 
 		if (request.method() === 'POST' && /^\/v1\/account-imports\/[^/]+\/scan$/.test(url.pathname)) {
+			const scannedChats = (config.scanChats ?? body?.chats ?? []) as Array<Record<string, unknown>>;
+			const chats = config.promptInjectionRedaction
+				? scannedChats.map((chat) => ({
+					...chat,
+					messages: Array.isArray(chat.messages)
+						? chat.messages.map((message: Record<string, unknown>) => message.content === config.promptInjectionRedaction!.exact
+							? { ...message, content: config.promptInjectionRedaction!.replacement }
+							: message)
+						: [],
+				}))
+				: scannedChats;
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -286,7 +304,7 @@ async function installAccountImportMock(page: any, config: ImportMockConfig = {}
 					batch_id: body?.batch_id,
 					sequence: body?.sequence,
 					status: 'acknowledged',
-					chats: config.scanChats ?? body?.chats ?? [],
+					chats,
 					credits_reserved: config.estimatedCredits ?? 1,
 					messages_blocked: config.messagesBlocked ?? [],
 					failures: config.scanFailures ?? [],
@@ -391,7 +409,9 @@ async function uploadClaudeJson(page: any, chatCount: number, options: { duplica
 }
 
 async function selectImportSource(page: any, source: string): Promise<void> {
-	await page.getByTestId(`account-import-source-option-${source}`).click();
+	const sourceSelect = page.getByTestId('account-import-source');
+	await sourceSelect.selectOption(source);
+	await expect(sourceSelect).toHaveValue(source);
 }
 
 async function uploadGenericJson(page: any): Promise<void> {

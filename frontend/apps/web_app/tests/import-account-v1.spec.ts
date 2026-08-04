@@ -29,6 +29,22 @@ const {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+async function readRawImportedMessages(page: any, chatId: string): Promise<Array<Record<string, unknown>>> {
+	return page.evaluate(async (targetChatId: string) => new Promise((resolve, reject) => {
+		const openRequest = indexedDB.open('chats_db');
+		openRequest.onerror = () => reject(openRequest.error);
+		openRequest.onsuccess = () => {
+			const db = openRequest.result;
+			const request = db.transaction('messages', 'readonly').objectStore('messages').getAll();
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				resolve((request.result as Array<Record<string, unknown>>).filter((message) => message.chat_id === targetChatId));
+				db.close();
+			};
+		};
+	}), chatId);
+}
+
 async function openImportedChat(page: any, chatId: string): Promise<void> {
 	await page.getByTestId('icon-button-close').first().click();
 	const sidebarToggle = page.getByTestId('sidebar-toggle');
@@ -49,9 +65,12 @@ test.describe('Account Import V1 web flow', () => {
 			credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY },
 		});
 		await page.goto('/#settings/account/import', { waitUntil: 'domcontentloaded' });
+		const sourceSelect = page.getByTestId('account-import-source');
+		await expect(sourceSelect).toHaveRole('combobox');
+		await expect(sourceSelect).toHaveValue('');
+		await expect(sourceSelect.getByRole('option', { name: 'OpenMates' })).toBeAttached();
+		await expect(sourceSelect.getByRole('option', { name: 'Other' })).toBeAttached();
 		await expect(page.getByTestId('account-import-file-upload')).not.toBeVisible();
-		await expect(page.getByTestId('account-import-source-option-openmates')).toBeVisible();
-		await expect(page.getByTestId('account-import-source-option-other')).toBeVisible();
 		await selectImportSource(page, 'other');
 		await expect(page.getByTestId('account-import-file-upload')).toBeVisible();
 		await page.screenshot({ path: testInfo.outputPath('mobile-source-selection.png'), fullPage: true });
@@ -70,7 +89,13 @@ test.describe('Account Import V1 web flow', () => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-		const calls = await installAccountImportMock(page, { importId: 'web-import-claude' });
+		const calls = await installAccountImportMock(page, {
+			importId: 'web-import-claude',
+			promptInjectionRedaction: {
+				exact: 'Synthetic web import user message 1',
+				replacement: '[Prompt injection removed]',
+			},
+		});
 		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
 		await expect(page.getByTestId('account-import-file-upload')).not.toBeVisible();
 		await selectImportSource(page, 'claude');
@@ -91,11 +116,49 @@ test.describe('Account Import V1 web flow', () => {
 		expect(paths).toContain('/v1/account-imports/web-import-claude/complete');
 
 		const persistBody = persistPayloads(calls)[0] as { chats: Array<Record<string, unknown>> };
+		const scanBody = calls.find((call: { path: string }) => call.path.endsWith('/scan'))?.body as {
+			chats: Array<{ messages: Array<{ role: string; content: string }> }>;
+		};
+		expect(scanBody.chats[0].messages).toEqual(expect.arrayContaining([
+			expect.objectContaining({ role: 'system', content: 'Synthetic imported system message' }),
+			expect.objectContaining({ role: 'user', content: 'Synthetic web import user message 1' }),
+		]));
 		expect(persistBody.chats).toHaveLength(1);
 		expect(JSON.stringify(persistBody)).not.toContain('Synthetic web import user message');
+		expect(JSON.stringify(persistBody)).not.toContain('[Prompt injection removed]');
+		expect(JSON.stringify(persistBody)).not.toContain('Synthetic imported system message');
 		expect(JSON.stringify(persistBody)).not.toContain('Claude import chat 1');
 		expect(persistBody.chats[0]).not.toHaveProperty('title');
+		const importedChatId = String(persistBody.chats[0].chat_id);
+		await openImportedChat(page, importedChatId);
+		await expect(page.getByTestId('chat-header-title')).toContainText('Claude import chat 1');
+		await expect(page.getByText('[Prompt injection removed]', { exact: true })).toBeVisible();
+		await expect(page.getByText('Synthetic web import user message 1', { exact: true })).toHaveCount(0);
 		writePersistArtifacts(testInfo, calls, 'account-import-claude-persist.json');
+	});
+
+	test('fails closed when scanner infrastructure fails', async ({ page }: { page: any }) => {
+		test.setTimeout(180000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		const calls = await installAccountImportMock(page, {
+			importId: 'web-import-scanner-failure',
+			scanFailures: [{ source_chat_id: 'claude-chat-1', reason: 'scanner_unavailable', retryable: true }],
+		});
+		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
+		await selectImportSource(page, 'claude');
+		await uploadClaudeJson(page, 1);
+		await page.getByTestId('account-import-start').click();
+		await expect(page.getByText(/Import scan failed for one or more selected chats/i)).toBeVisible({ timeout: 30000 });
+
+		const paths = calls.map((call: { path: string }) => call.path);
+		expect(paths.some((path: string) => path.endsWith('/persist-encrypted'))).toBe(false);
+		const completion = calls.find((call: { path: string }) => call.path.endsWith('/complete'));
+		expect(completion?.body?.imported_chat_ids).toEqual([]);
+		expect(completion?.body?.client_failures).toEqual([
+			expect.objectContaining({ reason: 'scanner_unavailable', retryable: true }),
+		]);
+		await expect(page.getByTestId('import-results-container')).toHaveCount(0);
 	});
 
 	test('imports ChatGPT ZIP through scan and encrypted persistence', async ({ page }: { page: any }, testInfo: any) => {
@@ -205,18 +268,38 @@ test.describe('Account Import V1 web flow', () => {
 		]));
 		const persistBody = persistPayloads(calls)[0] as { chats: Array<{ messages: Array<Record<string, unknown>> }> };
 		const assistant = persistBody.chats[0].messages.find((message) => message.role === 'assistant');
+		const compressionSummary = persistBody.chats[0].messages.find((message) => message.role === 'system');
 		expect(assistant).toHaveProperty('encrypted_sender_name');
 		expect(assistant).toHaveProperty('encrypted_category');
 		expect(assistant).toHaveProperty('encrypted_model_name');
 		expect(assistant).not.toHaveProperty('avatar_key');
+		expect(compressionSummary).toMatchObject({
+			role: 'system',
+			encrypted_content: expect.any(String),
+			encrypted_category: expect.any(String),
+		});
+		expect(compressionSummary).not.toHaveProperty('content');
+		expect(compressionSummary).not.toHaveProperty('category');
 		expect(JSON.stringify(persistBody)).not.toContain('Synthetic generic web import');
 		expect(JSON.stringify(persistBody)).not.toContain('Synthetic sanitized compression summary');
+		expect(JSON.stringify(persistBody)).not.toContain('compression_summary');
 		const importedChatId = String((persistBody.chats[0] as Record<string, unknown>).chat_id);
 		await openImportedChat(page, importedChatId);
+		await expect(page.getByTestId('chat-header-title')).toContainText('Synthetic generic web import chat');
 		await expect(page.getByTestId('show-forgotten-messages')).toBeVisible({ timeout: 15000 });
 		await page.getByTestId('show-forgotten-messages').click();
+		await expect(page.getByTestId('show-forgotten-messages')).toHaveCount(1);
+		await expect(page.getByTestId('hide-forgotten-messages-at-boundary')).toHaveCount(0);
 		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'Gemini' })).toBeVisible();
 		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'gemini');
+		const rawMessages = await readRawImportedMessages(page, importedChatId);
+		const rawSummary = rawMessages.find((message) => message.role === 'system');
+		expect(rawSummary).toMatchObject({ encrypted_content: expect.any(String), encrypted_category: expect.any(String) });
+		expect(rawSummary).not.toHaveProperty('content');
+		expect(rawSummary).not.toHaveProperty('category');
+		expect(JSON.stringify(rawMessages)).not.toContain('Synthetic sanitized compression summary');
+		expect(JSON.stringify(rawMessages)).not.toContain('compression_summary');
+		await page.screenshot({ path: testInfo.outputPath('compression-history-expanded.png'), fullPage: true });
 		writePersistArtifacts(testInfo, calls, 'account-import-gemini-persist.json');
 	});
 
