@@ -275,9 +275,9 @@ attempts:
     notes: CLI storage passed 15 tests, backend/pip recovery passed 14 tests, the audit checked 82 command entries and four workflow transports, and real CLI/npm/pip usage calls passed with isolated temporary auth state and revoked SDK keys.
 
 handoff:
-  current_task_id: TASK-11
-  next_action: Review R1 media rendering on laptop and mobile while legacy writers remain active.
-  command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/dev/preview/embeds/images --session 0056
+  current_task_id: TASK-12
+  next_action: Obtain user confirmation that the deployed R1 media behavior works and looks correct before Apple verification.
+  command: awaiting user confirmation
   expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
   blocker: null
   last_verified_commit: 66b6630dd
@@ -724,10 +724,10 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-2, AC-3, AC-6]
-    status: pending
+    status: passed
     target: https://app.dev.openmates.org
     viewports: [laptop, mobile]
-    evidence: {status: "", summary: "", run_id: "", timestamp: ""}
+    evidence: {status: passed, summary: "Reviewed laptop and mobile screenshots after R1 deployment. Defects: none; no overflow, broken images, implementation error text, loading stalls, console errors, page errors, response errors, or request failures. Accepted differences: the mobile rotating hero was captured between slide-content transitions; primary controls and the example-chat rail remained visible and responsive.", run_id: "test-results/visual-smoke/2026-08-04T08-25-24-090Z/summary.json", subject_commit: "21c5f2725", timestamp: "2026-08-04T08:25:56Z", actor: OpenCode}
   - {id: V-USER-CONFIRMATION, kind: user_confirmation, phase: final, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: pending, evidence: {status: "", summary: "", timestamp: ""}}
   - {id: V-APPLE, kind: automated_test, phase: final, required_for_done: true, covers: [AC-2, AC-4, AC-6, AC-8], status: pending, evidence: {status: partial, command: "python3 scripts/apple_remote.py build-ios --simulator 'iPhone 17'", subject_commit: "034b62913", summary: "Remote iOS simulator build succeeded for checked SecRandom and rejection-sampled issuance. TASK-13 still owns injected PBKDF2/SecRandom failure tests and final Apple media-reader verification.", timestamp: "2026-08-03T18:29:35Z"}}
   - {id: V-APPLE-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
@@ -1086,8 +1086,8 @@ tasks:
     independently_deployable: true
   - id: TASK-11
     title: Review R1 laptop and mobile media rendering
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-2, S-6]
       acceptance_criteria: [AC-2, AC-6]
@@ -1101,7 +1101,7 @@ tasks:
     independently_deployable: false
   - id: TASK-12
     title: Obtain user confirmation for deployed R1
-    status: pending
+    status: in_progress
     phase: awaiting_approval
     covers:
       scenarios: [S-2, S-6]
