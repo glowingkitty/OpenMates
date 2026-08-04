@@ -6,9 +6,9 @@ status: implementing
 goal: >
   Make the logged-out OpenMates landing experience explain the product clearly to
   non-technical visitors by reusing the real app shell, existing daily inspiration
-  header, active app metadata, and public example-chat system. The first shipped
-  slice expands the guest daily inspiration header into a full active-chat intro
-  animation that communicates: "Simply ask your AI team mates".
+  header, active app metadata, and deterministic product-story animations. The
+  header journey explains actionable output, privacy and safety, specialized mates
+  and focus modes, and provider-independent access before ending on signup.
 
 scope:
   in:
@@ -21,22 +21,23 @@ scope:
     - Manual previous/next buttons skip or navigate slides immediately.
     - The current slide progress bar remains visible at the bottom of the intro/header.
     - Later logged-out slides explain actionable embeds, privacy/safety, mates/focus modes, and provider/cross-platform independence.
-    - Example chats are selected from existing public example chats first; new example chats are added only when no suitable existing chat exists and must remain SEO-safe public fixtures.
-    - Topic tags move out of pre-signup landing and into post-signup onboarding.
+    - Privacy, mates/focus, and provider/platform stories use coordinated one-shot timelines whose progress and completion are owned by the same timing constants.
+    - Every explanatory slide uses the mobile-style full-width heading transition at all viewport sizes: large centered heading, hidden-state swap, then compact centered heading above the animation.
+    - The signup slide remains the final non-advancing slide.
   out:
     - Replacing the chat app shell with a separate static marketing page.
     - Showing inactive, future, or provider-only app icons in the intro rails.
-    - Implementing all later landing slides in phase 1.
+    - Changing example-chat selection, topic tags, all-examples behavior, or contextual links; those are a separate story.
     - Implementing account import, external provider import UI, topic inference, onboarding video-call scheduling, README/CLI/social copy updates, or Apple parity in phase 1.
     - Changing anonymous free-usage budgets, signup billing, chat encryption, or app-skill execution behavior.
     - Rendering a full interactive chat or embed runtime inside compact autoplay explainer animations; visual-only reuse of real chat/embed components and styles is allowed when it is deterministic.
 
 current_milestone:
-  id: phase-2-actionable-event-slide
+  id: phase-3-header-product-stories
   goal: >
-    Finish, deploy, and verify the first regular-size follow-up slide after the
-    expanded logged-out intro as one coordinated, localized `Actionable` event
-    animation that advances exactly when its progress reaches 100%.
+    Replace the generic privacy, mates/focus, and provider/platform illustrations
+    with coordinated localized header stories, apply the compact-heading structure
+    at every viewport width, and preserve signup as the terminal slide.
   in:
     - Full-container intro for the first guest slide only.
     - Headline `Simply ask your\nAI team mates` with the existing AI/sparkle visual language.
@@ -47,9 +48,7 @@ current_milestone:
     - Existing-style progress bar and left/right controls.
     - Skip behavior: pressing next during expanded intro collapses immediately and shows slide 2 at regular header size.
   deferred:
-    - Privacy and safety slide animations.
-    - Mates and focus-mode slide animations.
-    - Provider/cross-platform slide animations.
+    - Example-chat selection and supporting links beneath the animated header.
     - Post-signup import/topics/inspiration onboarding.
     - Documentation, README, CLI, and social communication updates.
 
@@ -128,8 +127,8 @@ approvals:
     reason: User explicitly asked to create the spec, then implement, deploy, and test after the ten clarification rounds.
   implementation_plan:
     status: approved
-    approved_at: "2026-07-22"
-    reason: User approved implementing the first intro animation properly before later slide-by-slide work.
+    approved_at: "2026-08-04"
+    reason: User approved the exact header-only timing, copy, responsive structure, reduced-motion behavior, and implementation plan for the remaining product-story slides.
 
 decisions:
   - id: D-1
@@ -167,6 +166,21 @@ decisions:
     decision: The Actionable animation is a one-shot timeline whose completion advances to the privacy slide, with a mobile-only same-node headline/icon morph and progress derived from the same duration.
     reason: The user rejected the repeating animation, abrupt compact heading replacement, and inaccurate fixed-duration progress behavior.
     decided_at: "2026-08-03"
+  - id: D-8
+    status: active
+    decision: All regular explanatory slides use the mobile-style large-to-compact centered heading structure at every viewport width; the earlier desktop side-by-side Figma frame is outdated.
+    reason: The user found the split headline and animation difficult to read and explicitly approved one full-width structure for desktop and mobile.
+    decided_at: "2026-08-04"
+  - id: D-9
+    status: active
+    decision: The privacy story says saved chats and memories are encrypted before storage and only the user's devices can unlock saved data.
+    reason: This preserves direct non-technical privacy language while accurately scoping the claim away from transient plaintext required for AI inference.
+    decided_at: "2026-08-04"
+  - id: D-10
+    status: active
+    decision: Example chats and supporting links are excluded from the current header-animation milestone.
+    reason: The user explicitly requested that example-chat work remain a separate story.
+    decided_at: "2026-08-04"
 
 attempts:
   - id: ATTEMPT-1
@@ -404,10 +418,10 @@ attempts:
       before Playwright could start; the automated retry returned HTTP 400.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Implement and statically verify the one-shot Actionable timeline, localized copy, pointer clicks, and mobile headline morph.
-  command: bash scripts/lint_changed.sh --svelte --ts --yml --path frontend/packages/ui/src/components/DailyInspirationBanner.svelte --path frontend/packages/ui/src/components/landing --path frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
-  expected_outcome: Focused Svelte, TypeScript, YAML, translation, and locale checks pass before the green deploy.
+  current_task_id: TASK-4
+  next_action: Add red Playwright coverage, then implement and statically verify the three coordinated header story timelines and all-viewport heading compaction.
+  command: bash scripts/lint_changed.sh --svelte --ts --yml --path frontend/packages/ui/src/components/DailyInspirationBanner.svelte --path frontend/packages/ui/src/components/landing --path frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml --path frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+  expected_outcome: Focused Svelte, TypeScript, YAML, translation, and locale checks pass before the green deploy and deployed Playwright run.
   blocker: null
   last_verified_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
 
@@ -464,8 +478,8 @@ scenarios:
       - The click reveals the actual CTA text `Open on Luma`, and the cursor clicks that CTA.
       - Every user-visible demo string comes from the translation sources for every supported locale.
       - Each content stage enters quickly from below at reduced scale, continues drifting upward very slowly through the center without stopping, then accelerates upward while scaling and fading down.
-      - On mobile, the existing headline and category icon nodes fade out at full size, switch while hidden into a centered compact top caption with the icon on the left, then fade back in at approximately 0.5 opacity; desktop keeps the side-by-side layout.
-      - The first user-message stage starts only after the compact mobile heading has completed its fade-in, and both chat message containers render wider and larger than the previous compact treatment.
+      - At every viewport width, the existing headline and category icon nodes fade out at full size, switch while hidden into a centered compact top caption with the icon on the left, then fade back in at approximately 0.5 opacity.
+      - The first user-message stage starts only after the compact heading has completed its fade-in, and both chat message containers render wider and larger than the previous compact treatment.
       - The preview is fully visible and centered during its center dwell at desktop and mobile sizes.
       - The event title appears only inside the real event preview; no separate title overlays its date or metadata.
       - The animation plays once, the progress bar reaches 100% at the final clicked state, and the carousel advances to the privacy slide without repeating.
@@ -495,6 +509,55 @@ scenarios:
     then:
       - The public example-chat area is replaced by an onboarding flow that offers chat import, job-based topic selection, and filtered inspiration.
       - If imported chats exist, the user sees `Continue where you left off` with real user chats instead of generic example chats.
+
+  - id: S-7
+    title: Privacy and safety header tells three accurate one-shot stories
+    given:
+      - A logged-out visitor reaches `Privacy & safety by design.`.
+    when:
+      - The 15000ms header timeline plays.
+    then:
+      - The full-width heading compacts above the animation at every viewport width using the shared 1500ms delay and 420ms fade-out/fade-in durations.
+      - The first 5000ms segment closes a lock around chat, memory, project, and task data and states that only the user's devices can unlock saved data.
+      - The second 5000ms segment highlights a supported example email, replaces it with an actual PII placeholder, shows the placeholder in an assistant response, and restores the original value client-side.
+      - The final 5000ms segment shows a travel request, explicit memory selection, confirmation, and `Personalized responses, but only when you want them.`.
+      - The progress bar reaches 100% when the timeline completes and advances once to the mates/focus slide.
+
+  - id: S-8
+    title: Mates and focus modes make expert behavior understandable
+    given:
+      - A logged-out visitor reaches the AI accessibility slide.
+    when:
+      - The 12000ms header timeline plays.
+    then:
+      - The headline reads `Get the most out of AI. Without needing deep technical know-how.` and uses the shared full-width compaction behavior.
+      - The first 6000ms segment scrolls real metadata-backed mates and highlights their localized specialties one at a time.
+      - The second 6000ms segment scrolls real focus-mode entries and ends with one visibly active.
+      - The progress bar reaches 100% when the timeline completes and advances once to the people-first slide.
+
+  - id: S-9
+    title: People-first header explains provider choice and portable access
+    given:
+      - A logged-out visitor reaches the people-first experience slide.
+    when:
+      - The 12000ms header timeline plays.
+    then:
+      - The headline reads `Built for people & the best possible experience.` and uses the shared full-width compaction behavior.
+      - The first 6000ms segment highlights Google Gemini, Anthropic Claude, OpenAI, and Mistral around OpenMates using current provider identities.
+      - The second 6000ms segment transitions through a web chat, the real CLI chat-list command, and a concise TypeScript SDK example before ending on Web, CLI, and SDK together.
+      - The progress bar reaches 100% when the timeline completes and advances once to signup.
+      - Signup remains terminal and does not expose a next control.
+
+  - id: S-10
+    title: Reduced-motion visitors get static readable header stories
+    given:
+      - A logged-out visitor prefers reduced motion.
+    when:
+      - They navigate among the explanatory slides.
+    then:
+      - Each slide immediately shows its compact heading and a static summary of every concept.
+      - Automatic slide advancement and decorative infinite motion are disabled.
+      - Previous and next controls remain usable.
 
 acceptance_criteria:
   - id: AC-1
@@ -554,6 +617,45 @@ acceptance_criteria:
     verification_scope: playwright
     verification_ids:
       - T-WEB-POST-SIGNUP-ONBOARDING
+  - id: AC-7
+    scenario: S-7
+    text: The privacy header uses one 15000ms timeline for accurate encryption-at-storage, PII placeholder restoration, and explicit memory-consent stories, with shared full-width heading compaction and synchronized advancement.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-LANDING-HEADER-STORIES
+      - V-UI-VISUAL-SMOKE
+  - id: AC-8
+    scenario: S-8
+    text: The AI accessibility header uses one 12000ms timeline to show real mates and focus modes beneath the shared compact heading and advances exactly once on completion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-LANDING-HEADER-STORIES
+      - V-UI-VISUAL-SMOKE
+  - id: AC-9
+    scenario: S-9
+    text: The people-first header uses one 12000ms timeline to show current provider identities and Web/CLI/SDK access, then advances to the terminal signup slide.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-LANDING-HEADER-STORIES
+      - V-UI-VISUAL-SMOKE
+  - id: AC-10
+    scenario: S-10
+    text: Reduced motion immediately exposes static readable summaries, disables autoplay and infinite decoration, and preserves manual navigation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-LANDING-HEADER-STORIES
 
 assumptions:
   - id: A-1
@@ -603,6 +705,20 @@ contracts:
     - No cleartext interests are collected before signup in the refreshed landing flow.
     - Phase 1 introduces no analytics payloads, tracking IDs, or persistence of visitor categories.
     - Public demo text and icons contain no private user data.
+    - The landing privacy claim is scoped to saved chats and memories encrypted before durable storage; it does not claim that transient AI inference context is never processed server-side.
+    - The PII sequence uses only a synthetic supported email fixture and never embeds real personal data.
+  api:
+    access_model: no endpoint changes
+    authentication: unchanged
+    rate_limits: unchanged
+    credit_budget: unchanged
+    encrypted_or_plaintext_data: no new server data handled; all new behavior is deterministic browser-only presentation
+  platform_gates:
+    rest_api_websocket: not_applicable_browser_only_visual_story
+    cli: not_applicable_no_cli_behavior_change
+    npm_sdk: not_applicable_no_sdk_behavior_change
+    pip_sdk: not_applicable_no_sdk_behavior_change
+    apple: deferred_until_deployed_web_user_confirmation
 
 tests:
   - id: T-WEB-GUEST-INTRO
@@ -731,6 +847,36 @@ tests:
         reason: Deferred until post-signup onboarding implementation is activated.
         subject_commit: ""
         timestamp: "2026-07-22"
+  - id: T-WEB-LANDING-HEADER-STORIES
+    type: playwright
+    file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts --gate-deploy --expected-commit <commit>
+    target: app.dev.openmates.org
+    covers:
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+    assertions:
+      - privacy exposes encryption, PII, and memory stages from one 15000ms timeline
+      - mates/focus exposes metadata-backed mate and focus-mode stages from one 12000ms timeline
+      - people-first exposes provider and Web/CLI/SDK stages from one 12000ms timeline
+      - every viewport uses the same large-to-compact centered heading structure
+      - each timeline advances once at progress completion and signup remains terminal
+      - reduced motion renders static summaries, disables autoplay, and preserves manual controls
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        timestamp: "2026-08-04"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        subject_commit: ""
+        timestamp: "2026-08-04"
 
 verifications:
   - id: V-USER-PHASE1
@@ -780,6 +926,25 @@ verifications:
       status: skipped_with_reason
       summary: Phase 1 is web-only visual landing behavior; Apple parity requires user confirmation of deployed web design first.
       timestamp: "2026-07-22"
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-7
+      - AC-8
+      - AC-9
+    status: pending
+    route: https://app.dev.openmates.org/
+    viewports:
+      - laptop
+      - mobile
+    evidence:
+      status: pending
+      summary: Awaiting reviewed deployed laptop and mobile screenshots.
+      run_id: ""
+      subject_commit: ""
+      timestamp: "2026-08-04"
 
 implementation_plan:
   spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml
@@ -797,17 +962,21 @@ implementation_plan:
     completion to DailyInspirationBanner. The parent delays playback until the
     mobile headline is compact, derives progress from the same shared duration,
     and advances exactly once without mounting the full chat runtime. Explicit
-    mobile heading and slide phases ensure geometry and content change only at
-    zero opacity.
+    heading and slide phases ensure geometry and content change only at zero
+    opacity. Dedicated privacy, mates/focus, and people-first components own
+    deterministic one-shot timelines and report completion to the parent. The
+    same full-width large-to-compact heading structure is used at every viewport.
   data_flow:
     - ActiveChat renders DailyInspirationBanner with `variant='guest-intro'` for logged-out welcome state.
     - DailyInspirationBanner detects first guest intro slide and starts expanded on mount for logged-out users.
     - Intro request timing drives current request text, highlighted app id, icon-rail alignment, and progress.
     - Manual next/previous updates the carousel immediately and disables the expanded intro state for the current component instance.
     - Auto completion collapses and advances to slide 2.
-    - The Actionable slide starts immediately beside its headline on desktop and after headline compaction on mobile.
+    - Every regular explanatory slide compacts its centered heading before the main animation at every viewport width.
     - Actionable completion advances to the privacy slide and its progress bar uses the same desktop/mobile total duration.
     - Post-intro mobile navigation delays the current slide index update until content opacity reaches zero, then fades the newly mounted slide in.
+    - Privacy runs for 15000ms; mates/focus and people-first each run for 12000ms; the parent progress bar consumes those exact shared durations.
+    - Reduced motion skips timed playback, shows static summaries, and prevents automatic advancement.
   affected_files:
     - path: docs/specs/landing-page-onboarding-refresh/spec.yml
       reason: Product contract, implementation plan, and evidence ledger.
@@ -817,6 +986,14 @@ implementation_plan:
       reason: Focused deployed Playwright coverage for the refreshed logged-out intro.
     - path: frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
       reason: Localized one-shot messages, embed/pointer interactions, and stage motion.
+    - path: frontend/packages/ui/src/components/landing/LandingPrivacySafetyDemo.svelte
+      reason: Encryption, PII placeholder, and memory-consent story presentation.
+    - path: frontend/packages/ui/src/components/landing/LandingMatesFocusDemo.svelte
+      reason: Metadata-backed mate and focus-mode story presentation.
+    - path: frontend/packages/ui/src/components/landing/LandingPeopleExperienceDemo.svelte
+      reason: Provider-choice and Web/CLI/SDK story presentation.
+    - path: frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
+      reason: Shared heading and exact story-stage timing contract consumed by components and carousel progress.
     - path: frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
       reason: Accept localized event-type and attendance labels from the landing demo while preserving shared preview rendering.
     - path: frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
@@ -828,7 +1005,7 @@ implementation_plan:
     - bash scripts/lint_changed.sh with focused `--path` arguments for the touched files before deploy.
     - python3 scripts/sessions.py deploy --session aab5 after focused local checks.
     - python3 backend/scripts/debug.py vercel until Ready.
-    - Deploy the strengthened Playwright contract first and capture its expected red result against the old implementation.
+    - Deploy the strengthened Playwright contract first and capture its expected red result against the old generic illustrations.
     - Deploy the implementation and rerun `landing-page-onboarding-refresh.spec.ts` against the exact Ready commit.
     - Run Playwright visual smoke for `/` at laptop and mobile sizes and inspect the screenshots.
     - User visual confirmation before Apple parity.
@@ -836,7 +1013,7 @@ implementation_plan:
     - Spec validation.
     - Browser-only web implementation and focused local static/lint checks.
     - Deploy to dev.
-    - Firecrawl visual inspection against app.dev.openmates.org across viewports.
+    - Reviewed Playwright visual smoke against app.dev.openmates.org at laptop and mobile sizes.
     - User visual confirmation.
     - Full landing-page Playwright specs and Apple parity only after the full landing page refresh is implemented.
 
@@ -946,33 +1123,42 @@ tasks:
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-4
-    title: Implement remaining explanatory slides
-    status: pending
-    phase: blocked
+    title: Implement remaining header explanatory slides
+    status: in_progress
+    phase: working_tasks
     covers:
       scenarios:
-        - S-5
+        - S-7
+        - S-8
+        - S-9
+        - S-10
       acceptance_criteria:
-        - AC-5
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
     expected_files:
       - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
       - frontend/packages/ui/src/components/landing/*.svelte
+      - frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
+      - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
       - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
     verification:
-      - T-WEB-LANDING-EXAMPLES
+      - T-WEB-LANDING-HEADER-STORIES
+      - V-UI-VISUAL-SMOKE
     verification_ids:
-      - T-WEB-LANDING-EXAMPLES
+      - T-WEB-LANDING-HEADER-STORIES
+      - V-UI-VISUAL-SMOKE
     dependencies:
       - TASK-2
-      - TASK-3
     ownership:
       files:
         - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
         - frontend/packages/ui/src/components/landing/*.svelte
+        - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
         - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
       shared_files: []
-    blockers:
-      - Requires slide-by-slide user visual approval.
+    blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-5
