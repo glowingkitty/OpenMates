@@ -8,11 +8,18 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { OpenMates } from "../frontend/packages/openmates-cli/src/sdk.ts";
+import { encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "../frontend/packages/openmates-cli/src/crypto.ts";
 
 const apiUrl = process.env.OPENMATES_API_URL || "https://api.dev.openmates.org";
 const cli = "frontend/packages/openmates-cli/dist/cli.js";
 const keyName = `sdk-projects-live-${Date.now()}`;
+const requestedSdk = process.argv[2] ?? "both";
+
+if (!new Set(["--npm", "--pip", "both"]).has(requestedSdk)) {
+  throw new Error("Usage: verify_sdk_projects_live_smoke.mjs [--npm|--pip]");
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -64,14 +71,40 @@ async function withApprovalRetry(label, fn) {
 async function runNpmProjects(apiKey) {
   const client = new OpenMates({ apiKey, apiUrl, deviceId: "sdk-projects-live-npm" });
   const suffix = Date.now();
-  const name = `SDK live npm Project ${suffix}`;
-  const created = await client.projects.create({ name, description: "Created by live npm SDK Project smoke", icon: "folder", color: "blue" });
+  const teamId = randomUUID();
+  const teamKey = randomBytes(32);
+  let personalProjectId = "";
+  let teamProjectId = "";
+  try {
+    await client.teams.create({
+      team_id: teamId,
+      encrypted_name: await encryptWithAesGcmCombined(`SDK npm Team ${suffix}`, teamKey),
+      encrypted_team_key: await encryptBytesWithAesGcm(teamKey, await client.masterKey()),
+      encrypted_zero_balance: await encryptWithAesGcmCombined("0", teamKey),
+      created_at: Math.floor(Date.now() / 1000),
+      updated_at: Math.floor(Date.now() / 1000),
+    });
+    const personal = await exerciseNpmContext(client, { personal: true }, `SDK live npm Personal ${suffix}`);
+    personalProjectId = personal.projectId;
+    const team = await exerciseNpmContext(client, { teamId }, `SDK live npm Team ${suffix}`);
+    teamProjectId = team.projectId;
+  } finally {
+    if (personalProjectId) await client.projects.delete(personalProjectId, { personal: true, confirmed: true }).catch(() => undefined);
+    if (teamProjectId) await client.projects.delete(teamProjectId, { teamId, confirmed: true }).catch(() => undefined);
+    await client.delete(`/v1/teams/${encodeURIComponent(teamId)}`).catch(() => undefined);
+  }
+}
+
+async function exerciseNpmContext(client, context, name) {
+  const created = await client.projects.create({ name, description: "Created by live npm SDK Project smoke", icon: "folder", color: "blue" }, context);
   if (created.name !== name || "encrypted" in created) throw new Error("npm Project create did not return plaintext Project data");
-  if (!created.projectId) throw new Error("npm Project create did not return projectId");
-  const listed = await client.projects.list({ includeArchived: true });
+  const listed = await client.projects.list({ ...context, includeArchived: true });
   if (!listed.some((project) => project.projectId === created.projectId && project.name === name)) throw new Error("npm Project list did not include plaintext Project");
-  await client.projects.history(created.projectId, { limit: 5 });
-  return { projectId: created.projectId };
+  if ((await client.projects.show(created.projectId, context)).name !== name) throw new Error("npm Project show failed");
+  if ((await client.projects.update(created.projectId, { name: `${name} updated` }, context)).name !== `${name} updated`) throw new Error("npm Project update failed");
+  if (!(await client.projects.archive(created.projectId, context)).archived) throw new Error("npm Project archive failed");
+  if ((await client.projects.unarchive(created.projectId, context)).archived) throw new Error("npm Project unarchive failed");
+  return created;
 }
 
 function runPythonProjects(apiKey) {
@@ -83,14 +116,45 @@ api_url = os.environ["OPENMATES_API_URL"]
 api_key = os.environ["OPENMATES_API_KEY"]
 client = OpenMates(api_key=api_key, api_url=api_url, device_id="sdk-projects-live-pip")
 suffix = int(time.time() * 1000)
-name = f"SDK live pip Project {suffix}"
-created = client.projects.create({"name": name, "description": "Created by live pip SDK Project smoke", "icon": "folder", "color": "green"})
-assert created["name"] == name
-assert "encrypted" not in created
-project_id = created["project_id"]
-assert any(project["project_id"] == project_id and project["name"] == name for project in client.projects.list(include_archived=True))
-client.projects.history(project_id, limit=5)
-print({"success": True, "project_id": project_id})
+import uuid
+from openmates.sdk import _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
+
+team_id = str(uuid.uuid4())
+team_key = os.urandom(32)
+personal_id = None
+team_project_id = None
+team_created = False
+
+def exercise(context, name):
+    created = client.projects.create({"name": name, "description": "Created by live pip SDK Project smoke", "icon": "folder", "color": "green"}, **context)
+    assert created["name"] == name and "encrypted" not in created
+    project_id = created["project_id"]
+    assert any(project["project_id"] == project_id and project["name"] == name for project in client.projects.list(include_archived=True, **context))
+    assert client.projects.show(project_id, **context)["name"] == name
+    assert client.projects.update(project_id, {"name": f"{name} updated"}, **context)["name"] == f"{name} updated"
+    assert client.projects.archive(project_id, **context)["archived"] is True
+    assert client.projects.unarchive(project_id, **context)["archived"] is False
+    return project_id
+
+try:
+    client.teams.create({
+        "team_id": team_id,
+        "encrypted_name": _encrypt_aes_gcm_text(f"SDK pip Team {suffix}", team_key),
+        "encrypted_team_key": _encrypt_aes_gcm_bytes(team_key, client._get_master_key()),
+        "encrypted_zero_balance": _encrypt_aes_gcm_text("0", team_key),
+        "created_at": int(time.time()),
+        "updated_at": int(time.time()),
+    })
+    team_created = True
+    personal_id = exercise({"personal": True}, f"SDK live pip Personal {suffix}")
+    team_project_id = exercise({"team_id": team_id}, f"SDK live pip Team {suffix}")
+finally:
+    if personal_id:
+        client.projects.delete(personal_id, personal=True, confirmed=True)
+    if team_project_id:
+        client.projects.delete(team_project_id, team_id=team_id, confirmed=True)
+    if team_created:
+        client._delete(f"/v1/teams/{team_id}")
 `;
   return run("python3", ["-c", code], {
     env: { OPENMATES_API_KEY: apiKey, PYTHONPATH: "packages/openmates-python" },
@@ -107,9 +171,14 @@ try {
   if (typeof apiKey !== "string" || !apiKey.startsWith("sk-api-")) throw new Error("CLI did not return a one-time API key");
   if (!keyId) throw new Error("CLI did not return an API key ID for cleanup");
 
-  await withApprovalRetry("npm SDK Project smoke", () => runNpmProjects(apiKey));
-  await withApprovalRetry("pip SDK Project smoke", () => runPythonProjects(apiKey));
-  console.log(JSON.stringify({ success: true, api_url: apiUrl, npm: "passed", pip: "passed" }, null, 2));
+  if (requestedSdk !== "--pip") await withApprovalRetry("npm SDK Project smoke", () => runNpmProjects(apiKey));
+  if (requestedSdk !== "--npm") await withApprovalRetry("pip SDK Project smoke", () => runPythonProjects(apiKey));
+  console.log(JSON.stringify({
+    success: true,
+    api_url: apiUrl,
+    npm: requestedSdk === "--pip" ? "not_run" : "passed",
+    pip: requestedSdk === "--npm" ? "not_run" : "passed",
+  }, null, 2));
 } finally {
   if (keyId) {
     try {

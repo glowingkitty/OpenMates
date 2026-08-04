@@ -446,6 +446,9 @@ export type ProjectPlainCreateOptions = {
   archived?: boolean;
 };
 export type ProjectPlainUpdateOptions = Partial<Omit<ProjectPlainCreateOptions, "pinned"> & { pinned: boolean }>;
+export type ProjectContextOptions =
+  | { personal: true; teamId?: never }
+  | { teamId: string; personal?: never };
 export type ProjectRecordPlain = {
   projectId: string;
   name: string;
@@ -1114,14 +1117,33 @@ function removeProjectId(existing: string[] = [], projectId: string): string[] {
   return existing.filter((id) => id !== projectId);
 }
 
-async function buildProjectCreatePayload(masterKey: Uint8Array, input: ProjectPlainCreateOptions): Promise<ProjectRecord> {
+function requireProjectContext(options: Partial<ProjectContextOptions>): { teamId: string | null } {
+  const personal = options.personal === true;
+  const teamId = typeof options.teamId === "string" && options.teamId.length > 0 ? options.teamId : null;
+  if (personal === Boolean(teamId)) throw new OpenMatesConfigError("Projects require explicit Personal or Team context");
+  return { teamId };
+}
+
+async function projectWrappingKey(client: OpenMates, options: ProjectContextOptions): Promise<{ teamId: string | null; key: Uint8Array }> {
+  const { teamId } = requireProjectContext(options);
+  const masterKey = await client.masterKey();
+  if (!teamId) return { teamId: null, key: masterKey };
+  const response = await client.get<{ team?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}`);
+  const encryptedTeamKey = response.team?.encrypted_team_key;
+  if (typeof encryptedTeamKey !== "string") throw new OpenMatesConfigError(`Team ${teamId} is missing encrypted team key`);
+  const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, masterKey);
+  if (!teamKey) throw new OpenMatesConfigError(`Failed to decrypt Team key for ${teamId}`);
+  return { teamId, key: teamKey };
+}
+
+async function buildProjectCreatePayload(wrappingKey: Uint8Array, input: ProjectPlainCreateOptions, teamId: string | null = null): Promise<{ payload: ProjectRecord; projectKey: Uint8Array }> {
   const name = input.name.trim();
   if (!name) throw new OpenMatesConfigError("Project name is required");
   const projectKey = randomBytes(32);
   const timestamp = Math.floor(Date.now() / 1000);
-  return {
+  const payload: ProjectRecord = {
     project_id: randomUUID(),
-    encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
+    encrypted_project_key: teamId ? null : await encryptBytesWithAesGcm(projectKey, wrappingKey),
     encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
     encrypted_description: await encryptWithAesGcmCombined(input.description ?? "", projectKey),
     encrypted_icon: await encryptWithAesGcmCombined(input.icon ?? "folder", projectKey),
@@ -1131,13 +1153,31 @@ async function buildProjectCreatePayload(masterKey: Uint8Array, input: ProjectPl
     created_at: timestamp,
     updated_at: timestamp,
     last_opened_at: timestamp,
+    key_wrappers: teamId ? [{
+      key_type: "team",
+      hashed_team_id: createHash("sha256").update(teamId).digest("hex"),
+      team_key_epoch: 1,
+      encrypted_project_key: await encryptBytesWithAesGcm(projectKey, wrappingKey),
+      wrapper_version: 1,
+      created_at: timestamp,
+    }] : [],
   };
+  return { payload, projectKey };
 }
 
-async function decryptSdkProject(record: ProjectRecord, masterKey: Uint8Array): Promise<ProjectRecordPlain> {
-  if (typeof record.encrypted_project_key !== "string") throw new OpenMatesConfigError(`Project ${record.project_id} is missing encrypted project key`);
-  const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, masterKey);
+async function decryptSdkProject(record: ProjectRecord, wrappingKey: Uint8Array, teamId: string | null = null): Promise<ProjectRecordPlain> {
+  const encryptedProjectKey = teamId
+    ? record.key_wrappers?.find((wrapper) => wrapper.key_type === "team"
+      && wrapper.hashed_team_id === createHash("sha256").update(teamId).digest("hex")
+      && wrapper.team_key_epoch === 1)?.encrypted_project_key
+    : record.encrypted_project_key;
+  if (typeof encryptedProjectKey !== "string") throw new OpenMatesConfigError(`Project ${record.project_id} is missing encrypted project key`);
+  const projectKey = await decryptBytesWithAesGcm(encryptedProjectKey, wrappingKey);
   if (!projectKey) throw new OpenMatesConfigError(`Failed to decrypt Project key for ${record.project_id}`);
+  return decryptSdkProjectWithKey(record, projectKey);
+}
+
+async function decryptSdkProjectWithKey(record: ProjectRecord, projectKey: Uint8Array): Promise<ProjectRecordPlain> {
   return {
     projectId: record.project_id,
     name: await decryptOptionalProjectField(record.encrypted_name, projectKey) || "(untitled project)",
@@ -1157,8 +1197,8 @@ async function decryptOptionalProjectField(value: string | null | undefined, pro
   return value ? (await decryptWithAesGcmCombined(value, projectKey)) ?? "" : "";
 }
 
-async function buildProjectUpdatePayload(client: OpenMates, projectId: string, input: ProjectPlainUpdateOptions): Promise<{ project_id: string; patch: Record<string, unknown> }> {
-  const { record, projectKey } = await resolveSdkProject(client, projectId);
+async function buildProjectUpdatePayload(client: OpenMates, projectId: string, input: ProjectPlainUpdateOptions, context: ProjectContextOptions = { personal: true }): Promise<{ project_id: string; patch: Record<string, unknown>; projectKey: Uint8Array }> {
+  const { record, projectKey } = await resolveSdkProject(client, projectId, context);
   const patch: Record<string, unknown> = {
     ...(typeof record.version === "number" ? { version: record.version } : {}),
     updated_at: Math.floor(Date.now() / 1000),
@@ -1169,7 +1209,7 @@ async function buildProjectUpdatePayload(client: OpenMates, projectId: string, i
   if (input.color !== undefined) patch.encrypted_color = await encryptWithAesGcmCombined(input.color, projectKey);
   if (input.pinned !== undefined) patch.pinned = input.pinned;
   if (input.archived !== undefined) patch.archived = input.archived;
-  return { project_id: record.project_id, patch };
+  return { project_id: record.project_id, patch, projectKey };
 }
 
 function toPublicPlan(plan: DecryptedUserPlan): PlanRecord {
@@ -1189,12 +1229,19 @@ function publicProjectAskResponse(response: Record<string, unknown>, projects: P
   return { ...response, project: projects.length === 1 ? projects[0] : null, projects };
 }
 
-async function resolveSdkProject(client: OpenMates, projectId: string): Promise<{ record: ProjectRecord; projectKey: Uint8Array }> {
-  const response = await client.get<{ projects?: ProjectRecord[] }>("/v1/projects?include_archived=true");
-  const record = (response.projects ?? []).find((project) => project.project_id === projectId);
+async function resolveSdkProject(client: OpenMates, projectId: string, context: ProjectContextOptions = { personal: true }): Promise<{ record: ProjectRecord; projectKey: Uint8Array }> {
+  const crypto = await projectWrappingKey(client, context);
+  const response = await client.get<{ project?: ProjectRecord }>(withQuery(`/v1/projects/${encodeURIComponent(projectId)}`, { team_id: crypto.teamId }));
+  const record = response.project;
   if (!record) throw new OpenMatesApiError(404, { detail: "Project not found" });
-  if (typeof record.encrypted_project_key !== "string") throw new OpenMatesConfigError("Project response is missing encrypted_project_key");
-  const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, await client.masterKey());
+  const teamHash = crypto.teamId ? createHash("sha256").update(crypto.teamId).digest("hex") : null;
+  const encryptedProjectKey = crypto.teamId
+    ? record.key_wrappers?.find((wrapper) => wrapper.key_type === "team"
+      && wrapper.hashed_team_id === teamHash
+      && wrapper.team_key_epoch === 1)?.encrypted_project_key
+    : record.encrypted_project_key;
+  if (typeof encryptedProjectKey !== "string") throw new OpenMatesConfigError("Project response is missing encrypted Project key wrapper");
+  const projectKey = await decryptBytesWithAesGcm(encryptedProjectKey, crypto.key);
   if (!projectKey) throw new OpenMatesConfigError("Failed to decrypt Project key");
   return { record, projectKey };
 }
@@ -2931,18 +2978,55 @@ export class OpenMatesProjects {
     this.client = client;
   }
 
-  async list(options: { includeArchived?: boolean } = {}): Promise<ProjectRecordPlain[]> {
+  async list(options: ProjectContextOptions & { includeArchived?: boolean }): Promise<ProjectRecordPlain[]> {
+    const crypto = await projectWrappingKey(this.client, options);
     const response = await this.client.get<{ projects?: ProjectRecord[] }>(withQuery("/v1/projects", {
       include_archived: options.includeArchived,
+      team_id: crypto.teamId,
     }));
-    const masterKey = await this.client.masterKey();
-    return Promise.all((response.projects ?? []).map((project) => decryptSdkProject(project, masterKey)));
+    return Promise.all((response.projects ?? []).map((project) => decryptSdkProject(project, crypto.key, crypto.teamId)));
   }
 
-  async create(input: ProjectPlainCreateOptions): Promise<ProjectRecordPlain> {
-    const response = await this.client.request<{ project?: ProjectRecord }>("/v1/projects", await buildProjectCreatePayload(await this.client.masterKey(), input));
+  async show(projectId: string, context: ProjectContextOptions): Promise<ProjectRecordPlain> {
+    const { record, projectKey } = await resolveSdkProject(this.client, projectId, context);
+    return decryptSdkProjectWithKey(record, projectKey);
+  }
+
+  async create(input: ProjectPlainCreateOptions, context: ProjectContextOptions): Promise<ProjectRecordPlain> {
+    const crypto = await projectWrappingKey(this.client, context);
+    const created = await buildProjectCreatePayload(crypto.key, input, crypto.teamId);
+    const response = await this.client.request<{ project?: ProjectRecord }>(withQuery("/v1/projects", { team_id: crypto.teamId }), created.payload);
     if (!response.project) throw new OpenMatesApiError(500, { detail: "Project response missing project" });
-    return decryptSdkProject(response.project, await this.client.masterKey());
+    return decryptSdkProjectWithKey(response.project, created.projectKey);
+  }
+
+  async update(projectId: string, input: ProjectPlainUpdateOptions, context: ProjectContextOptions): Promise<ProjectRecordPlain> {
+    const update = await buildProjectUpdatePayload(this.client, projectId, input, context);
+    const { teamId } = requireProjectContext(context);
+    const response = await this.client.patch<{ project?: ProjectRecord }>(
+      withQuery(`/v1/projects/${encodeURIComponent(projectId)}`, { team_id: teamId }),
+      update.patch,
+    );
+    if (!response.project) throw new OpenMatesApiError(500, { detail: "Project response missing project" });
+    return decryptSdkProjectWithKey(response.project, update.projectKey);
+  }
+
+  async archive(projectId: string, context: ProjectContextOptions): Promise<ProjectRecordPlain> {
+    return this.update(projectId, { archived: true }, context);
+  }
+
+  async unarchive(projectId: string, context: ProjectContextOptions): Promise<ProjectRecordPlain> {
+    return this.update(projectId, { archived: false }, context);
+  }
+
+  async delete(projectId: string, options: ProjectContextOptions & ConfirmedMutationOptions): Promise<{ deleted: boolean }> {
+    requireConfirmed(options, "Project delete");
+    const { teamId } = requireProjectContext(options);
+    const response = await this.client.delete<{ deleted?: boolean }>(withQuery(`/v1/projects/${encodeURIComponent(projectId)}`, {
+      confirmation_project_id: projectId,
+      team_id: teamId,
+    }));
+    return { deleted: response.deleted === true };
   }
 
   async history(projectId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
@@ -2975,12 +3059,17 @@ export class OpenMatesProjects {
       color: String(plannedCreate.proposed_project.color ?? "default"),
     } : undefined);
     const encryptedUpdates = options.updates
-      ? await Promise.all(options.updates.map((update) => buildProjectUpdatePayload(this.client, update.projectId, update.patch)))
+      ? await Promise.all(options.updates.map(async (update) => {
+        const built = await buildProjectUpdatePayload(this.client, update.projectId, update.patch);
+        return { project_id: built.project_id, patch: built.patch };
+      }))
       : undefined;
+    const encryptedCreate = proposal ? await buildProjectCreatePayload(await this.client.masterKey(), proposal) : null;
+    const encryptedUpdate = options.update ? await buildProjectUpdatePayload(this.client, options.update.projectId, options.update.patch) : null;
     return await this.client.request<Record<string, unknown>>("/v1/projects/ask", {
       instruction,
-      ...(proposal ? { encrypted_create: await buildProjectCreatePayload(await this.client.masterKey(), proposal) } : {}),
-      ...(options.update ? { encrypted_update: await buildProjectUpdatePayload(this.client, options.update.projectId, options.update.patch) } : {}),
+      ...(encryptedCreate ? { encrypted_create: encryptedCreate.payload } : {}),
+      ...(encryptedUpdate ? { encrypted_update: { project_id: encryptedUpdate.project_id, patch: encryptedUpdate.patch } } : {}),
       ...(encryptedUpdates ? { encrypted_updates: encryptedUpdates } : {}),
       ...(options.exactDelete ? { exact_delete: options.exactDelete } : {}),
       ...(options.exactDeletes ? { exact_deletes: options.exactDeletes } : {}),

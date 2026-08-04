@@ -124,6 +124,39 @@ def test_personal_and_team_modes_execute_expected_requester_operations(monkeypat
     assert operations[5][-2:] == ["--team", "team-1"]
 
 
+def test_main_refreshes_host_session_between_personal_and_team(monkeypatch, capsys) -> None:
+    login_identities: list[str] = []
+    contexts: list[bool] = []
+
+    monkeypatch.setattr(
+        verifier,
+        "login_session",
+        lambda api_url, slot, home, identity: login_identities.append(identity)
+        or home / ".openmates/session.json",
+    )
+    monkeypatch.setattr(
+        verifier,
+        "_verify_context",
+        lambda api_url, host_home, requester_home, team: contexts.append(team)
+        or {"context": "team" if team else "personal", "checks": {}, "status": "passed"},
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "verify_project_remote_access_cli.py",
+            "--two-cli",
+            "--personal-and-team",
+            "--skip-build",
+        ],
+    )
+
+    assert verifier.main() == 0
+    assert contexts == [False, True]
+    assert login_identities == ["project-cli-host", "project-cli-requester", "project-cli-host"]
+    assert json.loads(capsys.readouterr().out)["success"] is True
+
+
 def test_context_rejects_operation_only_projection(monkeypatch) -> None:
     process = FakeProcess({"project_id": "project-1", "source_id": "source-1", "team_id": None})
     monkeypatch.setattr(verifier.subprocess, "Popen", lambda *args, **kwargs: process)

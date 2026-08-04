@@ -576,18 +576,54 @@ def _require_confirmed(confirmed: bool, action: str) -> None:
         raise OpenMatesConfigError(f"{action} requires confirmed=True")
 
 
-def _resolve_project_key(client: OpenMates, project_id: str) -> bytes:
-    projects = client._get("/v1/projects?include_archived=true").get("projects", [])
-    record = next((project for project in projects if isinstance(project, dict) and project.get("project_id") == project_id), None)
-    if not isinstance(record, dict):
-        raise OpenMatesApiError(404, {"detail": "Project not found"})
+def _project_context(*, personal: bool = False, team_id: str | None = None) -> str | None:
+    normalized_team_id = team_id.strip() if isinstance(team_id, str) else ""
+    if personal == bool(normalized_team_id):
+        raise OpenMatesConfigError("Projects require explicit Personal or Team context")
+    return normalized_team_id or None
+
+
+def _project_wrapping_key(client: OpenMates, team_id: str | None) -> bytes:
+    master_key = client._get_master_key()
+    if not team_id:
+        return master_key
+    team = client._get(f"/v1/teams/{_quote(team_id)}").get("team", {})
+    encrypted_team_key = team.get("encrypted_team_key") if isinstance(team, dict) else None
+    if not isinstance(encrypted_team_key, str):
+        raise OpenMatesConfigError(f"Team {team_id} is missing encrypted team key")
+    team_key = _decrypt_aes_gcm_bytes(encrypted_team_key, master_key)
+    if team_key is None:
+        raise OpenMatesConfigError(f"Failed to decrypt Team key for {team_id}")
+    return team_key
+
+
+def _project_key_from_record(record: dict[str, Any], wrapping_key: bytes, team_id: str | None) -> bytes:
     encrypted_project_key = record.get("encrypted_project_key")
+    if team_id:
+        team_hash = hashlib.sha256(team_id.encode("utf-8")).hexdigest()
+        wrapper = next((
+            item for item in record.get("key_wrappers", [])
+            if isinstance(item, dict)
+            and item.get("key_type") == "team"
+            and item.get("hashed_team_id") == team_hash
+            and item.get("team_key_epoch") == 1
+        ), None)
+        encrypted_project_key = wrapper.get("encrypted_project_key") if isinstance(wrapper, dict) else None
     if not isinstance(encrypted_project_key, str):
-        raise OpenMatesConfigError("Project response is missing encrypted_project_key")
-    project_key = _decrypt_aes_gcm_bytes(encrypted_project_key, client._get_master_key())
+        raise OpenMatesConfigError("Project response is missing encrypted Project key wrapper")
+    project_key = _decrypt_aes_gcm_bytes(encrypted_project_key, wrapping_key)
     if project_key is None:
         raise OpenMatesConfigError("Failed to decrypt Project key")
     return project_key
+
+
+def _resolve_project_key(client: OpenMates, project_id: str, *, personal: bool = True, team_id: str | None = None) -> bytes:
+    context_team_id = _project_context(personal=personal, team_id=team_id)
+    response = client._get(_with_query(f"/v1/projects/{_quote(project_id)}", team_id=context_team_id))
+    record = response.get("project")
+    if not isinstance(record, dict):
+        raise OpenMatesApiError(404, {"detail": "Project not found"})
+    return _project_key_from_record(record, _project_wrapping_key(client, context_team_id), context_team_id)
 
 
 def _resolve_chat_key(client: OpenMates, chat_id: str) -> bytes:
@@ -1625,15 +1661,15 @@ def _derive_plan_short_id(record: dict[str, Any]) -> str:
     return f"PLAN-{int(hashlib.sha256(source.encode('utf-8')).hexdigest()[:4], 16) % 10000}"
 
 
-def _build_project_create_input(master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+def _build_project_create_input(wrapping_key: bytes, payload: dict[str, Any], team_id: str | None = None) -> dict[str, Any]:
     name = str(payload.get("name") or "").strip()
     if not name:
         raise OpenMatesConfigError("Project name is required")
     project_key = os.urandom(32)
     now = int(time.time())
-    return {
+    result = {
         "project_id": str(payload.get("project_id") or uuid.uuid4()),
-        "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key),
+        "encrypted_project_key": None if team_id else _encrypt_aes_gcm_bytes(project_key, wrapping_key),
         "encrypted_name": _encrypt_aes_gcm_text(name, project_key),
         "encrypted_description": _encrypt_aes_gcm_text(str(payload.get("description") or ""), project_key),
         "encrypted_icon": _encrypt_aes_gcm_text(str(payload.get("icon") or "folder"), project_key),
@@ -1644,6 +1680,15 @@ def _build_project_create_input(master_key: bytes, payload: dict[str, Any]) -> d
         "updated_at": now,
         "last_opened_at": now,
     }
+    result["key_wrappers"] = [{
+        "key_type": "team",
+        "hashed_team_id": hashlib.sha256(team_id.encode("utf-8")).hexdigest(),
+        "team_key_epoch": 1,
+        "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, wrapping_key),
+        "wrapper_version": 1,
+        "created_at": now,
+    }] if team_id else []
+    return result
 
 
 def _decrypt_project_record(record: dict[str, Any], master_key: bytes) -> dict[str, Any]:
@@ -1653,6 +1698,10 @@ def _decrypt_project_record(record: dict[str, Any], master_key: bytes) -> dict[s
     project_key = _decrypt_aes_gcm_bytes(encrypted_project_key, master_key)
     if project_key is None:
         raise OpenMatesConfigError(f"Failed to decrypt Project key for {record.get('project_id')}")
+    return _decrypt_project_record_with_key(record, project_key)
+
+
+def _decrypt_project_record_with_key(record: dict[str, Any], project_key: bytes) -> dict[str, Any]:
     return {
         "project_id": record.get("project_id"),
         "name": _decrypt_aes_gcm_text(str(record.get("encrypted_name") or ""), project_key) or "(untitled project)",
@@ -1673,9 +1722,15 @@ def _public_project(project: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in project.items() if key != "encrypted"}
 
 
-def _build_project_update_input(client: OpenMates, update: dict[str, Any]) -> dict[str, Any]:
+def _build_project_update_input(
+    client: OpenMates,
+    update: dict[str, Any],
+    *,
+    personal: bool = True,
+    team_id: str | None = None,
+) -> dict[str, Any]:
     project_id = str(update.get("project_id") or update.get("projectId") or "")
-    project_key = _resolve_project_key(client, project_id)
+    project_key = _resolve_project_key(client, project_id, personal=personal, team_id=team_id)
     patch_input = dict(update.get("patch") or {})
     patch: dict[str, Any] = {"updated_at": int(time.time())}
     if "name" in patch_input:
@@ -3583,16 +3638,70 @@ class OpenMatesProjects:
     def __init__(self, client: OpenMates):
         self._client = client
 
-    def list(self, *, include_archived: bool | None = None) -> list[dict[str, Any]]:
-        params: dict[str, str] = {}
-        if include_archived is not None:
-            params["include_archived"] = "true" if include_archived else "false"
-        query = f"?{urlencode(params)}" if params else ""
-        return [_public_project(_decrypt_project_record(project, self._client._get_master_key())) for project in self._client._get(f"/v1/projects{query}").get("projects", [])]
+    def list(self, *, personal: bool = False, team_id: str | None = None, include_archived: bool | None = None) -> list[dict[str, Any]]:
+        context_team_id = _project_context(personal=personal, team_id=team_id)
+        wrapping_key = _project_wrapping_key(self._client, context_team_id)
+        records = self._client._get(_with_query(
+            "/v1/projects",
+            include_archived="true" if include_archived else "false" if include_archived is not None else None,
+            team_id=context_team_id,
+        )).get("projects", [])
+        return [
+            _public_project(_decrypt_project_record_with_key(
+                project,
+                _project_key_from_record(project, wrapping_key, context_team_id),
+            ))
+            for project in records
+            if isinstance(project, dict)
+        ]
 
-    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
-        project = self._client._post("/v1/projects", _build_project_create_input(self._client._get_master_key(), payload)).get("project", {})
-        return _public_project(_decrypt_project_record(project, self._client._get_master_key()))
+    def show(self, project_id: str, *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
+        context_team_id = _project_context(personal=personal, team_id=team_id)
+        response = self._client._get(_with_query(f"/v1/projects/{_quote(project_id)}", team_id=context_team_id))
+        project = response.get("project")
+        if not isinstance(project, dict):
+            raise OpenMatesApiError(404, {"detail": "Project not found"})
+        key = _project_key_from_record(project, _project_wrapping_key(self._client, context_team_id), context_team_id)
+        return _public_project(_decrypt_project_record_with_key(project, key))
+
+    def create(self, payload: dict[str, Any], *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
+        context_team_id = _project_context(personal=personal, team_id=team_id)
+        wrapping_key = _project_wrapping_key(self._client, context_team_id)
+        encrypted = _build_project_create_input(wrapping_key, payload, context_team_id)
+        project_key = _project_key_from_record(encrypted, wrapping_key, context_team_id)
+        project = self._client._post(_with_query("/v1/projects", team_id=context_team_id), encrypted).get("project", {})
+        return _public_project(_decrypt_project_record_with_key(project, project_key))
+
+    def update(self, project_id: str, payload: dict[str, Any], *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
+        context_team_id = _project_context(personal=personal, team_id=team_id)
+        built = _build_project_update_input(
+            self._client,
+            {"project_id": project_id, "patch": payload},
+            personal=personal,
+            team_id=context_team_id,
+        )
+        project_key = _resolve_project_key(self._client, project_id, personal=personal, team_id=context_team_id)
+        project = self._client._patch(
+            _with_query(f"/v1/projects/{_quote(project_id)}", team_id=context_team_id),
+            built["patch"],
+        ).get("project", {})
+        return _public_project(_decrypt_project_record_with_key(project, project_key))
+
+    def archive(self, project_id: str, *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
+        return self.update(project_id, {"archived": True}, personal=personal, team_id=team_id)
+
+    def unarchive(self, project_id: str, *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
+        return self.update(project_id, {"archived": False}, personal=personal, team_id=team_id)
+
+    def delete(self, project_id: str, *, confirmed: bool, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Project delete")
+        context_team_id = _project_context(personal=personal, team_id=team_id)
+        response = self._client._delete(_with_query(
+            f"/v1/projects/{_quote(project_id)}",
+            confirmation_project_id=project_id,
+            team_id=context_team_id,
+        ))
+        return {"deleted": response.get("deleted") is True}
 
     def history(self, project_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""

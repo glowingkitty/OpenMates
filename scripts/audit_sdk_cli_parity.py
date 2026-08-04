@@ -168,6 +168,13 @@ PARITY_ENTRIES = [
     ParityEntry('openmates projects history', "projects.history", "projects.history"),
     ParityEntry('openmates projects restore', "projects.restore", "projects.restore"),
     ParityEntry('openmates projects ask', "projects.ask", "projects.ask"),
+    ParityEntry('openmates projects list', "projects.list", "projects.list"),
+    ParityEntry('openmates projects show', "projects.show", "projects.show"),
+    ParityEntry('openmates projects create', "projects.create", "projects.create"),
+    ParityEntry('openmates projects update', "projects.update", "projects.update"),
+    ParityEntry('openmates projects archive', "projects.archive", "projects.archive"),
+    ParityEntry('openmates projects unarchive', "projects.unarchive", "projects.unarchive"),
+    ParityEntry('openmates projects delete', "projects.delete", "projects.delete"),
     ParityEntry('subcommand === "list"', "docs.list", "docs.list"),
     ParityEntry('subcommand === "search"', "docs.search", "docs.search"),
     ParityEntry('subcommand === "show"', "docs.show", "docs.show"),
@@ -273,6 +280,17 @@ def main() -> int:
         failures.append("Public generic npm apps.run appears to be present")
     if re.search(r"def run\s*\(", generated_py):
         failures.append("Public generic pip apps.run appears to be present")
+    if re.search(r"class OpenMatesProjects[\s\S]*?async files\s*\(", sdk_ts):
+        failures.append("Live Project filesystem methods must remain absent from the npm SDK")
+    if re.search(r"class OpenMatesProjects[\s\S]*?def files\s*\(", sdk_py):
+        failures.append("Live Project filesystem methods must remain absent from the pip SDK")
+    for source, label, markers in (
+        (sdk_ts, "npm", ("ProjectContextOptions", "confirmed: true", "explicit Personal or Team context")),
+        (sdk_py, "pip", ("personal: bool", "team_id: str | None", "confirmed=True", "explicit Personal or Team context")),
+    ):
+        for marker in markers:
+            if marker not in source:
+                failures.append(f"Missing {label} Project context/delete contract marker: {marker}")
 
     if failures:
         for failure in failures:

@@ -35,6 +35,7 @@
     "test:unit:proton-bridge-connector": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/protonBridgeConnector.test.ts",
     "test:unit:proton-bridge-connector-integration": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/protonBridgeConnector.integration.test.ts",
     "test:unit:sdk-projects": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-projects.test.ts",
+    "test:real-sdk-projects": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-projects-real-dev.test.ts",
     "test:unit:billing": "node --test tests/billing.test.ts",
     "test:unit:account-delete": "node --test tests/account-delete.test.ts",
     "test:unit:ideabucket": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/ideabucket.test.ts",

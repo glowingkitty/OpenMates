@@ -231,10 +231,11 @@ def main() -> int:
         requester_home = Path(requester_value)
         login_session(args.api_url, args.slot, host_home, "project-cli-host")
         login_session(args.api_url, args.slot, requester_home, "project-cli-requester")
-        results = [
-            _verify_context(args.api_url, host_home, requester_home, False),
-            _verify_context(args.api_url, host_home, requester_home, True),
-        ]
+        results = [_verify_context(args.api_url, host_home, requester_home, False)]
+        # The foreground CLI secures the test helper's plaintext session on first use.
+        # Refresh it before the isolated fixture loader starts the Team context.
+        login_session(args.api_url, args.slot, host_home, "project-cli-host")
+        results.append(_verify_context(args.api_url, host_home, requester_home, True))
     probes = unavailable_account_probes()
     print(json.dumps({"success": True, "api_url": args.api_url, "results": results, "probes": probes}, sort_keys=True))
     return 0

@@ -46,6 +46,86 @@ async function withServer(
 }
 
 describe("OpenMates SDK Projects", () => {
+  it("provides explicit Personal and Team encrypted CRUD without live file methods", async () => {
+    const masterKey = Buffer.alloc(32, 3);
+    const teamKey = Buffer.alloc(32, 4);
+    const personalProjectKey = Buffer.alloc(32, 5);
+    const teamProjectKey = Buffer.alloc(32, 6);
+    const material = await createApiKeyCryptoMaterial("sdk project crud", masterKey.toString("base64"));
+    const teamId = "team-1";
+    const teamHash = (await import("node:crypto")).createHash("sha256").update(teamId).digest("hex");
+    const encryptedTeamKey = await encryptBytesWithAesGcm(teamKey, masterKey);
+    const records = new Map<string, Record<string, unknown>>();
+    const buildRecord = async (projectId: string, name: string, projectKey: Buffer, team = false) => ({
+      project_id: projectId,
+      encrypted_project_key: team ? null : await encryptBytesWithAesGcm(projectKey, masterKey),
+      encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
+      encrypted_description: await encryptWithAesGcmCombined("", projectKey),
+      encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
+      encrypted_color: await encryptWithAesGcmCombined("default", projectKey),
+      archived: false,
+      version: 1,
+      key_wrappers: team ? [{
+        key_type: "team",
+        hashed_team_id: teamHash,
+        team_key_epoch: 1,
+        encrypted_project_key: await encryptBytesWithAesGcm(projectKey, teamKey),
+      }] : [],
+    });
+    records.set("personal-1", await buildRecord("personal-1", "Personal Project", personalProjectKey));
+    records.set("team-1-project", await buildRecord("team-1-project", "Team Project", teamProjectKey, true));
+
+    await withServer(
+      (request, body) => {
+        const url = new URL(request.url ?? "/", "http://sdk.test");
+        if (url.pathname === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.method === "GET" && url.pathname === `/v1/teams/${teamId}`) {
+          return { team: { team_id: teamId, encrypted_team_key: encryptedTeamKey } };
+        }
+        const team = url.searchParams.get("team_id") === teamId;
+        if (request.method === "GET" && url.pathname === "/v1/projects") {
+          return { projects: [records.get(team ? "team-1-project" : "personal-1")] };
+        }
+        if (request.method === "GET" && url.pathname.startsWith("/v1/projects/")) {
+          const projectId = url.pathname.split("/").at(-1) ?? "";
+          return { project: records.get(projectId), folders: [], items: [] };
+        }
+        if (request.method === "POST" && url.pathname === "/v1/projects") {
+          const record = body as Record<string, unknown>;
+          records.set(String(record.project_id), { ...record, version: 1 });
+          return { project: records.get(String(record.project_id)) };
+        }
+        if (request.method === "PATCH" && url.pathname.startsWith("/v1/projects/")) {
+          const projectId = url.pathname.split("/").at(-1) ?? "";
+          const record = { ...records.get(projectId), ...(body as Record<string, unknown>), version: 2 };
+          records.set(projectId, record);
+          return { project: record };
+        }
+        if (request.method === "DELETE" && url.pathname.startsWith("/v1/projects/")) return { deleted: true };
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
+        assert.equal((await client.projects.list({ personal: true }))[0]?.name, "Personal Project");
+        assert.equal((await client.projects.list({ teamId }))[0]?.name, "Team Project");
+        assert.equal((await client.projects.show("team-1-project", { teamId })).name, "Team Project");
+        const created = await client.projects.create({ name: "Created Team" }, { teamId });
+        assert.equal(created.name, "Created Team");
+        assert.equal((await client.projects.update(created.projectId, { name: "Updated Team" }, { teamId })).name, "Updated Team");
+        assert.equal((await client.projects.archive(created.projectId, { teamId })).archived, true);
+        assert.equal((await client.projects.unarchive(created.projectId, { teamId })).archived, false);
+        await assert.rejects(() => client.projects.delete(created.projectId, { teamId, confirmed: false }), /confirmed: true/);
+        assert.deepEqual(await client.projects.delete(created.projectId, { teamId, confirmed: true }), { deleted: true });
+        await assert.rejects(() => client.projects.list({}), /explicit Personal or Team context/);
+        assert.equal("files" in client.projects, false);
+        assert.ok(seen.some((request) => request.url?.includes(`team_id=${teamId}`)));
+      },
+      `Bearer ${material.apiKey}`,
+    );
+  });
+
   it("links and unlinks embeds, chats, and workflows as OpenMates-only Project items", async () => {
     const masterKey = Buffer.alloc(32, 9);
     const projectKey = Buffer.alloc(32, 8);
@@ -74,6 +154,9 @@ describe("OpenMates SDK Projects", () => {
         if (request.method === "GET" && request.url === "/v1/projects?include_archived=true") {
           return { projects: [{ project_id: "project-1", encrypted_project_key: encryptedProjectKey }] };
         }
+        if (request.method === "GET" && request.url === "/v1/projects/project-1") {
+          return { project: { project_id: "project-1", encrypted_project_key: encryptedProjectKey } };
+        }
         if (request.method === "GET" && request.url === "/v1/projects?include_archived=false") {
           return { projects: [{ project_id: "project-1", encrypted_project_key: encryptedProjectKey }] };
         }
@@ -87,7 +170,7 @@ describe("OpenMates SDK Projects", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
-        assert.equal((await client.projects.list({ includeArchived: false }))[0]?.projectId, "project-1");
+        assert.equal((await client.projects.list({ includeArchived: false, personal: true }))[0]?.projectId, "project-1");
 
         const chatLink = await client.chats.addToProject("chat-1", "project-1", { folder: "folder-1" });
         assert.equal(chatLink.item_type, "chat");
