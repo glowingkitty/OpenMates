@@ -18,6 +18,8 @@ const keyReadyMock = vi.hoisted(() => ({
 
 vi.mock("../encryption/ChatKeyManager", () => ({
   chatKeyManager: {
+    getKeySync: vi.fn(() => null),
+    getKey: vi.fn(async () => null),
     onKeyReady: vi.fn((listener: (chatId: string) => void) => {
       keyReadyMock.listener = listener;
       return vi.fn();
@@ -26,6 +28,7 @@ vi.mock("../encryption/ChatKeyManager", () => ({
 }));
 
 import { chatMetadataCache } from "../chatMetadataCache";
+import type { Chat } from "../../types/chat";
 
 // We can't easily test getDecryptedMetadata() because it depends on crypto.
 // Instead we test the public cache management methods that were the source of bugs.
@@ -34,10 +37,26 @@ describe("ChatMetadataCache", () => {
   beforeEach(() => {
     chatMetadataCache.clearAll();
     vi.useFakeTimers();
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    vi.stubGlobal(
+      "CustomEvent",
+      class MockCustomEvent {
+        public detail: { chatId: string };
+
+        constructor(
+          public type: string,
+          init: { detail: { chatId: string } },
+        ) {
+          this.detail = init.detail;
+        }
+      },
+    );
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   // ──────────────────────────────────────────────────────────────────
@@ -70,7 +89,7 @@ describe("ChatMetadataCache", () => {
 
   describe("key-ready notifications", () => {
     it("ignores bulk-loaded keys when metadata was never requested", () => {
-      const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
+      const dispatchEventSpy = vi.mocked(window.dispatchEvent);
       const consoleInfoSpy = vi
         .spyOn(console, "info")
         .mockImplementation(() => undefined);
@@ -79,6 +98,23 @@ describe("ChatMetadataCache", () => {
 
       expect(dispatchEventSpy).not.toHaveBeenCalled();
       expect(consoleInfoSpy).not.toHaveBeenCalled();
+    });
+
+    it("retries a chat whose metadata request was waiting for its key", async () => {
+      const dispatchEventSpy = vi.mocked(window.dispatchEvent);
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      await chatMetadataCache.getDecryptedMetadata({
+        chat_id: "requested-chat",
+        encrypted_title: "encrypted-title",
+      } as Chat);
+      keyReadyMock.listener?.("requested-chat");
+
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      expect(dispatchEventSpy.mock.calls[0][0]).toMatchObject({
+        type: "chatMetadataKeyReady",
+        detail: { chatId: "requested-chat" },
+      });
     });
   });
 

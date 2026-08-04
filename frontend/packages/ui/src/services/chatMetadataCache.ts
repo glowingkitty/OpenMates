@@ -39,6 +39,7 @@ const pendingInvalidations = new Set<string>();
  */
 class ChatMetadataCache {
   private cache = new Map<string, DecryptedChatMetadata>();
+  private chatsAwaitingKeys = new Set<string>();
 
   /**
    * Get decrypted metadata for a chat, using cache if available and fresh
@@ -68,8 +69,25 @@ class ChatMetadataCache {
       return cachedMetadata;
     }
 
-    // Decrypt and cache new metadata
+    const hasEncryptedChatMetadata = Boolean(
+      chat.encrypted_title ||
+        chat.encrypted_icon ||
+        chat.encrypted_category ||
+        chat.encrypted_chat_summary ||
+        chat.encrypted_chat_tags ||
+        chat.encrypted_active_focus_id,
+    );
+    if (hasEncryptedChatMetadata && !chatKeyManager.getKeySync(chatId)) {
+      this.chatsAwaitingKeys.add(chatId);
+    }
+
     const decryptedMetadata = await this.decryptChatMetadata(chat);
+
+    if (chatKeyManager.getKeySync(chatId)) {
+      this.chatsAwaitingKeys.delete(chatId);
+    }
+
+    // Decrypt and cache new metadata
     if (decryptedMetadata) {
       // OPE-327: Only cache if we actually decrypted at least one encrypted field.
       // When the chat key isn't ready yet (master key still loading), all encrypted
@@ -247,11 +265,24 @@ class ChatMetadataCache {
   }
 
   /**
+   * Consume a key-ready signal only when a metadata request previously missed it.
+   */
+  retryAfterKeyReady(chatId: string): boolean {
+    if (!this.chatsAwaitingKeys.delete(chatId)) {
+      return false;
+    }
+    this.invalidateChat(chatId);
+    return true;
+  }
+
+  /**
    * Clear all cached metadata
    * Call this when the user logs out or master key changes
    */
   clearAll(): void {
     this.cache.clear();
+    this.chatsAwaitingKeys.clear();
+    pendingInvalidations.clear();
   }
 
   /**
@@ -303,17 +334,16 @@ export const CHAT_METADATA_KEY_READY_EVENT = "chatMetadataKeyReady";
 // Without this, null metadata from a failed decryption stays cached for 5 minutes,
 // leaving the sidebar with missing category/icon and ChatHeader stuck in loading state.
 chatKeyManager.onKeyReady((chatId: string) => {
-  chatMetadataCache.invalidateChat(chatId);
+  if (!chatMetadataCache.retryAfterKeyReady(chatId)) {
+    return;
+  }
   // Dispatch a window event so sidebar Chat components can re-render for this chat.
-  // This is lightweight: only fires once per chat when its key transitions to "ready".
+  // Only chats that rendered before their key was available need this retry.
   if (typeof window !== "undefined") {
     window.dispatchEvent(
       new CustomEvent(CHAT_METADATA_KEY_READY_EVENT, { detail: { chatId } }),
     );
   }
-  console.info(
-    `[ChatMetadataCache] Key ready for chat ${chatId} — cache invalidated, re-decrypt on next render`,
-  );
 });
 
 // Set up periodic cleanup of expired entries (every 2 minutes)
