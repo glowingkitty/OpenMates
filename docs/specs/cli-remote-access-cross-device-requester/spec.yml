@@ -760,8 +760,26 @@ tests:
       - Real CLI performs Personal/Team navigation and CRUD against dev.
       - Viewer/member/admin/owner probes match the role matrix.
       - Test records are removed through confirmed commands.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: python3 scripts/verify_projects_cli.py --api-url https://api.dev.openmates.org --personal-and-team
+        run_id: live-cli-projects-red-not-run-2026-08-03
+        subject_commit: 47974ac0101932514adfae4f22a802bfab797e77
+        timestamp: "2026-08-03T20:27:00Z"
+        reason: The destructive real-CLI verifier was intentionally deferred until the deterministic command implementation was deployed; T-CLI-PROJECTS-UNIT records the executable red failures.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/verify_projects_cli.py --api-url https://api.dev.openmates.org --personal-and-team
+        run_id: live-cli-projects-green-2026-08-04T00:54:00Z
+        subject_commit: f42777006
+        timestamp: "2026-08-04T00:54:00Z"
+        reason: Real Personal and Team list/show/open/create/update/archive/unarchive/delete/item/source commands passed with encrypted fixtures and confirmed cleanup.
   - id: T-CLI-TWO-DEVICE-LIVE
     type: manual
     file: scripts/verify_project_remote_access_cli.py
@@ -774,8 +792,26 @@ tests:
       - Host shutdown is observed before a follow-up file command proves the source is offline.
       - Verifier output contains only context, status, check counts, opaque identifiers, and not_run denial coverage; it never emits fixture paths, queries, snippets, or file contents.
       - With one approved test account, cross-account and removed-member probes report not_run and name backend/tests/test_project_remote_access_bridge.py::test_cross_user_project_and_expired_session_requests_fail_closed and ::test_team_heartbeat_membership_failure_revokes_session_and_offlines_sources as denial coverage; they are never claimed passed.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: python3 scripts/verify_project_remote_access_cli.py --api-url https://api.dev.openmates.org --two-cli --personal-and-team --skip-build
+        run_id: live-two-cli-team-session-migration-red-2026-08-03T23:39:00Z
+        subject_commit: 8d3adc1c0
+        timestamp: "2026-08-03T23:39:00Z"
+        reason: Personal passed, then Team exited before fixture_ready because the foreground Personal CLI migrated the shared host test session away from the fixture loader's plaintext format.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/verify_project_remote_access_cli.py --api-url https://api.dev.openmates.org --two-cli --personal-and-team --skip-build
+        run_id: live-two-cli-personal-team-green-2026-08-04T00:55:00Z
+        subject_commit: f42777006
+        timestamp: "2026-08-04T00:55:00Z"
+        reason: Independently authenticated Personal and Team source/requester processes passed list, search, read, protected-path denial, host stop, and offline checks. Cross-account and removed-member probes remain not_run with named backend denial tests because only one approved account is configured.
   - id: T-NPM-SDK-PROJECTS-LIVE
     type: unit
     file: frontend/packages/openmates-cli/tests/sdk-projects-real-dev.test.ts
@@ -784,8 +820,26 @@ tests:
     assertions:
       - npm SDK performs Personal/Team deterministic Project CRUD through dev.
       - Role denials match CLI and no live filesystem facade exists.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: cd frontend/packages/openmates-cli && OPENMATES_REAL_API=1 OPENMATES_API_URL=https://api.dev.openmates.org npm run test:real-sdk-projects
+        run_id: live-npm-projects-auth-red-2026-08-04T00:45:00Z
+        subject_commit: bcc2e2eb2
+        timestamp: "2026-08-04T00:45:00Z"
+        reason: The real npm SDK reached Project create after device approval but received 401 Missing token because stored Project routes still used session-only authentication.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && OPENMATES_REAL_API=1 OPENMATES_API_URL=https://api.dev.openmates.org npm run test:real-sdk-projects
+        run_id: live-npm-projects-green-2026-08-04T00:51:00Z
+        subject_commit: f42777006
+        timestamp: "2026-08-04T00:51:00Z"
+        reason: A temporary approved npm API-key device completed Personal and Team list/show/create/update/archive/unarchive/confirmed-delete through dev; the key was revoked in cleanup and no live filesystem facade exists.
   - id: T-PIP-SDK-PROJECTS-LIVE
     type: pytest
     file: packages/openmates-python/tests/test_projects_real_dev.py
@@ -794,8 +848,26 @@ tests:
     assertions:
       - pip SDK performs Personal/Team deterministic Project CRUD through dev.
       - Role denials match CLI and no live filesystem facade exists.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: PYTHONPATH=packages/openmates-python python3 -m pytest packages/openmates-python/tests/test_projects.py -q
+        run_id: local-pip-projects-context-red-2026-08-03T23:57:00Z
+        subject_commit: 8d3adc1c0-plus-task-5-tests
+        timestamp: "2026-08-03T23:57:00Z"
+        reason: The focused pip contract failed because Projects.list lacked explicit personal/team context and the deterministic CRUD methods were absent.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: OPENMATES_REAL_API=1 OPENMATES_API_URL=https://api.dev.openmates.org PYTHONPATH=packages/openmates-python python3 -m pytest packages/openmates-python/tests/test_projects_real_dev.py -q
+        run_id: live-pip-projects-green-2026-08-04T00:52:00Z
+        subject_commit: f42777006
+        timestamp: "2026-08-04T00:52:00Z"
+        reason: A temporary approved pip API-key device completed Personal and Team list/show/create/update/archive/unarchive/confirmed-delete through dev; the key was revoked in cleanup and no live filesystem facade exists.
   - id: T-SDK-CLI-PARITY
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -805,8 +877,26 @@ tests:
       - Stored Project operations exist across CLI/npm/pip.
       - Live filesystem operations remain absent from SDK facades.
       - Context and confirmed-delete signatures are consistent.
-    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: npm run test:unit:sdk-projects && PYTHONPATH=packages/openmates-python python3 -m pytest packages/openmates-python/tests/test_projects.py -q
+        run_id: local-sdk-projects-parity-red-2026-08-03T23:57:00Z
+        subject_commit: 8d3adc1c0-plus-task-5-tests
+        timestamp: "2026-08-03T23:57:00Z"
+        reason: Focused npm/pip tests failed on missing explicit context and deterministic stored Project methods before the parity audit was extended.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py && python3 scripts/audit_sdk_cleartext_parity.py && python3 scripts/audit_sdk_docs_coverage.py
+        run_id: local-sdk-projects-parity-green-2026-08-04T00:53:00Z
+        subject_commit: f42777006
+        timestamp: "2026-08-04T00:53:00Z"
+        reason: Stored Project operations, explicit Personal/Team context, confirmed delete, generated docs, and the absence of live filesystem SDK methods passed deterministic audits.
   - id: T-PRIVACY-AUDIT
     type: lint
     file: scripts/audit_cli_remote_access_privacy.py
@@ -1061,20 +1151,20 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Implement deterministic Project and requester CLI commands
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-9, S-10], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-9, AC-12]}
     expected_files: [backend/core/api/app/routes/projects.py, backend/core/api/app/services/project_remote_access_service.py, backend/tests/test_projects.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/package.json, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/projectRequester.ts, frontend/packages/openmates-cli/src/remoteAccess.ts, frontend/packages/openmates-cli/src/ws.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/client.test.ts, frontend/packages/openmates-cli/tests/projectRequester.test.ts, scripts/verify_projects_cli.py, scripts/verify_project_remote_access_cli.py, scripts/project_remote_access_live.mjs, scripts/tests/test_verify_project_remote_access_cli.py, scripts/audit_cli_remote_access_docs.py, scripts/audit_cli_remote_access_privacy.py, frontend/packages/openmates-cli/README.md, docs/user-guide/cli/remote-access.md, docs/architecture/platforms/cli-package.md]
     verification_ids: [T-CLI-PROJECTS-UNIT, T-CLI-PROJECTS-LIVE, T-CLI-TWO-DEVICE-LIVE, T-PRIVACY-AUDIT, T-DOCS-AUDIT]
     dependencies: [TASK-3]
     ownership: {files: [backend/core/api/app/routes/projects.py, backend/core/api/app/services/project_remote_access_service.py, backend/tests/test_projects.py, backend/tests/test_project_remote_access_bridge.py, frontend/packages/openmates-cli/package.json, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/projectRequester.ts, frontend/packages/openmates-cli/src/remoteAccess.ts, frontend/packages/openmates-cli/src/ws.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/client.test.ts, frontend/packages/openmates-cli/tests/projectRequester.test.ts, scripts/verify_projects_cli.py, scripts/verify_project_remote_access_cli.py, scripts/project_remote_access_live.mjs, scripts/tests/test_verify_project_remote_access_cli.py, scripts/audit_cli_remote_access_docs.py, scripts/audit_cli_remote_access_privacy.py, frontend/packages/openmates-cli/README.md, docs/user-guide/cli/remote-access.md, docs/architecture/platforms/cli-package.md], shared_files: [frontend/packages/openmates-cli/src/remoteAccessCrypto.ts]}
-    blockers: [T-CLI-PROJECTS-LIVE and T-CLI-TWO-DEVICE-LIVE require TASK-4 deployment; the user explicitly prohibited deploy and required no pre-deploy live run.]
+    blockers: []
     follow_up_tasks: [TASK-5]
     independently_deployable: true
   - id: TASK-5
     title: Complete npm and pip Project data parity
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers: {scenarios: [S-6, S-8], acceptance_criteria: [AC-6, AC-8]}
     expected_files: [frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk-projects.test.ts, frontend/packages/openmates-cli/tests/sdk-projects-real-dev.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_projects.py, packages/openmates-python/tests/test_projects_real_dev.py, scripts/audit_sdk_cli_parity.py]
     verification_ids: [T-NPM-SDK-PROJECTS-LIVE, T-PIP-SDK-PROJECTS-LIVE, T-SDK-CLI-PARITY]
