@@ -28,6 +28,7 @@ const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
 const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
 const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
 const DAILY_INSPIRATION_MAX_HEIGHT = 420;
+const DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO = 0.35;
 const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
 const LANDING_INTRO_REQUESTS = [
 	'Find doctor appointments',
@@ -912,6 +913,7 @@ test.describe('Landing page onboarding refresh', () => {
 			{ width: 600, height: 900 },
 			{ width: 731, height: 960 },
 			{ width: 1024, height: 900 },
+			{ width: 1280, height: 720 },
 			{ width: 1280, height: 900 }
 		];
 
@@ -953,7 +955,10 @@ test.describe('Landing page onboarding refresh', () => {
 				DAILY_INSPIRATION_MAX_HEIGHT,
 				Math.max(
 					DAILY_INSPIRATION_REFERENCE_HEIGHT,
-					metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH
+					Math.min(
+						metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH,
+						viewport.height * DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO
+					)
 				)
 			);
 
