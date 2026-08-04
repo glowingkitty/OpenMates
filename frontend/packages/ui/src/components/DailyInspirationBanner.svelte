@@ -1894,7 +1894,7 @@
   .daily-inspiration-wrapper.landing-intro-overlay-active {
     position: absolute;
     inset: 0;
-    bottom: calc(-1 * var(--landing-intro-input-reserve, 0px));
+    bottom: calc(0px - var(--landing-intro-input-reserve, 0px));
     height: auto;
     z-index: var(--z-index-dropdown-1);
   }
@@ -3545,7 +3545,7 @@
 
     .banner-content.mobile-card-loop {
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .banner-content.mobile-card-loop .banner-left,
@@ -3574,15 +3574,15 @@
     .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy {
       inset: auto;
       top: 50%;
-      left: 0;
-      width: 100%;
+      left: 50%;
+      width: min(calc(100% - 88px), 700px);
       height: auto;
-      padding-inline: clamp(28px, 7vw, 44px);
+      padding-inline: 0;
       box-sizing: border-box;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      text-align: left;
-      transform: translateY(-50%);
+      text-align: center;
+      transform: translate(-50%, -50%);
       transform-origin: top center;
       transition:
         top 520ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -3595,14 +3595,15 @@
     .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy .guest-feature-inline-icon {
       position: absolute;
       top: 0;
-      left: clamp(28px, 7vw, 44px);
+      left: 50%;
       margin: 0;
-      transform: translate3d(0, 0, 0);
+      transform: translate3d(-50%, 0, 0);
     }
 
     .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy .guest-feature-headline {
       margin-top: clamp(46px, 11vw, 58px);
       margin-left: 0;
+      text-align: center;
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .banner-left {
@@ -3615,11 +3616,14 @@
       inset: auto;
       top: 4px;
       left: 50%;
-      width: min(calc(100% - 88px), 330px);
+      width: fit-content;
+      max-width: min(calc(100% - 88px), 330px);
       height: auto;
       padding-inline: 0;
+      flex-direction: row;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: center;
+      gap: 8px;
       opacity: 1;
       pointer-events: none;
       text-align: center;
@@ -3635,15 +3639,14 @@
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy.guest-feature-copy .guest-feature-inline-icon {
-      top: 50%;
-      left: 0;
-      transform: translate3d(0, -50%, 0);
+      position: static;
+      transform: none;
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy.guest-feature-copy .guest-feature-headline {
-      max-width: calc(100% - 28px);
+      max-width: min(calc(100cqi - 120px), 330px);
       margin-top: 0;
-      margin-left: 28px;
+      margin-left: 0;
     }
 
     .banner-content.mobile-card-loop .guest-feature-inline-icon {
