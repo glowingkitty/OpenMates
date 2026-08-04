@@ -1443,7 +1443,9 @@ def _remove_reconciled_worktree(candidate: dict) -> None:
     path = _validate_managed_worktree_path(str(candidate.get("path") or ""))
     rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(path)])
     if rc != 0 and path.exists():
-        raise RuntimeError(f"Failed to remove worktree {path}: {stderr}")
+        if candidate.get("linked"):
+            raise RuntimeError(f"Failed to remove worktree {path}: {stderr}")
+        shutil.rmtree(path)
     _run_cmd(["git", "worktree", "prune"])
 
 

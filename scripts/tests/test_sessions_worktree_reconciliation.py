@@ -120,3 +120,18 @@ def test_review_approved_old_inspection_error_is_superseded():
 
     assert result["classification"] == "superseded"
     assert result["reason_code"] == "review_approved_obsolete"
+
+
+def test_remove_unlinked_reviewed_worktree_uses_contained_directory_cleanup(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    worktree = managed / "agent-broken"
+    worktree.mkdir(parents=True)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda _cmd: (1, "", "not a working tree"))
+    removed: list[Path] = []
+    monkeypatch.setattr(sessions.shutil, "rmtree", lambda path: removed.append(Path(path)))
+
+    sessions._remove_reconciled_worktree({"path": str(worktree), "linked": False})
+
+    assert removed == [worktree]
