@@ -21,7 +21,7 @@ process.env.HOME = tempHome;
 mkdirSync(join(tempHome, ".openmates"), { recursive: true, mode: 0o700 });
 
 const { OpenMatesClient } = await import("../src/client.ts");
-const { parseClaudeImportBuffer, parseChatGPTImportBuffer, parseOpenCodeImportBuffer, parseOpenMatesImportBuffer } = await import("../src/accountImport.ts");
+const { parseClaudeImportBuffer, parseChatGPTImportBuffer, parseGenericImportBuffer, parseOpenCodeImportBuffer, parseOpenMatesImportBuffer } = await import("../src/accountImport.ts");
 
 after(() => {
   if (originalHome === undefined) delete process.env.HOME;
@@ -61,6 +61,52 @@ describe("account import parser", () => {
     assert.equal(parsed.chats[0].messages[1].role, "assistant");
     assert.ok(parsed.chats[0].source_fingerprint);
     assert.equal(parsed.chats[0].source_fingerprint.includes("Synthetic"), false);
+  });
+
+  it("keeps selected presentation source independent from the parser format", async () => {
+    const parsed = await parseClaudeImportBuffer(Buffer.from(JSON.stringify([{
+      uuid: "claude-shaped-chat-1",
+      chat_messages: [{ uuid: "assistant-1", sender: "assistant", text: "Synthetic assistant text." }],
+    }])), "renamed.json", "gemini");
+
+    assert.equal(parsed.source, "gemini");
+    assert.equal(parsed.parserFormat, "claude");
+    assert.equal(parsed.chats[0].selected_source, "gemini");
+    assert.equal(parsed.chats[0].parser_format, "claude");
+    assert.deepEqual(parsed.chats[0].messages[0].imported_assistant_identity, {
+      category: "gemini",
+      sender_name: "Gemini",
+      model_name: "Gemini",
+      avatar_key: "gemini",
+    });
+  });
+
+  it("strictly parses generic role/content JSON for Gemini and Other", async () => {
+    const parsed = await parseGenericImportBuffer(Buffer.from(JSON.stringify({
+      title: "Synthetic generic chat",
+      messages: [
+        { role: "user", content: "Synthetic user text." },
+        { role: "assistant", content: "Synthetic assistant text." },
+      ],
+    })), "generic.json", "other");
+
+    assert.equal(parsed.source, "other");
+    assert.equal(parsed.parserFormat, "generic");
+    assert.equal(parsed.chats[0].messages[0].imported_assistant_identity, null);
+    assert.deepEqual(parsed.chats[0].messages[1].imported_assistant_identity, {
+      category: "other",
+      sender_name: "AI assistant",
+      model_name: "Other",
+      avatar_key: "ai-star",
+    });
+    await assert.rejects(
+      parseGenericImportBuffer(Buffer.from(JSON.stringify({ messages: [{ author: "user", text: "ambiguous" }] })), "generic.json", "gemini"),
+      /role.*content/i,
+    );
+    await assert.rejects(
+      parseGenericImportBuffer(Buffer.from(JSON.stringify({ conversations: [] })), "takeout.json", "gemini"),
+      /generic role\/content/i,
+    );
   });
 
   it("discovers OpenMates V1 chat files and skipped domains", async () => {
@@ -161,20 +207,33 @@ describe("account import parser", () => {
 });
 
 describe("account import client", () => {
-  it("previews, scans, and completes imports through /v1/account-imports", async () => {
+  it("previews, confirms, scans, compresses, persists, and completes resumable imports", async () => {
     const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       let raw = "";
       request.on("data", (chunk) => { raw += chunk.toString(); });
       request.on("end", () => {
-        requests.push({ method: request.method, url: request.url, body: raw ? JSON.parse(raw) as Record<string, unknown> : undefined });
+        const body = raw ? JSON.parse(raw) as Record<string, unknown> : undefined;
+        requests.push({ method: request.method, url: request.url, body });
         response.setHeader("content-type", "application/json");
         if (request.method === "POST" && request.url === "/v1/account-imports/preview") {
-          response.end(JSON.stringify({ default_selection_count: 1, max_batch_count: 1, can_import: true }));
+          response.end(JSON.stringify({ import_id: "import-1", default_selection_count: 1, max_batch_count: 1, can_import: true }));
+          return;
+        }
+        if (request.method === "POST" && request.url === "/v1/account-imports/import-1/confirm") {
+          response.end(JSON.stringify({ status: "confirmed" }));
           return;
         }
         if (request.method === "POST" && request.url === "/v1/account-imports/import-1/scan") {
-          response.end(JSON.stringify({ chats: [], credits_reserved: 1, messages_blocked: [], failures: [] }));
+          response.end(JSON.stringify({ batch_id: "scan-1", sequence: 0, status: "acknowledged", chats: body?.chats ?? [], failures: [] }));
+          return;
+        }
+        if (request.method === "GET" && request.url === "/v1/account-imports/import-1/status") {
+          response.end(JSON.stringify({ status: "processing", last_scan_sequence: 0, last_compression_sequence: -1 }));
+          return;
+        }
+        if (request.method === "POST" && request.url === "/v1/account-imports/import-1/compress") {
+          response.end(JSON.stringify({ batch_id: "compress-1", sequence: 0, status: "acknowledged", summary: "Synthetic summary", final_batch: true, usage: {} }));
           return;
         }
         if (request.method === "POST" && request.url === "/v1/account-imports/import-1/persist-encrypted") {
@@ -197,16 +256,21 @@ describe("account import client", () => {
       const apiUrl = `http://127.0.0.1:${address.port}`;
       writeSession(apiUrl);
       const client = OpenMatesClient.load({ apiUrl });
-      await client.previewAccountImport({ source: "claude", chatCount: 1, sourceFingerprints: ["fingerprint-1"] });
-      await client.scanAccountImport("import-1", [{ source_fingerprint: "fingerprint-1", messages: [] }]);
+      await client.previewAccountImport({ source: "gemini", parserFormat: "generic", chatCount: 1, sourceFingerprints: ["fingerprint-1"], estimatedTokensByChat: [10] });
+      await client.confirmAccountImport("import-1", ["fingerprint-1"]);
+      await client.scanAccountImport("import-1", { batchId: "scan-1", sequence: 0, finalBatch: true, chats: [{ source_fingerprint: "fingerprint-1", messages: [] }] });
+      await client.getAccountImportStatus("import-1");
+      await client.compressAccountImport("import-1", { batchId: "compress-1", sequence: 0, finalBatch: true, scanSequence: 0, sourceFingerprint: "fingerprint-1", sanitizedMessages: [], priorSummary: "Prior synthetic summary" });
       await client.persistEncryptedAccountImport("import-1", [{
-        provider: "claude",
+        provider: "gemini",
+        parser_format: "generic",
+        selected_source: "gemini",
         source_chat_id: "claude-chat-1",
         source_fingerprint: "fingerprint-1",
         title: "Synthetic imported chat",
         created_at: "2026-07-18T00:00:00Z",
         updated_at: "2026-07-18T00:00:01Z",
-        messages: [{ role: "user", content: "Synthetic plaintext encrypted locally.", provider_metadata: {} }],
+        messages: [{ role: "assistant", content: "Synthetic plaintext encrypted locally.", provider_metadata: {}, imported_assistant_identity: { category: "gemini", sender_name: "Gemini", model_name: "Gemini", avatar_key: "gemini" } }],
         embeds: [],
         uploads: [],
         provider_labels: ["claude"],
@@ -223,25 +287,44 @@ describe("account import client", () => {
 
     assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
       "POST /v1/account-imports/preview",
+      "POST /v1/account-imports/import-1/confirm",
       "POST /v1/account-imports/import-1/scan",
+      "GET /v1/account-imports/import-1/status",
+      "POST /v1/account-imports/import-1/compress",
       "POST /v1/account-imports/import-1/persist-encrypted",
       "POST /v1/account-imports/import-1/complete",
     ]);
     assert.deepEqual(requests[0].body, {
-      source: "claude",
+      source: "gemini",
+      parser_format: "generic",
       chat_count: 1,
       source_fingerprints: ["fingerprint-1"],
       estimated_tokens: 0,
+      estimated_tokens_by_chat: [10],
       estimated_bytes: 0,
     });
-    const persistBody = requests[2].body as { chats?: Array<Record<string, unknown>> };
+    assert.deepEqual(requests[1].body, { selected_fingerprints: ["fingerprint-1"] });
+    assert.deepEqual(requests[2].body, { batch_id: "scan-1", sequence: 0, final_batch: true, chats: [{ source_fingerprint: "fingerprint-1", messages: [] }] });
+    assert.deepEqual(requests[4].body, {
+      batch_id: "compress-1",
+      sequence: 0,
+      final_batch: true,
+      scan_sequence: 0,
+      source_fingerprint: "fingerprint-1",
+      sanitized_messages: [],
+      prior_summary: "Prior synthetic summary",
+    });
+    const persistBody = requests[5].body as { chats?: Array<Record<string, unknown>> };
     assert.equal(persistBody.chats?.length, 1);
     assert.equal(typeof persistBody.chats?.[0]?.encrypted_title, "string");
     assert.notEqual(String(persistBody.chats?.[0]?.encrypted_title), "Synthetic imported chat");
     const persistedMessages = persistBody.chats?.[0]?.messages as Array<Record<string, unknown>>;
     assert.equal(typeof persistedMessages[0].encrypted_content, "string");
     assert.notEqual(String(persistedMessages[0].encrypted_content), "Synthetic plaintext encrypted locally.");
-    assert.deepEqual(requests[3].body, {
+    assert.equal(typeof persistedMessages[0].encrypted_category, "string");
+    assert.equal(typeof persistedMessages[0].encrypted_sender_name, "string");
+    assert.equal(typeof persistedMessages[0].encrypted_model_name, "string");
+    assert.deepEqual(requests[6].body, {
       imported_chat_ids: ["chat-1"],
       source_fingerprints: ["fingerprint-1"],
       encrypted_record_counts: { chats: 1, messages: 2 },

@@ -58,6 +58,17 @@ describe("account import npm SDK", () => {
     assert.equal(parsed.chats[0].messages[0].content, "Synthetic OpenCode SDK user text.");
   });
 
+  it("exposes strict generic parsing with explicit Gemini or Other identity", async () => {
+    const client = new OpenMates({ apiKey: "sk-api-test", apiUrl: "http://127.0.0.1:9", deviceId: "sdk-generic-test" });
+    const parsed = await client.account.parseGenericImport(JSON.stringify({
+      messages: [{ role: "assistant", content: "Synthetic generic assistant text." }],
+    }), "generic.json", "gemini");
+
+    assert.equal(parsed.source, "gemini");
+    assert.equal(parsed.parserFormat, "generic");
+    assert.equal(parsed.chats[0].messages[0].imported_assistant_identity?.sender_name, "Gemini");
+  });
+
   it("parses, previews, scans, encrypts, persists, and completes imports", async () => {
     const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
     const masterKeyB64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
@@ -73,8 +84,20 @@ describe("account import npm SDK", () => {
           response.end(JSON.stringify({ import_id: "import-1", default_selection_count: 1, max_batch_count: 1, can_import: true }));
           return;
         }
+        if (request.method === "POST" && request.url === "/v1/account-imports/import-1/confirm") {
+          response.end(JSON.stringify({ status: "confirmed" }));
+          return;
+        }
         if (request.method === "POST" && request.url === "/v1/account-imports/import-1/scan") {
-          response.end(JSON.stringify({ chats: body?.chats ?? [], credits_reserved: 1, messages_blocked: [], failures: [] }));
+          response.end(JSON.stringify({ batch_id: "scan-1", sequence: 0, status: "acknowledged", chats: body?.chats ?? [], failures: [] }));
+          return;
+        }
+        if (request.method === "GET" && request.url === "/v1/account-imports/import-1/status") {
+          response.end(JSON.stringify({ status: "processing", last_scan_sequence: 0, last_compression_sequence: -1 }));
+          return;
+        }
+        if (request.method === "POST" && request.url === "/v1/account-imports/import-1/compress") {
+          response.end(JSON.stringify({ batch_id: "compress-1", sequence: 0, status: "acknowledged", final_batch: true, usage: {} }));
           return;
         }
         if (request.method === "POST" && request.url === "/v1/sdk/session") {
@@ -108,7 +131,10 @@ describe("account import npm SDK", () => {
 
     assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
       "POST /v1/account-imports/preview",
+      "POST /v1/account-imports/import-1/confirm",
+      "GET /v1/account-imports/import-1/status",
       "POST /v1/account-imports/import-1/scan",
+      "POST /v1/account-imports/import-1/compress",
       "POST /v1/sdk/session",
       "POST /v1/account-imports/import-1/persist-encrypted",
       "POST /v1/account-imports/import-1/complete",
@@ -116,7 +142,11 @@ describe("account import npm SDK", () => {
     const previewBody = requests[0].body as Record<string, unknown>;
     assert.equal(previewBody.source, "claude");
     assert.equal(previewBody.chat_count, 1);
-    const persistBody = requests[3].body as { chats?: Array<Record<string, unknown>> };
+    const scanBody = requests[3].body as Record<string, unknown>;
+    assert.equal(scanBody.batch_id, "scan-0");
+    assert.equal(scanBody.sequence, 0);
+    assert.equal(scanBody.final_batch, true);
+    const persistBody = requests[6].body as { chats?: Array<Record<string, unknown>> };
     assert.equal(persistBody.chats?.length, 1);
     assert.equal(typeof persistBody.chats?.[0]?.encrypted_title, "string");
     assert.equal(String(persistBody.chats?.[0]?.encrypted_title).includes("SDK import"), false);

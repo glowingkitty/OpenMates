@@ -920,6 +920,31 @@ def _account_import_fingerprint(provider: str, source_chat_id: str, messages: li
     return hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
 
 
+ACCOUNT_IMPORT_SOURCE_IDENTITIES: dict[str, dict[str, str]] = {
+    "openmates": {"category": "openmates", "sender_name": "OpenMates", "model_name": "OpenMates", "avatar_key": "openmates"},
+    "chatgpt": {"category": "chatgpt", "sender_name": "ChatGPT", "model_name": "ChatGPT", "avatar_key": "chatgpt"},
+    "claude": {"category": "claude", "sender_name": "Claude", "model_name": "Claude", "avatar_key": "claude"},
+    "gemini": {"category": "gemini", "sender_name": "Gemini", "model_name": "Gemini", "avatar_key": "gemini"},
+    "opencode": {"category": "opencode", "sender_name": "OpenCode", "model_name": "OpenCode", "avatar_key": "opencode"},
+    "other": {"category": "other", "sender_name": "AI assistant", "model_name": "Other", "avatar_key": "ai-star"},
+}
+
+
+def _finalize_account_import(parsed: dict[str, Any], parser_format: str, selected_source: str) -> dict[str, Any]:
+    if selected_source not in ACCOUNT_IMPORT_SOURCE_IDENTITIES:
+        raise OpenMatesConfigError(f"Unsupported account import source: {selected_source}")
+    identity = ACCOUNT_IMPORT_SOURCE_IDENTITIES[selected_source]
+    parsed["source"] = selected_source
+    parsed["parser_format"] = parser_format
+    for chat in parsed.get("chats", []):
+        chat["provider"] = selected_source
+        chat["parser_format"] = parser_format
+        chat["selected_source"] = selected_source
+        for message in chat.get("messages", []):
+            message["imported_assistant_identity"] = dict(identity) if message.get("role") == "assistant" else None
+    return parsed
+
+
 def _read_import_zip_text(raw: bytes, required_name: str) -> str:
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         names = [
@@ -4203,7 +4228,7 @@ class OpenMatesAccount:
             "chunks": downloaded_chunks,
         }
 
-    def parse_claude_import(self, payload: bytes | str, source_name: str = "claude-export") -> dict[str, Any]:
+    def parse_claude_import(self, payload: bytes | str, source_name: str = "claude-export", source: str = "claude") -> dict[str, Any]:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload
         try:
             if raw[:2] == b"PK":
@@ -4249,9 +4274,9 @@ class OpenMatesAccount:
                 "provider_labels": ["claude"],
                 "source_metadata": {"source_name": source_name, "message_count": len(messages)},
             })
-        return {"source": "claude", "chats": chats, "skipped_domains": []}
+        return _finalize_account_import({"chats": chats, "skipped_domains": []}, "claude", source)
 
-    def parse_chatgpt_import(self, payload: bytes | str, source_name: str = "chatgpt-export") -> dict[str, Any]:
+    def parse_chatgpt_import(self, payload: bytes | str, source_name: str = "chatgpt-export", source: str = "chatgpt") -> dict[str, Any]:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload
         try:
             if raw[:2] == b"PK":
@@ -4308,9 +4333,9 @@ class OpenMatesAccount:
                 "provider_labels": ["chatgpt"],
                 "source_metadata": {"source_name": source_name, "message_count": len(messages)},
             })
-        return {"source": "chatgpt", "chats": chats, "skipped_domains": []}
+        return _finalize_account_import({"chats": chats, "skipped_domains": []}, "chatgpt", source)
 
-    def parse_opencode_import(self, payload: bytes | str, source_name: str = "opencode-session.json") -> dict[str, Any]:
+    def parse_opencode_import(self, payload: bytes | str, source_name: str = "opencode-session.json", source: str = "opencode") -> dict[str, Any]:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload
         try:
             transcript = json.loads(raw.decode("utf-8"))
@@ -4358,9 +4383,9 @@ class OpenMatesAccount:
             "provider_labels": ["opencode"],
             "source_metadata": {"source_name": source_name, "message_count": len(messages)},
         }
-        return {"source": "opencode", "chats": [chat], "skipped_domains": []}
+        return _finalize_account_import({"chats": [chat], "skipped_domains": []}, "opencode", source)
 
-    def parse_openmates_import(self, payload: bytes | str, source_name: str = "openmates-export.zip", password: str | None = None) -> dict[str, Any]:
+    def parse_openmates_import(self, payload: bytes | str, source_name: str = "openmates-export.zip", password: str | None = None, source: str = "openmates") -> dict[str, Any]:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload
         try:
             with zipfile.ZipFile(io.BytesIO(_decrypt_openmates_encrypted_zip(raw, password))) as archive:  # type: ignore[name-defined]
@@ -4393,20 +4418,91 @@ class OpenMatesAccount:
         if not chats:
             raise OpenMatesConfigError("OpenMates Export V1 archive contains no chat YAML files")
         skipped = sorted(domain for domain in domains if domain not in {"chats", "embeds", "uploads", "referenced_uploads"})
-        return {"source": "openmates", "chats": chats, "skipped_domains": skipped}
+        return _finalize_account_import({"chats": chats, "skipped_domains": skipped}, "openmates", source)
 
-    def preview_import(self, *, source: str, chats: list[dict[str, Any]] | None = None, chat_count: int | None = None, source_fingerprints: list[str] | None = None, estimated_tokens: int = 0, estimated_bytes: int = 0) -> dict[str, Any]:
+    def parse_generic_import(self, payload: bytes | str, source: str, source_name: str = "generic-transcript.json") -> dict[str, Any]:
+        if source not in {"gemini", "other"}:
+            raise OpenMatesConfigError("Generic account import source must be gemini or other")
+        raw = payload.encode("utf-8") if isinstance(payload, str) else payload
+        try:
+            decoded = json.loads(raw.decode("utf-8"))
+        except Exception as exc:
+            raise OpenMatesConfigError(f"Generic role/content transcript could not be parsed: {exc}") from exc
+        raw_chats = decoded if isinstance(decoded, list) else [decoded]
+        if not raw_chats or any(not isinstance(chat, dict) or not isinstance(chat.get("messages"), list) for chat in raw_chats):
+            raise OpenMatesConfigError("Generic role/content transcript must contain chat objects with messages arrays")
+        chats: list[dict[str, Any]] = []
+        for chat_index, raw_chat in enumerate(raw_chats):
+            raw_messages = raw_chat["messages"]
+            if not raw_messages:
+                raise OpenMatesConfigError("Generic role/content transcript messages must not be empty")
+            messages: list[dict[str, Any]] = []
+            for message_index, raw_message in enumerate(raw_messages):
+                if not isinstance(raw_message, dict) or "role" not in raw_message or "content" not in raw_message:
+                    raise OpenMatesConfigError(f"Generic role/content message {message_index + 1} requires role and content")
+                role = raw_message["role"]
+                content = raw_message["content"]
+                if role not in {"user", "assistant", "system"} or not isinstance(content, str) or not content.strip():
+                    raise OpenMatesConfigError(f"Generic role/content message {message_index + 1} has invalid role or content")
+                messages.append({
+                    "role": role,
+                    "content": content,
+                    "created_at": raw_message.get("created_at") if isinstance(raw_message.get("created_at"), str) else None,
+                    "source_message_id": raw_message.get("id") if isinstance(raw_message.get("id"), str) else None,
+                    "provider_metadata": {},
+                })
+            source_chat_id = str(raw_chat.get("id") or f"generic-chat-{chat_index + 1}")
+            chats.append({
+                "provider": source,
+                "source_chat_id": source_chat_id,
+                "source_fingerprint": _account_import_fingerprint("generic", source_chat_id, messages),
+                "title": raw_chat.get("title") if isinstance(raw_chat.get("title"), str) else None,
+                "created_at": raw_chat.get("created_at") if isinstance(raw_chat.get("created_at"), str) else None,
+                "updated_at": raw_chat.get("updated_at") if isinstance(raw_chat.get("updated_at"), str) else None,
+                "messages": messages,
+                "embeds": [],
+                "uploads": [],
+                "provider_labels": [source, "generic"],
+                "source_metadata": {"source_name": source_name, "message_count": len(messages)},
+            })
+        return _finalize_account_import({"chats": chats, "skipped_domains": []}, "generic", source)
+
+    def preview_import(self, *, source: str, chats: list[dict[str, Any]] | None = None, chat_count: int | None = None, source_fingerprints: list[str] | None = None, estimated_tokens: int = 0, estimated_tokens_by_chat: list[int] | None = None, estimated_bytes: int = 0) -> dict[str, Any]:
         selected_chats = chats or []
         return self._client._post("/v1/account-imports/preview", {
             "source": source,
+            **({"parser_format": selected_chats[0].get("parser_format")} if selected_chats and selected_chats[0].get("parser_format") else {}),
             "chat_count": chat_count if chat_count is not None else len(selected_chats),
             "source_fingerprints": source_fingerprints if source_fingerprints is not None else [str(chat.get("source_fingerprint") or "") for chat in selected_chats],
             "estimated_tokens": estimated_tokens,
+            "estimated_tokens_by_chat": estimated_tokens_by_chat if estimated_tokens_by_chat is not None else [(sum(len(str(message.get("content") or "")) for message in chat.get("messages", [])) + 3) // 4 for chat in selected_chats],
             "estimated_bytes": estimated_bytes,
         })
 
-    def scan_import(self, import_id: str, chats: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/scan", {"chats": chats})
+    def confirm_import(self, import_id: str, selected_fingerprints: list[str]) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/confirm", {"selected_fingerprints": selected_fingerprints})
+
+    def scan_import(self, import_id: str, chats: list[dict[str, Any]], *, sequence: int = 0, final_batch: bool = True, batch_id: str | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/scan", {
+            "batch_id": batch_id or f"scan-{sequence}",
+            "sequence": sequence,
+            "final_batch": final_batch,
+            "chats": chats,
+        })
+
+    def import_status(self, import_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/account-imports/{quote(import_id, safe='')}/status")
+
+    def compress_import(self, import_id: str, *, sanitized_messages: list[dict[str, Any]], scan_sequence: int, source_fingerprint: str, prior_summary: str | None = None, sequence: int = 0, final_batch: bool = True, batch_id: str | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/compress", {
+            "batch_id": batch_id or f"compress-{sequence}",
+            "sequence": sequence,
+            "final_batch": final_batch,
+            "scan_sequence": scan_sequence,
+            "source_fingerprint": source_fingerprint,
+            "sanitized_messages": sanitized_messages,
+            **({"prior_summary": prior_summary} if prior_summary is not None else {}),
+        })
 
     def persist_import(self, import_id: str, chats: list[dict[str, Any]]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
@@ -4421,14 +4517,18 @@ class OpenMatesAccount:
                     continue
                 message_id = str(uuid.uuid4())
                 role = str(message.get("role") or "user")
+                identity = message.get("imported_assistant_identity") if role == "assistant" and isinstance(message.get("imported_assistant_identity"), dict) else None
                 row = {
                     "message_id": message_id,
                     "role": role,
                     "encrypted_content": _encrypt_aes_gcm_text(str(message.get("content") or ""), chat_key),
-                    "encrypted_sender_name": _encrypt_aes_gcm_text("Assistant" if role == "assistant" else "System" if role == "system" else "User", chat_key),
+                    "encrypted_sender_name": _encrypt_aes_gcm_text(str(identity.get("sender_name")) if identity else "AI assistant" if role == "assistant" else "System" if role == "system" else "User", chat_key),
                     "created_at": _parse_import_timestamp(message.get("created_at")),
                     "updated_at": int(time.time()),
                 }
+                if identity:
+                    row["encrypted_category"] = _encrypt_aes_gcm_text(str(identity["category"]), chat_key)
+                    row["encrypted_model_name"] = _encrypt_aes_gcm_text(str(identity["model_name"]), chat_key)
                 if role == "assistant" and previous_user_message_id:
                     row["user_message_id"] = previous_user_message_id
                 if role == "user":
@@ -4465,8 +4565,25 @@ class OpenMatesAccount:
             raise OpenMatesConfigError("No chats are selected for import.")
         import_id = str(preview.get("import_id") or uuid.uuid4())
         selected_chats = chats[:selected_count]
+        selected_fingerprints = [str(chat.get("source_fingerprint") or "") for chat in selected_chats]
+        confirmation = self.confirm_import(import_id, selected_fingerprints)
+        status = self.import_status(import_id)
         scan = self.scan_import(import_id, selected_chats)
-        sanitized_chats = scan.get("chats") if isinstance(scan.get("chats"), list) and scan.get("chats") else selected_chats
+        if scan.get("status") != "acknowledged" or not isinstance(scan.get("chats"), list):
+            raise OpenMatesConfigError("Account import scan was not acknowledged.")
+        sanitized_chats = scan["chats"]
+        compression: dict[str, Any] = {}
+        for index, chat in enumerate(sanitized_chats):
+            compression = self.compress_import(
+                import_id,
+                sanitized_messages=chat.get("messages", []),
+                scan_sequence=0,
+                source_fingerprint=str(chat.get("source_fingerprint") or ""),
+                sequence=index,
+                final_batch=index == len(sanitized_chats) - 1,
+            )
+            if compression.get("status") != "acknowledged":
+                raise OpenMatesConfigError("Account import compression was not acknowledged.")
         persistence = self.persist_import(import_id, sanitized_chats)
         complete = self.complete_import(
             import_id,
@@ -4475,7 +4592,7 @@ class OpenMatesAccount:
             record_counts=persistence.get("encrypted_record_counts") if isinstance(persistence.get("encrypted_record_counts"), dict) else {"chats": 0, "messages": 0},
             client_failures=persistence.get("failures") if isinstance(persistence.get("failures"), list) else [],
         )
-        return {"source": parsed.get("source"), "parsed": parsed, "preview": preview, "import_id": import_id, "scan": scan, "persistence": persistence, "complete": complete}
+        return {"source": parsed.get("source"), "parsed": parsed, "preview": preview, "import_id": import_id, "confirmation": confirmation, "status": status, "scan": scan, "compression": compression, "persistence": persistence, "complete": complete}
 
     def export_manifest(self) -> dict[str, Any]:
         return self._client._get("/v1/sdk/account/export/manifest")

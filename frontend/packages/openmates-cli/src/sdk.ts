@@ -29,6 +29,7 @@ import {
 import {
   parseClaudeImportBuffer,
   parseChatGPTImportBuffer,
+  parseGenericImportBuffer,
   parseOpenCodeImportBuffer,
   parseOpenMatesImportBuffer,
   type AccountImportSource,
@@ -289,6 +290,7 @@ export interface AccountImportPreviewOptions {
   chatCount?: number;
   sourceFingerprints?: string[];
   estimatedTokens?: number;
+  estimatedTokensByChat?: number[];
   estimatedBytes?: number;
 }
 
@@ -2580,39 +2582,75 @@ export class OpenMatesAccount {
     return { export: completed.export, manifest: sanitizeAccountExportManifest(manifest.manifest), chunks: downloadedChunks };
   }
 
-  async parseClaudeImport(payload: Buffer | Uint8Array | string, sourceName = "claude-export"): Promise<ParsedAccountImport> {
+  async parseClaudeImport(payload: Buffer | Uint8Array | string, sourceName = "claude-export", source: AccountImportSource = "claude"): Promise<ParsedAccountImport> {
     const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
-    return parseClaudeImportBuffer(buffer, sourceName);
+    return parseClaudeImportBuffer(buffer, sourceName, source);
   }
 
-  async parseChatGPTImport(payload: Buffer | Uint8Array | string, sourceName = "chatgpt-export"): Promise<ParsedAccountImport> {
-    const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
-    return parseChatGPTImportBuffer(buffer, sourceName);
-  }
-
-  async parseOpenCodeImport(payload: Buffer | Uint8Array | string, sourceName = "opencode-session.json"): Promise<ParsedAccountImport> {
+  async parseGenericImport(payload: Buffer | Uint8Array | string, sourceName = "generic-transcript.json", source: "gemini" | "other"): Promise<ParsedAccountImport> {
     const buffer = typeof payload === "string" ? Buffer.from(payload, "utf-8") : Buffer.from(payload);
-    return parseOpenCodeImportBuffer(buffer, sourceName);
+    return parseGenericImportBuffer(buffer, sourceName, source);
   }
 
-  async parseOpenMatesImport(payload: Buffer | Uint8Array | string, sourceName = "openmates-export.zip", password?: string): Promise<ParsedAccountImport> {
+  async parseChatGPTImport(payload: Buffer | Uint8Array | string, sourceName = "chatgpt-export", source: AccountImportSource = "chatgpt"): Promise<ParsedAccountImport> {
     const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
-    return parseOpenMatesImportBuffer(buffer, sourceName, password);
+    return parseChatGPTImportBuffer(buffer, sourceName, source);
+  }
+
+  async parseOpenCodeImport(payload: Buffer | Uint8Array | string, sourceName = "opencode-session.json", source: AccountImportSource = "opencode"): Promise<ParsedAccountImport> {
+    const buffer = typeof payload === "string" ? Buffer.from(payload, "utf-8") : Buffer.from(payload);
+    return parseOpenCodeImportBuffer(buffer, sourceName, source);
+  }
+
+  async parseOpenMatesImport(payload: Buffer | Uint8Array | string, sourceName = "openmates-export.zip", password?: string, source: AccountImportSource = "openmates"): Promise<ParsedAccountImport> {
+    const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
+    return parseOpenMatesImportBuffer(buffer, sourceName, password, source);
   }
 
   async previewImport(options: AccountImportPreviewOptions): Promise<Record<string, unknown>> {
     const chats = options.chats ?? [];
     return this.client.request<Record<string, unknown>>("/v1/account-imports/preview", {
       source: options.source,
+      ...(options.chats?.[0]?.parser_format ? { parser_format: options.chats[0].parser_format } : {}),
       chat_count: options.chatCount ?? chats.length,
       source_fingerprints: options.sourceFingerprints ?? chats.map((chat) => chat.source_fingerprint),
       estimated_tokens: options.estimatedTokens ?? 0,
+      estimated_tokens_by_chat: options.estimatedTokensByChat ?? chats.map((chat) => Math.ceil(chat.messages.reduce((total, message) => total + message.content.length, 0) / 4)),
       estimated_bytes: options.estimatedBytes ?? 0,
     });
   }
 
-  async scanImport(importId: string, chats: ParsedImportChat[]): Promise<Record<string, unknown>> {
-    return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/scan`, { chats });
+  async confirmImport(importId: string, selectedFingerprints: string[]): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/confirm`, { selected_fingerprints: selectedFingerprints });
+  }
+
+  async scanImport(importId: string, chats: ParsedImportChat[], sequence = 0, finalBatch = true, batchId = `scan-${sequence}`): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/scan`, {
+      batch_id: batchId,
+      sequence,
+      final_batch: finalBatch,
+      chats,
+    });
+  }
+
+  async importStatus(importId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/status`);
+  }
+
+  async compressImport(
+    importId: string,
+    input: { sanitizedMessages: ParsedImportChat["messages"]; scanSequence: number; sourceFingerprint: string; priorSummary?: string; sequence?: number; finalBatch?: boolean; batchId?: string },
+  ): Promise<Record<string, unknown>> {
+    const sequence = input.sequence ?? 0;
+    return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/compress`, {
+      batch_id: input.batchId ?? `compress-${sequence}`,
+      sequence,
+      final_batch: input.finalBatch ?? true,
+      scan_sequence: input.scanSequence,
+      source_fingerprint: input.sourceFingerprint,
+      sanitized_messages: input.sanitizedMessages,
+      ...(input.priorSummary !== undefined ? { prior_summary: input.priorSummary } : {}),
+    });
   }
 
   async persistImport(importId: string, chats: ParsedImportChat[]): Promise<Record<string, unknown>> {
@@ -2627,11 +2665,16 @@ export class OpenMatesAccount {
       let previousUserMessageId: string | null = null;
       for (const message of chat.messages) {
         const messageId = randomUUID();
+        const identity = message.role === "assistant" ? message.imported_assistant_identity : null;
         messages.push({
           message_id: messageId,
           role: message.role,
           encrypted_content: await encryptWithAesGcmCombined(message.content, chatKey),
-          encrypted_sender_name: await encryptWithAesGcmCombined(message.role === "assistant" ? "Assistant" : message.role === "system" ? "System" : "User", chatKey),
+          encrypted_sender_name: await encryptWithAesGcmCombined(identity?.sender_name ?? (message.role === "assistant" ? "AI assistant" : message.role === "system" ? "System" : "User"), chatKey),
+          ...(identity ? {
+            encrypted_category: await encryptWithAesGcmCombined(identity.category, chatKey),
+            encrypted_model_name: await encryptWithAesGcmCombined(identity.model_name, chatKey),
+          } : {}),
           created_at: Math.floor((message.created_at ? Date.parse(message.created_at) : Date.now()) / 1000),
           updated_at: Math.floor(Date.now() / 1000),
           ...(message.role === "assistant" && previousUserMessageId ? { user_message_id: previousUserMessageId } : {}),
@@ -2671,10 +2714,24 @@ export class OpenMatesAccount {
     if (selectedCount <= 0) throw new OpenMatesConfigError("No chats are selected for import.");
     const importId = typeof preview.import_id === "string" ? preview.import_id : randomUUID();
     const selectedChats = parsed.chats.slice(0, selectedCount);
+    const selectedFingerprints = selectedChats.map((chat) => chat.source_fingerprint);
+    const confirmation = await this.confirmImport(importId, selectedFingerprints);
+    const status = await this.importStatus(importId);
     const scan = await this.scanImport(importId, selectedChats);
-    const sanitizedChats = Array.isArray(scan.chats) && scan.chats.length > 0
-      ? scan.chats as ParsedImportChat[]
-      : selectedChats;
+    if (scan.status !== "acknowledged" || !Array.isArray(scan.chats)) throw new OpenMatesConfigError("Account import scan was not acknowledged.");
+    const sanitizedChats = scan.chats as ParsedImportChat[];
+    let compression: Record<string, unknown> = {};
+    for (let index = 0; index < sanitizedChats.length; index++) {
+      const chat = sanitizedChats[index];
+      compression = await this.compressImport(importId, {
+        sanitizedMessages: chat.messages,
+        scanSequence: 0,
+        sourceFingerprint: chat.source_fingerprint,
+        sequence: index,
+        finalBatch: index === sanitizedChats.length - 1,
+      });
+      if (compression.status !== "acknowledged") throw new OpenMatesConfigError("Account import compression was not acknowledged.");
+    }
     const persistence = await this.persistImport(importId, sanitizedChats);
     const complete = await this.completeImport(importId, {
       importedChatIds: Array.isArray(persistence.imported_chat_ids) ? persistence.imported_chat_ids as string[] : [],
@@ -2684,7 +2741,7 @@ export class OpenMatesAccount {
         : { chats: 0, messages: 0 },
       clientFailures: Array.isArray(persistence.failures) ? persistence.failures as Array<Record<string, unknown>> : [],
     });
-    return { source: parsed.source, parsed, preview, import_id: importId, scan, persistence, complete };
+    return { source: parsed.source, parsed, preview, import_id: importId, confirmation, status, scan, compression, persistence, complete };
   }
 
   async exportManifest(): Promise<Record<string, unknown>> {

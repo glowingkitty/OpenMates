@@ -170,6 +170,32 @@ def test_account_import_parses_opencode_cli_transcript_export():
     assert "cHJpdmF0ZQ==" not in json.dumps(parsed)
 
 
+def test_account_import_parses_strict_generic_transcript_with_selected_identity():
+    client = OpenMates(api_key="sk-api-test")
+    parsed = client.account.parse_generic_import(json.dumps({
+        "messages": [
+            {"role": "user", "content": "Synthetic generic user text."},
+            {"role": "assistant", "content": "Synthetic generic assistant text."},
+        ]
+    }), source="other")
+
+    assert parsed["source"] == "other"
+    assert parsed["parser_format"] == "generic"
+    assert parsed["chats"][0]["messages"][0]["imported_assistant_identity"] is None
+    assert parsed["chats"][0]["messages"][1]["imported_assistant_identity"] == {
+        "category": "other",
+        "sender_name": "AI assistant",
+        "model_name": "Other",
+        "avatar_key": "ai-star",
+    }
+    for malformed in ({"messages": [{"author": "user", "text": "ambiguous"}]}, {"conversations": []}):
+        try:
+            client.account.parse_generic_import(json.dumps(malformed), source="gemini")
+            raise AssertionError("ambiguous generic transcript should fail")
+        except OpenMatesConfigError as exc:
+            assert "role/content" in str(exc)
+
+
 def test_account_import_sdk_encrypts_and_uses_shared_endpoints(monkeypatch):
     api_key = "sk-api-test-import"
     requests_seen: list[tuple[str, str, dict[str, Any] | None]] = []
@@ -188,8 +214,12 @@ def test_account_import_sdk_encrypts_and_uses_shared_endpoints(monkeypatch):
         requests_seen.append(("POST", url, json))
         if url.endswith("/v1/account-imports/preview"):
             return FakeResponse({"import_id": "import-1", "default_selection_count": 1, "max_batch_count": 1, "can_import": True})
+        if url.endswith("/v1/account-imports/import-1/confirm"):
+            return FakeResponse({"status": "confirmed"})
         if url.endswith("/v1/account-imports/import-1/scan"):
-            return FakeResponse({"chats": json["chats"], "credits_reserved": 1, "messages_blocked": [], "failures": []})
+            return FakeResponse({"batch_id": "scan-0", "sequence": 0, "status": "acknowledged", "chats": json["chats"], "failures": []})
+        if url.endswith("/v1/account-imports/import-1/compress"):
+            return FakeResponse({"batch_id": "compress-0", "sequence": 0, "status": "acknowledged", "final_batch": True, "usage": {}})
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": wrapper})
         if url.endswith("/v1/account-imports/import-1/persist-encrypted"):
@@ -200,6 +230,12 @@ def test_account_import_sdk_encrypts_and_uses_shared_endpoints(monkeypatch):
 
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append(("GET", url, None))
+        return FakeResponse({"status": "processing", "last_scan_sequence": 0, "last_compression_sequence": -1})
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
     client = OpenMates(api_key=api_key)
     parsed = client.account.parse_claude_import(json.dumps([
         {"uuid": "chat-1", "name": "SDK import", "chat_messages": [{"uuid": "msg-1", "sender": "human", "text": "SDK plaintext message"}]}
@@ -207,15 +243,23 @@ def test_account_import_sdk_encrypts_and_uses_shared_endpoints(monkeypatch):
     result = client.account.import_chats(parsed)
 
     assert result["complete"]["status"] == "complete"
-    assert requests_seen[0] == ("POST", "https://api.openmates.org/v1/account-imports/preview", {"source": "claude", "chat_count": 1, "source_fingerprints": [parsed["chats"][0]["source_fingerprint"]], "estimated_tokens": 0, "estimated_bytes": 0})
+    expected_tokens = (len(parsed["chats"][0]["messages"][0]["content"]) + 3) // 4
+    assert requests_seen[0] == ("POST", "https://api.openmates.org/v1/account-imports/preview", {"source": "claude", "parser_format": "claude", "chat_count": 1, "source_fingerprints": [parsed["chats"][0]["source_fingerprint"]], "estimated_tokens": 0, "estimated_tokens_by_chat": [expected_tokens], "estimated_bytes": 0})
     assert [request[1] for request in requests_seen] == [
         "https://api.openmates.org/v1/account-imports/preview",
+        "https://api.openmates.org/v1/account-imports/import-1/confirm",
+        "https://api.openmates.org/v1/account-imports/import-1/status",
         "https://api.openmates.org/v1/account-imports/import-1/scan",
+        "https://api.openmates.org/v1/account-imports/import-1/compress",
         "https://api.openmates.org/v1/sdk/session",
         "https://api.openmates.org/v1/account-imports/import-1/persist-encrypted",
         "https://api.openmates.org/v1/account-imports/import-1/complete",
     ]
-    persisted = requests_seen[3][2]
+    assert requests_seen[1][2] == {"selected_fingerprints": [parsed["chats"][0]["source_fingerprint"]]}
+    assert requests_seen[3][2]["batch_id"] == "scan-0"
+    assert requests_seen[3][2]["sequence"] == 0
+    assert requests_seen[3][2]["final_batch"] is True
+    persisted = requests_seen[6][2]
     assert persisted is not None
     encrypted_chat = persisted["chats"][0]
     assert isinstance(encrypted_chat["encrypted_title"], str)

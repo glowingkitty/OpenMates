@@ -409,11 +409,30 @@ export interface AccountExportChunksResponse {
 }
 
 export interface AccountImportPreviewRequest {
-  source: "claude" | "chatgpt" | "opencode" | "openmates";
+  source: "openmates" | "chatgpt" | "claude" | "gemini" | "opencode" | "other";
+  parserFormat?: "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
   chatCount: number;
   sourceFingerprints: string[];
   estimatedTokens?: number;
+  estimatedTokensByChat?: number[];
   estimatedBytes?: number;
+}
+
+export interface AccountImportScanRequest {
+  batchId: string;
+  sequence: number;
+  finalBatch: boolean;
+  chats: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportCompressRequest {
+  batchId: string;
+  sequence: number;
+  finalBatch: boolean;
+  scanSequence: number;
+  sourceFingerprint: string;
+  sanitizedMessages: Array<Record<string, unknown>>;
+  priorSummary?: string;
 }
 
 export interface AccountImportPreviewResponse extends Record<string, unknown> {
@@ -465,6 +484,12 @@ interface ParsedImportChat {
     role: "user" | "assistant" | "system";
     content: string;
     created_at?: string | null;
+    imported_assistant_identity?: {
+      category: string;
+      sender_name: string;
+      model_name: string;
+      avatar_key: string;
+    } | null;
   }>;
 }
 
@@ -2869,21 +2894,57 @@ export class OpenMatesClient {
     this.requireSession();
     const response = await this.http.post<AccountImportPreviewResponse>("/v1/account-imports/preview", {
       source: request.source,
+      ...(request.parserFormat ? { parser_format: request.parserFormat } : {}),
       chat_count: request.chatCount,
       source_fingerprints: request.sourceFingerprints,
       estimated_tokens: request.estimatedTokens ?? 0,
+      estimated_tokens_by_chat: request.estimatedTokensByChat ?? [],
       estimated_bytes: request.estimatedBytes ?? 0,
     }, this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Account import preview failed with HTTP ${response.status}`);
     return response.data;
   }
 
-  async scanAccountImport(importId: string, chats: Array<Record<string, unknown>>): Promise<AccountImportScanResponse> {
+  async confirmAccountImport(importId: string, selectedFingerprints: string[]): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/confirm`, {
+      selected_fingerprints: selectedFingerprints,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import confirmation failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async scanAccountImport(importId: string, batch: AccountImportScanRequest): Promise<AccountImportScanResponse> {
     this.requireSession();
     const response = await this.http.post<AccountImportScanResponse>(`/v1/account-imports/${encodeURIComponent(importId)}/scan`, {
-      chats,
+      batch_id: batch.batchId,
+      sequence: batch.sequence,
+      final_batch: batch.finalBatch,
+      chats: batch.chats,
     }, this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Account import scan failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountImportStatus(importId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/status`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import status failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async compressAccountImport(importId: string, batch: AccountImportCompressRequest): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/compress`, {
+      batch_id: batch.batchId,
+      sequence: batch.sequence,
+      final_batch: batch.finalBatch,
+      scan_sequence: batch.scanSequence,
+      source_fingerprint: batch.sourceFingerprint,
+      sanitized_messages: batch.sanitizedMessages,
+      ...(batch.priorSummary !== undefined ? { prior_summary: batch.priorSummary } : {}),
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import compression failed with HTTP ${response.status}`);
     return response.data;
   }
 
@@ -2914,11 +2975,16 @@ export class OpenMatesClient {
       let previousUserMessageId: string | null = null;
       for (const message of chat.messages) {
         const messageId = randomUUID();
+        const identity = message.role === "assistant" ? message.imported_assistant_identity : null;
         messages.push({
           message_id: messageId,
           role: message.role,
           encrypted_content: await encryptWithAesGcmCombined(message.content, chatKey),
-          encrypted_sender_name: await encryptWithAesGcmCombined(message.role === "assistant" ? "Assistant" : message.role === "system" ? "System" : "User", chatKey),
+          encrypted_sender_name: await encryptWithAesGcmCombined(identity?.sender_name ?? (message.role === "assistant" ? "AI assistant" : message.role === "system" ? "System" : "User"), chatKey),
+          ...(identity ? {
+            encrypted_category: await encryptWithAesGcmCombined(identity.category, chatKey),
+            encrypted_model_name: await encryptWithAesGcmCombined(identity.model_name, chatKey),
+          } : {}),
           created_at: Math.floor((message.created_at ? Date.parse(message.created_at) : Date.now()) / 1000),
           updated_at: Math.floor(Date.now() / 1000),
           ...(message.role === "assistant" && previousUserMessageId ? { user_message_id: previousUserMessageId } : {}),
@@ -9547,7 +9613,7 @@ export class OpenMatesClient {
   async getAuthMethodsStatus(): Promise<AuthMethodsStatus> {
     this.requireSession();
     const response = await this.http.get<AuthMethodsStatus>(
-      "/v1/payments/user-auth-methods",
+      "/v1/auth/methods",
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {

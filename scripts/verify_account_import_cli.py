@@ -13,6 +13,7 @@ explicit --work-dir is provided.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,8 @@ import sys
 import tempfile
 import time
 import zipfile
+import urllib.error
+import urllib.request
 
 from sdk_cli_parity_live_smoke import _approve_pending_key_devices, _is_device_approval_error
 
@@ -38,7 +41,7 @@ def main() -> int:
     parser.add_argument("--env", choices=["dev", "prod"], default="dev")
     parser.add_argument(
         "--scenario",
-        choices=["claude-import", "chatgpt-import", "opencode-import", "npm-sdk-chatgpt-import", "npm-sdk-opencode-import", "pip-sdk-chatgpt-import", "pip-sdk-opencode-import", "openmates-v1-import", "limits-and-costs", "all"],
+        choices=["direct-rest-contract", "generic-import", "npm-sdk-generic-import", "pip-sdk-generic-import", "claude-import", "chatgpt-import", "opencode-import", "npm-sdk-chatgpt-import", "npm-sdk-opencode-import", "pip-sdk-chatgpt-import", "pip-sdk-opencode-import", "openmates-v1-import", "limits-and-costs", "all"],
         default="claude-import",
     )
     parser.add_argument("--api-url", help="Override API URL.")
@@ -52,13 +55,25 @@ def main() -> int:
 
     run(["npm", "run", "build"], cwd=CLI_DIR)
 
-    scenarios = [args.scenario] if args.scenario != "all" else ["claude-import", "chatgpt-import", "opencode-import", "npm-sdk-chatgpt-import", "npm-sdk-opencode-import", "pip-sdk-chatgpt-import", "pip-sdk-opencode-import", "openmates-v1-import", "limits-and-costs"]
+    scenarios = [args.scenario] if args.scenario != "all" else ["direct-rest-contract", "generic-import", "npm-sdk-generic-import", "pip-sdk-generic-import"]
     results: dict[str, str] = {}
     api_key_id = ""
     try:
         sdk_key = ""
         for scenario in scenarios:
-            if scenario == "claude-import":
+            if scenario == "direct-rest-contract":
+                run_direct_rest_contract(api_url)
+            elif scenario == "generic-import":
+                run_generic_import(api_url, work_dir)
+            elif scenario == "npm-sdk-generic-import":
+                if not sdk_key:
+                    api_key_id, sdk_key = create_api_key(api_url)
+                run_npm_sdk_generic_import(api_url, sdk_key, api_key_id, work_dir)
+            elif scenario == "pip-sdk-generic-import":
+                if not sdk_key:
+                    api_key_id, sdk_key = create_api_key(api_url)
+                run_pip_sdk_generic_import(api_url, sdk_key, api_key_id, work_dir)
+            elif scenario == "claude-import":
                 run_claude_import(api_url, work_dir)
             elif scenario == "chatgpt-import":
                 run_chatgpt_import(api_url, work_dir)
@@ -93,6 +108,108 @@ def main() -> int:
 
     print(json.dumps({"status": "passed", "api_url": api_url, "work_dir": str(work_dir), "work_dir_deleted": should_cleanup_work_dir, "scenarios": results}, indent=2))
     return 0
+
+
+def session_cookie_header() -> str:
+    session_path = Path(os.getenv("OPENMATES_SESSION_PATH") or Path.home() / ".openmates/session.json")
+    session = json.loads(session_path.read_text(encoding="utf-8"))
+    cookies = session.get("cookies") if isinstance(session.get("cookies"), dict) else {}
+    refresh_token = str(cookies.get("auth_refresh_token") or "")
+    if not refresh_token:
+        raise RuntimeError("Account import verifier requires an authenticated CLI session")
+    return f"auth_refresh_token={refresh_token}"
+
+
+def rest_json(api_url: str, method: str, path: str, payload: dict | None = None, *, authenticated: bool = True) -> tuple[int, dict]:
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    if authenticated:
+        headers["Cookie"] = session_cookie_header()
+    request = urllib.request.Request(
+        f"{api_url}{path}",
+        data=json.dumps(payload).encode("utf-8") if payload is not None else None,
+        headers=headers,
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return response.status, json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8")
+        return error.code, json.loads(body) if body else {}
+
+
+def run_direct_rest_contract(api_url: str) -> None:
+    fingerprint = hashlib.sha256(f"account-import-rest-{time.time_ns()}".encode("utf-8")).hexdigest()
+    preview_payload = {
+        "source": "other",
+        "parser_format": "generic",
+        "chat_count": 1,
+        "source_fingerprints": [fingerprint],
+        "estimated_tokens_by_chat": [8],
+        "estimated_bytes": 64,
+    }
+    unauthorized_status, _ = rest_json(api_url, "POST", "/v1/account-imports/preview", preview_payload, authenticated=False)
+    if unauthorized_status not in {401, 403}:
+        raise RuntimeError(f"Account import unauthenticated preview returned HTTP {unauthorized_status}, expected 401/403")
+    status, preview = rest_json(api_url, "POST", "/v1/account-imports/preview", preview_payload)
+    if status != 200 or not isinstance(preview.get("import_id"), str):
+        raise RuntimeError(f"Account import REST preview failed: HTTP {status} {redacted(preview)}")
+    import_id = preview["import_id"]
+    status, _ = rest_json(api_url, "POST", f"/v1/account-imports/{import_id}/confirm", {"selected_fingerprints": [fingerprint]})
+    if status != 200:
+        raise RuntimeError(f"Account import REST confirmation failed with HTTP {status}")
+    chat = {
+        "provider": "other",
+        "parser_format": "generic",
+        "selected_source": "other",
+        "source_chat_id": "synthetic-rest-chat",
+        "source_fingerprint": fingerprint,
+        "title": "Synthetic REST chat",
+        "messages": [{"role": "user", "content": "Synthetic REST import message.", "provider_metadata": {}, "imported_assistant_identity": None}],
+        "embeds": [],
+        "uploads": [],
+        "provider_labels": ["other", "generic"],
+        "source_metadata": {},
+    }
+    status, scan = rest_json(api_url, "POST", f"/v1/account-imports/{import_id}/scan", {"batch_id": "rest-scan-0", "sequence": 0, "final_batch": True, "chats": [chat]})
+    if status != 200 or scan.get("status") != "acknowledged" or not isinstance(scan.get("chats"), list):
+        raise RuntimeError(f"Account import REST scan failed: HTTP {status} {redacted(scan)}")
+    sanitized_messages = scan["chats"][0].get("messages", [])
+    status, compression = rest_json(api_url, "POST", f"/v1/account-imports/{import_id}/compress", {
+        "batch_id": "rest-compress-0",
+        "sequence": 0,
+        "final_batch": True,
+        "scan_sequence": 0,
+        "source_fingerprint": fingerprint,
+        "sanitized_messages": sanitized_messages,
+    })
+    if status != 200 or compression.get("status") != "acknowledged":
+        raise RuntimeError(f"Account import REST compression failed: HTTP {status} {redacted(compression)}")
+    status, metadata = rest_json(api_url, "GET", f"/v1/account-imports/{import_id}/status")
+    if status != 200 or metadata.get("last_scan_sequence") != 0 or metadata.get("last_compression_sequence") != 0:
+        raise RuntimeError(f"Account import REST metadata status failed: HTTP {status} {redacted(metadata)}")
+
+
+def create_generic_fixture(work_dir: Path, filename: str) -> Path:
+    fixture = work_dir / filename
+    fixture.write_text(json.dumps({
+        "id": f"generic-{time.time_ns()}",
+        "title": "Synthetic generic import chat",
+        "messages": [
+            {"role": "user", "content": "Synthetic generic import user message."},
+            {"role": "assistant", "content": "Synthetic generic import assistant message."},
+        ],
+    }), encoding="utf-8")
+    return fixture
+
+
+def run_generic_import(api_url: str, work_dir: Path) -> None:
+    fixture = create_generic_fixture(work_dir, "generic-import-cli-synthetic.json")
+    result = run_cli_json(["account", "import", "generic", str(fixture), "--source", "other", "--yes", "--json"], api_url)
+    if result.get("source") != "other" or result.get("parser_format") != "generic":
+        raise RuntimeError(f"Generic CLI import source/parser mismatch: {redacted(result)}")
+    if (result.get("complete") or {}).get("status") != "complete" or (result.get("persistence") or {}).get("status") != "complete":
+        raise RuntimeError(f"Generic CLI import did not complete encrypted persistence: {redacted(result)}")
 
 
 def run_claude_import(api_url: str, work_dir: Path) -> None:
@@ -205,6 +322,31 @@ def revoke_api_key(api_url: str, api_key_id: str) -> None:
     )
 
 
+def run_npm_sdk_generic_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
+    fixture = create_generic_fixture(work_dir, "generic-import-npm-sdk-synthetic.json")
+    sdk_entry = (CLI_DIR / "dist/index.js").as_uri()
+    code = f"""
+import {{ OpenMates }} from {json.dumps(sdk_entry)};
+import {{ readFileSync }} from 'node:fs';
+
+const client = new OpenMates({{ apiKey: process.env.OPENMATES_API_KEY, apiUrl: process.env.OPENMATES_API_URL, deviceId: 'account-import-generic-sdk-npm' }});
+const parsed = await client.account.parseGenericImport(readFileSync(process.env.OPENMATES_IMPORT_FIXTURE), 'generic-sdk-live.json', 'other');
+if (parsed.source !== 'other' || parsed.parserFormat !== 'generic' || parsed.chats.length !== 1) throw new Error('npm SDK parsed unexpected generic result');
+const result = await client.account.importChats(parsed, {{ select: 'all' }});
+if (result?.complete?.status !== 'complete' || result?.persistence?.status !== 'complete') throw new Error('npm SDK generic import did not complete');
+console.log(JSON.stringify({{ source: result.source, parser_format: parsed.parserFormat, imported_count: result.complete.imported_count }}));
+"""
+    env = {**os.environ, "OPENMATES_API_KEY": api_key, "OPENMATES_API_URL": api_url, "OPENMATES_IMPORT_FIXTURE": str(fixture)}
+    try:
+        run(["node", "--input-type=module", "-e", code], cwd=ROOT, capture=True, env=env)
+    except RuntimeError as error:
+        if not _is_device_approval_error(error):
+            raise
+        if not _approve_pending_key_devices(api_url, api_key_id, {"npm"}):
+            raise RuntimeError("No pending npm SDK device was available to approve") from error
+        run(["node", "--input-type=module", "-e", code], cwd=ROOT, capture=True, env=env)
+
+
 def run_npm_sdk_chatgpt_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
     fixture = create_chatgpt_fixture(work_dir, "chatgpt-import-npm-sdk-synthetic.zip")
     sdk_entry = (CLI_DIR / "dist/index.js").as_uri()
@@ -297,6 +439,40 @@ print(json.dumps({"source": result.get("source"), "parsed_chats": len(parsed.get
             raise
         approved = _approve_pending_key_devices(api_url, api_key_id, {"pip"})
         if not approved:
+            raise RuntimeError("No pending pip SDK device was available to approve") from error
+        run(["python3", "-c", code], cwd=ROOT, capture=True, env=env)
+
+
+def run_pip_sdk_generic_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
+    fixture = create_generic_fixture(work_dir, "generic-import-pip-sdk-synthetic.json")
+    code = """
+from pathlib import Path
+from openmates import OpenMates
+import json
+import os
+
+client = OpenMates(api_key=os.environ["OPENMATES_API_KEY"], api_url=os.environ["OPENMATES_API_URL"], device_id="account-import-generic-sdk-pip")
+parsed = client.account.parse_generic_import(Path(os.environ["OPENMATES_IMPORT_FIXTURE"]).read_bytes(), source="other", source_name="generic-sdk-live.json")
+if parsed.get("source") != "other" or parsed.get("parser_format") != "generic" or len(parsed.get("chats") or []) != 1:
+    raise SystemExit("pip SDK parsed unexpected generic result")
+result = client.account.import_chats(parsed, select="all")
+if (result.get("complete") or {}).get("status") != "complete" or (result.get("persistence") or {}).get("status") != "complete":
+    raise SystemExit("pip SDK generic import did not complete")
+print(json.dumps({"source": result.get("source"), "parser_format": parsed.get("parser_format"), "imported_count": result["complete"].get("imported_count")}))
+"""
+    env = {
+        **os.environ,
+        "OPENMATES_API_KEY": api_key,
+        "OPENMATES_API_URL": api_url,
+        "OPENMATES_IMPORT_FIXTURE": str(fixture),
+        "PYTHONPATH": str(ROOT / "packages/openmates-python"),
+    }
+    try:
+        run(["python3", "-c", code], cwd=ROOT, capture=True, env=env)
+    except RuntimeError as error:
+        if not _is_device_approval_error(error):
+            raise
+        if not _approve_pending_key_devices(api_url, api_key_id, {"pip"}):
             raise RuntimeError("No pending pip SDK device was available to approve") from error
         run(["python3", "-c", code], cwd=ROOT, capture=True, env=env)
 

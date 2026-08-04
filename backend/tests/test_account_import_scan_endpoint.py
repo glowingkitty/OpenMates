@@ -237,7 +237,7 @@ def test_real_service_route_flow_preview_confirm_scan_compress_persist_complete(
     assert "plaintext" not in repr(service.job_store.records)
 
 
-def test_preview_rejects_unapproved_source() -> None:
+def test_preview_accepts_other_selected_source() -> None:
     response = _client(AccountImportService()).post(
         "/v1/account-imports/preview",
         json={
@@ -248,7 +248,7 @@ def test_preview_rejects_unapproved_source() -> None:
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 200
 
 
 def test_persist_encrypted_endpoint_writes_only_client_encrypted_fields() -> None:
@@ -270,9 +270,11 @@ def test_persist_encrypted_endpoint_writes_only_client_encrypted_fields() -> Non
                     "messages": [
                         {
                             "message_id": "message-1",
-                            "role": "user",
+                            "role": "assistant",
                             "encrypted_content": "client-encrypted-content",
                             "encrypted_sender_name": "client-encrypted-sender",
+                            "encrypted_category": "client-encrypted-category",
+                            "encrypted_model_name": "client-encrypted-model",
                             "created_at": 100,
                         }
                     ],
@@ -286,6 +288,8 @@ def test_persist_encrypted_endpoint_writes_only_client_encrypted_fields() -> Non
     assert directus.chat.created_chats[0]["encrypted_title"] == "client-encrypted-title"
     assert "title" not in directus.chat.created_chats[0]
     assert directus.chat.created_messages[0]["encrypted_content"] == "client-encrypted-content"
+    assert directus.chat.created_messages[0]["encrypted_category"] == "client-encrypted-category"
+    assert directus.chat.created_messages[0]["encrypted_model_name"] == "client-encrypted-model"
     assert "content" not in directus.chat.created_messages[0]
 
 

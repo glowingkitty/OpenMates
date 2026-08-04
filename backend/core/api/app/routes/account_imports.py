@@ -51,10 +51,20 @@ class ImportSource(StrEnum):
     GEMINI = "gemini"
     OPENMATES = "openmates"
     OPENCODE = "opencode"
+    OTHER = "other"
+
+
+class ImportParserFormat(StrEnum):
+    CLAUDE = "claude"
+    CHATGPT = "chatgpt"
+    OPENMATES = "openmates"
+    OPENCODE = "opencode"
+    GENERIC = "generic"
 
 
 class PreviewImportRequest(BaseModel):
     source: ImportSource
+    parser_format: ImportParserFormat | None = None
     chat_count: int = Field(ge=0, le=MAX_IMPORT_PREVIEW_CHATS)
     source_fingerprints: list[str] = Field(default_factory=list, max_length=MAX_IMPORT_PREVIEW_CHATS)
     estimated_tokens: int = Field(default=0, ge=0)
@@ -91,6 +101,8 @@ class PersistEncryptedMessage(BaseModel):
     role: str
     encrypted_content: str
     encrypted_sender_name: str | None = None
+    encrypted_category: str | None = None
+    encrypted_model_name: str | None = None
     created_at: int
     updated_at: int | None = None
     user_message_id: str | None = None
@@ -427,6 +439,8 @@ async def persist_encrypted_import(
                         "role": message.role,
                         "encrypted_content": message.encrypted_content,
                         "encrypted_sender_name": message.encrypted_sender_name,
+                        "encrypted_category": message.encrypted_category,
+                        "encrypted_model_name": message.encrypted_model_name,
                         "created_at": message.created_at,
                         **({"user_message_id": message.user_message_id} if message.user_message_id else {}),
                     })

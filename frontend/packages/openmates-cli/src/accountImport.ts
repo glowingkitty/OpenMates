@@ -14,7 +14,24 @@ import JSZip from "jszip";
 const ENCRYPTED_ZIP_MAGIC = "OMZIP1";
 const ENCRYPTED_ZIP_KEY_BYTES = 32;
 
-export type AccountImportSource = "claude" | "chatgpt" | "opencode" | "openmates";
+export type AccountImportSource = "openmates" | "chatgpt" | "claude" | "gemini" | "opencode" | "other";
+export type AccountImportParserFormat = "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
+
+export interface ImportedAssistantIdentity {
+  category: AccountImportSource;
+  sender_name: string;
+  model_name: string;
+  avatar_key: string;
+}
+
+export const ACCOUNT_IMPORT_SOURCE_IDENTITIES: Record<AccountImportSource, ImportedAssistantIdentity> = {
+  openmates: { category: "openmates", sender_name: "OpenMates", model_name: "OpenMates", avatar_key: "openmates" },
+  chatgpt: { category: "chatgpt", sender_name: "ChatGPT", model_name: "ChatGPT", avatar_key: "chatgpt" },
+  claude: { category: "claude", sender_name: "Claude", model_name: "Claude", avatar_key: "claude" },
+  gemini: { category: "gemini", sender_name: "Gemini", model_name: "Gemini", avatar_key: "gemini" },
+  opencode: { category: "opencode", sender_name: "OpenCode", model_name: "OpenCode", avatar_key: "opencode" },
+  other: { category: "other", sender_name: "AI assistant", model_name: "Other", avatar_key: "ai-star" },
+};
 
 export interface ParsedImportMessage {
   role: "user" | "assistant" | "system";
@@ -22,6 +39,7 @@ export interface ParsedImportMessage {
   created_at?: string | null;
   source_message_id?: string | null;
   provider_metadata: Record<string, unknown>;
+  imported_assistant_identity: ImportedAssistantIdentity | null;
 }
 
 export interface ParsedImportUpload {
@@ -34,6 +52,8 @@ export interface ParsedImportUpload {
 
 export interface ParsedImportChat {
   provider: AccountImportSource;
+  parser_format: AccountImportParserFormat;
+  selected_source: AccountImportSource;
   source_chat_id: string;
   source_fingerprint: string;
   title?: string | null;
@@ -48,11 +68,12 @@ export interface ParsedImportChat {
 
 export interface ParsedAccountImport {
   source: AccountImportSource;
+  parserFormat: AccountImportParserFormat;
   chats: ParsedImportChat[];
   skippedDomains: string[];
 }
 
-function fingerprint(provider: AccountImportSource, sourceChatId: string, messages: ParsedImportMessage[]): string {
+function fingerprint(provider: AccountImportParserFormat, sourceChatId: string, messages: ParsedImportMessage[]): string {
   return createHash("sha256").update(JSON.stringify({
     provider,
     source_chat_id: sourceChatId,
@@ -62,6 +83,30 @@ function fingerprint(provider: AccountImportSource, sourceChatId: string, messag
       content: message.content,
     })),
   })).digest("hex");
+}
+
+function finalizeImport(
+  parserFormat: AccountImportParserFormat,
+  selectedSource: AccountImportSource,
+  chats: ParsedImportChat[],
+  skippedDomains: string[],
+): ParsedAccountImport {
+  const identity = ACCOUNT_IMPORT_SOURCE_IDENTITIES[selectedSource];
+  return {
+    source: selectedSource,
+    parserFormat,
+    chats: chats.map((chat) => ({
+      ...chat,
+      provider: selectedSource,
+      parser_format: parserFormat,
+      selected_source: selectedSource,
+      messages: chat.messages.map((message) => ({
+        ...message,
+        imported_assistant_identity: message.role === "assistant" ? { ...identity } : null,
+      })),
+    })),
+    skippedDomains,
+  };
 }
 
 async function readZipText(payload: Buffer, requiredName: string): Promise<string> {
@@ -131,7 +176,7 @@ function claudeUploads(message: Record<string, unknown>): ParsedImportUpload[] {
   });
 }
 
-export async function parseClaudeImportBuffer(payload: Buffer, sourceName = "claude-export"): Promise<ParsedAccountImport> {
+export async function parseClaudeImportBuffer(payload: Buffer, sourceName = "claude-export", selectedSource: AccountImportSource = "claude"): Promise<ParsedAccountImport> {
   let conversations: unknown;
   try {
     conversations = payload.subarray(0, 2).toString("binary") === "PK"
@@ -161,10 +206,13 @@ export async function parseClaudeImportBuffer(payload: Buffer, sourceName = "cla
           created_at: typeof message.created_at === "string" ? message.created_at : null,
           source_message_id: typeof message.uuid === "string" ? message.uuid : null,
           provider_metadata: { content_block_types: blockTypes },
+          imported_assistant_identity: null,
         } satisfies ParsedImportMessage;
       });
     return {
       provider: "claude",
+      parser_format: "claude",
+      selected_source: selectedSource,
       source_chat_id: sourceChatId,
       source_fingerprint: fingerprint("claude", sourceChatId, messages),
       title: typeof conversation.name === "string" ? conversation.name : null,
@@ -179,7 +227,7 @@ export async function parseClaudeImportBuffer(payload: Buffer, sourceName = "cla
       source_metadata: { source_name: sourceName, message_count: messages.length },
     } satisfies ParsedImportChat;
   });
-  return { source: "claude", chats, skippedDomains: [] };
+  return finalizeImport("claude", selectedSource, chats, []);
 }
 
 function chatGPTTimestamp(value: unknown): string | null {
@@ -224,7 +272,7 @@ function chatGPTActiveNodes(conversation: Record<string, unknown>): Record<strin
   });
 }
 
-export async function parseChatGPTImportBuffer(payload: Buffer, sourceName = "chatgpt-export"): Promise<ParsedAccountImport> {
+export async function parseChatGPTImportBuffer(payload: Buffer, sourceName = "chatgpt-export", selectedSource: AccountImportSource = "chatgpt"): Promise<ParsedAccountImport> {
   let conversations: unknown;
   try {
     conversations = payload.subarray(0, 2).toString("binary") === "PK"
@@ -260,10 +308,13 @@ export async function parseChatGPTImportBuffer(payload: Buffer, sourceName = "ch
         created_at: chatGPTTimestamp(rawMessage.create_time),
         source_message_id: typeof rawMessage.id === "string" ? rawMessage.id : null,
         provider_metadata: metadata,
+        imported_assistant_identity: null,
       });
     }
     return {
       provider: "chatgpt",
+      parser_format: "chatgpt",
+      selected_source: selectedSource,
       source_chat_id: sourceChatId,
       source_fingerprint: fingerprint("chatgpt", sourceChatId, messages),
       title: typeof conversation.title === "string" ? conversation.title : null,
@@ -276,14 +327,14 @@ export async function parseChatGPTImportBuffer(payload: Buffer, sourceName = "ch
       source_metadata: { source_name: sourceName, message_count: messages.length },
     } satisfies ParsedImportChat;
   });
-  return { source: "chatgpt", chats, skippedDomains: [] };
+  return finalizeImport("chatgpt", selectedSource, chats, []);
 }
 
 function openCodeTimestamp(value: unknown): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? new Date(value).toISOString() : null;
 }
 
-export async function parseOpenCodeImportBuffer(payload: Buffer, sourceName = "opencode-session.json"): Promise<ParsedAccountImport> {
+export async function parseOpenCodeImportBuffer(payload: Buffer, sourceName = "opencode-session.json", selectedSource: AccountImportSource = "opencode"): Promise<ParsedAccountImport> {
   let transcript: unknown;
   try {
     transcript = JSON.parse(payload.toString("utf-8"));
@@ -317,27 +368,26 @@ export async function parseOpenCodeImportBuffer(payload: Buffer, sourceName = "o
         created_at: openCodeTimestamp(time.created),
         source_message_id: typeof messageInfo.id === "string" ? messageInfo.id : null,
         provider_metadata: { part_types: parts.map((part) => String(part.type ?? "unknown")), text_part_count: textParts.length },
+        imported_assistant_identity: null,
       });
     }
   }
   const time = info.time && typeof info.time === "object" ? info.time as Record<string, unknown> : {};
-  return {
-    source: "opencode",
-    chats: [{
-      provider: "opencode",
-      source_chat_id: sourceChatId,
-      source_fingerprint: fingerprint("opencode", sourceChatId, messages),
-      title: typeof info.title === "string" ? info.title : null,
-      created_at: openCodeTimestamp(time.created),
-      updated_at: openCodeTimestamp(time.updated),
-      messages,
-      embeds: [],
-      uploads: [],
-      provider_labels: ["opencode"],
-      source_metadata: { source_name: sourceName, message_count: messages.length },
-    }],
-    skippedDomains: [],
-  };
+  return finalizeImport("opencode", selectedSource, [{
+    provider: "opencode",
+    parser_format: "opencode",
+    selected_source: selectedSource,
+    source_chat_id: sourceChatId,
+    source_fingerprint: fingerprint("opencode", sourceChatId, messages),
+    title: typeof info.title === "string" ? info.title : null,
+    created_at: openCodeTimestamp(time.created),
+    updated_at: openCodeTimestamp(time.updated),
+    messages,
+    embeds: [],
+    uploads: [],
+    provider_labels: ["opencode"],
+    source_metadata: { source_name: sourceName, message_count: messages.length },
+  }], []);
 }
 
 function parseOpenMatesManifestDomains(manifestText: string): string[] {
@@ -356,7 +406,7 @@ function parseOpenMatesManifestDomains(manifestText: string): string[] {
   return domains;
 }
 
-export async function parseOpenMatesImportBuffer(payload: Buffer, sourceName = "openmates-export.zip", password?: string): Promise<ParsedAccountImport> {
+export async function parseOpenMatesImportBuffer(payload: Buffer, sourceName = "openmates-export.zip", password?: string, selectedSource: AccountImportSource = "openmates"): Promise<ParsedAccountImport> {
   const zip = await JSZip.loadAsync(decryptOpenMatesEncryptedZip(payload, password));
   const manifest = await zip.file("manifest.yml")?.async("string");
   if (!manifest) throw new Error("OpenMates Export V1 archive is missing manifest.yml");
@@ -371,6 +421,8 @@ export async function parseOpenMatesImportBuffer(payload: Buffer, sourceName = "
     const messages: ParsedImportMessage[] = [];
     return {
       provider: "openmates",
+      parser_format: "openmates",
+      selected_source: selectedSource,
       source_chat_id: sourceChatId,
       source_fingerprint: fingerprint("openmates", sourceChatId, messages),
       title: sourceChatId,
@@ -384,5 +436,68 @@ export async function parseOpenMatesImportBuffer(payload: Buffer, sourceName = "
     } satisfies ParsedImportChat;
   });
   if (chats.length === 0) throw new Error("OpenMates Export V1 archive contains no chat YAML files");
-  return { source: "openmates", chats, skippedDomains };
+  return finalizeImport("openmates", selectedSource, chats, skippedDomains);
+}
+
+export async function parseGenericImportBuffer(
+  payload: Buffer,
+  sourceName = "generic-transcript.json",
+  selectedSource: "gemini" | "other",
+): Promise<ParsedAccountImport> {
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(payload.toString("utf-8"));
+  } catch (error) {
+    throw new Error(`Generic role/content transcript could not be parsed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const rawChats = Array.isArray(decoded) ? decoded : [decoded];
+  if (rawChats.length === 0 || rawChats.some((chat) => !chat || typeof chat !== "object" || Array.isArray(chat) || !Array.isArray((chat as Record<string, unknown>).messages))) {
+    throw new Error("Generic role/content transcript must be a chat object or array of chat objects with messages arrays");
+  }
+  const chats = rawChats.map((rawChat, chatIndex) => {
+    const chat = rawChat as Record<string, unknown>;
+    const rawMessages = chat.messages as unknown[];
+    if (rawMessages.length === 0) throw new Error("Generic role/content transcript messages must not be empty");
+    const messages = rawMessages.map((rawMessage, messageIndex) => {
+      if (!rawMessage || typeof rawMessage !== "object" || Array.isArray(rawMessage)) {
+        throw new Error(`Generic role/content message ${messageIndex + 1} must be an object`);
+      }
+      const message = rawMessage as Record<string, unknown>;
+      if (!Object.prototype.hasOwnProperty.call(message, "role") || !Object.prototype.hasOwnProperty.call(message, "content")) {
+        throw new Error(`Generic role/content message ${messageIndex + 1} requires role and content`);
+      }
+      const role = message.role;
+      if (role !== "user" && role !== "assistant" && role !== "system") {
+        throw new Error(`Generic role/content message ${messageIndex + 1} has unsupported role`);
+      }
+      if (typeof message.content !== "string" || !message.content.trim()) {
+        throw new Error(`Generic role/content message ${messageIndex + 1} requires non-empty string content`);
+      }
+      return {
+        role,
+        content: message.content,
+        created_at: typeof message.created_at === "string" ? message.created_at : null,
+        source_message_id: typeof message.id === "string" ? message.id : null,
+        provider_metadata: {},
+        imported_assistant_identity: null,
+      } satisfies ParsedImportMessage;
+    });
+    const sourceChatId = typeof chat.id === "string" && chat.id ? chat.id : `generic-chat-${chatIndex + 1}`;
+    return {
+      provider: selectedSource,
+      parser_format: "generic",
+      selected_source: selectedSource,
+      source_chat_id: sourceChatId,
+      source_fingerprint: fingerprint("generic", sourceChatId, messages),
+      title: typeof chat.title === "string" ? chat.title : null,
+      created_at: typeof chat.created_at === "string" ? chat.created_at : null,
+      updated_at: typeof chat.updated_at === "string" ? chat.updated_at : null,
+      messages,
+      embeds: [],
+      uploads: [],
+      provider_labels: [selectedSource, "generic"],
+      source_metadata: { source_name: sourceName, message_count: messages.length },
+    } satisfies ParsedImportChat;
+  });
+  return finalizeImport("generic", selectedSource, chats, []);
 }

@@ -95,7 +95,10 @@ import {
 import {
   parseClaudeImportBuffer,
   parseChatGPTImportBuffer,
+  parseGenericImportBuffer,
+  parseOpenCodeImportBuffer,
   parseOpenMatesImportBuffer,
+  type AccountImportSource,
   type ParsedAccountImport,
 } from "./accountImport.js";
 import {
@@ -6928,6 +6931,8 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "import", "claude"], description: "Preview a Claude official export import", examples: ["openmates account import claude ./claude-export.zip --dry-run --json"] },
   { path: ["account", "import", "chatgpt"], description: "Preview a ChatGPT official export import", examples: ["openmates account import chatgpt ./chatgpt-export.zip --dry-run --json"] },
   { path: ["account", "import", "openmates"], description: "Preview an OpenMates Export V1 import", examples: ["openmates account import openmates ./openmates-export.zip --domain chats --dry-run --json"] },
+  { path: ["account", "import", "opencode"], description: "Import a filtered OpenCode transcript export", examples: ["openmates account import opencode ./opencode-session.json --dry-run --json"] },
+  { path: ["account", "import", "generic"], description: "Import strict role/content JSON as Gemini or Other", examples: ["openmates account import generic ./transcript.json --source gemini --dry-run --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
   { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
@@ -7099,30 +7104,43 @@ function printAccountExportBundle(
   if (typeof archive.output === "string") process.stdout.write(`Wrote ${archive.output}\n`);
 }
 
-type AccountImportCliSource = "claude" | "chatgpt" | "openmates";
+type AccountImportCliParser = "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
 
-async function parseAccountImportFile(source: AccountImportCliSource, file: string, flags: Record<string, string | boolean> = {}): Promise<ParsedAccountImport> {
+const ACCOUNT_IMPORT_SOURCES = new Set<AccountImportSource>(["openmates", "chatgpt", "claude", "gemini", "opencode", "other"]);
+
+async function parseAccountImportFile(parserFormat: AccountImportCliParser, file: string, flags: Record<string, string | boolean> = {}): Promise<ParsedAccountImport> {
   const { readFile } = await import("node:fs/promises");
   const payload = await readFile(file);
-  if (source === "claude") return parseClaudeImportBuffer(payload, basename(file));
-  if (source === "chatgpt") return parseChatGPTImportBuffer(payload, basename(file));
-  return parseOpenMatesImportBuffer(payload, basename(file), typeof flags.password === "string" ? flags.password : undefined);
+  const requestedSource = typeof flags.source === "string" ? flags.source : parserFormat;
+  if (!ACCOUNT_IMPORT_SOURCES.has(requestedSource as AccountImportSource)) throw new Error(`Unsupported account import source: ${requestedSource}`);
+  const selectedSource = requestedSource as AccountImportSource;
+  if (parserFormat === "generic") {
+    if (selectedSource !== "gemini" && selectedSource !== "other") throw new Error("Generic account import requires --source gemini or --source other.");
+    return parseGenericImportBuffer(payload, basename(file), selectedSource);
+  }
+  if (parserFormat === "claude") return parseClaudeImportBuffer(payload, basename(file), selectedSource);
+  if (parserFormat === "chatgpt") return parseChatGPTImportBuffer(payload, basename(file), selectedSource);
+  if (parserFormat === "opencode") return parseOpenCodeImportBuffer(payload, basename(file), selectedSource);
+  return parseOpenMatesImportBuffer(payload, basename(file), typeof flags.password === "string" ? flags.password : undefined, selectedSource);
 }
 
 async function runAccountImport(
   client: OpenMatesClient,
-  source: AccountImportCliSource,
+  parserFormat: AccountImportCliParser,
   file: string,
   flags: Record<string, string | boolean>,
 ): Promise<Record<string, unknown>> {
-  const parsed = await parseAccountImportFile(source, file, flags);
-  if (source === "openmates" && flags.domain !== undefined && flags.domain !== "chats") {
+  if (parserFormat === "generic" && typeof flags.source !== "string") throw new Error("Generic account import requires --source gemini or --source other.");
+  const parsed = await parseAccountImportFile(parserFormat, file, flags);
+  if (parserFormat === "openmates" && flags.domain !== undefined && flags.domain !== "chats") {
     throw new Error("Account Import V1 only supports --domain chats for OpenMates archives.");
   }
   const preview = await client.previewAccountImport({
-    source,
+    source: parsed.source,
+    parserFormat: parsed.parserFormat,
     chatCount: parsed.chats.length,
     sourceFingerprints: parsed.chats.map((chat) => chat.source_fingerprint),
+    estimatedTokensByChat: parsed.chats.map((chat) => Math.ceil(chat.messages.reduce((total, message) => total + message.content.length, 0) / 4)),
   });
   const defaultSelectionCount = typeof preview.default_selection_count === "number" ? preview.default_selection_count : 0;
   const maxBatchCount = typeof preview.max_batch_count === "number" ? preview.max_batch_count : defaultSelectionCount;
@@ -7130,7 +7148,8 @@ async function runAccountImport(
     ? Math.min(parsed.chats.length, maxBatchCount)
     : Math.min(defaultSelectionCount, parsed.chats.length, maxBatchCount);
   const result = {
-    source,
+    source: parsed.source,
+    parser_format: parsed.parserFormat,
     parsed: {
       chat_count: parsed.chats.length,
       selected_count: selectedCount,
@@ -7151,10 +7170,36 @@ async function runAccountImport(
   }
   const importId = typeof preview.import_id === "string" ? preview.import_id : randomUUID();
   const selectedChats = parsed.chats.slice(0, selectedCount);
-  const scanned = await client.scanAccountImport(importId, selectedChats as unknown as Array<Record<string, unknown>>);
-  const sanitizedChats = Array.isArray(scanned.chats) && scanned.chats.length > 0
-    ? scanned.chats as unknown as typeof selectedChats
-    : selectedChats;
+  const selectedFingerprints = selectedChats.map((chat) => chat.source_fingerprint);
+  const confirmation = await client.confirmAccountImport(importId, selectedFingerprints);
+  const status = await client.getAccountImportStatus(importId);
+  const sanitizedChats: typeof selectedChats = [];
+  const scanBatches = [];
+  const compressionBatches = [];
+  for (let sequence = 0; sequence < selectedChats.length; sequence++) {
+    const finalBatch = sequence === selectedChats.length - 1;
+    const scanned = await client.scanAccountImport(importId, {
+      batchId: `scan-${sequence}`,
+      sequence,
+      finalBatch,
+      chats: [selectedChats[sequence] as unknown as Record<string, unknown>],
+    });
+    if (scanned.status !== "acknowledged" || !Array.isArray(scanned.chats)) throw new Error("Account import scan batch was not acknowledged.");
+    scanBatches.push(scanned);
+    const sanitizedChat = scanned.chats[0] as unknown as typeof selectedChats[number] | undefined;
+    if (!sanitizedChat) throw new Error("Account import scan acknowledgement omitted the sanitized chat.");
+    sanitizedChats.push(sanitizedChat);
+    const compressed = await client.compressAccountImport(importId, {
+      batchId: `compress-${sequence}`,
+      sequence,
+      finalBatch,
+      scanSequence: sequence,
+      sourceFingerprint: sanitizedChat.source_fingerprint,
+      sanitizedMessages: sanitizedChat.messages as unknown as Array<Record<string, unknown>>,
+    });
+    if (compressed.status !== "acknowledged") throw new Error("Account import compression batch was not acknowledged.");
+    compressionBatches.push(compressed);
+  }
   const persisted = await client.persistEncryptedAccountImport(importId, sanitizedChats);
   const complete = await client.completeAccountImport(importId, {
     importedChatIds: Array.isArray(persisted.imported_chat_ids) ? persisted.imported_chat_ids : [],
@@ -7162,7 +7207,7 @@ async function runAccountImport(
     encryptedRecordCounts: persisted.encrypted_record_counts ?? { chats: 0, messages: 0 },
     clientFailures: persisted.failures ?? [],
   });
-  return { ...result, import_id: importId, scan: scanned, persistence: persisted, complete };
+  return { ...result, import_id: importId, confirmation, status, scan: scanBatches.at(-1), scan_batches: scanBatches, compression: compressionBatches.at(-1), compression_batches: compressionBatches, persistence: persisted, complete };
 }
 
 function printAccountImportPreview(result: Record<string, unknown>, flags: Record<string, string | boolean>): void {
@@ -8462,8 +8507,8 @@ async function handleSettings(
     return;
   }
 
-  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "chatgpt"]) || matches(tokens, ["account", "import", "openmates"])) {
-    const source = tokens[2] as AccountImportCliSource;
+  if (["claude", "chatgpt", "openmates", "opencode", "generic"].some((parserFormat) => matches(tokens, ["account", "import", parserFormat]))) {
+    const source = tokens[2] as AccountImportCliParser;
     const file = rest[2];
     if (!file) throw new Error(`Missing import file. Example: openmates account import ${source} ./export.zip --dry-run`);
     printAccountImportPreview(await runAccountImport(client, source, file, flags), flags);
