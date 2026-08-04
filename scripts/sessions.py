@@ -624,7 +624,14 @@ def bootstrap_session_worktree(worktree_path: str | Path) -> dict:
     """Install cached dependencies and generate prerequisites in one worktree."""
     worktree = Path(worktree_path).resolve()
     commands = [
-        ["pnpm", "install", "--offline", "--frozen-lockfile", "--ignore-scripts"],
+        [
+            "pnpm",
+            "install",
+            "--offline",
+            "--frozen-lockfile",
+            "--ignore-scripts",
+            "--config.engine-strict=false",
+        ],
         ["node", "frontend/packages/ui/scripts/build-tokens.js"],
         ["node", "frontend/packages/ui/scripts/build-translations.js"],
         ["node", "frontend/packages/ui/scripts/validate-locales.js"],

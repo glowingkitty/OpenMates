@@ -51,6 +51,7 @@ def test_bootstrap_is_worktree_local_and_idempotent(monkeypatch: pytest.MonkeyPa
     assert calls
     assert all(cwd == worktree for _, cwd in calls)
     assert all(str(root / "node_modules") not in " ".join(command) for command, _ in calls)
+    assert "--config.engine-strict=false" in calls[0][0]
 
 
 def test_bootstrap_failure_never_reports_ready(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
