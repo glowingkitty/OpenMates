@@ -14404,8 +14404,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .center-content.guest-all-examples-content {
-        top: calc(50% - 10px);
-        height: calc(100% - 20px);
+        top: calc(50% + 30px);
+        height: calc(100% - 100px);
     }
 
     .daily-inspiration-area.guest-all-examples-hidden {
