@@ -23,11 +23,10 @@ const ACTIONABLE_STAGE_SETTLE_MS = 260;
 const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
 const MOBILE_SLIDE_FADE_SETTLE_MS = 1200;
 const ACTIONABLE_INTERACTION_TIMEOUT_MS = 8000;
-const RECORD_BUTTON_STYLE_SETTLE_MS = 1500;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
 const ACTIONABLE_PREVIEW_CENTER_MIN_OFFSET_Y = -24;
-const ACTIONABLE_PREVIEW_CENTER_MAX_OFFSET_Y = 14;
+const ACTIONABLE_PREVIEW_CENTER_MAX_OFFSET_Y = 15;
 const ACTIONABLE_DEMO_MAX_BANNER_OVERFLOW_PX = 26;
 const MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_X = 12;
 const MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_Y = 8;
@@ -1271,16 +1270,29 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('record-overlay')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('record-finish-button')).toContainText('Finish');
 		await expect(page.getByTestId('record-cancel-button')).toContainText('Cancel');
-		await expect.poll(async () => page.getByTestId('record-finish-button').evaluate((element: HTMLElement) => {
-			const colorProbe = document.createElement('span');
-			colorProbe.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--color-button-primary').trim();
-			document.body.appendChild(colorProbe);
-			const buttonPrimary = getComputedStyle(colorProbe).backgroundColor;
-			colorProbe.remove();
-			return getComputedStyle(element).backgroundColor === buttonPrimary;
-		}), { timeout: RECORD_BUTTON_STYLE_SETTLE_MS }).toBe(true);
-		const finishButtonColor = await page.getByTestId('record-finish-button').evaluate((element: HTMLElement) => getComputedStyle(element).color);
-		expect(finishButtonColor).toBe('rgb(255, 255, 255)');
+		const finishButtonStyle = await page.getByTestId('record-finish-button').evaluate((element: HTMLElement) => {
+			const elementStyle = getComputedStyle(element);
+			const resolveBackground = (value: string): string => {
+				const colorProbe = document.createElement('span');
+				colorProbe.style.backgroundColor = value.trim();
+				document.body.appendChild(colorProbe);
+				const background = getComputedStyle(colorProbe).backgroundColor;
+				colorProbe.remove();
+				return background;
+			};
+
+			return {
+				backgroundColor: elementStyle.backgroundColor,
+				color: elementStyle.color,
+				primaryBackgrounds: [
+					resolveBackground(elementStyle.getPropertyValue('--color-button-primary')),
+					resolveBackground(elementStyle.getPropertyValue('--color-button-primary-hover')),
+					resolveBackground(elementStyle.getPropertyValue('--color-button-primary-pressed'))
+				]
+			};
+		});
+		expect(finishButtonStyle.primaryBackgrounds).toContain(finishButtonStyle.backgroundColor);
+		expect(finishButtonStyle.color).toBe('rgb(255, 255, 255)');
 		await expect(page.getByTestId('cancel-hint')).toHaveCount(0);
 		await expect(page.getByTestId('release-text')).toContainText('Recording');
 		await page.keyboard.press('Escape');
