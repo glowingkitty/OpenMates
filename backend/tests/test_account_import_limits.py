@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.core.api.app.services.account_import_service import AccountImportService, ImportCreditError
+from backend.core.api.app.services.account_import_service import FREE_IMPORT_CHAT_TOKEN_CAP, AccountImportService, ImportCreditError
 
 
 def _chats(count: int) -> list[dict]:
@@ -95,3 +95,30 @@ async def test_insufficient_credits_block_scan_without_negative_balance() -> Non
             selected_chat_count=4,
             available_credits=10,
         )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("estimated_tokens", [0, FREE_IMPORT_CHAT_TOKEN_CAP])
+async def test_free_token_cap_allows_chat_at_or_below_limit(estimated_tokens: int) -> None:
+    chats = _chats(1)
+    chats[0]["estimated_input_tokens"] = estimated_tokens
+    preview = await AccountImportService().preview_import(
+        user_id="user-1", source="claude", chats=chats, available_credits=0,
+        imported_count_last_30_days=0, existing_fingerprints=set(),
+    )
+    assert preview["can_import"] is True
+    assert preview["max_batch_count"] == 1
+
+
+@pytest.mark.anyio
+async def test_free_token_cap_requires_paid_credits_without_consuming_slot() -> None:
+    chats = _chats(1)
+    chats[0]["estimated_input_tokens"] = FREE_IMPORT_CHAT_TOKEN_CAP + 1
+    preview = await AccountImportService().preview_import(
+        user_id="user-1", source="claude", chats=chats, available_credits=0,
+        imported_count_last_30_days=0, existing_fingerprints=set(),
+    )
+    assert preview["can_import"] is False
+    assert preview["free_remaining"] == 3
+    assert preview["max_batch_count"] == 0
+    assert preview["reason"] == "paid_credits_required_for_token_cap"

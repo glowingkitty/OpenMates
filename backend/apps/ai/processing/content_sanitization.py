@@ -19,7 +19,6 @@ import os
 import re
 from typing import Dict, Any, List, Optional
 
-from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 # Import ASCII smuggling sanitization
@@ -31,6 +30,74 @@ logger = logging.getLogger(__name__)
 # Placeholder text used to replace detected prompt injection strings
 # This makes it transparent that content was removed for security reasons
 PROMPT_INJECTION_PLACEHOLDER = "[PROMPT INJECTION DETECTED & REMOVED]"
+
+
+class ImportSanitizationError(RuntimeError):
+    """Retryable import scan infrastructure or result-validation failure."""
+
+
+async def call_preprocessing_llm(**kwargs: Any) -> Any:
+    """Load the provider-heavy preprocessing module only when a scan runs."""
+
+    from backend.apps.ai.utils.llm_utils import call_preprocessing_llm as call
+
+    return await call(**kwargs)
+
+
+def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
+    """Resolve fallbacks lazily so pure sanitization helpers stay importable."""
+
+    from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config as resolve
+
+    return resolve(model_id)
+
+
+def _replace_exact_injection_spans(content: str, injection_strings: List[str]) -> Optional[str]:
+    """Replace all exact spans, merging overlap without retaining unsafe fragments."""
+
+    spans: List[tuple[int, int]] = []
+    for injection in injection_strings:
+        start = 0
+        found = False
+        while (index := content.find(injection, start)) != -1:
+            found = True
+            spans.append((index, index + len(injection)))
+            start = index + len(injection)
+        if not found:
+            return None
+    merged: List[tuple[int, int]] = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    parts: List[str] = []
+    cursor = 0
+    for start, end in merged:
+        parts.extend((content[cursor:start], PROMPT_INJECTION_PLACEHOLDER))
+        cursor = end
+    parts.append(content[cursor:])
+    return "".join(parts)
+
+
+def _extract_import_usage(summary: Any, default_model_id: str) -> tuple[str, int, int]:
+    """Extract provider token counters without retaining provider response content."""
+
+    if not isinstance(summary, dict):
+        return default_model_id, 0, 0
+    usage = summary.get("usage") or summary.get("usage_metadata") or {}
+    if not isinstance(usage, dict):
+        return str(summary.get("model_id") or default_model_id), 0, 0
+    input_tokens = usage.get("input_tokens", usage.get("prompt_tokens", usage.get("prompt_token_count", 0)))
+    output_tokens = usage.get(
+        "output_tokens",
+        usage.get("completion_tokens", usage.get("candidates_token_count", 0)),
+    )
+    return (
+        str(summary.get("model_id") or default_model_id),
+        int(input_tokens or 0),
+        int(output_tokens or 0),
+    )
 
 
 def _split_text_into_chunks(text: str, max_chars_per_chunk: int) -> List[str]:
@@ -363,17 +430,11 @@ async def _sanitize_text_chunk(
         logger.info(
             f"[{task_id}] CONTENT SANITIZATION SYSTEM PROMPT: {system_prompt[:500]}{'...' if len(system_prompt) > 500 else ''}"
         )
-        logger.info(
-            f"[{task_id}] CONTENT SANITIZATION DATA (first 1000 chars): {chunk[:1000]}{'...' if len(chunk) > 1000 else ''}"
-        )
-        logger.debug(
-            f"[{task_id}] CONTENT SANITIZATION FULL DATA: {chunk}"
-        )
         
         # Call LLM for prompt injection detection
         logger.info(f"[{task_id}] Calling LLM for prompt injection detection on chunk {chunk_index+1}/{total_chunks}")
         sanitization_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
-        result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+        result = await call_preprocessing_llm(
             task_id=f"{task_id}_chunk_{chunk_index}",
             model_id=model_id,
             message_history=message_history,
@@ -388,10 +449,7 @@ async def _sanitize_text_chunk(
                 f"[{task_id}] CONTENT SANITIZATION RESPONSE ERROR: {result.error_message}"
             )
         else:
-            logger.info(
-                f"[{task_id}] CONTENT SANITIZATION RESPONSE SUCCESS - "
-                f"Arguments: {result.arguments if result.arguments else 'None'}"
-            )
+            logger.info(f"[{task_id}] CONTENT SANITIZATION RESPONSE SUCCESS")
         
         # Check if call was successful (error_message is None) and has arguments
         if result.error_message or not result.arguments:
@@ -664,7 +722,8 @@ async def sanitize_message_for_import(
     task_id: str = "import_sanitization",
     secrets_manager: Optional[SecretsManager] = None,
     cache_service: Optional[Any] = None,
-) -> str:
+    return_metadata: bool = False,
+) -> Any:
     """
     Sanitize a single chat message being imported from a user-supplied YAML file.
 
@@ -681,7 +740,8 @@ async def sanitize_message_for_import(
     Behaviour mirrors ``sanitize_external_content``:
     - Layer 1: ASCII smuggling removal.
     - Layer 2: LLM-based prompt-injection detection.
-    - Returns ``""`` if the message is blocked (high injection risk).
+    - Returns a visible placeholder if a high-risk message cannot be redacted.
+    - Raises ``ImportSanitizationError`` for retryable scanner failures.
     - Returns the (possibly redacted) content otherwise.
 
     See docs/architecture/prompt-injection.md for the full security model.
@@ -699,7 +759,7 @@ async def sanitize_message_for_import(
     # ------------------------------------------------------------------
     model_id = _load_llm_key_from_app_yml("chat_import_sanitization_model")
     if not model_id:
-        raise ValueError(
+        raise ImportSanitizationError(
             f"[{task_id}] chat_import_sanitization_model not configured in app.yml. "
             "Cannot run safety scan for chat import."
         )
@@ -726,7 +786,7 @@ async def sanitize_message_for_import(
 
     if not content.strip():
         logger.warning(f"[{task_id}] Message became empty after ASCII smuggling removal (potential attack).")
-        return ""
+        content = PROMPT_INJECTION_PLACEHOLDER
 
     # ------------------------------------------------------------------
     # Layer 2: LLM-based prompt-injection detection
@@ -737,7 +797,7 @@ async def sanitize_message_for_import(
             f"[{task_id}] Failed to load prompt injection detection config — "
             "failing closed for import safety scan"
         )
-        return ""
+        raise ImportSanitizationError("Import prompt-injection configuration unavailable")
 
     max_tokens_per_chunk = detection_config.get("text_chunking", {}).get("max_tokens_per_chunk", 50000)
     block_threshold = detection_config.get("prompt_injection_thresholds", {}).get("block_threshold", 7.0)
@@ -754,10 +814,13 @@ async def sanitize_message_for_import(
     tool_definition = detection_config.get("prompt_injection_detection_tool")
     system_prompt = detection_config.get("prompt_injection_detection_system_prompt", "")
     if not tool_definition:
-        logger.error(f"[{task_id}] Detection tool definition missing in config — skipping LLM scan")
-        return content
+        logger.error(f"[{task_id}] Detection tool definition missing in config")
+        raise ImportSanitizationError("Import prompt-injection tool configuration unavailable")
 
     sanitized_chunks: List[str] = []
+    input_tokens = 0
+    output_tokens = 0
+    usage_calls: List[Dict[str, Any]] = []
     for i, chunk in enumerate(chunks):
         try:
             message_history = []
@@ -771,7 +834,7 @@ async def sanitize_message_for_import(
             )
 
             import_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
-            result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            result = await call_preprocessing_llm(
                 task_id=f"{task_id}_chunk_{i}",
                 model_id=model_id,
                 message_history=message_history,
@@ -784,34 +847,65 @@ async def sanitize_message_for_import(
                 logger.error(
                     f"[{task_id}] Safety scan failed for chunk {i+1}: {result.error_message or 'no arguments'}"
                 )
-                return ""  # Fail-closed on scan error: block the message
+                raise ImportSanitizationError("Import prompt-injection provider unavailable")
+
+            actual_model_id, chunk_input_tokens, chunk_output_tokens = _extract_import_usage(
+                getattr(result, "raw_provider_response_summary", None),
+                model_id,
+            )
+            input_tokens += chunk_input_tokens
+            output_tokens += chunk_output_tokens
+            usage_calls.append({
+                "model_id": actual_model_id,
+                "input_tokens": chunk_input_tokens,
+                "output_tokens": chunk_output_tokens,
+            })
 
             detection_score = result.arguments.get("prompt_injection_chance", 0.0)
             injection_strings = result.arguments.get("injection_strings", [])
 
-            if detection_score >= block_threshold:
-                logger.warning(
-                    f"[{task_id}] Message blocked: injection score {detection_score:.1f} >= {block_threshold}"
-                )
-                return ""  # Signal to caller: replace with placeholder
+            if not isinstance(detection_score, int | float) or not isinstance(injection_strings, list) or any(
+                not isinstance(injection, str) or not injection for injection in injection_strings
+            ):
+                raise ImportSanitizationError("Malformed import prompt-injection result")
 
             sanitized_chunk = chunk
             if injection_strings:
-                for inj in injection_strings:
-                    sanitized_chunk = sanitized_chunk.replace(inj, PROMPT_INJECTION_PLACEHOLDER)
+                replaced = _replace_exact_injection_spans(chunk, injection_strings)
+                if replaced is None:
+                    if detection_score >= block_threshold:
+                        sanitized_chunks.append(PROMPT_INJECTION_PLACEHOLDER)
+                        continue
+                    raise ImportSanitizationError("Import scanner returned non-isolatable spans")
+                sanitized_chunk = replaced
                 sanitized_chunk = re.sub(
                     rf'({re.escape(PROMPT_INJECTION_PLACEHOLDER)}\s*)+',
                     PROMPT_INJECTION_PLACEHOLDER,
                     sanitized_chunk,
                 )
                 sanitized_chunk = re.sub(r'\s+', ' ', sanitized_chunk).strip()
+            elif detection_score >= block_threshold:
+                logger.warning(f"[{task_id}] High-risk imported message replaced in full")
+                sanitized_chunk = PROMPT_INJECTION_PLACEHOLDER
 
             sanitized_chunks.append(sanitized_chunk)
 
+        except ImportSanitizationError:
+            raise
         except Exception as chunk_err:
             logger.error(f"[{task_id}] Error scanning chunk {i+1}: {chunk_err}", exc_info=True)
-            return ""  # Fail-closed
+            raise ImportSanitizationError("Import prompt-injection scan failed") from chunk_err
 
     result_content = "".join(sanitized_chunks)
     logger.info(f"[{task_id}] Import scan complete: {len(content)} → {len(result_content)} chars")
+    if return_metadata:
+        return {
+            "content": result_content,
+            "usage": {
+                "model_id": model_id,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "calls": usage_calls,
+            },
+        }
     return result_content

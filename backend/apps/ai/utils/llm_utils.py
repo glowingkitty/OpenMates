@@ -994,7 +994,10 @@ async def call_preprocessing_llm(
     transformed_messages_for_llm = filtered_messages_for_llm
 
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
-        current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
+        current_raw_provider_response_summary = response.model_dump(
+            exclude_none=True,
+            exclude={"raw_response", "tool_calls_made", "direct_message_content"},
+        )
         
         # Sanitize tool_calls_made to remove sensitive content (title, chat_summary, chat_tags)
         # Note: In production, detailed logs are skipped entirely (see SERVER_ENVIRONMENT check below).
@@ -1015,6 +1018,11 @@ async def call_preprocessing_llm(
                     # Redact chat_tags (user-generated content)
                     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
                         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
+                    if "injection_strings" in sanitized_args and isinstance(sanitized_args["injection_strings"], list):
+                        sanitized_args["injection_strings"] = {
+                            "count": len(sanitized_args["injection_strings"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     tc_dict["function_arguments_parsed"] = sanitized_args
                 # Also sanitize function_arguments_raw if it's a string that might contain sensitive data
                 if "function_arguments_raw" in tc_dict and isinstance(tc_dict["function_arguments_raw"], str):

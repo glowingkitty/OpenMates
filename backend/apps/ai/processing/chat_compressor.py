@@ -17,7 +17,6 @@ from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +66,27 @@ class CompressionResult(BaseModel):
     summary_token_estimate: int = 0  # Estimated tokens in the summary
     recent_messages: Optional[List[Dict[str, Any]]] = None  # Messages kept in full
     compressed_up_to_timestamp: Optional[int] = None  # Timestamp of newest compressed message
+    model_id: Optional[str] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
     error: Optional[str] = None
+
+
+def _response_token_usage(response: Any) -> Tuple[int, int]:
+    """Extract normalized token usage from supported compression providers."""
+
+    usage = getattr(response, "usage", None)
+    input_tokens = getattr(
+        usage,
+        "input_tokens",
+        getattr(usage, "prompt_tokens", getattr(usage, "prompt_token_count", 0)),
+    )
+    output_tokens = getattr(
+        usage,
+        "output_tokens",
+        getattr(usage, "completion_tokens", getattr(usage, "candidates_token_count", 0)),
+    )
+    return int(input_tokens or 0), int(output_tokens or 0)
 
 
 def estimate_tokens_for_message(msg: Dict[str, Any]) -> int:
@@ -344,6 +363,8 @@ async def compress_chat_history(
     task_id: str,
     secrets_manager: SecretsManager,
     compression_threshold: int = DEFAULT_COMPRESSION_TRIGGER_THRESHOLD,
+    prior_summary: Optional[str] = None,
+    force: bool = False,
 ) -> CompressionResult:
     """Compress older messages in a chat history into a structured summary.
 
@@ -366,7 +387,7 @@ async def compress_chat_history(
     """
     log_prefix = f"[{task_id}] Compression:"
 
-    if not should_compress(message_history, compression_threshold):
+    if not force and not should_compress(message_history, compression_threshold):
         return CompressionResult(was_compressed=False)
 
     compress_start = time.time()
@@ -377,17 +398,20 @@ async def compress_chat_history(
     )
 
     # Split history
-    messages_to_compress, recent_messages = split_history_for_compression(
-        message_history,
-        force_latest_assistant_tail_split=True,
-    )
+    if force:
+        messages_to_compress, recent_messages = message_history, []
+    else:
+        messages_to_compress, recent_messages = split_history_for_compression(
+            message_history,
+            force_latest_assistant_tail_split=True,
+        )
 
     if not messages_to_compress:
         logger.info(f"{log_prefix} No messages to compress after split. Skipping.")
         return CompressionResult(was_compressed=False)
 
     # Check for existing compression summary in the messages being compressed
-    previous_summary = _find_existing_summary(messages_to_compress)
+    previous_summary = prior_summary or _find_existing_summary(messages_to_compress)
     if previous_summary:
         logger.info(f"{log_prefix} Found existing compression summary to incorporate.")
 
@@ -411,6 +435,9 @@ async def compress_chat_history(
 
     # Call the compression LLM
     try:
+        from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
+
+        used_provider = "google"
         llm_messages = [{"role": "system", "content": system_prompt}]
         llm_messages.extend(formatted_messages)
 
@@ -447,6 +474,7 @@ async def compress_chat_history(
                     max_tokens=MAX_SUMMARY_TOKENS * 4,
                     stream=False,
                 )
+                used_provider = "cerebras"
 
                 if not response.success or not response.direct_message_content:
                     fallback_error = response.error_message or "Fallback also failed"
@@ -464,6 +492,7 @@ async def compress_chat_history(
 
         summary_content = response.direct_message_content.strip()
         summary_token_estimate = int(len(summary_content) / AVG_CHARS_PER_TOKEN)
+        input_tokens, output_tokens = _response_token_usage(response)
 
         compress_time = time.time() - compress_start
         logger.info(
@@ -479,6 +508,9 @@ async def compress_chat_history(
             summary_token_estimate=summary_token_estimate,
             recent_messages=[msg for msg in recent_messages],
             compressed_up_to_timestamp=compressed_up_to_timestamp,
+            model_id=f"{used_provider}/{str(getattr(response, 'model_id', None) or COMPRESSION_MODEL_ID).split('/')[-1]}",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
 
     except Exception as e:

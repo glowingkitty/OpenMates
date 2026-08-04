@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.core.api.app.services.account_import_service import AccountImportService
+from backend.core.api.app.services.account_import_service import AccountImportService, InMemoryImportJobStore
 
 
 @pytest.mark.anyio
@@ -38,10 +38,10 @@ async def test_preview_returns_duplicate_fingerprint_warnings() -> None:
 @pytest.mark.anyio
 async def test_complete_records_new_import_without_updating_existing_chats() -> None:
     directus = SimpleNamespace(
-        create_item=AsyncMock(return_value=(True, {"id": "usage-1"})),
         update_item=AsyncMock(),
     )
-    service = AccountImportService(directus_service=directus)
+    store = InMemoryImportJobStore()
+    service = AccountImportService(directus_service=directus, job_store=store)
 
     result = await service.complete_import(
         user_id="user-1",
@@ -54,5 +54,6 @@ async def test_complete_records_new_import_without_updating_existing_chats() -> 
 
     assert result["status"] == "complete"
     assert result["imported_count"] == 1
-    directus.create_item.assert_awaited()
+    metadata = await store.get(user_id="user-1", import_id="import-1")
+    assert metadata["source_fingerprints"] == ["fingerprint-existing"]
     directus.update_item.assert_not_awaited()

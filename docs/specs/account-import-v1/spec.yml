@@ -5,11 +5,11 @@ status: approved
 
 goal: >
   Implement a safe, encrypted, unified personal chat import system across CLI,
-  npm SDK, pip SDK, web, and later Apple parity. V1 imports Claude and ChatGPT
-  official exports plus OpenMates Export V1 archives into new OpenMates chats while
-  preserving referenced embeds/uploads, scanning external plaintext before
-  storage, and ensuring permanent Directus records contain only client-encrypted
-  private chat/message/embed data.
+  npm SDK, pip SDK, web, and later Apple parity. Every imported message is treated
+  as untrusted, prompt-injection scanned before compression, and client-encrypted
+  before permanent storage. Long paid imports use resumable processing and actual
+  model-usage billing; imported assistant messages retain the user-selected source
+  identity instead of being presented as an OpenMates mate.
 
 scope:
   in:
@@ -20,6 +20,15 @@ scope:
     - Unified normalized import model shared by CLI, npm SDK, pip SDK, web, and future source adapters.
     - Client-side encryption before permanent persistence for all private imported chat/message/embed content.
     - Transient server-side safety scanning for selected plaintext external-provider messages before import completion.
+    - Prompt-injection and ASCII-smuggling scanning for every non-empty imported user, assistant, and system message from every source, including OpenMates exports.
+    - Selective replacement of detected injection spans, with whole-message placeholders only when a high-risk message cannot be safely redacted.
+    - Retryable fail-closed behavior when scanner configuration, secrets, providers, or result parsing are unavailable.
+    - Post-scan chat compression using the normal compression threshold and client-encrypted checkpoint persistence.
+    - Resumable client-orchestrated scan/compression batches for paid imports without a transcript-length ceiling or durable server plaintext.
+    - Actual scan/compression usage billing with conservative reservation, strict no-debt enforcement, final charge, and release of unused credits.
+    - Three free imported chats per rolling 30 days, each capped at 100,000 estimated input tokens.
+    - Explicit source selection from OpenMates, ChatGPT, Claude, Gemini, OpenCode, or Other before file upload.
+    - Imported assistant identity metadata: selected provider category, provider display name, and provider/generic avatar rendered instead of a mate identity.
     - CLI-first import command that proves the backend/API contract against the real dev server.
     - npm SDK and pip SDK parity for parsing, previewing, estimating, scanning, and importing.
     - Web app import UI using the same contract after CLI and SDK gates are green.
@@ -29,7 +38,7 @@ scope:
   out:
     - Browser extension implementation.
     - Recommending third-party browser extensions as trusted import sources.
-    - Gemini official export/provider parsers until reliable samples or paths exist.
+    - A Gemini Takeout-specific parser until a reliable raw sample exists; Gemini and Other may use the documented generic transcript JSON adapter.
     - Developer-console scripts as a user-facing import method.
     - Projects, tasks, plans, workflows/runs, memories/app settings, and full account restore; tracked separately in Linear OPE-588.
     - Team import or team-scoped rows.
@@ -62,6 +71,7 @@ sequencing_gates:
 context_discovery:
   github_issues:
     - GitHub MCP get_me returned 401 Bad credentials during discovery, so GitHub issue lookup through MCP was unavailable.
+    - GitHub MCP get_me again returned 401 during the 2026-08-04 safety/compression resumption, so duplicate issue search remained unavailable.
   linear:
     - "python3 scripts/linear.py --json search 'import projects tasks plans workflows memories' returned no duplicates."
     - "Created OPE-588 due 2026-07-29 for expanding import beyond chats/embeds/uploads to projects, tasks, plans, workflows, and memories."
@@ -78,6 +88,10 @@ context_discovery:
     - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte is the existing web import UI for legacy OpenMates ZIP/YAML files.
     - frontend/packages/openmates-cli/src/cli.ts currently exposes `settings account import-chat`, but it targets the disabled legacy endpoint and must be replaced by a V1 command.
     - docs/specs/account-export-v1/spec.yml is implementing a new resumable Export V1 archive contract; OpenMates import should target that layout, not old browser-only ZIP behavior.
+    - backend/core/api/app/routes/account_imports.py constructs AccountImportService without a scanner, so the production `/scan` route currently returns imported plaintext unchanged.
+    - backend/apps/ai/processing/content_sanitization.py already provides import-specific ASCII-smuggling and prompt-injection processing, but its empty-string result conflates blocked content with infrastructure failure and its missing-tool branch fails open.
+    - backend/apps/ai/processing/chat_compressor.py contains the production compression threshold and summarizer, while normal checkpoint persistence requires client-encrypted summaries.
+    - frontend/packages/ui/src/services/chatImportService.ts performs client encryption but currently assigns generic Assistant sender names and no provider category/avatar identity.
   external_research:
     - Open-source browser exporters exist for ChatGPT, Claude, and Gemini, but caveats include provider UI/private endpoint drift, attachment/artifact gaps, current-chat-only scope, bulk memory pressure, and unverifiable store builds.
     - Third-party export extensions should not be recommended by OpenMates in V1; future support may accept user-provided files that match documented schemas.
@@ -103,6 +117,7 @@ apple_impact:
     - Apple import parity must not begin until CLI, SDK, web, and user-confirmation gates are complete.
     - Apple should use the same personal import contract or clearly defer import with a native-safe explanation.
     - Apple must preserve the same client-encrypted permanent storage and no-merge/no-overwrite behavior.
+    - Apple must render the same selected provider identity for imported assistant messages after web confirmation.
   verification:
     - python3 scripts/apple_remote.py status
     - python3 scripts/apple_remote.py build-ios after web/user confirmation or a documented Apple deferral.
@@ -121,12 +136,22 @@ clarification:
       answer: No. Show dedupe warnings, but never merge or overwrite.
     - question: Should the free import allowance apply only to external providers?
       answer: No. Because the system cannot reliably distinguish external and OpenMates chats for billing/abuse purposes, allow 3 imported chats per rolling 30 days for free regardless of source.
+    - question: How should detected prompt injection and scanner failure behave?
+      answer: Replace exact detected spans while retaining safe message content; replace an entire high-risk message when safe span removal cannot be guaranteed; abort retryably when scanner infrastructure/configuration fails.
+    - question: How should long imports, compression, and billing work?
+      answer: Do not impose a paid transcript-length limit. Scan every message first, then apply normal chat compression when required. Reserve a conservative token-based estimate, charge actual scan/compression model usage, release the remainder, and never allow debt.
+    - question: How should free imports be bounded?
+      answer: Keep three free chats per rolling 30 days and cap each free chat at 100,000 estimated input tokens; larger chats require paid import.
+    - question: How should imported assistant identity be presented?
+      answer: Require explicit source selection. Imported assistant messages use the selected provider name/category/avatar instead of an OpenMates mate; Other renders as AI assistant with a generic AI/star icon.
   vision_summary: >
-    Import V1 should provide a unified, privacy-safe import path for Claude and
-    ChatGPT official exports plus OpenMates Export V1 archives, restoring only chats plus
-    referenced embeds/uploads and always creating new encrypted OpenMates chats.
-    Import limits are source-agnostic: 3 free imported chats per rolling 30 days,
-    and up to 30 chats per batch when the account has sufficient credits.
+    Import V1 treats every imported message as potentially adversarial, scans and
+    sanitizes all roles before compression, and permanently stores only client-
+    encrypted content/checkpoints. Paid processing is resumable and usage-billed
+    without transcript-length limits; free imports are limited to three chats per
+    rolling 30 days and 100,000 estimated input tokens per free chat. Users must
+    explicitly choose a source identity that is encrypted into imported assistant
+    category/sender metadata and rendered with provider-specific branding.
   approved_by_user: true
 
 implementation_state:
@@ -135,18 +160,18 @@ implementation_state:
 approvals:
   product_contract:
     status: approved
-    approved_at: "2026-07-18"
-    reason: User approved the Import V1 scope, phase order, no browser-extension MVP, V1 data domains, no-merge behavior, and source-agnostic free import limit.
+    approved_at: "2026-08-04"
+    reason: User approved universal fail-closed prompt-injection scanning, selective replacement, post-scan compression, actual-usage billing, 100k-token free-chat caps, resumable paid imports, and explicit provider identity rendering.
   implementation_plan:
-    status: not_required
-    approved_at: null
-    reason: Separate technical approval is not required; the plan stays within the approved product contract and schedules remaining assumptions before the tasks they block.
+    status: approved
+    approved_at: "2026-08-04"
+    reason: User approved metadata-only server cursors with client-held plaintext, incremental sanitized compression, strict usage settlement, and a generic role/content JSON adapter for Gemini/Other.
 
 decisions:
   - id: D-1
     status: active
-    decision: V1 supports Claude official export, ChatGPT official export, and OpenMates Export V1 archive sources.
-    reason: Claude and ChatGPT official exports now have reliable local samples for synthetic parser contracts; OpenMates Export V1 is the canonical OpenMates portability format. Gemini remains delayed because Takeout returned empty content despite test chats.
+    decision: V1 supports Claude official export, ChatGPT official export, OpenMates Export V1, OpenCode transcripts, and documented generic role/content JSON parser formats; selected presentation source is independent.
+    reason: Reliable samples exist for dedicated Claude, ChatGPT, OpenMates, and OpenCode parsers. Gemini Takeout remains unsupported, while generic JSON enables explicitly labeled Gemini/Other imports without claiming Takeout compatibility.
     decided_at: "2026-07-18"
   - id: D-2
     status: active
@@ -179,10 +204,35 @@ decisions:
     reason: Dedupe warnings, rolling 30-day allowances, auditability, and later support/debugging need durable user-scoped records; Redis may still be used only for transient rate limits or in-flight locks.
     decided_at: "2026-07-18"
   - id: D-8
-    status: active
+    status: superseded
     decision: Unsafe imported messages are omitted from encrypted chat persistence and reported in the import result instead of inserted as placeholder chat messages in V1.
     reason: Omitting blocked content is the smallest safe behavior and avoids writing provider-controlled text or confusing synthetic assistant/user messages into imported history.
     decided_at: "2026-07-18"
+  - id: D-9
+    status: active
+    decision: Every non-empty imported message role and every source, including OpenMates, must pass ASCII-smuggling and prompt-injection scanning before compression or persistence.
+    reason: User-supplied exports are untrusted regardless of claimed source and can contain instructions targeting later AI context.
+    decided_at: "2026-08-04"
+  - id: D-10
+    status: active
+    decision: Exact detected injection spans are replaced in place; high-risk messages without safely removable spans become a whole-message placeholder; scanner infrastructure failure aborts the import retryably.
+    reason: Preserve safe content where possible without allowing scanner outages or ambiguous results to pass plaintext through.
+    decided_at: "2026-08-04"
+  - id: D-11
+    status: active
+    decision: Compression runs only after all included message content has been sanitized and produces checkpoint summaries that clients encrypt before durable persistence.
+    reason: The compression model must never receive raw adversarial imports, and Directus must retain the existing zero-knowledge checkpoint boundary.
+    decided_at: "2026-08-04"
+  - id: D-12
+    status: active
+    decision: Paid imports reserve estimated token-based scan/compression credits, charge measured model usage, release unused credits, and have no transcript-length ceiling; free imports remain three chats per 30 days with a 100,000-token cap per chat.
+    reason: Costs should track actual provider work without debt or unbounded free usage.
+    decided_at: "2026-08-04"
+  - id: D-13
+    status: active
+    decision: Users explicitly select OpenMates, ChatGPT, Claude, Gemini, OpenCode, or Other; that selection controls encrypted imported assistant category/sender identity and provider/generic avatar rendering.
+    reason: Imported provider responses must not be misattributed to OpenMates mates, while file-schema detection remains an independent validation concern.
+    decided_at: "2026-08-04"
 
 attempts:
   - id: ATTEMPT-1
@@ -265,12 +315,14 @@ attempts:
     notes: "Vercel READY for deployed app commit c16997acf. Initial deployed Account Import Playwright runs exposed test-only issues: an ambiguous skipped-domain text selector, a hardcoded mock import id across repeated uploads, and an assertion reading the first mock call list after reinstalling the mock. Test-only fixes were deployed in commits a456fbbd8, 0a9e74a7a, 16285045c, and 8beb545b2. Final deployed-web evidence passed for import-account-v1, import-account-limits, import-account-dedupe, and Account Import artifact scans. Later reruns used OPENMATES_SKIP_VERCEL_WAIT=true because Vercel correctly had no new Account Import app build after test-only/unrelated commits; app.dev.openmates.org remained on READY Account Import runtime commit c16997acf."
 
 handoff:
-  current_task_id: TASK-10
-  next_action: Finish and verify official ChatGPT export support, then ask the user to confirm deployed dev web Account Import V1 behavior before Apple parity starts.
-  command: run focused ChatGPT parser/facade tests, then deploy and ask user to confirm https://app.dev.openmates.org Settings > Account > Import behavior before Apple parity
-  expected_outcome: ChatGPT parser/facade coverage passes; user then confirms the deployed web import UI is acceptable, or reports UX/content issues to fix before Apple parity.
-  blocker: null
-  last_verified_commit: app.dev.openmates.org@c16997acf with Playwright runner evidence through 58f5c6a14
+  current_task_id: TASK-11
+  next_action: Validate and approve the resumed safety, compression, billing, resumability, and provider-identity contract before writing red tests.
+  command: python3 scripts/spec_validate.py docs/specs/account-import-v1/spec.yml
+  expected_outcome: The materially resumed executable spec validates with all new acceptance criteria mapped to pending red/green evidence.
+  blocker:
+    type: approval_required
+    detail: Implementation must not begin until the updated contract and implementation plan are approved.
+  last_verified_commit: pending-resumed-contract-validation
 
 scenarios:
   - id: S-1
@@ -321,6 +373,7 @@ scenarios:
       - Alice previews import options.
     then:
       - The default selected chats are the newest 3 because the free allowance is 3 imported chats per rolling 30 days.
+      - Each selected free chat must be at or below 100,000 estimated input tokens.
       - Alice cannot select a fourth chat without buying credits.
       - The UI/CLI explains that buying credits allows up to 30 chats per import batch.
       - Alice is never allowed to import into negative credits/debt.
@@ -357,7 +410,7 @@ scenarios:
       - Import parse, validation, scan, encryption, or persistence reaches the invalid content.
     then:
       - Malformed files fail before scanning or charging.
-      - Safety scan failures block or replace affected messages according to the import safety policy.
+      - Detected unsafe content is replaced according to policy, while scanner infrastructure failures abort retryably.
       - Directus never receives plaintext private chat/message/embed fields.
       - Partial imported results are reported item-by-item without pretending complete success.
 
@@ -393,6 +446,67 @@ scenarios:
     then:
       - Apple uses the same import contract or explicitly defers to CLI/web with a native-safe explanation.
       - Apple verification records native build/test evidence or a documented native deferral.
+
+  - id: S-11
+    title: Every imported role and source is scanned fail closed before compression
+    given:
+      - Alice selected chats containing non-empty user, assistant, and system messages.
+      - The selected source is OpenMates, ChatGPT, Claude, Gemini, OpenCode, or Other.
+    when:
+      - Import safety processing runs.
+    then:
+      - Every non-empty message is checked for ASCII smuggling and prompt injection before any compression or persistence.
+      - Exact detected injection spans are replaced with `[PROMPT INJECTION DETECTED & REMOVED]` while safe surrounding content is retained.
+      - A high-risk message whose unsafe spans cannot be safely isolated is replaced entirely with the blocked placeholder.
+      - Missing scanner configuration, secrets, provider access, malformed scanner results, or scanner timeouts abort retryably and persist nothing.
+
+  - id: S-12
+    title: Paid long imports are resumable, compressed after scanning, and billed by actual usage
+    given:
+      - Alice selected a paid import whose transcript exceeds one request or the normal chat compression threshold.
+      - Alice has enough credits for the conservative reservation.
+    when:
+      - The client processes the import in idempotent scan and compression batches.
+    then:
+      - Interrupted processing resumes from acknowledged batch cursors without rescanning or double-charging completed batches.
+      - The backend never durably stores plaintext message or summary content.
+      - Compression receives only sanitized content and uses the normal production threshold.
+      - The client encrypts the resulting checkpoint summary before permanent persistence.
+      - Final billing charges measured scan/compression model usage and releases unused reserved credits without allowing debt.
+
+  - id: S-13
+    title: Free chats have a 100,000 estimated input-token ceiling
+    given:
+      - Alice has free import allowance but insufficient paid credits.
+    when:
+      - Alice previews a selected chat above 100,000 estimated input tokens.
+    then:
+      - The chat cannot consume a free allowance slot and processing does not start.
+      - The client explains that the chat requires paid credits.
+      - A selected chat at or below the cap may use one of the three rolling-30-day free slots.
+
+  - id: S-14
+    title: Explicit source selection controls imported assistant identity
+    given:
+      - Alice selected OpenMates, ChatGPT, Claude, Gemini, OpenCode, or Other before choosing a transcript file.
+    when:
+      - The import is parsed, encrypted, persisted, and rendered.
+    then:
+      - File-schema validation remains independent from the user-selected source identity.
+      - Imported assistant messages store the selected provider category, display name, and model/source metadata in client-encrypted fields instead of a normal mate assignment.
+      - ChatGPT, Claude, Gemini, OpenCode, and OpenMates render their provider identity and logo; Other renders `AI assistant` with the generic AI/star icon.
+      - Imported user and system messages retain their normal role semantics.
+
+  - id: S-15
+    title: Gemini and Other use a documented generic transcript adapter until a Takeout parser is available
+    given:
+      - Alice selected Gemini or Other and has a documented generic transcript JSON file containing role/content messages.
+    when:
+      - Alice imports the file.
+    then:
+      - The generic adapter validates the normalized role/content schema locally and rejects unknown or ambiguous structures visibly.
+      - Selecting Gemini changes assistant presentation identity but does not claim compatibility with raw Gemini Takeout exports.
+      - All messages follow the same scan, compression, billing, encryption, and persistence pipeline.
 
 acceptance_criteria:
   - id: AC-1
@@ -475,6 +589,46 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CLI-CLAUDE-DEV, T-CLI-OPENMATES-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-IMPORT, V-USER-CONFIRMATION, V-APPLE-IMPACT]
+  - id: AC-11
+    scenario: S-11
+    text: Every non-empty user, assistant, and system message from every source is scanned before compression; exact unsafe spans or irreducibly unsafe whole messages are replaced, while scanner infrastructure failures abort retryably with no persistence.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SCAN-ALL-ROLES, T-SCAN-FAIL-CLOSED-REDACTION, T-ENCRYPTION-GUARDS]
+  - id: AC-12
+    scenario: S-12
+    text: Paid imports have no transcript-length ceiling, resume through idempotent batches, compress only sanitized content at the normal threshold, persist only client-encrypted checkpoints, and settle measured usage without debt or duplicate charges.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-IMPORT-RESUME, T-IMPORT-COMPRESSION, T-IMPORT-BILLING, T-ENCRYPTION-GUARDS]
+  - id: AC-13
+    scenario: S-13
+    text: Each free imported chat is limited to 100,000 estimated input tokens, with larger chats requiring sufficient paid credits before processing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-FREE-TOKEN-CAP, T-CLI-LIMITS-DEV, T-WEB-LIMITS]
+  - id: AC-14
+    scenario: S-14
+    text: Explicit selected source identity is client-encrypted into imported assistant category/sender metadata and rendered with provider branding, while Other renders as AI assistant with a generic icon and no message is attributed to a normal mate.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, V-USER-CONFIRMATION, V-APPLE-IMPACT]
+  - id: AC-15
+    scenario: S-15
+    text: Gemini and Other accept the documented generic role/content transcript JSON adapter without claiming raw Gemini Takeout compatibility and use the universal safe import pipeline.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PARSER-GENERIC, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT]
 
 assumptions:
   - id: A-1
@@ -523,7 +677,8 @@ assumptions:
 contracts:
   normalized_import_model:
     ParsedProviderChat:
-      provider: claude|chatgpt|openmates
+      parser_format: claude|chatgpt|openmates|opencode|generic
+      selected_source: openmates|chatgpt|claude|gemini|opencode|other
       source_chat_id: string
       source_fingerprint: string
       title: string|null
@@ -540,6 +695,7 @@ contracts:
       created_at: string|null
       source_message_id: string|null
       provider_metadata: object
+      imported_assistant_identity: "{ category, sender_name, model_name?, avatar_key }|null"
     ParsedProviderEmbed:
       source_embed_id: string
       type: string
@@ -554,26 +710,54 @@ contracts:
   api:
     - route: POST /v1/account-imports/preview
       auth: session_or_api_key
-      request: "{ source: claude|chatgpt|openmates, chat_count, source_fingerprints: string[], estimated_tokens, estimated_bytes }"
+      access_model: first_party_or_developer_account_import
+      rate_limit: 10_per_minute_per_user
+      request: "{ selected_source: openmates|chatgpt|claude|gemini|opencode|other, parser_format: claude|chatgpt|openmates|opencode|generic, chat_count, source_fingerprints: string[], estimated_tokens_by_chat: number[], estimated_bytes }"
       response: "{ import_id, free_remaining, chat_limit, default_selection_count, max_batch_count, duplicate_fingerprints, estimated_credits, can_import, reason? }"
       notes:
         - Does not accept raw message plaintext.
         - Applies 3 free imported chats per rolling 30 days when credits are unavailable.
+        - Applies a 100,000 estimated input-token cap to each free chat.
         - Applies 30-chat paid batch cap and default newest-20 selection semantics.
+        - Reserves conservative paid scan/compression credits before the first plaintext batch is accepted.
     - route: POST /v1/account-imports/{import_id}/scan
       auth: session_or_api_key
-      request: "{ chats: ParsedProviderChat[] }"
-      response: "{ chats: SanitizedProviderChat[], credits_reserved, messages_blocked, failures }"
+      access_model: first_party_or_developer_account_import
+      rate_limit: 30_batches_per_minute_per_user
+      request: "{ batch_id: string, sequence: number, final_batch: boolean, chats: ParsedProviderChat[] }"
+      response: "{ batch_id, sequence, status: acknowledged|failed, chats: SanitizedProviderChat[], usage, messages_redacted, messages_replaced, retryable, failures }"
       notes:
         - Accepts only selected chats, never whole raw provider exports.
         - Plaintext is transient and must not be persisted in Directus or logs.
-        - Fails closed when scanner is unavailable unless an explicit blocked-message policy applies.
+        - Batch IDs and sequence numbers are idempotent; durable job state contains only hashes, cursors, counts, usage, and billing metadata.
+        - Every non-empty role is scanned; scanner infrastructure/configuration/result failures are retryable and fail closed.
+        - Successful redaction uses `[PROMPT INJECTION DETECTED & REMOVED]` for exact spans or the whole message when a high-risk span cannot be isolated.
+    - route: POST /v1/account-imports/{import_id}/compress
+      auth: session_or_api_key
+      access_model: first_party_or_developer_account_import
+      rate_limit: 30_batches_per_minute_per_user
+      request: "{ batch_id: string, sequence: number, final_batch: boolean, sanitized_messages: ParsedProviderMessage[], prior_summary?: string }"
+      response: "{ batch_id, sequence, status: acknowledged|failed, summary?: string, usage, retryable, failures }"
+      notes:
+        - Accepts sanitized content only after scan acknowledgement and rejects raw/unacknowledged message batches.
+        - Uses the normal production chat compression threshold and incremental windows so paid transcript length is not capped by one request.
+        - Returned plaintext summaries are transient; the client encrypts the final checkpoint before persistence.
+    - route: GET /v1/account-imports/{import_id}/status
+      auth: session_or_api_key
+      access_model: first_party_or_developer_account_import
+      rate_limit: 60_per_minute_per_user
+      response: "{ status, last_scan_sequence, last_compression_sequence, usage, credits_reserved, retryable_failure? }"
+      notes:
+        - Returns metadata only and enables client-owned resumability without server plaintext storage.
     - route: POST /v1/account-imports/{import_id}/complete
       auth: session_or_api_key
+      access_model: first_party_or_developer_account_import
+      rate_limit: 10_per_minute_per_user
       request: "{ imported_chat_ids: string[], source_fingerprints: string[], encrypted_record_counts, client_failures?: object[] }"
       response: "{ status: complete|partial|failed, credits_charged, credits_released, imported_count, failures }"
       notes:
         - Records import usage and finalized billing after client-encrypted persistence succeeds.
+        - Charges measured scanner/compressor provider usage exactly once and atomically releases unused reservation.
         - Does not write chat/message/embed plaintext.
   cli:
     - command: openmates account import claude <export.json|export.zip> [--select newest:20|all|ids:<csv>] [--dry-run] [--yes] [--json]
@@ -589,18 +773,26 @@ contracts:
       notes:
         - Imports only chats plus referenced embeds/uploads in V1.
         - Refuses unsupported OpenMates archive layouts unless explicitly marked compatible by Export V1 manifest.
+    - command: openmates account import opencode <transcript.json> [--select-source opencode] [--dry-run] [--yes] [--json]
+      notes:
+        - Imports visible user/assistant text only and excludes reasoning, tool payloads, ignored text, and embedded file URLs.
+    - command: openmates account import generic <transcript.json> --source <gemini|other> [--dry-run] [--yes] [--json]
+      notes:
+        - Requires the documented generic role/content schema and does not claim raw Gemini Takeout compatibility.
   sdk:
-    - npm: accountImports.parseClaude(file), parseChatGPT(file), parseOpenMates(pathOrBlob), preview(chats), scan(importId, chats), persistEncrypted(importId, sanitizedChats), importClaude(options), importChatGPT(options), importOpenMates(options)
-    - pip: client.account_imports.parse_claude(path), parse_chatgpt(path), parse_openmates(path), preview(chats), scan(import_id, chats), persist_encrypted(import_id, sanitized_chats), import_claude(options), import_chatgpt(options), import_openmates(options)
+    - npm: accountImports.parseClaude(file), parseChatGPT(file), parseOpenMates(pathOrBlob), parseOpenCode(file), parseGeneric(file), preview(chats), scanBatch(importId, batch), compressBatch(importId, batch), status(importId), persistEncrypted(importId, sanitizedChats), complete(importId, result)
+    - pip: client.account_imports.parse_claude(path), parse_chatgpt(path), parse_openmates(path), parse_opencode(path), parse_generic(path), preview(chats), scan_batch(import_id, batch), compress_batch(import_id, batch), status(import_id), persist_encrypted(import_id, sanitized_chats), complete(import_id, result)
   web:
-    - Settings > Account > Import supports Claude, ChatGPT, and OpenMates uploads through one local parser/upload control.
+    - Settings > Account > Import requires source selection before upload and supports OpenMates, ChatGPT, Claude, Gemini, OpenCode, and Other through the applicable local parser.
     - Signup/onboarding import can reuse the same component only after account/session/key prerequisites are met.
     - Provider instruction copy for Claude/ChatGPT references official data exports and explains that OpenMates parses locally and imports selected chats only.
   privacy_security:
     - Raw exports supplied by users for development inspection stay outside git and are not committed.
     - Redacted synthetic fixtures must be derived before tests are committed.
     - Permanent `chats`, `messages`, embeds, and upload-related private metadata are client-encrypted before persistence.
+    - Permanent imported assistant category, sender name, model/source name, and checkpoint summary fields are client-encrypted before persistence.
     - Directus plaintext private field guards remain active.
+    - Scanner/compressor requests may handle decrypted plaintext transiently over TLS but must not persist it in Directus, Redis, object storage, traces, or logs.
     - Logs redact source file names when they may contain private user text, raw message content, source IDs, share fragments, object keys, and credentials.
 
 tests:
@@ -676,7 +868,7 @@ tests:
     type: pytest
     file: backend/tests/test_chat_directus_encryption_guards.py
     command: python3 -m pytest backend/tests/test_chat_directus_encryption_guards.py
-    covers: [AC-1, AC-6]
+    covers: [AC-1, AC-6, AC-11, AC-12]
     assertions:
       - low-level Directus create_item rejects plaintext chat/message fields
       - client-encrypted message fields remain accepted
@@ -720,7 +912,7 @@ tests:
     type: manual
     file: scripts/verify_account_import_cli.py
     command: python3 scripts/verify_account_import_cli.py --env dev --scenario limits-and-costs
-    covers: [AC-3, AC-4]
+    covers: [AC-3, AC-4, AC-13]
     assertions:
       - zero-credit test account cannot import more than 3 chats per rolling 30 days
       - paid test account can import up to 30 chats per batch
@@ -786,7 +978,7 @@ tests:
     type: unit
     file: frontend/packages/openmates-cli/tests/account-import-sdk.test.ts
     command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts
-    covers: [AC-7]
+    covers: [AC-7, AC-12, AC-14, AC-15]
     assertions:
       - npm SDK exposes parse/preview/scan/persist/import helpers, including ChatGPT parsing
       - npm SDK defaults and limits match CLI/web contract
@@ -797,7 +989,7 @@ tests:
     type: pytest
     file: packages/openmates-python/tests/test_account_import.py
     command: python3 -m pytest packages/openmates-python/tests/test_account_import.py
-    covers: [AC-7]
+    covers: [AC-7, AC-12, AC-14, AC-15]
     assertions:
       - pip SDK exposes parse/preview/scan/persist/import helpers, including ChatGPT parsing
       - pip SDK defaults and limits match CLI/web contract
@@ -817,7 +1009,7 @@ tests:
     type: vitest
     file: frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
     command: cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts
-    covers: [AC-2, AC-6, AC-8]
+    covers: [AC-2, AC-6, AC-8, AC-12, AC-14, AC-15]
     assertions:
       - browser parser supports Claude JSON, ChatGPT official export, and OpenMates Export V1 ZIP fixtures
       - web service calls Account Import V1 preview, scan, persist-encrypted, and complete endpoints in order
@@ -847,7 +1039,7 @@ tests:
     file: frontend/apps/web_app/tests/import-account-limits.spec.ts
     command: python3 scripts/tests.py run --spec import-account-limits.spec.ts
     target: app.dev.openmates.org
-    covers: [AC-3, AC-4, AC-8]
+    covers: [AC-3, AC-4, AC-8, AC-13]
     assertions:
       - zero-credit UI caps selection at 3 imported chats per rolling 30 days
       - paid UI defaults newest 20 and caps at 30
@@ -876,6 +1068,105 @@ tests:
       - persisted records use encrypted private fields only
     red_phase: { required: false, expected: fail_or_not_run, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Scanner is a green-phase artifact guard for deployed web evidence." } }
     green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_import_archive.py --web-artifacts test-results/screenshots/2026-07-19/import-account-v1 --forbid-marker 'Synthetic web import user message' --forbid-marker 'Claude import chat 1' --forbid-marker 'Synthetic OpenMates web import message' --forbid-plaintext-directus-fields && python3 scripts/verify_account_import_archive.py --web-artifacts test-results/screenshots/current/import-account-limits --forbid-plaintext-directus-fields && python3 scripts/verify_account_import_archive.py --web-artifacts test-results/screenshots/current/import-account-dedupe --forbid-marker 'Potential duplicate import' --forbid-plaintext-directus-fields", run_id: "local-2026-07-19T01:06:00Z", subject_commit: "app.dev.openmates.org@c16997acf; artifact evidence through 58f5c6a14", timestamp: "2026-07-19T01:06:00Z" } }
+  - id: T-SCAN-ALL-ROLES
+    type: pytest
+    file: backend/tests/test_account_import_scan_endpoint.py
+    command: python3 -m pytest backend/tests/test_account_import_scan_endpoint.py -k all_roles
+    covers: [AC-11]
+    assertions:
+      - every non-empty user, assistant, and system message from every selected source reaches both smuggling and prompt-injection scanning
+      - empty messages do not create model calls or charges
+      - scan acknowledgement precedes compression eligibility
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-SCAN-FAIL-CLOSED-REDACTION
+    type: pytest
+    file: backend/tests/test_account_import_fail_closed.py
+    command: python3 -m pytest backend/tests/test_account_import_fail_closed.py -k scanner
+    covers: [AC-11]
+    assertions:
+      - exact unsafe spans are replaced while safe surrounding content remains
+      - unisolatable high-risk messages become the whole-message placeholder
+      - missing tool/config/secrets, timeouts, provider errors, and malformed results are retryable failures with no persistence or usage finalization
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-IMPORT-RESUME
+    type: pytest
+    file: backend/tests/test_account_import_resume.py
+    command: python3 -m pytest backend/tests/test_account_import_resume.py
+    covers: [AC-12]
+    assertions:
+      - acknowledged batch sequence retry is idempotent and does not rescan or double-charge
+      - status returns metadata cursors without plaintext
+      - paid processing can continue across arbitrarily many bounded batches
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-IMPORT-COMPRESSION
+    type: pytest
+    file: backend/tests/test_account_import_compression.py
+    command: python3 -m pytest backend/tests/test_account_import_compression.py
+    covers: [AC-12]
+    assertions:
+      - compression rejects unacknowledged or unsanitized batches
+      - normal production threshold controls whether compression runs
+      - incremental output is returned transiently and only encrypted checkpoint fields are accepted for persistence
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-IMPORT-BILLING
+    type: pytest
+    file: backend/tests/test_account_import_billing.py
+    command: python3 -m pytest backend/tests/test_account_import_billing.py
+    covers: [AC-12, AC-13]
+    assertions:
+      - conservative scan/compression reservation happens before paid model work
+      - measured usage settles exactly once and unused reservation is released
+      - insufficient balance prevents work and final balance cannot become negative
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-FREE-TOKEN-CAP
+    type: pytest
+    file: backend/tests/test_account_import_limits.py
+    command: python3 -m pytest backend/tests/test_account_import_limits.py -k token_cap
+    covers: [AC-13]
+    assertions:
+      - each free chat at 100000 estimated input tokens or less may consume a free slot
+      - a free chat above 100000 estimated input tokens requires paid credits without consuming a free slot
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-PROVIDER-IDENTITY
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
+    command: cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts -t provider
+    covers: [AC-14]
+    assertions:
+      - source selection is required before file upload and remains independent from parser format
+      - imported assistant category, sender name, model/source, and avatar key are encrypted before persistence
+      - normal mate category assignment is absent from imported assistant records
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-WEB-PROVIDER-IDENTITY
+    type: playwright
+    file: frontend/apps/web_app/tests/import-account-v1.spec.ts
+    command: python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit <sha>
+    target: app.dev.openmates.org
+    covers: [AC-14]
+    assertions:
+      - provider source must be selected before upload
+      - imported assistant messages render selected provider name/logo rather than a mate
+      - Other renders AI assistant with the generic AI/star icon on laptop and mobile
+    red_phase: { required: true, expected: fail_after_deploy, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval and deployed red fixture." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-PARSER-GENERIC
+    type: unit
+    file: frontend/packages/openmates-cli/tests/account-import.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts
+    covers: [AC-15]
+    assertions:
+      - generic transcript JSON accepts only documented role/content records
+      - unknown or ambiguous structures fail visibly
+      - Gemini source selection does not imply Gemini Takeout parser compatibility
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
+    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
 
 verifications:
   - id: V-PRODUCT-CONTRACT-APPROVAL
@@ -886,11 +1177,27 @@ verifications:
     status: passed
     description: User approved the Account Import V1 product contract before spec creation.
     evidence: { actor: user, timestamp: "2026-07-18", result: approved, notes: "Approved CLI, SDK, web, then Apple order; Claude official export plus OpenMates Export V1 sources; chats/embeds/uploads only; 3 free imported chats per rolling 30 days across all sources; no merge or overwrite." }
+  - id: V-RESUMED-CONTRACT-APPROVAL
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-11, AC-12, AC-13, AC-14]
+    status: passed
+    description: User approved the resumed safety, compression, billing, free-cap, resumability, and provider-identity product contract.
+    evidence: { actor: user, timestamp: "2026-08-04", result: approved, notes: "Approved scanning all roles/sources, selective or whole-message replacement, retryable fail-closed infrastructure behavior, scan-before-compression, actual usage settlement, no paid length ceiling, 100k-token free cap, and explicit provider identity." }
+  - id: V-IMPLEMENTATION-PLAN-APPROVAL
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-12, AC-14, AC-15]
+    status: passed
+    description: User approves metadata-only client resumability, incremental compression, and the generic role/content JSON adapter for Gemini/Other before implementation.
+    evidence: { actor: user, timestamp: "2026-08-04", result: approved, notes: "Approved the recommended validated plan, including metadata-only server cursors, client-held plaintext, and strict generic role/content JSON for Gemini/Other; raw Gemini Takeout remains unsupported." }
   - id: V-USER-CONFIRMATION
     kind: manual_check
     phase: green
     required_for_done: true
-    covers: [AC-8, AC-9]
+    covers: [AC-8, AC-9, AC-14]
     status: pending
     description: User confirms deployed dev web import UI behavior, copy, visual quality, and imported-chat usability before Apple parity starts.
     evidence: { actor: "", timestamp: "", result: "", notes: "" }
@@ -898,7 +1205,7 @@ verifications:
     kind: manual_check
     phase: final
     required_for_done: true
-    covers: [AC-9]
+    covers: [AC-9, AC-14]
     status: pending
     description: Apple parity or native-safe deferral verified after web/user confirmation.
     evidence: { command: "python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios", timestamp: "", result: "", subject_commit: "" }
@@ -907,34 +1214,49 @@ implementation_plan:
   status: ready
   spec_path: docs/specs/account-import-v1/spec.yml
   first_slice: >
-    Confirm the remaining blocking assumptions and write the backend-only red test
-    suite for parser, limit, dedupe, scan, and fail-closed behavior. Use redacted
-    fixtures derived from the confirmed Claude export shape and from the stable
-    Account Export V1 chat/archive layout; do not touch product source code until
-    those tests fail for the expected reasons.
+    Write and run focused red tests proving the current production scan route does
+    not scan every role, fails open when its scanner is missing, lacks idempotent
+    usage settlement/compression, and does not preserve selected provider identity.
+    Do not change product code until those failures are recorded.
   existing_patterns:
     - backend/core/api/app/routes/settings.py legacy import endpoint currently fail-closed.
     - backend/core/api/app/services/directus/api_methods.py Directus plaintext private field guard.
     - frontend/packages/ui/src/services/chatImportService.ts legacy parser and import service.
     - frontend/packages/openmates-cli/src/cli.ts CLI command dispatch.
     - docs/specs/account-export-v1/spec.yml OpenMates Export V1 archive contract dependency.
+    - backend/apps/ai/processing/content_sanitization.py import sanitizer and prompt-injection thresholds.
+    - backend/apps/ai/processing/chat_compressor.py production token estimate and compression behavior.
+    - backend/apps/ai/tasks/stream_consumer.py measured provider-usage billing pattern.
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts encrypted category/sender/model fields.
   architecture: >
-    Build a normalized import pipeline that parses source files locally in CLI/web/SDK where feasible, asks backend preview/scan endpoints for limits, cost, dedupe, and transient safety scanning, then has clients encrypt sanitized chats/messages/embeds/uploads and persist through the normal OpenMates encrypted chat/embed paths. The backend records import usage and billing but never stores plaintext chat content.
+    Extend the normalized client-owned import pipeline with durable metadata-only
+    job cursors and idempotent bounded scan/compression batches. Preview reserves
+    conservative credits; scan checks every non-empty role and returns selectively
+    redacted content; compression accepts only acknowledged sanitized batches and
+    returns a transient rolling summary. Clients retain/resume plaintext locally,
+    encrypt final messages, provider identity, and checkpoint summaries, then use
+    normal encrypted persistence. Completion atomically settles measured model
+    usage and releases the remaining reservation. No server store retains plaintext.
   boundaries:
     - Source parsing can run in CLI, SDKs, web, and backend tests, but committed fixtures must be redacted/synthetic and must not include raw Claude export content.
     - Preview accepts counts, fingerprints, token/byte estimates, and source metadata only; it never accepts raw message plaintext.
     - Scan accepts only user-selected normalized chats for the active import request, processes plaintext transiently, and must not write chat/message/embed plaintext or raw provider content to Directus, object storage, or logs.
+    - Durable resumability stores only job ownership, idempotency hashes, sequence cursors, counts, failure codes, reservation, and measured usage; clients retain plaintext and sanitized outputs locally.
+    - Compression accepts only scan-acknowledged sanitized batches and returns transient summary text that clients encrypt before checkpoint persistence.
+    - Selected provider identity is presentation metadata, not trusted parser detection; the parser format must still validate independently.
     - Client encryption and normal encrypted persistence paths are required for all imported private chat, message, embed, and referenced upload metadata.
     - The legacy `POST /v1/settings/import-chat` path remains fail-closed until V1 replaces it with encrypted persistence.
     - V1 skips projects, tasks, plans, workflows/runs, memories, settings, and team rows; expansion is tracked separately in OPE-588.
   data_flow:
-    - User selects Claude official export or OpenMates Export V1 archive in CLI, SDK, or web.
+    - User explicitly selects OpenMates, ChatGPT, Claude, Gemini, OpenCode, or Other before upload.
     - Client parser creates normalized ParsedProviderChat records and computes source fingerprints.
-    - Client calls preview endpoint with counts/fingerprints/token estimate.
+    - Client calls preview with selected source, parser format, counts/fingerprints, and per-chat token estimates; backend applies the free cap or reserves paid credits.
     - User confirms selected chats after seeing free allowance, paid limit, dedupe warnings, skipped domains, and estimated credits.
-    - Client sends selected plaintext chats to scan endpoint; backend scans transiently and reserves/charges only under approved billing contract.
-    - Client encrypts sanitized chats/messages/embeds/uploads locally and persists via normal encrypted OpenMates paths.
-    - Client calls complete endpoint with encrypted persistence result for usage/billing finalization.
+    - Client sends idempotent bounded plaintext batches; backend scans every non-empty role and returns sanitized content plus measured usage.
+    - Client resumes from metadata-only status cursors after interruption without repeating acknowledged batches.
+    - If the normal threshold is exceeded, the client submits acknowledged sanitized windows for incremental compression and receives a transient final summary.
+    - Client encrypts sanitized chats/messages/embeds/uploads, selected assistant identity, and compression checkpoints locally and persists via normal encrypted OpenMates paths.
+    - Client calls complete; backend atomically charges measured usage exactly once and releases unused reservation.
   concrete_example:
     - A Claude ZIP contains `conversations.json` with 1888 conversations; parser ignores `__MACOSX`, `.DS_Store`, and `._*` entries.
     - Parser maps Claude `human` messages to OpenMates `user`, Claude `assistant` messages to OpenMates `assistant`, flattens text/tool-result summaries into normalized message content, and preserves safe provider metadata without raw IDs in logs.
@@ -943,13 +1265,14 @@ implementation_plan:
     - CLI encrypts the sanitized chat titles/messages/embed payloads into new OpenMates chat IDs, persists through the normal sync path, and calls complete with imported encrypted record counts and source fingerprints.
   impacts:
     api:
-      - Add `/v1/account-imports/preview`, `/v1/account-imports/{import_id}/scan`, and `/v1/account-imports/{import_id}/complete` routes.
+      - Evolve preview/scan/complete and add `/compress` plus metadata-only `/status` semantics for resumable processing.
       - Keep `/v1/settings/import-chat` disabled until removed or replaced by the V1 encrypted path.
     data:
       - Add durable user-scoped import usage records for rolling allowance, source fingerprints, finalized status, and billing/audit metadata.
+      - Add metadata-only scan/compression cursors, idempotency hashes, reservation amount, measured usage, and atomic settlement state.
       - Store no permanent plaintext chat titles, message bodies, embed private payloads, raw source IDs, or user file names from provider exports.
     ui:
-      - Web uses provider cards, local file parsing, preview/selection, dedupe warnings, cost estimate, skipped-domain copy, and itemized partial results.
+      - Web requires provider selection, uses provider cards and applicable local parser, and renders imported provider identity instead of mate identity.
       - CLI and SDK output must expose the same warnings/limits/result states before web work starts.
     privacy_security:
       - Raw development samples stay outside git; committed fixtures are redacted or synthetic.
@@ -965,7 +1288,11 @@ implementation_plan:
     - path: backend/core/api/app/routes/account_imports.py
       reason: New preview, scan, and complete endpoints.
     - path: backend/core/api/app/services/account_import_service.py
-      reason: Limit, dedupe, billing reservation, scan orchestration, and import usage records.
+      reason: Limit, dedupe, strict billing reservation/settlement, scan/compression orchestration, idempotency, and import usage records.
+    - path: backend/apps/ai/processing/content_sanitization.py
+      reason: Distinguish safe redaction/block outcomes from retryable scanner infrastructure failures.
+    - path: backend/apps/ai/processing/chat_compressor.py
+      reason: Reuse production threshold and compression contract for sanitized import batches.
     - path: backend/core/directus/schemas/account_imports.yml
       reason: Durable import usage/dedupe/allowance records if Directus is chosen.
     - path: backend/tests/test_account_import_*.py
@@ -981,7 +1308,13 @@ implementation_plan:
     - path: frontend/packages/ui/src/services/chatImportService.ts
       reason: Shared web parser/import flow replacement.
     - path: frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
-      reason: Web unified import UI.
+      reason: Required source selection, progress/resume, limits, and provider instructions.
+    - path: frontend/packages/ui/src/components/ChatHistory.svelte
+      reason: Pass imported encrypted sender/category identity into message rendering.
+    - path: frontend/packages/ui/src/components/ChatMessage.svelte
+      reason: Render imported provider/generic identity instead of a mate.
+    - path: frontend/packages/ui/src/utils/categoryUtils.ts
+      reason: Resolve provider and generic AI avatar/gradient identity.
     - path: frontend/apps/web_app/tests/import-account-v1.spec.ts
       reason: Web E2E coverage.
     - path: docs/user-guide/import-account.md
@@ -990,7 +1323,7 @@ implementation_plan:
       reason: Architecture claims update.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/account-import-v1/spec.yml
-    - Red backend parser/limit/dedupe/scan/fail-closed tests before implementation.
+    - Red all-role scan, selective-redaction, fail-closed, resumability, compression, billing, token-cap, generic-parser, and provider-identity tests before implementation.
     - Real CLI Claude and OpenMates imports against dev before SDK/web work.
     - npm SDK and pip SDK parity tests after CLI contract is green.
     - Wire deterministic import coverage into daily tests after dev CLI success and local npm/pip SDK parity.
@@ -998,10 +1331,10 @@ implementation_plan:
     - User confirmation on deployed import UI and imported-chat usability before Apple parity.
     - python3 scripts/spec_verify.py docs/specs/account-import-v1/spec.yml before marking verified.
   verification_order:
-    - Backend parser/limit/dedupe/scan/fail-closed red tests
-    - Backend implementation green tests
-    - Real CLI command against dev server
-    - npm SDK and pip SDK parity
+    - Backend all-role scan/fail-closed/resume/compression/billing/free-cap red tests
+    - Backend implementation and plaintext guard green tests
+    - Real REST and CLI commands against the restarted dev API
+    - npm SDK and pip SDK resumability/provider-source parity
     - GitHub Actions/daily-test wiring after dev CLI success and SDK parity
     - Web implementation and deployed Playwright green tests
     - User confirmation of dev web import UX/imported-chat usability
@@ -1016,6 +1349,11 @@ implementation_plan:
     - AC-7: T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-PARITY-AUDIT.
     - AC-8: T-WEB-IMPORT, T-WEB-LIMITS, T-WEB-DEDUPE, V-USER-CONFIRMATION.
     - AC-9: T-CLI-CLAUDE-DEV, T-CLI-OPENMATES-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-IMPORT, V-USER-CONFIRMATION, V-APPLE-IMPACT.
+    - AC-11: T-SCAN-ALL-ROLES, T-SCAN-FAIL-CLOSED-REDACTION, T-ENCRYPTION-GUARDS.
+    - AC-12: T-IMPORT-RESUME, T-IMPORT-COMPRESSION, T-IMPORT-BILLING, T-ENCRYPTION-GUARDS.
+    - AC-13: T-BACKEND-FREE-TOKEN-CAP, T-CLI-LIMITS-DEV, T-WEB-LIMITS.
+    - AC-14: T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, V-USER-CONFIRMATION, V-APPLE-IMPACT.
+    - AC-15: T-PARSER-GENERIC, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT.
   rollout:
     - Keep legacy import endpoint fail-closed while backend/CLI/SDK/web V1 work rolls out.
     - Ship CLI and SDK import capability against dev first; do not expose web UI until those gates pass.
@@ -1024,8 +1362,8 @@ implementation_plan:
     - Log import_id, user_id hash or internal ID, source type, counts, status, failure codes, duplicate counts, credits reserved/charged/released, and duration.
     - Do not log raw messages, chat titles, file names from imports, source IDs, source fingerprints in full, credentials, object keys, or share fragments.
   plan_approval:
-    required: false
-    reason: The plan introduces no product-scope expansion and uses the approved encrypted client-persistence, transient scan, no-merge, limits, and phase-order contract.
+    required: true
+    reason: The material resumption adds metadata-only resumability, strict reservation/settlement, compression batching, a generic transcript adapter, and cross-client identity changes.
 
 tasks:
   - id: TASK-1
@@ -1308,6 +1646,187 @@ tasks:
       - User must confirm deployed web UI behavior and visual quality third.
     follow_up_tasks: []
     independently_deployable: false
+  - id: TASK-11
+    title: Approve resumed import safety and provider-identity contract
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-11, S-12, S-13, S-14, S-15]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files: [docs/specs/account-import-v1/spec.yml]
+    verification: [V-RESUMED-CONTRACT-APPROVAL, V-IMPLEMENTATION-PLAN-APPROVAL]
+    verification_ids: [V-RESUMED-CONTRACT-APPROVAL, V-IMPLEMENTATION-PLAN-APPROVAL]
+    dependencies: [TASK-10]
+    ownership:
+      files: [docs/specs/account-import-v1/spec.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-12]
+    independently_deployable: false
+  - id: TASK-12
+    title: Write resumed backend and provider-identity red tests
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12, S-13, S-14, S-15]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - backend/tests/test_account_import_scan_endpoint.py
+      - backend/tests/test_account_import_fail_closed.py
+      - backend/tests/test_account_import_resume.py
+      - backend/tests/test_account_import_compression.py
+      - backend/tests/test_account_import_billing.py
+      - backend/tests/test_account_import_limits.py
+      - frontend/packages/openmates-cli/tests/account-import.test.ts
+      - frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
+    verification: [T-SCAN-ALL-ROLES, T-SCAN-FAIL-CLOSED-REDACTION, T-IMPORT-RESUME, T-IMPORT-COMPRESSION, T-IMPORT-BILLING, T-BACKEND-FREE-TOKEN-CAP, T-PROVIDER-IDENTITY, T-PARSER-GENERIC]
+    verification_ids: [T-SCAN-ALL-ROLES, T-SCAN-FAIL-CLOSED-REDACTION, T-IMPORT-RESUME, T-IMPORT-COMPRESSION, T-IMPORT-BILLING, T-BACKEND-FREE-TOKEN-CAP, T-PROVIDER-IDENTITY, T-PARSER-GENERIC]
+    dependencies: [TASK-11]
+    ownership:
+      files:
+        - backend/tests/test_account_import_scan_endpoint.py
+        - backend/tests/test_account_import_fail_closed.py
+        - backend/tests/test_account_import_resume.py
+        - backend/tests/test_account_import_compression.py
+        - backend/tests/test_account_import_billing.py
+        - backend/tests/test_account_import_limits.py
+        - frontend/packages/openmates-cli/tests/account-import.test.ts
+        - frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-13]
+    independently_deployable: false
+  - id: TASK-13
+    title: Implement fail-closed resumable scan compression and billing backend
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12, S-13]
+      acceptance_criteria: [AC-11, AC-12, AC-13]
+    expected_files:
+      - backend/core/api/app/routes/account_imports.py
+      - backend/core/api/app/services/account_import_service.py
+      - backend/apps/ai/processing/content_sanitization.py
+      - backend/apps/ai/processing/chat_compressor.py
+      - backend/core/directus/schemas/account_imports.yml
+    verification: [T-SCAN-ALL-ROLES, T-SCAN-FAIL-CLOSED-REDACTION, T-IMPORT-RESUME, T-IMPORT-COMPRESSION, T-IMPORT-BILLING, T-BACKEND-FREE-TOKEN-CAP, T-ENCRYPTION-GUARDS]
+    verification_ids: [T-SCAN-ALL-ROLES, T-SCAN-FAIL-CLOSED-REDACTION, T-IMPORT-RESUME, T-IMPORT-COMPRESSION, T-IMPORT-BILLING, T-BACKEND-FREE-TOKEN-CAP, T-ENCRYPTION-GUARDS]
+    dependencies: [TASK-12]
+    ownership:
+      files:
+        - backend/core/api/app/routes/account_imports.py
+        - backend/core/api/app/services/account_import_service.py
+        - backend/apps/ai/processing/content_sanitization.py
+        - backend/apps/ai/processing/chat_compressor.py
+        - backend/core/directus/schemas/account_imports.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-14]
+    independently_deployable: false
+  - id: TASK-14
+    title: Implement CLI and SDK resumability generic parser and provider source parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-12, S-13, S-14, S-15]
+      acceptance_criteria: [AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - frontend/packages/openmates-cli/src/accountImport.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - packages/openmates-python/openmates/sdk.py
+      - scripts/verify_account_import_cli.py
+    verification: [T-CLI-LIMITS-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-PARITY-AUDIT, T-PARSER-GENERIC]
+    verification_ids: [T-CLI-LIMITS-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-PARITY-AUDIT, T-PARSER-GENERIC]
+    dependencies: [TASK-13]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/accountImport.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - packages/openmates-python/openmates/sdk.py
+        - scripts/verify_account_import_cli.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-15]
+    independently_deployable: false
+  - id: TASK-15
+    title: Implement web source selection resumability and provider identity rendering
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-12, S-13, S-14, S-15]
+      acceptance_criteria: [AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - frontend/packages/ui/src/services/chatImportService.ts
+      - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/packages/ui/src/components/ChatMessage.svelte
+      - frontend/packages/ui/src/utils/categoryUtils.ts
+      - frontend/apps/web_app/tests/import-account-v1.spec.ts
+    verification: [T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT, T-WEB-LIMITS, T-WEB-SECRET-SCAN]
+    verification_ids: [T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT, T-WEB-LIMITS, T-WEB-SECRET-SCAN]
+    dependencies: [TASK-14]
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/chatImportService.ts
+        - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+        - frontend/packages/ui/src/components/ChatHistory.svelte
+        - frontend/packages/ui/src/components/ChatMessage.svelte
+        - frontend/packages/ui/src/utils/categoryUtils.ts
+        - frontend/apps/web_app/tests/import-account-v1.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-16]
+    independently_deployable: false
+  - id: TASK-16
+    title: Verify deployed import behavior and obtain user confirmation
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12, S-13, S-14, S-15]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - docs/user-guide/import-account.md
+      - docs/architecture/core/account-backup.md
+      - docs/specs/account-import-v1/spec.yml
+    verification: [T-WEB-PROVIDER-IDENTITY, V-USER-CONFIRMATION]
+    verification_ids: [T-WEB-PROVIDER-IDENTITY, V-USER-CONFIRMATION]
+    dependencies: [TASK-15]
+    ownership:
+      files:
+        - docs/user-guide/import-account.md
+        - docs/architecture/core/account-backup.md
+        - docs/specs/account-import-v1/spec.yml
+      shared_files: []
+    blockers:
+      - Requires deployed Playwright and reviewed laptop/mobile visual smoke before user confirmation.
+    follow_up_tasks: [TASK-17]
+    independently_deployable: false
+  - id: TASK-17
+    title: Implement or explicitly defer Apple provider-identity parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-14]
+      acceptance_criteria: [AC-9, AC-14]
+    expected_files:
+      - apple/OpenMates/Sources/Settings
+      - apple/OpenMates/Sources/Chat
+    verification: [V-APPLE-IMPACT]
+    verification_ids: [V-APPLE-IMPACT]
+    dependencies: [TASK-16]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Settings
+        - apple/OpenMates/Sources/Chat
+      shared_files: []
+    blockers:
+      - User confirmation of deployed web behavior is required first.
+    follow_up_tasks: []
+    independently_deployable: false
 
 risks:
   - id: R-1
@@ -1338,10 +1857,13 @@ risks:
 open_questions:
   - id: OQ-1
     question: "Which persistent store should hold import usage/dedupe/allowance records: Directus, Redis with Directus summary, or a dedicated Postgres table?"
-    status: implementation_decision_needed
+    status: resolved
+    resolution: Directus stores durable user-scoped import metadata; Redis may hold transient locks/rate limits only.
   - id: OQ-2
     question: Should blocked unsafe imported messages be omitted entirely or replaced with a visible placeholder in V1?
-    status: implementation_decision_needed
+    status: resolved
+    resolution: Replace exact unsafe spans, or replace the whole high-risk message when spans cannot be safely isolated.
   - id: OQ-3
     question: Should OpenMates-to-OpenMates imports need the same prompt-injection scan when they come from a trusted Export V1 archive, or can they skip scan based on source manifest integrity?
-    status: implementation_decision_needed
+    status: resolved
+    resolution: Scan every non-empty message from every source, including OpenMates exports.

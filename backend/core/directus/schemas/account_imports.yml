@@ -19,6 +19,10 @@ account_imports:
       type: string
       length: 32
       required: true
+    processing_mode:
+      type: string
+      length: 32
+      nullable: true
     imported_chat_ids:
       type: json
       required: true
@@ -42,6 +46,103 @@ account_imports:
     credits_released:
       type: integer
       nullable: true
+    last_scan_sequence:
+      type: integer
+      nullable: true
+    last_scan_batch_id:
+      type: string
+      length: 128
+      nullable: true
+    last_scan_request_hash:
+      type: string
+      length: 64
+      nullable: true
+    last_sanitized_hash:
+      type: string
+      length: 64
+      nullable: true
+    last_compression_sequence:
+      type: integer
+      nullable: true
+    last_compression_batch_id:
+      type: string
+      length: 128
+      nullable: true
+    last_compression_request_hash:
+      type: string
+      length: 64
+      nullable: true
+    usage:
+      type: json
+      nullable: true
+      note: "Measured credit counters only; never provider request or response content"
+    retryable_failure:
+      type: string
+      length: 128
+      nullable: true
+    billing_finalized:
+      type: boolean
+      nullable: true
+    completion_result:
+      type: json
+      nullable: true
+      note: "Idempotent final counters and status; no plaintext import content"
+    source:
+      type: string
+      length: 32
+      nullable: true
+    selected_fingerprints:
+      type: json
+      nullable: true
+    preview_fingerprints:
+      type: json
+      nullable: true
+    estimated_credits:
+      type: integer
+      nullable: true
+    reservation_expires_at:
+      type: datetime
+      nullable: true
+    reserved_chat_count:
+      type: integer
+      nullable: true
+    estimated_tokens_by_fingerprint:
+      type: json
+      nullable: true
+    chat_scan_state:
+      type: json
+      nullable: true
+      note: "Per-chat cumulative hashes, counts, token estimates, and acknowledgement flags only"
+    scan_batch_state:
+      type: json
+      nullable: true
+      note: "Per-batch sanitized message hashes and counts only; never plaintext"
+    compression_summary_hashes:
+      type: json
+      nullable: true
+      note: "Per-chat hashes of transient client-held summaries; never plaintext"
+    compression_acknowledged_fingerprints:
+      type: json
+      nullable: true
+    compression_required:
+      type: json
+      nullable: true
+    persisted_chat_ids:
+      type: json
+      nullable: true
+    persisted_fingerprints:
+      type: json
+      nullable: true
+    server_content_fingerprints:
+      type: json
+      nullable: true
+      note: "Server-derived hash chain per sanitized chat; never plaintext"
+    server_duplicate_fingerprints:
+      type: json
+      nullable: true
+    prior_server_content_fingerprints:
+      type: json
+      nullable: true
     created_at:
       type: datetime
       special:
@@ -50,3 +151,6 @@ account_imports:
       type: datetime
       special:
         - date-updated
+  indexes:
+    - fields: [user_id, import_id]
+      unique: true
