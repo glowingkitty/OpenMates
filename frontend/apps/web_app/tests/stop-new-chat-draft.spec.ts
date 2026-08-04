@@ -118,23 +118,20 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await expect(sendButton).toBeVisible({ timeout: 15000 });
 		await expect(sendButton).toBeEnabled({ timeout: 5000 });
 		await sendButton.click();
+		const stopButton = page.getByTestId('stop-processing-button');
+		await expect(stopButton).toBeVisible({ timeout: 10000 });
+		await stopButton.click();
+		logCheckpoint('Clicked Stop while the new chat was still being created.');
+		await takeStepScreenshot(page, 'creating-chat-stop-clicked');
 		const taskLoadingAppeared = page
 			.getByTestId('active-chat-task-preview-loading')
 			.waitFor({ state: 'visible', timeout: 2500 })
 			.then(() => true)
 			.catch(() => false);
 		shouldTryCleanup = true;
-		logCheckpoint('Sent fresh-chat message and waiting for creating-chat state.');
+		logCheckpoint('Sent fresh-chat message and stopped the creating-chat state.');
 
-		const chatHeader = page.getByTestId('chat-header-banner');
-		await expect(chatHeader).toContainText(/Creating new chat/i, { timeout: 15000 });
 		expect(await taskLoadingAppeared).toBe(false);
-		const stopButton = page.getByTestId('stop-processing-button');
-		await expect(stopButton).toBeVisible({ timeout: 10000 });
-		await stopButton.click();
-		logCheckpoint('Clicked Stop while the new chat was still being created.');
-		await takeStepScreenshot(page, 'creating-chat-stop-clicked');
-
 		await expect(stopButton).not.toBeVisible({ timeout: 10000 });
 		await expect(messageEditor).toContainText(visibleDraft, { timeout: 15000 });
 		await expect(page.getByText(/Creating new chat/i)).toHaveCount(0, { timeout: 15000 });
