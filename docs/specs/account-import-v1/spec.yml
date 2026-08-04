@@ -313,16 +313,26 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-19T01:07:00Z"
     notes: "Vercel READY for deployed app commit c16997acf. Initial deployed Account Import Playwright runs exposed test-only issues: an ambiguous skipped-domain text selector, a hardcoded mock import id across repeated uploads, and an assertion reading the first mock call list after reinstalling the mock. Test-only fixes were deployed in commits a456fbbd8, 0a9e74a7a, 16285045c, and 8beb545b2. Final deployed-web evidence passed for import-account-v1, import-account-limits, import-account-dedupe, and Account Import artifact scans. Later reruns used OPENMATES_SKIP_VERCEL_WAIT=true because Vercel correctly had no new Account Import app build after test-only/unrelated commits; app.dev.openmates.org remained on READY Account Import runtime commit c16997acf."
+  - id: ATTEMPT-13
+    task_id: TASK-15
+    approach: Implement explicit web source selection, strict generic Gemini/Other parsing, resumable scan/compression orchestration, encrypted provider metadata, canonical provider rendering, and deployed laptop/mobile verification.
+    outcome: succeeded
+    recorded_at: "2026-08-04T17:40:42Z"
+    notes: "Production implementation deployed in b9b0e62; final mobile/provider test refinement deployed in ddbcb51. Vitest run 30920983043 passed 706/706. Deployed Playwright runs 30933944334 (main), 30924847553 (limits), and 30924039255 (dedupe) passed. Artifact privacy scan and settings consistency audit passed, and authenticated laptop/mobile screenshots were reviewed with no objective defects."
 
 handoff:
-  current_task_id: TASK-15
-  next_action: Implement the pending web source-selection, resumability, compression-summary persistence, and provider-identity rendering phase only after reviewing the completed CLI/SDK live evidence.
-  command: python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit <web-commit>
-  expected_outcome: Deployed web behavior passes before user confirmation or Apple work begins.
+  current_task_id: TASK-16
+  next_action: Ask the user to confirm the deployed Account Import UI, source copy, and imported provider rendering on app.dev.openmates.org before any Apple work begins.
+  command: Open https://app.dev.openmates.org/#settings/account/import and import a supported test export.
+  expected_outcome: User confirms the deployed web behavior and visual quality, unblocking TASK-17 Apple parity work.
   blocker:
-    type: web_implementation_pending
-    detail: CLI/SDK phases are complete; web rendering, deployed Playwright, visual review, and user confirmation remain pending. Apple remains blocked behind those gates.
-  last_verified_commit: 8e59fc1
+    type: user_confirmation_required
+    task_id: TASK-16
+    requires_user_input: true
+    reason: Automated web and reviewed laptop/mobile evidence are complete, but the required user confirmation gate cannot be self-approved.
+    question: Does the deployed Account Import flow, copy, and imported provider rendering work and look correct on dev?
+    next_action: Record V-USER-CONFIRMATION after the user checks the deployed route; only then begin TASK-17.
+  last_verified_commit: ddbcb51c949af1be7dae41934c02a9567da43534
 
 scenarios:
   - id: S-1
@@ -1022,8 +1032,8 @@ tests:
       - local cache excludes messages that failed encrypted persistence
       - local cache excludes chats with chat-level encrypted persistence failures
       - complete request does not record source fingerprints for partially failed encrypted persistence
-    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts", run_id: "local-2026-07-18T23:10:05Z", timestamp: "2026-07-18T23:10:05Z", reason: "Initial focused test failed before implementation/test-environment fixes because File.arrayBuffer/window.location support was missing in the package test harness." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 scripts/tests.py run --suite vitest", run_id: "gha-30914711468", subject_commit: "1dedbee616ef3d3cad3c49274476153d9ebf364d", timestamp: "2026-08-04T13:37:00Z", reason: "The two new Account Import tests failed because the pre-implementation browser service treated selected source identity as the progress callback and lacked resumable provider-aware orchestration; 704/706 tests passed." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/tests.py run --suite vitest", run_id: "gha-30920983043", subject_commit: "b9b0e62ea83bef3fdc545416fd20a22874ee7185", timestamp: "2026-08-04T14:50:08Z", notes: "706/706 Vitest tests passed after the web implementation deploy." } }
   - id: T-WEB-IMPORT
     type: playwright
     file: frontend/apps/web_app/tests/import-account-v1.spec.ts
@@ -1034,8 +1044,8 @@ tests:
       - web imports Claude, ChatGPT, and OpenMates V1 fixtures through shared flow
       - UI reports skipped unsupported OpenMates domains
       - imported chat opens and displays decrypted content after sync
-    red_phase: { required: false, expected: fail_or_not_run, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Web Playwright red phase was superseded by earlier CLI/SDK and service-test gates; deployed web evidence was collected after implementation reached app.dev.openmates.org." } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run --spec import-account-v1.spec.ts", run_id: "2026-07-20T14:53:05Z / gha-29752801309", subject_commit: "app.dev.openmates.org@c658e4ed; test runner 0d1bb216c", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_8G4XLV9jXDTg8YZ1RXixgb3A5FdJ READY for c658e4ed", timestamp: "2026-07-20T14:57:38Z", notes: "Spec now includes the ChatGPT ZIP web import case. An earlier run at 2026-07-20T14:45:55Z failed only because the new assertion expected chat count text while the UI reported the correct '2 messages imported' result; after deploying 0d1bb216c the rerun passed." } }
+    red_phase: { required: false, expected: fail_or_not_run, evidence: { status: failed_as_expected, command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit 1dedbee61", run_id: "gha-30915677115", subject_commit: "f534480dc95e6576e591603d215cfb233296886e", timestamp: "2026-08-04T13:48:42Z", reason: "The deployed pre-implementation UI did not satisfy explicit source-selection and resumable provider-identity assertions." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit ddbcb51", run_id: "gha-30933944334", subject_commit: "ddbcb51c949af1be7dae41934c02a9567da43534", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_GyR1gzJA5toriQ11bSJfGbiuF4zV READY for ddbcb51", timestamp: "2026-08-04T17:26:55Z", notes: "All eight Account Import web tests passed, including explicit mobile source selection, encrypted Gemini identity/compression, and mobile Other provider rendering." } }
   - id: T-WEB-LIMITS
     type: playwright
     file: frontend/apps/web_app/tests/import-account-limits.spec.ts
@@ -1047,7 +1057,7 @@ tests:
       - paid UI defaults newest 20 and caps at 30
       - cost estimate and buy-credits message are visible before import
     red_phase: { required: false, expected: fail_or_not_run, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Web Playwright red phase was superseded by earlier CLI/SDK and service-test gates; deployed web evidence was collected after implementation reached app.dev.openmates.org." } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run --spec import-account-limits.spec.ts", run_id: "2026-07-19T00:57:04Z / gha-29667842437", subject_commit: "app.dev.openmates.org@c16997acf; test runner 58f5c6a14", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_7buC3Dp6aotviKu1LUTZW3ZLErh7 READY for c16997acf", timestamp: "2026-07-19T01:00:31Z", notes: "Vercel was already READY for Account Import app commit c16997acf; skip wait used because later commits were test-only or unrelated to Account Import runtime." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec import-account-limits.spec.ts --gate-deploy --expected-commit baef9d763", run_id: "gha-30924847553", subject_commit: "6d2934cdcdc7a4f4cbabb0ba2be433decd46cf96", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_HwDpCJEk9ufiZQCcYtSakXPCta6D READY for baef9d763", timestamp: "2026-08-04T15:34:39Z", notes: "Both limit and insufficient-credit scenarios passed on a deployed descendant containing b9b0e62." } }
   - id: T-WEB-DEDUPE
     type: playwright
     file: frontend/apps/web_app/tests/import-account-dedupe.spec.ts
@@ -1059,7 +1069,7 @@ tests:
       - confirming duplicate import creates a separate new chat
       - original chat remains unchanged
     red_phase: { required: false, expected: fail_or_not_run, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Web Playwright red phase was superseded by earlier CLI/SDK and service-test gates; deployed web evidence was collected after implementation reached app.dev.openmates.org." } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run --spec import-account-dedupe.spec.ts", run_id: "2026-07-19T01:01:46Z / gha-29667978778", subject_commit: "app.dev.openmates.org@c16997acf; test runner 58f5c6a14", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_7buC3Dp6aotviKu1LUTZW3ZLErh7 READY for c16997acf", timestamp: "2026-07-19T01:05:27Z", notes: "Vercel was already READY for Account Import app commit c16997acf; skip wait used because later commits were test-only or unrelated to Account Import runtime." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec import-account-dedupe.spec.ts --gate-deploy --expected-commit 9dd9a1a81", run_id: "gha-30924039255", subject_commit: "baef9d763c9b8200e2cd0ee05a4a30eca7451683", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_8dtpzjza2MTUmoWy4TUxACQ2ajqw READY for 9dd9a1a81", timestamp: "2026-08-04T15:25:06Z", notes: "Duplicate warning and separate-chat behavior passed on a deployed descendant containing b9b0e62." } }
   - id: T-WEB-SECRET-SCAN
     type: lint
     file: scripts/verify_account_import_archive.py
@@ -1069,7 +1079,7 @@ tests:
       - web import artifacts do not expose raw message content in logs
       - persisted records use encrypted private fields only
     red_phase: { required: false, expected: fail_or_not_run, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Scanner is a green-phase artifact guard for deployed web evidence." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_import_archive.py --web-artifacts test-results/screenshots/2026-07-19/import-account-v1 --forbid-marker 'Synthetic web import user message' --forbid-marker 'Claude import chat 1' --forbid-marker 'Synthetic OpenMates web import message' --forbid-plaintext-directus-fields && python3 scripts/verify_account_import_archive.py --web-artifacts test-results/screenshots/current/import-account-limits --forbid-plaintext-directus-fields && python3 scripts/verify_account_import_archive.py --web-artifacts test-results/screenshots/current/import-account-dedupe --forbid-marker 'Potential duplicate import' --forbid-plaintext-directus-fields", run_id: "local-2026-07-19T01:06:00Z", subject_commit: "app.dev.openmates.org@c16997acf; artifact evidence through 58f5c6a14", timestamp: "2026-07-19T01:06:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_import_archive.py --web-artifacts test-results/screenshots/current/import-account-v1 --forbid-marker 'Synthetic web import user message' --forbid-marker 'Claude import chat 1' --forbid-marker 'Synthetic OpenMates web import message' --forbid-marker 'Synthetic sanitized compression summary' --forbid-plaintext-directus-fields", run_id: "local-2026-08-04T17:40Z", subject_commit: "ddbcb51c949af1be7dae41934c02a9567da43534", timestamp: "2026-08-04T17:40:42Z", notes: "Persist artifacts contain encrypted private fields and no forbidden plaintext markers." } }
   - id: T-SCAN-ALL-ROLES
     type: pytest
     file: backend/tests/test_account_import_scan_endpoint.py
@@ -1156,8 +1166,8 @@ tests:
       - provider source must be selected before upload
       - imported assistant messages render selected provider name/logo rather than a mate
       - Other renders AI assistant with the generic AI/star icon on laptop and mobile
-    red_phase: { required: true, expected: fail_after_deploy, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval and deployed red fixture." } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail_after_deploy, evidence: { status: failed_as_expected, command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit 1dedbee61", run_id: "gha-30915677115", subject_commit: "f534480dc95e6576e591603d215cfb233296886e", timestamp: "2026-08-04T13:48:42Z", reason: "The deployed pre-implementation UI lacked explicit provider selection and imported-provider rendering." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit ddbcb51", run_id: "gha-30933944334", subject_commit: "ddbcb51c949af1be7dae41934c02a9567da43534", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_GyR1gzJA5toriQ11bSJfGbiuF4zV READY for ddbcb51", timestamp: "2026-08-04T17:26:55Z", notes: "Gemini renders with provider identity after revealing compressed history; Other renders as AI assistant with the generic icon on desktop and mobile." } }
   - id: T-PARSER-GENERIC
     type: unit
     file: frontend/packages/openmates-cli/tests/account-import.test.ts
@@ -1195,6 +1205,14 @@ verifications:
     status: passed
     description: User approves metadata-only client resumability, incremental compression, and the generic role/content JSON adapter for Gemini/Other before implementation.
     evidence: { actor: user, timestamp: "2026-08-04", result: approved, notes: "Approved the recommended validated plan, including metadata-only server cursors, client-held plaintext, and strict generic role/content JSON for Gemini/Other; raw Gemini Takeout remains unsupported." }
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers: [AC-8, AC-14, AC-15]
+    status: passed
+    description: Reviewed deployed Account Import UI and imported provider rendering at laptop and mobile viewports.
+    evidence: { command: "python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit ddbcb51", run_id: "gha-30933944334", subject_commit: "ddbcb51c949af1be7dae41934c02a9567da43534", timestamp: "2026-08-04T17:40:42Z", route: "https://app.dev.openmates.org/#settings/account/import", viewports: [laptop, mobile], screenshots: ["test-results/screenshots/current/import-account-v1/test-finished-1.png", "test-results/screenshots/current/import-account-v1/mobile-source-selection.png", "test-results/screenshots/current/import-account-v1/mobile-other-provider.png"], notes: "Reviewed authenticated screenshots. Defects: none; controls and provider identity are readable without clipping or horizontal overflow, and the primary import flow is responsive. Accepted differences: the existing account security reminder overlays the source-selection screenshot; generic unauthenticated visual-smoke captures redirect to login." }
   - id: V-USER-CONFIRMATION
     kind: manual_check
     phase: green
@@ -1756,8 +1774,8 @@ tasks:
     independently_deployable: false
   - id: TASK-15
     title: Implement web source selection resumability and provider identity rendering
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-12, S-13, S-14, S-15]
       acceptance_criteria: [AC-12, AC-13, AC-14, AC-15]
@@ -1768,8 +1786,8 @@ tasks:
       - frontend/packages/ui/src/components/ChatMessage.svelte
       - frontend/packages/ui/src/utils/categoryUtils.ts
       - frontend/apps/web_app/tests/import-account-v1.spec.ts
-    verification: [T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT, T-WEB-LIMITS, T-WEB-SECRET-SCAN]
-    verification_ids: [T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT, T-WEB-LIMITS, T-WEB-SECRET-SCAN]
+    verification: [T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT, T-WEB-LIMITS, T-WEB-DEDUPE, T-WEB-SECRET-SCAN, V-UI-VISUAL-SMOKE]
+    verification_ids: [T-PROVIDER-IDENTITY, T-WEB-PROVIDER-IDENTITY, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT, T-WEB-LIMITS, T-WEB-DEDUPE, T-WEB-SECRET-SCAN, V-UI-VISUAL-SMOKE]
     dependencies: [TASK-14]
     ownership:
       files:
