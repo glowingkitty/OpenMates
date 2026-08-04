@@ -200,6 +200,8 @@
         startNewChatOnClick?: boolean;
         /** True when this composer is attached to the empty new-chat screen. */
         isNewChatContext?: boolean;
+        /** Keep an already-persisted draft shell ID when new-chat creation is stopped. */
+        preserveChatIdOnNewChatCancellation?: boolean;
         /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
         inlineCompact?: boolean;
         /** True after an unauthenticated user tried to attach a file and must sign up first. */
@@ -226,6 +228,7 @@
         placeholderText = undefined,
         startNewChatOnClick = false,
         isNewChatContext = false,
+        preserveChatIdOnNewChatCancellation = false,
         inlineCompact = false,
         anonymousFileAttachmentPending = $bindable(false),
         guestCtaMode = false
@@ -763,7 +766,12 @@
     let cancelRequestedChatId = $state<string | null>(null);
     let awaitingAITaskTimeoutId: NodeJS.Timeout | null = null;
     let sendClickInProgress = $state(false);
-    let pendingNewChatDraftRestore = $state<{ chatId: string | null; text: string } | null>(null);
+    let pendingNewChatDraftRestore = $state<{
+        chatId: string | null;
+        text: string;
+        preserveChatId: boolean;
+    } | null>(null);
+    const cancelledNewChatSendIds = new Set<string>();
     let showStopProcessingButton = $derived(!!activeAITaskId || awaitingAITaskStart);
     let showEmptyInputAffordances = $derived(showBaseEmptyInputAffordances && !showStopProcessingButton);
     
@@ -3379,6 +3387,9 @@
     function dispatchPendingNewChatCancellation() {
         if (!pendingNewChatDraftRestore) return;
 
+        if (pendingNewChatDraftRestore.chatId) {
+            cancelledNewChatSendIds.add(pendingNewChatDraftRestore.chatId);
+        }
         dispatch('newChatCreationCancelled', pendingNewChatDraftRestore);
         pendingNewChatDraftRestore = null;
     }
@@ -4706,10 +4717,14 @@
         }
         const draftStateBeforeSend = get(draftEditorUIState);
         const pendingNewChatId = currentChatId ?? draftStateBeforeSend.currentChatId ?? null;
+        if (pendingNewChatId) {
+            cancelledNewChatSendIds.delete(pendingNewChatId);
+        }
         pendingNewChatDraftRestore = isNewChatContext && editor && !editor.isDestroyed
             ? {
                 chatId: pendingNewChatId,
-                text: editor.getText()
+                text: editor.getText(),
+                preserveChatId: preserveChatIdOnNewChatCancellation,
             }
             : null;
         // Anonymous sends use a direct local request, not the cancellable WebSocket AI task lifecycle.
@@ -4758,7 +4773,8 @@
             },
             currentChatId,
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
-            broadcastToSiblings
+            broadcastToSiblings,
+            (chatId) => cancelledNewChatSendIds.has(chatId)
         );
         sendClickInProgress = false;
         

@@ -4080,6 +4080,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let isCreditsRestored = $state(false);
     let cancelledPendingNewChatId = $state<string | null>(null);
     let cancelledPendingNewChatDraftText = $state<string | null>(null);
+    let cancelledPendingNewChatPreserveId = $state(false);
     // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
     let activeChatDecryptedTitle = $state<string>(initialPublicChat?.title ?? '');
     let activeChatDecryptedCategory = $state<string | null>(initialPublicChat?.category ?? null);
@@ -6823,8 +6824,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         if ((newChat || !currentChat?.chat_id) && cancelledPendingNewChatDraftText && (!cancelledPendingNewChatId || cancelledPendingNewChatId === message.chat_id)) {
             const draftText = cancelledPendingNewChatDraftText;
+            const preserveChatId = cancelledPendingNewChatPreserveId;
             cancelledPendingNewChatId = null;
             cancelledPendingNewChatDraftText = null;
+            cancelledPendingNewChatPreserveId = false;
             try {
                 await chatDB.deleteChat(message.chat_id);
                 chatListCache.removeChat(message.chat_id);
@@ -6834,8 +6837,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             } catch (err) {
                 console.warn('[ActiveChat] Failed to delete late cancelled new chat locally:', err);
             }
-            await handleNewChatClick();
-            await restoreCancelledNewChatDraft(draftText);
+            try {
+                await chatSyncService.sendDeleteMessage(message.chat_id, message.message_id);
+            } catch (err) {
+                console.warn('[ActiveChat] Failed to delete late cancelled new-chat message from server:', err);
+            }
+            if (preserveChatId) {
+                await restoreCancelledPersistedDraft(message.chat_id, draftText);
+            } else {
+                await handleNewChatClick();
+                await restoreCancelledNewChatDraft(draftText);
+            }
             return;
         }
 
@@ -7113,11 +7125,54 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await chatDB.saveMessage(plainMessage);
     }
 
+    async function restoreCancelledPersistedDraft(chatId: string, text: string): Promise<void> {
+        const now = Math.floor(Date.now() / 1000);
+        currentChat = {
+            chat_id: chatId,
+            encrypted_title: null,
+            encrypted_draft_md: null,
+            encrypted_draft_preview: null,
+            messages_v: 0,
+            title_v: 0,
+            draft_v: 0,
+            last_edited_overall_timestamp: now,
+            unread_count: 0,
+            created_at: now,
+            updated_at: now,
+        };
+        currentMessages = [];
+        currentCompressionCheckpoints = [];
+        currentMessageWindowHasMoreBefore = false;
+        showWelcome = false;
+        resetChatHeaderState();
+        chatHistoryRef?.updateMessages([]);
+        temporaryChatId = null;
+        activeChatStore.setActiveChat(chatId);
+        draftEditorUIState.update(state => ({
+            ...state,
+            currentChatId: chatId,
+            currentUserDraftVersion: 0,
+            newlyCreatedChatIdToSelect: null,
+            lastSavedContentMarkdown: null,
+            hasUnsavedChanges: false,
+            isSaveInProgress: false,
+        }));
+        await restoreCancelledNewChatDraft(text, chatId);
+    }
+
     async function handleNewChatCreationCancelled(event: CustomEvent) {
-        const { chatId, text } = event.detail as { chatId?: string | null; text?: string };
+        const { chatId, text, preserveChatId } = event.detail as {
+            chatId?: string | null;
+            text?: string;
+            preserveChatId?: boolean;
+        };
         const cancelledChatId = chatId || currentChat?.chat_id || temporaryChatId || null;
         cancelledPendingNewChatId = cancelledChatId;
         cancelledPendingNewChatDraftText = text || null;
+        cancelledPendingNewChatPreserveId = !!preserveChatId;
+        const sentMessageAlreadyApplied = cancelledChatId
+            ? currentMessages.find(message => message.chat_id === cancelledChatId) ?? null
+            : null;
 
         if (cancelledChatId) {
             try {
@@ -7131,13 +7186,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
+        if (preserveChatId && cancelledChatId && text) {
+            await restoreCancelledPersistedDraft(cancelledChatId, text);
+            if (sentMessageAlreadyApplied) {
+                try {
+                    await chatSyncService.sendDeleteMessage(cancelledChatId, sentMessageAlreadyApplied.message_id);
+                } catch (err) {
+                    console.warn('[ActiveChat] Failed to delete cancelled new-chat message from server:', err);
+                }
+            }
+            // MessageInput's cancellation guard prevents a later dispatch for this stable ID.
+            // Clear the marker now so a retry cannot be mistaken for the cancelled send.
+            cancelledPendingNewChatId = null;
+            cancelledPendingNewChatDraftText = null;
+            cancelledPendingNewChatPreserveId = false;
+            return;
+        }
+
         await handleNewChatClick();
         if (text) {
             await restoreCancelledNewChatDraft(text);
         }
     }
 
-    async function restoreCancelledNewChatDraft(text: string): Promise<void> {
+    async function restoreCancelledNewChatDraft(text: string, chatId: string | null = null): Promise<void> {
         let stableReads = 0;
 
         for (let attempt = 0; attempt < CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS; attempt++) {
@@ -7153,7 +7225,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (!currentText.includes(text)) {
                 stableReads = 0;
                 if (messageInputFieldRef.replaceDraftWithPlainText) {
-                    await messageInputFieldRef.replaceDraftWithPlainText(null, text, 0, true);
+                    await messageInputFieldRef.replaceDraftWithPlainText(chatId, text, 0, true);
                 } else {
                     messageInputFieldRef.setSuggestionText(text);
                 }
@@ -13380,6 +13452,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
                                     isNewChatContext={(showWelcome && !currentChat?.chat_id) || isActiveDraftOnlyChat}
+                                    preserveChatIdOnNewChatCancellation={isActiveDraftOnlyChat}
                                     showActionButtons={showActionButtons}
                                     inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
                                     activeFocusId={!showWelcome ? activeFocusId : null}

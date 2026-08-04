@@ -493,6 +493,7 @@ export async function handleSend(
   currentChatId?: string,
   activePIIExclusions: Set<string> = new Set(),
   broadcastToSiblings: boolean = false,
+  isSendCancelled: (chatId: string) => boolean = () => false,
 ) {
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
@@ -1874,6 +1875,15 @@ export async function handleSend(
       cancelEdit();
     }
 
+    if (isSendCancelled(chatIdToUse)) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_before_dispatch", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+      return;
+    }
+
     // OTel: UI dispatch span — the moment message becomes visible
     const uiSpan = tracer.startSpan('message.send.ui_dispatch');
     // Dispatch for UI update (ActiveChat will pick this up)
@@ -1945,6 +1955,15 @@ export async function handleSend(
 
     uiSpan.end();
 
+    if (isSendCancelled(chatIdToUse)) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_after_dispatch", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+      return;
+    }
+
     // OTel: WebSocket send span (encryption + WS dispatch happens inside sendNewMessage)
     const wsSpan = tracer.startSpan('message.send.ws_send');
     // CRITICAL: Notify backend about the active chat BEFORE sending the message
@@ -1956,6 +1975,16 @@ export async function handleSend(
       "[handleSend] Notified backend about active chat before sending message:",
       chatIdToUse,
     );
+
+    if (isSendCancelled(chatIdToUse)) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_before_websocket", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+      wsSpan.end();
+      return;
+    }
 
     // Send message to backend via chatSyncService
     // Include encrypted suggestion for deletion if one was clicked
@@ -1973,6 +2002,16 @@ export async function handleSend(
       },
     );
 
+    const wasCancelledAfterSend = isSendCancelled(chatIdToUse);
+    if (wasCancelledAfterSend) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      await chatSyncService.sendDeleteMessage(chatIdToUse, messagePayload.message_id);
+      recordSendDebugStep("sent_message_deleted_after_cancellation", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+    }
+
     wsSpan.end();
 
     // OTel: cleanup span (draft clearing)
@@ -1980,7 +2019,7 @@ export async function handleSend(
     // After successfully sending the message, clear the draft for this chat
     // Ensure we only clear if the message was for the chat currently in the draft editor's context
     const currentDraftState = get(draftEditorUIState);
-    if (chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
+    if (!isSendCancelled(chatIdToUse) && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );

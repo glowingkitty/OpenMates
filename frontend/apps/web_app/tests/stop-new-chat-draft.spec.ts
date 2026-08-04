@@ -144,6 +144,14 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 		expect(page.url()).toContain(`chat-id=${draftChatId}`);
 		await takeStepScreenshot(page, 'draft-restored-after-stop');
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(messageEditor).toBeVisible({ timeout: 15000 });
+		await expect(messageEditor).toContainText(visibleDraft, { timeout: 15000 });
+		await expect(page.getByTestId('message-user')).toHaveCount(0, { timeout: 10000 });
+		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		expect(page.url()).toContain(`chat-id=${draftChatId}`);
+		await takeStepScreenshot(page, 'draft-restored-after-reload');
 	} finally {
 		if (shouldTryCleanup) {
 			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup');
