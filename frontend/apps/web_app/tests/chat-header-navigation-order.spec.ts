@@ -68,6 +68,49 @@ async function swipeHeader(page: any, startX: number, endX: number): Promise<voi
 }
 
 test.describe('ChatHeader follows Chats.svelte order', () => {
+	test('navigates from a regular chat to the newest draft-only chat with the sidebar closed', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(120000);
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
+
+		const draftText = `Header navigation draft ${Date.now()}`;
+		const messageEditor = page.getByTestId('message-editor');
+		await messageEditor.click();
+		await page.keyboard.insertText(draftText);
+		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+		expect(draftChatId).toBeTruthy();
+
+		try {
+			await ensureSidebarOpen(page);
+			const regularChats = page
+				.getByTestId('chat-item-wrapper')
+				.filter({ has: page.getByTestId('chat-with-profile') });
+			await expect(regularChats.first()).toBeVisible({ timeout: 15000 });
+			await regularChats.first().click();
+			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
+
+			await page.getByTestId('sidebar-toggle').click();
+			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
+			await page.getByTestId('chat-header-next').click();
+
+			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+			expect(page.url()).toContain(`chat-id=${draftChatId}`);
+			await expect(page.getByTestId('chat-header-title')).toContainText(draftText);
+		} finally {
+			if (draftChatId && page.url().includes(draftChatId)) {
+				await messageEditor.click();
+				await page.keyboard.press('Control+A');
+				await page.keyboard.press('Backspace');
+				await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0, { timeout: 15000 });
+			}
+		}
+	});
+
 	test('right control and right-to-left swipe navigate to previous sidebar chat', async ({
 		page
 	}: {

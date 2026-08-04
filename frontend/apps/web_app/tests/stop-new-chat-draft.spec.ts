@@ -105,9 +105,14 @@ test('stop during new chat creation restores the sent message as a draft', async
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
 		await insertComposerText(page, messageEditor, withMockMarker(visibleDraft, 'chat_flow_capital', 'slow'), visibleDraft);
-		await expect(page.getByTestId('chat-header-banner')).toHaveCount(0);
-		await page.waitForTimeout(2500);
-		await expect(page.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
+		const draftHeader = page.getByTestId('chat-header-banner');
+		await expect(draftHeader).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('draft-chat-badge')).toHaveText(/Draft/i);
+		await expect(page.getByTestId('chat-header-title')).toContainText(visibleDraft.slice(0, 30));
+		await expect(page.getByTestId('draft-chat-last-saved')).toContainText(/Last saved:/i);
+		await expect(page.getByTestId('new-chat-button')).toBeVisible();
+		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+		expect(draftChatId).toBeTruthy();
 		await takeStepScreenshot(page, 'draft-typed');
 		await page.route(/\/v1\/user-(tasks|plans)(\?|$)/, async (route: any) => {
 			await page.waitForTimeout(1500);
@@ -136,6 +141,8 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await expect(messageEditor).toContainText(visibleDraft, { timeout: 15000 });
 		await expect(page.getByText(/Creating new chat/i)).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('message-user')).toHaveCount(0, { timeout: 10000 });
+		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		expect(page.url()).toContain(`chat-id=${draftChatId}`);
 		await takeStepScreenshot(page, 'draft-restored-after-stop');
 	} finally {
 		if (shouldTryCleanup) {

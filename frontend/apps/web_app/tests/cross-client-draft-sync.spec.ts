@@ -982,6 +982,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 			expect(draftChatId).toMatch(/^[0-9a-f-]{36}$/i);
 			cleanupDraftIds.add(draftChatId);
 			await openDraft(page, apiUrl, draftChatId, initialText, true);
+			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15_000 });
+			await expect(page.getByTestId('chat-header-title')).toContainText(initialText);
+			const firstSavedAt = await page.getByTestId('draft-chat-last-saved').getAttribute('data-saved-at');
+			expect(firstSavedAt).toMatch(/^\d+$/);
 			log('CLI-created draft opened in web client.');
 
 			const draftUpdateFrameStart = wsFrames.length;
@@ -992,6 +996,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 				await firstDismissButton.click();
 			}
 			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
+			await expect(page.getByTestId('chat-header-title')).toContainText(updatedText, { timeout: 15_000 });
+			await expect
+				.poll(() => page.getByTestId('draft-chat-last-saved').getAttribute('data-saved-at'), { timeout: 15_000 })
+				.not.toBe(firstSavedAt);
 			log('Local web draft edit persisted; waiting for draft update receipt.');
 			expect(await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart, Number(created.draftV) + 1)).toBe(true);
 			log('Draft update receipt observed; polling CLI refresh.');
@@ -1038,6 +1046,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 				})
 				.toBeNull();
 			cleanupDraftIds.delete(draftChatId);
+			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0, { timeout: 15_000 });
+			await expect.poll(() => new URL(page.url()).hash).not.toContain('chat-id=');
 			log('Web draft clear reconciled to CLI.');
 
 			log('Creating sendable draft from CLI.');

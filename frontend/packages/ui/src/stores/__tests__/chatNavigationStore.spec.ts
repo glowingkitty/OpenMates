@@ -430,7 +430,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
     });
 
-    it("skips draft-only user chats as header navigation targets", async () => {
+    it("includes draft-only user chats as header navigation targets", async () => {
       const newestChat = makeChat("newest-chat", {
         encrypted_title: "encrypted-title",
         messages_v: 2,
@@ -465,8 +465,8 @@ describe("chatNavigationStore — example chat navigation", () => {
       const dispatchedEvent = dispatchCalls[dispatchCalls.length - 1]?.[0] as
         | CustomEvent<{ chat: Chat }>
         | undefined;
-      expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
-      expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
+      expect(dispatchedEvent?.detail.chat.chat_id).toBe(draftOnlyChat.chat_id);
+      expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: true });
     });
 
     it("keeps the active draft-only chat as a navigation anchor", async () => {

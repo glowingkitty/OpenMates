@@ -256,6 +256,12 @@ describe("draftSave", () => {
     mocks.chatDB.getChat.mockResolvedValue(undefined);
     mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
     mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+    mocks.chatDB.createNewChatWithCurrentUserDraft.mockResolvedValue({
+      chat_id: "created-chat-id",
+      draft_v: 1,
+      encrypted_draft_md: "encrypted-data",
+      encrypted_draft_preview: "encrypted-data",
+    });
     mocks.tipTapToCanonicalMarkdown.mockReturnValue("");
   });
 
@@ -293,6 +299,32 @@ describe("draftSave", () => {
       expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
       expect(mocks.chatSyncService.queueOfflineChange).not.toHaveBeenCalled();
       expect(mocks.draftState.currentChatId).toBe("example-empty-draft");
+    });
+  });
+
+  describe("new-chat draft activation", () => {
+    it("publishes the persisted draft shell ID for selection after a successful first save", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("Plan a weekend cycling route around Berlin");
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
+      expect(mocks.draftState.currentChatId).toBe("created-chat-id");
+      expect(mocks.draftState.newlyCreatedChatIdToSelect).toBe("created-chat-id");
+    });
+
+    it("does not publish a draft shell ID when first persistence fails", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("Draft that cannot be persisted");
+      mocks.chatDB.createNewChatWithCurrentUserDraft.mockRejectedValueOnce(new Error("DB unavailable"));
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
     });
   });
 
