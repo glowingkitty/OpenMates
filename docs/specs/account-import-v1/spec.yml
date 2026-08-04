@@ -155,7 +155,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f
+  subject_commit: 8e59fc1
 
 approvals:
   product_contract:
@@ -315,14 +315,14 @@ attempts:
     notes: "Vercel READY for deployed app commit c16997acf. Initial deployed Account Import Playwright runs exposed test-only issues: an ambiguous skipped-domain text selector, a hardcoded mock import id across repeated uploads, and an assertion reading the first mock call list after reinstalling the mock. Test-only fixes were deployed in commits a456fbbd8, 0a9e74a7a, 16285045c, and 8beb545b2. Final deployed-web evidence passed for import-account-v1, import-account-limits, import-account-dedupe, and Account Import artifact scans. Later reruns used OPENMATES_SKIP_VERCEL_WAIT=true because Vercel correctly had no new Account Import app build after test-only/unrelated commits; app.dev.openmates.org remained on READY Account Import runtime commit c16997acf."
 
 handoff:
-  current_task_id: TASK-11
-  next_action: Validate and approve the resumed safety, compression, billing, resumability, and provider-identity contract before writing red tests.
-  command: python3 scripts/spec_validate.py docs/specs/account-import-v1/spec.yml
-  expected_outcome: The materially resumed executable spec validates with all new acceptance criteria mapped to pending red/green evidence.
+  current_task_id: TASK-15
+  next_action: Implement the pending web source-selection, resumability, compression-summary persistence, and provider-identity rendering phase only after reviewing the completed CLI/SDK live evidence.
+  command: python3 scripts/tests.py run --spec import-account-v1.spec.ts --gate-deploy --expected-commit <web-commit>
+  expected_outcome: Deployed web behavior passes before user confirmation or Apple work begins.
   blocker:
-    type: approval_required
-    detail: Implementation must not begin until the updated contract and implementation plan are approved.
-  last_verified_commit: pending-resumed-contract-validation
+    type: web_implementation_pending
+    detail: CLI/SDK phases are complete; web rendering, deployed Playwright, visual review, and user confirmation remain pending. Apple remains blocked behind those gates.
+  last_verified_commit: 8e59fc1
 
 scenarios:
   - id: S-1
@@ -779,6 +779,8 @@ contracts:
     - command: openmates account import generic <transcript.json> --source <gemini|other> [--dry-run] [--yes] [--json]
       notes:
         - Requires the documented generic role/content schema and does not claim raw Gemini Takeout compatibility.
+        - Chat fields are limited to `id`, `title`, `created_at`, `updated_at`, and `messages`.
+        - Message fields are limited to `id`, `role`, `content`, and `created_at`; provider mappings, tool calls, attachments, reasoning, and unknown fields are rejected.
   sdk:
     - npm: accountImports.parseClaude(file), parseChatGPT(file), parseOpenMates(pathOrBlob), parseOpenCode(file), parseGeneric(file), preview(chats), scanBatch(importId, batch), compressBatch(importId, batch), status(importId), persistEncrypted(importId, sanitizedChats), complete(importId, result)
     - pip: client.account_imports.parse_claude(path), parse_chatgpt(path), parse_openmates(path), parse_opencode(path), parse_generic(path), preview(chats), scan_batch(import_id, batch), compress_batch(import_id, batch), status(import_id), persist_encrypted(import_id, sanitized_chats), complete(import_id, result)
@@ -896,7 +898,7 @@ tests:
       - imported chat appears via normal encrypted sync/load path
       - encrypted persistence endpoint writes imported chats/messages and completion finalizes the import
     red_phase: { required: true, expected: fail, evidence: { status: failed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario claude-import", run_id: "dev-2026-07-18T22:17:52Z", timestamp: "2026-07-18T22:17:52Z", reason: "Caddy dev allowlist did not include /v1/account-imports paths, so api.dev.openmates.org closed the request before FastAPI." } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario claude-import", run_id: "dev-2026-07-18T22:24:56Z", subject_commit: "working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f", timestamp: "2026-07-18T22:24:56Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-live-2026-08-04T12:17Z", subject_commit: "8e59fc1", target: api.dev.openmates.org, timestamp: "2026-08-04T12:17:00Z", reason: "Complete ordered verifier passed direct REST before dedicated CLI, npm SDK, and pip SDK phases." } }
   - id: T-CLI-OPENMATES-DEV
     type: manual
     file: scripts/verify_account_import_cli.py
@@ -907,7 +909,7 @@ tests:
       - unsupported domains are reported as skipped
       - existing chats are not overwritten
     red_phase: { required: true, expected: fail, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Covered by the failing T-CLI-CLAUDE-DEV dev route gate before Caddy allowlist fix; scenario-specific green evidence was then recorded through the all-scenarios verifier." } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "dev-2026-07-18T22:25:31Z", subject_commit: "working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f", timestamp: "2026-07-18T22:25:31Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-live-2026-08-04T12:17Z", subject_commit: "8e59fc1", target: api.dev.openmates.org, timestamp: "2026-08-04T12:17:00Z", reason: "Complete ordered verifier passed OpenMates V1 preview and skipped-domain reporting." } }
   - id: T-CLI-LIMITS-DEV
     type: manual
     file: scripts/verify_account_import_cli.py
@@ -918,7 +920,7 @@ tests:
       - paid test account can import up to 30 chats per batch
       - estimated cost is shown before confirmation
     red_phase: { required: true, expected: fail, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Covered by the failing T-CLI-CLAUDE-DEV dev route gate before Caddy allowlist fix; scenario-specific green evidence was then recorded through the all-scenarios verifier." } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "dev-2026-07-18T22:25:31Z", subject_commit: "working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f", timestamp: "2026-07-18T22:25:31Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-live-2026-08-04T12:17Z", subject_commit: "8e59fc1", target: api.dev.openmates.org, timestamp: "2026-08-04T12:17:00Z", reason: "Complete ordered verifier passed limits-and-costs after dedicated CLI source scenarios." } }
   - id: T-CLI-SECRET-SCAN
     type: lint
     file: scripts/verify_account_import_archive.py
@@ -951,7 +953,7 @@ tests:
       - imported chats complete encrypted persistence and import completion
       - generated synthetic ZIP fixtures are written under /tmp/opencode and deleted after verification
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario chatgpt-import", run_id: "local-2026-07-20T13:54Z", timestamp: "2026-07-20T13:54:00Z", reason: "Initial verifier build failed because AccountImportPreviewRequest.source still excluded chatgpt from the CLI client type." } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario chatgpt-import", run_id: "local-2026-07-20T14:00:34Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", target: api.dev.openmates.org, timestamp: "2026-07-20T14:00:34Z", notes: "Verifier output reported status passed, api_url https://api.dev.openmates.org, scenario chatgpt-import passed, and selected/imported exactly 3 synthetic chats. Temporary ZIP workdir account-import-cli-5m6fu__m was deleted after the run; script now auto-cleans temp workdirs by default." } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-live-2026-08-04T12:17Z", subject_commit: "8e59fc1", target: api.dev.openmates.org, timestamp: "2026-08-04T12:17:00Z", notes: "Complete ordered verifier passed the synthetic dedicated ChatGPT CLI scenario and deleted its temporary work directory." } }
   - id: T-CLIENT-CHATGPT-PARITY-DEV
     type: manual
     file: scripts/verify_account_import_cli.py
@@ -964,7 +966,7 @@ tests:
       - pip SDK imports exactly 3 synthetic ChatGPT chats through the same Account Import V1 endpoint sequence
       - all three clients complete encrypted persistence and import completion without retaining generated ZIP fixtures
     red_phase: { required: false, expected: fail_or_not_run, evidence: { status: failed_as_expected, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-2026-07-20T14:32Z", timestamp: "2026-07-20T14:32:00Z", reason: "Initial SDK parity verifier attempt failed before npm/pip execution because API-key creation output was invoked without --json; a transient verifier API key was revoked before rerun." } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-2026-07-20T14:37Z", subject_commit: "working-tree@c658e4ed", target: api.dev.openmates.org, timestamp: "2026-07-20T14:37:00Z", notes: "Output reported status passed for claude-import, chatgpt-import, npm-sdk-chatgpt-import, pip-sdk-chatgpt-import, openmates-v1-import, and limits-and-costs. The generated work dir /tmp/opencode/account-import-cli-klbl2z3b was deleted and the disposable verifier API key was revoked." } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-live-2026-08-04T12:17Z", subject_commit: "8e59fc1", target: api.dev.openmates.org, timestamp: "2026-08-04T12:17:00Z", notes: "Output explicitly listed 13 passing scenarios in direct REST, dedicated CLI, npm SDK, then pip SDK order. Temporary fixtures were deleted and the disposable SDK key was revoked." } }
   - id: T-DAILY-IMPORT-WIRING
     type: lint
     file: scripts/run_tests.py
@@ -984,7 +986,7 @@ tests:
       - npm SDK defaults and limits match CLI/web contract
       - npm SDK does not expose plaintext persistence shortcuts
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts", run_id: "local-2026-07-18T22:29:11Z", timestamp: "2026-07-18T22:29:11Z", reason: "OpenMatesAccount did not expose parseClaudeImport/importChats before TASK-5 implementation." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts tests/account-import-sdk.test.ts", run_id: "local-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z", notes: "12 tests passed, including stable 250-message batches, rolling prior summaries, post-phase cursors, and encrypted compression_summary persistence." } }
   - id: T-PIP-SDK-IMPORT
     type: pytest
     file: packages/openmates-python/tests/test_account_import.py
@@ -995,7 +997,7 @@ tests:
       - pip SDK defaults and limits match CLI/web contract
       - pip SDK does not expose plaintext persistence shortcuts
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 -m pytest packages/openmates-python/tests/test_account_import.py", run_id: "local-2026-07-18T22:29:11Z", timestamp: "2026-07-18T22:29:11Z", reason: "OpenMatesAccount did not expose parse_openmates_import/parse_claude_import before TASK-5 implementation." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 -m pytest packages/openmates-python/tests/test_account_import.py", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 -m pytest packages/openmates-python/tests/test_account_import.py", run_id: "local-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z", notes: "6 tests passed with bounded batching, rolling summaries, verified cursors, and encrypted compression_summary persistence." } }
   - id: T-PARITY-AUDIT
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -1004,7 +1006,7 @@ tests:
     assertions:
       - account import CLI, npm SDK, and pip SDK surfaces remain in parity
     red_phase: { required: false, expected: pass_or_existing_failure, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Parity audit is a post-implementation guard for this task." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local-2026-07-18T22:34:05Z", subject_commit: "working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f", timestamp: "2026-07-18T22:34:05Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z", notes: "89 command entries and 4 workflow transport entries checked." } }
   - id: T-WEB-SERVICE-IMPORT
     type: vitest
     file: frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
@@ -1077,8 +1079,8 @@ tests:
       - every non-empty user, assistant, and system message from every selected source reaches both smuggling and prompt-injection scanning
       - empty messages do not create model calls or charges
       - scan acknowledgement precedes compression eligibility
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "git show 8de9424f46bfa78aaaea67ed4011f9317c31363d:backend/tests/test_account_import_scan_endpoint.py | rg 'all_roles|batch_id|compress'", run_id: "local-static-red-2026-08-04T12:14Z", subject_commit: "8de9424f46bfa78aaaea67ed4011f9317c31363d", timestamp: "2026-08-04T12:14:00Z", reason: "Static red proof returned no resumed all-role/batch/compression contract before 7abadfc; historical pytest red output was not retained." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "docker exec api python -m pytest backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py backend/tests/test_account_import_resume.py backend/tests/test_account_import_compression.py backend/tests/test_account_import_billing.py backend/tests/test_account_import_limits.py -q", run_id: "local-api-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
   - id: T-SCAN-FAIL-CLOSED-REDACTION
     type: pytest
     file: backend/tests/test_account_import_fail_closed.py
@@ -1088,8 +1090,8 @@ tests:
       - exact unsafe spans are replaced while safe surrounding content remains
       - unisolatable high-risk messages become the whole-message placeholder
       - missing tool/config/secrets, timeouts, provider errors, and malformed results are retryable failures with no persistence or usage finalization
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "git show 8de9424f46bfa78aaaea67ed4011f9317c31363d:backend/tests/test_account_import_fail_closed.py | rg 'scanner.*retryable|prompt injection|redact'", run_id: "local-static-red-2026-08-04T12:14Z", subject_commit: "8de9424f46bfa78aaaea67ed4011f9317c31363d", timestamp: "2026-08-04T12:14:00Z", reason: "Static red proof returned no resumed scanner retry/redaction contract before 7abadfc; historical pytest red output was not retained." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "docker exec api python -m pytest backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py backend/tests/test_account_import_resume.py backend/tests/test_account_import_compression.py backend/tests/test_account_import_billing.py backend/tests/test_account_import_limits.py -q", run_id: "local-api-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
   - id: T-IMPORT-RESUME
     type: pytest
     file: backend/tests/test_account_import_resume.py
@@ -1099,8 +1101,8 @@ tests:
       - acknowledged batch sequence retry is idempotent and does not rescan or double-charge
       - status returns metadata cursors without plaintext
       - paid processing can continue across arbitrarily many bounded batches
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "git cat-file -e 8de9424f46bfa78aaaea67ed4011f9317c31363d:backend/tests/test_account_import_resume.py", run_id: "local-static-red-2026-08-04T12:14Z", subject_commit: "8de9424f46bfa78aaaea67ed4011f9317c31363d", timestamp: "2026-08-04T12:14:00Z", reason: "Command failed because the resumability test contract did not exist before 7abadfc; historical pytest red output was not retained." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "docker exec api python -m pytest backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py backend/tests/test_account_import_resume.py backend/tests/test_account_import_compression.py backend/tests/test_account_import_billing.py backend/tests/test_account_import_limits.py -q", run_id: "local-api-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
   - id: T-IMPORT-COMPRESSION
     type: pytest
     file: backend/tests/test_account_import_compression.py
@@ -1110,8 +1112,8 @@ tests:
       - compression rejects unacknowledged or unsanitized batches
       - normal production threshold controls whether compression runs
       - incremental output is returned transiently and only encrypted checkpoint fields are accepted for persistence
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "git cat-file -e 8de9424f46bfa78aaaea67ed4011f9317c31363d:backend/tests/test_account_import_compression.py", run_id: "local-static-red-2026-08-04T12:14Z", subject_commit: "8de9424f46bfa78aaaea67ed4011f9317c31363d", timestamp: "2026-08-04T12:14:00Z", reason: "Command failed because the incremental compression test contract did not exist before 7abadfc; historical pytest red output was not retained." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "docker exec api python -m pytest backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py backend/tests/test_account_import_resume.py backend/tests/test_account_import_compression.py backend/tests/test_account_import_billing.py backend/tests/test_account_import_limits.py -q", run_id: "local-api-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
   - id: T-IMPORT-BILLING
     type: pytest
     file: backend/tests/test_account_import_billing.py
@@ -1121,8 +1123,8 @@ tests:
       - conservative scan/compression reservation happens before paid model work
       - measured usage settles exactly once and unused reservation is released
       - insufficient balance prevents work and final balance cannot become negative
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "git cat-file -e 8de9424f46bfa78aaaea67ed4011f9317c31363d:backend/tests/test_account_import_billing.py", run_id: "local-static-red-2026-08-04T12:14Z", subject_commit: "8de9424f46bfa78aaaea67ed4011f9317c31363d", timestamp: "2026-08-04T12:14:00Z", reason: "Command failed because the strict billing test contract did not exist before 7abadfc; historical pytest red output was not retained." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "docker exec api python -m pytest backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py backend/tests/test_account_import_resume.py backend/tests/test_account_import_compression.py backend/tests/test_account_import_billing.py backend/tests/test_account_import_limits.py -q", run_id: "local-api-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
   - id: T-BACKEND-FREE-TOKEN-CAP
     type: pytest
     file: backend/tests/test_account_import_limits.py
@@ -1131,19 +1133,19 @@ tests:
     assertions:
       - each free chat at 100000 estimated input tokens or less may consume a free slot
       - a free chat above 100000 estimated input tokens requires paid credits without consuming a free slot
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "git show 8de9424f46bfa78aaaea67ed4011f9317c31363d:backend/tests/test_account_import_limits.py | rg 'token_cap|100000'", run_id: "local-static-red-2026-08-04T12:14Z", subject_commit: "8de9424f46bfa78aaaea67ed4011f9317c31363d", timestamp: "2026-08-04T12:14:00Z", reason: "Static red proof returned no free per-chat token-cap contract before 7abadfc; historical pytest red output was not retained." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "docker exec api python -m pytest backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py backend/tests/test_account_import_resume.py backend/tests/test_account_import_compression.py backend/tests/test_account_import_billing.py backend/tests/test_account_import_limits.py -q", run_id: "local-api-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
   - id: T-PROVIDER-IDENTITY
-    type: vitest
-    file: frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
-    command: cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts -t provider
+    type: unit
+    file: frontend/packages/openmates-cli/tests/account-import-sdk.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts
     covers: [AC-14]
     assertions:
       - source selection is required before file upload and remains independent from parser format
-      - imported assistant category, sender name, model/source, and avatar key are encrypted before persistence
+      - imported assistant category, sender name, and model/source are encrypted before persistence; avatar key derives deterministically from decrypted category and is not persisted redundantly
       - normal mate category assignment is absent from imported assistant records
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts", run_id: "local-2026-08-04T11:18Z", subject_commit: "7abadfc184d9d4737649f817d5c3d3b1dd5db137", timestamp: "2026-08-04T11:18:00Z", reason: "Generic parser, selected-source identity, resumable methods, and encrypted provider metadata were missing." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts tests/account-import-sdk.test.ts", run_id: "local-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
   - id: T-WEB-PROVIDER-IDENTITY
     type: playwright
     file: frontend/apps/web_app/tests/import-account-v1.spec.ts
@@ -1165,8 +1167,8 @@ tests:
       - generic transcript JSON accepts only documented role/content records
       - unknown or ambiguous structures fail visibly
       - Gemini source selection does not imply Gemini Takeout parser compatibility
-    red_phase: { required: true, expected: fail, evidence: { status: not_run, command: "", run_id: "", timestamp: "", reason: "Pending resumed-contract approval." } }
-    green_phase: { required: true, expected: pass, evidence: { status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts", run_id: "local-2026-08-04T11:18Z", subject_commit: "7abadfc184d9d4737649f817d5c3d3b1dd5db137", timestamp: "2026-08-04T11:18:00Z", reason: "Generic parser and parser-format/source separation were missing." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts tests/account-import-sdk.test.ts", run_id: "local-2026-08-04T12:18Z", subject_commit: "8e59fc1", timestamp: "2026-08-04T12:18:00Z" } }
 
 verifications:
   - id: V-PRODUCT-CONTRACT-APPROVAL
@@ -1665,8 +1667,8 @@ tasks:
     independently_deployable: false
   - id: TASK-12
     title: Write resumed backend and provider-identity red tests
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-11, S-12, S-13, S-14, S-15]
       acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
@@ -1698,8 +1700,8 @@ tasks:
     independently_deployable: false
   - id: TASK-13
     title: Implement fail-closed resumable scan compression and billing backend
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-11, S-12, S-13]
       acceptance_criteria: [AC-11, AC-12, AC-13]
@@ -1725,8 +1727,8 @@ tasks:
     independently_deployable: false
   - id: TASK-14
     title: Implement CLI and SDK resumability generic parser and provider source parity
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-12, S-13, S-14, S-15]
       acceptance_criteria: [AC-12, AC-13, AC-14, AC-15]
