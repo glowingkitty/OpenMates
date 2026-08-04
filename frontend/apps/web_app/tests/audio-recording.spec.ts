@@ -295,7 +295,7 @@ test('legacy manual dark mode preference remains active on app load', async ({ p
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 2: Single tap starts recording and keeps the composer expanded
 // ─────────────────────────────────────────────────────────────────────────────
-test('single tap on mic button starts recording and keeps composer expanded', async ({ page }) => {
+test('single tap on mic button starts recording without focusing the text editor', async ({ page }) => {
 	test.setTimeout(60000);
 
 	await setupAndFocusMessageField(page);
@@ -310,10 +310,21 @@ test('single tap on mic button starts recording and keeps composer expanded', as
 	await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
 	await expect(overlay.getByTestId('record-finish-button')).toBeVisible();
 
-	// Clicking the mic must not blur/collapse the desktop follow-up composer.
+	// Recording keeps the composer expanded, but the editable field must release
+	// focus so touch devices do not open the software keyboard under the overlay.
 	const messageField = page.getByTestId('message-field');
 	await expect(messageField).toHaveClass(/focused/);
 	await expect(messageField).not.toHaveClass(/compact/);
+	await expect
+		.poll(() =>
+			page.getByTestId('message-editor').evaluate((element: HTMLElement) =>
+				element.contains(document.activeElement)
+			)
+		)
+		.toBe(false);
+	expect(await getEditorPlainText(page)).toBe('');
+	await page.keyboard.type('must not reach editor');
+	expect(await getEditorPlainText(page)).toBe('');
 	await overlay.getByTestId('record-cancel-button').click();
 	await expect(overlay).not.toBeVisible({ timeout: 5000 });
 
