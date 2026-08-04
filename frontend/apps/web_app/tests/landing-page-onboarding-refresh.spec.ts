@@ -929,18 +929,20 @@ test.describe('Landing page onboarding refresh', () => {
 			const metrics = await page.evaluate(() => {
 				const area = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-area"]');
 				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+				const copy = document.querySelector<HTMLElement>('[data-testid="guest-intro-copy"]');
 				const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 				const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
-				if (!area || !banner || !headline || !demo) throw new Error('Collapsed guest inspiration elements missing');
+				if (!area || !banner || !copy || !headline || !demo) throw new Error('Collapsed guest inspiration elements missing');
 				const areaRect = area.getBoundingClientRect();
 				const bannerRect = banner.getBoundingClientRect();
+				const copyRect = copy.getBoundingClientRect();
 				const headlineRect = headline.getBoundingClientRect();
 				const demoRect = demo.getBoundingClientRect();
 				return {
 					areaHeight: areaRect.height,
 					bannerWidth: bannerRect.width,
 					bannerHeight: bannerRect.height,
-					headingCenterDeltaX: Math.abs((headlineRect.left + headlineRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
+					headingGroupCenterDeltaX: Math.abs((copyRect.left + copyRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
 					demoCenterDeltaX: Math.abs((demoRect.left + demoRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
 					demoBelowHeading: demoRect.top > headlineRect.bottom,
 					demoInsideBanner: demoRect.top >= bannerRect.top && demoRect.bottom <= bannerRect.bottom + 1
@@ -956,7 +958,7 @@ test.describe('Landing page onboarding refresh', () => {
 
 			expect(metrics.bannerHeight, `${viewport.width}px: banner should preserve the mobile aspect ratio until capped`).toBeCloseTo(expectedHeight, 0);
 			expect(metrics.areaHeight, `${viewport.width}px: reserved area should match the banner`).toBeCloseTo(metrics.bannerHeight, 0);
-			expect(metrics.headingCenterDeltaX, `${viewport.width}px: compact heading should be centered`).toBeLessThanOrEqual(3);
+			expect(metrics.headingGroupCenterDeltaX, `${viewport.width}px: compact heading group should be centered`).toBeLessThanOrEqual(3);
 			expect(metrics.demoCenterDeltaX, `${viewport.width}px: animation should be centered`).toBeLessThanOrEqual(3);
 			expect(metrics.demoBelowHeading, `${viewport.width}px: animation should sit below the heading`).toBe(true);
 			expect(metrics.demoInsideBanner, `${viewport.width}px: animation should remain inside the banner`).toBe(true);

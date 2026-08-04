@@ -1895,6 +1895,7 @@
     position: absolute;
     inset: 0;
     bottom: calc(-1 * var(--landing-intro-input-reserve, 0px));
+    height: auto;
     z-index: var(--z-index-dropdown-1);
   }
 
@@ -2029,8 +2030,10 @@
 
   .guest-intro-variant .banner-inner {
     width: 100%;
+    height: 100%;
     max-width: none;
     padding: clamp(16px, 2.5cqi, 32px) 48px;
+    box-sizing: border-box;
     justify-content: center;
     gap: 0;
   }
