@@ -23,10 +23,6 @@ const ACTIONABLE_STAGE_SETTLE_MS = 260;
 const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
 const MOBILE_SLIDE_FADE_SETTLE_MS = 1200;
 const ACTIONABLE_INTERACTION_TIMEOUT_MS = 5000;
-const PRODUCT_STORY_HEADING_SETTLE_MS = 3000;
-const PRIVACY_STORY_DURATION_MS = 15000;
-const PRODUCT_STORY_DURATION_MS = 12000;
-const PRODUCT_STORY_ADVANCE_GRACE_MS = 4000;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
 const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
@@ -906,99 +902,6 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
 		await page.waitForTimeout(1200);
 		await expect(page.getByTestId('landing-actionable-user-message')).toHaveCount(0);
-	});
-
-	test('remaining header stories use coordinated timelines and the same compact heading structure', async ({ page }: { page: any }) => {
-		test.setTimeout(70000);
-		await page.setViewportSize({ width: 1280, height: 800 });
-
-		await page.goto(getE2EDebugUrl('/?landing-header-stories'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await waitForLandingIntroExamples(page);
-		await skipExpandedLandingIntro(page);
-		await page.getByTestId('daily-inspiration-next').click();
-
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
-		await expect(page.getByTestId('landing-privacy-safety-demo')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
-			timeout: PRODUCT_STORY_HEADING_SETTLE_MS
-		});
-		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', 'encryption');
-		await expect(page.getByTestId('landing-privacy-encryption')).toContainText('Only your devices can unlock your saved data.');
-		let durationMs = await page.getByTestId('daily-inspiration-carousel-progress').evaluate((progress: HTMLElement) => (
-			Number.parseFloat(getComputedStyle(progress).getPropertyValue('--carousel-progress-duration'))
-		));
-		expect(durationMs).toBe(PRIVACY_STORY_DURATION_MS);
-		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', 'pii', {
-			timeout: 6500
-		});
-		await expect(page.getByTestId('landing-privacy-pii-original')).toContainText('alex@example.com');
-		await expect(page.getByTestId('landing-privacy-pii-placeholder')).toContainText('[EMAIL_com]');
-		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', 'memory', {
-			timeout: 6500
-		});
-		await expect(page.getByTestId('landing-privacy-memory-consent')).toBeVisible();
-
-		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible({
-			timeout: PRIVACY_STORY_DURATION_MS + PRODUCT_STORY_ADVANCE_GRACE_MS
-		});
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Without needing deep technical know-how.');
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
-			timeout: PRODUCT_STORY_HEADING_SETTLE_MS
-		});
-		await expect(page.getByTestId('landing-mates-focus-demo')).toHaveAttribute('data-active-stage', 'mates');
-		await expect(page.getByTestId('landing-mate-profile')).toHaveCount(4);
-		durationMs = await page.getByTestId('daily-inspiration-carousel-progress').evaluate((progress: HTMLElement) => (
-			Number.parseFloat(getComputedStyle(progress).getPropertyValue('--carousel-progress-duration'))
-		));
-		expect(durationMs).toBe(PRODUCT_STORY_DURATION_MS);
-		await expect(page.getByTestId('landing-mates-focus-demo')).toHaveAttribute('data-active-stage', 'focus', {
-			timeout: 7500
-		});
-		await expect(page.getByTestId('landing-focus-mode')).toHaveCount(3);
-
-		await expect(page.getByTestId('landing-people-experience-demo')).toBeVisible({
-			timeout: PRODUCT_STORY_DURATION_MS + PRODUCT_STORY_ADVANCE_GRACE_MS
-		});
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Built for people & the best possible experience.');
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
-			timeout: PRODUCT_STORY_HEADING_SETTLE_MS
-		});
-		await expect(page.getByTestId('landing-people-experience-demo')).toHaveAttribute('data-active-stage', 'providers');
-		await expect(page.getByTestId('landing-provider-logo')).toHaveCount(4);
-		durationMs = await page.getByTestId('daily-inspiration-carousel-progress').evaluate((progress: HTMLElement) => (
-			Number.parseFloat(getComputedStyle(progress).getPropertyValue('--carousel-progress-duration'))
-		));
-		expect(durationMs).toBe(PRODUCT_STORY_DURATION_MS);
-		await expect(page.getByTestId('landing-people-experience-demo')).toHaveAttribute('data-active-stage', 'access', {
-			timeout: 7500
-		});
-		await expect(page.getByTestId('landing-platform-node')).toHaveCount(3);
-		await expect(page.getByTestId('landing-platform-node')).toHaveText(['Web', 'CLI', 'SDK']);
-
-		await expect(page.getByTestId('landing-signup-cta')).toBeVisible({
-			timeout: PRODUCT_STORY_DURATION_MS + PRODUCT_STORY_ADVANCE_GRACE_MS
-		});
-		await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
-	});
-
-	test('reduced motion keeps product stories static and manually navigable', async ({ page }: { page: any }) => {
-		test.setTimeout(45000);
-		await page.emulateMedia({ reducedMotion: 'reduce' });
-		await page.setViewportSize({ width: 1280, height: 800 });
-
-		await page.goto(getE2EDebugUrl('/?landing-header-stories-reduced-motion'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await waitForLandingIntroExamples(page);
-		await skipExpandedLandingIntro(page);
-		await page.getByTestId('daily-inspiration-next').click();
-
-		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-reduced-motion', 'true');
-		await expect(page.getByTestId('landing-privacy-summary')).toBeVisible();
-		await page.waitForTimeout(16000);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
-		await page.getByTestId('daily-inspiration-next').click();
-		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible();
 	});
 
 	test('collapsed guest inspirations scale proportionally and keep the heading above the animation', async ({ page }: { page: any }) => {

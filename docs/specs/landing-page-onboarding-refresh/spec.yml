@@ -416,6 +416,16 @@ attempts:
       validation gates. The exact-commit test command found Vercel deployment
       `dpl_5KfwTK6VdKJzmUVvevLK541E8cCu`, but Vercel canceled it while queued
       before Playwright could start; the automated retry returned HTTP 400.
+  - id: ATTEMPT-21
+    task_id: TASK-4
+    approach: Deploy the new header-story assertions inside the legacy landing-page onboarding spec before implementation.
+    outcome: blocked
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `8de9424f4` deployed Ready and GitHub Actions run `30902883216`
+      failed on an older iPad intro icon-size assertion before reaching the new
+      header-story tests. The story contract is being moved to a focused spec so
+      unrelated legacy geometry assertions cannot mask its red and green evidence.
 
 handoff:
   current_task_id: TASK-4
@@ -849,8 +859,8 @@ tests:
         timestamp: "2026-07-22"
   - id: T-WEB-LANDING-HEADER-STORIES
     type: playwright
-    file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-    command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts --gate-deploy --expected-commit <commit>
+    file: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit <commit>
     target: app.dev.openmates.org
     covers:
       - AC-7
@@ -1072,7 +1082,7 @@ tasks:
       - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
       - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
       - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
-      - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+      - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
     verification:
       - T-WEB-ACTIONABLE-EVENT
       - V-USER-PHASE1
@@ -1156,7 +1166,7 @@ tasks:
         - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
         - frontend/packages/ui/src/components/landing/*.svelte
         - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
-        - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+        - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
       shared_files: []
     blockers: []
     follow_up_tasks: []
