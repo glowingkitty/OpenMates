@@ -6794,9 +6794,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
         window.dispatchEvent(customEvent);
 
+        const isDraftForUnsentNewChat = showWelcome && !currentChat?.chat_id && chat?.chat_id;
         const isNewChat = !currentChat?.chat_id && chat?.chat_id; // Check if it was a new chat
-        currentChat = chat;
-        console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
+        if (!isDraftForUnsentNewChat) {
+            currentChat = chat;
+            console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
+        } else {
+            console.debug("[ActiveChat] Draft saved for unsent new chat; keeping welcome state:", chat.chat_id);
+        }
 
         // CRITICAL: Sync liveInputText with current editor content after draft save
         // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
@@ -6816,7 +6821,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
-        if (isNewChat) {
+        if (isNewChat && !isDraftForUnsentNewChat) {
             console.debug("[ActiveChat] New chat created from draft, dispatching chatSelected:", chat);
             dispatch('chatSelected', { chat }); // Dispatch to parent (e.g. a component that embeds ActiveChat and Chats)
                                                 // This might need to be a window event if Chats.svelte is not a direct parent
