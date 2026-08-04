@@ -81,6 +81,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		const messageEditor = page.getByTestId('message-editor');
 		await fillMessageEditor(page, messageEditor, draftText);
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
 		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
 
@@ -93,7 +94,9 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			await regularChats.first().click();
 			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
 
-			await page.getByTestId('sidebar-toggle').click();
+			if (await page.getByTestId('activity-history-wrapper').isVisible().catch(() => false)) {
+				await page.getByTestId('sidebar-toggle').click();
+			}
 			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
 			await page.getByTestId('chat-header-next').click();
 
