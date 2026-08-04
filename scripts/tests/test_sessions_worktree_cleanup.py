@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Tests for cleaning and archiving agent worktrees.
+"""Tests for bounded automatic cleanup of stale agent worktrees.
 
-Dirty idle worktrees must become visible archive records instead of being
-silently committed, pushed, or discarded.
+Cleanup may remove only old worktrees with an integration-safe classification.
+Recent, unique, and uncertain work remains visible for an operator decision.
+Deletion manifests intentionally retain metadata but no source or patch content.
 """
 
 from __future__ import annotations
@@ -27,64 +28,86 @@ def load_sessions_module():
     return module
 
 
-def test_cleanup_archives_dirty_idle_worktree(monkeypatch, tmp_path):
+def test_safe_cleanup_deletes_only_old_integrated_worktrees(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
-    worktree = tmp_path / "worktrees" / "agent-abcd"
-    sessions_file.write_text(
-        json.dumps(
-            {
-                "locks": {},
-                "sessions": {
-                    "abcd": {
-                        "modified_files": ["scripts/sessions.py"],
-                        "worktree": {"path": str(worktree), "status": "active", "last_active": "2026-07-25T00:00:00Z"},
-                    }
-                },
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    sessions_file.write_text(json.dumps({"sessions": {"old": {}, "recent": {}, "unique": {}}}), encoding="utf-8")
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_hours_since", lambda _value: 13)
-    monkeypatch.setattr(sessions, "_worktree_has_changes", lambda _metadata: True)
-
-    archived = sessions.cleanup_session_worktrees(idle_hours=12)
-
-    assert archived == ["abcd"]
-    data = json.loads(sessions_file.read_text(encoding="utf-8"))
-    assert data["sessions"]["abcd"]["worktree"]["status"] == "archived"
-    assert data["worktree_archive"][0]["session_id"] == "abcd"
-
-
-def test_cleanup_removes_clean_merged_worktree(monkeypatch, tmp_path):
-    sessions = load_sessions_module()
-    sessions_file = tmp_path / "sessions.json"
-    worktree = tmp_path / "worktrees" / "agent-abcd"
-    sessions_file.write_text(
-        json.dumps(
-            {
-                "locks": {},
-                "sessions": {
-                    "abcd": {
-                        "modified_files": [],
-                        "worktree": {"path": str(worktree), "status": "merged", "last_active": "2026-07-26T00:00:00Z"},
-                    }
-                },
-            }
-        )
-        + "\n",
-        encoding="utf-8",
+    monkeypatch.setattr(
+        sessions,
+        "_discover_worktree_candidates",
+        lambda: [
+            {"session_id": "old", "path": "/tmp/old", "idle_hours": 60, "classification": "integrated", "changed_files": ["a.py"]},
+            {"session_id": "recent", "path": "/tmp/recent", "idle_hours": 2, "classification": "integrated", "changed_files": ["b.py"]},
+            {"session_id": "unique", "path": "/tmp/unique", "idle_hours": 60, "classification": "unique_stale", "changed_files": ["c.py"]},
+        ],
     )
-    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_worktree_has_changes", lambda _metadata: False)
     removed: list[str] = []
-    monkeypatch.setattr(sessions, "_remove_git_worktree", lambda metadata: removed.append(metadata["path"]))
+    monkeypatch.setattr(sessions, "_remove_reconciled_worktree", lambda item: removed.append(item["session_id"]))
+    monkeypatch.setattr(sessions, "_refresh_reconciliation_candidate", lambda item, *_args, **_kwargs: item)
 
-    archived = sessions.cleanup_session_worktrees(idle_hours=12)
+    report = sessions.reconcile_session_worktrees(target_ref="origin/dev", idle_hours=48, apply_safe=True)
 
-    assert archived == []
-    assert removed == [str(worktree)]
+    assert removed == ["old"]
+    assert report["deleted"] == ["old"]
+    assert {item["session_id"] for item in report["unresolved"]} == {"recent", "unique"}
     data = json.loads(sessions_file.read_text(encoding="utf-8"))
-    assert "abcd" not in data["sessions"]
+    assert "old" not in data["sessions"]
+    manifest = data["worktree_deletion_manifests"][0]
+    assert manifest["session_id"] == "old"
+    assert manifest["reason"] == "integrated"
+    assert manifest["changed_file_count"] == 1
+    assert "patch" not in manifest
+    assert "content" not in manifest
+
+
+def test_safe_cleanup_revalidates_recent_activity_before_deletion(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(json.dumps({"sessions": {"old": {}}}), encoding="utf-8")
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(
+        sessions,
+        "_discover_worktree_candidates",
+        lambda: [{"session_id": "old", "path": "/tmp/old", "idle_hours": 60, "classification": "integrated", "changed_files": []}],
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_refresh_reconciliation_candidate",
+        lambda item, *_args, **_kwargs: {**item, "idle_hours": 0, "classification": "recent_active"},
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_remove_reconciled_worktree",
+        lambda _item: (_ for _ in ()).throw(AssertionError("recent worktree was removed")),
+    )
+
+    report = sessions.reconcile_session_worktrees(target_ref="origin/dev", idle_hours=48, apply_safe=True)
+
+    assert report["deleted"] == []
+    assert report["unresolved"][0]["classification"] == "recent_active"
+
+
+def test_cleanup_prunes_manifests_after_thirty_days(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {},
+                "worktree_deletion_manifests": [
+                    {"session_id": "expired", "deleted_at": "2026-06-01T00:00:00Z"},
+                    {"session_id": "current", "deleted_at": "2026-08-03T00:00:00Z"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_hours_since", lambda value: 1000 if "06-01" in value else 24)
+    monkeypatch.setattr(sessions, "_discover_worktree_candidates", lambda: [])
+
+    sessions.reconcile_session_worktrees(target_ref="origin/dev", idle_hours=48, apply_safe=True)
+
+    data = json.loads(sessions_file.read_text(encoding="utf-8"))
+    assert [item["session_id"] for item in data["worktree_deletion_manifests"]] == ["current"]

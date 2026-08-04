@@ -78,7 +78,8 @@ STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
 VERCEL_DEPLOY_LOCK_MINUTES = 90
-WORKTREE_ARCHIVE_IDLE_HOURS = 12
+WORKTREE_CLEANUP_IDLE_HOURS = 48
+WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
 STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 5  # Number of recent git commits to show at session start
 CONTRIBUTING_GUIDES_DIR = PROJECT_ROOT / "docs" / "contributing" / "guides"
@@ -549,6 +550,7 @@ def _default_sessions() -> dict:
         "edit_leases": {},
         "deploy_queue": [],
         "worktree_archive": [],
+        "worktree_deletion_manifests": [],
         "sessions": {},
     }
 
@@ -1057,6 +1059,14 @@ def _mark_worktree_deployed(session_id: str, patch_id: str, commit_hash: str) ->
     _mutate_sessions(mark)
 
 
+def _git_is_ancestor(commit: str, target_ref: str) -> bool:
+    """Return whether commit is reachable from target_ref."""
+    if not commit or not target_ref:
+        return False
+    rc, _stdout, _stderr = _run_cmd(["git", "merge-base", "--is-ancestor", commit, target_ref])
+    return rc == 0
+
+
 def _record_worktree_pending_commit(session_id: str, patch_id: str, commit_hash: str) -> None:
     """Record a local deploy commit so a failed push can resume safely."""
     if not patch_id or not commit_hash:
@@ -1183,49 +1193,462 @@ def enqueue_worktree_deploy(session_id: str, title: str, patch_id: str, *, reaso
     return _mutate_sessions(store)
 
 
+def _validate_managed_worktree_path(path: str | Path) -> Path:
+    managed_path = Path(path).resolve()
+    try:
+        managed_path.relative_to(AGENT_WORKTREES_DIR.resolve())
+    except ValueError as exc:
+        raise RuntimeError(f"Refusing to remove worktree outside {AGENT_WORKTREES_DIR}: {managed_path}") from exc
+    if not managed_path.name.startswith("agent-"):
+        raise RuntimeError(f"Refusing to remove non-agent worktree: {managed_path}")
+    return managed_path
+
+
 def _remove_git_worktree(metadata: dict) -> None:
     path = metadata.get("path")
     if not path:
         return
-    rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(path)])
+    managed_path = _validate_managed_worktree_path(path)
+    rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(managed_path)])
     if rc != 0:
+        raise RuntimeError(f"Failed to remove worktree {managed_path}: {stderr}")
+    _run_cmd(["git", "worktree", "prune"])
+
+
+def _linked_git_worktrees() -> list[dict]:
+    """Return linked Git worktrees without changing repository state."""
+    rc, stdout, stderr = _run_cmd(["git", "worktree", "list", "--porcelain"])
+    if rc != 0:
+        raise RuntimeError(f"Failed to list Git worktrees: {stderr}")
+    records: list[dict] = []
+    current: dict[str, str] = {}
+    for line in [*stdout.splitlines(), ""]:
+        if not line.strip():
+            if current.get("path"):
+                records.append(current)
+            current = {}
+            continue
+        key, _, value = line.partition(" ")
+        if key == "worktree":
+            current["path"] = value
+        elif key == "HEAD":
+            current["head"] = value
+        elif key == "branch":
+            current["branch"] = value
+        elif key == "detached":
+            current["detached"] = "true"
+    return records
+
+
+def _worktree_candidate_id(path: str, metadata: dict | None = None) -> str:
+    if metadata and metadata.get("session_id"):
+        return str(metadata["session_id"])
+    name = Path(path).name
+    return name.removeprefix("agent-") if name.startswith("agent-") else name
+
+
+def _candidate_last_active(session: dict | None, metadata: dict | None, path: Path, changed_files: list[str]) -> str:
+    timestamps = [
+        str((session or {}).get("last_active") or ""),
+        str((metadata or {}).get("last_active") or ""),
+    ]
+    for relative_path in changed_files:
+        candidate = path / relative_path
+        try:
+            timestamps.append(datetime.fromtimestamp(candidate.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        except OSError:
+            continue
+    valid = []
+    for value in timestamps:
+        if not value:
+            continue
+        try:
+            valid.append((_parse_iso(value), value))
+        except (TypeError, ValueError):
+            continue
+    if valid:
+        return max(valid)[1]
+    try:
+        return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except OSError:
+        return ""
+
+
+def _candidate_changed_files(path: Path, metadata: dict | None) -> list[str]:
+    if not path.exists():
+        return []
+    effective = dict(metadata or {})
+    effective["path"] = str(path)
+    effective.setdefault("base_commit", "HEAD")
+    return _worktree_changed_files(effective)
+
+
+def _discover_worktree_candidates() -> list[dict]:
+    """Join sessions, linked worktrees, and physical worktree directories."""
+    data = _load_sessions()
+    sessions = data.get("sessions", {})
+    by_path: dict[str, dict] = {}
+    for session_id, session in sessions.items():
+        metadata = session.get("worktree") if isinstance(session, dict) else None
+        if not isinstance(metadata, dict) or not metadata.get("path"):
+            continue
+        by_path[str(Path(metadata["path"]).resolve())] = {
+            "session_id": session_id,
+            "session": session,
+            "metadata": metadata,
+        }
+
+    linked = _linked_git_worktrees()
+    managed_root = AGENT_WORKTREES_DIR.resolve()
+    paths: dict[str, dict] = {}
+    for item in linked:
+        resolved = Path(item["path"]).resolve()
+        try:
+            resolved.relative_to(managed_root)
+        except ValueError:
+            if str(resolved) not in by_path:
+                continue
+        paths[str(resolved)] = dict(item)
+    if AGENT_WORKTREES_DIR.exists():
+        for path in AGENT_WORKTREES_DIR.glob("agent-*"):
+            if path.is_dir():
+                paths.setdefault(str(path.resolve()), {"path": str(path.resolve())})
+    paths.update({path: {"path": path, **entry} for path, entry in by_path.items() if path not in paths})
+
+    candidates: list[dict] = []
+    root = PROJECT_ROOT.resolve()
+    for resolved_path, linked_item in sorted(paths.items()):
+        path = Path(resolved_path)
+        if path == root:
+            continue
+        registered = by_path.get(resolved_path, {})
+        metadata = registered.get("metadata") if isinstance(registered.get("metadata"), dict) else {}
+        session = registered.get("session") if isinstance(registered.get("session"), dict) else {}
+        session_id = str(registered.get("session_id") or _worktree_candidate_id(resolved_path, metadata))
+        inspection_error = ""
+        try:
+            changed_files = _candidate_changed_files(path, metadata)
+        except (OSError, RuntimeError) as exc:
+            changed_files = []
+            inspection_error = str(exc)
+        last_active = _candidate_last_active(session, metadata, path, changed_files)
+        try:
+            idle_hours = _hours_since(last_active) if last_active else float("inf")
+        except (TypeError, ValueError):
+            idle_hours = float("inf")
+        candidates.append(
+            {
+                "session_id": session_id,
+                "path": resolved_path,
+                "head": linked_item.get("head", ""),
+                "linked": bool(linked_item.get("head")),
+                "registered": bool(registered),
+                "metadata": metadata,
+                "last_active": last_active,
+                "idle_hours": idle_hours,
+                "changed_files": changed_files,
+                "inspection_error": inspection_error,
+            }
+        )
+    return candidates
+
+
+def _target_file_bytes(target_ref: str, relative_path: str) -> bytes | None:
+    result = subprocess.run(
+        ["git", "show", f"{target_ref}:{relative_path}"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        timeout=30,
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
+def _worktree_target_files_match(candidate: dict, target_ref: str) -> bool:
+    path = Path(candidate.get("path") or "")
+    changed_files = candidate.get("changed_files") or []
+    if not path.exists() or not changed_files:
+        return False
+    for relative_path in changed_files:
+        local_path = path / relative_path
+        target_bytes = _target_file_bytes(target_ref, relative_path)
+        if local_path.exists():
+            if not local_path.is_file() or target_bytes is None or local_path.read_bytes() != target_bytes:
+                return False
+        elif target_bytes is not None:
+            return False
+    return True
+
+
+def _classify_worktree_candidate(
+    candidate: dict,
+    target_ref: str,
+    idle_threshold: int,
+    approved_obsolete: set[str],
+) -> dict:
+    """Classify one worktree conservatively against an exact dev target."""
+    result = dict(candidate)
+    session_id = str(result.get("session_id") or "")
+    candidate_idle_hours = float(result.get("idle_hours", float("inf")))
+    if not result.get("path") or not session_id:
+        result.update(classification="malformed", reason_code="missing_identity")
+        return result
+    if result.get("inspection_error"):
+        result.update(classification="malformed", reason_code="inspection_failed")
+        return result
+    if candidate_idle_hours < idle_threshold:
+        result.update(classification="recent_active", reason_code="recent_activity")
+        return result
+    if result.get("classification") in {"integrated", "duplicated", "superseded", "unique_stale", "uncertain"}:
+        return result
+    metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+    deployed_patch = str(metadata.get("root_applied_patch_id") or "")
+    merged_commit = str(metadata.get("merged_commit") or "")
+    if deployed_patch and merged_commit and _git_is_ancestor(merged_commit, target_ref):
+        try:
+            current_patch = _worktree_patch_id(metadata)
+        except (OSError, RuntimeError):
+            current_patch = ""
+        if current_patch == deployed_patch:
+            result.update(classification="integrated", reason_code="recorded_patch_reachable")
+            return result
+    if _worktree_target_files_match(result, target_ref):
+        result.update(classification="duplicated", reason_code="target_files_match")
+        return result
+    changed_files = result.get("changed_files") or []
+    head = str(result.get("head") or "")
+    if not changed_files and head and _git_is_ancestor(head, target_ref):
+        result.update(classification="integrated", reason_code="clean_head_reachable")
+        return result
+    if session_id in approved_obsolete:
+        result.update(classification="superseded", reason_code="review_approved_obsolete")
+        return result
+    result.update(
+        classification="unique_stale" if changed_files else "uncertain",
+        reason_code="unique_changes" if changed_files else "unproven_head",
+    )
+    return result
+
+
+def _remove_reconciled_worktree(candidate: dict) -> None:
+    path = _validate_managed_worktree_path(str(candidate.get("path") or ""))
+    rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(path)])
+    if rc != 0 and path.exists():
         raise RuntimeError(f"Failed to remove worktree {path}: {stderr}")
     _run_cmd(["git", "worktree", "prune"])
 
 
-def cleanup_session_worktrees(*, idle_hours: int = WORKTREE_ARCHIVE_IDLE_HOURS) -> list[str]:
-    """Remove clean merged worktrees and archive dirty idle worktrees."""
-    archived: list[str] = []
+def _refresh_reconciliation_candidate(
+    candidate: dict,
+    data: dict,
+    target_ref: str,
+    idle_hours: int,
+    approved_obsolete: set[str],
+) -> dict:
+    """Re-read one deletion candidate while the sessions-state lock is held."""
+    session_id = str(candidate.get("session_id") or "")
+    current_session = data.get("sessions", {}).get(session_id)
+    session = current_session if isinstance(current_session, dict) else {}
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else candidate.get("metadata", {})
+    path = Path(str((metadata or {}).get("path") or candidate.get("path") or ""))
+    fresh = {
+        key: value
+        for key, value in candidate.items()
+        if key not in {"classification", "reason_code", "inspection_error"}
+    }
+    fresh["path"] = str(path)
+    fresh["metadata"] = metadata or {}
+    try:
+        fresh["changed_files"] = _candidate_changed_files(path, metadata or {})
+        fresh["inspection_error"] = ""
+    except (OSError, RuntimeError) as exc:
+        fresh["changed_files"] = []
+        fresh["inspection_error"] = str(exc)
+    fresh["last_active"] = _candidate_last_active(session, metadata or {}, path, fresh["changed_files"])
+    try:
+        fresh["idle_hours"] = _hours_since(fresh["last_active"]) if fresh["last_active"] else float("inf")
+    except (TypeError, ValueError):
+        fresh["idle_hours"] = float("inf")
+    live_lease = any(
+        isinstance(lease, dict) and lease.get("session_id") == session_id
+        for lease in data.get("edit_leases", {}).values()
+    )
+    if session.get("writing") or live_lease:
+        fresh["idle_hours"] = 0
+    return _classify_worktree_candidate(fresh, target_ref, idle_hours, approved_obsolete)
 
-    def cleanup(data: dict) -> list[str]:
-        sessions = data.setdefault("sessions", {})
-        archive = data.setdefault("worktree_archive", [])
-        for session_id, session in list(sessions.items()):
-            metadata = session.get("worktree")
-            if not isinstance(metadata, dict) or not metadata.get("path"):
-                continue
-            dirty = _worktree_has_changes(metadata)
-            if metadata.get("status") == "merged" and not dirty:
-                _remove_git_worktree(metadata)
-                del sessions[session_id]
-                continue
-            last_active = metadata.get("last_active") or session.get("last_active") or ""
-            if dirty and last_active and _hours_since(last_active) >= idle_hours:
-                metadata["status"] = "archived"
-                metadata["archived_at"] = _now_iso()
-                record = {
-                    "session_id": session_id,
-                    "path": metadata["path"],
-                    "archived_at": metadata["archived_at"],
-                    "base_commit": metadata.get("base_commit", ""),
-                    "recover_command": f"python3 scripts/sessions.py summary --session {session_id}",
-                }
-                if not any(item.get("session_id") == session_id for item in archive):
-                    archive.append(record)
-                archived.append(session_id)
-        return list(archived)
 
-    return _mutate_sessions(cleanup)
+def _prune_deletion_manifests(data: dict) -> None:
+    retained = []
+    for manifest in data.setdefault("worktree_deletion_manifests", []):
+        deleted_at = str(manifest.get("deleted_at") or "")
+        try:
+            expired = not deleted_at or _hours_since(deleted_at) >= WORKTREE_MANIFEST_RETENTION_HOURS
+        except (TypeError, ValueError):
+            expired = True
+        if not expired:
+            retained.append(manifest)
+    data["worktree_deletion_manifests"] = retained
+
+
+def reconcile_session_worktrees(
+    *,
+    target_ref: str = "origin/dev",
+    idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS,
+    apply_safe: bool = False,
+    approved_obsolete: set[str] | None = None,
+) -> dict:
+    """Report or safely apply reconciliation for all known agent worktrees."""
+    approved = set(approved_obsolete or set())
+    rc, target_commit, stderr = _run_cmd(["git", "rev-parse", target_ref])
+    if rc != 0:
+        raise RuntimeError(f"Failed to resolve {target_ref}: {stderr}")
+    target_commit = target_commit.strip()
+    items = []
+    for candidate in _discover_worktree_candidates():
+        if candidate.get("classification"):
+            item = dict(candidate)
+            if float(item.get("idle_hours", float("inf"))) < idle_hours:
+                item.update(classification="recent_active", reason_code="recent_activity")
+        else:
+            item = _classify_worktree_candidate(candidate, target_commit, idle_hours, approved)
+        items.append(item)
+
+    safe_classes = {"integrated", "duplicated", "superseded"}
+    deletable = [
+        item for item in items
+        if item.get("classification") in safe_classes and float(item.get("idle_hours", float("inf"))) >= idle_hours
+    ]
+    deleted: list[str] = []
+    if apply_safe:
+        refreshed_by_id: dict[str, dict] = {}
+
+        def record(data: dict) -> None:
+            _prune_deletion_manifests(data)
+            sessions = data.setdefault("sessions", {})
+            queue = data.setdefault("deploy_queue", [])
+            manifests = data.setdefault("worktree_deletion_manifests", [])
+            for item in deletable:
+                fresh = _refresh_reconciliation_candidate(item, data, target_commit, idle_hours, approved)
+                session_id = str(fresh["session_id"])
+                refreshed_by_id[session_id] = fresh
+                if (
+                    fresh.get("classification") not in safe_classes
+                    or float(fresh.get("idle_hours", float("inf"))) < idle_hours
+                ):
+                    continue
+                try:
+                    _remove_reconciled_worktree(fresh)
+                except RuntimeError as exc:
+                    fresh["classification"] = "cleanup_blocked"
+                    fresh["reason_code"] = "remove_failed"
+                    fresh["cleanup_error"] = str(exc)
+                    continue
+                deleted.append(session_id)
+                sessions.pop(session_id, None)
+                queue[:] = [entry for entry in queue if entry.get("session_id") != session_id]
+                manifests.append(
+                    {
+                        "session_id": session_id,
+                        "worktree_name": Path(str(fresh.get("path") or "")).name,
+                        "classification": str(fresh.get("classification") or ""),
+                        "reason": str(fresh.get("classification") or ""),
+                        "reason_code": str(fresh.get("reason_code") or ""),
+                        "last_active": str(fresh.get("last_active") or ""),
+                        "changed_file_count": len(fresh.get("changed_files") or []),
+                        "head": str(fresh.get("head") or ""),
+                        "target_commit": target_commit,
+                        "deleted_at": _now_iso(),
+                    }
+                )
+
+        _mutate_sessions(record)
+        items = [refreshed_by_id.get(str(item.get("session_id")), item) for item in items]
+
+    unresolved = [item for item in items if str(item.get("session_id")) not in deleted and item not in deletable]
+    if not apply_safe:
+        unresolved = [item for item in items if item.get("classification") not in safe_classes]
+    else:
+        unresolved = [item for item in items if str(item.get("session_id")) not in deleted]
+    return {
+        "target_ref": target_ref,
+        "target_commit": target_commit,
+        "apply_safe": apply_safe,
+        "items": items,
+        "deleted": deleted,
+        "unresolved": unresolved,
+    }
+
+
+def worktree_release_readiness(*, target_ref: str, excluded_active: set[str]) -> dict:
+    report = reconcile_session_worktrees(target_ref=target_ref, apply_safe=False)
+    blocked_deploys = [
+        str(item.get("id") or item.get("session_id") or "")
+        for item in _load_sessions().get("deploy_queue", [])
+        if item.get("status") == "blocked"
+    ]
+    excluded = sorted(
+        str(item.get("session_id")) for item in report["items"]
+        if item.get("classification") == "recent_active" and str(item.get("session_id")) in excluded_active
+    )
+    blocking = sorted(
+        str(item.get("session_id")) for item in report["items"]
+        if not (item.get("classification") == "recent_active" and str(item.get("session_id")) in excluded_active)
+    )
+    return {
+        **report,
+        "ready": not blocking and not blocked_deploys,
+        "excluded_active": excluded,
+        "blocking_worktrees": blocking,
+        "blocked_deploys": blocked_deploys,
+    }
+
+
+def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev") -> None:
+    """Remove a fully integrated worktree before deleting its session record."""
+    def finalize(data: dict) -> str:
+        session = data.get("sessions", {}).get(session_id)
+        if not isinstance(session, dict):
+            return "missing"
+        metadata = session.get("worktree")
+        if not isinstance(metadata, dict) or not metadata.get("path"):
+            data.setdefault("sessions", {}).pop(session_id, None)
+            return "removed"
+        live_lease = any(
+            isinstance(lease, dict) and lease.get("session_id") == session_id
+            for lease in data.get("edit_leases", {}).values()
+        )
+        try:
+            current_patch = _worktree_patch_id(metadata)
+        except (OSError, RuntimeError):
+            current_patch = ""
+        deployed_patch = str(metadata.get("root_applied_patch_id") or "")
+        merged_commit = str(metadata.get("merged_commit") or "")
+        integrated = (
+            not session.get("writing")
+            and not live_lease
+            and bool(deployed_patch)
+            and current_patch == deployed_patch
+            and _git_is_ancestor(merged_commit, target_ref)
+        )
+        if not integrated:
+            metadata["status"] = "changes_pending"
+            metadata["last_active"] = _now_iso()
+            return "pending"
+        _remove_git_worktree(metadata)
+        data.setdefault("sessions", {}).pop(session_id, None)
+        data["deploy_queue"] = [
+            item for item in data.setdefault("deploy_queue", []) if item.get("session_id") != session_id
+        ]
+        return "removed"
+
+    result = _mutate_sessions(finalize)
+    if result == "pending":
+        raise RuntimeError(f"Session {session_id} worktree has residual or unintegrated changes")
+
+
+def cleanup_session_worktrees(*, idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS) -> list[str]:
+    """Compatibility wrapper for the safe reconciliation cleanup."""
+    return reconcile_session_worktrees(idle_hours=idle_hours, apply_safe=True)["deleted"]
 
 
 def _is_root_checkout_path(path: Path) -> bool:
@@ -3785,6 +4208,15 @@ def cmd_end(args: argparse.Namespace) -> None:
             skip_reason=getattr(args, "skip_visual_smoke_reason", None),
         )
 
+    worktree_backed = isinstance(session.get("worktree"), dict)
+    if worktree_backed:
+        try:
+            finalize_session_worktree(sid)
+        except RuntimeError as exc:
+            print(f"ERROR: Cannot end session — {exc}", file=sys.stderr)
+            print("Deploy all residual worktree changes or let 48-hour reconciliation classify the stale work.", file=sys.stderr)
+            sys.exit(1)
+
     # ── Linear completion ─────────────────────────────────────────────────
     _linear_complete_session(sid, session)
 
@@ -3804,10 +4236,11 @@ def cmd_end(args: argparse.Namespace) -> None:
             except Exception:
                 pass
 
-    # Remove session
-    del data["sessions"][sid]
-    _prune_stale(data)
-    _save_sessions(data)
+    if not worktree_backed:
+        def remove_plain(current: dict) -> None:
+            current.setdefault("sessions", {}).pop(sid, None)
+            _prune_stale(current)
+        _mutate_sessions(remove_plain)
 
     print(f"Session {sid} ended and removed from sessions.json.")
 
@@ -3945,7 +4378,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     if not sessions:
         print("No active sessions.")
     else:
-        print(f"Active sessions ({len(sessions)}):")
+        print(f"Registered sessions ({len(sessions)}):")
         for sid, info in sessions.items():
             writing = info.get("writing")
             mod_count = len(info.get("modified_files", []))
@@ -3954,9 +4387,11 @@ def cmd_status(args: argparse.Namespace) -> None:
             task_str = f" [task: {linked_task}]" if linked_task else ""
             linear_id = info.get("linear_issue_id")
             linear_str = f" [{linear_id}]" if linear_id else ""
+            worktree = info.get("worktree") if isinstance(info.get("worktree"), dict) else {}
+            lifecycle = f" [worktree: {worktree.get('status', 'none')}]" if worktree else ""
             print(
                 f"  [{sid}] {info.get('task', '?')} "
-                f"(touched: {mod_count} files, advisory){task_str}{linear_str}{writing_str}"
+                f"(touched: {mod_count} files, advisory){task_str}{linear_str}{lifecycle}{writing_str}"
             )
             if info.get("modified_files"):
                 for f in info["modified_files"]:
@@ -4229,7 +4664,6 @@ def cmd_track(args: argparse.Namespace) -> None:
     # might still pass a string via programmatic use)
     filepaths_raw = args.file if isinstance(args.file, list) else [args.file]
 
-    changed = False
     for filepath in filepaths_raw:
         filepath = _relative_repo_path_for_session(filepath, sessions.get(sid))
 
@@ -4248,13 +4682,18 @@ def cmd_track(args: argparse.Namespace) -> None:
 
         if filepath not in sessions[sid].get("modified_files", []):
             sessions[sid].setdefault("modified_files", []).append(filepath)
-            changed = True
             print(f"Tracked '{filepath}' as modified in session {sid}.")
         else:
             print(f"File '{filepath}' already tracked in session {sid}.")
 
-    if changed:
-        sessions[sid]["last_active"] = _now_iso()
+    if filepaths_raw:
+        now = _now_iso()
+        sessions[sid]["last_active"] = now
+        worktree = sessions[sid].get("worktree")
+        if isinstance(worktree, dict):
+            worktree["last_active"] = now
+            if worktree.get("status") == "merged":
+                worktree["status"] = "active"
         data["sessions"] = sessions
         _save_sessions(data)
 
@@ -4300,8 +4739,14 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
 
     if filepath not in sessions[sid].get("modified_files", []):
         sessions[sid].setdefault("modified_files", []).append(filepath)
-        sessions[sid]["last_active"] = _now_iso()
-        _save_sessions(data)
+    now = _now_iso()
+    sessions[sid]["last_active"] = now
+    worktree = sessions[sid].get("worktree")
+    if isinstance(worktree, dict):
+        worktree["last_active"] = now
+        if worktree.get("status") == "merged":
+            worktree["status"] = "active"
+    _save_sessions(data)
 
 
 def cmd_untrack(args: argparse.Namespace) -> None:
@@ -5171,12 +5616,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                     skip_reason=getattr(args, "skip_visual_smoke_reason", None),
                     commit_sha=commit_hash_full,
                 )
+                try:
+                    finalize_session_worktree(sid, target_ref=commit_hash_full)
+                except RuntimeError as exc:
+                    print(f"DEPLOYED BUT SESSION FINALIZATION BLOCKED — {exc}", file=sys.stderr)
+                    print(f"Retry after resolving residual work: python3 scripts/sessions.py end --session {sid}", file=sys.stderr)
+                    sys.exit(1)
                 _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
-
-                def remove_session(session_data: dict) -> None:
-                    session_data.setdefault("sessions", {}).pop(sid, None)
-
-                _mutate_sessions(remove_session)
                 print(f"Session {sid} ended.")
             sys.exit(0)
 
@@ -5503,12 +5949,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             skip_reason=getattr(args, "skip_visual_smoke_reason", None),
             commit_sha=commit_hash_full,
         )
+        try:
+            finalize_session_worktree(sid, target_ref=commit_hash_full)
+        except RuntimeError as exc:
+            print(f"DEPLOYED BUT SESSION FINALIZATION BLOCKED — {exc}", file=sys.stderr)
+            print(f"Retry after resolving residual work: python3 scripts/sessions.py end --session {sid}", file=sys.stderr)
+            sys.exit(1)
         _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
-
-        def remove_session(session_data: dict) -> None:
-            session_data.setdefault("sessions", {}).pop(sid, None)
-
-        _mutate_sessions(remove_session)
         print(f"\nSession {sid} ended.")
 
 
@@ -5528,10 +5975,69 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         print("Use this path as the working directory for source edits.")
         return
     if args.worktree_action == "cleanup":
-        archived = cleanup_session_worktrees(idle_hours=args.idle_hours)
-        print(f"Archived dirty idle worktrees: {len(archived)}")
-        for session_id in archived:
+        deleted = cleanup_session_worktrees(idle_hours=args.idle_hours)
+        print(f"Deleted safely classified stale worktrees: {len(deleted)}")
+        for session_id in deleted:
             print(f"  - {session_id}")
+        return
+    if args.worktree_action == "reconcile":
+        try:
+            report = reconcile_session_worktrees(
+                target_ref=args.target,
+                idle_hours=args.idle_hours,
+                apply_safe=args.apply_safe,
+                approved_obsolete=set(args.approve_obsolete or []),
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if args.format == "json":
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            counts: dict[str, int] = {}
+            for item in report["items"]:
+                classification = str(item.get("classification") or "unknown")
+                counts[classification] = counts.get(classification, 0) + 1
+            print("== WORKTREE RECONCILIATION ==")
+            print(f"Target: {report['target_ref']} ({report['target_commit'][:10]})")
+            print(f"Inspected: {len(report['items'])}")
+            print(f"Deleted: {len(report['deleted'])}")
+            print(f"Unresolved: {len(report['unresolved'])}")
+            for classification, count in sorted(counts.items()):
+                print(f"  {classification}: {count}")
+            for item in report["unresolved"]:
+                print(f"  ! {item.get('session_id')}: {item.get('classification')} ({item.get('reason_code', '')})")
+        return
+    if args.worktree_action == "release-readiness":
+        try:
+            report = worktree_release_readiness(
+                target_ref=args.target,
+                excluded_active=set(args.exclude_active or []),
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if args.format == "json":
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print("== WORKTREE RELEASE READINESS ==")
+            print(f"Target: {report['target_ref']} ({report['target_commit'][:10]})")
+            print(f"Ready: {'yes' if report['ready'] else 'no'}")
+            if report["excluded_active"]:
+                print("Explicitly excluded recent work: " + ", ".join(report["excluded_active"]))
+            if report["blocking_worktrees"]:
+                print("Blocking worktrees: " + ", ".join(report["blocking_worktrees"]))
+            if report["blocked_deploys"]:
+                print("Blocked deploys: " + ", ".join(report["blocked_deploys"]))
+            if not report["ready"]:
+                print(f"Inspect: python3 scripts/sessions.py worktree reconcile --target {args.target}")
+                print(
+                    "Delete proven stale work: python3 scripts/sessions.py worktree reconcile "
+                    f"--target {args.target} --idle-hours {WORKTREE_CLEANUP_IDLE_HOURS} --apply-safe"
+                )
+                print("Exclude only user-confirmed recent work with repeated --exclude-active <SESSION_ID> flags.")
+        if not report["ready"]:
+            sys.exit(1)
         return
     print("Error: unknown worktree action", file=sys.stderr)
     sys.exit(1)
@@ -7820,13 +8326,37 @@ def main() -> None:
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
     p_worktree_ensure = p_worktree_sub.add_parser("ensure", help="Create or show this session's worktree")
     p_worktree_ensure.add_argument("--session", "-s", required=True, help="Session ID")
-    p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Remove clean merged and archive dirty idle worktrees")
+    p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Delete safely classified stale worktrees")
     p_worktree_cleanup.add_argument(
         "--idle-hours",
         type=int,
-        default=WORKTREE_ARCHIVE_IDLE_HOURS,
-        help="Hours before dirty idle worktrees are archived (default: 12)",
+        default=WORKTREE_CLEANUP_IDLE_HOURS,
+        help="Hours before safely classified stale worktrees may be deleted (default: 48)",
     )
+    p_worktree_reconcile = p_worktree_sub.add_parser("reconcile", help="Report or safely reconcile all worktrees")
+    p_worktree_reconcile.add_argument("--target", default="origin/dev", help="Exact integration ref (default: origin/dev)")
+    p_worktree_reconcile.add_argument("--idle-hours", type=int, default=WORKTREE_CLEANUP_IDLE_HOURS)
+    p_worktree_reconcile.add_argument("--apply-safe", action="store_true", help="Delete only eligible safe classifications")
+    p_worktree_reconcile.add_argument(
+        "--approve-obsolete",
+        action="append",
+        default=[],
+        metavar="SESSION_ID",
+        help="Mark a reviewed stale worktree obsolete; repeat for multiple IDs",
+    )
+    p_worktree_reconcile.add_argument("--format", choices=["text", "json"], default="text")
+    p_worktree_readiness = p_worktree_sub.add_parser(
+        "release-readiness", help="Check worktree state before a dev-to-main pull request"
+    )
+    p_worktree_readiness.add_argument("--target", default="origin/dev", help="Exact release ref (default: origin/dev)")
+    p_worktree_readiness.add_argument(
+        "--exclude-active",
+        action="append",
+        default=[],
+        metavar="SESSION_ID",
+        help="Explicitly exclude one recent active worktree; repeat for multiple IDs",
+    )
+    p_worktree_readiness.add_argument("--format", choices=["text", "json"], default="text")
 
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")

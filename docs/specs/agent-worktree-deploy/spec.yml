@@ -1,10 +1,10 @@
 schema_version: 2
 id: agent-worktree-deploy
-title: Agent Worktree Deploy Isolation
-status: verified
+title: Agent Worktree Deploy Isolation and Reconciliation
+status: implementing
 goal: 'Replace the shared-checkout deployment workflow with automatic ephemeral session worktrees that isolate agent edits,
   integrate through the existing dev branch only for the shortest practical window, verify deploys against the relevant commit,
-  and clean up or archive idle workspaces without moving unreviewed changes into the root checkout.
+  and reconcile workspaces without overwriting newer dev commits or allowing forgotten worktrees to accumulate.
 
   '
 scope:
@@ -17,8 +17,15 @@ scope:
     the existing guarded path, and returns to isolation.
   - Replace the global Vercel deploy lock as a proof primitive with commit-scoped deploy/test verification while retaining
     bounded deploy serialization for root integration, commit, and push.
-  - Add cleanup for merged clean worktrees and visible archive records for stale dirty worktrees after the configured idle
-    window.
+  - Reconcile registered and orphaned worktrees against `origin/dev`, including the one-time cleanup of the existing backlog.
+  - Automatically delete worktrees after 48 hours without activity when deterministic comparison proves their changes are
+    integrated, duplicated, or superseded; retain a compact deletion manifest for 30 days without retaining deleted code.
+  - Batch-review stale worktrees containing unique changes and require operator review only for meaningful work that cannot
+    be classified obsolete with high confidence.
+  - Finalize deployed and ended sessions transactionally so physical worktrees, Git metadata, session metadata, deploy queue
+    records, and residual changes cannot drift apart.
+  - Add pull-request readiness reporting that permits explicitly excluded recent work but blocks stale, blocked, orphaned,
+    or unclassified worktrees.
   - Add transitional then strict root guards so agents do not accidentally edit, stage, commit, or deploy from the shared
     root checkout.
   - Update deploy, verification, OpenCode, Codex, and Claude-compatible instructions to describe the new contract.
@@ -27,7 +34,9 @@ scope:
   out:
   - Creating long-lived feature branches that users must manage manually.
   - Replacing `dev` as the integration branch or changing the repository default branch.
-  - Automatically committing, pushing, or discarding stale dirty worktree changes without explicit operator action.
+  - Automatically merging unique or uncertain stale changes into `dev`.
+  - Preserving patch bundles or copied source files after a high-confidence automatic stale deletion.
+  - Blocking a pull request solely because recent active work is explicitly excluded from that release.
   - Rewriting unrelated session, CI, or product deployment behavior outside the worktree deploy path.
   - Changing production deploy policy.
 context_discovery:
@@ -52,6 +61,13 @@ context_discovery:
   local_evidence:
   - OpenCode log inspection found 24 foreign-staged aborts, 17 lock timeouts, 10 deploy command timeouts, 11 stale-lock detections,
     and 32 manual unlock references in the sampled 24 hour window.
+  - The 2026-08-04 reconciliation investigation found about 463 linked worktrees, 127 registered worktrees, 102 records marked
+    merged, 25 records marked active, 11 dirty active worktrees, and 4 blocked deploy records while agents continued working.
+  - All sampled merged worktrees remained dirty against their detached base because deploy copied their patch to root without
+    advancing or removing the source worktree.
+  - "`deploy --end` and plain `sessions.py end` can remove session metadata before physical worktree reconciliation, producing
+    hundreds of unregistered worktrees that the existing cleanup command cannot discover."
+  - GitHub issue discovery was attempted through the GitHub MCP server on 2026-08-04 and failed with 401 Bad credentials.
   external_research:
   - Claude Code official guidance recommends separate Git worktrees for parallel coding sessions.
   - Google Jules uses managed branches and pull requests for isolation, but this repository needs direct `dev` integration.
@@ -80,22 +96,38 @@ clarification:
   - question: How should root guard and contended deploy handling roll out?
     answer: Root guard starts transitional and warn-only before becoming strict; deploy tries direct integration first and
       records a visible blocked-deploy item when integration is unsafe and needs manual conflict resolution.
+  - question: Should stale cleanup favor retention or bounded automatic deletion?
+    answer: Favor a clean system; automatically delete after 48 hours without activity when changes are integrated, duplicated,
+      or superseded with high confidence.
+  - question: What recovery evidence should remain after automatic deletion?
+    answer: Keep a compact deletion manifest for 30 days, but do not retain patches or copied worktree files.
+  - question: May recent active work remain outside a pull request?
+    answer: Yes, when explicitly listed as excluded; stale, blocked, orphaned, or unclassified worktrees block readiness.
+  - question: How should unique stale work be decided?
+    answer: Use deterministic checks plus batched read-only review. Automatically delete high-confidence obsolete work and ask
+      the user only about meaningful unique work that remains uncertain.
   vision_summary: 'Agents receive isolated worktrees automatically and do their edits outside the shared root checkout. Deploy
     integration still lands on dev, but the critical window is bounded and guarded so unrelated staged changes cannot contaminate
     a commit. Verification follows the commit that matters rather than a stale global deploy lock, and stale dirty worktrees
-    are made visible for review instead of being silently committed or discarded.
+    are deterministically classified and removed after 48 hours when integrated or obsolete. Meaningful unique stale work is
+    surfaced for a decision, recent work can be explicitly excluded from a release, and every deletion leaves a temporary
+    audit manifest rather than a retained patch.
 
     '
   approved_by_user: true
 implementation_state:
-  subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+  subject_commit: c23c93472
 approvals:
   product_contract:
     status: approved
-    approved_at: '2026-07-26T00:00:00Z'
+    approved_at: '2026-08-04T00:00:00Z'
+    reason: User approved the 48-hour stale deletion, compact-manifest, batch-review, active-release-exclusion, and PR-blocking
+      remediation contract.
   implementation_plan:
     status: approved
-    approved_at: '2026-07-26T00:00:00Z'
+    approved_at: '2026-08-04T00:00:00Z'
+    reason: The remediation extends the existing sessions.py lifecycle with deterministic reconciliation and does not introduce
+      a new external dependency or product data boundary.
 decisions:
 - id: D-1
   status: active
@@ -123,6 +155,34 @@ decisions:
   decision: Roll out root guards in a transitional warn-only mode before strict enforcement.
   reason: Existing agents and hooks need a safe migration path without blocking urgent deploys during the transition.
   decided_at: '2026-07-26T00:00:00Z'
+- id: D-6
+  status: active
+  decision: Automatically delete worktrees idle for at least 48 hours when deterministic comparison proves integration,
+    duplication, or supersession.
+  reason: The user prefers bounded loss of stale local work over indefinite accumulation of forgotten worktrees.
+  decided_at: '2026-08-04T00:00:00Z'
+- id: D-7
+  status: active
+  decision: Retain compact deletion manifests for 30 days without retaining source patches or copied files.
+  reason: This preserves operational accountability without recreating a code archive backlog.
+  decided_at: '2026-08-04T00:00:00Z'
+- id: D-8
+  status: active
+  decision: Batch-review unique stale work and automatically delete only high-confidence obsolete results.
+  reason: Hundreds of per-worktree chats would be wasteful, while deterministic checks alone cannot classify every semantic
+    supersession safely.
+  decided_at: '2026-08-04T00:00:00Z'
+- id: D-9
+  status: active
+  decision: Permit explicitly excluded recent active work during pull-request preparation.
+  reason: A dev-to-main release should not require unfinished isolated work to be merged, but unresolved stale work must not
+    remain invisible.
+  decided_at: '2026-08-04T00:00:00Z'
+- id: D-10
+  status: active
+  decision: Keep worktrees as the parallel-agent isolation mechanism and repair finalization and reconciliation.
+  reason: Worktrees isolate indexes and file content more safely than returning parallel agents to the shared root checkout.
+  decided_at: '2026-08-04T00:00:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -130,13 +190,27 @@ attempts:
   outcome: rejected
   recorded_at: '2026-07-26T00:00:00Z'
   reason: Local logs show the global lock and shared index remain recurring failure points even after stale-lock handling.
+- id: ATTEMPT-2
+  task_id: TASK-9
+  approach: Treat `merged` plus Git-clean status against the detached base as the cleanup proof.
+  outcome: rejected
+  recorded_at: '2026-08-04T00:00:00Z'
+  reason: Deploy leaves the source worktree diff in place, so successfully deployed worktrees remain dirty and never satisfy
+    the cleanup condition.
+- id: ATTEMPT-3
+  task_id: TASK-9
+  approach: Remove session records directly from `end` and `deploy --end` before reconciling physical worktrees.
+  outcome: rejected
+  recorded_at: '2026-08-04T00:00:00Z'
+  reason: This created hundreds of linked worktrees that no longer have discoverable lifecycle metadata.
 handoff:
-  current_task_id: TASK-8
-  next_action: Deploy the verified worktree deploy workflow changes through the scoped sessions.py deploy path.
-  command: 'python3 scripts/sessions.py deploy --session <id> --title "feat: isolate agent deploys with worktrees" --message "Add automatic session worktrees, root guards, cleanup, blocked-deploy metadata, and commit-scoped verification helpers."'
-  expected_outcome: The worktree deploy workflow changes are committed to dev and available for new OpenCode sessions.
+  current_task_id: TASK-14
+  next_action: Deploy the tested reconciliation controller, run report-only reconciliation from the root control plane, then
+    apply only safe and explicitly reviewed stale deletions.
+  command: python3 scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48
+  expected_outcome: Every current agent worktree is classified without mutation before the one-time safe cleanup.
   blocker: null
-  last_verified_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+  last_verified_commit: c23c93472
 scenarios:
 - id: S-1
   title: Agent starts in an isolated worktree
@@ -184,15 +258,17 @@ scenarios:
   - Exact checks wait for and assert the deployment or run associated with the requested commit SHA.
   - No check releases or trusts a stale global deploy lock as proof for a different commit.
 - id: S-5
-  title: Cleanup preserves recoverability
+  title: Deploy and end finalize worktrees transactionally
   given:
-  - Session worktrees may be clean, merged, abandoned, or dirty and idle.
+  - A session worktree has deployed all or part of its current patch, or the session is ending.
   when:
-  - The cleanup sweep runs.
+  - Deploy succeeds, `deploy --end` runs, or plain `sessions.py end` runs.
   then:
-  - Clean merged worktrees are removed or pruned safely.
-  - Dirty idle worktrees older than 12 hours are moved to a visible archive inbox with metadata and recovery instructions.
-  - Dirty worktree changes are not auto-committed, pushed, or discarded.
+  - The lifecycle compares the complete current worktree patch with the deployed patch and verifies the deployment commit is
+    reachable from `origin/dev`.
+  - A fully integrated worktree is removed before its session metadata is deleted.
+  - Residual or excluded changes keep a visible pending lifecycle record and prevent normal session end.
+  - Force-end classifies or deletes under the approved stale policy instead of silently losing lifecycle metadata.
 - id: S-6
   title: Root guard prevents shared-checkout regression
   given:
@@ -204,6 +280,42 @@ scenarios:
   - Transitional mode emits actionable warnings and remediation commands.
   - Strict mode blocks unsafe root edits or deploys except explicitly allowed control-plane commands.
   - The guard is deterministic and testable without relying on model behavior.
+- id: S-7
+  title: Reconciliation classifies registered and orphaned worktrees
+  given:
+  - Git may contain linked worktrees with or without session metadata.
+  - "`origin/dev` may contain the same patch, an exact resulting file snapshot, or newer superseding changes."
+  when:
+  - The operator runs worktree reconciliation in report-only mode.
+  then:
+  - Every linked, physical, and registered worktree is classified as recent-active, integrated, duplicated, superseded,
+    unique-stale, uncertain, missing, or malformed.
+  - Report-only mode does not change worktrees, Git metadata, session state, or source files.
+  - The report is machine-readable and includes reason codes, changed-file counts, last activity, and the target dev commit.
+- id: S-8
+  title: Safe cleanup removes stale work without recreating an archive backlog
+  given:
+  - A worktree has had no activity for at least 48 hours.
+  - Deterministic comparison or approved batched review classifies it as integrated, duplicated, or superseded with high
+    confidence.
+  when:
+  - Reconciliation runs with safe application enabled.
+  then:
+  - The physical worktree, Git worktree metadata, stale session metadata, and matching blocked deploy records are removed.
+  - No patch is applied to `dev`, and no current root or `origin/dev` content is overwritten.
+  - A compact manifest records identity, timestamps, reason, changed-file count, relevant commits, and deletion time for 30 days.
+  - The manifest does not contain source code, a patch bundle, untracked file contents, secrets, or private data.
+  - Meaningful unique or uncertain stale work remains unresolved for operator review.
+- id: S-9
+  title: Pull-request readiness exposes unresolved worktree state
+  given:
+  - A dev-to-main pull request is being prepared.
+  when:
+  - The pull-request skill runs worktree release readiness against the exact `origin/dev` commit.
+  then:
+  - Explicitly excluded recent active work is listed and does not block readiness.
+  - Stale, blocked, orphaned, unique unresolved, malformed, or unclassified worktrees block readiness.
+  - The report provides concrete reconciliation commands and must pass again after cleanup before PR preparation continues.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
@@ -248,14 +360,14 @@ acceptance_criteria:
   - T-PYTEST-COMMIT-VERIFICATION
 - id: AC-5
   scenario: S-5
-  text: Cleanup removes clean merged worktrees and archives dirty idle worktrees after 12 hours with enough metadata to recover
-    or discard them deliberately.
+  text: Deploy and session end remove fully integrated worktrees before deleting metadata and preserve a visible pending state
+    when residual changes remain.
   required: true
-  status: satisfied
+  status: pending
   coverage_status: covered
   verification_scope: custom
   verification_ids:
-  - T-PYTEST-WORKTREE-CLEANUP
+  - T-PYTEST-WORKTREE-FINALIZATION
 - id: AC-6
   scenario: S-6
   text: Root checkout guardrails warn during transition and can strictly block unsafe source edits, staging, commits, and
@@ -276,6 +388,48 @@ acceptance_criteria:
   coverage_status: covered
   verification_scope: custom
   verification_ids:
+  - T-AUDIT-DOCS
+- id: AC-8
+  scenario: S-7
+  text: Report-only reconciliation inventories registered, linked, physical, and orphaned worktrees without modifying state and
+    emits deterministic classifications against an exact `origin/dev` commit.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-WORKTREE-RECONCILIATION
+- id: AC-9
+  scenario: S-8
+  text: Safe cleanup automatically deletes worktrees idle for 48 hours only when they are integrated, duplicated, or superseded
+    with high confidence, without applying their content to dev.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-WORKTREE-RECONCILIATION
+  - T-PYTEST-WORKTREE-CLEANUP
+- id: AC-10
+  scenario: S-8
+  text: Automatic deletion retains a source-free compact manifest for 30 days while unique or uncertain stale work remains visible
+    for a decision.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-WORKTREE-RECONCILIATION
+- id: AC-11
+  scenario: S-9
+  text: Pull-request readiness allows explicitly excluded recent work and blocks stale, blocked, orphaned, malformed, or unresolved
+    worktree state against the exact release commit.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-WORKTREE-PR-READINESS
   - T-AUDIT-DOCS
 tests:
 - id: T-PYTEST-WORKTREE-LIFECYCLE
@@ -395,29 +549,31 @@ tests:
   file: scripts/tests/test_sessions_worktree_cleanup.py
   command: python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
   covers:
-  - AC-5
+  - AC-9
+  - AC-10
   assertions:
-  - Clean merged worktrees are removed and pruned safely.
-  - Dirty worktrees idle for less than 12 hours remain in place.
-  - Dirty worktrees idle for at least 12 hours are archived with metadata and recovery instructions.
+  - Worktrees idle for less than 48 hours are retained.
+  - Safe classifications idle for at least 48 hours are removed without applying content to dev.
+  - Unique or uncertain stale changes remain visible and are not removed.
+  - Deletion manifests omit source and patch content and expire after 30 days.
   red_phase:
     required: true
     expected: fail
     evidence:
       status: failed_as_expected
-      command: python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
-      run_id: local-red-worktree-cleanup
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:50:48Z'
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py
+      run_id: local-remediation-red-20260804-1017
+      subject_commit: c23c93472
+      timestamp: '2026-08-04T10:17:33Z'
   green_phase:
     required: true
     expected: pass
     evidence:
       status: passed
-      command: python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
-      run_id: local-green-worktree-cleanup
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:08Z'
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py
+      run_id: local-remediation-green-20260804-1038
+      subject_commit: worktree-85ef-c23c93472
+      timestamp: '2026-08-04T10:38:39Z'
 - id: T-NODE-HOOK-GUARDS
   type: unit
   file: scripts/tests/test_opencode_worktree_guards.mjs
@@ -481,11 +637,12 @@ tests:
   command: python3 scripts/audit_worktree_deploy_contract.py
   covers:
   - AC-7
+  - AC-11
   assertions:
   - Deploy skill documentation mentions automatic worktrees and dev-only integration.
   - OpenCode, Codex, and Claude-compatible instructions do not instruct agents to make ordinary edits from root.
   - Verification documentation names fast latest-ready and exact-SHA modes.
-  - Cleanup documentation names the 12 hour dirty archive policy.
+  - Cleanup documentation names the 48-hour stale deletion, 30-day manifest, reconciliation, and PR readiness policy.
   red_phase:
     required: true
     expected: fail
@@ -501,9 +658,68 @@ tests:
     evidence:
       status: passed
       command: python3 scripts/audit_worktree_deploy_contract.py
-      run_id: local-green-audit-docs
-      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-      timestamp: '2026-07-26T14:51:08Z'
+      run_id: local-remediation-audit-20260804-1038
+      subject_commit: worktree-85ef-c23c93472
+      timestamp: '2026-08-04T10:38:39Z'
+- id: T-PYTEST-WORKTREE-FINALIZATION
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_finalization.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_finalization.py
+  covers:
+  - AC-5
+  assertions:
+  - Successful full-patch deploy verifies reachability and removes the worktree before session metadata.
+  - Partial or excluded deploy leaves residual changes in a pending lifecycle state.
+  - Plain end refuses unintegrated worktree changes.
+  - Force-end cannot orphan a dirty worktree or delete its metadata silently.
+  red_phase:
+    required: true
+    expected: fail
+    evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py", run_id: local-remediation-red-20260804-1017, subject_commit: c23c93472, timestamp: '2026-08-04T10:17:33Z'}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-green-20260804-1038, subject_commit: worktree-85ef-c23c93472, timestamp: '2026-08-04T10:38:39Z'}
+- id: T-PYTEST-WORKTREE-RECONCILIATION
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_reconciliation.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_reconciliation.py
+  covers:
+  - AC-8
+  - AC-9
+  - AC-10
+  assertions:
+  - Report-only mode discovers registered and orphaned linked worktrees without mutation.
+  - Exact file snapshots and recorded reachable deploy commits classify integrated work safely.
+  - Duplicated and high-confidence superseded classifications require explicit reason evidence.
+  - Safe apply removes only 48-hour eligible classifications and writes source-free manifests.
+  - Unique, uncertain, recent, missing, and malformed records are retained and reported.
+  red_phase:
+    required: true
+    expected: fail
+    evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py", run_id: local-remediation-red-20260804-1017, subject_commit: c23c93472, timestamp: '2026-08-04T10:17:33Z'}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-green-20260804-1038, subject_commit: worktree-85ef-c23c93472, timestamp: '2026-08-04T10:38:39Z'}
+- id: T-PYTEST-WORKTREE-PR-READINESS
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_pr_readiness.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_pr_readiness.py
+  covers:
+  - AC-11
+  assertions:
+  - Explicitly excluded recent active work is reported but does not block.
+  - Blocked deploys and stale, orphaned, malformed, unique unresolved, or unclassified worktrees block.
+  - Readiness records and checks the exact `origin/dev` target commit.
+  red_phase:
+    required: true
+    expected: fail
+    evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py", run_id: local-remediation-red-20260804-1017, subject_commit: c23c93472, timestamp: '2026-08-04T10:17:33Z'}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_cleanup.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py scripts/tests/test_sessions_root_guard.py", run_id: local-remediation-green-20260804-1038, subject_commit: worktree-85ef-c23c93472, timestamp: '2026-08-04T10:38:39Z'}
 assumptions:
 - id: A-1
   text: Existing `sessions.py` metadata can be extended without replacing `.claude/sessions.json` as the shared state file.
@@ -525,11 +741,33 @@ assumptions:
   required_before: task_execution
   evidence:
   - scripts/run_tests.py now exposes _deployment_matches_commit for exact-SHA and fast latest-ready deploy checks.
+- id: A-4
+  text: Git worktree metadata, physical worktree directories, and sessions.json can be reconciled without checking out or
+    rewriting the dev branch.
+  status: confirmed
+  required_before: implementation
+  evidence:
+  - Read-only inspection enumerated linked worktree admin records, physical paths, detached HEADs, and session metadata while
+    `dev` and `origin/dev` remained unchanged.
+- id: A-5
+  text: Automatic deletion can be restricted to worktrees with at least 48 hours of inactivity and high-confidence integrated,
+    duplicate, or superseded classifications.
+  status: confirmed
+  required_before: implementation
+  evidence:
+  - User approved this cleanup boundary on 2026-08-04 and accepted bounded stale-work loss in exchange for preventing backlog.
+- id: A-6
+  text: This developer-tooling change has no REST API, client-side encrypted data, billing, web UI, CLI SDK, or Apple product
+    surface impact.
+  status: confirmed
+  required_before: implementation
+  evidence:
+  - Scope is limited to local repository session orchestration, tests, timer installation, documentation, and PR instructions.
 verifications:
 - id: V-SPEC-VALIDATE
   kind: deterministic_check
   phase: final
-  status: passed
+  status: pending
   covers:
   - AC-1
   - AC-2
@@ -538,18 +776,22 @@ verifications:
   - AC-5
   - AC-6
   - AC-7
+  - AC-8
+  - AC-9
+  - AC-10
+  - AC-11
   required_for_done: true
   command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
   evidence:
-    status: passed
-    command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
-    run_id: local-spec-validate
-    subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-    timestamp: '2026-07-26T14:51:15Z'
+    status: ''
+    command: ''
+    run_id: ''
+    subject_commit: ''
+    timestamp: ''
 - id: V-SPEC-VERIFY
   kind: deterministic_check
   phase: final
-  status: passed
+  status: pending
   covers:
   - AC-1
   - AC-2
@@ -558,20 +800,25 @@ verifications:
   - AC-5
   - AC-6
   - AC-7
+  - AC-8
+  - AC-9
+  - AC-10
+  - AC-11
   required_for_done: true
   command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
   evidence:
-    status: passed
-    command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
-    run_id: local-spec-verify
-    subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
-    timestamp: '2026-07-26T14:51:41Z'
+    status: ''
+    command: ''
+    run_id: ''
+    subject_commit: ''
+    timestamp: ''
 implementation_plan:
   spec_path: docs/specs/agent-worktree-deploy/spec.yml
-  architecture: 'Add a small worktree lifecycle layer to `scripts/sessions.py` and keep the deploy path centered there. Session
-    worktrees hold edits and metadata; deploy integration temporarily applies the intended diff to `dev` under a guarded critical
-    section, creates the normal dev commit, then verification follows that commit. Hook-level root guards and documentation
-    make the isolation contract deterministic for OpenCode today and Claude/Codex parity later.
+  architecture: 'Keep `scripts/sessions.py` as the single lifecycle controller and extend it with report-only reconciliation,
+    safe-apply cleanup, transactional finalization, deletion manifests, and release readiness. Reconciliation compares the
+    sessions registry, linked Git worktree admin records, physical worktree paths, and an exact `origin/dev` target without
+    checking out or modifying dev. Deploy and end delegate to one finalizer so metadata cannot disappear before the physical
+    worktree is removed or residual changes are recorded.
 
     '
   existing_patterns:
@@ -585,10 +832,18 @@ implementation_plan:
   - Deploy reads the worktree diff, guards root integration with the dev deploy verification lock or writes a blocked-deploy
     record, applies only the intended diff to `dev`, commits, and pushes.
   - Verification records whether it used fast latest-ready mode or exact-SHA mode for the resulting commit.
-  - Cleanup sweeps worktree metadata, removes clean merged worktrees, and archives stale dirty worktrees visibly.
+  - Reconciliation inventories all three state sources and emits classifications without mutation by default.
+  - Safe apply deletes only high-confidence integrated, duplicate, or superseded worktrees after 48 idle hours, clears stale
+    queue/session state, and writes a source-free manifest with a 30-day expiry.
+  - Unique or uncertain stale work remains unresolved for batch review; recent work remains active and can be explicitly excluded
+    from a release.
+  - Deploy and end call a shared finalizer that removes fully integrated worktrees before metadata or preserves residual work.
+  - Pull-request readiness reruns reconciliation against the exact release SHA and blocks unresolved state.
   affected_files:
   - path: scripts/sessions.py
-    reason: Add worktree lifecycle, deploy integration, blocked-deploy fallback, cleanup, and root guard primitives.
+    reason: Add reconciliation, classification, safe deletion, manifests, transactional finalization, and release readiness.
+  - path: scripts/worktree-reconciliation-setup.sh
+    reason: Provision the documented periodic reconciliation job deterministically.
   - path: scripts/tests.py
     reason: Replace old global deploy lock release proof with commit-scoped verification state.
   - path: scripts/run_tests.py
@@ -605,6 +860,8 @@ implementation_plan:
     reason: Update deploy instructions for automatic worktrees and commit-scoped proof.
   - path: .agents/skills/verify-ui-change/SKILL.md
     reason: Update UI verification instructions for fast latest-ready and exact-SHA modes.
+  - path: .claude/skills/create-pr/SKILL.md
+    reason: Make exact-SHA worktree readiness the first dev-to-main PR gate.
   - path: docs/architecture/agent-tooling-parity.md
     reason: Document OpenCode, Claude, and Codex compatibility expectations.
   - path: docs/architecture/infrastructure/cronjobs.md
@@ -618,7 +875,13 @@ implementation_plan:
   - path: scripts/tests/test_commit_scoped_deploy_verification.py
     reason: New deterministic verification proof coverage.
   - path: scripts/tests/test_sessions_worktree_cleanup.py
-    reason: New deterministic cleanup coverage.
+    reason: Update cleanup coverage for the 48-hour deletion and 30-day manifest policy.
+  - path: scripts/tests/test_sessions_worktree_finalization.py
+    reason: Prove deploy and end cannot orphan worktrees or hide residual changes.
+  - path: scripts/tests/test_sessions_worktree_reconciliation.py
+    reason: Prove inventory, classification, safe apply, orphan handling, and manifest retention.
+  - path: scripts/tests/test_sessions_worktree_pr_readiness.py
+    reason: Prove release readiness blocking and explicit active exclusions.
   - path: scripts/tests/test_sessions_root_guard.py
     reason: New deterministic root guard coverage.
   - path: scripts/tests/test_opencode_worktree_guards.mjs
@@ -626,10 +889,12 @@ implementation_plan:
   - path: scripts/audit_worktree_deploy_contract.py
     reason: New low-noise documentation and instruction audit for the workflow contract.
   verification_strategy:
-  - Run red-phase tests first and record failures before implementation.
-  - Implement the smallest cohesive lifecycle and deploy changes in `sessions.py` before extending verification scripts.
-  - Run focused pytest and node tests for lifecycle, deploy, blocked-deploy fallback, cleanup, commit verification, and hook behavior.
-  - Run the documentation audit after instructions are updated.
+  - Add and run focused red tests for finalization, reconciliation, cleanup, and PR readiness before implementation.
+  - Implement report-only inventory and classification before any deleting behavior.
+  - Implement transactional finalization before using safe apply on the existing backlog.
+  - Run report-only reconciliation and manually inspect its summary before the one-time safe cleanup.
+  - Run safe cleanup only after focused green tests pass, then rerun report-only readiness against the same `origin/dev` SHA.
+  - Run the documentation and agent parity audits after instructions are updated.
   - Run `spec_validate.py` after each spec edit and `spec_verify.py` before declaring the spec complete.
   verification_order:
   - python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
@@ -638,6 +903,9 @@ implementation_plan:
   - python3 -m pytest scripts/tests/test_sessions_worktree_deploy_queue.py
   - python3 -m pytest scripts/tests/test_commit_scoped_deploy_verification.py
   - python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
+  - python3 -m pytest scripts/tests/test_sessions_worktree_finalization.py
+  - python3 -m pytest scripts/tests/test_sessions_worktree_reconciliation.py
+  - python3 -m pytest scripts/tests/test_sessions_worktree_pr_readiness.py
   - python3 -m pytest scripts/tests/test_sessions_root_guard.py
   - node --test scripts/tests/test_opencode_worktree_guards.mjs
   - python3 scripts/audit_worktree_deploy_contract.py
@@ -903,4 +1171,150 @@ tasks:
   ownership:
     files:
     - docs/specs/agent-worktree-deploy/spec.yml
+    shared_files: []
+- id: TASK-9
+  title: Add red reconciliation, finalization, cleanup, and PR readiness tests
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-5, S-7, S-8, S-9]
+    acceptance_criteria: [AC-5, AC-8, AC-9, AC-10, AC-11]
+  expected_files:
+  - scripts/tests/test_sessions_worktree_cleanup.py
+  - scripts/tests/test_sessions_worktree_finalization.py
+  - scripts/tests/test_sessions_worktree_reconciliation.py
+  - scripts/tests/test_sessions_worktree_pr_readiness.py
+  verification_ids:
+  - T-PYTEST-WORKTREE-CLEANUP
+  - T-PYTEST-WORKTREE-FINALIZATION
+  - T-PYTEST-WORKTREE-RECONCILIATION
+  - T-PYTEST-WORKTREE-PR-READINESS
+  dependencies: []
+  blockers: []
+  follow_up_tasks: [TASK-10, TASK-11]
+  independently_deployable: false
+  ownership:
+    files:
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/tests/test_sessions_worktree_pr_readiness.py
+    shared_files: []
+- id: TASK-10
+  title: Implement report-only worktree inventory and classification
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-7]
+    acceptance_criteria: [AC-8]
+  expected_files: [scripts/sessions.py]
+  verification_ids: [T-PYTEST-WORKTREE-RECONCILIATION]
+  dependencies: [TASK-9]
+  blockers: []
+  follow_up_tasks: [TASK-12]
+  independently_deployable: true
+  ownership:
+    files: [scripts/sessions.py]
+    shared_files: [.claude/sessions.json]
+- id: TASK-11
+  title: Make deploy and end worktree finalization transactional
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-5]
+    acceptance_criteria: [AC-5]
+  expected_files: [scripts/sessions.py]
+  verification_ids: [T-PYTEST-WORKTREE-FINALIZATION, T-PYTEST-DEPLOY-INTEGRATION]
+  dependencies: [TASK-9]
+  blockers: []
+  follow_up_tasks: [TASK-12]
+  independently_deployable: true
+  ownership:
+    files: [scripts/sessions.py]
+    shared_files: [.claude/sessions.json]
+- id: TASK-12
+  title: Implement safe stale deletion, manifests, and periodic reconciliation
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-8]
+    acceptance_criteria: [AC-9, AC-10]
+  expected_files:
+  - scripts/sessions.py
+  - scripts/worktree-reconciliation-setup.sh
+  - docs/architecture/infrastructure/cronjobs.md
+  verification_ids:
+  - T-PYTEST-WORKTREE-CLEANUP
+  - T-PYTEST-WORKTREE-RECONCILIATION
+  dependencies: [TASK-10, TASK-11]
+  blockers: []
+  follow_up_tasks: [TASK-13, TASK-14]
+  independently_deployable: true
+  ownership:
+    files:
+    - scripts/sessions.py
+    - scripts/worktree-reconciliation-setup.sh
+    - docs/architecture/infrastructure/cronjobs.md
+    shared_files: [.claude/sessions.json]
+- id: TASK-13
+  title: Add pull-request worktree readiness gate and instruction audit
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-9]
+    acceptance_criteria: [AC-7, AC-11]
+  expected_files:
+  - .claude/skills/create-pr/SKILL.md
+  - .agents/skills/create-pr/SKILL.md
+  - scripts/audit_worktree_deploy_contract.py
+  - docs/architecture/agent-tooling-parity.md
+  verification_ids:
+  - T-PYTEST-WORKTREE-PR-READINESS
+  - T-AUDIT-DOCS
+  dependencies: [TASK-12]
+  blockers: []
+  follow_up_tasks: [TASK-14]
+  independently_deployable: true
+  ownership:
+    files:
+    - .claude/skills/create-pr/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - scripts/audit_worktree_deploy_contract.py
+    - docs/architecture/agent-tooling-parity.md
+    shared_files: []
+- id: TASK-14
+  title: Reconcile and safely clean the current worktree backlog
+  status: pending
+  phase: running_checks
+  covers:
+    scenarios: [S-7, S-8, S-9]
+    acceptance_criteria: [AC-8, AC-9, AC-10, AC-11]
+  expected_files: [.claude/sessions.json]
+  verification_ids:
+  - T-PYTEST-WORKTREE-RECONCILIATION
+  - T-PYTEST-WORKTREE-PR-READINESS
+  dependencies: [TASK-12, TASK-13]
+  blockers: []
+  follow_up_tasks: [TASK-15]
+  independently_deployable: false
+  ownership:
+    files: [.claude/sessions.json]
+    shared_files: [.openmates-agent-worktrees]
+- id: TASK-15
+  title: Run final focused checks and verify the resumed spec
+  status: pending
+  phase: running_checks
+  covers:
+    scenarios: [S-5, S-7, S-8, S-9]
+    acceptance_criteria: [AC-5, AC-8, AC-9, AC-10, AC-11]
+  expected_files: [docs/specs/agent-worktree-deploy/spec.yml]
+  verification_ids:
+  - V-SPEC-VALIDATE
+  - V-SPEC-VERIFY
+  dependencies: [TASK-14]
+  blockers: []
+  follow_up_tasks: []
+  independently_deployable: false
+  ownership:
+    files: [docs/specs/agent-worktree-deploy/spec.yml]
     shared_files: []

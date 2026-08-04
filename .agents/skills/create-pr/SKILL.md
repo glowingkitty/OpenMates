@@ -12,6 +12,9 @@ argument-hint: "[title]"
 ## Changed Files
 !`git diff --stat origin/main...origin/dev 2>/dev/null | tail -30`
 
+## Worktree Readiness Snapshot
+!`python3 scripts/sessions.py worktree release-readiness --target origin/dev 2>/dev/null || true`
+
 ## Latest Releases
 !`gh release list --limit 3 2>/dev/null || echo "gh not available"`
 
@@ -24,6 +27,31 @@ argument-hint: "[title]"
 ## Instructions
 
 **IMPORTANT: Only create a PR when the user explicitly asks.**
+
+### Step 0 — Resolve Worktree Readiness (CRITICAL)
+
+Before release intelligence or PR drafting, fetch `dev` and run reconciliation readiness against its exact remote commit:
+
+```bash
+git fetch origin dev
+python3 scripts/sessions.py worktree release-readiness --target origin/dev
+```
+
+The gate blocks stale, blocked, orphaned, malformed, unique unresolved, and unclassified worktrees. Do not merge or delete
+worktree content manually to bypass it. Run the reported `sessions.py worktree reconcile` action and stop when meaningful unique
+work still needs an operator decision.
+
+Recent active work may remain outside this release only after the user explicitly confirms the exclusion. Rerun with one flag
+per confirmed session, for example:
+
+```bash
+python3 scripts/sessions.py worktree release-readiness \
+  --target origin/dev \
+  --exclude-active 253b
+```
+
+Record the excluded session IDs in the PR preparation summary, rerun the gate after any cleanup or deploy, and continue only
+when it reports `Ready: yes` for the final exact `origin/dev` commit.
 
 ### Step 1 — Verify Remote Refs (CRITICAL)
 

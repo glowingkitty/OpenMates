@@ -28,10 +28,22 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         "Session Worktrees",
         "root checkout is the control plane",
         "Exact-SHA checks",
+        "release-readiness",
     ],
     "docs/architecture/infrastructure/cronjobs.md": [
-        "sessions.py worktree cleanup --idle-hours 12",
-        "Dirty idle worktrees are not committed, pushed, or deleted",
+        "sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe",
+        "source-free manifests for 30 days",
+        "worktree-reconciliation-setup.sh",
+    ],
+    ".claude/skills/create-pr/SKILL.md": [
+        "Step 0 — Resolve Worktree Readiness",
+        "worktree release-readiness --target origin/dev",
+        "--exclude-active",
+    ],
+    "scripts/worktree-reconciliation-setup.sh": [
+        "worktree-reconciliation.service",
+        "worktree reconcile --target origin/dev --idle-hours 48 --apply-safe",
+        "OnUnitActiveSec=1h",
     ],
     "scripts/safe_bash_guard.py": [
         "sessions.py worktree ensure",
