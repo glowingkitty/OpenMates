@@ -36,6 +36,8 @@ async function openImportedChat(page: any, chatId: string): Promise<void> {
 	const importedChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 	await expect(importedChat).toBeVisible({ timeout: 15000 });
 	await importedChat.click();
+	const forgottenMessages = page.getByRole('button', { name: /show old forgotten messages/i });
+	if (await forgottenMessages.isVisible({ timeout: 2000 }).catch(() => false)) await forgottenMessages.click();
 }
 
 test.describe('Account Import V1 web flow', () => {
