@@ -27,6 +27,12 @@ vi.mock("../encryption/ChatKeyManager", () => ({
   },
 }));
 
+vi.mock("../db", () => ({
+  chatDB: {
+    setChatKey: vi.fn(),
+  },
+}));
+
 import { chatMetadataCache } from "../chatMetadataCache";
 import type { Chat } from "../../types/chat";
 
