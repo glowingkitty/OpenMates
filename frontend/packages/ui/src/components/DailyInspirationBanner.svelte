@@ -1718,7 +1718,13 @@
                   aria-hidden={!signupCtaVisible}
                 >
                   <h2>{current.phrase}</h2>
-                  <button class="guest-signup-cta-button" data-testid="landing-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
+                  <button
+                    class="guest-signup-cta-button"
+                    class:pulsing={signupSlidePhase === 'cta'}
+                    data-testid="landing-signup-cta-button"
+                    type="button"
+                    onclick={(e) => { e.stopPropagation(); openSignup(); }}
+                  >
                     {current.title ?? current.phrase}
                   </button>
                 </div>
@@ -2760,8 +2766,8 @@
   .guest-signup-cta-button {
     min-width: 0 !important;
     height: auto !important;
-    margin: 0 !important;
-    padding: 14px 24px !important;
+    margin: 10px 0 0 !important;
+    padding: 18px 32px !important;
     border: 0 !important;
     border-radius: 999px !important;
     background: var(--color-button-primary, #ff553b) !important;
@@ -2769,10 +2775,20 @@
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24) !important;
     filter: none !important;
     font: inherit;
-    font-size: clamp(0.95rem, 1.1vw, 1.2rem) !important;
+    font-size: clamp(1.05rem, 1.3vw, 1.35rem) !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em;
     cursor: pointer;
+    transform-origin: center;
+  }
+
+  .guest-signup-cta-button.pulsing {
+    animation: landingSignupCtaPulse 4.8s ease-in-out infinite;
+  }
+
+  @keyframes landingSignupCtaPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
   }
 
   .guest-signup-cta-button:hover {
@@ -3353,6 +3369,7 @@
     .landing-intro-app-rail,
     .guest-product-demo-shell::before,
     .guest-signup-stage,
+    .guest-signup-cta-button.pulsing,
     .guest-signup-benefits-list li {
       animation: none !important;
       transition: none !important;
@@ -3567,8 +3584,8 @@
     }
 
     .guest-signup-cta-button {
-      padding: 9px 16px !important;
-      font-size: 0.82rem !important;
+      padding: 12px 22px !important;
+      font-size: 1rem !important;
     }
 
     .guest-intro-video-box,

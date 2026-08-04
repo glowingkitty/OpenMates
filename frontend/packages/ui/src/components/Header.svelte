@@ -527,6 +527,7 @@
                     <div
                         class="right-section"
                         class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
+                        class:signup-cta-hidden={$introBannerVisible}
                     >
                         <a
                             class="github-repo-button"
@@ -893,11 +894,16 @@
         align-items: center;
         gap: 0.75rem; /* Add gap between sign in button and language icon */
         transition:
+            gap var(--duration-normal) var(--easing-default),
             opacity var(--duration-normal) var(--easing-default),
             visibility var(--duration-normal) var(--easing-default),
             transform var(--duration-normal) var(--easing-default);
         margin-right: var(--spacing-5);
         /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
+    }
+
+    .right-section.signup-cta-hidden {
+        gap: 0;
     }
 
     /* Hide the right section visually but keep it rendered to prevent layout shifts */
@@ -952,6 +958,8 @@
         background: var(--color-button-primary);
         color: var(--color-font-button, white);
         cursor: pointer;
+        max-width: 240px;
+        overflow: hidden;
         transition: all var(--duration-normal) var(--easing-default);
         white-space: nowrap;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -971,6 +979,9 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
+        max-width: 0;
+        padding-inline: 0;
+        box-shadow: none;
         transform: translateX(16px);
     }
 

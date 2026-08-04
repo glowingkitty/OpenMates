@@ -1340,6 +1340,7 @@ test.describe('Landing page onboarding refresh', () => {
 	test('final signup CTA opens the shared signup interface without a signup hash', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.emulateMedia({ reducedMotion: 'no-preference' });
 
 		await page.goto(getE2EDebugUrl('/?landing-signup-cta'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
@@ -1356,7 +1357,10 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('landing-signup-benefits')).toContainText('No ads');
 		await expect(page.getByTestId('landing-signup-cta-button')).toBeHidden();
 		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
-		await expect(page.getByRole('link', { name: 'Open OpenMates GitHub repository' })).toBeVisible();
+		const headerGithubLink = page.getByRole('link', { name: 'Open OpenMates GitHub repository' });
+		await expect(headerGithubLink).toBeVisible();
+		const headerGithubBeforeCta = await headerGithubLink.boundingBox();
+		expect(headerGithubBeforeCta).not.toBeNull();
 		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('role');
 		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('tabindex');
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCSS('cursor', 'default');
@@ -1384,7 +1388,27 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('landing-signup-benefits')).toBeHidden();
 		await expect(page.getByTestId('landing-signup-cta-button')).toBeVisible();
 		await expect(page.getByTestId('header-login-signup-btn')).toBeHidden();
-		await expect(page.getByRole('link', { name: 'Open OpenMates GitHub repository' })).toBeVisible();
+		await expect(headerGithubLink).toBeVisible();
+		await expect.poll(async () => {
+			const box = await headerGithubLink.boundingBox();
+			return box?.x ?? 0;
+		}, { timeout: 2000 }).toBeGreaterThan(headerGithubBeforeCta!.x + 40);
+		const signupCtaPresentation = await page.getByTestId('landing-signup-cta-button').evaluate((element: HTMLElement) => {
+			const style = getComputedStyle(element);
+			const rect = element.getBoundingClientRect();
+			return {
+				height: rect.height,
+				marginTop: style.marginTop,
+				animationName: style.animationName,
+				animationDuration: style.animationDuration,
+				animationIterationCount: style.animationIterationCount
+			};
+		});
+		expect(signupCtaPresentation.height).toBeGreaterThanOrEqual(56);
+		expect(signupCtaPresentation.marginTop).toBe('10px');
+		expect(signupCtaPresentation.animationName).toContain('landingSignupCtaPulse');
+		expect(signupCtaPresentation.animationDuration).toBe('4.8s');
+		expect(signupCtaPresentation.animationIterationCount).toBe('infinite');
 		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('role');
 		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('tabindex');
 
