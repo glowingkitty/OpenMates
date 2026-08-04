@@ -99,7 +99,24 @@ def test_inspection_error_is_never_safe_deletable():
         "metadata": {},
     }
 
-    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete={"broken"})
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
 
     assert result["classification"] == "malformed"
     assert result["reason_code"] == "inspection_failed"
+
+
+def test_review_approved_old_inspection_error_is_superseded():
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "broken",
+        "path": "/tmp/agent-broken",
+        "idle_hours": 100,
+        "changed_files": [],
+        "inspection_error": "missing worktree metadata",
+        "metadata": {},
+    }
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete={"broken"})
+
+    assert result["classification"] == "superseded"
+    assert result["reason_code"] == "review_approved_obsolete"

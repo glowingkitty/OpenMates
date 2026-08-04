@@ -1269,6 +1269,16 @@ def _candidate_last_active(session: dict | None, metadata: dict | None, path: Pa
     if valid:
         return max(valid)[1]
     try:
+        source_timestamps = [
+            os.path.getmtime(child)
+            for child in path.iterdir()
+            if child.is_file() and child.name != ".git"
+        ]
+        if source_timestamps:
+            return datetime.fromtimestamp(max(source_timestamps), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except OSError:
+        pass
+    try:
         return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     except OSError:
         return ""
@@ -1392,11 +1402,14 @@ def _classify_worktree_candidate(
     if not result.get("path") or not session_id:
         result.update(classification="malformed", reason_code="missing_identity")
         return result
-    if result.get("inspection_error"):
-        result.update(classification="malformed", reason_code="inspection_failed")
-        return result
     if candidate_idle_hours < idle_threshold:
         result.update(classification="recent_active", reason_code="recent_activity")
+        return result
+    if session_id in approved_obsolete:
+        result.update(classification="superseded", reason_code="review_approved_obsolete")
+        return result
+    if result.get("inspection_error"):
+        result.update(classification="malformed", reason_code="inspection_failed")
         return result
     if result.get("classification") in {"integrated", "duplicated", "superseded", "unique_stale", "uncertain"}:
         return result
@@ -1418,9 +1431,6 @@ def _classify_worktree_candidate(
     head = str(result.get("head") or "")
     if not changed_files and head and _git_is_ancestor(head, target_ref):
         result.update(classification="integrated", reason_code="clean_head_reachable")
-        return result
-    if session_id in approved_obsolete:
-        result.update(classification="superseded", reason_code="review_approved_obsolete")
         return result
     result.update(
         classification="unique_stale" if changed_files else "uncertain",

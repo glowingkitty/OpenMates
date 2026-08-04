@@ -111,3 +111,18 @@ def test_cleanup_prunes_manifests_after_thirty_days(monkeypatch, tmp_path):
 
     data = json.loads(sessions_file.read_text(encoding="utf-8"))
     assert [item["session_id"] for item in data["worktree_deletion_manifests"]] == ["current"]
+
+
+def test_orphan_activity_fallback_ignores_recent_directory_metadata(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "agent-old"
+    worktree.mkdir()
+    source = worktree / "AGENTS.md"
+    source.write_text("old", encoding="utf-8")
+    old_timestamp = 1_700_000_000
+    source.touch()
+    monkeypatch.setattr(sessions.os.path, "getmtime", lambda _path: old_timestamp)
+
+    last_active = sessions._candidate_last_active({}, {}, worktree, [])
+
+    assert last_active == sessions.datetime.fromtimestamp(old_timestamp, sessions.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
