@@ -3091,6 +3091,7 @@ struct ImportedAssistantProvider: Equatable {
     let displayNameKey: String
     let iconName: String
 
+    @MainActor
     var displayName: String { AppStrings.localized(displayNameKey) }
 
     static func resolve(category: String?, isOfficialOpenMatesChat: Bool = false) -> Self? {
