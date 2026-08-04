@@ -142,8 +142,8 @@ def test_merged_worktree_deploy_selects_only_changes_after_recorded_snapshot(mon
         "worktree": {
             "path": str(tmp_path),
             "status": "merged",
+            "merged_commit": "last-deploy",
             "root_applied_files": {
-                "unchanged.py": sessions._snapshot_file_states(tmp_path, ["unchanged.py"])["unchanged.py"],
                 "amended.py": {
                     "exists": True,
                     "sha256": "previous",
@@ -153,6 +153,11 @@ def test_merged_worktree_deploy_selects_only_changes_after_recorded_snapshot(mon
         },
     }
     monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: ["unchanged.py", "amended.py"])
+    monkeypatch.setattr(
+        sessions,
+        "_snapshot_worktree_base_states",
+        lambda _metadata, files: sessions._snapshot_file_states(tmp_path, files),
+    )
 
     assert sessions._session_deploy_files(session, exclude=set()) == ["amended.py"]
 

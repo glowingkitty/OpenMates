@@ -248,3 +248,26 @@ def test_worktree_retry_can_safely_expand_files_unchanged_from_source_base(monke
     (root / added).parent.mkdir(parents=True)
     (root / added).write_text("foreign\n", encoding="utf-8")
     assert sessions._worktree_root_patch_action("abcd", "expanded-patch", [first, added]) == "conflict"
+
+
+def test_recorded_root_patch_keeps_prior_file_snapshots(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    root = tmp_path / "root"
+    first = root / "first.txt"
+    second = root / "second.txt"
+    root.mkdir()
+    first.write_text("first\n", encoding="utf-8")
+    second.write_text("second\n", encoding="utf-8")
+    sessions_file.write_text(
+        json.dumps({"sessions": {"abcd": {"worktree": {"path": str(tmp_path / "worktree")}}}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+
+    sessions._record_worktree_root_patch("abcd", "patch-one", ["first.txt"])
+    sessions._record_worktree_root_patch("abcd", "patch-two", ["second.txt"])
+
+    metadata = json.loads(sessions_file.read_text(encoding="utf-8"))["sessions"]["abcd"]["worktree"]
+    assert set(metadata["root_applied_files"]) == {"first.txt", "second.txt"}

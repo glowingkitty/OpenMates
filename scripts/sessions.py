@@ -758,10 +758,17 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
         deployed_states = metadata.get("root_applied_files")
         if isinstance(deployed_states, dict):
             current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
+            baseline_states = dict(deployed_states)
+            missing = [relative_path for relative_path in changed if relative_path not in baseline_states]
+            if missing and metadata.get("merged_commit"):
+                try:
+                    baseline_states.update(_snapshot_worktree_base_states(metadata, missing))
+                except RuntimeError:
+                    pass
             changed = {
                 relative_path
                 for relative_path in changed
-                if current_states.get(relative_path) != deployed_states.get(relative_path)
+                if current_states.get(relative_path) != baseline_states.get(relative_path)
             }
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
         if tracked:
@@ -1093,15 +1100,15 @@ def _snapshot_file_states(base_path: Path, files: list[str]) -> dict[str, dict]:
 
 
 def _snapshot_worktree_base_states(metadata: dict, files: list[str]) -> dict[str, dict]:
-    """Return selected file states from the source worktree's recorded base."""
+    """Return selected states from the last deploy commit or original source base."""
     worktree_path = Path(str(metadata.get("path") or ""))
-    base_commit = str(metadata.get("base_commit") or "")
-    if not worktree_path.is_dir() or not base_commit:
+    reference_commit = str(metadata.get("merged_commit") or metadata.get("base_commit") or "")
+    if not worktree_path.is_dir() or not reference_commit:
         raise RuntimeError("Worktree base metadata is incomplete")
     states: dict[str, dict] = {}
     for relative_path in files:
         content = subprocess.run(
-            ["git", "show", f"{base_commit}:{relative_path}"],
+            ["git", "show", f"{reference_commit}:{relative_path}"],
             cwd=str(worktree_path),
             capture_output=True,
             timeout=30,
@@ -1110,7 +1117,7 @@ def _snapshot_worktree_base_states(metadata: dict, files: list[str]) -> dict[str
             states[relative_path] = {"exists": False}
             continue
         mode = subprocess.run(
-            ["git", "ls-tree", base_commit, "--", relative_path],
+            ["git", "ls-tree", reference_commit, "--", relative_path],
             cwd=str(worktree_path),
             capture_output=True,
             text=True,
@@ -1162,7 +1169,8 @@ def _record_worktree_root_patch(session_id: str, patch_id: str, files: list[str]
         metadata["root_applied_patch_id"] = patch_id
         metadata["root_applied_at"] = _now_iso()
         if files is not None:
-            metadata["root_applied_files"] = _snapshot_file_states(CONTROL_PLANE_ROOT, files)
+            recorded_states = metadata.setdefault("root_applied_files", {})
+            recorded_states.update(_snapshot_file_states(CONTROL_PLANE_ROOT, files))
 
     _mutate_sessions(record)
 
