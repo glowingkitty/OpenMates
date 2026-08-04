@@ -125,6 +125,57 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
 	});
 
+	test('mobile stories preserve spacing, readable copy, complete headings, and contained permission UI', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto(getE2EDebugUrl('/?landing-header-mobile-layout'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByTestId('landing-intro-request')).toBeVisible({ timeout: 15000 });
+
+		const introGap = await page.evaluate(() => {
+			const heading = document.querySelector('[data-testid="landing-intro-headline"]')?.getBoundingClientRect();
+			const request = document.querySelector('[data-testid="landing-intro-request"]')?.getBoundingClientRect();
+			return heading && request ? request.top - heading.bottom : Number.POSITIVE_INFINITY;
+		});
+		expect(introGap).toBeLessThanOrEqual(96);
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+			timeout: HEADING_SETTLE_MS
+		});
+		const actionableHeadingFits = await page.getByTestId('daily-inspiration-phrase').evaluate((heading: HTMLElement) => {
+			const headingRect = heading.getBoundingClientRect();
+			const range = document.createRange();
+			range.selectNodeContents(heading);
+			const textRect = range.getBoundingClientRect();
+			return textRect.right <= headingRect.right + 1 && textRect.bottom <= headingRect.bottom + 1;
+		});
+		expect(actionableHeadingFits).toBe(true);
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('landing-privacy-saved-data-copy')).toBeVisible({ timeout: 8000 });
+		const savedDataCopy = page.getByTestId('landing-privacy-saved-data-copy');
+		expect(await savedDataCopy.evaluate((stage: HTMLElement) => stage.querySelector('svg') === null)).toBe(true);
+		expect(await savedDataCopy.evaluate((stage: HTMLElement) => Number.parseFloat(getComputedStyle(stage.querySelector('p')!).fontSize))).toBeGreaterThanOrEqual(20);
+
+		await expect(page.getByTestId('landing-privacy-pii-copy')).toBeVisible({ timeout: 8000 });
+		const piiCopy = page.getByTestId('landing-privacy-pii-copy');
+		expect(await piiCopy.evaluate((stage: HTMLElement) => stage.querySelector('svg') === null)).toBe(true);
+		expect(await piiCopy.evaluate((stage: HTMLElement) => Number.parseFloat(getComputedStyle(stage.querySelector('p')!).fontSize))).toBeGreaterThanOrEqual(20);
+
+		await expect(page.getByTestId('app-settings-memories-permission-card')).toBeVisible({ timeout: 20000 });
+		const permissionContained = await page.evaluate(() => {
+			const demo = document.querySelector('[data-testid="landing-privacy-safety-demo"]')?.getBoundingClientRect();
+			const card = document.querySelector('[data-testid="app-settings-memories-permission-card"]')?.getBoundingClientRect();
+			return Boolean(demo && card
+				&& card.left >= demo.left - 1
+				&& card.right <= demo.right + 1
+				&& card.top >= demo.top - 1
+				&& card.bottom <= demo.bottom + 1);
+		});
+		expect(permissionContained).toBe(true);
+	});
+
 	test('guest New chat from an example focuses a blank composer without replaying slide zero', async ({ page }: { page: any }) => {
 		test.setTimeout(30000);
 		await page.setViewportSize({ width: 1280, height: 800 });
