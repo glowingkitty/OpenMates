@@ -393,7 +393,7 @@
     .message-stage,
     .reveal-stage { padding-inline: var(--spacing-4); }
     .user-message-shell { padding: var(--spacing-6) var(--spacing-8); }
-    .permission-stage { --permission-preview-scale: 0.44; }
+    .permission-stage { --permission-preview-scale: 0.34; }
   }
 
   @keyframes piiValueEnter {

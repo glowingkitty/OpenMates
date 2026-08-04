@@ -533,6 +533,17 @@ attempts:
       and PII assertions but showed the 0.64-scale permission card extending below
       the mobile privacy demo. The narrow preview scale was reduced without changing
       the larger desktop scale.
+  - id: ATTEMPT-30
+    task_id: TASK-4
+    approach: Rerun the focused contract after reducing the narrow permission-preview scale.
+    outcome: blocked
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `65ecc5b27` deployed Ready as `dpl_AJPbRJ9EuTAs2TZXUpSHwwuZLQ4n`.
+      GitHub Actions run `30953668906` again failed permission containment because
+      transform scaling around the card center displaced the shrunken card downward
+      while its unscaled layout box remained taller than the compact stage. The preview
+      now scales from its top edge and uses a height-safe narrow scale.
 
 handoff:
   current_task_id: TASK-4
