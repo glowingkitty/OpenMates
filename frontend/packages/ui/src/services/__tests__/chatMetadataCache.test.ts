@@ -11,8 +11,21 @@
 // which requires crypto mocking. Decryption correctness is tested in ChatKeyManager tests.
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+
+const keyReadyMock = vi.hoisted(() => ({
+  listener: null as ((chatId: string) => void) | null,
+}));
+
+vi.mock("../encryption/ChatKeyManager", () => ({
+  chatKeyManager: {
+    onKeyReady: vi.fn((listener: (chatId: string) => void) => {
+      keyReadyMock.listener = listener;
+      return vi.fn();
+    }),
+  },
+}));
+
 import { chatMetadataCache } from "../chatMetadataCache";
-import type { DecryptedChatMetadata } from "../chatMetadataCache";
 
 // We can't easily test getDecryptedMetadata() because it depends on crypto.
 // Instead we test the public cache management methods that were the source of bugs.
@@ -52,6 +65,20 @@ describe("ChatMetadataCache", () => {
     it("can invalidate a non-existent chat without error", () => {
       // Should not throw
       chatMetadataCache.invalidateChat("nonexistent");
+    });
+  });
+
+  describe("key-ready notifications", () => {
+    it("ignores bulk-loaded keys when metadata was never requested", () => {
+      const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
+      const consoleInfoSpy = vi
+        .spyOn(console, "info")
+        .mockImplementation(() => undefined);
+
+      keyReadyMock.listener?.("unrequested-chat");
+
+      expect(dispatchEventSpy).not.toHaveBeenCalled();
+      expect(consoleInfoSpy).not.toHaveBeenCalled();
     });
   });
 
