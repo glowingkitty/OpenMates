@@ -83,6 +83,9 @@ test.describe('Account Import V1 web flow', () => {
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'AI assistant' })).toBeVisible();
 		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'other');
+		const mobileHeaderTitle = page.getByTestId('chat-header-title');
+		expect(await mobileHeaderTitle.textContent()).not.toContain('Untitled chat');
+		await expect(mobileHeaderTitle).toContainText('Synthetic generic web import chat');
 		await page.screenshot({ path: testInfo.outputPath('mobile-other-provider.png'), fullPage: true });
 	});
 
@@ -318,6 +321,9 @@ test.describe('Account Import V1 web flow', () => {
 		await openImportedChat(page, String(persistBody.chats[0].chat_id));
 		await expect(page.getByTestId('chat-mate-name').filter({ hasText: 'AI assistant' })).toBeVisible();
 		await expect(page.getByTestId('imported-provider-profile')).toHaveAttribute('data-provider-category', 'other');
+		const headerTitle = page.getByTestId('chat-header-title');
+		expect(await headerTitle.textContent()).not.toContain('Untitled chat');
+		await expect(headerTitle).toContainText('Synthetic generic web import chat');
 		await expect(page.getByTestId('mate-profile')).toHaveCount(0);
 	});
 });
