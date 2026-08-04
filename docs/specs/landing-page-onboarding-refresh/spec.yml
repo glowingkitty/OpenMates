@@ -118,7 +118,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
+  subject_commit: 6941203d9
 
 approvals:
   product_contract:
@@ -478,14 +478,35 @@ attempts:
       failed first because `landing-intro-heading-motion` does not exist in the
       rejected implementation. The same run also captured the guest example-chat
       New chat test failing under the old slide-0 reset behavior.
+  - id: ATTEMPT-25
+    task_id: TASK-4
+    approach: Run the revised focused contract after fixing the scoped animation-name and rendered New chat selectors.
+    outcome: blocked
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `2e82caa94` deployed Ready and GitHub Actions run `30940334860`
+      reached the final guest New chat assertion. The product focused the TipTap
+      contenteditable child correctly, but the test asserted focus on its inactive
+      `message-editor` mount wrapper.
+  - id: ATTEMPT-26
+    task_id: TASK-4
+    approach: Target the real TipTap contenteditable and rerun the focused deployed contract with reviewed laptop and mobile visual smoke.
+    outcome: succeeded
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `f7e341117` corrected the focus assertion in the focused and adjacent
+      guest navigation specs. GitHub Actions run `30942523944` passed on descendant
+      commit `4e46277f2`; the only intervening change was documentation. Reviewed
+      visual-smoke run `test-results/visual-smoke/2026-08-04T19-21-58-945Z/summary.json`
+      on descendant `6941203d9` showed no laptop or mobile defects.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the revised runtime implementation and run the focused contract for green evidence.
-  command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit <implementation-commit>
-  expected_outcome: The focused heading, nine-scene privacy, short-copy, timing, reduced-motion, and guest New chat assertions pass.
+  next_action: Ask the user to confirm the revised deployed landing stories on app.dev.openmates.org before closing TASK-4.
+  command: Open https://app.dev.openmates.org/ and review the deployed landing stories.
+  expected_outcome: The user approves the deployed heading motion, nine-scene privacy story, shorter copy, and guest New chat behavior.
   blocker: null
-  last_verified_commit: 3e3d93398
+  last_verified_commit: 6941203d9
 
 scenarios:
   - id: S-1
@@ -885,9 +906,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        reason: The user approved a material replacement contract on 2026-08-03, invalidating the earlier green evidence.
-        timestamp: "2026-08-03"
+        status: passed
+        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f7e3411
+        run_id: "30942523944"
+        subject_commit: 4e46277f2
+        target: app.dev.openmates.org
+        deployment_reference: dpl_G37ihPqGoUeAzJ5yT7LjB1iSFwWT
+        reason: The focused replacement contract passed the shared Actionable sub-slide motion assertion; the tested descendant added only documentation after the assertion fix.
+        timestamp: "2026-08-04T19:21:25Z"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -981,10 +1007,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        reason: The prior green evidence was invalidated when the user rejected the implementation and replaced its motion, privacy, copy, and New chat contracts.
-        subject_commit: ""
-        timestamp: "2026-08-04"
+        status: passed
+        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f7e3411
+        run_id: "30942523944"
+        subject_commit: 4e46277f2
+        target: app.dev.openmates.org
+        deployment_reference: dpl_G37ihPqGoUeAzJ5yT7LjB1iSFwWT
+        reason: The tested descendant contains the assertion fix from f7e341117 and differs only by a documentation commit.
+        timestamp: "2026-08-04T19:21:25Z"
       history:
         - status: invalidated_by_contract_change
           command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 0340d8e
@@ -1058,20 +1088,20 @@ verifications:
     evidence:
       status: passed
       reason: Reviewed deployed screenshots cover the required final visual verification for TASK-4.
-      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session a3a3
+      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session 18f5
       summary: >
-        Reviewed baseline plus privacy, mates/focus, and people-first interaction
-        screenshots at laptop and mobile widths. Defects: initial mobile story-body
-        clipping was fixed in commit `0abc480`; final screenshots show no overflow,
-        overlap, broken media, loading stalls, or page errors. Accepted differences:
-        compact mobile headings use the existing two-line ellipsis treatment.
-      run_id: test-results/visual-smoke/2026-08-04T13-09-45-524Z/summary.json
-      subject_commit: 12fd4b70e
+        Reviewed the revised deployed landing page screenshots at laptop and mobile widths.
+        Defects: none; no clipping, overlap, horizontal overflow, broken media,
+        implementation error text, loading stalls, or page errors. Accepted
+        differences: the rotating prompt and highlighted app differ by animation
+        capture time.
+      run_id: test-results/visual-smoke/2026-08-04T19-21-58-945Z/summary.json
+      subject_commit: 6941203d9
       target: https://app.dev.openmates.org/
       viewports:
         - laptop
         - mobile
-      timestamp: "2026-08-04T13:14:09Z"
+      timestamp: "2026-08-04T19:22:11Z"
 
 implementation_plan:
   spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml
@@ -1251,7 +1281,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Implement remaining header explanatory slides
-    status: needs_fix
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios:
