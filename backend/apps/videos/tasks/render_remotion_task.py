@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import hashlib
 import logging
 import os
@@ -17,7 +16,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
 
 from backend.apps.videos.remotion_billing import calculate_remotion_render_credits
 from backend.core.api.app.services.s3.config import get_bucket_name
@@ -217,10 +216,12 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             log_prefix=log_prefix,
         )
 
-        aes_key = os.urandom(32)
-        nonce = os.urandom(12)
-        aes_key_b64 = base64.b64encode(aes_key).decode("utf-8")
-        nonce_b64 = base64.b64encode(nonce).decode("utf-8")
+        encrypted_variants = encrypt_media_variants(
+            {"original": rendered.video_bytes, "thumbnail": rendered.thumbnail_bytes},
+            write_version=load_media_write_version(),
+        )
+        aes_key_b64 = encrypted_variants.aes_key_b64
+        nonce_b64 = encrypted_variants.legacy_nonce_b64 or ""
         vault_wrapped_aes_key, _ = await task._encryption_service.encrypt_with_user_key(aes_key_b64, vault_key_id)
         if not vault_wrapped_aes_key:
             raise RuntimeError("Failed to wrap Remotion video AES key with Vault")
@@ -228,8 +229,8 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         video_key = f"{user_id}/{timestamp}_{uuid.uuid4().hex[:8]}_remotion.mp4"
         thumbnail_key = f"{user_id}/{timestamp}_{uuid.uuid4().hex[:8]}_remotion_thumbnail.png"
-        encrypted_video = AESGCM(aes_key).encrypt(nonce, rendered.video_bytes, None)
-        encrypted_thumbnail = AESGCM(aes_key).encrypt(nonce, rendered.thumbnail_bytes, None)
+        encrypted_video = encrypted_variants.payloads["original"]
+        encrypted_thumbnail = encrypted_variants.payloads["thumbnail"]
         await task._s3_service.upload_file("chatfiles", video_key, encrypted_video, "application/octet-stream")
         await task._s3_service.upload_file("chatfiles", thumbnail_key, encrypted_thumbnail, "application/octet-stream")
         files_metadata = {
@@ -239,6 +240,7 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
                 "format": "mp4",
                 "mime_type": "video/mp4",
                 "source_version": source_version,
+                **encrypted_variants.metadata["original"],
             },
             "thumbnail": {
                 "s3_key": thumbnail_key,
@@ -246,6 +248,7 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
                 "format": "png",
                 "mime_type": "image/png",
                 "source_version": source_version,
+                **encrypted_variants.metadata["thumbnail"],
             },
         }
         s3_base_url = f"https://{get_bucket_name('chatfiles')}.{task._s3_service.base_domain}"

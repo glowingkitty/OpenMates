@@ -29,6 +29,7 @@ on:
       - 'backend/preview/docker-compose.selfhost.yml'
       - '.github/workflows/publish-selfhost-images.yml'
       - 'shared/config/product_version.json'
+      - 'config/media_encryption_rollout.yml'
       - 'scripts/prepare_cli_publish_version.mjs'
   push:
     branches: [main, dev]
@@ -43,6 +44,7 @@ on:
       - 'backend/preview/docker-compose.selfhost.yml'
       - '.github/workflows/publish-selfhost-images.yml'
       - 'shared/config/product_version.json'
+      - 'config/media_encryption_rollout.yml'
       - 'scripts/prepare_cli_publish_version.mjs'
 
 concurrency:

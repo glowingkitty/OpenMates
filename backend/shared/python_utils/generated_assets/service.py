@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any, Dict, Optional
 
+from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
+
 from .chunked_encryption import decrypt_chunked_stream
 
 logger = logging.getLogger(__name__)
@@ -175,7 +177,6 @@ async def index_generated_asset(
         "file_size_bytes": file_size_bytes,
         "s3_base_url": s3_base_url,
         "files_metadata": files_metadata,
-        "aes_key": aes_key_b64,
         "aes_nonce": nonce_b64,
         "vault_wrapped_aes_key": vault_wrapped_aes_key,
         "malware_scan": "clean",
@@ -186,6 +187,9 @@ async def index_generated_asset(
         },
         "created_at": created_at,
     }
+    variants = [metadata for metadata in files_metadata.values() if isinstance(metadata, dict)]
+    if not variants or any(metadata.get("encryption") != MEDIA_ENCRYPTION_V2 for metadata in variants):
+        record["aes_key"] = aes_key_b64
     success, error = await task._directus_service.create_item("upload_files", record)
     if not success:
         logger.warning("%s Failed to create generated asset upload_files record: %s", log_prefix, error)

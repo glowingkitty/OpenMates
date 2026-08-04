@@ -38,6 +38,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt \
     && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
 
 COPY backend /app/backend
+COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY shared /shared
 COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n

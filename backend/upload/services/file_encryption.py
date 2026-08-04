@@ -4,7 +4,7 @@
 #
 # Architecture:
 #   1. Generate a random AES-256 key per file.
-#   2. Encrypt the file bytes with AES-256-GCM (same key, unique nonce per variant).
+#   2. Encrypt one legacy single-variant file with AES-256-GCM.
 #   3. Return the plaintext AES key and nonce to the caller.
 #
 # Vault Transit key wrapping is handled by the core API via its internal
@@ -47,7 +47,8 @@ class FileEncryptionService:
 
         The same key is returned for the caller to encrypt multiple variants
         (e.g. original + preview) with the same key but a DIFFERENT nonce.
-        Call this once per file; call encrypt_bytes_with_key() for variants.
+        Multi-variant media uses the shared versioned media writer so each v2
+        operation receives a distinct nonce.
 
         Returns:
             Tuple of (encrypted_bytes, aes_key_b64, nonce_b64)
@@ -68,33 +69,3 @@ class FileEncryptionService:
             f"[FileEncryption] Encrypted {len(plaintext)} bytes → {len(encrypted)} bytes ciphertext"
         )
         return encrypted, aes_key_b64, nonce_b64
-
-    def encrypt_bytes_with_key(self, plaintext: bytes, aes_key_b64: str, nonce_b64: str) -> bytes:
-        """
-        Encrypt a second variant (e.g. preview image) using the SAME AES key.
-
-        For our use case (image + preview), we use the SAME nonce across
-        variants (same as generate_task.py). This is safe because the plaintexts
-        are different. GCM nonce reuse is only catastrophic when the SAME
-        plaintext is encrypted with the same nonce+key. Different plaintexts
-        with the same nonce+key are NOT a security issue for confidentiality.
-
-        See generate_task.py: all image variants use same key, same nonce,
-        different plaintext. We follow that pattern.
-
-        Args:
-            plaintext: Raw bytes to encrypt.
-            aes_key_b64: Base64 AES key (same as used for the original).
-            nonce_b64: Base64 nonce (same as used for the original).
-
-        Returns:
-            AES-GCM encrypted bytes.
-        """
-        aes_key = base64.b64decode(aes_key_b64)
-        nonce = base64.b64decode(nonce_b64)
-        aesgcm = AESGCM(aes_key)
-        encrypted = aesgcm.encrypt(nonce, plaintext, None)
-        logger.debug(
-            f"[FileEncryption] Encrypted variant: {len(plaintext)} bytes → {len(encrypted)} bytes"
-        )
-        return encrypted

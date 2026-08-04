@@ -81,6 +81,11 @@ import httpx
 from fastapi import APIRouter, Cookie, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
+from backend.shared.python_utils.media_encryption import (
+    MEDIA_WRITE_VERSION_LEGACY,
+    encrypt_media_variants,
+    load_media_write_version,
+)
 from backend.upload.s3_keys import upload_s3_prefix
 
 logger = logging.getLogger(__name__)
@@ -148,6 +153,7 @@ class FileVariantMetadata(BaseModel):
     height: int = Field(..., description="Image height in pixels")
     size_bytes: int = Field(..., description="Encrypted file size in bytes")
     format: str = Field(..., description="Image format (webp)")
+    encryption: Optional[str] = Field(None, description="Explicit media encryption format")
 
 
 class AIDetectionMetadata(BaseModel):
@@ -636,6 +642,12 @@ async def upload_file(
             )
             existing_record = None  # Fall through to fresh upload below
 
+        elif not existing_record.get("aes_key"):
+            logger.info(
+                f"{log_prefix} [5/13] Wrapped-key-only duplicate requires a fresh client key response"
+            )
+            existing_record = None
+
         elif is_pdf:
             # ── Safe PDF dedup: reuse S3 object but create fresh embed_id ──
             # NEVER reuse the old embed_id — it has stale encryption keys from
@@ -934,19 +946,20 @@ async def upload_file(
     # All three variants share the same AES key and nonce, matching generate_task.py.
     logger.info(f"{log_prefix} [9/13] Encrypting 3 variants with AES-256-GCM (random key per file)...")
     encrypt_start = time.monotonic()
-    crypto_service = request.app.state.file_encryption
-
-    # Encrypt original (re-encoded bytes)
-    encrypted_original, aes_key_b64, nonce_b64 = crypto_service.encrypt_bytes(
-        preview_result.original_bytes
+    write_version = load_media_write_version()
+    encrypted_variants = encrypt_media_variants(
+        {
+            "original": preview_result.original_bytes,
+            "full": preview_result.full_webp_bytes,
+            "preview": preview_result.preview_webp_bytes,
+        },
+        write_version=write_version,
     )
-    # Encrypt full and preview using the SAME key+nonce
-    encrypted_full = crypto_service.encrypt_bytes_with_key(
-        preview_result.full_webp_bytes, aes_key_b64, nonce_b64
-    )
-    encrypted_preview = crypto_service.encrypt_bytes_with_key(
-        preview_result.preview_webp_bytes, aes_key_b64, nonce_b64
-    )
+    encrypted_original = encrypted_variants.payloads["original"]
+    encrypted_full = encrypted_variants.payloads["full"]
+    encrypted_preview = encrypted_variants.payloads["preview"]
+    aes_key_b64 = encrypted_variants.aes_key_b64
+    nonce_b64 = encrypted_variants.legacy_nonce_b64 or ""
     encrypt_elapsed = (time.monotonic() - encrypt_start) * 1000
     total_encrypted_kb = (len(encrypted_original) + len(encrypted_full) + len(encrypted_preview)) / 1024
     logger.info(
@@ -1020,6 +1033,7 @@ async def upload_file(
             height=preview_result.original_height,
             size_bytes=len(encrypted_original),
             format="webp",
+            encryption=encrypted_variants.metadata["original"].get("encryption"),
         ),
         "full": FileVariantMetadata(
             s3_key=full_s3_key,
@@ -1027,6 +1041,7 @@ async def upload_file(
             height=preview_result.full_height,
             size_bytes=len(encrypted_full),
             format="webp",
+            encryption=encrypted_variants.metadata["full"].get("encryption"),
         ),
         "preview": FileVariantMetadata(
             s3_key=preview_s3_key,
@@ -1034,6 +1049,7 @@ async def upload_file(
             height=preview_result.preview_height,
             size_bytes=len(encrypted_preview),
             format="webp",
+            encryption=encrypted_variants.metadata["preview"].get("encryption"),
         ),
     }
 
@@ -1049,13 +1065,14 @@ async def upload_file(
         "file_size_bytes": len(file_bytes),
         "s3_base_url": s3_base_url,
         "files_metadata": {k: v.model_dump() for k, v in files_metadata.items()},
-        "aes_key": aes_key_b64,
         "aes_nonce": nonce_b64,
         "vault_wrapped_aes_key": vault_wrapped_aes_key,
         "malware_scan": "clean",
         "ai_detection": ai_detection_dict,
         "created_at": int(datetime.now(timezone.utc).timestamp()),
     }
+    if write_version == MEDIA_WRITE_VERSION_LEGACY:
+        upload_record["aes_key"] = aes_key_b64
     await _store_record_via_api(core_api_url, internal_token, upload_record)
 
     # Cache embed in Redis so that app skills (images-view, etc.) can retrieve

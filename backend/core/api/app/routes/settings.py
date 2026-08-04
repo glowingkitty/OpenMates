@@ -5786,14 +5786,14 @@ async def view_storage_file(
     Security model:
     - Authentication required.
     - Ownership validated: upload_files.user_id must match current_user.id.
-    - The AES key is stored server-side in upload_files (same security model as
-      the existing deduplication path — the server already has the key).
+    - Legacy rows may carry a raw AES key; v2 rows use only the owner's
+      Vault-wrapped key and decrypt it in memory.
 
     Endpoint: GET /v1/settings/storage/files/{embed_id}/view
     """
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     import base64
     from fastapi.responses import Response as FastAPIResponse
+    from backend.shared.python_utils.media_encryption import decrypt_media_payload
 
     user_id: str = current_user.id
     log_prefix = f"[StorageView] [user:{user_id[:8]}...] [embed:{embed_id[:8]}...]"
@@ -5807,7 +5807,7 @@ async def view_storage_file(
                     "embed_id": {"_eq": embed_id},
                     "user_id": {"_eq": user_id},
                 },
-                "fields": "id,content_type,files_metadata,aes_key,aes_nonce",
+                "fields": "id,content_type,files_metadata,aes_key,aes_nonce,vault_wrapped_aes_key",
                 "limit": 1,
             },
             no_cache=True,
@@ -5823,9 +5823,14 @@ async def view_storage_file(
         aes_key_b64: str = record.get("aes_key") or ""
         aes_nonce_b64: str = record.get("aes_nonce") or ""
 
-        if not aes_key_b64 or not aes_nonce_b64:
-            logger.error(f"{log_prefix} Missing AES key or nonce in upload_files record")
-            raise HTTPException(status_code=500, detail="Encryption metadata missing")
+        if not aes_key_b64:
+            wrapped_key = record.get("vault_wrapped_aes_key")
+            vault_key_id = getattr(current_user, "vault_key_id", None)
+            if not wrapped_key or not vault_key_id:
+                logger.error(f"{log_prefix} Missing wrapped media key metadata")
+                raise HTTPException(status_code=500, detail="Encryption metadata missing")
+            encryption_service = request.app.state.encryption_service
+            aes_key_b64 = await encryption_service.decrypt_with_user_key(wrapped_key, vault_key_id)
 
         # ── 2. Choose the best variant to serve ───────────────────────────────
         # For images: prefer 'full' (high-res WEBP), fall back to 'preview', then 'original'.
@@ -5875,10 +5880,13 @@ async def view_storage_file(
 
         # ── 5. Decrypt AES-256-GCM ────────────────────────────────────────────
         try:
-            aes_key: bytes = base64.b64decode(aes_key_b64)
-            aes_nonce: bytes = base64.b64decode(aes_nonce_b64)
-            aesgcm = AESGCM(aes_key)
-            plaintext: bytes = aesgcm.decrypt(aes_nonce, encrypted_bytes, None)
+            aes_key: bytes = base64.b64decode(aes_key_b64, validate=True)
+            plaintext: bytes = decrypt_media_payload(
+                encrypted_data=encrypted_bytes,
+                aes_key=aes_key,
+                variant=chosen_variant,
+                legacy_nonce_b64=aes_nonce_b64,
+            )
         except Exception as dec_err:
             logger.error(f"{log_prefix} Decryption failed: {dec_err}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to decrypt file")

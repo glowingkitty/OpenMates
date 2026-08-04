@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from scripts.audit_media_encryption_rollout import validate_rollout_manifest
+from scripts.audit_media_encryption_rollout import validate_rollout_manifest, validate_rollout_packaging
 
 
 def _manifest() -> dict:
@@ -52,3 +52,7 @@ def test_r2_activation_requires_all_reader_evidence_and_rollback_floor() -> None
 def test_checked_in_rollout_manifest_is_valid() -> None:
     path = Path(__file__).resolve().parents[2] / "config/media_encryption_rollout.yml"
     validate_rollout_manifest(yaml.safe_load(path.read_text(encoding="utf-8")))
+
+
+def test_rollout_manifest_is_packaged_for_every_writer_runtime() -> None:
+    validate_rollout_packaging(Path(__file__).resolve().parents[2])

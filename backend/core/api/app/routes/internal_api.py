@@ -1355,7 +1355,7 @@ class UploadStoreRecordRequest(BaseModel):
     file_size_bytes: int = Field(..., description="Original file size in bytes")
     s3_base_url: str = Field(..., description="S3 base URL for constructing full file URLs")
     files_metadata: Dict[str, Any] = Field(..., description="Stored file variants metadata")
-    aes_key: str = Field(..., description="Base64 AES-256 key for client-side decryption")
+    aes_key: Optional[str] = Field(None, description="Legacy raw AES key; omitted for wrapped-key-only v2 media")
     aes_nonce: str = Field(..., description="Base64 AES-GCM nonce")
     vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key for server-side access")
     malware_scan: str = Field(default="clean", description="ClamAV scan result")
@@ -1389,7 +1389,7 @@ async def store_upload_record(
     logger.info(f"{log_prefix} Storing upload record (hash={payload.content_hash[:16]}...)")
 
     try:
-        record = payload.model_dump()
+        record = payload.model_dump(exclude_none=True)
         await directus_service.create_item("upload_files", record)
         logger.info(f"{log_prefix} Upload record stored successfully")
 
