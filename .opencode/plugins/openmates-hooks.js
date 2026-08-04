@@ -11,6 +11,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const READ_TOOLS = new Set(["read", "Read"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
+const TASK_TOOLS = new Set(["task", "Task"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
 const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.openmates-agent-worktrees`,
@@ -24,6 +25,7 @@ const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
+const NATIVE_HANDOFF_MARKER = "[OpenMates native worktree handoff]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
 const DOCKER_LOCK_MARKER = "[OpenMates Docker lock guard]";
 const DOCKER_COMPOSE_MUTATIONS = new Set(["build", "down", "kill", "restart", "rm", "start", "stop", "up"]);
@@ -244,18 +246,35 @@ async function sessionDirectory(client, sessionID, directory = "") {
   }
 }
 
-async function nativeBindingDecision(client, sessionID) {
+async function nativeBindingDecision(sessionID, currentDirectory) {
   const record = activeSessionRecord(sessionID);
   if (!record) return nativeBindingDecisionForTest();
-  const worktreePath = record.session?.worktree?.path || "";
-  const currentDirectory = record.session?.binding_mode === "native"
-    ? await sessionDirectory(client, sessionID, worktreePath)
-    : activeCwd();
-  return nativeBindingDecisionForTest({
+  const decision = nativeBindingDecisionForTest({
     session: record.session,
     currentDirectory,
     strict: String(process.env.OPENMATES_NATIVE_WORKTREE_MODE || "pilot").toLowerCase() === "strict",
   });
+  if (decision.block && record.session?.binding_mode === "native" && decision.worktreePath) {
+    decision.reason = `This chat has moved to its native worktree. Continue the same chat here: ${nativeSessionUrlForTest(sessionID, decision.worktreePath)}`;
+  }
+  return decision;
+}
+
+export function nativeSessionUrlForTest(sessionID, directory, baseURL = "") {
+  const token = Buffer.from(resolve(directory), "utf8").toString("base64url");
+  return `${baseURL.replace(/\/$/, "")}/${token}/session/${sessionID}`;
+}
+
+export function taskRootDecisionForTest({ currentDirectory = PROJECT_ROOT, session = null } = {}) {
+  if (!pathInProjectRoot(currentDirectory) || pathInWorktree(currentDirectory)) return { decision: "allow" };
+  if (session?.mode === "question" && session?.binding_mode === "legacy_grandfathered") return { decision: "allow" };
+  const worktreePath = session?.worktree?.path || "";
+  return {
+    decision: "block",
+    reason: worktreePath
+      ? `Open the native worktree chat before launching a child: ${worktreePath}`
+      : "Initialize the repository session before launching a child: python3 scripts/sessions.py start --mode <mode> --task \"...\"",
+  };
 }
 
 function recordNativeBinding(sessionID, mode, directory = "", reason = "") {
@@ -269,10 +288,10 @@ function recordNativeBinding(sessionID, mode, directory = "", reason = "") {
 async function bindNativeWorktree(client, sessionID) {
   const record = activeSessionRecord(sessionID);
   const worktreePath = record?.session?.worktree?.path;
-  if (!client || !record || !worktreePath || record.session.binding_mode !== "pending") return;
+  if (!client || !record || !worktreePath || record.session.binding_mode !== "pending") return null;
   if (record.session?.worktree?.bootstrap?.status !== "ready") {
     recordNativeBinding(sessionID, "pilot_fallback", "", "worktree_bootstrap_failed");
-    return;
+    return { fallbackReason: "worktree_bootstrap_failed" };
   }
   try {
     const move = client?.experimental?.controlPlane?.moveSession;
@@ -286,10 +305,34 @@ async function bindNativeWorktree(client, sessionID) {
       throw new Error("move_session_directory_mismatch");
     }
     recordNativeBinding(sessionID, "native", worktreePath);
+    return {
+      worktreePath,
+      url: nativeSessionUrlForTest(sessionID, worktreePath),
+    };
   } catch (error) {
     const reason = error instanceof Error && error.message ? error.message.slice(0, 160) : "native_binding_failed";
     recordNativeBinding(sessionID, "pilot_fallback", "", reason);
+    return { fallbackReason: reason };
   }
+}
+
+function appendNativeHandoff(output, handoff) {
+  if (!handoff || !output || typeof output.output !== "string" || output.output.includes(NATIVE_HANDOFF_MARKER)) return;
+  if (handoff.fallbackReason) {
+    output.output += `
+
+${NATIVE_HANDOFF_MARKER}
+Native movement was unavailable; visible pilot fallback is active.
+Reason: ${handoff.fallbackReason}`;
+    return;
+  }
+  if (!handoff.url) return;
+  output.output += `
+
+${NATIVE_HANDOFF_MARKER}
+The isolated workspace is ready. Stop using repository tools in this turn.
+Continue this same chat in its native worktree: ${handoff.url}
+After opening the link, continue the original task from the existing conversation.`;
 }
 
 function pathInProjectRoot(file) {
@@ -584,9 +627,9 @@ function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
 
-function runBridge(event, payload, sessionID) {
+function runBridge(event, payload, sessionID, cwd = activeCwd()) {
   const result = spawnSync("bash", [BRIDGE, event], {
-    cwd: activeCwd(),
+    cwd,
     env: sessionID ? { ...process.env, OPENCODE_SESSION_ID: sessionID } : process.env,
     input: JSON.stringify(payload),
     encoding: "utf8",
@@ -598,9 +641,9 @@ function runBridge(event, payload, sessionID) {
   if (result.status !== 0) throw new Error(stderr || stdout || `OpenMates hook bridge failed with exit ${result.status}`);
 }
 
-function bridgePayload(event, tool, args) {
+function bridgePayload(event, tool, args, cwd = activeCwd()) {
   return {
-    cwd: activeCwd(),
+    cwd,
     hook_event_name: event,
     tool_name: normalizeToolName(tool),
     tool_input: toolInput(args),
@@ -704,56 +747,71 @@ function runEditLease(action, files, sessionID) {
   if (result.status !== 0) throw new Error(stderr || stdout || `OpenCode edit lease failed with exit ${result.status}`);
 }
 
-export const OpenMatesHooks = async ({ client } = {}) => ({
-  "shell.env": async (input, output) => {
-    if (!input?.sessionID) return;
-    output.env ||= {};
-    output.env.OPENCODE_SESSION_ID = input.sessionID;
-  },
-  "tool.execute.before": async (input, output) => {
-    const tool = input.tool || "";
-    if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool)) return;
+export const OpenMatesHooks = async ({ client, directory } = {}) => {
+  const instanceDirectory = directory || activeCwd();
+  return {
+    "shell.env": async (input, output) => {
+      if (!input?.sessionID) return;
+      output.env ||= {};
+      output.env.OPENCODE_SESSION_ID = input.sessionID;
+    },
+    "tool.execute.before": async (input, output) => {
+      const tool = input.tool || "";
+      if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
 
-    if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
-    bindSessionStart(input, output);
-    if (READ_TOOLS.has(tool)) {
-      const binding = await nativeBindingDecision(client, input.sessionID);
-      if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
-    }
-    if (EDIT_TOOLS.has(tool)) {
-      const binding = await nativeBindingDecision(client, input.sessionID);
+      const binding = await nativeBindingDecision(input.sessionID, instanceDirectory);
       if (binding.block) throw new Error(binding.reason);
-      if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
-      const files = editedFilesForBindingForTest(output?.args || input?.args, binding);
-      runStaleRead("check", files, input.sessionID);
-      guardRootEdit(files, input.sessionID, binding.worktreePath);
-      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
-      runEditLease("acquire", files, input.sessionID);
-      return;
-    }
-    runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
-  },
-  "tool.execute.after": async (input, output) => {
-    const tool = input.tool || "";
-    if (BASH_TOOLS.has(tool)) {
-      const command = bashCommand(toolArgs(input, output));
-      if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
-      appendCommandDoctorHint(command, output);
-      appendFailedTestLeaseHint(command, output);
-      if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) await bindNativeWorktree(client, input.sessionID);
-    }
-    if (READ_TOOLS.has(tool)) {
-      const binding = await nativeBindingDecision(client, input.sessionID);
-      runStaleRead("record", explicitFilesForTest(toolArgs(input, output), binding.worktreePath || activeCwd()), input.sessionID);
-    }
-    if (!EDIT_TOOLS.has(tool)) return;
-    const binding = await nativeBindingDecision(client, input.sessionID);
-    const files = editedFilesForBindingForTest(toolArgs(input, output), binding);
-    try {
-      runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output)), input.sessionID);
-      runStaleRead("sync", files, input.sessionID);
-    } finally {
-      runEditLease("release", files, input.sessionID);
-    }
-  },
-});
+
+      if (TASK_TOOLS.has(tool)) {
+        const taskDecision = taskRootDecisionForTest({
+          currentDirectory: instanceDirectory,
+          session: activeSessionRecord(input.sessionID)?.session || null,
+        });
+        if (taskDecision.decision === "block") throw new Error(taskDecision.reason);
+        return;
+      }
+
+      if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
+      bindSessionStart(input, output);
+      if (READ_TOOLS.has(tool)) {
+        if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
+      }
+      if (EDIT_TOOLS.has(tool)) {
+        if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
+        const files = editedFilesForBindingForTest(output?.args || input?.args, binding);
+        runStaleRead("check", files, input.sessionID);
+        guardRootEdit(files, input.sessionID, binding.worktreePath);
+        runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, instanceDirectory), input.sessionID, instanceDirectory);
+        runEditLease("acquire", files, input.sessionID);
+        return;
+      }
+      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, instanceDirectory), input.sessionID, instanceDirectory);
+    },
+    "tool.execute.after": async (input, output) => {
+      const tool = input.tool || "";
+      if (BASH_TOOLS.has(tool)) {
+        const command = bashCommand(toolArgs(input, output));
+        if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
+        appendCommandDoctorHint(command, output);
+        appendFailedTestLeaseHint(command, output);
+        if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
+          const handoff = await bindNativeWorktree(client, input.sessionID);
+          appendNativeHandoff(output, handoff);
+        }
+      }
+      if (READ_TOOLS.has(tool)) {
+        const binding = await nativeBindingDecision(input.sessionID, instanceDirectory);
+        runStaleRead("record", explicitFilesForTest(toolArgs(input, output), binding.worktreePath || activeCwd()), input.sessionID);
+      }
+      if (!EDIT_TOOLS.has(tool)) return;
+      const binding = await nativeBindingDecision(input.sessionID, instanceDirectory);
+      const files = editedFilesForBindingForTest(toolArgs(input, output), binding);
+      try {
+        runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), instanceDirectory), input.sessionID, instanceDirectory);
+        runStaleRead("sync", files, input.sessionID);
+      } finally {
+        runEditLease("release", files, input.sessionID);
+      }
+    },
+  };
+};

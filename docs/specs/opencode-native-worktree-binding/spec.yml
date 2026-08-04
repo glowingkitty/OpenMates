@@ -140,6 +140,11 @@ decisions:
     decision: Keep presence and shared runtime identity outside this spec.
     reason: They have separate state and failure boundaries.
     decided_at: "2026-08-04T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Move the same OpenCode Web session, then require one worktree-addressed continuation before repository tools resume.
+    reason: OpenCode cannot change the runtime instance processing the current root request, but a worktree URL for the same session preserves history and creates the correct instance without replacing the chat or modifying OpenCode.
+    decided_at: "2026-08-04T21:15:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -160,18 +165,30 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-04T00:00:00Z"
     reason: It serializes long independent preparation and reduces throughput.
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Treat a successful moveSession metadata update as if it changed the runtime instance handling the current prompt.
+    outcome: rejected
+    recorded_at: "2026-08-04T21:10:00Z"
+    reason: Live pilot parent and child pwd remained in root for the current prompt even though stored session.directory pointed at the worktree.
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Create a replacement OpenCode chat after the root chat initializes its worktree.
+    outcome: rejected
+    recorded_at: "2026-08-04T21:15:00Z"
+    reason: It duplicates chats and splits conversation history; the same session can instead be resumed through its worktree-addressed URL.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Restart or open a fresh OpenCode chat so the deployed plugin loads, then review pilot binding, bootstrap, child-directory, and root-cleanliness diagnostics before enabling strict mode.
+  next_action: Deploy the same-session continuation hook, run a fresh two-turn pilot through root then worktree URLs, and review binding, child-directory, and root-cleanliness diagnostics before enabling strict mode.
   command: python3 scripts/sessions.py status --json
   expected_outcome: New mutating chats record native binding and execute from their direct session worktree while existing chats remain grandfathered.
   blocker:
     task_id: TASK-4
-    requires_user_input: true
-    reason: The deployed OpenCode plugin is loaded only by a fresh or restarted chat, and strict rollout requires user acceptance of live pilot evidence.
-    question: Please open or restart one mutating OpenCode chat with the deployed plugin and confirm it starts and works normally from its session worktree; should that successful pilot enable strict mode?
-    next_action: Inspect the fresh chat binding_mode, bootstrap result, actual session directory, child directory, and root cleanliness, then record V-PILOT-REVIEW and enable strict mode if approved.
+    requires_user_input: false
+    reason: User approved a bounded same-session Web handoff pilot on 2026-08-04; strict rollout still waits for pilot evidence and final user confirmation.
+    question: ""
+    next_action: Verify the root runtime blocks after movement, the worktree URL preserves the same session ID, and parent plus child pwd match the worktree.
   last_verified_commit: b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff
 
 dependencies:
@@ -189,6 +206,8 @@ scenarios:
     when: [The chat initializes repository work that may edit source.]
     then:
       - OpenCode session.directory equals the canonical session worktree before the first source edit.
+      - The current root turn emits a same-session worktree continuation link and cannot run further repository tools.
+      - Opening the link preserves conversation history and routes the next request through the worktree instance.
       - Relative reads, edits, and Bash commands resolve there without rewriting.
       - Root remains unchanged.
   - id: S-2
@@ -253,7 +272,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: New mutating chats bind session.directory to their repository worktree before source edits, and relative file and Bash operations use it without rewrite.
+    text: New mutating Web chats move the same session ID before source edits, block the stale root turn, and use native relative file and Bash operations after the worktree continuation.
     required: true
     status: pending
     coverage_status: covered
@@ -357,6 +376,14 @@ assumptions:
     text: The plugin can move a session without reentrant deadlock, duplicate completion, lost response, or unsolicited turn.
     category: runtime
     required_before: implementation
+    status: contradicted
+    evidence:
+      - source: live pilot sessions f518 and 3cae on 2026-08-04
+        summary: Movement completed and persisted, but the current prompt and Task child retained the root runtime; movement alone cannot satisfy native execution in the same turn.
+  - id: A-7
+    text: Opening the moved session through its worktree-addressed Web URL creates a worktree plugin instance while preserving the same session ID and conversation.
+    category: runtime
+    required_before: task_execution
     status: unchecked
     evidence: []
   - id: A-4
@@ -395,7 +422,9 @@ contracts:
   workspace_identity:
     - Store repository session ID, OpenCode session ID, canonical worktree path, binding mode, status, and structural failure reason.
     - binding_mode is native, pilot_fallback, or legacy_grandfathered; modes never overlap.
-    - Native binding finishes before source edits; read-only questions need no worktree.
+    - Native movement finishes before source edits; the stale root turn is blocked and emits a worktree continuation link for the same session ID.
+    - Binding decisions compare the plugin instance directory, not only persisted session metadata.
+    - Read-only questions need no worktree.
     - Lease and stale-read keys normalize to repository-relative paths.
     - New children inherit native directory; resumed children with another directory are not silently remapped.
   bootstrap:
@@ -430,6 +459,7 @@ tests:
     covers: [AC-1, AC-3]
     assertions:
       - bind exact OpenCode identity once and disable rewriting only in native mode
+      - use the plugin instance directory, emit a same-session worktree URL, and block Task children from root
       - pilot failure records fallback while strict failure blocks source edits
       - no binding action creates an unsolicited prompt or assistant turn
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-red-native-binding", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
@@ -566,12 +596,15 @@ implementation_plan:
     - OpenCode v1.17.19 compatibility-target project-copy, move-session, directory routing, Bash cwd, and child creation
   architecture: >
     Retain sessions.py as lifecycle authority, bind its source worktree into
-    OpenCode's native directory, and use explicit native, fallback, or
-    grandfathered modes. Validate patches in disposable integration worktrees and
-    serialize only final refresh, commit, and non-force push.
+    OpenCode's native directory, then require the same moved Web session to be
+    continued through its worktree-addressed URL because the current root request
+    cannot change instances. Use explicit native, fallback, or grandfathered
+    modes. Validate patches in disposable integration worktrees and serialize
+    only final refresh, commit, and non-force push.
   data_flow:
     - Bind OpenCode ID to repository session, create worktree, and bootstrap it.
-    - Capability-probe and establish the native directory through safe movement or directory-scoped session creation before source edits.
+    - Move the same session ID before source edits, block its stale root runtime, and emit the worktree continuation URL.
+    - Resume the existing conversation through the worktree instance and verify the actual plugin directory.
     - Parent and new child requests execute natively from the source worktree.
     - Deploy captures selected patch and validates it in an exact-base integration worktree.
     - Finalization locks, refreshes dev, rebuilds and revalidates if needed, pushes, records evidence, and cleans integration state.
@@ -733,6 +766,10 @@ risks:
     severity: medium
     risk: Native and legacy modes could normalize the same logical file differently.
     mitigation: Canonical repository-relative keys and mixed-mode regression tests.
+  - id: R-6
+    severity: medium
+    risk: The user may miss the continuation link or continue typing through the stale root route.
+    mitigation: Append one explicit handoff marker and URL to start output, block root repository tools after movement, and keep the same session ID and conversation.
 
 open_questions:
   - id: OQ-1

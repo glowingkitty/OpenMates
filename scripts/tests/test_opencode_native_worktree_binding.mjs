@@ -11,6 +11,8 @@ import test from "node:test";
 import {
   editedFilesForBindingForTest,
   nativeBindingDecisionForTest,
+  nativeSessionUrlForTest,
+  taskRootDecisionForTest,
 } from "../../.opencode/plugins/openmates-hooks.js";
 
 test("native binding disables hidden path rewriting", () => {
@@ -70,5 +72,29 @@ test("post-edit relative files resolve against the verified binding directory", 
       { decision: "native", worktreePath: "/repo/worktree" },
     ),
     ["/repo/worktree/scripts/sessions.py"],
+  );
+});
+
+test("same-session handoff URL addresses the worktree project", () => {
+  assert.equal(
+    nativeSessionUrlForTest("ses_test", "/repo/worktree", "https://code.example.invalid"),
+    "https://code.example.invalid/L3JlcG8vd29ya3RyZWU/session/ses_test",
+  );
+  assert.equal(
+    nativeSessionUrlForTest("ses_test", "/repo/worktree"),
+    "/L3JlcG8vd29ya3RyZWU/session/ses_test",
+  );
+});
+
+test("task children are blocked in root until native handoff", () => {
+  const result = taskRootDecisionForTest({ currentDirectory: "/home/superdev/projects/OpenMates" });
+  assert.equal(result.decision, "block");
+  assert.match(result.reason, /sessions\.py start/);
+});
+
+test("task children are allowed from a managed worktree", () => {
+  assert.deepEqual(
+    taskRootDecisionForTest({ currentDirectory: "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd" }),
+    { decision: "allow" },
   );
 });

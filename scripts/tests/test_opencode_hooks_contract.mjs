@@ -35,8 +35,16 @@ async function runAfterShell(command, text) {
 }
 
 test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "nativeBindingDecisionForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest"]);
+  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "nativeBindingDecisionForTest", "nativeSessionUrlForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "taskRootDecisionForTest"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
+});
+
+test("native binding uses the plugin instance directory rather than moved session metadata", () => {
+  assert.match(source, /OpenMatesHooks = async \(\{ client, directory \}/);
+  assert.match(source, /nativeBindingDecision\(input\.sessionID, instanceDirectory\)/);
+  assert.match(source, /native worktree handoff/);
+  assert.match(source, /bridgePayload\("PreToolUse", tool, output\?\.args, instanceDirectory\)/);
+  assert.match(source, /input\.sessionID, instanceDirectory\)/);
 });
 
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {

@@ -15,11 +15,14 @@ Multiple agent sessions can work on the codebase at the same time. Use **`script
 
 File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
 
-New mutating OpenCode chats bind their native `session.directory` to the direct
-`agent-<session>` worktree created by `sessions.py`. Relative file tools, Bash,
-generators, tests, and newly created child sessions therefore share one working
-directory. Existing chats remain explicitly grandfathered; pilot failures use
-visible path rewriting until strict rollout is approved.
+New mutating OpenCode Web chats begin through the normal **New session** button.
+Their first turn may inspect committed source and run `sessions.py start`, but
+root edits and child tasks are blocked. The hook then moves the same OpenCode
+session to the direct `agent-<session>` worktree and prints a continuation link.
+Open that link and continue the existing conversation; relative file tools,
+Bash, generators, tests, and newly created child sessions then share the native
+worktree directory. Existing chats remain explicitly grandfathered; pilot
+failures use visible path rewriting until strict rollout is approved.
 
 ---
 
@@ -59,7 +62,13 @@ This command:
    - Other active sessions and files they have touched (advisory only)
    - Active locks
    - Stale architecture docs (code newer than doc by >24h)
-   - Compact project index (backend apps, frontend components, API routes, providers)
+    - Compact project index (backend apps, frontend components, API routes, providers)
+
+For a new mutating OpenCode Web chat, the command output also includes a native
+worktree continuation link after OpenCode confirms the move. The current root
+turn must stop repository tool use; open the link to continue the same session
+and conversation from the worktree. This is a route handoff, not a replacement
+chat, and `moveChanges: false` prevents root content from being copied.
 
 ### Ending a Session
 
