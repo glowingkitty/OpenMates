@@ -39,6 +39,7 @@ Technical architecture documentation for developers and contributors. For user-f
 - [Preprocessing Model Comparison](ai/preprocessing-model-comparison.md) - Mistral model benchmarks
 - [Mates](ai/mates.md) - Specialized AI assistant identities and routing
 - [Followup Suggestions](ai/followup-suggestions.md) - Post-processing follow-up generation
+- [Subscription-Backed Inference Research](ai/subscription-backed-inference.md) - Codex App Server, local provider bridges, authentication, and deferred implementation direction
 
 ## Privacy & Security
 
