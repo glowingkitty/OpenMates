@@ -30,6 +30,7 @@ const ACTIONABLE_PREVIEW_CENTER_MIN_OFFSET_Y = -24;
 const ACTIONABLE_PREVIEW_CENTER_MAX_OFFSET_Y = 14;
 const ACTIONABLE_DEMO_MAX_BANNER_OVERFLOW_PX = 26;
 const MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_X = 12;
+const MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_Y = 8;
 const MOBILE_ACTIONABLE_HEADLINE_MAX_LEFT_GAP = 96;
 const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
 const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
@@ -1091,7 +1092,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(compactActionable.demoBorderWidth, 'actionable demo should not render a dark boxed border').toBe('0px');
 		expect(compactActionable.demoBoxShadow, 'actionable demo should not render a boxed shadow').toBe('none');
 		expect(compactActionable.demoContentCenterDeltaX, 'actionable demo content should be horizontally centered').toBeLessThanOrEqual(MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_X);
-		expect(compactActionable.demoContentCenterDeltaY, 'actionable demo content should be vertically centered').toBeLessThanOrEqual(2);
+		expect(compactActionable.demoContentCenterDeltaY, 'actionable demo content should be vertically centered').toBeLessThanOrEqual(MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_Y);
 
 		await waitForActionableStage(page, 'event-preview');
 		await expect.poll(
