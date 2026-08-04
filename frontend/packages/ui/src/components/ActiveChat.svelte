@@ -6755,11 +6755,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         const isDraftForUnsentNewChat = showWelcome && !currentChat?.chat_id && chat?.chat_id;
         const isNewChat = !currentChat?.chat_id && chat?.chat_id; // Check if it was a new chat
-        if (!isDraftForUnsentNewChat) {
+        const activatesPersistedDraft = isDraftForUnsentNewChat && isPersistedDraftOnlyChat(chat);
+        if (!isDraftForUnsentNewChat || activatesPersistedDraft) {
             currentChat = chat;
             console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
         } else {
             console.debug("[ActiveChat] Draft saved for unsent new chat; keeping welcome state:", chat.chat_id);
+        }
+
+        if (activatesPersistedDraft) {
+            showWelcome = false;
         }
 
         // CRITICAL: Sync liveInputText with current editor content after draft save
