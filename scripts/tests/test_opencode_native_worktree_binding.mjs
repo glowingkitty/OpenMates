@@ -1,100 +1,178 @@
 #!/usr/bin/env node
 /*
- * Red contracts for OpenCode native session-worktree binding.
+ * Contracts for root-hosted OpenCode worktree routing.
  *
- * These tests keep rollout decisions pure and deterministic. The isolated live
- * verifier separately proves the installed OpenCode runtime and HTTP behavior.
+ * Web chats remain in the root project while local file, shell, and child tools
+ * route through durable sessions.py metadata. Tests keep recovery non-blocking.
  */
 
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
-  editedFilesForBindingForTest,
-  nativeBindingDecisionForTest,
-  nativeSessionUrlForTest,
-  taskRootDecisionForTest,
+  routeLocalToolArgsForTest,
+  routingDecisionForTest,
+  routingFailureForTest,
+  resolveWorktreeRouteForTest,
 } from "../../.opencode/plugins/openmates-hooks.js";
 
-test("native binding disables hidden path rewriting", () => {
+const ROOT = "/home/superdev/projects/OpenMates";
+const WORKTREE = `${ROOT}/.openmates-agent-worktrees/agent-abcd`;
+
+const routedSession = (bindingMode = "pending") => ({
+  mode: "feature",
+  binding_mode: bindingMode,
+  worktree: { path: WORKTREE, status: "active", bootstrap: { status: "ready" } },
+});
+
+test("active worktree routes regardless of obsolete binding label", () => {
+  for (const mode of ["pending", "native", "pilot_fallback", "worktree_routed"]) {
+    assert.deepEqual(routingDecisionForTest({ session: routedSession(mode) }), {
+      decision: "worktree_routed",
+      worktreePath: WORKTREE,
+    });
+  }
+});
+
+test("merged worktree remains routed for post-deploy continuation", () => {
   assert.deepEqual(
-    nativeBindingDecisionForTest({
-      session: { binding_mode: "native", worktree: { path: "/repo/worktree", status: "active" } },
-      currentDirectory: "/repo/worktree",
-      strict: true,
+    routingDecisionForTest({
+      session: { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "merged" } },
     }),
-    { decision: "native", rewrite: false, block: false, worktreePath: "/repo/worktree" },
+    { decision: "worktree_routed", worktreePath: WORKTREE },
   );
 });
 
-test("pilot failure uses one visible fallback mode", () => {
-  const result = nativeBindingDecisionForTest({
-    session: {
-      binding_mode: "pilot_fallback",
-      binding_failure_reason: "move_session_unavailable",
-      worktree: { path: "/repo/worktree", status: "active" },
+test("question sessions remain read-only without a worktree", () => {
+  assert.deepEqual(
+    routingDecisionForTest({ session: { mode: "question", binding_mode: "legacy_grandfathered" } }),
+    { decision: "read_only", worktreePath: "" },
+  );
+});
+
+test("file tools route explicit, relative, and omitted paths", () => {
+  assert.deepEqual(
+    routeLocalToolArgsForTest("read", { filePath: `${ROOT}/scripts/sessions.py` }, WORKTREE),
+    { filePath: `${WORKTREE}/scripts/sessions.py` },
+  );
+  assert.deepEqual(
+    routeLocalToolArgsForTest("glob", { pattern: "**/*.py" }, WORKTREE),
+    { pattern: "**/*.py", path: WORKTREE },
+  );
+  assert.deepEqual(
+    routeLocalToolArgsForTest("grep", { pattern: "binding", path: "scripts" }, WORKTREE),
+    { pattern: "binding", path: `${WORKTREE}/scripts` },
+  );
+});
+
+test("bash always receives the resolved worktree as its real workdir", () => {
+  assert.deepEqual(
+    routeLocalToolArgsForTest("bash", { command: "pwd", workdir: ROOT }, WORKTREE),
+    { command: "pwd", workdir: WORKTREE },
+  );
+});
+
+test("root absolute paths in shell commands are rejected with an actionable alternative", () => {
+  assert.throws(
+    () => routeLocalToolArgsForTest("bash", { command: `git -C ${ROOT} status` }, WORKTREE),
+    (error) => {
+      assert.match(error.message, /Reason:/);
+      assert.match(error.message, /Next:/);
+      assert.match(error.message, /relative paths/);
+      return true;
     },
-    currentDirectory: "/repo",
-    strict: false,
+  );
+});
+
+test("relative shell traversal cannot bypass the forced workdir", () => {
+  assert.throws(
+    () => routeLocalToolArgsForTest("bash", { command: "git -C ../../OpenMates status" }, WORKTREE),
+    (error) => {
+      assert.match(error.message, /Reason:/);
+      assert.match(error.message, /Next:/);
+      assert.match(error.message, /relative traversal/);
+      return true;
+    },
+  );
+});
+
+test("relative file and search traversal cannot fall back to root", () => {
+  for (const [tool, args] of [
+    ["read", { filePath: "../outside.py" }],
+    ["grep", { pattern: "x", path: "../outside" }],
+    ["apply_patch", { patchText: "*** Begin Patch\n*** Update File: ../outside.py\n*** End Patch" }],
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest(tool, args, WORKTREE),
+      (error) => {
+        assert.match(error.message, /Reason:/);
+        assert.match(error.message, /Next:/);
+        return true;
+      },
+    );
+  }
+});
+
+test("relative file paths cannot escape through a symlink", (context) => {
+  const fixture = mkdtempSync(join(tmpdir(), "openmates-route-"));
+  const worktree = join(fixture, "worktree");
+  const outside = join(fixture, "outside");
+  mkdirSync(worktree);
+  mkdirSync(outside);
+  symlinkSync(outside, join(worktree, "escape"));
+  context.after(() => rmSync(fixture, { recursive: true, force: true }));
+
+  assert.throws(
+    () => routeLocalToolArgsForTest("read", { filePath: "escape/file.md" }, worktree),
+    (error) => {
+      assert.match(error.message, /Reason:/);
+      assert.match(error.message, /Next:/);
+      return true;
+    },
+  );
+});
+
+test("child session resolves the top-level repository worktree", async () => {
+  const data = {
+    sessions: {
+      abcd: { ...routedSession(), opencode_session_id: "ses_parent" },
+    },
+  };
+  const sessions = {
+    ses_child: { id: "ses_child", parentID: "ses_parent" },
+    ses_parent: { id: "ses_parent" },
+  };
+  const result = await resolveWorktreeRouteForTest({
+    sessionID: "ses_child",
+    data,
+    getSession: async (sessionID) => sessions[sessionID],
   });
-  assert.equal(result.decision, "pilot_fallback");
-  assert.equal(result.rewrite, true);
-  assert.equal(result.block, false);
-  assert.equal(result.reason, "move_session_unavailable");
+  assert.equal(result.repositorySessionID, "abcd");
+  assert.equal(result.topLevelOpenCodeSessionID, "ses_parent");
+  assert.equal(result.worktreePath, WORKTREE);
 });
 
-test("strict unbound session blocks source edits", () => {
-  const result = nativeBindingDecisionForTest({
-    session: { binding_mode: "pending", worktree: { path: "/repo/worktree", status: "active" } },
-    currentDirectory: "/repo",
-    strict: true,
-  });
-  assert.equal(result.decision, "blocked");
-  assert.equal(result.rewrite, false);
-  assert.equal(result.block, true);
-  assert.match(result.reason, /native binding/i);
+test("restart recovery reconstructs the same route without plugin-local state", async () => {
+  const data = {
+    sessions: {
+      abcd: { ...routedSession("native"), opencode_session_id: "ses_parent" },
+    },
+  };
+  const first = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null });
+  const afterRestart = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null });
+  assert.deepEqual(afterRestart, first);
+  assert.equal(afterRestart.worktreePath, WORKTREE);
 });
 
-test("recorded native mode blocks when the runtime directory drifted", () => {
-  const result = nativeBindingDecisionForTest({
-    session: { binding_mode: "native", worktree: { path: "/repo/worktree", status: "active" } },
-    currentDirectory: "/repo",
-    strict: false,
-  });
-  assert.equal(result.decision, "blocked");
-  assert.equal(result.rewrite, false);
-  assert.equal(result.block, true);
-});
+test("unresolved mutation preserves a recovery lane with exact next command", () => {
+  const read = routingFailureForTest({ tool: "read", sessionID: "ses_missing" });
+  assert.equal(read.decision, "allow_read");
 
-test("post-edit relative files resolve against the verified binding directory", () => {
-  assert.deepEqual(
-    editedFilesForBindingForTest(
-      { path: "scripts/sessions.py" },
-      { decision: "native", worktreePath: "/repo/worktree" },
-    ),
-    ["/repo/worktree/scripts/sessions.py"],
-  );
-});
-
-test("same-session handoff URL addresses the worktree project", () => {
-  assert.equal(
-    nativeSessionUrlForTest("ses_test", "/repo/worktree", "https://code.example.invalid"),
-    "https://code.example.invalid/L3JlcG8vd29ya3RyZWU/session/ses_test",
-  );
-  assert.equal(
-    nativeSessionUrlForTest("ses_test", "/repo/worktree"),
-    "/L3JlcG8vd29ya3RyZWU/session/ses_test",
-  );
-});
-
-test("task children are blocked in root until native handoff", () => {
-  const result = taskRootDecisionForTest({ currentDirectory: "/home/superdev/projects/OpenMates" });
-  assert.equal(result.decision, "block");
-  assert.match(result.reason, /sessions\.py start/);
-});
-
-test("task children are allowed from a managed worktree", () => {
-  assert.deepEqual(
-    taskRootDecisionForTest({ currentDirectory: "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd" }),
-    { decision: "allow" },
-  );
+  const edit = routingFailureForTest({ tool: "apply_patch", sessionID: "ses_missing" });
+  assert.equal(edit.decision, "block");
+  assert.match(edit.message, /Reason:/);
+  assert.match(edit.message, /Next:/);
+  assert.match(edit.message, /sessions\.py start/);
 });

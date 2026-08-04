@@ -1,29 +1,30 @@
 schema_version: 2
 id: opencode-native-worktree-binding
-title: Native OpenCode Worktree Binding and Isolated Integration
+title: Root-Hosted OpenCode Worktree Routing and Isolated Integration
 status: draft
 
 goal: >
-  Make each new mutating OpenCode chat execute natively inside its session
-  worktree so file tools, Bash, generators, tests, and child sessions share one
-  authoritative directory, then deploy through disposable integration worktrees
-  so failed gates and concurrent deploys never leave partial patches in root.
+  Keep normal OpenCode Web chats stable in the root project while hooks route
+  file tools, Bash, generators, tests, and child sessions deterministically into
+  one sessions.py worktree, including after server restarts, then deploy through
+  disposable integration worktrees so failures never leave patches in root.
 
 scope:
   in:
-    - Bind each new mutating OpenCode top-level session to the detached worktree created by sessions.py.
-    - Make OpenCode session.directory equal the canonical repository-session worktree before the first source edit.
+    - Keep each OpenCode Web chat at its normal root URL and map it to the detached worktree created by sessions.py.
+    - Route local filesystem tools and Bash into the canonical repository-session worktree before the first source edit.
     - Bootstrap ignored dependencies and generated prerequisites deterministically inside new worktrees without mutating root dependencies.
-    - Prove relative reads, edits, Bash commands, generators, and new child sessions use the bound worktree.
-    - Retain path rewriting as a measured pilot fallback, then require native binding after live verification.
+    - Prove relative reads, searches, edits, Bash commands, generators, and new child sessions use the routed worktree.
+    - Recover routing from durable session and child-parent metadata after OpenCode restarts without rebinding.
+    - Keep reads and exact lifecycle recovery commands available when routing is missing so safeguards cannot deadlock recovery.
     - Grandfather already-running legacy chats without moving or discarding their dirty state.
     - Replace root patch application during deploy with disposable integration worktrees based on exact origin/dev commits.
     - Allow parallel integration preparation and validation, with a short lock for final refresh, commit, and push.
     - Rebuild and revalidate prepared work when origin/dev advances; never overwrite or force-push newer dev work.
     - Preserve edit leases, stale-read checks, deploy selection, blocked-deploy visibility, finalization, reconciliation, manifests, and release readiness.
-    - Add deterministic tests and an isolated real OpenCode verifier before strict rollout.
+    - Add deterministic tests and an isolated real OpenCode verifier before routed rollout.
   out:
-    - Upgrading OpenCode or enforcing a hardcoded OpenCode version.
+    - Upgrading or modifying OpenCode, or enforcing a hardcoded OpenCode version.
     - Implementing docs/specs/agent-presence-coordination/spec.yml.
     - Changing the verified stale-worktree deletion policy.
     - Replacing edit leases, stale-read checks, Docker locks, test-account leases, or commit-scoped deployed verification.
@@ -54,10 +55,9 @@ context_discovery:
     - scripts/tests/test_sessions_worktree_deploy.py
     - scripts/tests/test_sessions_worktree_reconciliation.py
   official_contracts:
-    - OpenCode v1.17.19 is the compatibility target and supports detached git_worktree project copies and native TUI session movement.
-    - Its sessions persist directory, request routing prefers session.directory, and Bash defaults to the current instance directory.
-    - New task children are created in the parent instance context and therefore inherit its directory.
-    - Programmatic project-copy and move-session routes are experimental and require installed-runtime proof before enforcement.
+    - OpenCode v1.17.19 is the compatibility target; tool.execute.before mutates the arguments object before local tool execution.
+    - ShellTool accepts workdir and resolves it as the actual spawned process cwd after plugin hooks run.
+    - Child sessions persist parentID, allowing hooks to resolve the top-level repository session without plugin-local state.
   local_evidence:
     - The current plugin rewrites read/edit paths while activeCwd remains the OpenCode process directory.
     - Transcript review found contention near 4 percent before and after enforcement, but concrete integration/recovery friction in at least 16.7 percent of post-enforcement top-level chats.
@@ -75,8 +75,8 @@ clarification:
   rounds:
     - question: Should the first spec cover only native binding or also root-free deploy integration?
       answer: Cover both native binding and disposable integration worktrees.
-    - question: What should happen when native binding fails during rollout?
-      answer: Permit a visible pilot fallback, then block source edits after strict rollout.
+    - question: What should happen when routing cannot resolve during rollout?
+      answer: Keep reads and lifecycle recovery available, and block only unresolved mutation with an exact next action.
     - question: How should existing chats be handled?
       answer: Grandfather them under the legacy model without moving dirty state.
     - question: May integrations prepare concurrently?
@@ -84,11 +84,11 @@ clarification:
     - question: How should worktrees receive ignored prerequisites?
       answer: Run deterministic worktree-local bootstrap backed by shared package caches.
   vision_summary: >
-    New mutating chats execute natively in their detached worktree and pass that
-    directory to child sessions. Existing chats finish through the legacy path,
-    pilot failures remain visible, and live proof enables strict binding;
-    deployments validate in disposable integration worktrees and converge on dev
-    only through a short refresh, commit, and push lock.
+    Normal OpenCode Web chats remain root-addressed while hooks route local tools
+    and child sessions into one detached sessions.py worktree. Routing survives
+    restart, keeps reads and repair available on failure, and gives every block an
+    exact alternative; deployments validate in disposable integration worktrees
+    and converge on dev only through a short refresh, commit, and push lock.
   approved_by_user: true
 
 implementation_state:
@@ -98,7 +98,7 @@ approvals:
   product_contract:
     status: approved
     approved_at: "2026-08-04T00:00:00Z"
-    reason: User approved the native binding, deterministic bootstrap, grandfathered rollout, and disposable integration contract.
+    reason: User approved root-hosted deterministic tool routing, restart-safe recovery, actionable hook messages, bootstrap, and disposable integration.
   implementation_plan:
     status: approved
     approved_at: "2026-08-04T00:00:00Z"
@@ -111,12 +111,12 @@ decisions:
     reason: Shared root reintroduces file, untracked-content, and index contamination.
     decided_at: "2026-08-04T00:00:00Z"
   - id: D-2
-    status: active
+    status: superseded
     decision: Bind new mutating sessions to their actual worktree directory.
     reason: File tools, Bash, generators, tests, and children need one workspace.
     decided_at: "2026-08-04T00:00:00Z"
   - id: D-3
-    status: active
+    status: superseded
     decision: Keep rewriting only for pilot fallback and grandfathered sessions, then require native binding.
     reason: Transition safely without retaining split-directory execution permanently.
     decided_at: "2026-08-04T00:00:00Z"
@@ -141,10 +141,25 @@ decisions:
     reason: They have separate state and failure boundaries.
     decided_at: "2026-08-04T00:00:00Z"
   - id: D-8
-    status: active
+    status: superseded
     decision: Move the same OpenCode Web session, then require one worktree-addressed continuation before repository tools resume.
     reason: OpenCode cannot change the runtime instance processing the current root request, but a worktree URL for the same session preserves history and creates the correct instance without replacing the chat or modifying OpenCode.
     decided_at: "2026-08-04T21:15:00Z"
+  - id: D-9
+    status: active
+    decision: Keep OpenCode Web sessions rooted and route every local tool through the sessions.py worktree using hook-mutated arguments.
+    reason: Root URLs survive restart and cancellation, while OpenCode invokes tool.execute.before before execution and its shell honors a hook-mutated workdir.
+    decided_at: "2026-08-04T22:30:00Z"
+  - id: D-10
+    status: active
+    decision: Never block reads or lifecycle recovery because routing metadata is missing, pending, stale, or inconsistent.
+    reason: Native binding guards blocked Shell and Task operations needed to repair sessions 1c57 and fb93 after restart.
+    decided_at: "2026-08-04T22:30:00Z"
+  - id: D-11
+    status: active
+    decision: Align always-loaded agent instructions with hook policy and require every hook rejection to label Reason and Next.
+    reason: Preventing predictable rejected calls saves model turns, while actionable alternatives stop repeated retries and self-created dead ends.
+    decided_at: "2026-08-04T22:45:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -176,19 +191,25 @@ attempts:
     approach: Create a replacement OpenCode chat after the root chat initializes its worktree.
     outcome: rejected
     recorded_at: "2026-08-04T21:15:00Z"
-    reason: It duplicates chats and splits conversation history; the same session can instead be resumed through its worktree-addressed URL.
+    reason: It duplicates chats and splits conversation history; root-hosted routing avoids replacing or moving the chat.
+  - id: ATTEMPT-6
+    task_id: TASK-4
+    approach: Move the same Web session and require continuation through a worktree-addressed URL.
+    outcome: rejected
+    recorded_at: "2026-08-04T22:25:00Z"
+    reason: The legacy plugin SDK did not expose moveSession, prior native records disagreed with OpenCode storage, and restart guards prevented existing canceled chats from continuing or repairing themselves.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the same-session continuation hook, run a fresh two-turn pilot through root then worktree URLs, and review binding, child-directory, and root-cleanliness diagnostics before enabling strict mode.
+  next_action: Implement stateless root-hosted routing, verify parent and child tools plus restart recovery, then run a normal New session Web pilot.
   command: python3 scripts/sessions.py status --json
-  expected_outcome: New mutating chats record native binding and execute from their direct session worktree while existing chats remain grandfathered.
+  expected_outcome: New and resumed Web chats keep their root URL while all mapped local tools and children route into the original session worktree.
   blocker:
     task_id: TASK-4
     requires_user_input: false
-    reason: User approved a bounded same-session Web handoff pilot on 2026-08-04; strict rollout still waits for pilot evidence and final user confirmation.
+    reason: User approved root-hosted hook-enforced routing on 2026-08-04; final rollout still waits for restart recovery and user confirmation.
     question: ""
-    next_action: Verify the root runtime blocks after movement, the worktree URL preserves the same session ID, and parent plus child pwd match the worktree.
+    next_action: Verify the root URL remains stable while parent and child tools route into one worktree before and after server restart.
   last_verified_commit: b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff
 
 dependencies:
@@ -201,46 +222,53 @@ dependencies:
 
 scenarios:
   - id: S-1
-    title: New mutating chat binds to its real worktree
+    title: New mutating chat routes tools to its real worktree
     given: [A new top-level OpenCode chat starts in OpenMates.]
     when: [The chat initializes repository work that may edit source.]
     then:
-      - OpenCode session.directory equals the canonical session worktree before the first source edit.
-      - The current root turn emits a same-session worktree continuation link and cannot run further repository tools.
-      - Opening the link preserves conversation history and routes the next request through the worktree instance.
-      - Relative reads, edits, and Bash commands resolve there without rewriting.
+      - The normal root Web URL and conversation remain unchanged.
+      - Relative reads, searches, edits, and Bash commands route to the canonical worktree before source edits.
+      - Tool and shared-hook CWDs report the worktree even though OpenCode session.directory remains root.
       - Root remains unchanged.
   - id: S-2
     title: Bootstrap provides local prerequisites
     given: [The detached worktree excludes ignored dependencies and generated prerequisites.]
-    when: [Native binding initializes the worktree.]
+    when: [Root-hosted routing initializes the worktree.]
     then:
       - Bounded idempotent bootstrap creates valid worktree-local links and generated prerequisites.
       - Shared caches may be reused, but writable root dependency directories are unchanged.
       - Failure is visible in session diagnostics.
   - id: S-3
-    title: Pilot fallback is visible and temporary
-    given: [Native move or bootstrap fails for a new pilot session.]
-    when: [The session reaches an edit boundary.]
+    title: Missing routing remains recoverable
+    given: [A session is pending, stale, resumed after restart, or temporarily lacks a valid worktree mapping.]
+    when: [The session reads, diagnoses, repairs, or attempts a source mutation.]
     then:
-      - Pilot mode records one failure reason and may use legacy rewriting.
-      - Native and rewritten paths are never mixed silently.
-      - Strict mode blocks the same failure with an actionable retry path.
+      - Reads, searches, status, start, summary, ensure, and repair remain available.
+      - Source mutations wait for a valid route and report one exact repair action.
+      - Pending or stale native labels never block the recovery lane.
   - id: S-4
     title: Existing chats finish without forced migration
     given: [A chat began under the legacy model and may contain dirty worktree state.]
-    when: [Native binding rollout begins.]
+    when: [Root-hosted routing rollout begins.]
     then:
       - It remains explicitly grandfathered and keeps its existing path.
       - Its files are not moved, reset, discarded, or copied automatically.
       - New worktrees cannot be created beneath an existing managed worktree.
   - id: S-5
-    title: Child inherits the parent worktree
-    given: [A natively bound parent launches a new task child.]
+    title: Child resolves the parent worktree
+    given: [A routed parent launches a new task child.]
     when: [The child reads or runs Bash without an explicit workdir.]
     then:
-      - Child and parent directories match.
+      - Child and parent routed tool directories match.
       - The child sees the parent's uncommitted changes through relative tools.
+  - id: S-9
+    title: Restarted Web chat reconstructs routing
+    given: [A root-addressed OpenCode chat has an active sessions.py worktree and an interrupted turn.]
+    when: [OpenCode restarts and the user continues the same chat.]
+    then:
+      - The same root URL remains usable without movement or rebinding.
+      - The first resumed local tool reconstructs the worktree route from durable metadata.
+      - Reads, Bash, edits, and children continue in the original worktree while root remains unchanged.
   - id: S-6
     title: Failed deploy leaves root unchanged
     given: [A selected session patch has a gate that will fail.]
@@ -272,7 +300,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: New mutating Web chats move the same session ID before source edits, block the stale root turn, and use native relative file and Bash operations after the worktree continuation.
+    text: New mutating Web chats retain their root URL while hooks route relative file, search, and Bash operations into the session worktree before source edits.
     required: true
     status: pending
     coverage_status: covered
@@ -288,7 +316,7 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-BOOTSTRAP, T-LIVE-OPENCODE]
   - id: AC-3
     scenario: S-3
-    text: Pilot fallback and strict binding are explicit mutually exclusive states, and strict failure blocks source edits.
+    text: Missing, stale, pending, and migrated routing states keep reads and lifecycle recovery available while blocking only unresolved source mutation.
     required: true
     status: pending
     coverage_status: covered
@@ -304,12 +332,28 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-LIFECYCLE, T-PYTEST-RECONCILIATION]
   - id: AC-5
     scenario: S-5
-    text: A new child inherits its natively bound parent's directory and sees parent changes through relative tools.
+    text: A new child resolves its top-level parent's worktree and sees parent changes through relative tools and forced Bash workdir.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-LIVE-OPENCODE]
+  - id: AC-11
+    scenario: S-9
+    text: After an OpenCode restart, the same root-addressed chat reconstructs routing and continues in its original worktree without manual rebinding.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NODE-BINDING, T-LIVE-OPENCODE, V-PILOT-REVIEW]
+  - id: AC-12
+    scenario: S-3
+    text: Always-loaded instructions describe routed worktree behavior, and every hook rejection labels the reason and exact next permitted action.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NODE-BINDING, T-SCOPE-AUDIT]
   - id: AC-6
     scenario: S-6
     text: Deploy gates run in a disposable integration worktree and every pre-push failure leaves root, root index, dev, and source work unchanged.
@@ -336,7 +380,7 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-INTEGRATION-CONCURRENCY]
   - id: AC-9
     scenario: S-8
-    text: Existing edit, deploy-selection, finalization, reconciliation, and readiness contracts work across native and grandfathered sessions.
+    text: Existing edit, deploy-selection, finalization, reconciliation, and readiness contracts work across routed and grandfathered sessions.
     required: true
     status: satisfied
     coverage_status: covered
@@ -353,39 +397,29 @@ acceptance_criteria:
 
 assumptions:
   - id: A-1
-    text: The installed OpenCode runtime can natively bind a chat to its sessions.py-created worktree, either by safely moving the current session or by creating the session in that directory, without a user-visible server restart.
+    text: OpenCode invokes tool.execute.before before local tool execution and honors hook-mutated file arguments and Bash workdir.
     category: runtime
     required_before: implementation
     status: confirmed
     evidence:
-      - source: OpenCode v1.17.19 source contracts
-        summary: The v1.17.19 compatibility target has native creation, movement, and directory routing; the safe binding mechanism and plugin ordering remain live assumption gates.
-      - source: scripts/verify_opencode_native_worktree.py --isolated at e317916
-        summary: Installed runtime 1.17.20 moved a session without restart and reported move_session strategy in 4.2 seconds.
+      - source: OpenCode v1.17.19 session/tools.ts and tool/shell.ts
+        summary: tool.execute.before mutates the same args object before execute, and ShellTool resolves params.workdir as the actual spawned process cwd.
   - id: A-2
-    text: After native binding, relative file tools and Bash use session.directory and new task children inherit it.
+    text: A child OpenCode session exposes parentID so hooks can resolve the top-level repository session and worktree.
     category: runtime
     required_before: task_execution
     status: confirmed
     evidence:
-      - source: OpenCode v1.17.19 session, routing, shell, and task source
-        summary: Source supports the behavior; installed-runtime proof remains required.
-      - source: isolated installed-runtime verifier at e317916
-        summary: Directory-scoped session, shell, child inheritance, and root cleanliness all passed.
+      - source: OpenCode v1.17.19 session schema and scripts/tests/test_opencode_native_worktree_binding.mjs
+        summary: Session metadata exposes parentID and deterministic unit coverage resolves a child to the top-level repository worktree.
   - id: A-3
-    text: The plugin can move a session without reentrant deadlock, duplicate completion, lost response, or unsolicited turn.
+    text: Root-hosted routing can be reconstructed after server restart without plugin-local state or persisted runtime binding.
     category: runtime
     required_before: implementation
-    status: contradicted
+    status: checking
     evidence:
-      - source: live pilot sessions f518 and 3cae on 2026-08-04
-        summary: Movement completed and persisted, but the current prompt and Task child retained the root runtime; movement alone cannot satisfy native execution in the same turn.
-  - id: A-7
-    text: Opening the moved session through its worktree-addressed Web URL creates a worktree plugin instance while preserving the same session ID and conversation.
-    category: runtime
-    required_before: task_execution
-    status: unchecked
-    evidence: []
+      - source: scripts/tests/test_opencode_native_worktree_binding.mjs
+        summary: Resolver reconstruction is stateless in unit coverage; live server restart remains the final assumption gate.
   - id: A-4
     text: Bootstrap can provide required prerequisites in bounded time using caches without root mutation.
     category: tooling
@@ -414,25 +448,25 @@ assumptions:
 contracts:
   api:
     access_model: local developer tooling only
-    changed_endpoints: none in OpenMates; capability-probes the installed local OpenCode directory-scoped session, project-copy, and move-session surfaces
+    changed_endpoints: none in OpenMates; uses existing OpenCode plugin hooks, session parent metadata, and local tool arguments
     auth: local OpenCode client/server authentication only
     rate_limits: one bind attempt per repository session plus bounded retry
     credit_budget: no OpenMates credits or provider calls
     encryption_boundary: no encrypted or decrypted OpenMates product data
   workspace_identity:
-    - Store repository session ID, OpenCode session ID, canonical worktree path, binding mode, status, and structural failure reason.
-    - binding_mode is native, pilot_fallback, or legacy_grandfathered; modes never overlap.
-    - Native movement finishes before source edits; the stale root turn is blocked and emits a worktree continuation link for the same session ID.
-    - Binding decisions compare the plugin instance directory, not only persisted session metadata.
+    - Store repository session ID, OpenCode session ID, canonical worktree path, routing mode, status, and structural failure reason.
+    - routing_mode is worktree_routed, legacy_root, or read_only; it describes durable tool routing, never OpenCode runtime location.
+    - Active or retained merged worktree metadata routes tools even while old pending, native, or fallback records migrate.
+    - Routing is reconstructed per parent lineage and does not depend on plugin-local state.
     - Read-only questions need no worktree.
     - Lease and stale-read keys normalize to repository-relative paths.
-    - New children inherit native directory; resumed children with another directory are not silently remapped.
+    - New children resolve the top-level parent route; unresolved children do not disable the usable parent chat.
   bootstrap:
     - Bootstrap is idempotent, bounded, observable, and worktree-local.
     - Shared immutable caches are allowed; writable root dependencies and generated artifacts are not shared.
     - The first supported scope covers frontend workspace dependency links plus generated design-token and locale prerequisites required by existing scoped lint commands.
     - TASK-1 must record the measured bootstrap time budget and exact cache/link layout before implementation begins.
-    - Failure records a stable structural reason and follows pilot or strict policy.
+    - Failure records a stable structural reason while reads and exact lifecycle recovery remain available.
   integration:
     - Each preparation uses a unique integration worktree at an exact fetched origin/dev commit.
     - Only the selected source patch enters it; all gates, staging, hooks, and commit creation run there.
@@ -441,10 +475,10 @@ contracts:
     - Record exact commit, patch identity, source base, final base, and integration identity.
     - Conflict records a blocked item without modifying root, source worktree, or dev.
   migration:
-    - Pilot stores only structural success, failure, timing, child-inheritance, and root-cleanliness diagnostics.
-    - Existing sessions become legacy_grandfathered and finalize normally.
-    - Strict mode applies only to new sessions after pilot evidence is accepted.
-    - Rewrite helpers remain only while grandfathered sessions exist.
+    - Existing pending, native, and pilot_fallback sessions with active worktrees become worktree_routed without moving chats or content.
+    - Existing question sessions become read_only and legacy sessions without worktrees remain legacy_root.
+    - Pilot stores only routing, timing, child-resolution, restart-recovery, and root-cleanliness diagnostics.
+    - No runtime-dependent state may blanket-block reads, recovery commands, or parent continuation.
   privacy_security:
     - Persist no prompts, responses, reasoning, tool data, source patches, file contents, environment values, credentials, or secrets.
     - Stored paths are canonical and repository-scoped; reject traversal and symlink escapes.
@@ -456,24 +490,26 @@ tests:
     type: unit
     file: scripts/tests/test_opencode_native_worktree_binding.mjs
     command: node --test scripts/tests/test_opencode_native_worktree_binding.mjs
-    covers: [AC-1, AC-3]
+    covers: [AC-1, AC-3, AC-5, AC-11, AC-12]
     assertions:
-      - bind exact OpenCode identity once and disable rewriting only in native mode
-      - use the plugin instance directory, emit a same-session worktree URL, and block Task children from root
-      - pilot failure records fallback while strict failure blocks source edits
-      - no binding action creates an unsolicited prompt or assistant turn
-    red_phase: {required: true, expected: fail, evidence: {status: failed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-red-native-binding", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-green-native-binding", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+      - route active and retained merged worktrees regardless of obsolete native, pending, or fallback labels
+      - rewrite read, glob, grep, and edit paths and force Bash workdir
+      - resolve Task children through parentID without plugin-local state
+      - preserve reads and lifecycle repair when mutation routing is unresolved
+      - every rejection includes Reason and Next guidance
+    red_phase: {required: true, expected: fail, evidence: {status: failed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-red-root-hosted-routing", subject_commit: "85f0582b642f1e6b6b97a6db56f3d9f490fa945c", timestamp: "2026-08-04T22:40:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-PYTEST-LIFECYCLE
     type: pytest
     file: scripts/tests/test_sessions_native_worktree_lifecycle.py
     command: python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py
-    covers: [AC-3, AC-4]
+    covers: [AC-3, AC-4, AC-11]
     assertions:
-      - binding modes are mutually exclusive and grandfathered sessions are never moved
+      - routing repair migrates obsolete modes, touches activity, and gives exact recovery for missing worktrees
+      - repeated sessions.py start reuses the existing OpenCode mapping and worktree after restart
       - managed worktrees cannot be nested beneath managed worktrees
-    red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-red-native-lifecycle", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-green-native-lifecycle", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-red-routing-repair", subject_commit: "85f0582b642f1e6b6b97a6db56f3d9f490fa945c", timestamp: "2026-08-04T22:40:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-PYTEST-BOOTSTRAP
     type: pytest
     file: scripts/tests/test_sessions_worktree_bootstrap.py
@@ -481,18 +517,18 @@ tests:
     covers: [AC-2]
     assertions:
       - bootstrap is idempotent and bounded and makes a scoped lint probe executable
-      - root dependencies remain unchanged and failure cannot report native-ready
+      - root dependencies remain unchanged and bootstrap failure cannot report routed-ready
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-red-worktree-bootstrap", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-green-worktree-bootstrap", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
   - id: T-LIVE-OPENCODE
     type: unit
     file: scripts/verify_opencode_native_worktree.py
     command: python3 scripts/verify_opencode_native_worktree.py --isolated
-    covers: [AC-1, AC-2, AC-5]
+    covers: [AC-1, AC-2, AC-5, AC-11]
     assertions:
-      - verifier reports the installed runtime version and available directory, project-copy, and move-session capabilities without enforcing a version string
-      - temporary OpenCode and Git fixture proves either safe session movement or directory-scoped session creation without user-visible restart and records which strategy was used
-      - relative read, edit, Bash pwd, and new child use the worktree while root stays clean
+      - verifier reports the installed runtime version and directory-scoped shell and child capabilities without enforcing a version string
+      - source and unit contracts prove tool hooks run before execution and ShellTool honors workdir
+      - live Web pilot proves root-addressed parent and child tools use the routed worktree while root stays clean
       - finally cleanup removes only synthetic state
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 scripts/verify_opencode_native_worktree.py --isolated", run_id: "local-red-live-opencode", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_opencode_native_worktree.py --isolated", run_id: "local-green-live-opencode", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
@@ -523,7 +559,7 @@ tests:
     command: python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py
     covers: [AC-4, AC-9, AC-10]
     assertions:
-      - inventory distinguishes source, integration, native, fallback, and grandfathered worktrees
+      - inventory distinguishes source, integration, routed, migrated, and grandfathered worktrees
       - nested worktrees remain visible and completed integrations leave no orphan metadata
       - cleanup preserves unique or uncertain source work
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: "local-red-native-reconciliation", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:55:00Z"}}
@@ -574,7 +610,7 @@ verifications:
       summary: ""
       timestamp: ""
       actor: user
-      next_action: Confirm real chats work normally in native directories and failed deploys no longer contaminate root.
+      next_action: Confirm real root-addressed chats route parent and child tools into one worktree across restart and failed deploys no longer contaminate root.
   - id: V-DEPENDENT-HANDOFF
     kind: artifact_review
     phase: final
@@ -592,25 +628,24 @@ implementation_plan:
   spec_path: docs/specs/opencode-native-worktree-binding/spec.yml
   existing_patterns:
     - sessions.py detached worktrees, patch identity, finalization, and reconciliation
-    - openmates-hooks.js identity binding, guards, leases, stale reads, and rewriting
-    - OpenCode v1.17.19 compatibility-target project-copy, move-session, directory routing, Bash cwd, and child creation
+    - openmates-hooks.js identity mapping, guards, leases, stale reads, and path rewriting
+    - OpenCode v1.17.19 tool hook ordering, ShellTool workdir, and child parentID
   architecture: >
-    Retain sessions.py as lifecycle authority, bind its source worktree into
-    OpenCode's native directory, then require the same moved Web session to be
-    continued through its worktree-addressed URL because the current root request
-    cannot change instances. Use explicit native, fallback, or grandfathered
-    modes. Validate patches in disposable integration worktrees and serialize
-    only final refresh, commit, and non-force push.
+    Retain sessions.py as lifecycle authority and keep OpenCode Web root-addressed.
+    Resolve each top-level or child identity to durable worktree metadata before
+    every local tool, rewrite local paths, force Bash workdir, and preserve a
+    non-blocking repair lane. Validate patches in disposable integration
+    worktrees and serialize only final refresh, commit, and non-force push.
   data_flow:
-    - Bind OpenCode ID to repository session, create worktree, and bootstrap it.
-    - Move the same session ID before source edits, block its stale root runtime, and emit the worktree continuation URL.
-    - Resume the existing conversation through the worktree instance and verify the actual plugin directory.
-    - Parent and new child requests execute natively from the source worktree.
+    - Bind the OpenCode ID to one repository session, create and bootstrap its worktree, and mark durable worktree_routed state.
+    - Resolve child parentID to the top-level mapping on each local tool without requiring plugin-local cache.
+    - Rewrite file/search arguments, force Bash workdir, and pass the worktree cwd to shared hooks.
+    - Keep reads and lifecycle recovery available when route resolution fails; block only unresolved mutation with Reason and Next.
     - Deploy captures selected patch and validates it in an exact-base integration worktree.
     - Finalization locks, refreshes dev, rebuilds and revalidates if needed, pushes, records evidence, and cleans integration state.
   affected_files:
-    - {path: .opencode/plugins/openmates-hooks.js, reason: Bind native directory and retire rewriting for native sessions.}
-    - {path: scripts/sessions.py, reason: Record binding/bootstrap and implement root-free integration.}
+    - {path: .opencode/plugins/openmates-hooks.js, reason: Resolve parent routes, rewrite local tools, force Bash workdir, and provide actionable recovery.}
+    - {path: scripts/sessions.py, reason: Record restart-safe routing, reuse session identity, bootstrap, and implement root-free integration.}
     - {path: scripts/verify_opencode_native_worktree.py, reason: Prove installed-runtime behavior.}
     - {path: scripts/tests/test_opencode_native_worktree_binding.mjs, reason: Verify plugin rollout contract.}
     - {path: scripts/tests/test_sessions_native_worktree_lifecycle.py, reason: Verify modes and grandfathering.}
@@ -619,22 +654,24 @@ implementation_plan:
     - {path: scripts/tests/test_sessions_integration_concurrency.py, reason: Verify finalization ordering.}
     - {path: scripts/tests/test_sessions_native_worktree_reconciliation.py, reason: Verify cleanup.}
     - {path: scripts/audit_native_worktree_scope.py, reason: Prevent this spec from absorbing presence implementation or dropping prior safety outcomes.}
-    - {path: docs/contributing/guides/concurrent-sessions.md, reason: Document native directories and integration.}
-    - {path: docs/architecture/agent-tooling-parity.md, reason: Document OpenCode binding boundary.}
+    - {path: docs/contributing/guides/agent-workflow-core.md, reason: Prevent agents from issuing predictably rejected root tool calls.}
+    - {path: .claude/rules/session-lifecycle.md, reason: Explain routed Web sessions and recovery behavior.}
+    - {path: docs/contributing/guides/concurrent-sessions.md, reason: Document routed tools, restart recovery, and integration.}
+    - {path: docs/architecture/agent-tooling-parity.md, reason: Document the OpenCode routing boundary.}
     - {path: docs/specs/agent-presence-coordination/spec.yml, reason: Update dependency after implementation.}
   verification_strategy:
     - Confirm installed-runtime assumptions before production hook changes.
-    - Write red tests before binding, bootstrap, or integration code.
-    - Review pilot structural diagnostics before strict enforcement.
+    - Write red tests before routing, bootstrap, or integration code.
+    - Review pilot structural diagnostics before routed rollout.
     - Keep grandfathered sessions deployable until natural finalization.
     - Run existing worktree suites and tooling audits after each slice.
     - Run spec_verify.py and obtain user confirmation before completion.
   verification_order:
-    - installed OpenCode native directory and child proof
-    - binding lifecycle and bootstrap tests
-    - pilot binding and review
+    - installed OpenCode tool-hook, Bash workdir, and child parentID proof
+    - routing lifecycle, recovery messaging, and bootstrap tests
+    - root-addressed parent, child, and restart pilot
     - disposable integration and concurrency tests
-    - strict binding and existing-worktree regressions
+    - routed tool and existing-worktree regressions
     - user confirmation
 
 tasks:
@@ -678,11 +715,11 @@ tasks:
     follow_up_tasks: [TASK-4]
     independently_deployable: true
   - id: TASK-4
-    title: Review pilot and enable strict native binding
+    title: Replace session movement with restart-safe root-hosted routing
     status: in_progress
     phase: running_checks
-    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]}
-    expected_files: [.opencode/plugins/openmates-hooks.js, scripts/sessions.py, docs/specs/opencode-native-worktree-binding/spec.yml]
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-9], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-11]}
+    expected_files: [.opencode/plugins/openmates-hooks.js, scripts/sessions.py, docs/contributing/guides/agent-workflow-core.md, .claude/rules/session-lifecycle.md, docs/specs/opencode-native-worktree-binding/spec.yml]
     verification: [V-PILOT-REVIEW, T-LIVE-OPENCODE]
     verification_ids: [V-PILOT-REVIEW, T-LIVE-OPENCODE]
     dependencies: [TASK-3]
@@ -748,8 +785,8 @@ tasks:
 risks:
   - id: R-1
     severity: high
-    risk: Plugin-triggered session movement could deadlock, race completion, or lose context.
-    mitigation: Require isolated installed-runtime proof and a visible pilot fallback before strict mode.
+    risk: Hook path mutation could route a local tool outside the intended session worktree.
+    mitigation: Canonicalize relative targets, reject traversal and symlink escapes, force Bash workdir, and verify parent and child routing live.
   - id: R-2
     severity: high
     risk: Bootstrap could mutate root dependencies or make startup too slow.
@@ -764,16 +801,16 @@ risks:
     mitigation: Distinguish source/integration identities and retain existing reconciliation safeguards.
   - id: R-5
     severity: medium
-    risk: Native and legacy modes could normalize the same logical file differently.
+    risk: Routed and grandfathered modes could normalize the same logical file differently.
     mitigation: Canonical repository-relative keys and mixed-mode regression tests.
   - id: R-6
     severity: medium
-    risk: The user may miss the continuation link or continue typing through the stale root route.
-    mitigation: Append one explicit handoff marker and URL to start output, block root repository tools after movement, and keep the same session ID and conversation.
+    risk: Missing or stale routing metadata could block the commands needed to diagnose and repair the session.
+    mitigation: Always allow reads, searches, status, start, ensure, and repair while returning Reason and Next for blocked mutation.
 
 open_questions:
   - id: OQ-1
-    question: Does installed-runtime proof select deferred movement or directory-scoped session creation as the safe native binding mechanism?
+    question: Does installed-runtime proof confirm hook-mutated file arguments and Bash workdir before local tool execution?
     owner: implementation
     resolution_gate: TASK-1
   - id: OQ-2
@@ -785,6 +822,6 @@ open_questions:
     owner: implementation
     resolution_gate: TASK-5
   - id: OQ-4
-    question: What pilot sample size and success threshold should enable strict binding?
-    owner: user
+    question: Does one controlled restart preserve root-addressed parent and child routing without plugin-local state?
+    owner: implementation
     resolution_gate: TASK-4

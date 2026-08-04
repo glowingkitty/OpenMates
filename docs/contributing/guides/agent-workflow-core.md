@@ -8,6 +8,14 @@ Keep default context concise. Lazy-load detailed rules, docs, and skills only
 when the task touches that area: frontend, backend, testing, privacy, settings,
 embeds, Apple, specs, deployment, or provider integrations.
 
+OpenCode Web chats intentionally remain at the root project URL. For mutating
+work, run `python3 scripts/sessions.py start --mode <mode> --task "..."` before
+edits, Bash-heavy investigation, or Task children. Hooks route local reads,
+searches, edits, Bash, and children into the session worktree; use repository-
+relative paths and do not set Bash `workdir` to root or another checkout. If a
+hook rejects a call, follow its `Next:` action instead of retrying the same call.
+Reads and lifecycle recovery commands remain available when routing needs repair.
+
 Before editing, discover the relevant files, source patterns, docs, and tests.
 Use the smallest correct change. Prefer deterministic audits or focused tests
 when repeated mistakes, flaky behavior, safety risks, or workflow drift are

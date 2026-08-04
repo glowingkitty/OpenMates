@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Red lifecycle contracts for native and grandfathered worktree sessions.
+"""Lifecycle contracts for routed and grandfathered worktree sessions.
 
-The suite verifies mutually exclusive rollout modes and rejects nested managed
+The suite verifies migration-safe routing repair and rejects nested managed
 worktrees without creating real Git worktrees or changing repository state.
 """
 
@@ -31,6 +31,77 @@ def test_binding_modes_are_mutually_exclusive() -> None:
     assert sessions.validate_worktree_binding_mode({"binding_mode": "native"}) == "native"
     assert sessions.validate_worktree_binding_mode({"binding_mode": "pilot_fallback"}) == "pilot_fallback"
     assert sessions.validate_worktree_binding_mode({"binding_mode": "legacy_grandfathered"}) == "legacy_grandfathered"
+    assert sessions.validate_worktree_binding_mode({"binding_mode": "worktree_routed"}) == "worktree_routed"
+
+
+def test_routing_repair_migrates_obsolete_mode_and_touches_session(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "binding_mode": "pending",
+                "last_active": "old",
+                "worktree": {"path": "/repo/agent-abcd", "status": "active"},
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_now_iso", lambda: "now")
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+
+    result = sessions.repair_worktree_routing("ses_parent")
+
+    assert result == {"session_id": "abcd", "mode": "worktree_routed", "worktree_path": "/repo/agent-abcd"}
+    assert data["sessions"]["abcd"]["binding_mode"] == "worktree_routed"
+    assert data["sessions"]["abcd"]["last_active"] == "now"
+
+
+def test_routing_repair_resumes_merged_worktree_after_deploy(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "binding_mode": "worktree_routed",
+                "worktree": {"path": "/repo/agent-abcd", "status": "merged"},
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+
+    result = sessions.repair_worktree_routing("ses_parent")
+
+    assert result["worktree_path"] == "/repo/agent-abcd"
+    assert result["mode"] == "worktree_routed"
+
+
+def test_routing_repair_failure_is_actionable(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = {"sessions": {"abcd": {"opencode_session_id": "ses_parent", "binding_mode": "pending"}}}
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+
+    try:
+        sessions.repair_worktree_routing("ses_parent")
+    except RuntimeError as error:
+        assert "Reason:" in str(error)
+        assert "Next:" in str(error)
+        assert "worktree ensure --session abcd" in str(error)
+    else:
+        raise AssertionError("repair must reject a missing worktree")
+
+
+def test_existing_opencode_session_is_reused_after_restart() -> None:
+    sessions = load_sessions_module()
+    existing = {"task": "continue work", "worktree": {"path": "/repo/agent-abcd", "status": "active"}}
+    data = {"sessions": {"abcd": {**existing, "opencode_session_id": "ses_parent"}}}
+
+    result = sessions.session_for_opencode(data, "ses_parent")
+
+    assert result is not None
+    assert result[0] == "abcd"
+    assert result[1]["worktree"]["path"] == "/repo/agent-abcd"
 
 
 def test_managed_worktrees_cannot_nest(monkeypatch, tmp_path: Path) -> None:

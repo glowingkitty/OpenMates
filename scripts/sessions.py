@@ -104,7 +104,7 @@ VERCEL_DEPLOY_LOCK_MINUTES = 90
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
-WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered"}
+WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed"}
 INTEGRATION_WORKTREE_PREFIX = "integration-"
 STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 5  # Number of recent git commits to show at session start
@@ -4009,6 +4009,18 @@ def bind_opencode_session(data: dict, session_id: str, opencode_session_id: str)
     sessions[session_id]["opencode_session_id"] = opencode_session_id
 
 
+def session_for_opencode(data: dict, opencode_session_id: str) -> tuple[str, dict] | None:
+    """Return the one repository session already bound to an OpenCode chat."""
+    matches = [
+        (session_id, session)
+        for session_id, session in data.get("sessions", {}).items()
+        if session.get("opencode_session_id") == opencode_session_id
+    ]
+    if len(matches) > 1:
+        raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple repository sessions")
+    return matches[0] if matches else None
+
+
 def record_worktree_binding(
     *,
     opencode_session_id: str,
@@ -4032,6 +4044,32 @@ def record_worktree_binding(
         session["binding_failure_reason"] = reason if mode == "pilot_fallback" else ""
         session["last_active"] = _now_iso()
         return {"session_id": session_id, "mode": mode, "worktree_path": str(expected), "reason": reason}
+
+    return _mutate_sessions(update)
+
+
+def repair_worktree_routing(opencode_session_id: str) -> dict:
+    """Reconstruct durable tool routing without depending on OpenCode runtime state."""
+    def update(data: dict) -> dict:
+        session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
+        session = data["sessions"][session_id]
+        worktree = session.get("worktree") or {}
+        worktree_path = str(worktree.get("path") or "")
+        if worktree.get("status") not in {"active", "merged"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
+            raise RuntimeError(
+                f"Reason: session {session_id} has no active worktree to route tools into. "
+                f"Next: run python3 scripts/sessions.py worktree ensure --session {session_id}."
+            )
+        session["binding_mode"] = "worktree_routed"
+        session["binding_updated_at"] = _now_iso()
+        session["binding_failure_reason"] = ""
+        session["last_active"] = _now_iso()
+        worktree["last_active"] = session["last_active"]
+        return {
+            "session_id": session_id,
+            "mode": "worktree_routed",
+            "worktree_path": worktree_path,
+        }
 
     return _mutate_sessions(update)
 
@@ -4117,41 +4155,61 @@ def cmd_start(args: argparse.Namespace) -> None:
     # than the previous race-prone max(last_active) fallback that caused
     # ghost ownership across unrelated sessions.
     opencode_session_id = getattr(args, "opencode_session", None)
-    session_record: dict = {
-        "task": args.task or "(pending)",
-        "mode": mode,
-        "tags": tags,
-        "started": _now_iso(),
-        "last_active": _now_iso(),
-        "modified_files": [],
-        "writing": None,
-        "task_id": task_id_arg,
-        "linear_issue_id": None,
-        "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
-        "opencode_session_id": None,
-        "binding_mode": "pending" if opencode_session_id and mode != "question" else "legacy_grandfathered",
-    }
-    sid, pruned, cleared_locks, data = register_session_record(
-        session_record,
-        opencode_session_id,
-    )
+    existing = session_for_opencode(_load_sessions(), opencode_session_id) if opencode_session_id else None
+    is_new_session = existing is None
+    if existing:
+        sid, _existing_session = existing
+
+        def refresh_existing(data: dict) -> dict:
+            session = data["sessions"][sid]
+            session["last_active"] = _now_iso()
+            if args.task:
+                session["task"] = args.task
+            return data
+
+        data = _mutate_sessions(refresh_existing)
+        pruned: list[str] = []
+        cleared_locks: list[str] = []
+    else:
+        session_record: dict = {
+            "task": args.task or "(pending)",
+            "mode": mode,
+            "tags": tags,
+            "started": _now_iso(),
+            "last_active": _now_iso(),
+            "modified_files": [],
+            "writing": None,
+            "task_id": task_id_arg,
+            "linear_issue_id": None,
+            "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
+            "opencode_session_id": None,
+            "binding_mode": "pending" if opencode_session_id and mode != "question" else "legacy_grandfathered",
+        }
+        sid, pruned, cleared_locks, data = register_session_record(
+            session_record,
+            opencode_session_id,
+        )
     worktree_metadata: dict | None = None
     worktree_error = ""
     if mode != "question":
         try:
             worktree_metadata = ensure_session_worktree(sid)
             data = _load_sessions()
+            if opencode_session_id:
+                repair_worktree_routing(opencode_session_id)
+                data = _load_sessions()
         except (RuntimeError, OSError, ValueError) as exc:
             worktree_error = str(exc)
 
     # Link task file to this session if --task-id was given
-    if linked_task:
+    if linked_task and is_new_session:
         linked_task["session"] = sid
         _save_task(linked_task)
 
     # ── Linear integration ────────────────────────────────────────────────
     linear_issue_id = getattr(args, "linear_issue", None)
-    _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
+    if is_new_session:
+        _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
 
     # ── Zellij integration ────────────────────────────────────────────────
     # NOTE: We no longer create a Zellij session on start. The CLI already
@@ -6352,7 +6410,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"  ? {f}{tag}")
         print()
 
-    if worktree_metadata and to_commit and validate_worktree_binding_mode(session) == "native":
+    routed_modes = {"pending", "native", "pilot_fallback", "worktree_routed"}
+    if worktree_metadata and to_commit and validate_worktree_binding_mode(session) in routed_modes:
         _deploy_native_worktree(args, session, worktree_metadata, to_commit, worktree_patch_id)
         return
 
@@ -6691,6 +6750,14 @@ def cmd_worktree(args: argparse.Namespace) -> None:
                 directory=args.directory or "",
                 reason=args.reason or "",
             )
+        except (RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, sort_keys=True))
+        return
+    if args.worktree_action == "repair":
+        try:
+            result = repair_worktree_routing(args.opencode_session)
         except (RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
@@ -9071,6 +9138,8 @@ def main() -> None:
     p_worktree_binding.add_argument("--mode", required=True, choices=["native", "pilot_fallback"])
     p_worktree_binding.add_argument("--directory", help="Canonical native session directory")
     p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
+    p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
+    p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
     p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Delete safely classified stale worktrees")
     p_worktree_cleanup.add_argument(
         "--idle-hours",

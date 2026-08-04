@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit native-worktree scope and preserved deploy safety contracts.
+"""Audit routed-worktree scope and preserved deploy safety contracts.
 
 This deterministic check keeps presence implementation outside the binding
 change, verifies the disposable integration markers, and ensures the previous
@@ -18,13 +18,20 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
     "scripts/sessions.py": (
         'INTEGRATION_WORKTREE_PREFIX = "integration-"',
         '"HEAD:refs/heads/dev"',
-        'validate_worktree_binding_mode(session) == "native"',
+        '"worktree_routed"',
         '"disposable_integration"',
     ),
     ".opencode/plugins/openmates-hooks.js": (
-        "bindNativeWorktree",
-        "nativeBindingDecision",
-        "OPENMATES_NATIVE_WORKTREE_MODE",
+        "resolveWorktreeRoute",
+        "routeLocalToolArgsForTest",
+        "workdir: worktreePath",
+        "Reason:",
+        "Next:",
+    ),
+    "docs/contributing/guides/agent-workflow-core.md": (
+        "OpenCode Web chats intentionally remain at the root project URL",
+        "do not set Bash `workdir` to root",
+        "follow its `Next:` action",
     ),
     "docs/specs/opencode-native-worktree-binding/spec.yml": (
         "id: agent-worktree-deploy",
@@ -43,6 +50,12 @@ FORBIDDEN_PRESENCE_SNIPPETS = (
     "presence registry",
     "session.status",
     "presence heartbeat",
+)
+
+FORBIDDEN_ROUTING_SNIPPETS = (
+    "moveSession(",
+    "Native binding is required before source edits",
+    "NATIVE_HANDOFF_MARKER",
 )
 
 
@@ -66,6 +79,10 @@ def main() -> int:
     for snippet in FORBIDDEN_PRESENCE_SNIPPETS:
         if snippet in implementation_text:
             failures.append(f"implementation unexpectedly contains deferred presence marker {snippet!r}")
+    plugin_text = (PROJECT_ROOT / ".opencode/plugins/openmates-hooks.js").read_text(encoding="utf-8")
+    for snippet in FORBIDDEN_ROUTING_SNIPPETS:
+        if snippet in plugin_text:
+            failures.append(f"routing plugin unexpectedly contains obsolete native-movement marker {snippet!r}")
 
     if failures:
         print("FAIL native worktree scope audit")

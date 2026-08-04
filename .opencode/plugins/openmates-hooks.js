@@ -5,11 +5,12 @@
 // with the small set of canonical Claude guards.
 
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const READ_TOOLS = new Set(["read", "Read"]);
+const SEARCH_TOOLS = new Set(["glob", "grep", "Glob", "Grep"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const TASK_TOOLS = new Set(["task", "Task"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
@@ -25,7 +26,7 @@ const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
-const NATIVE_HANDOFF_MARKER = "[OpenMates native worktree handoff]";
+const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
 const DOCKER_LOCK_MARKER = "[OpenMates Docker lock guard]";
 const DOCKER_COMPOSE_MUTATIONS = new Set(["build", "down", "kill", "restart", "rm", "start", "stop", "up"]);
@@ -39,6 +40,10 @@ const CLI_AUTH_ERROR_PATTERNS = [
   /Email encryption key is missing\. Run [`']openmates login[`'] again/i,
   /Requires login \(run [`']openmates login[`'] first\)\./i,
 ];
+
+function actionable(marker, reason, next) {
+  return `${marker} Reason: ${reason} Next: ${next}`;
+}
 
 function normalizeToolName(tool) {
   if (tool === "edit") return "Edit";
@@ -202,137 +207,167 @@ function activeSessionRecord(sessionID, data = sessionsData()) {
   return null;
 }
 
-function activeWorktreePath(sessionID) {
-  const record = activeSessionRecord(sessionID);
-  const worktree = record?.session?.worktree;
-  if (worktree?.status === "active" && typeof worktree.path === "string") return worktree.path;
-  return "";
+export function routingDecisionForTest({ session = {} } = {}) {
+  const worktreePath = ["active", "merged"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
+  if (worktreePath && isDirectManagedWorktree(worktreePath)) return { decision: "worktree_routed", worktreePath };
+  if (session?.mode === "question") return { decision: "read_only", worktreePath: "" };
+  return { decision: "unresolved", worktreePath: "" };
 }
 
-export function nativeBindingDecisionForTest({ session = {}, currentDirectory = "", strict = false } = {}) {
-  const worktreePath = session?.worktree?.status === "active" ? session.worktree.path || "" : "";
-  const mode = session?.binding_mode || "legacy_grandfathered";
-  if (mode === "native" && worktreePath && resolve(currentDirectory) === resolve(worktreePath)) {
-    return { decision: "native", rewrite: false, block: false, worktreePath };
-  }
-  if (mode === "pilot_fallback" && !strict) {
-    return {
-      decision: "pilot_fallback",
-      rewrite: true,
-      block: false,
-      worktreePath,
-      reason: session.binding_failure_reason || "native_binding_failed",
-    };
-  }
-  if (mode === "pending" || mode === "native" || (mode === "pilot_fallback" && strict)) {
-    return {
-      decision: "blocked",
-      rewrite: false,
-      block: true,
-      worktreePath,
-      reason: "Native binding is required before source edits",
-    };
-  }
-  return { decision: "legacy_grandfathered", rewrite: true, block: false, worktreePath };
-}
-
-async function sessionDirectory(client, sessionID, directory = "") {
-  if (!client?.session?.get || !sessionID) return "";
-  try {
-    const result = await client.session.get(directory ? { sessionID, directory } : { sessionID });
-    return result?.data?.directory || result?.directory || "";
-  } catch {
-    return "";
-  }
-}
-
-async function nativeBindingDecision(sessionID, currentDirectory) {
-  const record = activeSessionRecord(sessionID);
-  if (!record) return nativeBindingDecisionForTest();
-  const decision = nativeBindingDecisionForTest({
-    session: record.session,
-    currentDirectory,
-    strict: String(process.env.OPENMATES_NATIVE_WORKTREE_MODE || "pilot").toLowerCase() === "strict",
+function isDirectManagedWorktree(candidate) {
+  if (!candidate || !isAbsolute(candidate)) return false;
+  const resolvedCandidate = resolve(candidate);
+  return WORKTREE_ROOTS.some((root) => {
+    const relativePath = relative(resolve(root), resolvedCandidate);
+    return relativePath && !relativePath.includes(sep) && relativePath.startsWith("agent-");
   });
-  if (decision.block && record.session?.binding_mode === "native" && decision.worktreePath) {
-    decision.reason = `This chat has moved to its native worktree. Continue the same chat here: ${nativeSessionUrlForTest(sessionID, decision.worktreePath)}`;
+}
+
+function canonicalPath(candidate) {
+  const resolvedCandidate = resolve(candidate);
+  let existing = resolvedCandidate;
+  while (!existsSync(existing)) {
+    const parent = dirname(existing);
+    if (parent === existing) return resolvedCandidate;
+    existing = parent;
   }
-  return decision;
+  try {
+    return resolve(realpathSync.native(existing), relative(existing, resolvedCandidate));
+  } catch {
+    return resolvedCandidate;
+  }
 }
 
-export function nativeSessionUrlForTest(sessionID, directory, baseURL = "") {
-  const token = Buffer.from(resolve(directory), "utf8").toString("base64url");
-  return `${baseURL.replace(/\/$/, "")}/${token}/session/${sessionID}`;
+function pathEscapesWorktree(candidate, worktreePath) {
+  const relativeTarget = relative(canonicalPath(worktreePath), canonicalPath(candidate));
+  return relativeTarget === ".." || relativeTarget.startsWith(`..${sep}`) || isAbsolute(relativeTarget);
 }
 
-export function taskRootDecisionForTest({ currentDirectory = PROJECT_ROOT, session = null } = {}) {
-  if (!pathInProjectRoot(currentDirectory) || pathInWorktree(currentDirectory)) return { decision: "allow" };
-  if (session?.mode === "question" && session?.binding_mode === "legacy_grandfathered") return { decision: "allow" };
-  const worktreePath = session?.worktree?.path || "";
+async function openCodeSession(client, sessionID) {
+  if (!client?.session?.get || !sessionID) return null;
+  try {
+    const result = await client.session.get({ path: { id: sessionID } });
+    return result?.data || result || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveWorktreeRouteForTest({ sessionID, data = {}, getSession }) {
+  let currentID = sessionID;
+  const visited = new Set();
+  for (let depth = 0; currentID && depth < 12 && !visited.has(currentID); depth += 1) {
+    visited.add(currentID);
+    const record = activeSessionRecord(currentID, data);
+    if (record) {
+      const decision = routingDecisionForTest({ session: record.session });
+      return {
+        ...decision,
+        repositorySessionID: record.id,
+        topLevelOpenCodeSessionID: currentID,
+        session: record.session,
+      };
+    }
+    const info = await getSession(currentID);
+    currentID = info?.parentID || "";
+  }
   return {
-    decision: "block",
-    reason: worktreePath
-      ? `Open the native worktree chat before launching a child: ${worktreePath}`
-      : "Initialize the repository session before launching a child: python3 scripts/sessions.py start --mode <mode> --task \"...\"",
+    decision: "unresolved",
+    worktreePath: "",
+    repositorySessionID: "",
+    topLevelOpenCodeSessionID: currentID || sessionID || "",
+    session: null,
   };
 }
 
-function recordNativeBinding(sessionID, mode, directory = "", reason = "") {
-  const args = ["scripts/sessions.py", "worktree", "binding", "--opencode-session", sessionID, "--mode", mode];
-  if (directory) args.push("--directory", directory);
-  if (reason) args.push("--reason", reason);
-  const result = spawnSync("python3", args, { cwd: PROJECT_ROOT, encoding: "utf8" });
-  if (result.status !== 0) throw new Error((result.stderr || result.stdout || "Failed to record native binding").trim());
+async function resolveWorktreeRoute(client, sessionID, data = sessionsData()) {
+  return resolveWorktreeRouteForTest({
+    sessionID,
+    data,
+    getSession: (candidateID) => openCodeSession(client, candidateID),
+  });
 }
 
-async function bindNativeWorktree(client, sessionID) {
-  const record = activeSessionRecord(sessionID);
-  const worktreePath = record?.session?.worktree?.path;
-  if (!client || !record || !worktreePath || record.session.binding_mode !== "pending") return null;
-  if (record.session?.worktree?.bootstrap?.status !== "ready") {
-    recordNativeBinding(sessionID, "pilot_fallback", "", "worktree_bootstrap_failed");
-    return { fallbackReason: "worktree_bootstrap_failed" };
-  }
-  try {
-    const move = client?.experimental?.controlPlane?.moveSession;
-    if (typeof move !== "function") throw new Error("move_session_unavailable");
-    await move(
-      { sessionID, destination: { directory: worktreePath }, moveChanges: false },
-      { throwOnError: true },
-    );
-    const movedDirectory = await sessionDirectory(client, sessionID, worktreePath);
-    if (!movedDirectory || resolve(movedDirectory) !== resolve(worktreePath)) {
-      throw new Error("move_session_directory_mismatch");
+function routingRecoveryMessage(sessionID) {
+  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"brief description\". Safe reads, searches, status, summary, context, worktree ensure, and worktree repair remain available.`;
+}
+
+function isRecoveryBash(command) {
+  return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor)\b/.test(command)
+    || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
+    || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
+}
+
+export function routingFailureForTest({ tool = "", sessionID = "", command = "" } = {}) {
+  if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) return { decision: "allow_read", message: "" };
+  if (BASH_TOOLS.has(tool) && isRecoveryBash(command)) return { decision: "allow_recovery", message: "" };
+  return { decision: "block", message: routingRecoveryMessage(sessionID) };
+}
+
+export function routeLocalToolArgsForTest(tool, args, worktreePath) {
+  const input = toolInput(args);
+  if (!worktreePath) return input;
+  if (BASH_TOOLS.has(tool)) {
+    const command = bashCommand(input);
+    const withoutWorktree = command.split(resolve(worktreePath)).join("");
+    if (withoutWorktree.includes(PROJECT_ROOT)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command explicitly references the root checkout and would bypass worktree routing. Next: use repository-relative paths; this command will run with workdir=${worktreePath}.`);
     }
-    recordNativeBinding(sessionID, "native", worktreePath);
-    return {
-      worktreePath,
-      url: nativeSessionUrlForTest(sessionID, worktreePath),
-    };
-  } catch (error) {
-    const reason = error instanceof Error && error.message ? error.message.slice(0, 160) : "native_binding_failed";
-    recordNativeBinding(sessionID, "pilot_fallback", "", reason);
-    return { fallbackReason: reason };
+    const traversal = tokenizeCommand(command).find((token) => {
+      const value = unquote(token);
+      return value === ".." || value.startsWith("../") || value.includes("/../");
+    });
+    if (traversal) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
+    }
+    return { ...input, workdir: worktreePath };
   }
+  if (SEARCH_TOOLS.has(tool)) {
+    const routed = { ...input };
+    if (typeof routed.path === "string" && !isAbsolute(routed.path)) {
+      const target = resolve(worktreePath, routed.path);
+      if (pathEscapesWorktree(target, worktreePath)) {
+        throw new Error(`${ROUTING_GUARD_MARKER} Reason: the relative search path escapes the routed worktree. Next: use a path inside ${worktreePath}.`);
+      }
+    }
+    routed.path = rewritePathForWorktree(routed.path || ".", worktreePath);
+    return routed;
+  }
+  for (const key of ["file_path", "filePath", "path"]) {
+    const value = input[key];
+    if (typeof value !== "string" || isAbsolute(value)) continue;
+    const target = resolve(worktreePath, value);
+    if (pathEscapesWorktree(target, worktreePath)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the relative file path escapes the routed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
+    }
+  }
+  for (const line of (input.patchText || input.patch || "").split("\n")) {
+    const prefix = ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "]
+      .find((candidate) => line.startsWith(candidate));
+    if (!prefix) continue;
+    const value = line.slice(prefix.length).trim();
+    if (!value || isAbsolute(value)) continue;
+    const target = resolve(worktreePath, value);
+    if (pathEscapesWorktree(target, worktreePath)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: a patch path escapes the routed worktree. Next: use repository-relative patch paths inside ${worktreePath}.`);
+    }
+  }
+  return rewriteEditArgsForTest(input, worktreePath);
 }
 
-function appendNativeHandoff(output, handoff) {
-  if (!handoff || !output || typeof output.output !== "string" || output.output.includes(NATIVE_HANDOFF_MARKER)) return;
-  if (handoff.fallbackReason) {
-    output.output += `
-
-${NATIVE_HANDOFF_MARKER}
-Native movement was unavailable; visible pilot fallback is active.
-Reason: ${handoff.fallbackReason}`;
-    return;
+function recordWorktreeRouting(opencodeSessionID) {
+  if (!opencodeSessionID) return false;
+  const result = spawnSync(
+    "python3",
+    ["scripts/sessions.py", "worktree", "repair", "--opencode-session", opencodeSessionID],
+    { cwd: PROJECT_ROOT, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || "routing repair failed").trim();
+    console.warn(`${ROUTING_GUARD_MARKER} Reason: sessions.py could not record worktree routing. Next: run python3 scripts/sessions.py worktree repair --opencode-session ${opencodeSessionID}. Detail: ${detail}`);
+    return false;
   }
-  if (!handoff.url) return;
-  output.output += `
-
-${NATIVE_HANDOFF_MARKER}
-The isolated workspace is ready. Stop using repository tools in this turn.
-Continue this same chat in its native worktree: ${handoff.url}
-After opening the link, continue the original task from the existing conversation.`;
+  return true;
 }
 
 function pathInProjectRoot(file) {
@@ -438,7 +473,11 @@ export function dockerMutationDecisionForTest({ command = "", sessionID = "", da
   const shortID = record?.id || "<id>";
   return {
     decision: "block",
-    message: `${DOCKER_LOCK_MARKER} Docker Compose mutations require the sessions.py Docker lock. Run: python3 scripts/sessions.py lock --session ${shortID} --type docker; release immediately after with: python3 scripts/sessions.py unlock --session ${shortID} --type docker`,
+    message: actionable(
+      DOCKER_LOCK_MARKER,
+      "Docker Compose mutations require the current sessions.py Docker lock.",
+      `run python3 scripts/sessions.py lock --session ${shortID} --type docker, retry once, then release immediately with python3 scripts/sessions.py unlock --session ${shortID} --type docker.`,
+    ),
   };
 }
 
@@ -453,7 +492,7 @@ function guardBash(command, sessionID) {
   const repositoryMutation = /\bgit\s+apply\b/.test(command);
   const writesRepositoryFile = extractWriteTargets(command).some(isRepositoryWritePath);
   if (repositoryMutation || writesRepositoryFile) {
-    throw new Error("Use apply_patch for source-file changes so edits remain reviewable.");
+    throw new Error(actionable("[OpenMates source write guard]", "Bash would mutate repository source outside the reviewable edit path.", "use apply_patch for source-file changes."));
   }
 }
 
@@ -466,22 +505,22 @@ function guardForbiddenLocalTests(command) {
     const secondArg = firstNonOption(args.slice(args.indexOf(firstArg) + 1));
 
     if (commandName === "vitest") {
-      throw new Error("Use python3 scripts/tests.py run --suite vitest instead of local Vitest.");
+      throw new Error(actionable("[OpenMates test command guard]", "direct local Vitest bypasses the test control plane.", "run python3 scripts/tests.py run --suite vitest."));
     }
     if (commandName === "playwright" && firstArg === "test") {
-      throw new Error("Use python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright instead of local Playwright.");
+      throw new Error(actionable("[OpenMates test command guard]", "direct local Playwright bypasses deployed-code verification.", "run python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright."));
     }
     if (commandName === "pnpm" && ["test", "vitest"].includes(firstArg)) {
-      throw new Error("Use python3 scripts/tests.py run --suite vitest instead of local Vitest/pnpm test.");
+      throw new Error(actionable("[OpenMates test command guard]", "pnpm test bypasses the Vitest control plane.", "run python3 scripts/tests.py run --suite vitest."));
     }
     if (commandName === "pnpm" && firstArg === "playwright" && secondArg === "test") {
-      throw new Error("Use python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright instead of local Playwright.");
+      throw new Error(actionable("[OpenMates test command guard]", "pnpm Playwright bypasses deployed-code verification.", "run python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright."));
     }
     if (commandName === "npx" && firstArg === "vitest") {
-      throw new Error("Use python3 scripts/tests.py run --suite vitest instead of local Vitest.");
+      throw new Error(actionable("[OpenMates test command guard]", "npx Vitest bypasses the test control plane.", "run python3 scripts/tests.py run --suite vitest."));
     }
     if (commandName === "npx" && firstArg === "playwright" && secondArg === "test") {
-      throw new Error("Use python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright instead of local Playwright.");
+      throw new Error(actionable("[OpenMates test command guard]", "npx Playwright bypasses deployed-code verification.", "run python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright."));
     }
   }
 }
@@ -638,7 +677,10 @@ function runBridge(event, payload, sessionID, cwd = activeCwd()) {
   const stderr = (result.stderr || "").trim();
   if (stdout) console.log(stdout);
   if (stderr) console.error(stderr);
-  if (result.status !== 0) throw new Error(stderr || stdout || `OpenMates hook bridge failed with exit ${result.status}`);
+  if (result.status !== 0) {
+    const detail = stderr || stdout || `shared hook exited ${result.status}`;
+    throw new Error(actionable("[OpenMates shared hook guard]", detail, "follow the guard detail above, then retry the permitted alternative once."));
+  }
 }
 
 function bridgePayload(event, tool, args, cwd = activeCwd()) {
@@ -664,8 +706,12 @@ function isInsideAgentWorktree(cwd, target) {
 }
 
 function worktreeGuardMessage(sessionID, worktreePath = "") {
-  const target = worktreePath ? ` Edit in ${worktreePath} instead.` : "";
-  return `${ROOT_GUARD_MARKER} Root checkout is the OpenMates control plane.${target} Use the session worktree for source edits: python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}`;
+  const target = worktreePath ? ` The routed worktree is ${worktreePath}.` : "";
+  return actionable(
+    ROOT_GUARD_MARKER,
+    `the target is in the root control-plane checkout.${target}`,
+    `use a repository-relative path; if routing is missing, run python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}.`,
+  );
 }
 
 export function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target = "", sessionID = "", opencodeSessionID = "", sessions = null, worktreePath = "" } = {}) {
@@ -729,7 +775,10 @@ function runStaleRead(action, files, sessionID) {
     const stderr = (result.stderr || "").trim();
     if (stdout) console.log(stdout);
     if (stderr) console.error(stderr);
-    if (result.status === 2) throw new Error(stderr || stdout || "OpenCode stale-read guard blocked edit");
+    if (result.status === 2) {
+      const detail = stderr || stdout || "the file changed since it was read";
+      throw new Error(actionable("[OpenMates stale-read guard]", detail, `re-read ${file}, reapply the intended change to the latest content, then retry once.`));
+    }
   }
 }
 
@@ -743,49 +792,73 @@ function runEditLease(action, files, sessionID) {
   const stderr = (result.stderr || "").trim();
   if (stdout) console.log(stdout);
   if (stderr) console.error(stderr);
-  if (result.status === 2) throw new Error(stderr || stdout || "OpenCode edit lease blocked edit");
-  if (result.status !== 0) throw new Error(stderr || stdout || `OpenCode edit lease failed with exit ${result.status}`);
+  if (result.status === 2) {
+    const detail = stderr || stdout || "another live session holds an overlapping edit lease";
+    throw new Error(actionable("[OpenMates edit lease guard]", detail, "re-read the file after the current lease releases, then retry once."));
+  }
+  if (result.status !== 0) {
+    const detail = stderr || stdout || `edit lease command exited ${result.status}`;
+    throw new Error(actionable("[OpenMates edit lease guard]", detail, "run python3 scripts/sessions.py status, resolve the reported session-state error, then retry."));
+  }
 }
 
-export const OpenMatesHooks = async ({ client, directory } = {}) => {
+export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true } = {}) => {
   const instanceDirectory = directory || activeCwd();
+  const recordedRoutes = new Set();
   return {
     "shell.env": async (input, output) => {
       if (!input?.sessionID) return;
+      const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       output.env ||= {};
-      output.env.OPENCODE_SESSION_ID = input.sessionID;
+      output.env.OPENCODE_SESSION_ID = route.topLevelOpenCodeSessionID || input.sessionID;
+      if (route.worktreePath) output.env.OPENMATES_SESSION_WORKTREE = route.worktreePath;
     },
     "tool.execute.before": async (input, output) => {
       const tool = input.tool || "";
-      if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
-
-      const binding = await nativeBindingDecision(input.sessionID, instanceDirectory);
-      if (binding.block) throw new Error(binding.reason);
-
-      if (TASK_TOOLS.has(tool)) {
-        const taskDecision = taskRootDecisionForTest({
-          currentDirectory: instanceDirectory,
-          session: activeSessionRecord(input.sessionID)?.session || null,
-        });
-        if (taskDecision.decision === "block") throw new Error(taskDecision.reason);
-        return;
-      }
+      if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !SEARCH_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
 
       if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
       bindSessionStart(input, output);
-      if (READ_TOOLS.has(tool)) {
-        if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
+
+      const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+      const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+      if (
+        recordRouting
+        &&
+        route.decision === "worktree_routed"
+        && route.topLevelOpenCodeSessionID
+        && !recordedRoutes.has(route.topLevelOpenCodeSessionID)
+        && recordWorktreeRouting(route.topLevelOpenCodeSessionID)
+      ) {
+        recordedRoutes.add(route.topLevelOpenCodeSessionID);
       }
-      if (EDIT_TOOLS.has(tool)) {
-        if (binding.rewrite && binding.worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, binding.worktreePath);
-        const files = editedFilesForBindingForTest(output?.args || input?.args, binding);
-        runStaleRead("check", files, input.sessionID);
-        guardRootEdit(files, input.sessionID, binding.worktreePath);
-        runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, instanceDirectory), input.sessionID, instanceDirectory);
-        runEditLease("acquire", files, input.sessionID);
+      if (route.decision !== "worktree_routed") {
+        const failure = routingFailureForTest({
+          tool,
+          sessionID: input.sessionID,
+          command: bashCommand(output?.args || input?.args),
+        });
+        if (failure.decision === "block") throw new Error(failure.message);
+      }
+
+      if (TASK_TOOLS.has(tool)) {
         return;
       }
-      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, instanceDirectory), input.sessionID, instanceDirectory);
+
+      if (route.worktreePath) {
+        output.args = routeLocalToolArgsForTest(tool, output?.args || input?.args, route.worktreePath);
+      }
+      if (EDIT_TOOLS.has(tool)) {
+        const files = editedFilesForTest(output?.args || input?.args, route.worktreePath || instanceDirectory);
+        runStaleRead("check", files, routedOpenCodeSessionID);
+        guardRootEdit(files, routedOpenCodeSessionID, route.worktreePath);
+        const routedDirectory = route.worktreePath || instanceDirectory;
+        runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
+        runEditLease("acquire", files, routedOpenCodeSessionID);
+        return;
+      }
+      const routedDirectory = route.worktreePath || instanceDirectory;
+      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
     },
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
@@ -795,22 +868,24 @@ export const OpenMatesHooks = async ({ client, directory } = {}) => {
         appendCommandDoctorHint(command, output);
         appendFailedTestLeaseHint(command, output);
         if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
-          const handoff = await bindNativeWorktree(client, input.sessionID);
-          appendNativeHandoff(output, handoff);
+          recordWorktreeRouting(input.sessionID);
         }
       }
-      if (READ_TOOLS.has(tool)) {
-        const binding = await nativeBindingDecision(input.sessionID, instanceDirectory);
-        runStaleRead("record", explicitFilesForTest(toolArgs(input, output), binding.worktreePath || activeCwd()), input.sessionID);
+      if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) {
+        const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+        const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+        runStaleRead("record", explicitFilesForTest(toolArgs(input, output), route.worktreePath || instanceDirectory), routedOpenCodeSessionID);
       }
       if (!EDIT_TOOLS.has(tool)) return;
-      const binding = await nativeBindingDecision(input.sessionID, instanceDirectory);
-      const files = editedFilesForBindingForTest(toolArgs(input, output), binding);
+      const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+      const routedDirectory = route.worktreePath || instanceDirectory;
+      const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+      const files = editedFilesForTest(toolArgs(input, output), routedDirectory);
       try {
-        runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), instanceDirectory), input.sessionID, instanceDirectory);
-        runStaleRead("sync", files, input.sessionID);
+        runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
+        runStaleRead("sync", files, routedOpenCodeSessionID);
       } finally {
-        runEditLease("release", files, input.sessionID);
+        runEditLease("release", files, routedOpenCodeSessionID);
       }
     },
   };

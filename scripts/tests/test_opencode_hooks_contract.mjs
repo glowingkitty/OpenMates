@@ -15,13 +15,25 @@ const preEditGuard = readFileSync(new URL("../../.claude/hooks/pre-edit-guard.sh
 const autoTrack = readFileSync(new URL("../../.claude/hooks/auto-track.sh", import.meta.url), "utf8");
 const bridge = readFileSync(new URL("../../.codex/hooks/claude-hook-bridge.sh", import.meta.url), "utf8");
 const opencodeConfig = JSON.parse(readFileSync(new URL("../../opencode.json", import.meta.url), "utf8"));
+const routedTestData = {
+  sessions: {
+    test: {
+      opencode_session_id: "test-session",
+      binding_mode: "worktree_routed",
+      mode: "testing",
+      worktree: { path: process.cwd(), status: "active" },
+    },
+  },
+};
 
 async function runBeforeShell(command) {
-  const hooks = await pluginModule.OpenMatesHooks({});
+  const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
+  const output = { args: { command } };
   await hooks["tool.execute.before"](
     { tool: "bash", args: { command }, sessionID: "test-session" },
-    { args: { command } },
+    output,
   );
+  return output.args;
 }
 
 async function runAfterShell(command, text) {
@@ -35,16 +47,36 @@ async function runAfterShell(command, text) {
 }
 
 test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "nativeBindingDecisionForTest", "nativeSessionUrlForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "taskRootDecisionForTest"]);
+  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "resolveWorktreeRouteForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "routeLocalToolArgsForTest", "routingDecisionForTest", "routingFailureForTest"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
 });
 
-test("native binding uses the plugin instance directory rather than moved session metadata", () => {
-  assert.match(source, /OpenMatesHooks = async \(\{ client, directory \}/);
-  assert.match(source, /nativeBindingDecision\(input\.sessionID, instanceDirectory\)/);
-  assert.match(source, /native worktree handoff/);
-  assert.match(source, /bridgePayload\("PreToolUse", tool, output\?\.args, instanceDirectory\)/);
-  assert.match(source, /input\.sessionID, instanceDirectory\)/);
+test("root-hosted routing forces tool paths and shell workdir", () => {
+  assert.match(source, /resolveWorktreeRoute\(client, input\.sessionID/);
+  assert.match(source, /routeLocalToolArgsForTest\(tool/);
+  assert.match(source, /workdir: worktreePath/);
+  assert.match(source, /Reason:/);
+  assert.match(source, /Next:/);
+  assert.match(source, /routedOpenCodeSessionID/);
+  assert.match(source, /OPENMATES_SESSION_WORKTREE/);
+});
+
+test("loaded hook overwrites model-provided shell workdir", async () => {
+  const args = await runBeforeShell("pwd");
+  assert.equal(args.workdir, process.cwd());
+});
+
+test("blocking hook messages always explain reason and next action", async () => {
+  for (const command of ["docker compose restart api", "cat > scripts/example.py", "npx playwright test"]) {
+    await assert.rejects(
+      () => runBeforeShell(command),
+      (error) => {
+        assert.match(error.message, /Reason:/);
+        assert.match(error.message, /Next:/);
+        return true;
+      },
+    );
+  }
 });
 
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
@@ -93,7 +125,7 @@ test("bash guard allows source file references that are not writes", async () =>
 test("bash guard blocks Docker Compose mutations without the Docker lock", async () => {
   await assert.rejects(
     () => runBeforeShell("docker compose -f backend/core/docker-compose.yml restart api"),
-    /Docker Compose mutations require the sessions\.py Docker lock/,
+    /Reason: Docker Compose mutations require.*Next: run python3 scripts\/sessions\.py lock/,
   );
 });
 
@@ -119,32 +151,32 @@ test("bash guard allows programmatic source reads", async () => {
 test("bash guard blocks direct repo source redirection", async () => {
   await assert.rejects(
     () => runBeforeShell("cat > backend/core/example.py"),
-    /Use apply_patch for source-file changes/,
+    /Reason: Bash would mutate repository source.*Next: use apply_patch/,
   );
 });
 
 test("bash guard blocks tee into repo source files", async () => {
   await assert.rejects(
     () => runBeforeShell("printf test | tee frontend/apps/web_app/src/example.ts"),
-    /Use apply_patch for source-file changes/,
+    /Reason: Bash would mutate repository source.*Next: use apply_patch/,
   );
 });
 
 test("bash guard blocks programmatic repo source writes", async () => {
   await assert.rejects(
     () => runBeforeShell("python3 -c 'from pathlib import Path; Path(\"scripts/example.py\").write_text(\"x\")'"),
-    /Use apply_patch for source-file changes/,
+    /Reason: Bash would mutate repository source.*Next: use apply_patch/,
   );
 });
 
 test("bash guard blocks local Playwright and Vitest commands", async () => {
   await assert.rejects(
     () => runBeforeShell("npx playwright test frontend/apps/web_app/tests/chat-flow.spec.ts"),
-    /Use python3 scripts\/tests\.py run --spec/,
+    /Reason: .*Next: run python3 scripts\/tests\.py run --spec/,
   );
   await assert.rejects(
     () => runBeforeShell("pnpm test"),
-    /Use python3 scripts\/tests\.py run --suite vitest/,
+    /Reason: .*Next: run python3 scripts\/tests\.py run --suite vitest/,
   );
 });
 
@@ -159,7 +191,7 @@ test("bash guard still blocks actual raw git commands", async () => {
   );
   await assert.rejects(
     () => runBeforeShell("git -C /home/superdev/projects/OpenMates commit -m test"),
-    /Use sessions\.py deploy instead of raw git commit/,
+    /root checkout.*Next: use repository-relative paths/,
   );
   await assert.rejects(
     () => runBeforeShell("env -u GIT_CONFIG git commit -m test"),
@@ -179,7 +211,7 @@ test("bash guard allows canonical tests.py Vitest wrapper", async () => {
 test("bash guard still blocks forbidden local tests in chained commands", async () => {
   await assert.rejects(
     () => runBeforeShell("python3 scripts/tests.py run --suite vitest && npx playwright test"),
-    /Use python3 scripts\/tests\.py run --spec/,
+    /Reason: .*Next: run python3 scripts\/tests\.py run --spec/,
   );
 });
 
