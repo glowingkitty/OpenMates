@@ -133,7 +133,8 @@ class DirectusService:
         params=None,
         no_cache=True,
         return_none_on_403: bool = False,
-        admin_required: bool = False
+        admin_required: bool = False,
+        raise_on_error: bool = False,
     ):
         """
         Fetch items from a Directus collection with optional query params.
@@ -163,6 +164,8 @@ class DirectusService:
             if not admin_token:
                 # This is critical because callers explicitly requested admin access.
                 logger.error(f"Failed to get admin token for collection: {collection}")
+                if raise_on_error:
+                    raise RuntimeError(f"Directus admin authentication failed for {collection}")
                 return []
             headers = {"Authorization": f"Bearer {admin_token}"}
             logger.info(f"Using admin token for collection: {collection}")
@@ -205,6 +208,8 @@ class DirectusService:
 
         if response_obj is None:
             logger.error(f"Directus get_items for '{collection}': _make_api_request returned None.")
+            if raise_on_error:
+                raise RuntimeError(f"Directus request returned no response for {collection}")
             return []
 
         try:
@@ -215,11 +220,15 @@ class DirectusService:
                         return response_json["data"]  # Return the list of items
                     else:
                         logger.error(f"Directus get_items for '{collection}': 'data' field is not a list. Response JSON: {response_json}")
+                        if raise_on_error:
+                            raise RuntimeError(f"Directus returned invalid data for {collection}")
                         return []
                 elif response_json and isinstance(response_json, list): # If API directly returns a list
                     return response_json
                 else:
                     logger.warning(f"Directus get_items for '{collection}': Unexpected JSON structure. Response JSON: {response_json}")
+                    if raise_on_error:
+                        raise RuntimeError(f"Directus returned an invalid response for {collection}")
                     return []
             elif response_obj.status_code == 403:
                 # Log detailed error for 403 Forbidden
@@ -234,12 +243,18 @@ class DirectusService:
                 # Returning None here allows callers to detect permission errors and retry with safer field sets.
                 if return_none_on_403:
                     return None
+                if raise_on_error:
+                    raise RuntimeError(f"Directus denied access to {collection}")
                 return []
             else:
                 logger.warning(f"Directus get_items for '{collection}' failed with status {response_obj.status_code}. Response text: {response_obj.text[:200]}")
+                if raise_on_error:
+                    raise RuntimeError(f"Directus request failed for {collection}")
                 return []
         except Exception as e: # Catch JSONDecodeError or other parsing issues
             logger.error(f"Directus get_items for '{collection}': Error parsing JSON response. Status: {response_obj.status_code}, Error: {e}, Response text: {response_obj.text[:200]}", exc_info=True)
+            if raise_on_error:
+                raise
             return []
 
     # Item creation method

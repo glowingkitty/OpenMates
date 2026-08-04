@@ -62,6 +62,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     let hasPasskey = $state(false);
     let has2FA = $state(false);
     let hasPassword = $state(false);
+    let authMethodsLoaded = $state(false);
     let showAuthModal = $state(false);
 
     // Confirmation
@@ -188,21 +189,25 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 
     async function fetchAuthMethods() {
+        authMethodsLoaded = false;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                hasPasskey = data.has_passkey || false;
-                has2FA = data.has_2fa || false;
-                hasPassword = data.has_password || false;
+            if (!response.ok) {
+                throw new Error('Failed to load authentication methods');
             }
+            const data = await response.json();
+            hasPasskey = data.has_passkey || false;
+            has2FA = data.has_2fa || false;
+            hasPassword = data.has_password || false;
+            authMethodsLoaded = true;
         } catch (error) {
             console.error('[SettingsDeleteAccount] Error fetching auth methods:', error);
+            errorMessage = error instanceof Error ? error.message : 'Failed to load authentication methods';
         }
     }
 
@@ -221,7 +226,7 @@ Uses SecurityAuth component for passkey/2FA verification.
         }).format(cents / 100);
     }
 
-    let canProceed = $derived(!!previewData && confirmDataDeletion);
+    let canProceed = $derived(!!previewData && confirmDataDeletion && authMethodsLoaded);
     let hasAnyAuthMethod = $derived(hasPasskey || has2FA || hasPassword);
 
     // ========================================================================
@@ -394,6 +399,11 @@ Uses SecurityAuth component for passkey/2FA verification.
 
         {#if errorMessage}
             <div class="error-message">{errorMessage}</div>
+            {#if !authMethodsLoaded}
+                <button class="retry-button" data-testid="delete-account-auth-methods-retry" onclick={fetchAuthMethods}>
+                    {$text('common.retry')}
+                </button>
+            {/if}
         {/if}
 
         {#if successMessage}

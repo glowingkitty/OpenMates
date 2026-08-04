@@ -21,6 +21,9 @@ CELERY_CONFIG_PY = ROOT / "backend/core/api/app/tasks/celery_config.py"
 BASE_TASK_PY = ROOT / "backend/core/api/app/tasks/base_task.py"
 SDK_PY = ROOT / "backend/core/api/app/routes/sdk.py"
 TEAMS_PY = ROOT / "backend/core/api/app/routes/teams.py"
+AUTH_ROUTER_PY = ROOT / "backend/core/api/app/routes/auth.py"
+AUTH_METHODS_PY = ROOT / "backend/core/api/app/routes/auth_routes/auth_methods.py"
+PAYMENTS_PY = ROOT / "backend/core/api/app/routes/payments.py"
 DEV_COMPOSE_FILE = ROOT / "backend/core/docker-compose.yml"
 SELFHOST_COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.selfhost.yml",
@@ -111,6 +114,18 @@ def test_selfhost_compose_explicitly_disables_openmatescloud_overlay() -> None:
         for service_name in ("api", "task-worker", "task-scheduler"):
             environment = services[service_name]["environment"]
             assert environment[CLOUD_OVERLAY_ENV] == "false", f"{compose_path}:{service_name}"
+
+
+def test_auth_methods_are_core_auth_not_cloud_billing() -> None:
+    auth_router_source = AUTH_ROUTER_PY.read_text(encoding="utf-8")
+    auth_methods_source = AUTH_METHODS_PY.read_text(encoding="utf-8")
+    payments_source = PAYMENTS_PY.read_text(encoding="utf-8")
+
+    assert "auth_methods" in auth_router_source
+    assert '@router.get("/methods"' in auth_methods_source
+    assert "include_in_schema=False" in auth_methods_source
+    assert "get_current_user" in auth_methods_source
+    assert "user-auth-methods" not in payments_source
 
 
 def test_api_startup_payment_providers_are_guarded_by_cloud_billing() -> None:
