@@ -249,6 +249,38 @@ describe("parse_message assistant large promotion", () => {
     });
   });
 
+  it("keeps direct app-skill embed IDs compact when [!] large syntax is used", () => {
+    embedStore.registerStaticEmbed({
+      embedId: "events-search-parent-id",
+      type: "app_skill_use",
+      content: [
+        "app_id: events",
+        "skill_id: search",
+        "embed_ref: events-search-parent-ref",
+      ].join("\n"),
+      appId: "events",
+      skillId: "search",
+    });
+    embedStore.registerEmbedRef(
+      "events-search-parent-ref",
+      "events-search-parent-id",
+      "events",
+    );
+
+    const doc = parseAssistant("[!](embed:events-search-parent-id)");
+
+    expect(findNodesByType(doc.content || [], "embedPreviewLarge")).toHaveLength(0);
+    const compactEmbeds = findNodesByType(doc.content || [], "embed");
+    expect(compactEmbeds).toHaveLength(1);
+    expect(compactEmbeds[0].attrs).toMatchObject({
+      id: "events-search-parent-id",
+      type: "app-skill-use",
+      contentRef: "embed:events-search-parent-id",
+      app_id: "events",
+      skill_id: "search",
+    });
+  });
+
   it("keeps multiple registered app-skill [!] refs compact and grouped", () => {
     embedStore.registerStaticEmbed({
       embedId: "maps-search-1",

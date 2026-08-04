@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { parse_message } from "../parse_message";
+import { handleStreamingSemantics } from "../streamingSemantics";
 
 function collectMarks(node: any, marks: string[] = []): string[] {
   if (!node || typeof node !== "object") return marks;
@@ -36,5 +37,17 @@ describe("parse_message write mode", () => {
     expect(JSON.stringify(doc)).toContain("max@posteo.de");
     expect(JSON.stringify(doc)).toContain("sarah@proton.com");
     expect(collectMarks(doc)).not.toContain("link");
+  });
+
+  it("keeps markdown highlighting tokens out of embed candidates", () => {
+    const markdown = Array.from(
+      { length: 75 },
+      (_, index) => `**Event ${index + 1}**: _August details_`,
+    ).join("\n");
+
+    const streamingData = handleStreamingSemantics(markdown, "write");
+
+    expect(streamingData.unclosedBlocks.some((block) => block.type === "markdown")).toBe(true);
+    expect(streamingData.partialEmbeds).toEqual([]);
   });
 });
