@@ -3150,3 +3150,267 @@ landing_actionable_event_chip_place:
   sv: Kreuzberg
   he: Kreuzberg
   verified_by_human: []
+landing_privacy_saved_data:
+  context: Encryption-at-storage explanation in the privacy landing header story
+  en: Only your devices can unlock your saved data.
+  de: Nur deine Geräte können deine gespeicherten Daten entsperren.
+  zh: Only your devices can unlock your saved data.
+  es: Only your devices can unlock your saved data.
+  fr: Only your devices can unlock your saved data.
+  pt: Only your devices can unlock your saved data.
+  ru: Only your devices can unlock your saved data.
+  ja: Only your devices can unlock your saved data.
+  ko: Only your devices can unlock your saved data.
+  it: Only your devices can unlock your saved data.
+  tr: Only your devices can unlock your saved data.
+  vi: Only your devices can unlock your saved data.
+  id: Only your devices can unlock your saved data.
+  pl: Only your devices can unlock your saved data.
+  nl: Only your devices can unlock your saved data.
+  ar: Only your devices can unlock your saved data.
+  hi: Only your devices can unlock your saved data.
+  th: Only your devices can unlock your saved data.
+  cs: Only your devices can unlock your saved data.
+  sv: Only your devices can unlock your saved data.
+  he: Only your devices can unlock your saved data.
+  verified_by_human: []
+landing_privacy_pii:
+  context: Client-side personal-data placeholder explanation in the privacy landing header story
+  en: Personal details are replaced before AI processing.
+  de: Persönliche Angaben werden vor der KI-Verarbeitung ersetzt.
+  zh: Personal details are replaced before AI processing.
+  es: Personal details are replaced before AI processing.
+  fr: Personal details are replaced before AI processing.
+  pt: Personal details are replaced before AI processing.
+  ru: Personal details are replaced before AI processing.
+  ja: Personal details are replaced before AI processing.
+  ko: Personal details are replaced before AI processing.
+  it: Personal details are replaced before AI processing.
+  tr: Personal details are replaced before AI processing.
+  vi: Personal details are replaced before AI processing.
+  id: Personal details are replaced before AI processing.
+  pl: Personal details are replaced before AI processing.
+  nl: Personal details are replaced before AI processing.
+  ar: Personal details are replaced before AI processing.
+  hi: Personal details are replaced before AI processing.
+  th: Personal details are replaced before AI processing.
+  cs: Personal details are replaced before AI processing.
+  sv: Personal details are replaced before AI processing.
+  he: Personal details are replaced before AI processing.
+  verified_by_human: []
+landing_privacy_memory:
+  context: Memory consent title in the privacy landing header story
+  en: Choose which memories can personalize this response.
+  de: Wähle, welche Erinnerungen diese Antwort personalisieren dürfen.
+  zh: Choose which memories can personalize this response.
+  es: Choose which memories can personalize this response.
+  fr: Choose which memories can personalize this response.
+  pt: Choose which memories can personalize this response.
+  ru: Choose which memories can personalize this response.
+  ja: Choose which memories can personalize this response.
+  ko: Choose which memories can personalize this response.
+  it: Choose which memories can personalize this response.
+  tr: Choose which memories can personalize this response.
+  vi: Choose which memories can personalize this response.
+  id: Choose which memories can personalize this response.
+  pl: Choose which memories can personalize this response.
+  nl: Choose which memories can personalize this response.
+  ar: Choose which memories can personalize this response.
+  hi: Choose which memories can personalize this response.
+  th: Choose which memories can personalize this response.
+  cs: Choose which memories can personalize this response.
+  sv: Choose which memories can personalize this response.
+  he: Choose which memories can personalize this response.
+  verified_by_human: []
+landing_privacy_trip_request:
+  context: Synthetic travel request in the privacy landing header story
+  en: Recommend places for my next trip.
+  de: Empfiehl mir Orte für meine nächste Reise.
+  zh: Recommend places for my next trip.
+  es: Recommend places for my next trip.
+  fr: Recommend places for my next trip.
+  pt: Recommend places for my next trip.
+  ru: Recommend places for my next trip.
+  ja: Recommend places for my next trip.
+  ko: Recommend places for my next trip.
+  it: Recommend places for my next trip.
+  tr: Recommend places for my next trip.
+  vi: Recommend places for my next trip.
+  id: Recommend places for my next trip.
+  pl: Recommend places for my next trip.
+  nl: Recommend places for my next trip.
+  ar: Recommend places for my next trip.
+  hi: Recommend places for my next trip.
+  th: Recommend places for my next trip.
+  cs: Recommend places for my next trip.
+  sv: Recommend places for my next trip.
+  he: Recommend places for my next trip.
+  verified_by_human: []
+landing_privacy_memory_result:
+  context: Memory consent result in the privacy landing header story
+  en: Personalized responses, but only when you want them.
+  de: Personalisierte Antworten, aber nur wenn du sie möchtest.
+  zh: Personalized responses, but only when you want them.
+  es: Personalized responses, but only when you want them.
+  fr: Personalized responses, but only when you want them.
+  pt: Personalized responses, but only when you want them.
+  ru: Personalized responses, but only when you want them.
+  ja: Personalized responses, but only when you want them.
+  ko: Personalized responses, but only when you want them.
+  it: Personalized responses, but only when you want them.
+  tr: Personalized responses, but only when you want them.
+  vi: Personalized responses, but only when you want them.
+  id: Personalized responses, but only when you want them.
+  pl: Personalized responses, but only when you want them.
+  nl: Personalized responses, but only when you want them.
+  ar: Personalized responses, but only when you want them.
+  hi: Personalized responses, but only when you want them.
+  th: Personalized responses, but only when you want them.
+  cs: Personalized responses, but only when you want them.
+  sv: Personalized responses, but only when you want them.
+  he: Personalized responses, but only when you want them.
+  verified_by_human: []
+landing_privacy_previous_trips:
+  context: Selected travel memory label in the privacy landing header story
+  en: Previous trips
+  de: Frühere Reisen
+  zh: Previous trips
+  es: Previous trips
+  fr: Previous trips
+  pt: Previous trips
+  ru: Previous trips
+  ja: Previous trips
+  ko: Previous trips
+  it: Previous trips
+  tr: Previous trips
+  vi: Previous trips
+  id: Previous trips
+  pl: Previous trips
+  nl: Previous trips
+  ar: Previous trips
+  hi: Previous trips
+  th: Previous trips
+  cs: Previous trips
+  sv: Previous trips
+  he: Previous trips
+  verified_by_human: []
+landing_privacy_favorite_places:
+  context: Selected place preference memory label in the privacy landing header story
+  en: Favorite places
+  de: Lieblingsorte
+  zh: Favorite places
+  es: Favorite places
+  fr: Favorite places
+  pt: Favorite places
+  ru: Favorite places
+  ja: Favorite places
+  ko: Favorite places
+  it: Favorite places
+  tr: Favorite places
+  vi: Favorite places
+  id: Favorite places
+  pl: Favorite places
+  nl: Favorite places
+  ar: Favorite places
+  hi: Favorite places
+  th: Favorite places
+  cs: Favorite places
+  sv: Favorite places
+  he: Favorite places
+  verified_by_human: []
+landing_mates_experts:
+  context: Mate list explanation in the AI accessibility landing header story
+  en: Your AI experts, specialized for different topics.
+  de: Deine KI-Experten, spezialisiert auf verschiedene Themen.
+  zh: Your AI experts, specialized for different topics.
+  es: Your AI experts, specialized for different topics.
+  fr: Your AI experts, specialized for different topics.
+  pt: Your AI experts, specialized for different topics.
+  ru: Your AI experts, specialized for different topics.
+  ja: Your AI experts, specialized for different topics.
+  ko: Your AI experts, specialized for different topics.
+  it: Your AI experts, specialized for different topics.
+  tr: Your AI experts, specialized for different topics.
+  vi: Your AI experts, specialized for different topics.
+  id: Your AI experts, specialized for different topics.
+  pl: Your AI experts, specialized for different topics.
+  nl: Your AI experts, specialized for different topics.
+  ar: Your AI experts, specialized for different topics.
+  hi: Your AI experts, specialized for different topics.
+  th: Your AI experts, specialized for different topics.
+  cs: Your AI experts, specialized for different topics.
+  sv: Your AI experts, specialized for different topics.
+  he: Your AI experts, specialized for different topics.
+  verified_by_human: []
+landing_mates_focus_modes:
+  context: Focus-mode list explanation in the AI accessibility landing header story
+  en: Optimized instructions, selected when they are needed.
+  de: Optimierte Anweisungen, ausgewählt wenn sie gebraucht werden.
+  zh: Optimized instructions, selected when they are needed.
+  es: Optimized instructions, selected when they are needed.
+  fr: Optimized instructions, selected when they are needed.
+  pt: Optimized instructions, selected when they are needed.
+  ru: Optimized instructions, selected when they are needed.
+  ja: Optimized instructions, selected when they are needed.
+  ko: Optimized instructions, selected when they are needed.
+  it: Optimized instructions, selected when they are needed.
+  tr: Optimized instructions, selected when they are needed.
+  vi: Optimized instructions, selected when they are needed.
+  id: Optimized instructions, selected when they are needed.
+  pl: Optimized instructions, selected when they are needed.
+  nl: Optimized instructions, selected when they are needed.
+  ar: Optimized instructions, selected when they are needed.
+  hi: Optimized instructions, selected when they are needed.
+  th: Optimized instructions, selected when they are needed.
+  cs: Optimized instructions, selected when they are needed.
+  sv: Optimized instructions, selected when they are needed.
+  he: Optimized instructions, selected when they are needed.
+  verified_by_human: []
+landing_people_models:
+  context: Provider choice explanation in the people-first landing header story
+  en: Leading AI models, together in one place.
+  de: Führende KI-Modelle, gemeinsam an einem Ort.
+  zh: Leading AI models, together in one place.
+  es: Leading AI models, together in one place.
+  fr: Leading AI models, together in one place.
+  pt: Leading AI models, together in one place.
+  ru: Leading AI models, together in one place.
+  ja: Leading AI models, together in one place.
+  ko: Leading AI models, together in one place.
+  it: Leading AI models, together in one place.
+  tr: Leading AI models, together in one place.
+  vi: Leading AI models, together in one place.
+  id: Leading AI models, together in one place.
+  pl: Leading AI models, together in one place.
+  nl: Leading AI models, together in one place.
+  ar: Leading AI models, together in one place.
+  hi: Leading AI models, together in one place.
+  th: Leading AI models, together in one place.
+  cs: Leading AI models, together in one place.
+  sv: Leading AI models, together in one place.
+  he: Leading AI models, together in one place.
+  verified_by_human: []
+landing_people_access:
+  context: Cross-platform access explanation in the people-first landing header story
+  en: Access your OpenMates chats the way you prefer.
+  de: Greife so auf deine OpenMates-Chats zu, wie du möchtest.
+  zh: Access your OpenMates chats the way you prefer.
+  es: Access your OpenMates chats the way you prefer.
+  fr: Access your OpenMates chats the way you prefer.
+  pt: Access your OpenMates chats the way you prefer.
+  ru: Access your OpenMates chats the way you prefer.
+  ja: Access your OpenMates chats the way you prefer.
+  ko: Access your OpenMates chats the way you prefer.
+  it: Access your OpenMates chats the way you prefer.
+  tr: Access your OpenMates chats the way you prefer.
+  vi: Access your OpenMates chats the way you prefer.
+  id: Access your OpenMates chats the way you prefer.
+  pl: Access your OpenMates chats the way you prefer.
+  nl: Access your OpenMates chats the way you prefer.
+  ar: Access your OpenMates chats the way you prefer.
+  hi: Access your OpenMates chats the way you prefer.
+  th: Access your OpenMates chats the way you prefer.
+  cs: Access your OpenMates chats the way you prefer.
+  sv: Access your OpenMates chats the way you prefer.
+  he: Access your OpenMates chats the way you prefer.
+  verified_by_human: []

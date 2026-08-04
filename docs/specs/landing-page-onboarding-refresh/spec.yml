@@ -426,12 +426,22 @@ attempts:
       failed on an older iPad intro icon-size assertion before reaching the new
       header-story tests. The story contract is being moved to a focused spec so
       unrelated legacy geometry assertions cannot mask its red and green evidence.
+  - id: ATTEMPT-22
+    task_id: TASK-4
+    approach: Deploy and run the isolated landing header story contract before implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `49fbe8aa5` deployed Ready and focused GitHub Actions run
+      `30904122256` failed because `landing-privacy-safety-demo` did not exist in
+      the generic illustration implementation. This is the preserved TASK-4 red phase.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Add red Playwright coverage, then implement and statically verify the three coordinated header story timelines and all-viewport heading compaction.
-  command: bash scripts/lint_changed.sh --svelte --ts --yml --path frontend/packages/ui/src/components/DailyInspirationBanner.svelte --path frontend/packages/ui/src/components/landing --path frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml --path frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-  expected_outcome: Focused Svelte, TypeScript, YAML, translation, and locale checks pass before the green deploy and deployed Playwright run.
+  next_action: Deploy the statically verified TASK-4 implementation, wait for Vercel Ready, then run the focused Playwright contract and reviewed laptop/mobile visual smoke.
+  command: >-
+    python3 scripts/sessions.py deploy --session a3a3 --title "feat: add landing header product stories" --message "Implement coordinated privacy, mates, focus mode, provider, and platform landing timelines."
+  expected_outcome: The scoped implementation deploys to dev for exact-commit Playwright and visual verification.
   blocker: null
   last_verified_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
 
@@ -878,8 +888,13 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        timestamp: "2026-08-04"
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 49fbe8a
+        run_id: "30904122256"
+        subject_commit: 49fbe8aa5
+        target: app.dev.openmates.org
+        reason: The old implementation did not render the required privacy story component.
+        timestamp: "2026-08-04T11:18:47Z"
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -985,7 +1000,7 @@ implementation_plan:
     - Every regular explanatory slide compacts its centered heading before the main animation at every viewport width.
     - Actionable completion advances to the privacy slide and its progress bar uses the same desktop/mobile total duration.
     - Post-intro mobile navigation delays the current slide index update until content opacity reaches zero, then fades the newly mounted slide in.
-    - Privacy runs for 15000ms; mates/focus and people-first each run for 12000ms; the parent progress bar consumes those exact shared durations.
+    - After heading compaction, privacy runs for 15000ms and mates/focus and people-first each run for 12000ms; the parent progress includes the shared heading transition plus the exact story duration.
     - Reduced motion skips timed playback, shows static summaries, and prevents automatic advancement.
   affected_files:
     - path: docs/specs/landing-page-onboarding-refresh/spec.yml
@@ -1152,7 +1167,7 @@ tasks:
       - frontend/packages/ui/src/components/landing/*.svelte
       - frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
       - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
-      - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+      - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
     verification:
       - T-WEB-LANDING-HEADER-STORIES
       - V-UI-VISUAL-SMOKE

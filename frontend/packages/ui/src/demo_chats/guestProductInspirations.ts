@@ -84,7 +84,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-mates-focus",
-      phrase: "Specialized team mates and focus modes.",
+      phrase: "Get the most out of AI. Without needing deep technical know-how.",
       title: "Work with the right mate",
       assistantResponse:
         "OpenMates can keep a chat focused on learning, planning, building, researching, or another job instead of treating every request the same way.",
@@ -102,7 +102,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-provider-cross-platform",
-      phrase: "Provider independent and cross-platform.",
+      phrase: "Built for people & the best possible experience.",
       title: "Bring OpenMates across your tools",
       assistantResponse:
         "OpenMates is designed around portable chats, multiple AI providers, and clients beyond one browser tab.",
@@ -153,7 +153,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-mates-focus",
-      phrase: "Spezialisierte Team-Mates und Fokusmodi.",
+      phrase: "Hol das Beste aus KI heraus. Ohne tiefes technisches Vorwissen.",
       title: "Arbeite mit dem passenden Mate",
       assistantResponse:
         "OpenMates kann einen Chat auf Lernen, Planen, Bauen, Recherche oder andere Aufgaben fokussieren.",
@@ -171,7 +171,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-provider-cross-platform",
-      phrase: "Provider-unabhaengig und plattformuebergreifend.",
+      phrase: "Für Menschen und die bestmögliche Erfahrung entwickelt.",
       title: "Nutze OpenMates in deinen Tools",
       assistantResponse:
         "OpenMates ist fuer portable Chats, mehrere KI-Provider und verschiedene Clients gebaut.",
