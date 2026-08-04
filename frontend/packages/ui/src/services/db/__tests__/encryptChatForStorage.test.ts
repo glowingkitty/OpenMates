@@ -85,7 +85,7 @@ vi.mock("svelte/store", () => ({
   }),
 }));
 
-import { encryptChatForStorage } from "../chatCrudOperations";
+import { addChat, encryptChatForStorage } from "../chatCrudOperations";
 import { getEncryptedChatKey } from "../chatKeyManagement";
 import type { Chat } from "../../../types/chat";
 
@@ -372,6 +372,41 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
     expect(mockGetKeySync).not.toHaveBeenCalled();
     expect(result.chat_id).toBe("demo-welcome");
+  });
+});
+
+describe("addChat transaction completion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockEncryptChatKeyWithMasterKey.mockResolvedValue("encrypted-existing");
+  });
+
+  it("aborts and rejects an internal transaction that never settles", async () => {
+    const request = {} as IDBRequest;
+    const transaction = {
+      abort: vi.fn(),
+      error: null,
+      objectStore: vi.fn(() => ({ put: vi.fn(() => request) })),
+      oncomplete: null,
+      onerror: null,
+      onabort: null,
+    } as unknown as IDBTransaction;
+    const db = {
+      ...makeDbInstance(),
+      db: {} as IDBDatabase,
+      getTransaction: vi.fn().mockResolvedValue(transaction),
+    };
+
+    const savePromise = addChat(db as any, makeChat(), undefined, {
+      isFromSync: true,
+    });
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(savePromise).rejects.toThrow("timed out");
+    expect(transaction.abort).toHaveBeenCalledOnce();
+    vi.useRealTimers();
   });
 });
 

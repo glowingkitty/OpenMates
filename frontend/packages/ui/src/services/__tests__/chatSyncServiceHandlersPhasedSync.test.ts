@@ -140,6 +140,52 @@ describe("handleSyncStatusResponseImpl", () => {
 });
 
 describe("handlePhase2RecentChatsImpl", () => {
+  it("continues after one chat fails to persist", async () => {
+    const service = createService();
+    mocks.chatDB.addChat
+      .mockRejectedValueOnce(new Error("IndexedDB transaction timed out"))
+      .mockResolvedValueOnce(undefined);
+
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "failed-phase2-chat",
+              encrypted_title: "failed-title",
+              encrypted_chat_key: "failed-key",
+              messages_v: 1,
+              title_v: 1,
+            },
+            server_message_count: 1,
+          },
+          {
+            chat_details: {
+              id: "saved-phase2-chat",
+              encrypted_title: "saved-title",
+              encrypted_chat_key: "saved-key",
+              messages_v: 1,
+              title_v: 1,
+            },
+            server_message_count: 1,
+          },
+        ],
+        chat_count: 2,
+        total_chat_count: 2,
+        phase: "phase2",
+      },
+    );
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledTimes(2);
+    expect(mocks.chatListCache.upsertChat).toHaveBeenCalledWith(
+      expect.objectContaining({ chat_id: "saved-phase2-chat" }),
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "phase_2_last_20_chats_ready" }),
+    );
+  });
+
   it("skips new synced metadata rows without encrypted_chat_key", async () => {
     const service = createService();
 
