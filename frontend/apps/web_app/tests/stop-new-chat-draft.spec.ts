@@ -105,6 +105,9 @@ test('stop during new chat creation restores the sent message as a draft', async
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
 		await insertComposerText(page, messageEditor, withMockMarker(visibleDraft, 'chat_flow_capital', 'slow'), visibleDraft);
+		await page.getByTestId('input-dismiss-button').click();
+		await expect(page.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
+		await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
 		await takeStepScreenshot(page, 'draft-typed');
 		await page.route(/\/v1\/user-(tasks|plans)(\?|$)/, async (route: any) => {
 			await page.waitForTimeout(1500);
