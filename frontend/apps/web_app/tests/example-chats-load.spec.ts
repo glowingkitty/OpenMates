@@ -492,7 +492,8 @@ test.describe('Example chats loading for new users', () => {
 		await expect(messageEditor).toContainText('privacy-first AI productivity company from zero', { timeout: 10000 });
 
 		await page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first().click();
-		await expectGuestSlideZeroIntro(page);
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+		await expect(page.getByTestId('message-editor')).toBeFocused({ timeout: 5000 });
 		await expect(
 			page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first()
 		).toBeVisible({ timeout: 10000 });

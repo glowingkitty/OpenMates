@@ -172,7 +172,7 @@ decisions:
     reason: The user found the split headline and animation difficult to read and explicitly approved one full-width structure for desktop and mobile.
     decided_at: "2026-08-04"
   - id: D-9
-    status: active
+    status: superseded
     decision: The privacy story says saved chats and memories are encrypted before storage and only the user's devices can unlock saved data.
     reason: This preserves direct non-technical privacy language while accurately scoping the claim away from transient plaintext required for AI inference.
     decided_at: "2026-08-04"
@@ -180,6 +180,26 @@ decisions:
     status: active
     decision: Example chats and supporting links are excluded from the current header-animation milestone.
     reason: The user explicitly requested that example-chat work remain a separate story.
+    decided_at: "2026-08-04"
+  - id: D-11
+    status: active
+    decision: Every landing heading uses one reusable enter/visible/exit motion contract for both slide changes and the large-to-compact heading transition.
+    reason: The user rejected static and inconsistent heading changes and specified opacity plus vertical motion for every slide, including slide 0.
+    decided_at: "2026-08-04"
+  - id: D-12
+    status: active
+    decision: Actionable and privacy render each internal scene through one reusable keyed sub-slide motion component while preserving Actionable's visual rhythm.
+    reason: The user approved slide 1's staged motion and requested the same deterministic mechanism for later stories.
+    decided_at: "2026-08-04"
+  - id: D-13
+    status: active
+    decision: The privacy story contains nine ordered scenes and reuses the real chat bubble, PII highlight/reveal colors, and memory permission-card presentation.
+    reason: The user rejected abstract placeholder visuals and explicitly required product-faithful PII and travel-memory UI.
+    decided_at: "2026-08-04"
+  - id: D-14
+    status: active
+    decision: Guest New chat from an open example returns to a blank composer-focused chat state without resetting the landing carousel to slide 0.
+    reason: The user's intent is to start typing immediately; the prior guest intro reset prevents that flow.
     decided_at: "2026-08-04"
 
 attempts:
@@ -450,18 +470,10 @@ attempts:
 
 handoff:
   current_task_id: TASK-4
-  next_action: Ask the user to visually confirm the deployed privacy, mates/focus, and people-first landing stories.
-  command: manual review of https://app.dev.openmates.org/
-  expected_outcome: User confirms the new explanatory slides are readable and visually correct, or identifies a remaining issue to fix.
-  blocker:
-    kind: user_visual_confirmation
-    task_id: TASK-4
-    requires_user_input: true
-    reason: >
-      Focused deployed Playwright and reviewed laptop/mobile screenshots are green,
-      but this user-visible landing UI requires final user visual confirmation.
-    question: Do the deployed privacy, mates/focus, and people-first landing stories look and behave correctly to you?
-    next_action: If the user confirms, record the confirmation and continue only the separately scoped deferred landing tasks.
+  next_action: Deploy the revised focused Playwright contract and preserve expected red evidence before replacing the rejected implementation.
+  command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit <test-contract-commit>
+  expected_outcome: The focused spec fails on the current delayed intro transition, missing unified motion wrappers, old privacy stages, old mates copy, and guest New chat reset behavior.
+  blocker: null
   last_verified_commit: 0abc480
 
 scenarios:
@@ -550,16 +562,23 @@ scenarios:
       - If imported chats exist, the user sees `Continue where you left off` with real user chats instead of generic example chats.
 
   - id: S-7
-    title: Privacy and safety header tells three accurate one-shot stories
+    title: Privacy and safety header tells nine product-faithful one-shot scenes
     given:
       - A logged-out visitor reaches `Privacy & safety by design.`.
     when:
-      - The 15000ms header timeline plays.
+      - The coordinated privacy header timeline plays.
     then:
-      - The full-width heading compacts above the animation at every viewport width using the shared 1500ms delay and 420ms fade-out/fade-in durations.
-      - The first 5000ms segment closes a lock around chat, memory, project, and task data and states that only the user's devices can unlock saved data.
-      - The second 5000ms segment highlights a supported example email, replaces it with an actual PII placeholder, shows the placeholder in an assistant response, and restores the original value client-side.
-      - The final 5000ms segment shows a travel request, explicit memory selection, confirmation, and `Personalized responses, but only when you want them.`.
+      - The full-width heading uses the shared enter/visible/exit motion, then exits and re-enters in compact form above the animation at every viewport width.
+      - Scene 1 reads `Only your devices can decrypt all your data.`.
+      - Scene 2 floats chat, files, tasks, and memory icons, reveals an unlocked lock, animates it closed and larger, and fades the surrounding icons to 0.5 opacity.
+      - Scene 3 reads `Personal details are replaced, before the AI sees them.`.
+      - Scene 4 uses the real user-message bubble and PII yellow-highlight treatment to detect an email address.
+      - Scene 5 reads `Only you can view the originals.`.
+      - Scene 6 uses the real hidden-placeholder and revealed-original colors and switches from the placeholder to the original email like the chat-history reveal control.
+      - Scene 7 reads `Personalized responses. But only when you want them.`.
+      - Scene 8 uses the real user-message bubble for `Recommended places for my next trip?`.
+      - Scene 9 presents the same travel trips memory permission-card structure used by the live assistant memory request.
+      - Every scene uses the reusable Actionable-style sub-slide enter/dwell/exit wrapper.
       - The progress bar reaches 100% when the timeline completes and advances once to the mates/focus slide.
 
   - id: S-8
@@ -569,7 +588,7 @@ scenarios:
     when:
       - The 12000ms header timeline plays.
     then:
-      - The headline reads `Get the most out of AI. Without needing deep technical know-how.` and uses the shared full-width compaction behavior.
+      - The headline reads `No deep tech knowledge needed.` and uses the shared full-width heading motion and compaction behavior.
       - The first 6000ms segment scrolls real metadata-backed mates and highlights their localized specialties one at a time.
       - The second 6000ms segment scrolls real focus-mode entries and ends with one visibly active.
       - The progress bar reaches 100% when the timeline completes and advances once to the people-first slide.
@@ -597,6 +616,17 @@ scenarios:
       - Each slide immediately shows its compact heading and a static summary of every concept.
       - Automatic slide advancement and decorative infinite motion are disabled.
       - Previous and next controls remain usable.
+
+  - id: S-11
+    title: Guest New chat opens a blank focused composer
+    given:
+      - A logged-out visitor has opened a public example chat on a desktop viewport.
+    when:
+      - They press the adjacent New chat action.
+    then:
+      - The example chat is cleared and the URL no longer selects a chat.
+      - The blank message editor receives focus so the visitor can type immediately.
+      - The expanded landing intro does not reset to slide 0.
 
 acceptance_criteria:
   - id: AC-1
@@ -658,7 +688,7 @@ acceptance_criteria:
       - T-WEB-POST-SIGNUP-ONBOARDING
   - id: AC-7
     scenario: S-7
-    text: The privacy header uses one 15000ms timeline for accurate encryption-at-storage, PII placeholder restoration, and explicit memory-consent stories, with shared full-width heading compaction and synchronized advancement.
+    text: The privacy header uses nine reusable Actionable-style sub-slides for device encryption, real PII detection/reveal styling, and the real travel-memory permission presentation, with synchronized heading motion and advancement.
     required: true
     status: pending
     coverage_status: covered
@@ -689,6 +719,15 @@ acceptance_criteria:
   - id: AC-10
     scenario: S-10
     text: Reduced motion immediately exposes static readable summaries, disables autoplay and infinite decoration, and preserves manual navigation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-LANDING-HEADER-STORIES
+  - id: AC-11
+    scenario: S-11
+    text: Guest New chat from a public example clears the selected chat and focuses the blank desktop composer without replaying landing slide 0.
     required: true
     status: pending
     coverage_status: covered
@@ -896,40 +935,49 @@ tests:
       - AC-8
       - AC-9
       - AC-10
+      - AC-11
     assertions:
-      - privacy exposes encryption, PII, and memory stages from one 15000ms timeline
+      - slide 1 content appears during intro collapse instead of after the collapse delay
+      - every large and compact heading exposes the shared enter/visible/exit motion lifecycle
+      - Actionable and privacy stages render through the same reusable sub-slide motion wrapper
+      - privacy exposes all nine ordered encryption, PII, and real memory-permission scenes
       - mates/focus exposes metadata-backed mate and focus-mode stages from one 12000ms timeline
+      - mates/focus uses the short `No deep tech knowledge needed.` headline
       - people-first exposes provider and Web/CLI/SDK stages from one 12000ms timeline
-      - every viewport uses the same large-to-compact centered heading structure
       - each timeline advances once at progress completion and signup remains terminal
       - reduced motion renders static summaries, disables autoplay, and preserves manual controls
+      - guest New chat clears an open example and focuses the blank composer without resetting slide 0
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: failed_as_expected
-        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 49fbe8a
-        run_id: "30904122256"
-        subject_commit: 49fbe8aa5
-        target: app.dev.openmates.org
-        reason: The old implementation did not render the required privacy story component.
-        timestamp: "2026-08-04T11:18:47Z"
+        status: pending
+        reason: The user materially replaced the previously accepted story and navigation contract; new red evidence is required before implementation.
+        timestamp: "2026-08-04"
+      history:
+        - status: failed_as_expected
+          command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 49fbe8a
+          run_id: "30904122256"
+          subject_commit: 49fbe8aa5
+          target: app.dev.openmates.org
+          reason: The old implementation did not render the original three-stage privacy story component.
+          timestamp: "2026-08-04T11:18:47Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
-        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 0340d8e
-        run_id: "30908695123"
-        subject_commit: 0340d8ed8
-        target: app.dev.openmates.org
-        deployment_reference: dpl_GfzZeXUYooepVu3tVga369nKnuPC
-        summary: >
-          Both focused tests passed, covering coordinated timelines, heading-gated
-          playback, metadata-backed content, terminal signup, and reduced motion.
-          The later `0abc480` change is mobile layout-only and is covered by the
-          reviewed visual-smoke evidence below.
-        timestamp: "2026-08-04T12:26:00Z"
+        status: pending
+        reason: The prior green evidence was invalidated when the user rejected the implementation and replaced its motion, privacy, copy, and New chat contracts.
+        subject_commit: ""
+        timestamp: "2026-08-04"
+      history:
+        - status: invalidated_by_contract_change
+          command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 0340d8e
+          run_id: "30908695123"
+          subject_commit: 0340d8ed8
+          target: app.dev.openmates.org
+          deployment_reference: dpl_GfzZeXUYooepVu3tVga369nKnuPC
+          timestamp: "2026-08-04T12:26:00Z"
 
 verifications:
   - id: V-USER-PHASE1
@@ -1188,7 +1236,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Implement remaining header explanatory slides
-    status: done
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios:
@@ -1201,10 +1249,14 @@ tasks:
         - AC-8
         - AC-9
         - AC-10
+        - AC-11
     expected_files:
       - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
       - frontend/packages/ui/src/components/landing/*.svelte
       - frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
+      - frontend/packages/ui/src/components/AppSettingsMemoriesPermissionCard.svelte
+      - frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte
+      - frontend/packages/ui/src/components/ActiveChat.svelte
       - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
       - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
     verification:
