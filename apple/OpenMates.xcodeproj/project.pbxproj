@@ -264,6 +264,7 @@
 		C0FFEE000000000000015004 /* ChatManagementSharingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */; };
 		C0FFEE000000000000016004 /* AuthSecurityParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000016001 /* AuthSecurityParityUITests.swift */; };
 		C0FFEE000000000000017004 /* AuthSecurityParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000017001 /* AuthSecurityParityTests.swift */; };
+		C0FFEE000000000000054004 /* CryptoFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000054001 /* CryptoFailureTests.swift */; };
 		C0FFEE000000000000018004 /* SettingsBillingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000018001 /* SettingsBillingParityUITests.swift */; };
 		C0FFEE000000000000019004 /* SettingsBillingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */; };
 		C0FFEE000000000000020004 /* RemindersPublicContentParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000020001 /* RemindersPublicContentParityUITests.swift */; };
@@ -1027,6 +1028,7 @@
 		C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatManagementSharingParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000016001 /* AuthSecurityParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSecurityParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000017001 /* AuthSecurityParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSecurityParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000054001 /* CryptoFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoFailureTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000018001 /* SettingsBillingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBillingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBillingParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000020001 /* RemindersPublicContentParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersPublicContentParityUITests.swift; sourceTree = "<group>"; };
@@ -1834,6 +1836,7 @@
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
 				C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */,
 				C0FFEE000000000000017001 /* AuthSecurityParityTests.swift */,
+				C0FFEE000000000000054001 /* CryptoFailureTests.swift */,
 				C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */,
 				C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */,
 				C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */,
@@ -3163,6 +3166,7 @@
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
 				C0FFEE000000000000015004 /* ChatManagementSharingParityTests.swift in Sources */,
 				C0FFEE000000000000017004 /* AuthSecurityParityTests.swift in Sources */,
+				C0FFEE000000000000054004 /* CryptoFailureTests.swift in Sources */,
 				C0FFEE000000000000019004 /* SettingsBillingParityTests.swift in Sources */,
 				C0FFEE000000000000021004 /* RemindersPublicContentParityTests.swift in Sources */,
 				C0FFEE000000000000023004 /* SkillApplicationParityTests.swift in Sources */,
