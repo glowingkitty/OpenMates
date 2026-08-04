@@ -522,10 +522,21 @@ attempts:
       Commit `ce29805` reached the focused contract on descendant deployed code in
       GitHub Actions run `30948783245` and failed on the old `Send the details to`
       copy, preserving the privacy interaction red phase.
+  - id: ATTEMPT-29
+    task_id: TASK-4
+    approach: Run the revised responsive and privacy interaction contract against the first implementation deploy.
+    outcome: blocked
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `4c218d159` deployed Ready as `dpl_BYtgYCvp6wegb1XBn7MTj7hkUm8H`.
+      GitHub Actions run `30951532673` passed the revised spacing, heading, copy,
+      and PII assertions but showed the 0.64-scale permission card extending below
+      the mobile privacy demo. The narrow preview scale was reduced without changing
+      the larger desktop scale.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the responsive story fixes, rerun the focused Playwright contract, and review fresh laptop and mobile screenshots.
+  next_action: Deploy the narrow permission-preview containment fix, rerun the focused Playwright contract, and review fresh laptop and mobile screenshots.
   command: >-
     python3 scripts/sessions.py deploy --session c3c3 --title "fix: refine responsive landing stories" --message "Symptom: ..."
   expected_outcome: The exact-commit focused contract and reviewed visual smoke pass with the revised layout and privacy interaction.
