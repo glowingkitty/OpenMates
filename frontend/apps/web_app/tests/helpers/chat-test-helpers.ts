@@ -60,6 +60,40 @@ function normalizeEditorDraftText(text: string | null | undefined): string {
 	return (text ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+export async function fillMessageEditor(page: any, messageEditor: any, message: string): Promise<void> {
+	const expectedText = normalizeEditorDraftText(message);
+	const currentText = async (): Promise<string> => normalizeEditorDraftText(
+		await messageEditor.evaluate((editor: HTMLElement) => editor.innerText ?? '').catch(() => '')
+	);
+	const focusEditor = async (): Promise<void> => {
+		await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
+		await expect.poll(
+			async () => messageEditor.evaluate((editor: HTMLElement) => {
+				const activeElement = document.activeElement;
+				return activeElement instanceof HTMLElement
+					&& activeElement.isContentEditable
+					&& editor.contains(activeElement);
+			}),
+			{ timeout: 5000, intervals: [100, 250, 500] }
+		).toBe(true);
+	};
+
+	await focusEditor();
+	await page.keyboard.insertText(message);
+	if (await expect.poll(currentText, { timeout: 2500, intervals: [100, 250, 500] })
+		.toBe(expectedText)
+		.then(() => true)
+		.catch(() => false)) {
+		return;
+	}
+
+	await focusEditor();
+	await page.keyboard.press('Control+A');
+	await page.keyboard.press('Backspace');
+	await page.keyboard.insertText(message);
+	await expect.poll(currentText, { timeout: 5000, intervals: [100, 250, 500] }).toBe(expectedText);
+}
+
 async function userMessagePersisted(
 	userMessages: any,
 	previousCount: number,
