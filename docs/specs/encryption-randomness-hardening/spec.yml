@@ -275,9 +275,9 @@ attempts:
     notes: CLI storage passed 15 tests, backend/pip recovery passed 14 tests, the audit checked 82 command entries and four workflow transports, and real CLI/npm/pip usage calls passed with isolated temporary auth state and revoked SDK keys.
 
 handoff:
-  current_task_id: TASK-10
-  next_action: Apply the committed dev Caddyfile with sudo, then rerun the signed generated-asset download against api.dev.openmates.org and close TASK-10.
-  command: sudo deployment/apply-caddy-config.sh deployment/dev_server/Caddyfile
+  current_task_id: TASK-11
+  next_action: Review R1 media rendering on laptop and mobile while legacy writers remain active.
+  command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/dev/preview/embeds/images --session 0056
   expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
   blocker: null
   last_verified_commit: 66b6630dd
@@ -711,7 +711,7 @@ tests:
     green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed, command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit 248c72497", run_id: "30861853666", subject_commit: "248c72497", target: "https://app.dev.openmates.org", deployment_reference: "dpl_BLj7xXDZ5aaMVwx7qwNnz1VTBvNN", timestamp: "2026-08-03T23:21:00Z", notes: "The deployed preview rendered deterministic legacy external-nonce and explicit v2 nonce-prefixed PNGs through production browser readers; the deployed six-character legacy shared link also resolved without decryption errors."}}
 
 verifications:
-  - {id: V-REST-MEDIA-READER, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-4], status: blocked, target: "https://api.dev.openmates.org", evidence: {status: blocked, command: "sudo deployment/apply-caddy-config.sh deployment/dev_server/Caddyfile", run_id: "task10-rest-reader-caddy-blocked", subject_commit: "8d38e16b3", summary: "The live API process successfully decrypted an existing signed-token legacy PNG as image/png with 193493 plaintext bytes. External api.dev requests still close before FastAPI because the committed generated-assets Caddy allowlist requires an interactive sudo reload.", timestamp: "2026-08-03T23:28:03Z", actor: OpenCode, reason: "The dev host requires an operator password for sudo; the agent cannot reload /etc/caddy/Caddyfile non-interactively.", next_action: "Run sudo deployment/apply-caddy-config.sh deployment/dev_server/Caddyfile, then rerun the redacted signed-token REST probe.", recheck_condition: "Caddy reload completes successfully."}}
+  - {id: V-REST-MEDIA-READER, kind: automated_test, phase: green, required_for_done: true, covers: [AC-2, AC-4], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "redacted short-lived signed-token GET to /v1/generated-assets/<asset>/files/<variant>/download plus invalid-token GET", run_id: "task10-rest-reader-external-2026-08-04", subject_commit: "8d38e16b3", summary: "After the operator applied the committed dev Caddyfile, the external signed download returned HTTP 200, image/webp, and 14436 plaintext bytes. An invalid token reached FastAPI and returned HTTP 403. The surface is signed-token gated, rate-limited to 120/minute, has no credit charge, and returns decrypted plaintext.", timestamp: "2026-08-04T08:24:17Z", actor: OpenCode}}
   - {id: V-REST-MEDIA-WRITER, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, target: "https://api.dev.openmates.org", evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
   - {id: V-REST-INVOICE, kind: automated_test, phase: green, required_for_done: true, covers: [AC-5], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "openmates --api-url https://api.dev.openmates.org settings billing invoices list --json && openmates --api-url https://api.dev.openmates.org settings billing invoices download <stable-invoice-id> --output <temporary-directory>", run_id: "task8-live-overlay-v2-2026-08-03", subject_commit: "6bfa3a793", summary: "The authorized OpenMatesCloud overlay imported with billing enabled; unauthenticated invoice access returned 401. Authenticated CLI list and legacy v1 download passed. A scoped append-only regeneration then Vault-unwrapped the current invoice, published v2 only after authenticated S3 read-back, and left one verified v2 row with complete encrypted metadata. Downloading the same stable logical ID after publication returned a valid 24,218-byte PDF; temporary PDFs were removed.", timestamp: "2026-08-03T21:11:46Z", actor: OpenCode}}
   - {id: V-CLI, kind: automated_test, phase: green, required_for_done: true, covers: [AC-9], status: passed, target: "https://api.dev.openmates.org", evidence: {status: passed, command: "python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org", run_id: "local-task9-live-cli-sdk-2026-08-03", subject_commit: "66b6630dd", summary: "Real authenticated CLI daily, weekly, and monthly usage-overview calls passed against dev; the same session also proved invoice list/download before TASK-9. The verifier used isolated temporary auth state and reported valid period, totals, freshness, and token-coverage contracts.", timestamp: "2026-08-03T21:24:00Z", actor: OpenCode}}
@@ -1071,8 +1071,8 @@ tasks:
     independently_deployable: false
   - id: TASK-10
     title: Deploy R1 backend and web media readers with legacy writers
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-2, S-4]
       acceptance_criteria: [AC-2, AC-4]
@@ -1081,12 +1081,12 @@ tasks:
     verification_ids: [T-BACKEND-MEDIA, T-WEB-MEDIA, T-WEB-E2E, V-REST-MEDIA-READER, V-WEB-DEPLOYED]
     dependencies: [TASK-5, TASK-9]
     ownership: {files: [config/media_encryption_rollout.yml, frontend/apps/web_app/tests/media-encryption-compatibility.spec.ts], shared_files: [backend/core/api/app/routes/generated_assets_api.py, frontend/packages/ui/src/components/embeds, frontend/packages/ui/src/services/zipExportService.ts]}
-    blockers: [V-REST-MEDIA-READER requires an operator sudo reload of the committed dev Caddyfile before external api.dev proof can pass.]
+    blockers: []
     follow_up_tasks: [TASK-11]
     independently_deployable: true
   - id: TASK-11
     title: Review R1 laptop and mobile media rendering
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios: [S-2, S-6]
