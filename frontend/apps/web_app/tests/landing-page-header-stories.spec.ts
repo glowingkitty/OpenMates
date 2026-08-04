@@ -47,6 +47,14 @@ test.describe('Landing page header stories', () => {
 		await page.waitForLoadState('networkidle');
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-heading-motion')).toHaveAttribute('data-motion-phase', /entering|visible/);
+		await expect(page.getByTestId('landing-intro-heading-motion')).toHaveAttribute('data-enter-direction', 'from-below');
+		await expect(page.getByTestId('landing-intro-heading-motion')).toHaveAttribute('data-exit-direction', 'to-above');
+		const desktopIntroGap = await page.evaluate(() => {
+			const heading = document.querySelector('[data-testid="landing-intro-headline"]')?.getBoundingClientRect();
+			const request = document.querySelector('[data-testid="landing-intro-request"]')?.getBoundingClientRect();
+			return heading && request ? request.top - heading.bottom : Number.POSITIVE_INFINITY;
+		});
+		expect(desktopIntroGap).toBeLessThanOrEqual(96);
 
 		const transitionStartedAt = Date.now();
 		await page.getByTestId('daily-inspiration-next').click();
@@ -55,6 +63,8 @@ test.describe('Landing page header stories', () => {
 		});
 		expect(Date.now() - transitionStartedAt).toBeLessThan(INTRO_TO_ACTIONABLE_MAX_MS);
 		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-motion-phase', /entering|visible/);
+		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-enter-direction', 'from-below');
+		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-exit-direction', 'to-above');
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
 			timeout: HEADING_SETTLE_MS
 		});

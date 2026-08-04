@@ -201,6 +201,11 @@ decisions:
     decision: Guest New chat from an open example returns to a blank composer-focused chat state without resetting the landing carousel to slide 0.
     reason: The user's intent is to start typing immediately; the prior guest intro reset prevents that flow.
     decided_at: "2026-08-04"
+  - id: D-15
+    status: active
+    decision: Compact landing stories keep their heading and animation close together, enter headings from below and exit them upward, and present the PII exchange as a product-faithful user-to-Burton conversation without decorative icons on copy-only scenes.
+    reason: The user rejected the deployed spacing, clipped compact heading, reversed-feeling motion, generic privacy copy, and fixed-size mobile permission preview after reviewing screenshots.
+    decided_at: "2026-08-04"
 
 attempts:
   - id: ATTEMPT-1
@@ -497,14 +502,33 @@ attempts:
       Commit `f7e341117` corrected the focus assertion in the focused and adjacent
       guest navigation specs. GitHub Actions run `30942523944` passed on descendant
       commit `4e46277f2`; the only intervening change was documentation. Reviewed
-      visual-smoke run `test-results/visual-smoke/2026-08-04T19-21-58-945Z/summary.json`
-      on descendant `6941203d9` showed no laptop or mobile defects.
+       visual-smoke run `test-results/visual-smoke/2026-08-04T19-21-58-945Z/summary.json`
+       on descendant `6941203d9` showed no laptop or mobile defects.
+  - id: ATTEMPT-27
+    task_id: TASK-4
+    approach: Deploy responsive layout regression assertions before changing the rejected implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `b9aa07cf5` deployed Ready and GitHub Actions run `30946862061`
+      failed because slide 0 left 188.09px between its heading and message content,
+      exceeding the 96px responsive contract.
+  - id: ATTEMPT-28
+    task_id: TASK-4
+    approach: Deploy the revised PII conversation and copy-only scene assertions before implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-04"
+    notes: >
+      Commit `ce29805` reached the focused contract on descendant deployed code in
+      GitHub Actions run `30948783245` and failed on the old `Send the details to`
+      copy, preserving the privacy interaction red phase.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Ask the user to confirm the revised deployed landing stories on app.dev.openmates.org before closing TASK-4.
-  command: Open https://app.dev.openmates.org/ and review the deployed landing stories.
-  expected_outcome: The user approves the deployed heading motion, nine-scene privacy story, shorter copy, and guest New chat behavior.
+  next_action: Deploy the responsive story fixes, rerun the focused Playwright contract, and review fresh laptop and mobile screenshots.
+  command: >-
+    python3 scripts/sessions.py deploy --session c3c3 --title "fix: refine responsive landing stories" --message "Symptom: ..."
+  expected_outcome: The exact-commit focused contract and reviewed visual smoke pass with the revised layout and privacy interaction.
   blocker: null
   last_verified_commit: 6941203d9
 
@@ -720,7 +744,7 @@ acceptance_criteria:
       - T-WEB-POST-SIGNUP-ONBOARDING
   - id: AC-7
     scenario: S-7
-    text: The privacy header uses nine reusable Actionable-style sub-slides for device encryption, real PII detection/reveal styling, and the real travel-memory permission presentation, with synchronized heading motion and advancement.
+    text: The privacy header uses nine reusable Actionable-style sub-slides for device encryption, a product-faithful PII conversation with Burton, and a responsive real travel-memory permission presentation, with synchronized below-entry/upward-exit heading motion and advancement.
     required: true
     status: pending
     coverage_status: covered
@@ -974,10 +998,14 @@ tests:
       - AC-10
       - AC-11
     assertions:
+      - slide 0 keeps its heading close to the message and app rails at mobile and desktop widths
+      - compact headings remain fully visible and enter from below before exiting upward
       - slide 1 content appears during intro collapse instead of after the collapse delay
       - every large and compact heading exposes the shared enter/visible/exit motion lifecycle
       - Actionable and privacy stages render through the same reusable sub-slide motion wrapper
-      - privacy exposes all nine ordered encryption, PII, and real memory-permission scenes
+      - privacy exposes all nine ordered encryption, PII, Burton response, and responsive real memory-permission scenes
+      - privacy copy-only scenes use larger icon-free text and the trip request has no leading icon
+      - the synthetic email transitions plain to yellow highlight to green placeholder and back to orange original text
       - mates/focus exposes metadata-backed mate and focus-mode stages from one 12000ms timeline
       - mates/focus uses the short `No deep tech knowledge needed.` headline
       - people-first exposes provider and Web/CLI/SDK stages from one 12000ms timeline
@@ -1007,15 +1035,18 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
-        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f7e3411
-        run_id: "30942523944"
-        subject_commit: 4e46277f2
-        target: app.dev.openmates.org
-        deployment_reference: dpl_G37ihPqGoUeAzJ5yT7LjB1iSFwWT
-        reason: The tested descendant contains the assertion fix from f7e341117 and differs only by a documentation commit.
-        timestamp: "2026-08-04T19:21:25Z"
+        status: invalidated_by_contract_change
+        reason: User screenshot review added responsive spacing, clipping, permission containment, and revised PII interaction requirements after this run passed.
+        timestamp: "2026-08-04T20:55:00Z"
       history:
+        - status: passed
+          command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f7e3411
+          run_id: "30942523944"
+          subject_commit: 4e46277f2
+          target: app.dev.openmates.org
+          deployment_reference: dpl_G37ihPqGoUeAzJ5yT7LjB1iSFwWT
+          reason: This evidence predates the responsive and PII interaction contract revision.
+          timestamp: "2026-08-04T19:21:25Z"
         - status: invalidated_by_contract_change
           command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 0340d8e
           run_id: "30908695123"
@@ -1080,28 +1111,15 @@ verifications:
       - AC-7
       - AC-8
       - AC-9
-    status: passed
+    status: pending
     route: https://app.dev.openmates.org/
     viewports:
       - laptop
       - mobile
     evidence:
-      status: passed
-      reason: Reviewed deployed screenshots cover the required final visual verification for TASK-4.
-      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session 18f5
-      summary: >
-        Reviewed the revised deployed landing page screenshots at laptop and mobile widths.
-        Defects: none; no clipping, overlap, horizontal overflow, broken media,
-        implementation error text, loading stalls, or page errors. Accepted
-        differences: the rotating prompt and highlighted app differ by animation
-        capture time.
-      run_id: test-results/visual-smoke/2026-08-04T19-21-58-945Z/summary.json
-      subject_commit: 6941203d9
-      target: https://app.dev.openmates.org/
-      viewports:
-        - laptop
-        - mobile
-      timestamp: "2026-08-04T19:22:11Z"
+      status: invalidated_by_contract_change
+      reason: User screenshot review identified objective spacing, clipping, copy, and responsive permission-preview defects after this visual smoke was recorded.
+      timestamp: "2026-08-04T20:55:00Z"
 
 implementation_plan:
   spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml

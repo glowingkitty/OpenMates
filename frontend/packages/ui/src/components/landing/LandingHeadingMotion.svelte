@@ -28,6 +28,8 @@
   class:hidden={phase === 'hidden'}
   data-testid={testId}
   data-motion-phase={phase}
+  data-enter-direction="from-below"
+  data-exit-direction="to-above"
 >
   {@render children()}
 </div>

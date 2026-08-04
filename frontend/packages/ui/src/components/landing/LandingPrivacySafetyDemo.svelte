@@ -26,6 +26,8 @@
   let { playing, reducedMotion, onComplete }: Props = $props();
   let activeStageIndex = $state(0);
   let mounted = $state(false);
+  let piiDetectionState = $state<'plain' | 'highlighted' | 'placeholder'>('plain');
+  let piiRevealState = $state<'placeholder' | 'original'>('placeholder');
 
   const LockIcon = getLucideIcon('lock');
   const UnlockIcon = getLucideIcon('lock-open');
@@ -34,8 +36,6 @@
   const ProjectIcon = getLucideIcon('folder');
   const TaskIcon = getLucideIcon('list-check');
   const FileIcon = getLucideIcon('file-text');
-  const PlaneIcon = getLucideIcon('plane');
-  const ShieldIcon = getLucideIcon('shield-check');
 
   let activeStage = $derived<PrivacyStoryStage>(
     PRIVACY_STORY_STAGES[activeStageIndex]?.id ?? PRIVACY_STORY_STAGES[0].id,
@@ -90,6 +90,28 @@
 
     return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
   });
+
+  $effect(() => {
+    piiDetectionState = 'plain';
+    piiRevealState = 'placeholder';
+    if (!playing || reducedMotion) return;
+
+    const timeouts: number[] = [];
+    if (activeStage === 'pii-detection') {
+      timeouts.push(window.setTimeout(() => {
+        piiDetectionState = 'highlighted';
+      }, 600));
+      timeouts.push(window.setTimeout(() => {
+        piiDetectionState = 'placeholder';
+      }, 1500));
+    } else if (activeStage === 'pii-reveal') {
+      timeouts.push(window.setTimeout(() => {
+        piiRevealState = 'original';
+      }, 1200));
+    }
+
+    return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
+  });
 </script>
 
 <div
@@ -111,7 +133,6 @@
       <LandingSubslideMotion playing={playing} durationMs={activeStageDurationMs} stage={activeStage}>
         {#if activeStage === 'saved-data-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-saved-data-copy">
-            <ShieldIcon size={38} />
             <p>{$text('demo_chats.for_everyone.landing_privacy_saved_data')}</p>
           </div>
         {:else if activeStage === 'encryption-lock'}
@@ -129,37 +150,49 @@
           </div>
         {:else if activeStage === 'pii-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-pii-copy">
-            <MessageIcon size={38} />
             <p>{$text('demo_chats.for_everyone.landing_privacy_pii')}</p>
           </div>
         {:else if activeStage === 'pii-detection'}
           <div class="privacy-stage message-stage">
-            <div class="user-message-shell">
-              Send the details to <span class="pii-highlight" data-testid="landing-privacy-pii-highlight">alex@example.com</span>
+            <div class="user-message-shell" data-testid="landing-privacy-pii-message" data-pii-state={piiDetectionState}>
+              {$text('demo_chats.for_everyone.landing_privacy_email_request')}
+              {#if piiDetectionState === 'placeholder'}
+                <span class="pii-restored pii-hidden pii-value-enter" data-testid="landing-privacy-pii-placeholder">[EMAIL_1]</span>
+              {:else}
+                <span class="pii-highlight" class:highlighted={piiDetectionState === 'highlighted'} data-testid="landing-privacy-pii-highlight">alex@example.com</span>
+              {/if}
             </div>
           </div>
         {:else if activeStage === 'originals-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-originals-copy">
-            <ShieldIcon size={38} />
             <p>{$text('demo_chats.for_everyone.landing_privacy_originals')}</p>
           </div>
         {:else if activeStage === 'pii-reveal'}
-          <div class="privacy-stage reveal-stage" data-testid="landing-privacy-pii-reveal" data-pii-revealed="true">
-            <div class="assistant-message-shell">
-              <span class="pii-restored pii-hidden">[EMAIL_1]</span>
-              <span class="reveal-arrow" aria-hidden="true">→</span>
-              <span class="pii-restored pii-revealed">alex@example.com</span>
+          <div class="privacy-stage reveal-stage" data-testid="landing-privacy-pii-reveal" data-pii-state={piiRevealState}>
+            <div class="chat-message assistant privacy-assistant-row">
+              <div class="mate-profile business_development" data-testid="landing-privacy-assistant-profile" data-mate-id="business_development"></div>
+              <div class="message-align-left">
+                <div class="mate-message-content" data-testid="landing-privacy-assistant-message">
+                  <div class="chat-mate-name" data-testid="landing-privacy-assistant-name">{$text('mates.business_development')}</div>
+                  <div class="chat-message-text">
+                    {$text('demo_chats.for_everyone.landing_privacy_email_response')}
+                    {#if piiRevealState === 'placeholder'}
+                      <span class="pii-restored pii-hidden">[EMAIL_1]</span>
+                    {:else}
+                      <span class="pii-restored pii-revealed pii-value-enter">alex@example.com</span>
+                    {/if}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         {:else if activeStage === 'personalized-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-personalized-copy">
-            <MemoryIcon size={38} />
             <p>{$text('demo_chats.for_everyone.landing_privacy_memory_result')}</p>
           </div>
         {:else if activeStage === 'trip-request'}
           <div class="privacy-stage message-stage">
             <div class="user-message-shell trip-request" data-testid="landing-privacy-trip-request">
-              <PlaneIcon size={18} />
               {$text('demo_chats.for_everyone.landing_privacy_trip_request')}
             </div>
           </div>
@@ -196,7 +229,7 @@
   .copy-stage p {
     max-width: 30rem;
     margin: 0;
-    font-size: clamp(1rem, 3.2cqi, 1.45rem);
+    font-size: clamp(1.3rem, 3.8cqi, 1.7rem);
     font-weight: 800;
     line-height: 1.35;
     text-wrap: balance;
@@ -255,8 +288,7 @@
     padding-inline: var(--spacing-12);
   }
 
-  .user-message-shell,
-  .assistant-message-shell {
+  .user-message-shell {
     position: relative;
     width: min(88%, 28rem);
     padding: var(--spacing-8) var(--spacing-10);
@@ -284,41 +316,55 @@
     content: '';
   }
 
-  .assistant-message-shell {
-    display: flex;
-    justify-self: start;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-6);
-    background: var(--color-grey-0);
-  }
-
-  .assistant-message-shell::before {
-    position: absolute;
-    inset: auto auto 4px -6px;
-    width: 14px;
-    height: 16px;
-    background: inherit;
-    clip-path: polygon(100% 0, 0 100%, 100% 72%);
-    content: '';
-  }
-
   .pii-highlight {
     padding: 0 2px;
     border-radius: 2px;
-    background-color: rgba(250, 204, 21, 0.35);
+    background-color: transparent;
     color: var(--color-font-primary);
     font-weight: 600;
+    transition: background-color 500ms ease;
   }
+
+  .pii-highlight.highlighted { background-color: rgba(250, 204, 21, 0.35); }
 
   .pii-restored { font-weight: 600; }
   .pii-hidden { color: #4ade80; }
   .pii-revealed { color: #f59e0b; }
-  .reveal-arrow { color: var(--color-font-tertiary); }
-  .trip-request { display: flex; align-items: center; gap: var(--spacing-4); }
+  .pii-value-enter { animation: piiValueEnter 420ms ease both; }
+  .trip-request { display: block; }
+
+  .privacy-assistant-row {
+    width: min(100%, 520px);
+    text-align: start;
+  }
+
+  .privacy-assistant-row :global(.mate-profile) {
+    width: 42px !important;
+    height: 42px !important;
+    margin: 0 !important;
+    flex: 0 0 auto;
+  }
+
+  .privacy-assistant-row :global(.message-align-left) {
+    max-width: min(82%, 470px);
+    padding-inline-end: 0;
+  }
+
+  .privacy-assistant-row :global(.mate-message-content) {
+    flex: 0 1 auto;
+    padding: 10px 12px;
+    margin: 0;
+    font-size: clamp(0.74rem, 2.4cqi, 0.92rem);
+    line-height: 1.25;
+    font-weight: 700;
+  }
+
+  .privacy-assistant-row :global(.chat-message-text) { font-size: inherit; line-height: inherit; }
+  .privacy-assistant-row :global(.chat-mate-name) { margin-bottom: 3px; font-size: 0.68rem; color: var(--color-grey-60); }
 
   .permission-stage {
-    width: min(100%, 520px);
+    --permission-preview-scale: 0.82;
+    width: min(calc(100% / var(--permission-preview-scale)), 629px);
   }
 
   .privacy-summary {
@@ -336,7 +382,7 @@
   @container chat-side (max-width: 560px) {
     .privacy-stage,
     .privacy-summary { gap: var(--spacing-4); }
-    .copy-stage p { font-size: 0.9rem; }
+    .copy-stage p { font-size: 1.25rem; }
     .data-orbit { width: 220px; height: 110px; }
     .data-icon { width: 38px; height: 38px; }
     .data-icon.chat { inset: 2px auto auto 12px; }
@@ -346,9 +392,13 @@
     .lock-core { inset: 25px 78px auto; width: 64px; height: 64px; }
     .message-stage,
     .reveal-stage { padding-inline: var(--spacing-4); }
-    .user-message-shell,
-    .assistant-message-shell { padding: var(--spacing-6) var(--spacing-8); }
-    .permission-stage { width: min(122%, 520px); }
+    .user-message-shell { padding: var(--spacing-6) var(--spacing-8); }
+    .permission-stage { --permission-preview-scale: 0.64; }
+  }
+
+  @keyframes piiValueEnter {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes floatProtectedData {

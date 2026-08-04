@@ -85,6 +85,7 @@
   const LANDING_INTRO_REGULAR_REVEAL_MS = 520;
   const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
   const GUEST_SLIDE_CONTENT_FADE_MS = 320;
+  const HEADING_ENTRY_PAINT_DELAY_MS = 80;
   const SIGNUP_BENEFITS_HOLD_MS = 2800;
   const SIGNUP_STAGE_TRANSITION_MS = 420;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
@@ -395,10 +396,10 @@
       return;
     }
     introHeadingMotionPhase = 'entering';
-    const frame = window.requestAnimationFrame(() => {
+    const timeout = window.setTimeout(() => {
       introHeadingMotionPhase = 'visible';
-    });
-    return () => window.cancelAnimationFrame(frame);
+    }, HEADING_ENTRY_PAINT_DELAY_MS);
+    return () => window.clearTimeout(timeout);
   });
 
   // Fire `inspiration_viewed` whenever the current inspiration becomes visible.
@@ -462,12 +463,12 @@
         : ACTIONABLE_MOBILE_HEADING_FADE_IN_MS;
       let headingFadeOutTimeout: number | undefined;
       let headingFadeInTimeout: number | undefined;
-      let headingEntryAnimationFrame: number | undefined;
       let headingSwapAnimationFrame: number | undefined;
-      let headingVisibleAnimationFrame: number | undefined;
-      headingEntryAnimationFrame = window.requestAnimationFrame(() => {
+      let headingEntryTimeout: number | undefined;
+      let headingVisibleTimeout: number | undefined;
+      headingEntryTimeout = window.setTimeout(() => {
         guestHeadingMotionPhase = 'visible';
-      });
+      }, HEADING_ENTRY_PAINT_DELAY_MS);
       const headingStartTimeout = window.setTimeout(() => {
         guestHeadingMotionPhase = 'exiting';
         actionableMobileHeadingPhase = 'fading-out';
@@ -478,9 +479,9 @@
           headingSwapAnimationFrame = window.requestAnimationFrame(() => {
             actionableMobileHeadingPhase = 'fading-in';
             guestHeadingMotionPhase = 'entering';
-            headingVisibleAnimationFrame = window.requestAnimationFrame(() => {
+            headingVisibleTimeout = window.setTimeout(() => {
               guestHeadingMotionPhase = 'visible';
-            });
+            }, HEADING_ENTRY_PAINT_DELAY_MS);
             headingFadeInTimeout = window.setTimeout(() => {
               actionableMobileHeadingPhase = 'ready';
               actionableMobileHeadingReady = true;
@@ -493,9 +494,9 @@
         window.clearTimeout(headingStartTimeout);
         window.clearTimeout(headingFadeOutTimeout);
         window.clearTimeout(headingFadeInTimeout);
-        window.cancelAnimationFrame(headingEntryAnimationFrame ?? 0);
+        window.clearTimeout(headingEntryTimeout);
+        window.clearTimeout(headingVisibleTimeout);
         window.cancelAnimationFrame(headingSwapAnimationFrame ?? 0);
-        window.cancelAnimationFrame(headingVisibleAnimationFrame ?? 0);
       };
     }
 
@@ -2294,6 +2295,10 @@
     animation: landingIntroEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  .landing-intro-expanded-motion :global(.landing-heading-motion) {
+    flex: 0 0 auto;
+  }
+
   .landing-intro-ai-icon {
     width: clamp(68px, 6.2vw, 112px);
     height: clamp(68px, 6.2vw, 112px);
@@ -3702,7 +3707,7 @@
       top: 4px;
       left: 50%;
       width: fit-content;
-      max-width: min(calc(100% - 88px), 330px);
+      max-width: min(calc(100% - 48px), 360px);
       height: auto;
       padding-inline: 0;
       flex-direction: row;
@@ -3729,7 +3734,7 @@
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy.guest-feature-copy .guest-feature-headline {
-      max-width: min(calc(100cqi - 120px), 330px);
+      max-width: min(calc(100cqi - 72px), 360px);
       margin-top: 0;
       margin-left: 0;
     }
@@ -3747,18 +3752,15 @@
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy-line,
     .banner-content.mobile-card-loop.show-mobile-card .guest-feature-headline {
-      display: -webkit-box;
+      display: block;
       max-width: min(100%, 330px);
-      overflow: hidden;
+      overflow: visible;
       color: rgba(255, 255, 255, 0.92);
       font-size: clamp(0.82rem, 3.4vw, 1rem);
       line-height: 1.08;
       opacity: 0.5;
       text-align: center;
       text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
     }
 
     .banner-content.mobile-card-loop .guest-feature-headline {
@@ -3884,8 +3886,8 @@
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-story-demo-shell {
-      height: 120px;
-      max-height: 120px;
+      height: auto;
+      max-height: none;
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {

@@ -293,7 +293,7 @@
 
     .permission-dialog-container.preview-mode {
         margin-bottom: 0;
-        transform: scale(0.82);
+        transform: scale(var(--permission-preview-scale, 0.82));
         transform-origin: center;
     }
     

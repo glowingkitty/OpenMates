@@ -3198,6 +3198,54 @@ landing_privacy_pii:
   sv: Personal details are replaced before AI processing.
   he: Personal details are replaced before AI processing.
   verified_by_human: []
+landing_privacy_email_request:
+  context: User-message prefix before the email value in the privacy landing header story
+  en: Prepare an email to
+  de: Bereite eine E-Mail vor an
+  zh: Prepare an email to
+  es: Prepare an email to
+  fr: Prepare an email to
+  pt: Prepare an email to
+  ru: Prepare an email to
+  ja: Prepare an email to
+  ko: Prepare an email to
+  it: Prepare an email to
+  tr: Prepare an email to
+  vi: Prepare an email to
+  id: Prepare an email to
+  pl: Prepare an email to
+  nl: Prepare an email to
+  ar: Prepare an email to
+  hi: Prepare an email to
+  th: Prepare an email to
+  cs: Prepare an email to
+  sv: Prepare an email to
+  he: Prepare an email to
+  verified_by_human: []
+landing_privacy_email_response:
+  context: Burton assistant-message prefix before the protected email value in the privacy landing header story
+  en: Ok, preparing an email to
+  de: Ok, ich bereite eine E-Mail vor an
+  zh: Ok, preparing an email to
+  es: Ok, preparing an email to
+  fr: Ok, preparing an email to
+  pt: Ok, preparing an email to
+  ru: Ok, preparing an email to
+  ja: Ok, preparing an email to
+  ko: Ok, preparing an email to
+  it: Ok, preparing an email to
+  tr: Ok, preparing an email to
+  vi: Ok, preparing an email to
+  id: Ok, preparing an email to
+  pl: Ok, preparing an email to
+  nl: Ok, preparing an email to
+  ar: Ok, preparing an email to
+  hi: Ok, preparing an email to
+  th: Ok, preparing an email to
+  cs: Ok, preparing an email to
+  sv: Ok, preparing an email to
+  he: Ok, preparing an email to
+  verified_by_human: []
 landing_privacy_memory:
   context: Memory consent title in the privacy landing header story
   en: Choose which memories can personalize this response.
