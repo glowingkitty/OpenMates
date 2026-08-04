@@ -275,9 +275,9 @@ attempts:
     notes: CLI storage passed 15 tests, backend/pip recovery passed 14 tests, the audit checked 82 command entries and four workflow transports, and real CLI/npm/pip usage calls passed with isolated temporary auth state and revoked SDK keys.
 
 handoff:
-  current_task_id: TASK-13
-  next_action: Verify Apple R1 cryptographic failure handling and legacy/v2 media readers.
-  command: python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests
+  current_task_id: TASK-14
+  next_action: Satisfy A-7 with authorized wrapped-key media read evidence before activating v2 writers.
+  command: pending authorized wrapped-key media proof
   expected_outcome: Backend and web readers decrypt frozen legacy and v2 media fixtures without writes while rollout configuration keeps all writers on legacy format.
   blocker: null
   last_verified_commit: 66b6630dd
@@ -412,11 +412,11 @@ scenarios:
 
 acceptance_criteria:
   - {id: AC-1, scenario: S-1, text: "Frozen legacy chat and wrapper fixtures decrypt unchanged, and browser cache identity cannot collide at 32 bits.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-WEB-CRYPTO]}
-  - {id: AC-2, scenario: S-2, text: "Backend, web, and Apple decrypt legacy media fixtures without writes.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-BACKEND-MEDIA, T-WEB-MEDIA, V-APPLE]}
+  - {id: AC-2, scenario: S-2, text: "Backend, web, and Apple decrypt legacy media fixtures without writes.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-LEGACY-FIXTURES, T-BACKEND-MEDIA, T-WEB-MEDIA, V-APPLE]}
   - {id: AC-3, scenario: S-3, text: "Every new multi-variant media encryption uses a distinct nonce and the exact versioned nonce-prefixed v2 format, proven through actual R2 output in backend, web, and Apple readers.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BACKEND-MEDIA, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
   - {id: AC-4, scenario: S-4, text: "Media v2 writers cannot activate before the checked-in R1 evidence manifest passes, and post-activation rollback cannot target a pre-R1 build.", required: true, status: pending, coverage_status: covered, verification_scope: plan, verification_ids: [T-RANDOMNESS-AUDIT, T-ROLLOUT-GATE, V-REST-MEDIA-READER, V-WEB-DEPLOYED, V-APPLE, V-REST-MEDIA-WRITER, V-WEB-R2, V-APPLE-R2]}
   - {id: AC-5, scenario: S-5, text: "Invoice regeneration appends a verified immutable version row/object, never updates the original encrypted row, and leaves unrelated invoices unchanged.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-INVOICE-REGEN, V-REST-INVOICE]}
-  - {id: AC-6, scenario: S-6, text: "Legacy short links decrypt while new links use at least 128 bits of unbiased secret entropy with unchanged KDF semantics.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-SHORT-LINK, V-WEB-DEPLOYED, V-APPLE]}
+  - {id: AC-6, scenario: S-6, text: "Legacy short links decrypt while new links use at least 128 bits of unbiased secret entropy with unchanged KDF semantics.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-SHORT-LINK, V-WEB-DEPLOYED, V-APPLE]}
   - {id: AC-7, scenario: S-7, text: "Unsupported password PBKDF2, email SHA-256, and passkey HKDF derivation fail before persistence and none returns all-zero material.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-WEB-CRYPTO, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
   - {id: AC-8, scenario: S-8, text: "Production recovery sealing is random-only while v1 vectors remain compatible.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-RECOVERY-PARITY, V-APPLE]}
   - {id: AC-9, scenario: S-9, text: "Legacy CLI session files remain byte-identical and readable; stronger storage uses a separate verified file/slot and preserves the original indefinitely.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-STORAGE, V-CLI, V-NPM-SDK, V-PIP-SDK]}
@@ -425,7 +425,7 @@ acceptance_criteria:
   - {id: AC-12, scenario: S-2, text: "No task mutates, deletes, or bulk re-encrypts existing ciphertext or removes a legacy reader.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-NO-MIGRATION-GUARD, V-SECURITY-REVIEW]}
   - {id: AC-13, scenario: S-12, text: "A conclusive read-only production SSH audit covers every eligible AES-GCM wrapper and NaCl encrypted-email collection without exposure or mutation; any match or incomplete scan requires an approved recovery spec before zero-return removal.", required: true, status: satisfied, coverage_status: covered, verification_scope: manual, verification_ids: [T-ZERO-KEY-AUDIT, V-ZERO-KEY-AUDIT, V-ZERO-KEY-PROD-SSH]}
   - {id: AC-14, scenario: S-13, text: "Backend and workers verify canonical signed domain policy locally while all client response contracts remain unchanged and legacy startup remains rollback-compatible.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-DOMAIN-POLICY, V-DOMAIN-IMAGES]}
-  - {id: AC-15, scenario: S-14, text: "Apple PBKDF2 and secure RNG failures are explicit and cannot return zero key material or deterministic credentials.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-CRYPTO-FAILURE, V-APPLE]}
+  - {id: AC-15, scenario: S-14, text: "Apple PBKDF2 and secure RNG failures are explicit and cannot return zero key material or deterministic credentials.", required: true, status: satisfied, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-CRYPTO-FAILURE, V-APPLE]}
   - {id: AC-16, scenario: S-15, text: "New media v2 records omit raw server-side AES keys and missing chat keys abort embed persistence, while legacy records remain readable.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-MEDIA, T-WEB-CRYPTO, V-REST-MEDIA-WRITER]}
 
 assumptions:
@@ -667,7 +667,7 @@ tests:
     covers: [AC-2, AC-15]
     assertions: [Injected CommonCrypto failure throws before key return, injected SecRandomCopyBytes failure throws before PIN/secret return, no zero key or deterministic credential is produced, legacy external-nonce and explicit nonce-prefixed media vectors remain readable, unknown media markers fail closed.]
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/apple_remote.py sync-repo --branch dev && python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests", run_id: "apple-remote-task13-red-2026-08-04T09:47:57Z", subject_commit: "7d0d4cda0", timestamp: "2026-08-04T09:47:57Z", reason: "After syncing the clean remote checkout, CryptoFailureTests failed to compile because the production PBKDF2 API had no injectable throwing failure contract and S3MediaClient exposed neither an explicit encryption marker nor a testable strict decoder."}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests", run_id: "apple-remote-task13-green-2026-08-04T10:06:30Z", subject_commit: "c23c93472", timestamp: "2026-08-04T10:06:30Z", notes: "Four tests passed: injected PBKDF2 failure, injected SecRandom failure, legacy external-nonce and explicit nonce-prefixed media decryption, and fail-closed unknown marker handling."}}
   - id: T-SECURITY-CODES
     type: pytest
     file: backend/tests/test_security_random_generators.py
@@ -729,7 +729,7 @@ verifications:
     viewports: [laptop, mobile]
     evidence: {status: passed, summary: "Reviewed laptop and mobile screenshots after R1 deployment. Defects: none; no overflow, broken images, implementation error text, loading stalls, console errors, page errors, response errors, or request failures. Accepted differences: the mobile rotating hero was captured between slide-content transitions; primary controls and the example-chat rail remained visible and responsive.", run_id: "test-results/visual-smoke/2026-08-04T08-25-24-090Z/summary.json", subject_commit: "21c5f2725", timestamp: "2026-08-04T08:25:56Z", actor: OpenCode}
   - {id: V-USER-CONFIRMATION, kind: user_confirmation, phase: final, required_for_done: true, covers: [AC-2, AC-3, AC-6], status: passed, evidence: {status: passed, summary: "User explicitly delegated the requested R1 checks to OpenCode. A fresh exact-commit deployed Playwright run rendered frozen legacy and explicit v2 encrypted media, resolved the legacy six-character shared link, and showed the Shared chat UI without content-decryption errors; the captured final screenshot was reviewed. This records delegated verification, not a claim that the user manually inspected the UI.", command: "python3 scripts/tests.py run --spec media-encryption-compatibility.spec.ts --gate-deploy --expected-commit c48dffc0b", run_id: "30896650619", subject_commit: "c48dffc0b", timestamp: "2026-08-04T09:32:51Z", actor: OpenCode, delegation: "user instruction 2026-08-04: go ahead and test these things yourself"}}
-  - {id: V-APPLE, kind: automated_test, phase: final, required_for_done: true, covers: [AC-2, AC-4, AC-6, AC-8], status: pending, evidence: {status: partial, command: "python3 scripts/apple_remote.py build-ios --simulator 'iPhone 17'", subject_commit: "034b62913", summary: "Remote iOS simulator build succeeded for checked SecRandom and rejection-sampled issuance. TASK-13 still owns injected PBKDF2/SecRandom failure tests and final Apple media-reader verification.", timestamp: "2026-08-03T18:29:35Z"}}
+  - {id: V-APPLE, kind: automated_test, phase: final, required_for_done: true, covers: [AC-2, AC-4, AC-6, AC-8, AC-15], status: passed, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/ChatManagementSharingParityTests/testDurableShortLinksUseWebTwoHundredThousandRoundDerivation && python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/CryptoFailureTests && python3 scripts/apple_remote.py build-ios --simulator 'iPhone 17'", run_id: "apple-remote-task13-final-2026-08-04T10:19:03Z", subject_commit: "500a44e79", summary: "The Apple short-link parity test passed with a 22-character unbiased SecureRandom Base62 secret and unchanged PBKDF2 contract; all four crypto/media failure tests passed; the full iPhone 17 simulator build succeeded. Legacy external-nonce and explicit aes-gcm-nonce-prefixed-v1 media are readable, unknown markers fail closed, PBKDF2 and SecRandom failures throw, and no zero or deterministic secret is returned.", timestamp: "2026-08-04T10:19:03Z", actor: OpenCode}}
   - {id: V-APPLE-R2, kind: automated_test, phase: final, required_for_done: true, covers: [AC-3, AC-4], status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}}
   - {id: V-ZERO-KEY-AUDIT, kind: manual_check, phase: green, required_for_done: true, covers: [AC-13], status: passed, evidence: {status: passed, command: "docker exec -i api python - --env dev --read-only < scripts/audit_zero_key_exposure.py", run_id: "dev-zero-key-2026-08-03T15:54:15Z", subject_commit: "9a6517f5b", summary: "Complete stable read-only scan: 10795 eligible and scanned records across seven categories, zero matches, zero errors, and no findings.", timestamp: "2026-08-03T15:54:15Z"}}
   - id: V-ZERO-KEY-PROD-SSH
@@ -1116,8 +1116,8 @@ tasks:
     independently_deployable: false
   - id: TASK-13
     title: Verify Apple R1 crypto and media readers
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-2, S-6, S-8, S-14]
       acceptance_criteria: [AC-2, AC-6, AC-8, AC-15]
