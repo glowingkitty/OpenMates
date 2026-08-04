@@ -30,6 +30,7 @@ enum ShareLinkCrypto {
     private static let passwordSaltPrefix = "openmates-pwd-"
     private static let shortURLSaltPrefix = "omts-v1-"
     private static let shortURLAlphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+    private static let shortURLKeyLength = 22
 
     static func encryptedShareBlob(
         identifier: String,
@@ -66,8 +67,8 @@ enum ShareLinkCrypto {
     }
 
     static func encryptedShortURL(_ longURL: URL) async throws -> (token: String, shortKey: String, encryptedURL: String) {
-        let token = randomBase62(length: 8)
-        let shortKey = randomBase62(length: 6)
+        let token = try randomBase62(length: 8)
+        let shortKey = try randomBase62(length: shortURLKeyLength)
         let encryptionKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: shortKey,
             salt: Data("\(shortURLSaltPrefix)\(token)".utf8),
@@ -108,9 +109,8 @@ enum ShareLinkCrypto {
         return query
     }
 
-    private static func randomBase62(length: Int) -> String {
-        let bytes = (0..<length).map { _ in UInt8.random(in: .min ... .max) }
-        return String(bytes.map { shortURLAlphabet[Int($0) % shortURLAlphabet.count] })
+    private static func randomBase62(length: Int) throws -> String {
+        try SecureRandom.string(length: length, alphabet: shortURLAlphabet)
     }
 
     private static func base64URL(_ data: Data) -> String {
