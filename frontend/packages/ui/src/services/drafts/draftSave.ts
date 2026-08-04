@@ -1059,7 +1059,7 @@ export const saveDraftDebounced = debounce(
             ...s,
             currentChatId: currentChatIdForOperation, // This is now the ID of the new chat
             currentUserDraftVersion: userDraft.draft_v,
-            newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
+            newlyCreatedChatIdToSelect: null,
             hasUnsavedChanges: false,
             lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
             isSaveInProgress: false, // Release lock on success
@@ -1152,7 +1152,7 @@ export const saveDraftDebounced = debounce(
               ...s,
               // Keep the same currentChatId - DO NOT change it
               currentUserDraftVersion: userDraft.draft_v,
-              newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this chat
+              newlyCreatedChatIdToSelect: null,
               hasUnsavedChanges: false,
               lastSavedContentMarkdown: contentMarkdown,
               isSaveInProgress: false, // Release lock on success
