@@ -9268,9 +9268,9 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 def cmd_spawn_chat(args: argparse.Namespace) -> None:
-    """Spawn a new Claude Code session in a separate Zellij tab.
+    """Spawn a new OpenCode chat in a separate Zellij session.
 
-    Creates an interactive Claude session visible in the Zellij web UI
+    Creates an interactive OpenCode session visible in the Zellij web UI
     (localhost:8082) and attachable via `zellij attach <name>`.
 
     Default is plan mode (read-only). Use --mode execute for full edit access.
@@ -9364,15 +9364,15 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     prompt = mode_prefix + prompt + linear_suffix
 
     try:
-        from _zellij_utils import spawn_claude_session
+        from _zellij_utils import spawn_opencode_session
     except ImportError:
         # Add scripts dir to path for import
         scripts_dir = str(PROJECT_ROOT / "scripts")
         if scripts_dir not in sys.path:
             sys.path.insert(0, scripts_dir)
-        from _zellij_utils import spawn_claude_session
+        from _zellij_utils import spawn_opencode_session
 
-    success = spawn_claude_session(
+    success = spawn_opencode_session(
         session_name=session_name,
         prompt=prompt,
         cwd=str(PROJECT_ROOT),
@@ -9380,7 +9380,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     )
 
     if success:
-        mode_label = "execute (full access, skip-permissions)" if permission_mode == "execute" else "plan (research only, skip-permissions)"
+        mode_label = "execute (full access, auto-approved)" if permission_mode == "execute" else "plan (read-only agent)"
         print(f"Session spawned: {session_name}")
         print(f"Mode: {mode_label}")
         print(f"Attach: zellij attach {session_name}")
@@ -10390,15 +10390,15 @@ def main() -> None:
     # spawn-chat
     p_spawn = sub.add_parser(
         "spawn-chat",
-        help="Spawn a Claude Code session in a separate Zellij tab",
+        help="Spawn an OpenCode chat in a separate Zellij session",
     )
     p_spawn.add_argument(
         "--prompt",
-        help="Prompt text to send to Claude (written to temp file internally)",
+        help="Prompt text to send to OpenCode (written to temp file internally)",
     )
     p_spawn.add_argument(
         "--prompt-file",
-        help="Path to a prompt file (Claude reads it directly)",
+        help="Path to a prompt file (OpenCode reads it directly)",
     )
     p_spawn.add_argument(
         "--name", "-n",
@@ -10409,7 +10409,7 @@ def main() -> None:
         choices=["plan", "execute"],
         default="plan",
         help="Permission mode: 'plan' (read-only, default) or "
-        "'execute' (full edit access via --dangerously-skip-permissions)",
+        "'execute' (full edit access with auto-approved permissions)",
     )
     p_spawn.add_argument(
         "--linear-issue", "--linear",

@@ -190,12 +190,12 @@ Use the repo rule files when the task touches relevant areas. In OpenCode, these
 
 ## Parallel Work: Spawning Separate Sessions
 
-You can suggest spawning parallel Codex sessions for independent tasks.
+You can suggest spawning parallel OpenCode chats for independent tasks.
 Always ask the user for confirmation before spawning.
 
 ```bash
 # Spawn a planning/research session (default: plan mode, read-only)
-python3 scripts/sessions.py spawn-chat --prompt "Research how X works" --name "research-X"
+python3 scripts/sessions.py spawn-chat --prompt "Research how X works" --name "research-x"
 
 # Spawn with a prompt file
 python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/prompt.txt --name "plan-task"
@@ -204,7 +204,7 @@ python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/prompt.txt --n
 python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/fix-prompt.txt --name "fix-OPE-42" --mode execute
 ```
 
-The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
+The spawned chat must start its own `sessions.py` session before mutating work. The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
 
 **When to suggest:** Multiple independent tasks, post-meeting planning, parallel research.
 **When NOT to:** Tasks with file conflicts, sequential dependencies, or when the user prefers focused work.

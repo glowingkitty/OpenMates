@@ -15,6 +15,7 @@ being unavailable.
 from __future__ import annotations
 
 import os
+import json
 import re
 import shlex
 import subprocess
@@ -558,6 +559,81 @@ def spawn_claude_session(
     check = _run_zellij(["list-sessions", "--no-formatting"])
     if check and session_name in check.stdout:
         return True
+
+    print(f"Warning: session '{session_name}' not found after launch.", file=sys.stderr)
+    return False
+
+
+def spawn_opencode_session(
+    session_name: str,
+    prompt: str,
+    cwd: str,
+    permission_mode: str = "plan",
+) -> bool:
+    """Spawn an interactive OpenCode chat in a named Zellij session."""
+    session_name = _sanitize_session_name(session_name)
+    if permission_mode not in {"plan", "execute"}:
+        print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
+        return False
+
+    result = _run_zellij(["list-sessions", "--no-formatting"])
+    if result and result.returncode == 0:
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(session_name + " ") or stripped == session_name:
+                if "EXITED" in stripped:
+                    _run_zellij(["delete-session", session_name])
+                else:
+                    print(f"Warning: Zellij session '{session_name}' already exists.", file=sys.stderr)
+                    return False
+
+    command = ["run", "--interactive", "--title", session_name]
+    if permission_mode == "plan":
+        command.extend(["--agent", "plan"])
+    else:
+        command.append("--auto")
+    command.append(prompt)
+
+    def kdl_quote(value: str) -> str:
+        return json.dumps(value, ensure_ascii=True)
+
+    layout_content = (
+        "layout {\n"
+        '    pane command="opencode" {\n'
+        f"        args {' '.join(kdl_quote(argument) for argument in command)}\n"
+        f"        cwd {kdl_quote(cwd)}\n"
+        "        focus true\n"
+        "    }\n"
+        "}\n"
+    )
+
+    tmp_dir = Path(cwd) / "scripts" / ".tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    layout_path = tmp_dir / f"{session_name}.kdl"
+
+    try:
+        layout_path.write_text(layout_content, encoding="utf-8")
+        subprocess.Popen(
+            [ZELLIJ_BIN, "--new-session-with-layout", str(layout_path), "-s", session_name],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=os.environ.copy(),
+        )
+    except (FileNotFoundError, OSError) as exc:
+        print(f"Warning: OpenCode Zellij launch failed: {exc}", file=sys.stderr)
+        layout_path.unlink(missing_ok=True)
+        return False
+
+    import time
+    time.sleep(2)
+    layout_path.unlink(missing_ok=True)
+
+    check = _run_zellij(["list-sessions", "--no-formatting"])
+    if check and check.returncode == 0:
+        for line in check.stdout.splitlines():
+            stripped = line.strip()
+            if stripped and "EXITED" not in stripped and stripped.split(maxsplit=1)[0] == session_name:
+                return True
 
     print(f"Warning: session '{session_name}' not found after launch.", file=sys.stderr)
     return False
