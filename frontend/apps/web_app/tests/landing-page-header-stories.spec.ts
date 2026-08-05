@@ -39,6 +39,17 @@ async function openPrivacySlide(page: any): Promise<void> {
 	await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
 }
 
+async function expectInsideBanner(page: any, testId: string): Promise<void> {
+	const banner = await page.getByTestId('daily-inspiration-banner').boundingBox();
+	const content = await page.getByTestId(testId).boundingBox();
+	expect(banner).not.toBeNull();
+	expect(content).not.toBeNull();
+	expect(content!.x).toBeGreaterThanOrEqual(banner!.x - 1);
+	expect(content!.y).toBeGreaterThanOrEqual(banner!.y - 1);
+	expect(content!.x + content!.width).toBeLessThanOrEqual(banner!.x + banner!.width + 1);
+	expect(content!.y + content!.height).toBeLessThanOrEqual(banner!.y + banner!.height + 1);
+}
+
 test.describe('Landing page header stories', () => {
 	test('intro advances promptly and every heading uses the shared motion lifecycle', async ({ page }: { page: any }) => {
 		test.setTimeout(30000);
@@ -205,6 +216,29 @@ test.describe('Landing page header stories', () => {
 				&& card.bottom <= demo.bottom + 1);
 		});
 		expect(permissionContained).toBe(true);
+	});
+
+	test('tablet landscape keeps Actionable and Privacy animations inside the daily inspiration banner', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1024, height: 576 });
+		await page.goto(getE2EDebugUrl('/?landing-header-tablet-landscape'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+			timeout: HEADING_SETTLE_MS
+		});
+		await expect(page.getByTestId('landing-actionable-demo')).toBeVisible();
+		await expectInsideBanner(page, 'landing-actionable-demo');
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+			timeout: HEADING_SETTLE_MS
+		});
+		await expect(page.getByTestId('landing-privacy-saved-data-copy')).toBeVisible();
+		await expectInsideBanner(page, 'landing-privacy-safety-demo');
+		await expectInsideBanner(page, 'landing-privacy-saved-data-copy');
 	});
 
 	test('guest New chat from an example focuses a blank composer without replaying slide zero', async ({ page }: { page: any }) => {

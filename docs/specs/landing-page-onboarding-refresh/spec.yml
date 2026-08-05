@@ -555,22 +555,24 @@ attempts:
       localization files after source commit `a2b2ca0`. Reviewed visual-smoke run
       `test-results/visual-smoke/2026-08-05T00-40-33-321Z/summary.json` on the later
       Ready deployment found no laptop or mobile defects.
+  - id: ATTEMPT-32
+    task_id: TASK-4
+    approach: Ask the user to confirm the revised deployed landing stories after automated verification.
+    outcome: rejected
+    recorded_at: "2026-08-05"
+    notes: >
+      User review found the story animations positioned outside the daily inspiration
+      container on iPad landscape. The prior visual smoke covered only the initial
+      slide at generic laptop and mobile sizes and therefore missed this short,
+      intermediate-width geometry regression.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Ask the user to confirm the revised deployed landing stories on app.dev.openmates.org before closing TASK-4.
-  command: Open https://app.dev.openmates.org/ and review the deployed landing stories.
-  expected_outcome: The user approves the responsive spacing, heading motion, PII conversation, copy-only scenes, and contained permission preview.
-  blocker:
-    kind: user_visual_confirmation
-    task_id: TASK-4
-    requires_user_input: true
-    reason: >
-      Focused deployed Playwright and reviewed laptop/mobile visual smoke are green,
-      but this user-visible landing milestone requires final user visual confirmation.
-    question: Does the revised deployed landing story now match the requested spacing, motion, privacy sequence, copy, and responsive permission-card presentation?
-    next_action: If the user confirms, record the user confirmation and close TASK-4; otherwise reproduce and fix the reported mismatch.
-  last_verified_commit: b635411d
+  next_action: Deploy and run the tablet-landscape containment regression before changing story-shell sizing.
+  command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit <commit>
+  expected_outcome: The focused contract fails because Actionable or Privacy extends below the daily inspiration banner at 1024x576.
+  blocker: null
+  last_verified_commit: 351a57fb7
 
 scenarios:
   - id: S-1
@@ -1075,15 +1077,18 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
-        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f711ec242
-        run_id: "30963720278"
-        subject_commit: 351a57fb7
-        target: app.dev.openmates.org
-        deployment_reference: dpl_Duucir4LRdWkPc15Q1QnuP7reVNj
-        reason: The tested descendant includes source commit a2b2ca0; no intervening commit changed the seven scoped landing files.
-        timestamp: "2026-08-05T00:39:19Z"
+        status: invalidated_by_contract_change
+        reason: User review added tablet-landscape animation containment after the generic viewport run passed.
+        timestamp: "2026-08-05T01:00:00Z"
       history:
+        - status: passed
+          command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f711ec242
+          run_id: "30963720278"
+          subject_commit: 351a57fb7
+          target: app.dev.openmates.org
+          deployment_reference: dpl_Duucir4LRdWkPc15Q1QnuP7reVNj
+          reason: This evidence predates the tablet-landscape containment contract.
+          timestamp: "2026-08-05T00:39:19Z"
         - status: passed
           command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f7e3411
           run_id: "30942523944"
@@ -1156,27 +1161,15 @@ verifications:
       - AC-7
       - AC-8
       - AC-9
-    status: passed
+    status: pending
     route: https://app.dev.openmates.org/
     viewports:
       - laptop
       - mobile
     evidence:
-      status: passed
-      reason: Reviewed deployed laptop and mobile screenshots cover the revised responsive landing contract.
-      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session c3c3
-      summary: >
-        Reviewed laptop and mobile screenshots. Defects: none; no clipping,
-        overlap, overflow, broken media, implementation error text, loading stalls,
-        or hidden controls. Accepted differences: the rotating request and
-        highlighted app differ by animation capture time.
-      run_id: test-results/visual-smoke/2026-08-05T00-40-33-321Z/summary.json
-      subject_commit: b635411d
-      target: https://app.dev.openmates.org/
-      viewports:
-        - laptop
-        - mobile
-      timestamp: "2026-08-05T00:40:45Z"
+      status: invalidated_by_contract_change
+      reason: User review found iPad-landscape story content outside the banner; the prior screenshots captured only slide 0 at generic laptop and mobile widths.
+      timestamp: "2026-08-05T01:00:00Z"
 
 implementation_plan:
   spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml
