@@ -565,6 +565,24 @@ attempts:
       container on iPad landscape. The prior visual smoke covered only the initial
       slide at generic laptop and mobile sizes and therefore missed this short,
       intermediate-width geometry regression.
+  - id: ATTEMPT-33
+    task_id: TASK-4
+    approach: Deploy and run the first tablet-landscape containment contract.
+    outcome: blocked
+    recorded_at: "2026-08-05"
+    notes: >
+      Commit `ddebb0b1a` was canceled while queued in Vercel deployment
+      `dpl_5D82DcEdU9ew7MQ79VjXNxTYL3Rz`, so no browser test started.
+  - id: ATTEMPT-34
+    task_id: TASK-4
+    approach: Run the tablet-landscape contract on the next Ready descendant deployment.
+    outcome: blocked
+    recorded_at: "2026-08-05"
+    notes: >
+      GitHub Actions run `30965507213` failed before geometry measurement because
+      the new test used `landing-actionable-demo` instead of the component's
+      existing `landing-actionable-event-demo` test ID. The screenshot showed the
+      Actionable card contained; the selector was corrected so Privacy is measured.
 
 handoff:
   current_task_id: TASK-4

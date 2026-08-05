@@ -229,8 +229,8 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
 			timeout: HEADING_SETTLE_MS
 		});
-		await expect(page.getByTestId('landing-actionable-demo')).toBeVisible();
-		await expectInsideBanner(page, 'landing-actionable-demo');
+		await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
+		await expectInsideBanner(page, 'landing-actionable-event-demo');
 
 		await page.getByTestId('daily-inspiration-next').click();
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
