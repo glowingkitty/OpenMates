@@ -51,9 +51,11 @@ import os
 import re
 import secrets
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -109,6 +111,17 @@ STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
 VERCEL_DEPLOY_LOCK_MINUTES = 90
+DOCKER_TEST_LEASE_TTL_SECONDS = 12 * 60 * 60
+DOCKER_OPERATION_HISTORY_LIMIT = 20
+DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "draining_tests", "restarting", "verifying"}
+DOCKER_OPERATION_TERMINAL_STATUSES = {"completed", "failed"}
+DOCKER_RESOURCE_DEV_STACK = "dev-stack"
+DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
+DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
+DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
+DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
+DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
@@ -502,22 +515,16 @@ def opencode_stale_read_error(session_id: str, raw_path: str | Path) -> str | No
 
 
 def _load_sessions() -> dict:
-    """Load sessions.json, creating it with defaults if missing."""
+    """Load sessions.json, returning defaults if it is missing or invalid."""
     if not SESSIONS_FILE.exists():
-        SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        data = _default_sessions()
-        _save_sessions(data)
-        return data
+        return _default_sessions()
     try:
         with open(SESSIONS_FILE) as f:
             data = json.load(f)
         _normalize_session_state_paths(data)
         return data
     except (json.JSONDecodeError, OSError):
-        # Corrupted file — reinitialize
-        data = _default_sessions()
-        _save_sessions(data)
-        return data
+        return _default_sessions()
 
 
 def _save_sessions(data: dict) -> None:
@@ -532,6 +539,15 @@ def _save_sessions(data: dict) -> None:
         with open(lock_path, "w") as lock_fd:
             fcntl.flock(lock_fd, fcntl.LOCK_EX)
             try:
+                if SESSIONS_FILE.exists():
+                    try:
+                        with open(SESSIONS_FILE) as current_file:
+                            current = json.load(current_file)
+                        for key in ("locks", "infrastructure", "edit_leases", "deploy_queue"):
+                            if key in current:
+                                data[key] = current[key]
+                    except (json.JSONDecodeError, OSError):
+                        pass
                 tmp = SESSIONS_FILE.with_suffix(".tmp")
                 with open(tmp, "w") as f:
                     json.dump(data, f, indent=2)
@@ -583,11 +599,234 @@ def _default_sessions() -> dict:
             "vercel_deploy": {"status": "NONE"},
         },
         "edit_leases": {},
+        "infrastructure": {
+            "test_leases": {},
+            "docker_operations": [],
+        },
         "deploy_queue": [],
         "worktree_archive": [],
         "worktree_deletion_manifests": [],
         "sessions": {},
     }
+
+
+def _infrastructure_state(data: dict) -> dict:
+    infrastructure = data.setdefault("infrastructure", {})
+    infrastructure.setdefault("test_leases", {})
+    infrastructure.setdefault("docker_operations", [])
+    return infrastructure
+
+
+def _process_is_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def _prune_stale_test_resource_leases(data: dict) -> list[str]:
+    infrastructure = _infrastructure_state(data)
+    leases = infrastructure["test_leases"]
+    removed = []
+    now = datetime.now(timezone.utc)
+    host = socket.gethostname()
+    for lease_id, lease in list(leases.items()):
+        try:
+            updated_at = _parse_iso(str(lease.get("updated_at") or lease.get("acquired_at") or ""))
+        except (TypeError, ValueError):
+            updated_at = None
+        expired = not updated_at or (now - updated_at).total_seconds() > DOCKER_TEST_LEASE_TTL_SECONDS
+        owner_pid = int(lease.get("owner_pid") or 0)
+        dead_local_process = bool(owner_pid and lease.get("owner_host") == host and not _process_is_alive(owner_pid))
+        if expired or dead_local_process:
+            leases.pop(lease_id, None)
+            removed.append(lease_id)
+    return removed
+
+
+def _docker_operation_resources(_services: list[str]) -> set[str]:
+    return {DOCKER_RESOURCE_DEV_STACK}
+
+
+def _active_docker_operation(data: dict) -> dict | None:
+    operations = _infrastructure_state(data)["docker_operations"]
+    return next((operation for operation in reversed(operations) if operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES), None)
+
+
+def _prune_stale_docker_operations(data: dict) -> list[str]:
+    operations = _infrastructure_state(data)["docker_operations"]
+    now = datetime.now(timezone.utc)
+    host = socket.gethostname()
+    failed = []
+    for operation in operations:
+        if operation.get("status") not in DOCKER_OPERATION_ACTIVE_STATUSES:
+            continue
+        try:
+            updated_at = _parse_iso(str(operation.get("updated_at") or operation.get("requested_at") or ""))
+        except (TypeError, ValueError):
+            updated_at = None
+        owner_pid = int(operation.get("owner_pid") or 0)
+        process_ended = bool(owner_pid and operation.get("owner_host") == host and not _process_is_alive(owner_pid))
+        expired = not updated_at or (now - updated_at).total_seconds() > DOCKER_OPERATION_TTL_SECONDS
+        if not process_ended and not expired:
+            continue
+        operation["status"] = "failed"
+        operation["updated_at"] = _now_iso()
+        operation["completed_at"] = operation["updated_at"]
+        operation["error"] = "Restart owner process ended before completion" if process_ended else "Restart operation expired"
+        failed.append(str(operation.get("id") or "unknown"))
+    return failed
+
+
+def acquire_test_resource_lease(
+    lease_id: str,
+    owner: str,
+    resources: set[str],
+    *,
+    timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+    poll: int = 5,
+) -> dict:
+    """Acquire a shared test lease after any conflicting restart completes."""
+    if not resources:
+        return {}
+    deadline = time.time() + max(0, timeout)
+    poll = max(1, poll)
+    while True:
+        blocked_by = ""
+
+        def mutate(data: dict) -> dict | None:
+            nonlocal blocked_by
+            _prune_stale_test_resource_leases(data)
+            _prune_stale_docker_operations(data)
+            operation = _active_docker_operation(data)
+            if operation and resources.intersection(operation.get("resources", [])):
+                blocked_by = str(operation.get("id") or "unknown")
+                return None
+            now = _now_iso()
+            lease = {
+                "lease_id": lease_id,
+                "owner": owner,
+                "owner_pid": os.getpid(),
+                "owner_host": socket.gethostname(),
+                "resources": sorted(resources),
+                "acquired_at": now,
+                "updated_at": now,
+            }
+            _infrastructure_state(data)["test_leases"][lease_id] = lease
+            return lease
+
+        lease = _mutate_sessions(mutate)
+        if lease:
+            return lease
+        if time.time() >= deadline:
+            raise RuntimeError(f"Docker restart {blocked_by} is queued or active for {', '.join(sorted(resources))}")
+        time.sleep(min(poll, max(1, int(deadline - time.time()))))
+
+
+def release_test_resource_lease(lease_id: str) -> bool:
+    def mutate(data: dict) -> bool:
+        return _infrastructure_state(data)["test_leases"].pop(lease_id, None) is not None
+
+    return _mutate_sessions(mutate)
+
+
+def request_docker_restart(session_id: str, services: list[str]) -> dict:
+    """Atomically queue one restart, preventing new dependent test leases."""
+    normalized_services = sorted(set(services))
+    now = _now_iso()
+
+    def mutate(data: dict) -> dict:
+        _prune_stale_test_resource_leases(data)
+        _prune_stale_docker_operations(data)
+        active = _active_docker_operation(data)
+        if active:
+            raise RuntimeError(
+                f"Docker restart {active.get('id')} is already {active.get('status')} "
+                f"for {', '.join(active.get('services', []))}"
+            )
+        operation = {
+            "id": f"docker-{secrets.token_hex(4)}",
+            "session_id": session_id,
+            "services": normalized_services,
+            "resources": sorted(_docker_operation_resources(normalized_services)),
+            "status": "queued",
+            "owner_pid": os.getpid(),
+            "owner_host": socket.gethostname(),
+            "requested_at": now,
+            "updated_at": now,
+            "waiting_for_tests": [],
+        }
+        operations = _infrastructure_state(data)["docker_operations"]
+        operations.append(operation)
+        del operations[:-DOCKER_OPERATION_HISTORY_LIMIT]
+        return dict(operation)
+
+    return _mutate_sessions(mutate)
+
+
+def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
+    if status not in DOCKER_OPERATION_ACTIVE_STATUSES | DOCKER_OPERATION_TERMINAL_STATUSES:
+        raise ValueError(f"Unknown Docker operation status: {status}")
+
+    def mutate(data: dict) -> dict:
+        operations = _infrastructure_state(data)["docker_operations"]
+        operation = next((item for item in operations if item.get("id") == operation_id), None)
+        if operation is None:
+            raise RuntimeError(f"Docker operation not found: {operation_id}")
+        now = _now_iso()
+        operation.update(fields)
+        operation["status"] = status
+        operation["updated_at"] = now
+        if status == "restarting" and not operation.get("started_at"):
+            operation["started_at"] = now
+        if status in DOCKER_OPERATION_TERMINAL_STATUSES:
+            operation["completed_at"] = now
+        return dict(operation)
+
+    return _mutate_sessions(mutate)
+
+
+def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
+    def mutate(data: dict) -> list[dict]:
+        _prune_stale_test_resource_leases(data)
+        operations = _infrastructure_state(data)["docker_operations"]
+        operation = next((item for item in operations if item.get("id") == operation_id), None)
+        if operation is None:
+            raise RuntimeError(f"Docker operation not found: {operation_id}")
+        resources = set(operation.get("resources", []))
+        leases = [
+            dict(lease)
+            for lease in _infrastructure_state(data)["test_leases"].values()
+            if resources.intersection(lease.get("resources", []))
+        ]
+        operation["waiting_for_tests"] = sorted(str(lease.get("lease_id")) for lease in leases)
+        operation["updated_at"] = _now_iso()
+        return leases
+
+    return _mutate_sessions(mutate)
+
+
+def wait_for_docker_test_leases(
+    operation_id: str,
+    *,
+    timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+    poll: int = 5,
+    heartbeat=None,
+) -> list[dict]:
+    deadline = time.time() + max(0, timeout)
+    poll = max(1, poll)
+    update_docker_operation(operation_id, "draining_tests")
+    while True:
+        leases = _blocking_test_resource_leases(operation_id)
+        if not leases:
+            return []
+        if heartbeat:
+            heartbeat()
+        if time.time() >= deadline:
+            lease_ids = ", ".join(str(lease.get("lease_id")) for lease in leases)
+            raise RuntimeError(f"Timed out waiting for dependent tests: {lease_ids}")
+        time.sleep(min(poll, max(1, int(deadline - time.time()))))
 
 
 def _current_git_sha(cwd: str | Path | None = None) -> str:
@@ -2317,6 +2556,8 @@ def _release_session_lock(lock_type: str, *, commit_sha: str = "", released_by: 
     def mutate(data: dict) -> bool:
         lock = data.setdefault("locks", {}).get(lock_type, {})
         if lock.get("status") != "IN_PROGRESS":
+            return False
+        if released_by and lock.get("claimed_by") and lock.get("claimed_by") != released_by:
             return False
         if commit_sha and lock.get("commit_sha") and lock.get("commit_sha") != commit_sha:
             return False
@@ -4997,6 +5238,20 @@ def presence_status_view(
         "conflicts": [],
         "diagnostics": presence.get("diagnostics", []),
     }
+    infrastructure = durable.get("infrastructure", {})
+    operations = infrastructure.get("docker_operations", [])
+    view["infrastructure"] = {
+        "active_docker_operation": next(
+            (dict(operation) for operation in reversed(operations) if operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES),
+            None,
+        ),
+        "recent_docker_operations": [
+            dict(operation)
+            for operation in reversed(operations)
+            if operation.get("status") in DOCKER_OPERATION_TERMINAL_STATUSES
+        ][:5],
+        "test_leases": [dict(lease) for _, lease in sorted(infrastructure.get("test_leases", {}).items())],
+    }
     for item in items.values():
         if item["attention"].startswith("required_"):
             view["waiting_for_user"].append(item)
@@ -5056,11 +5311,15 @@ def presence_status_view(
 
 def cmd_status(args: argparse.Namespace) -> None:
     """Show current OpenCode reality, with durable history available explicitly."""
-    data = _load_sessions()
-    _prune_stale(data)
-    _prune_stale_locks(data)
-    _prune_stale_edit_leases(data)
-    _save_sessions(data)
+    def prune(data: dict) -> dict:
+        _prune_stale(data)
+        _prune_stale_locks(data)
+        _prune_stale_edit_leases(data)
+        _prune_stale_test_resource_leases(data)
+        _prune_stale_docker_operations(data)
+        return data
+
+    data = _mutate_sessions(prune)
 
     sessions = data.get("sessions", {})
     locks = data.get("locks", {})
@@ -5142,6 +5401,37 @@ def cmd_status(args: argparse.Namespace) -> None:
             )
         else:
             print(f"  {lt}: NONE")
+    print()
+
+    infrastructure = view.get("infrastructure", {})
+    active_operation = infrastructure.get("active_docker_operation")
+    recent_operations = infrastructure.get("recent_docker_operations", [])
+    test_resource_leases = infrastructure.get("test_leases", [])
+    print("Infrastructure:")
+    if active_operation:
+        waiting = active_operation.get("waiting_for_tests", [])
+        waiting_text = f", waiting for {len(waiting)} test run(s)" if waiting else ""
+        print(
+            f"  Docker: {active_operation.get('status')} {', '.join(active_operation.get('services', []))} "
+            f"(operation {active_operation.get('id')}, session {active_operation.get('session_id', '?')}{waiting_text})"
+        )
+    else:
+        print("  Docker: idle")
+    if test_resource_leases:
+        print(f"  Dependent tests running: {len(test_resource_leases)}")
+        for lease in test_resource_leases:
+            print(
+                f"    - {lease.get('lease_id')} by {lease.get('owner', '?')} "
+                f"({', '.join(lease.get('resources', []))})"
+            )
+    if recent_operations:
+        print("  Recent Docker operations:")
+        for operation in recent_operations:
+            detail = operation.get("error") or "health verification passed"
+            print(
+                f"    - {operation.get('status')} {', '.join(operation.get('services', []))} "
+                f"at {operation.get('completed_at', '?')} ({detail})"
+            )
     print()
 
     if edit_leases:
@@ -5785,6 +6075,183 @@ def cmd_unlock(args: argparse.Namespace) -> None:
     print(f"Lock '{lock_type}' released.")
 
 
+def _docker_compose_command(*args: str) -> list[str]:
+    command = [
+        "docker",
+        "compose",
+        "--env-file",
+        str(ENV_FILE),
+        "-f",
+        str(DOCKER_COMPOSE_FILE),
+    ]
+    if DOCKER_COMPOSE_OVERRIDE.is_file():
+        command.extend(["-f", str(DOCKER_COMPOSE_OVERRIDE)])
+    return [*command, *args]
+
+
+def available_docker_services() -> set[str]:
+    rc, stdout, stderr = _run_cmd(_docker_compose_command("config", "--services"), cwd=str(CONTROL_PLANE_ROOT))
+    if rc != 0:
+        raise RuntimeError(f"Could not read Docker Compose services: {stderr or stdout}")
+    return {line.strip() for line in stdout.splitlines() if line.strip()} - DOCKER_NON_RESTARTABLE_SERVICES
+
+
+def _docker_service_state(service: str) -> dict:
+    rc, container_id, stderr = _run_cmd(
+        _docker_compose_command("ps", "-q", service),
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    container_id = container_id.strip()
+    if rc != 0 or not container_id:
+        return {"running": False, "health": "missing", "error": stderr.strip()}
+    rc, stdout, stderr = _run_cmd(
+        ["docker", "inspect", "--format", "{{json .State}}", container_id],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        return {"running": False, "health": "inspect_failed", "container_id": container_id, "error": stderr.strip()}
+    try:
+        state = json.loads(stdout)
+    except json.JSONDecodeError:
+        return {"running": False, "health": "inspect_invalid", "container_id": container_id, "error": stdout.strip()}
+    health = str((state.get("Health") or {}).get("Status") or "none")
+    return {
+        "running": bool(state.get("Running")),
+        "health": health,
+        "container_id": container_id[:12],
+        "status": str(state.get("Status") or "unknown"),
+    }
+
+
+def wait_for_docker_services_healthy(services: list[str], *, timeout: int, poll: int, heartbeat=None) -> dict:
+    deadline = time.time() + max(0, timeout)
+    poll = max(1, poll)
+    states = {}
+    while True:
+        states = {service: _docker_service_state(service) for service in services}
+        if all(state.get("running") and state.get("health") in {"healthy", "none"} for state in states.values()):
+            return states
+        if heartbeat:
+            heartbeat()
+        if time.time() >= deadline:
+            summary = ", ".join(
+                f"{service}={state.get('status', 'missing')}/{state.get('health', 'unknown')}"
+                for service, state in states.items()
+            )
+            raise RuntimeError(f"Docker health verification timed out: {summary}")
+        time.sleep(min(poll, max(1, int(deadline - time.time()))))
+
+
+def _run_cmd_with_heartbeat(command: list[str], *, cwd: str, timeout: int, heartbeat, interval: int = 60):
+    stop = threading.Event()
+    heartbeat_errors = []
+
+    def renew() -> None:
+        while not stop.wait(max(0.01, interval)):
+            try:
+                heartbeat()
+            except Exception as exc:
+                heartbeat_errors.append(exc)
+                stop.set()
+
+    thread = threading.Thread(target=renew, name="docker-lock-heartbeat", daemon=True)
+    thread.start()
+    try:
+        result = _run_cmd(command, cwd=cwd, timeout=timeout)
+    finally:
+        stop.set()
+        thread.join(timeout=2)
+    if heartbeat_errors:
+        raise RuntimeError(f"Docker lock heartbeat failed: {heartbeat_errors[0]}")
+    return result
+
+
+def cmd_docker_restart(args: argparse.Namespace) -> None:
+    """Drain dependent tests, restart allowlisted services, and verify health."""
+    services = sorted(set(args.service))
+    available = available_docker_services()
+    invalid = sorted(set(services) - available)
+    if invalid:
+        raise RuntimeError(
+            f"Services are not restartable: {', '.join(invalid)}. "
+            f"Available services: {', '.join(sorted(available))}"
+        )
+
+    operation = request_docker_restart(args.session, services)
+    lock_acquired = False
+    try:
+        _wait_and_acquire_session_lock(
+            "docker_rebuild",
+            args.session,
+            phase="draining_tests",
+            timeout=args.timeout,
+            poll=args.poll,
+            heartbeat=lambda: update_docker_operation(operation["id"], "queued"),
+        )
+        lock_acquired = True
+
+        def heartbeat() -> None:
+            _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
+            update_docker_operation(operation["id"], "draining_tests")
+
+        wait_for_docker_test_leases(
+            operation["id"],
+            timeout=args.timeout,
+            poll=args.poll,
+            heartbeat=heartbeat,
+        )
+        update_docker_operation(operation["id"], "restarting", waiting_for_tests=[])
+        _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
+        compose_args = ["up", "-d", "--build", *services] if getattr(args, "build", False) else ["restart", *services]
+        rc, stdout, stderr = _run_cmd_with_heartbeat(
+            _docker_compose_command(*compose_args),
+            cwd=str(CONTROL_PLANE_ROOT),
+            timeout=max(120, args.timeout),
+            heartbeat=lambda: (
+                _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                update_docker_operation(operation["id"], "restarting"),
+            ),
+        )
+        if rc != 0:
+            raise RuntimeError((stderr or stdout or "Docker Compose restart failed").strip())
+        update_docker_operation(operation["id"], "verifying")
+        _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
+        health = wait_for_docker_services_healthy(
+            services,
+            timeout=args.health_timeout,
+            poll=args.poll,
+            heartbeat=lambda: (
+                _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
+                update_docker_operation(operation["id"], "verifying"),
+            ),
+        )
+        completed = update_docker_operation(operation["id"], "completed", health=health)
+        print(
+            f"Docker restart {completed['id']} completed for {', '.join(services)}; "
+            "all services are running and healthy."
+        )
+    except Exception as exc:
+        try:
+            update_docker_operation(operation["id"], "failed", error=str(exc))
+        except Exception:
+            pass
+        raise
+    finally:
+        if lock_acquired:
+            _release_session_lock("docker_rebuild", released_by=args.session)
+
+
+def cmd_docker(args: argparse.Namespace) -> None:
+    try:
+        if args.docker_action == "restart":
+            cmd_docker_restart(args)
+            return
+    except RuntimeError as exc:
+        print(f"Docker operation failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+    raise RuntimeError(f"Unknown Docker action: {args.docker_action}")
+
+
 def _active_lock_snapshot(lock_type: str) -> dict:
     """Return the active lock snapshot, or an empty dict when available/stale."""
     data = _load_sessions()
@@ -5844,6 +6311,7 @@ def _wait_and_acquire_session_lock(
     phase: str = "",
     timeout: int | None = None,
     poll: int = 30,
+    heartbeat=None,
 ) -> bool:
     """Wait for a shared lock and acquire it in the same loop to avoid races."""
     if timeout is None:
@@ -5858,6 +6326,8 @@ def _wait_and_acquire_session_lock(
             return _acquire_session_lock(lock_type, session_id, commit_sha=commit_sha, phase=phase)
         except RuntimeError as exc:
             last_error = str(exc)
+            if heartbeat:
+                heartbeat()
 
         now = time.time()
         if now >= deadline:
@@ -9528,6 +9998,35 @@ def main() -> None:
         if action != "release-task":
             p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
+    p_docker = sub.add_parser("docker", help="Run coordinated Docker operations")
+    p_docker_sub = p_docker.add_subparsers(dest="docker_action", required=True)
+    p_docker_restart = p_docker_sub.add_parser("restart", help="Drain dependent tests and restart services")
+    p_docker_restart.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_restart.add_argument(
+        "--service",
+        action="append",
+        required=True,
+        help="Compose service to restart; repeat for multiple services",
+    )
+    p_docker_restart.add_argument(
+        "--build",
+        action="store_true",
+        help="Rebuild images and recreate services with Compose up -d --build",
+    )
+    p_docker_restart.add_argument(
+        "--timeout",
+        type=int,
+        default=DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+        help="Seconds to wait for the Docker lock and dependent tests",
+    )
+    p_docker_restart.add_argument("--poll", type=int, default=5, help="Seconds between lease and health checks")
+    p_docker_restart.add_argument(
+        "--health-timeout",
+        type=int,
+        default=DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS,
+        help="Seconds to wait for restarted services to become healthy",
+    )
+
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
     p_worktree_ensure = p_worktree_sub.add_parser("ensure", help="Create or show this session's worktree")
@@ -10024,6 +10523,7 @@ def main() -> None:
         "edit-lease": cmd_edit_lease,
         "stale-read": cmd_stale_read,
         "presence": cmd_presence,
+        "docker": cmd_docker,
         "worktree": cmd_worktree,
         "lock": cmd_lock,
         "unlock": cmd_unlock,

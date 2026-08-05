@@ -42,7 +42,7 @@ Since OPE-342 there are no per-app sync containers — every skill runs in-proce
 1. Create `backend/apps/{name}/` with `app.yml`, `skills/`, and any providers.
 2. Restart `api` (and any worker that needs the app):
    ```bash
-   docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart api
+   python3 scripts/sessions.py docker restart --session <ID> --service api
    ```
 3. That's it. No `docker-compose.yml` edit. No new container.
 
@@ -52,12 +52,10 @@ The api startup logs will show `[SkillRegistry] Registered app '<name>' with N r
 
 ```bash
 # Example: only api changed
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d api
+python3 scripts/sessions.py docker restart --session <ID> --build --service api
 
 # Example: api + task-worker changed
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api task-worker && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d api task-worker
+python3 scripts/sessions.py docker restart --session <ID> --build --service api --service task-worker
 ```
 
 ### Full stack rebuild (only when necessary)
@@ -69,12 +67,7 @@ Only do a full teardown + rebuild when:
 - You changed environment variables or Docker configs
 - Something is broken and you need a clean slate
 
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
-docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
-```
+The session restart command intentionally does not expose `down` or volume deletion. Those operations require an explicit operator maintenance window after dependent tests have been stopped; do not run them from an ordinary agent session.
 
 After restarting, verify the affected services are healthy:
 

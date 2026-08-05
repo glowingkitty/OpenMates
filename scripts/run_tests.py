@@ -64,6 +64,11 @@ from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+try:
+    from scripts import sessions as session_control
+except ModuleNotFoundError:
+    import sessions as session_control
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -6782,6 +6787,29 @@ class TestOrchestrator:
 # CLI
 # ---------------------------------------------------------------------------
 
+
+def _run_with_dev_stack_lease(args, callback):
+    production_mode = bool(
+        args.environment == "production"
+        or args.hourly_prod
+        or args.prod_free_hourly
+        or args.prod_paid_chat
+        or args.prod_app_skill
+    )
+    if production_mode or args.dry_run or os.environ.get("OPENMATES_DOCKER_TEST_LEASE_HELD") == "1":
+        return callback()
+    lease_id = f"runner-{os.getpid()}-{int(time.time())}"
+    owner = os.environ.get("OPENCODE_SESSION_ID", "local-test-runner")
+    session_control.acquire_test_resource_lease(
+        lease_id,
+        owner,
+        {session_control.DOCKER_RESOURCE_DEV_STACK},
+    )
+    try:
+        return callback()
+    finally:
+        session_control.release_test_resource_lease(lease_id)
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="OpenMates unified test orchestrator",
@@ -6922,7 +6950,10 @@ def main() -> int:
             _log("Another --hourly-dev run is in progress — skipping this hour")
             return 0
         try:
-            return run_hourly_dev_mode(NotificationService(), force=args.force)
+            return _run_with_dev_stack_lease(
+                args,
+                lambda: run_hourly_dev_mode(NotificationService(), force=args.force),
+            )
         finally:
             if lock_fd:
                 lock_fd.close()
@@ -6982,7 +7013,7 @@ def main() -> int:
 
     try:
         orchestrator = TestOrchestrator(args)
-        return orchestrator.run()
+        return _run_with_dev_stack_lease(args, orchestrator.run)
     finally:
         if lock_fd:
             lock_fd.close()

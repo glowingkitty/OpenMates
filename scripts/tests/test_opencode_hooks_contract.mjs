@@ -133,7 +133,13 @@ test("bash guard allows source file references that are not writes", async () =>
 test("bash guard blocks Docker Compose mutations without the Docker lock", async () => {
   await assert.rejects(
     () => runBeforeShell("docker compose -f backend/core/docker-compose.yml restart api"),
-    /Reason: Docker Compose mutations require.*Next: run python3 scripts\/sessions\.py lock/,
+    /Reason: Docker Compose restart can interrupt.*Next: run python3 scripts\/sessions\.py docker restart/,
+  );
+});
+
+test("bash guard allows the orchestrated Docker restart command", async () => {
+  await assert.doesNotReject(() =>
+    runBeforeShell("python3 scripts/sessions.py docker restart --session abcd --service api"),
   );
 });
 
@@ -149,6 +155,21 @@ test("Docker mutation decision allows the current session's Docker lock", () => 
       data,
     }),
     { decision: "allow", message: "Docker lock held by this session" },
+  );
+});
+
+test("Docker mutation decision blocks disruptive up even with the current session lock", () => {
+  const data = {
+    locks: { docker_rebuild: { status: "IN_PROGRESS", claimed_by: "abcd" } },
+    sessions: { abcd: { opencode_session_id: "test-session" } },
+  };
+  assert.equal(
+    pluginModule.dockerMutationDecisionForTest({
+      command: "docker compose build api && docker compose up -d api",
+      sessionID: "test-session",
+      data,
+    }).decision,
+    "block",
   );
 });
 
@@ -214,6 +235,13 @@ test("bash guard still blocks actual raw git commands", async () => {
 test("bash guard allows canonical tests.py Vitest wrapper", async () => {
   await assert.doesNotReject(() => runBeforeShell("python3 scripts/tests.py run --suite vitest"));
   await assert.doesNotReject(() => runBeforeShell("python3 scripts/tests.py run -- --suite vitest"));
+});
+
+test("bash guard blocks direct run_tests.py execution", async () => {
+  await assert.rejects(
+    () => runBeforeShell("python3 scripts/run_tests.py --spec chat-flow.spec.ts"),
+    /Reason: direct run_tests.py bypasses Docker resource leases.*Next: run python3 scripts\/tests\.py run/,
+  );
 });
 
 test("bash guard still blocks forbidden local tests in chained commands", async () => {

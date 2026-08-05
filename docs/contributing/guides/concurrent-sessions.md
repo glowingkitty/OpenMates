@@ -184,38 +184,29 @@ server or an external model.
 
 ---
 
-## Lock Protocol
+## Docker Restart Protocol
 
-Locks prevent multiple sessions from performing the same infrastructure operation simultaneously.
+Coordinated restarts prevent infrastructure changes from interrupting tests that depend on the local dev stack.
 
-### Lock Types
-
-| Lock                          | When to use                                    |
-| ----------------------------- | ---------------------------------------------- |
-| `docker` (→ `docker_rebuild`) | Before rebuilding/restarting Docker containers |
-| `vercel` (→ `vercel_deploy`)  | Diagnostics for an active root commit/push gate |
-
-### Acquiring a Lock
+### Restarting Services
 
 ```bash
-python3 scripts/sessions.py lock --session <ID> --type docker
+python3 scripts/sessions.py docker restart --session <ID> --service api
+python3 scripts/sessions.py docker restart --session <ID> --build --service api --service task-worker
 ```
 
-- If the lock is free → acquired
-- If held by another session for <5 minutes → **BLOCKED** (exit code 1). Wait and retry.
-- If held for >5 minutes → treated as stale, automatically taken over with a warning.
+- New Playwright, CLI, and aggregate runs wait once a restart is queued.
+- Already-running dependent tests drain before Compose changes containers.
+- The command acquires, heartbeats, and releases the Docker lock automatically.
+- Completion requires every selected service to be running and healthy.
+- `sessions.py status` shows active test leases, restart progress, and recent outcomes.
+- Crashed test/restart owners are detected so stale work cannot block the stack indefinitely.
 
-### Releasing a Lock
-
-```bash
-python3 scripts/sessions.py unlock --session <ID> --type docker
-```
-
-**Release locks immediately** after the operation completes.
+Manual `lock/unlock` remains available for non-restart Docker maintenance. Raw Compose restarts are rejected by the OpenCode hook because they bypass test draining and health evidence.
 
 ### Why Locks Matter
 
-Simultaneous Docker rebuilds can:
+Uncoordinated Docker rebuilds can:
 
 - Cause services to restart mid-operation, breaking other sessions' API calls
 - Create race conditions where one rebuild overwrites another's container state

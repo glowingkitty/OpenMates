@@ -51,3 +51,22 @@ def test_single_session_view_follows_identity_chain():
     assert view["session"]["repository_session_id"] == "a111"
     assert view["session"]["opencode_session_id"] == "ses-stream"
     assert view["session"]["worktree"]["status"] == "active"
+
+
+def test_infrastructure_view_exposes_active_and_recent_docker_operations():
+    durable, presence = fixtures()
+    durable["infrastructure"] = {
+        "test_leases": {
+            "run-1": {"lease_id": "run-1", "owner": "tests", "resources": ["dev-stack"]},
+        },
+        "docker_operations": [
+            {"id": "docker-old", "status": "completed", "services": ["cms"], "completed_at": "2026-08-05T08:00:00Z"},
+            {"id": "docker-live", "status": "draining_tests", "services": ["api"], "session_id": "a111"},
+        ],
+    }
+
+    view = sessions.presence_status_view(durable, presence)
+
+    assert view["infrastructure"]["active_docker_operation"]["id"] == "docker-live"
+    assert view["infrastructure"]["test_leases"][0]["lease_id"] == "run-1"
+    assert view["infrastructure"]["recent_docker_operations"][0]["id"] == "docker-old"

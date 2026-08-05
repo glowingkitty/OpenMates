@@ -36,6 +36,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    from scripts import sessions as session_control
+except ModuleNotFoundError:
+    import sessions as session_control
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "test-results"
@@ -2605,6 +2610,22 @@ def run_targets_playwright(args: list[str]) -> bool:
     )
 
 
+def docker_resources_for_run(args: list[str]) -> set[str]:
+    """Return host Docker resources required for the selected test run."""
+    suite, _tests = infer_run_suite_and_tests(args)
+    if run_targets_playwright(args) or suite in {"all", "cli"}:
+        return {session_control.DOCKER_RESOURCE_DEV_STACK}
+    return set()
+
+
+def acquire_docker_test_lease(lease_id: str, owner: str, resources: set[str]) -> None:
+    session_control.acquire_test_resource_lease(lease_id, owner, resources)
+
+
+def release_docker_test_lease(lease_id: str) -> None:
+    session_control.release_test_resource_lease(lease_id)
+
+
 def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int = 10) -> list[str]:
     failures: list[str] = []
     for url in urls:
@@ -2762,11 +2783,25 @@ def command_run(runner_args: list[str]) -> int:
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+    resources = docker_resources_for_run(options.forwarded_args)
+    docker_lease_id = f"test-{uuid.uuid4().hex[:12]}" if resources else ""
+    if docker_lease_id:
+        try:
+            acquire_docker_test_lease(
+                docker_lease_id,
+                os.environ.get("OPENCODE_SESSION_ID", "manual"),
+                resources,
+            )
+        except RuntimeError as exc:
+            print(f"Test dispatch blocked by Docker restart coordination: {exc}", file=sys.stderr)
+            return 2
     if options.gate_deploy:
         try:
             run_e2e_deploy_gate(options)
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
+            if docker_lease_id:
+                release_docker_test_lease(docker_lease_id)
             return 2
     try:
         preflight_test_control_plane()
@@ -2776,10 +2811,14 @@ def command_run(runner_args: list[str]) -> int:
             f"{exc}",
             file=sys.stderr,
         )
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
         return 2
 
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
     run_env = os.environ.copy()
+    if docker_lease_id:
+        run_env["OPENMATES_DOCKER_TEST_LEASE_HELD"] = "1"
     seeded_failed_files = seeded_only_failed_files_from_lease(active_lease, options.forwarded_args)
     if selected_test_labels:
         run_env["OPENMATES_CAMPAIGN_TEST_LABELS_JSON"] = json.dumps(selected_test_labels)
@@ -2787,27 +2826,31 @@ def command_run(runner_args: list[str]) -> int:
             seeded_failed_files = selected_test_labels
     if seeded_failed_files:
         run_env["OPENMATES_ONLY_FAILED_FILES_JSON"] = json.dumps(seeded_failed_files)
-    if selected_test_keys:
-        mark_test_keys_running(selected_test_keys, command=["python3", "scripts/tests.py", "run", *runner_args])
-    else:
-        suite, tests = infer_run_suite_and_tests(options.forwarded_args)
-        mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
-    artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
-    result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
-    recorded_commit = record_latest_run_artifact(
-        expected_commit=options.expected_commit,
-        since_mtime=artifact_start_mtime,
-        requested_test_keys=selected_test_keys or None,
-        campaign_key=options.campaign_key,
-        debug_group_key=options.debug_group_key,
-    )
-    if not recorded_commit:
-        return 2 if options.expected_commit else result.returncode
-    if options.campaign_key:
-        artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
-        if artifacts:
-            add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
-    return result.returncode
+    try:
+        if selected_test_keys:
+            mark_test_keys_running(selected_test_keys, command=["python3", "scripts/tests.py", "run", *runner_args])
+        else:
+            suite, tests = infer_run_suite_and_tests(options.forwarded_args)
+            mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
+        artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
+        result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
+        recorded_commit = record_latest_run_artifact(
+            expected_commit=options.expected_commit,
+            since_mtime=artifact_start_mtime,
+            requested_test_keys=selected_test_keys or None,
+            campaign_key=options.campaign_key,
+            debug_group_key=options.debug_group_key,
+        )
+        if not recorded_commit:
+            return 2 if options.expected_commit else result.returncode
+        if options.campaign_key:
+            artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
+            if artifacts:
+                add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
+        return result.returncode
+    finally:
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
 
 
 def main(argv: list[str] | None = None) -> int:

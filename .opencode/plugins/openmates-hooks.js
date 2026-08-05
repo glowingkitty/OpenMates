@@ -35,6 +35,7 @@ const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
 const DOCKER_LOCK_MARKER = "[OpenMates Docker lock guard]";
 const DOCKER_COMPOSE_MUTATIONS = new Set(["build", "down", "kill", "restart", "rm", "start", "stop", "up"]);
+const DOCKER_DISRUPTIVE_ACTIONS = new Set(["down", "kill", "restart", "rm", "stop", "up"]);
 const COMPOSE_OPTIONS_WITH_VALUES = new Set(["-f", "--file", "--env-file", "-p", "--project-name", "--profile", "--project-directory"]);
 const CLI_AUTH_ERROR_PATTERNS = [
   /Authentication failed\. Run [`']openmates login[`'] to re-authenticate\./i,
@@ -775,19 +776,22 @@ function composeActionFromArgs(args, startIndex) {
 }
 
 function dockerComposeMutation(command) {
+  const actions = new Set();
   for (const tokens of commandSegmentTokens(command.replace(/\\\s*\n/g, " "))) {
     const invocation = normalizedInvocation(tokens);
     const { command: commandName, args } = invocation;
     if (commandName === "docker-compose") {
-      if (DOCKER_COMPOSE_MUTATIONS.has(composeActionFromArgs(args, 0))) return true;
+      const action = composeActionFromArgs(args, 0);
+      if (DOCKER_COMPOSE_MUTATIONS.has(action)) actions.add(action);
       continue;
     }
     if (commandName !== "docker") continue;
     const composeIndex = args.findIndex((arg) => basename(arg) === "compose");
     if (composeIndex === -1) continue;
-    if (DOCKER_COMPOSE_MUTATIONS.has(composeActionFromArgs(args, composeIndex + 1))) return true;
+    const action = composeActionFromArgs(args, composeIndex + 1);
+    if (DOCKER_COMPOSE_MUTATIONS.has(action)) actions.add(action);
   }
-  return false;
+  return [...actions];
 }
 
 function sessionHasDockerLock(sessionID, data = sessionsData()) {
@@ -798,16 +802,28 @@ function sessionHasDockerLock(sessionID, data = sessionsData()) {
 }
 
 export function dockerMutationDecisionForTest({ command = "", sessionID = "", data = null } = {}) {
-  if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
-  if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
+  const actions = dockerComposeMutation(command);
+  if (actions.length === 0) return { decision: "allow", message: "not a Docker Compose mutation" };
   const record = activeSessionRecord(sessionID, data || sessionsData());
   const shortID = record?.id || "<id>";
+  const disruptive = actions.filter((action) => DOCKER_DISRUPTIVE_ACTIONS.has(action));
+  if (disruptive.length > 0) {
+    return {
+      decision: "block",
+      message: actionable(
+        DOCKER_LOCK_MARKER,
+        `Docker Compose ${disruptive.join("/")} can interrupt dependent tests and must record health evidence.`,
+        `run python3 scripts/sessions.py docker restart --session ${shortID} --service <service> (repeat --service for multiple containers; add --build instead of raw up --build).`,
+      ),
+    };
+  }
+  if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
   return {
     decision: "block",
     message: actionable(
       DOCKER_LOCK_MARKER,
       "Docker Compose mutations require the current sessions.py Docker lock.",
-      `run python3 scripts/sessions.py lock --session ${shortID} --type docker, retry once, then release immediately with python3 scripts/sessions.py unlock --session ${shortID} --type docker.`,
+      `run python3 scripts/sessions.py docker restart --session ${shortID} --service <service> for restarts; for other mutations, acquire and release the Docker lock.`,
     ),
   };
 }
@@ -834,6 +850,12 @@ function guardForbiddenLocalTests(command) {
     const { command: commandName, args } = invocation;
     const firstArg = firstNonOption(args);
     const secondArg = firstNonOption(args.slice(args.indexOf(firstArg) + 1));
+
+    const directRunTests = commandName === "run_tests.py" ||
+      (["python", "python3"].includes(commandName) && basename(firstArg) === "run_tests.py");
+    if (directRunTests) {
+      throw new Error(actionable("[OpenMates test command guard]", "direct run_tests.py bypasses Docker resource leases and the test control plane.", "run python3 scripts/tests.py run with the same arguments."));
+    }
 
     if (commandName === "vitest") {
       throw new Error(actionable("[OpenMates test command guard]", "direct local Vitest bypasses the test control plane.", "run python3 scripts/tests.py run --suite vitest."));

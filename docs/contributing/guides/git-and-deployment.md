@@ -119,19 +119,17 @@ For ad-hoc fixes without a formal issue ID, the Symptom/Cause/Fix block is still
 
 **If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services.
 
-**Concurrent Session Check (CRITICAL):** Before rebuilding, check the Docker Rebuild Lock via `sessions.py`:
+**Concurrent Session Check (CRITICAL):** Rebuild and restart through `sessions.py`:
 
-1. Run `python3 scripts/sessions.py status` → check for active Docker locks
-2. If another session holds the lock → wait 30s, re-check, repeat
-3. If no lock is held → acquire with `python3 scripts/sessions.py lock --session <ID> --type docker`
-4. Rebuild and restart, then **release the lock immediately** with `unlock`
+1. Run `python3 scripts/sessions.py status` to inspect active tests and Docker operations.
+2. Run `python3 scripts/sessions.py docker restart --session <ID> --build --service <service>`.
+3. Repeat `--service` for each affected service. The command drains dependent tests, manages the lock, and verifies health.
 
 See `docs/contributing/guides/concurrent-sessions.md` for the full lock protocol.
 
 ```bash
-# Rebuild specific services
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build <services> && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d <services>
+# Rebuild and restart specific services
+python3 scripts/sessions.py docker restart --session <ID> --build --service api --service task-worker
 ```
 
 | Files Modified                | Services to Rebuild                         |

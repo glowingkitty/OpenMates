@@ -673,3 +673,39 @@ def test_command_run_falls_back_to_timestamped_run_artifact(tmp_path, monkeypatc
 
     assert tests_control.command_run(["--suite", "pytest"]) == 0
     assert recorded_run_ids == ["2026-06-19T05:00:02Z", "2026-06-19T05:00:02Z"]
+
+
+def test_docker_resources_only_cover_dev_stack_dependent_runs(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    assert tests_control.docker_resources_for_run(["--spec", "chat-flow.spec.ts"]) == {"dev-stack"}
+    assert tests_control.docker_resources_for_run(["--suite", "playwright"]) == {"dev-stack"}
+    assert tests_control.docker_resources_for_run(["--suite", "cli"]) == {"dev-stack"}
+    assert tests_control.docker_resources_for_run(["--suite", "pytest"]) == set()
+    assert tests_control.docker_resources_for_run(["--suite", "vitest"]) == set()
+
+
+def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
+    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
+    monkeypatch.setattr(tests_control, "mark_running", lambda **_kwargs: None)
+    monkeypatch.setattr(tests_control, "record_latest_run_artifact", lambda **_kwargs: "")
+    acquired = []
+    released = []
+    monkeypatch.setattr(
+        tests_control,
+        "acquire_docker_test_lease",
+        lambda lease_id, owner, resources: acquired.append((lease_id, owner, resources)),
+    )
+    monkeypatch.setattr(tests_control, "release_docker_test_lease", lambda lease_id: released.append(lease_id))
+    monkeypatch.setattr(
+        tests_control.subprocess,
+        "run",
+        lambda command, cwd=None, env=None: tests_control.subprocess.CompletedProcess(command, 1),
+    )
+
+    assert tests_control.command_run(["--suite", "cli"]) == 1
+    assert len(acquired) == 1
+    assert acquired[0][2] == {"dev-stack"}
+    assert released == [acquired[0][0]]

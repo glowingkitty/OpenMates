@@ -110,6 +110,8 @@ def test_command_run_invokes_runner_without_env_directus_token(monkeypatch, tmp_
 
     monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
     monkeypatch.setattr(tests_control.DirectusTestControlStore, "_request", fake_request)
+    monkeypatch.setattr(tests_control, "acquire_docker_test_lease", lambda *_args: None)
+    monkeypatch.setattr(tests_control, "release_docker_test_lease", lambda *_args: None)
 
     result = tests_control.command_run(["--spec", "settings-privacy-pii-deep-link.spec.ts"])
 
