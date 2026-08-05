@@ -1108,7 +1108,7 @@
         
         if (editor && content) {
             // ChatHistory owns stream coalescing; apply each canonical document immediately.
-            const shouldApplyIncrementally = isStreaming || hasStreamingDocument;
+            const shouldApplyIncrementally = isStreaming || hasStreamingDocument || hasEmbedUpdate;
             if (isStreaming) hasStreamingDocument = true;
             const newProcessedContent = processContent(content);
             const currentEditorContent = editor.getJSON();
@@ -1119,8 +1119,10 @@
                     logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
                 }
 
-                // During streaming but with locale/embed update: use full replacement
-                const forceFullReplace = localeChanged || !!hasEmbedUpdate;
+                // Embed metadata changes must preserve stable NodeViews. Re-parsing can
+                // update node attrs incrementally, while embed-store subscriptions
+                // resolve content that does not alter the document itself.
+                const forceFullReplace = localeChanged;
                 applyContentUpdate(newProcessedContent, shouldApplyIncrementally, forceFullReplace, isStreaming);
             }
             if (!isStreaming) hasStreamingDocument = false;
