@@ -548,17 +548,46 @@ function isReadOnlyChildBash(command) {
   const readOnlyCommands = new Set(["pgrep", "ps", "pwd"]);
   const readOnlyGitCommands = new Set(["diff", "log", "show", "status"]);
   const readOnlyDockerCommands = new Set(["inspect", "logs", "ps", "stats", "top"]);
-  const readOnlySessionCommands = new Set(["context", "doctor", "status", "summary"]);
-  const readOnlyDebugOptions = {
-    chat: new Set(["--decrypt", "--dev", "--embeds-limit", "--json", "--messages-limit", "--no-cache", "--production", "--share-key", "--share-password", "--share-url", "--usage-limit"]),
-    logs: new Set(["--browser", "--device", "--level", "--max-rows", "--o2", "--preset", "--prod", "--query-json", "--quiet-health", "--search", "--since"]),
+  const readOnlyDebugSpecs = {
+    chat: { booleanOptions: new Set(), valueOptions: new Set(), positional: 1 },
+    issue: { booleanOptions: new Set(["--production", "--timeline"]), valueOptions: new Set(), positional: 1 },
+    logs: { booleanOptions: new Set(["--o2"]), valueOptions: new Set(["--query-json"]), positional: 0 },
   };
-  const debugCommandIsReadOnly = (action, args) => {
-    const options = readOnlyDebugOptions[action];
-    return Boolean(options) && args.every((arg) => !arg.startsWith("-") || options.has(arg.split("=", 1)[0]));
+  const readOnlyIssueSpecs = {
+    show: { booleanOptions: new Set(), valueOptions: new Set(["--env"]), positional: 1 },
+    timeline: { booleanOptions: new Set(["--compact"]), valueOptions: new Set(["--env"]), positional: 1 },
+  };
+  const argumentsMatch = (args, spec) => {
+    if (!spec) return false;
+    let positional = 0;
+    for (let index = 0; index < args.length; index += 1) {
+      const arg = args[index];
+      if (!arg.startsWith("-")) {
+        positional += 1;
+        continue;
+      }
+      const option = arg.split("=", 1)[0];
+      if (spec.booleanOptions.has(option)) continue;
+      if (!spec.valueOptions.has(option)) return false;
+      if (arg.includes("=")) {
+        if (arg.slice(arg.indexOf("=") + 1).startsWith("-")) return false;
+      } else {
+        index += 1;
+        if (index >= args.length || args[index].startsWith("-")) return false;
+      }
+    }
+    return positional === spec.positional;
+  };
+  const debugCommandIsReadOnly = (action, args) => argumentsMatch(args, readOnlyDebugSpecs[action]);
+  const issueCommandIsReadOnly = (args) => {
+    if (args.length === 1 && ["-h", "--help"].includes(args[0])) return true;
+    const action = args[0];
+    return argumentsMatch(args.slice(1), readOnlyIssueSpecs[action]);
   };
 
   return commandSegmentTokens(command.replace(/\\\s*\n/g, " ")).every((tokens) => {
+    const directScript = unquote(tokens[0] || "").replace(/^\.\//, "");
+    if (directScript === "scripts/issues.py") return issueCommandIsReadOnly(tokens.slice(1));
     const invocation = normalizedInvocation(tokens);
     const commandName = invocation.command;
     const args = invocation.args;
@@ -568,21 +597,17 @@ function isReadOnlyChildBash(command) {
       return !writesOutput && readOnlyGitCommands.has(firstNonOption(args));
     }
     if (commandName === "docker") {
-      const action = firstNonOption(args);
+      const action = args[0];
       if (readOnlyDockerCommands.has(action)) return true;
       if (action !== "exec") return false;
-      const debugIndex = args.findIndex((arg) => basename(arg) === "debug.py");
-      if (debugIndex < 0) return false;
-      return debugCommandIsReadOnly(basename(args[debugIndex + 1]), args.slice(debugIndex + 2));
+      if (args[1] !== "api" || !["python", "python3"].includes(basename(args[2])) || args[3] !== "/app/backend/scripts/debug.py") return false;
+      return debugCommandIsReadOnly(args[4], args.slice(5));
     }
     if (["python", "python3"].includes(commandName)) {
-      const scriptIndex = args.findIndex((arg) => ["debug.py", "sessions.py"].includes(basename(arg)));
-      if (scriptIndex < 0) return false;
-      const script = basename(args[scriptIndex]);
-      const action = basename(args[scriptIndex + 1]);
-      if (script === "debug.py") return debugCommandIsReadOnly(action, args.slice(scriptIndex + 2));
-      if (readOnlySessionCommands.has(action)) return true;
-      return action === "presence" && basename(args[scriptIndex + 2]) === "show";
+      const script = unquote(args[0] || "").replace(/^\.\//, "");
+      if (script === "scripts/issues.py") return issueCommandIsReadOnly(args.slice(1));
+      if (script === "scripts/sessions.py") return args.length === 2 && ["-h", "--help"].includes(args[1]);
+      return false;
     }
     return false;
   });

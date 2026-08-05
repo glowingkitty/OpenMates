@@ -66,6 +66,13 @@ test("inherited children can run known read-only shell diagnostics", () => {
     "git status --short",
     "docker exec api python /app/backend/scripts/debug.py chat synthetic-chat-id",
     "docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json '{}'",
+    "docker exec api python /app/backend/scripts/debug.py issue synthetic-id --production",
+    "docker exec api python /app/backend/scripts/debug.py issue synthetic-id --timeline --production",
+    "python3 scripts/issues.py show synthetic-id --env prod",
+    "python3 scripts/issues.py timeline synthetic-id --env prod --compact",
+    "python3 scripts/issues.py --help",
+    "./scripts/issues.py show synthetic-id --env prod",
+    "python3 scripts/sessions.py --help",
   ];
   for (const command of commands) {
     assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "allow");
@@ -84,6 +91,20 @@ test("inherited children can run known read-only shell diagnostics", () => {
     "docker exec api python /app/backend/scripts/debug.py logs --upload-update",
     "docker exec api python /app/backend/scripts/debug.py logs --preview-update",
     "docker exec api python /app/backend/scripts/debug.py chat synthetic-id --repair-messages-v",
+    "python3 scripts/issues.py findings synthetic-id --env prod",
+    "./scripts/issues.py mark synthetic-id --env prod --status resolved",
+    "python3 scripts/issues.py link synthetic-id --github issue-url",
+    "python3 -c 'from pathlib import Path; Path(\"scripts/child-write.py\").write_text(\"x\")' scripts/issues.py show synthetic-id",
+    "python3 -m scripts.issues show synthetic-id",
+    "python3 - scripts/issues.py show synthetic-id",
+    "docker exec api python -c 'print(1)' /app/backend/scripts/debug.py issue synthetic-id --production",
+    "python3 scripts/issues.py show synthetic-id --unknown-write-flag",
+    "python3 scripts/issues.py show synthetic-id --env --unknown-write-flag",
+    "python3 scripts/issues.py show synthetic-id --env=--unknown-write-flag",
+    "python3 scripts/sessions.py --help --unknown-write-flag",
+    "./other/issues.py show synthetic-id --env prod",
+    "docker exec api python /app/backend/scripts/debug.py logs --query-json --upload-update",
+    "docker exec api python /app/backend/scripts/debug.py logs --query-json=--upload-update",
   ]) {
     assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "block");
   }
