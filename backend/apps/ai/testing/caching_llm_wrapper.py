@@ -57,6 +57,7 @@ _TOOL_EMBED_REF_LINE_RE = re.compile(
 _RESULTS_VIEW_BLOCK_RE = re.compile(r"```embeds_results_view\s*\n(.*?)```", re.DOTALL)
 _RESULTS_VIEW_EMBEDS_LINE_RE = re.compile(r"(?m)^[ \t]*embeds:[ \t]*(.+?)[ \t]*$")
 _INLINE_EMBED_LINK_RE = re.compile(rf"\(embed:({_EMBED_REF_TOKEN})\)")
+_RANDOM_EMBED_REF_SUFFIX_RE = re.compile(r"[A-Za-z0-9]{3}")
 
 
 def wrap_provider_with_cache(
@@ -198,16 +199,16 @@ def _remap_compatible_fallback_embed_refs(response_data: Any, messages: Any) -> 
         return response_data
 
     current_refs = _extract_tool_message_embed_refs(messages)
-    if len(current_refs) != len(cached_refs):
+    replacements = _match_current_embed_refs(cached_refs, current_refs)
+    if replacements is None:
         logger.warning(
             "[LiveMock] Compatible LLM fallback cannot safely remap %d cached embed refs "
-            "to %d current tool refs because counts differ; replaying stale refs visibly",
+            "to %d current tool refs; replaying stale refs visibly",
             len(cached_refs),
             len(current_refs),
         )
         return response_data
 
-    replacements = dict(zip(cached_refs, current_refs))
     remapped = copy.deepcopy(response_data)
     remapped["body"] = _replace_embed_ref_tokens(response_body, replacements)
 
@@ -226,6 +227,33 @@ def _remap_compatible_fallback_embed_refs(response_data: Any, messages: Any) -> 
             offset += original_length
 
     return remapped
+
+
+def _match_current_embed_refs(cached_refs: list[str], current_refs: list[str]) -> dict[str, str] | None:
+    if len(current_refs) < len(cached_refs):
+        return None
+
+    current_refs_by_prefix: dict[str, list[str]] = {}
+    for current_ref in current_refs:
+        current_refs_by_prefix.setdefault(_stable_embed_ref_prefix(current_ref), []).append(current_ref)
+
+    replacements: dict[str, str] = {}
+    used_current_refs: set[str] = set()
+    for cached_ref in cached_refs:
+        candidates = current_refs_by_prefix.get(_stable_embed_ref_prefix(cached_ref), [])
+        if len(candidates) != 1 or candidates[0] in used_current_refs:
+            return None
+        replacements[cached_ref] = candidates[0]
+        used_current_refs.add(candidates[0])
+    return replacements
+
+
+def _stable_embed_ref_prefix(embed_ref: str) -> str:
+    prefix, separator, suffix = embed_ref.rpartition("-")
+    # A domain identifies a source, not a specific website/news result.
+    if separator and prefix and "." not in prefix and _RANDOM_EMBED_REF_SUFFIX_RE.fullmatch(suffix):
+        return prefix
+    return embed_ref
 
 
 def _extract_tool_message_embed_refs(messages: Any) -> list[str]:

@@ -196,28 +196,29 @@ def test_compatible_fallback_remaps_stale_embed_refs_in_body_and_mixed_text_chun
     response_data = {
         "type": "mixed_stream",
         "body": (
-            "```embeds_results_view\nembeds: stale-one-AAA, stale-two-BBB\n```\n"
-            "[First](embed:stale-one-AAA) [Second](embed:stale-two-BBB)"
+            "```embeds_results_view\nembeds: event-one-A1A, event-two-B2B\n```\n"
+            "[First](embed:event-one-A1A) [Second](embed:event-two-B2B)"
         ),
         "chunks": [
-            {"kind": "text", "value": "```embeds_results_view\nembeds: stale-one-A"},
-            {"kind": "text", "value": "AA, stale-two-BBB\n```\n[First](embed:stale-one-AAA) "},
-            {"kind": "text", "value": "[Second](embed:stale-two-BBB)"},
+            {"kind": "text", "value": "```embeds_results_view\nembeds: event-one-A"},
+            {"kind": "text", "value": "1A, event-two-B2B\n```\n[First](embed:event-one-A1A) "},
+            {"kind": "text", "value": "[Second](embed:event-two-B2B)"},
         ],
     }
     original = copy.deepcopy(response_data)
     messages = [{
         "role": "tool",
-        "content": "results[2]:\n  - embed_ref: fresh-one-111\n  - embed_ref: fresh-two-222",
+        "content": "results[2]:\n  - embed_ref: event-two-C3C\n  - embed_ref: event-one-D4D",
     }]
 
     chunks = asyncio.run(_replay(FakeFallbackCache(response_data), messages))
     replayed = "".join(chunk for chunk in chunks if isinstance(chunk, str))
 
-    assert "embeds: fresh-one-111, fresh-two-222" in replayed
-    assert "(embed:fresh-one-111)" in replayed
-    assert "(embed:fresh-two-222)" in replayed
-    assert "stale-" not in replayed
+    assert "embeds: event-one-D4D, event-two-C3C" in replayed
+    assert "(embed:event-one-D4D)" in replayed
+    assert "(embed:event-two-C3C)" in replayed
+    assert "-A1A" not in replayed
+    assert "-B2B" not in replayed
     assert response_data == original
 
 
@@ -225,20 +226,20 @@ def test_compatible_fallback_preserves_duplicate_embed_refs():
     response_data = {
         "type": "stream",
         "body": (
-            "```embeds_results_view\nembeds: stale-one-AAA, stale-one-AAA, stale-two-BBB\n```\n"
-            "[First](embed:stale-one-AAA)"
+            "```embeds_results_view\nembeds: event-one-AAA, event-one-AAA, event-two-BBB\n```\n"
+            "[First](embed:event-one-AAA)"
         ),
     }
     messages = [{
         "role": "tool",
-        "content": "embed_ref: fresh-one-111\nembed_ref: fresh-one-111\nembed_ref: fresh-two-222",
+        "content": "embed_ref: event-one-111\nembed_ref: event-one-111\nembed_ref: event-two-222",
     }]
 
     replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
 
-    assert replayed.count("fresh-one-111") == 3
-    assert replayed.count("fresh-two-222") == 1
-    assert "stale-" not in replayed
+    assert replayed.count("event-one-111") == 3
+    assert replayed.count("event-two-222") == 1
+    assert "event-one-AAA" not in replayed
 
 
 def test_exact_cache_hit_does_not_remap_embed_refs():
@@ -268,20 +269,64 @@ def test_compatible_fallback_leaves_unmatched_refs_visible_and_warns(caplog):
     assert "cannot safely remap" in caplog.text
 
 
-def test_compatible_fallback_rejects_extra_current_refs_and_warns(caplog):
+def test_compatible_fallback_remaps_matching_subset_when_current_refs_include_extras():
     response_data = {
         "type": "stream",
-        "body": "```embeds_results_view\nembeds: stale-one-AAA\n```",
+        "body": (
+            "```embeds_results_view\n"
+            "embeds: matching-event-one-AAA, matching-event-two-BBB\n"
+            "```"
+        ),
     }
     messages = [{
         "role": "tool",
-        "content": "embed_ref: fresh-one-111\nembed_ref: unrelated-extra-222",
+        "content": (
+            "embed_ref: unrelated-event-CCC\n"
+            "embed_ref: matching-event-one-DDD\n"
+            "embed_ref: another-unrelated-event-EEE\n"
+            "embed_ref: matching-event-two-FFF"
+        ),
     }]
 
     replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
 
-    assert "stale-one-AAA" in replayed
-    assert "fresh-one-111" not in replayed
+    assert "embeds: matching-event-one-DDD, matching-event-two-FFF" in replayed
+    assert "-AAA" not in replayed
+    assert "-BBB" not in replayed
+
+
+def test_compatible_fallback_leaves_ambiguous_prefix_matches_visible_and_warns(caplog):
+    response_data = {
+        "type": "stream",
+        "body": "```embeds_results_view\nembeds: matching-event-AAA\n```",
+    }
+    messages = [{
+        "role": "tool",
+        "content": (
+            "embed_ref: matching-event-BBB\n"
+            "embed_ref: matching-event-CCC"
+        ),
+    }]
+
+    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
+
+    assert "matching-event-AAA" in replayed
+    assert "matching-event-BBB" not in replayed
+    assert "matching-event-CCC" not in replayed
+    assert "cannot safely remap" in caplog.text
+
+
+def test_compatible_fallback_does_not_treat_a_domain_as_result_identity(caplog):
+    response_data = {
+        "type": "stream",
+        "body": "```embeds_results_view\nembeds: example.com-A1A\n```",
+    }
+    messages = [{"role": "tool", "content": "embed_ref: example.com-B2B"}]
+
+    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
+
+    assert "example.com-A1A" in replayed
+    assert "example.com-B2B" not in replayed
     assert "cannot safely remap" in caplog.text
 
 
