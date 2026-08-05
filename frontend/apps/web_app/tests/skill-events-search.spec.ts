@@ -204,7 +204,7 @@ test.describe('App: Events / Skill: search', () => {
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
-		logCheckpoint(`Resolved final grouped view contains ${finalGroupedCardCount} event embeds.`);
+		logCheckpoint(`Resolved non-streaming final grouped view contains ${finalGroupedCardCount} event embeds.`);
 
 		const stabilityProbe = await page.evaluate(() => {
 			const value = crypto.randomUUID();
