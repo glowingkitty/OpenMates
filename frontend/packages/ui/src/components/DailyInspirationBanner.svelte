@@ -3929,9 +3929,9 @@
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {
-      width: min(100%, 220px);
-      height: 100%;
-      max-width: 220px;
+      width: min(100%, 180px);
+      height: min(100%, 150px);
+      max-width: 180px;
       margin: 0 auto;
     }
 
