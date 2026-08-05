@@ -669,6 +669,32 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
     const prodSshHelper = `${PROJECT_ROOT}/scripts/prod-ssh.sh`;
     const routedWorktree = resolve(worktreePath);
+    const prodSshPaths = new Set([
+      "./scripts/prod-ssh.sh",
+      "scripts/prod-ssh.sh",
+      `${routedWorktree}/scripts/prod-ssh.sh`,
+      prodSshHelper,
+    ]);
+    const commandSegments = commandSegmentTokens(command);
+    const prodSshSegment = commandSegments.findIndex((tokens) => {
+      let index = 0;
+      while (index < tokens.length && isAssignment(tokens[index])) index += 1;
+      return prodSshPaths.has(shellUnescape(tokens[index]));
+    });
+    const prodSshTokens = prodSshSegment >= 0 ? commandSegments[prodSshSegment] : [];
+    const simpleProdSshInvocation = prodSshTokens.length === 2
+      && prodSshPaths.has(shellUnescape(prodSshTokens[0]))
+      && ["close", "open", "status"].includes(shellUnescape(prodSshTokens[1]));
+    const safeFeeder = commandSegments.length === 2
+      && ["echo", "printf"].includes(shellUnescape(commandSegments[0][0]))
+      && (command.match(/\|/g) || []).length === 1;
+    const unsafeControlSyntax = /[;<>&\n]/.test(command)
+      || ["$(", "`", "<(", ">("].some((token) => command.includes(token));
+    const prodSshControlPlane = prodSshSegment === commandSegments.length - 1
+      && prodSshSegment >= 0
+      && simpleProdSshInvocation
+      && (commandSegments.length === 1 || safeFeeder)
+      && !unsafeControlSyntax;
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree
@@ -692,7 +718,7 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, command, workdir: worktreePath };
+    return { ...input, command, workdir: prodSshControlPlane ? PROJECT_ROOT : worktreePath };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };

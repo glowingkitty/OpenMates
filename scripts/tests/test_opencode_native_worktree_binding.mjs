@@ -76,28 +76,45 @@ test("bash always receives the resolved worktree as its real workdir", () => {
 });
 
 test("prod SSH helper routes through its root control-plane copy", () => {
-  const relativeCommand = 'printf "%s\\n" "<TOTP>" | ./scripts/prod-ssh.sh open';
+  const relativeCommand = 'printf "%s\\n" "000000" | ./scripts/prod-ssh.sh open';
   const relative = routeLocalToolArgsForTest("bash", { command: relativeCommand }, WORKTREE);
-  assert.equal(relative.workdir, WORKTREE);
+  assert.equal(relative.workdir, ROOT);
   assert.equal(relative.command, relativeCommand);
 
-  const rootedCommand = 'printf "%s\\n" "<TOTP>" | /home/superdev/projects/OpenMates/scripts/prod-ssh.sh open';
+  const rootedCommand = 'printf "%s\\n" "000000" | /home/superdev/projects/OpenMates/scripts/prod-ssh.sh open';
   const rooted = routeLocalToolArgsForTest(
     "bash",
     { command: rootedCommand },
     WORKTREE,
   );
   assert.equal(rooted.command, rootedCommand);
+  assert.equal(rooted.workdir, ROOT);
 
   for (const command of [
     "./scripts/prod-ssh.sh status",
     "  ./scripts/prod-ssh.sh status",
-    "PROD_SSH_PERSIST=5m ./scripts/prod-ssh.sh status",
-    "true && ./scripts/prod-ssh.sh status",
-    "false || ./scripts/prod-ssh.sh status",
+    "echo 000000 | ./scripts/prod-ssh.sh open",
     `${WORKTREE}/scripts/prod-ssh.sh status`,
   ]) {
-    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).command, command);
+    const routed = routeLocalToolArgsForTest("bash", { command }, WORKTREE);
+    assert.equal(routed.command, command);
+    assert.equal(routed.workdir, ROOT);
+  }
+  for (const command of [
+    "./scripts/prod-ssh.sh status > .env",
+    "./scripts/prod-ssh.sh status 2> .env",
+    "./scripts/prod-ssh.sh status > $HOME/projects/OpenMates/.env",
+    "true > .env; ./scripts/prod-ssh.sh status",
+    "PROD_SSH_PERSIST=5m ./scripts/prod-ssh.sh status",
+    "true && ./scripts/prod-ssh.sh status",
+    "./scripts/prod-ssh.sh status &",
+    "./scripts/prod-ssh.sh status extra",
+    "X=y echo 000000 | ./scripts/prod-ssh.sh open",
+    "env X=y echo 000000 | ./scripts/prod-ssh.sh open",
+    "command echo 000000 | ./scripts/prod-ssh.sh open",
+    "builtin printf 000000 | ./scripts/prod-ssh.sh open",
+  ]) {
+    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).workdir, WORKTREE);
   }
 
   for (const command of [
@@ -106,7 +123,9 @@ test("prod SSH helper routes through its root control-plane copy", () => {
     "printf '%s' '| ./scripts/prod-ssh.sh'",
     "printf '%s' 'line one\n./scripts/prod-ssh.sh'",
   ]) {
-    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).command, command);
+    const routed = routeLocalToolArgsForTest("bash", { command }, WORKTREE);
+    assert.equal(routed.command, command);
+    assert.equal(routed.workdir, WORKTREE);
   }
   for (const command of [
     "test -f /home/superdev/projects/OpenMates/scripts/prod-ssh.sh",
