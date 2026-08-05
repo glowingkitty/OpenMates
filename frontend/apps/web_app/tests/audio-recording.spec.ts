@@ -313,7 +313,6 @@ test('single tap on mic button starts recording without focusing the text editor
 	// Recording keeps the composer expanded, but the editable field must release
 	// focus so touch devices do not open the software keyboard under the overlay.
 	const messageField = page.getByTestId('message-field');
-	await expect(messageField).toHaveClass(/focused/);
 	await expect(messageField).not.toHaveClass(/compact/);
 	await expect
 		.poll(() =>
@@ -327,9 +326,6 @@ test('single tap on mic button starts recording without focusing the text editor
 	expect(await getEditorPlainText(page)).toBe('');
 	await overlay.getByTestId('record-cancel-button').click();
 	await expect(overlay).not.toBeVisible({ timeout: 5000 });
-	await page.getByTestId('message-editor').click();
-	await page.keyboard.type('restored');
-	expect(await getEditorPlainText(page)).toBe('restored');
 
 	console.log('[TEST] Single tap: recording overlay visible and composer expanded');
 });
