@@ -237,15 +237,15 @@ attempts:
 
 handoff:
   current_task_id: TASK-8
-  next_action: Notify the dependent OpenCode chat that the routing prerequisite is complete.
+  next_action: Implementation complete; the dependent agent-presence-coordination chat has resumed its executable spec.
   command: python3 scripts/sessions.py status --json
   expected_outcome: New and resumed Web chats keep their root URL while all mapped local tools and children route into the original session worktree.
   blocker:
     task_id: TASK-8
     requires_user_input: false
-    reason: Root-hosted verification and independent user confirmation passed; completion waits only for the dependent handoff.
+    reason: ""
     question: ""
-    next_action: Send one completion message to the dependent OpenCode session and record delivery.
+    next_action: ""
   last_verified_commit: 4d8befa45efaf783f7d56f06738f36ad7eb175ee
 
 dependencies:
@@ -659,13 +659,14 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-9, AC-10]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
-      actor: implementation
-      next_action: Send the completion follow-up to OpenCode session ses_0337a6457ffeHABo226rQNyQw4 and record successful delivery.
+      status: passed
+      summary: Completion message delivered to OpenCode session ses_0337a6457ffeHABo226rQNyQw4 through the local prompt_async API; the dependent chat acknowledged commit 4d8befa45 and resumed the agent-presence-coordination executable spec.
+      reason: The dependent implementation was intentionally held until routing, restart, isolation, deploy, review, and user-confirmation gates completed.
+      timestamp: "2026-08-05T00:14:52Z"
+      actor: OpenCode
+      next_action: Dependent chat proceeds independently.
 
 implementation_plan:
   spec_path: docs/specs/opencode-native-worktree-binding/spec.yml
@@ -811,7 +812,7 @@ tasks:
     independently_deployable: false
   - id: TASK-8
     title: Notify the dependent OpenCode implementation chat
-    status: in_progress
+    status: done
     phase: running_checks
     covers: {scenarios: [S-8], acceptance_criteria: [AC-9, AC-10]}
     expected_files: [docs/specs/opencode-native-worktree-binding/spec.yml]
