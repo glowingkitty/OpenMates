@@ -15755,7 +15755,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         container-name: chat-side;
     }
 
-    .chat-side.welcome :global(.chat-history-container.empty) {
+    .chat-side.welcome :global(.chat-history-wrapper) {
         pointer-events: none;
     }
 
