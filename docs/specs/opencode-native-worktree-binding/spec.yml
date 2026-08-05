@@ -92,7 +92,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff
+  subject_commit: 4d8befa45efaf783f7d56f06738f36ad7eb175ee
 
 approvals:
   product_contract:
@@ -236,17 +236,17 @@ attempts:
     reason: Review found missed repeat-deploy reverts/deletions, cross-worktree absolute-path access, and a post-push local-sync metadata dead end; focused guards and tests were required.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Implement stateless root-hosted routing, verify parent and child tools plus restart recovery, then run a normal New session Web pilot.
+  current_task_id: TASK-8
+  next_action: Notify the dependent OpenCode chat that the routing prerequisite is complete.
   command: python3 scripts/sessions.py status --json
   expected_outcome: New and resumed Web chats keep their root URL while all mapped local tools and children route into the original session worktree.
   blocker:
-    task_id: TASK-4
+    task_id: TASK-8
     requires_user_input: false
-    reason: User approved root-hosted hook-enforced routing on 2026-08-04; final rollout still waits for restart recovery and user confirmation.
+    reason: Root-hosted verification and independent user confirmation passed; completion waits only for the dependent handoff.
     question: ""
-    next_action: Verify the root URL remains stable while parent and child tools route into one worktree before and after server restart.
-  last_verified_commit: b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff
+    next_action: Send one completion message to the dependent OpenCode session and record delivery.
+  last_verified_commit: 4d8befa45efaf783f7d56f06738f36ad7eb175ee
 
 dependencies:
   - id: agent-worktree-deploy
@@ -338,7 +338,7 @@ acceptance_criteria:
     scenario: S-1
     text: New mutating Web chats retain their root URL while hooks route relative file, search, and Bash operations into the session worktree before source edits.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-BINDING, T-LIVE-OPENCODE]
@@ -354,7 +354,7 @@ acceptance_criteria:
     scenario: S-3
     text: Missing, stale, pending, and migrated routing states keep reads and lifecycle recovery available while blocking only unresolved source mutation.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-BINDING, T-PYTEST-LIFECYCLE, V-PILOT-REVIEW]
@@ -370,7 +370,7 @@ acceptance_criteria:
     scenario: S-5
     text: A new child resolves its top-level parent's worktree and sees parent changes through relative tools and forced Bash workdir.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-LIVE-OPENCODE]
@@ -378,7 +378,7 @@ acceptance_criteria:
     scenario: S-9
     text: After an OpenCode restart, the same root-addressed chat reconstructs routing and continues in its original worktree without manual rebinding.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-BINDING, T-LIVE-OPENCODE, V-PILOT-REVIEW]
@@ -386,7 +386,7 @@ acceptance_criteria:
     scenario: S-3
     text: Always-loaded instructions describe routed worktree behavior, and every hook rejection labels the reason and exact next permitted action.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-BINDING, T-SCOPE-AUDIT]
@@ -452,10 +452,12 @@ assumptions:
     text: Root-hosted routing can be reconstructed after server restart without plugin-local state or persisted runtime binding.
     category: runtime
     required_before: implementation
-    status: checking
+    status: confirmed
     evidence:
       - source: scripts/tests/test_opencode_native_worktree_binding.mjs
         summary: Resolver reconstruction is stateless in unit coverage; live server restart remains the final assumption gate.
+      - source: live OpenCode Web restart pilot at 4d8befa45
+        summary: The same root-addressed chat resumed after restart; parent and child Bash both ran in agent-b26c, environment identity matched, and cross-worktree access was rejected.
   - id: A-4
     text: Bootstrap can provide required prerequisites in bounded time using caches without root mutation.
     category: tooling
@@ -535,7 +537,7 @@ tests:
       - preserve reads and lifecycle repair when mutation routing is unresolved
       - every rejection includes Reason and Next guidance
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: "local-red-root-hosted-routing", subject_commit: "85f0582b642f1e6b6b97a6db56f3d9f490fa945c", timestamp: "2026-08-04T22:40:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --test scripts/tests/test_opencode_native_worktree_binding.mjs scripts/tests/test_opencode_hooks_contract.mjs", run_id: "local-final-routing-37", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-PYTEST-LIFECYCLE
     type: pytest
     file: scripts/tests/test_sessions_native_worktree_lifecycle.py
@@ -546,7 +548,7 @@ tests:
       - repeated sessions.py start reuses the existing OpenCode mapping and worktree after restart
       - managed worktrees cannot be nested beneath managed worktrees
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-red-routing-repair", subject_commit: "85f0582b642f1e6b6b97a6db56f3d9f490fa945c", timestamp: "2026-08-04T22:40:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py", run_id: "local-final-lifecycle-6", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-PYTEST-BOOTSTRAP
     type: pytest
     file: scripts/tests/test_sessions_worktree_bootstrap.py
@@ -556,7 +558,7 @@ tests:
       - bootstrap is idempotent and bounded and makes a scoped lint probe executable
       - root dependencies remain unchanged and bootstrap failure cannot report routed-ready
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-red-worktree-bootstrap", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-green-worktree-bootstrap", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py", run_id: "local-final-worktree-regression-68", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-LIVE-OPENCODE
     type: unit
     file: scripts/verify_opencode_native_worktree.py
@@ -568,7 +570,7 @@ tests:
       - live Web pilot proves root-addressed parent and child tools use the routed worktree while root stays clean
       - finally cleanup removes only synthetic state
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 scripts/verify_opencode_native_worktree.py --isolated", run_id: "local-red-live-opencode", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T13:30:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_opencode_native_worktree.py --isolated", run_id: "local-green-live-opencode", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "live OpenCode Web restart pilot: parent pwd, Task child pwd, routed env, cross-worktree rejection", run_id: "live-root-hosted-restart-4d8befa", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-PYTEST-INTEGRATION
     type: pytest
     file: scripts/tests/test_sessions_integration_worktree.py
@@ -580,7 +582,7 @@ tests:
       - gates and commit use integration cwd and all pre-push failures leave root/source/dev unchanged
       - after a successful push, local dev fast-forwards to the deployed commit without discarding unrelated dirty files
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-red-integration-worktree", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:45:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-green-integration-worktree", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_worktree.py", run_id: "local-final-integration-6", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-PYTEST-INTEGRATION-CONCURRENCY
     type: pytest
     file: scripts/tests/test_sessions_integration_concurrency.py
@@ -591,7 +593,7 @@ tests:
       - advanced dev rebuilds and reruns invalidated gates without force push
       - conflict records a blocked item and leaves dev unchanged
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_integration_concurrency.py", run_id: "local-red-integration-concurrency", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:45:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_concurrency.py", run_id: "local-green-integration-concurrency", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_integration_concurrency.py", run_id: "local-final-worktree-regression-68", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-PYTEST-RECONCILIATION
     type: pytest
     file: scripts/tests/test_sessions_native_worktree_reconciliation.py
@@ -602,7 +604,7 @@ tests:
       - nested worktrees remain visible and completed integrations leave no orphan metadata
       - cleanup preserves unique or uncertain source work
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: "local-red-native-reconciliation", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T19:55:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: "local-green-native-reconciliation", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: "local-final-worktree-regression-68", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-REGRESSION-WORKTREE
     type: pytest
     file: scripts/tests/test_sessions_worktree_deploy.py
@@ -612,7 +614,7 @@ tests:
       - existing isolation, guards, selection, finalization, reconciliation, and readiness remain green
       - modified_files remains advisory and grandfathered sessions retain a deploy path
     red_phase: {required: false, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_edit_leases.py scripts/tests/test_sessions_stale_read.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py", run_id: "local-green-worktree-regression", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_bootstrap.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_integration_concurrency.py scripts/tests/test_sessions_native_worktree_reconciliation.py scripts/tests/test_sessions_native_worktree_lifecycle.py scripts/tests/test_sessions_worktree_lifecycle.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_edit_leases.py scripts/tests/test_sessions_stale_read.py scripts/tests/test_sessions_worktree_finalization.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_worktree_pr_readiness.py", run_id: "local-final-worktree-regression-68", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
   - id: T-SCOPE-AUDIT
     type: unit
     file: scripts/audit_native_worktree_scope.py
@@ -623,7 +625,7 @@ tests:
       - no presence reducer, storage, lifecycle subscription, or collision-delivery behavior is implemented by this spec
       - agent-worktree-deploy safety outcomes remain referenced by regression verification
     red_phase: {required: true, expected: fail, evidence: {status: failed, command: "git cat-file -e eb6139578acf84908d23d68eb9e8cdf299e8f3f1:scripts/audit_native_worktree_scope.py", run_id: "local-red-scope-audit-missing", subject_commit: "eb6139578acf84908d23d68eb9e8cdf299e8f3f1", timestamp: "2026-08-04T20:00:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_native_worktree_scope.py", run_id: "local-green-scope-audit", subject_commit: "b66da1f7e6604769f6b0ef09fbb72f7b80ca75ff", timestamp: "2026-08-04T20:35:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_native_worktree_scope.py", run_id: "local-final-scope-audit", subject_commit: "4d8befa45efaf783f7d56f06738f36ad7eb175ee", timestamp: "2026-08-05T00:04:59Z"}}
 
 verifications:
   - id: V-PILOT-REVIEW
@@ -631,25 +633,27 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-3]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
-      actor: ""
-      next_action: Review bounded pilot success, fallback reasons, bootstrap duration, child inheritance, nested attempts, and root mutations before strict mode.
+      status: passed
+      summary: Root-addressed parent and child tools routed to agent-b26c after restart; root-selected workdir was overridden, cross-worktree access was rejected, repeated amendments deployed from merged_commit, local dev reached the pushed commit, and selected root files remained clean.
+      reason: The final deployed commit passed live restart, child inheritance, root cleanliness, repeat-deploy, and isolation review without fallback.
+      timestamp: "2026-08-05T00:04:59Z"
+      actor: OpenCode
+      next_action: Obtain explicit user confirmation.
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
     required_for_done: true
     covers: [AC-1, AC-3, AC-5, AC-6, AC-7]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      summary: User continued a separate pre-existing root-addressed OpenCode chat at ses_031239773ffetmRQERqEUZ0RjJ; pwd reported its own /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-045f route without chat movement or replacement.
+      reason: Independent user-observed continuation confirms the workflow beyond the implementation chat used for the primary pilot.
+      timestamp: "2026-08-05T00:12:10Z"
       actor: user
-      next_action: Confirm real root-addressed chats route parent and child tools into one worktree across restart and failed deploys no longer contaminate root.
+      next_action: Notify the dependent OpenCode chat.
   - id: V-DEPENDENT-HANDOFF
     kind: artifact_review
     phase: final
@@ -755,7 +759,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Replace session movement with restart-safe root-hosted routing
-    status: in_progress
+    status: done
     phase: running_checks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-9], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-11]}
     expected_files: [.opencode/plugins/openmates-hooks.js, scripts/sessions.py, docs/contributing/guides/agent-workflow-core.md, .claude/rules/session-lifecycle.md, docs/specs/opencode-native-worktree-binding/spec.yml]
@@ -794,7 +798,7 @@ tasks:
     independently_deployable: true
   - id: TASK-7
     title: Run regressions, update presence dependency, and confirm workflow
-    status: pending
+    status: done
     phase: running_checks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
     expected_files: [scripts/audit_native_worktree_scope.py, docs/specs/agent-presence-coordination/spec.yml, docs/specs/opencode-native-worktree-binding/spec.yml]
@@ -807,7 +811,7 @@ tasks:
     independently_deployable: false
   - id: TASK-8
     title: Notify the dependent OpenCode implementation chat
-    status: pending
+    status: in_progress
     phase: running_checks
     covers: {scenarios: [S-8], acceptance_criteria: [AC-9, AC-10]}
     expected_files: [docs/specs/opencode-native-worktree-binding/spec.yml]
