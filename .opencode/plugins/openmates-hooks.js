@@ -745,6 +745,31 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
       && (directProdSshInvocation || (prodSshOpenInvocation && safeFeeder))
       && (!hasTopLevelSeparator || safeFeeder)
       && !unsafeControlSyntax;
+    const staleCodeSegment = commandSegments.findIndex((tokens) => (
+      ["python", "python3"].includes(shellUnescape(tokens[0]))
+      && shellUnescape(tokens[1]) === "scripts/stale_code_daily.py"
+    ));
+    const staleCodeTokens = staleCodeSegment >= 0 ? commandSegments[staleCodeSegment] : [];
+    const staleCodeArgs = staleCodeTokens.slice(2);
+    let staleCodeArgsSafe = staleCodeArgs.includes("--dry-run-notify");
+    for (let index = 0; index < staleCodeArgs.length && staleCodeArgsSafe; index += 1) {
+      if (staleCodeArgs[index] === "--dry-run-notify") continue;
+      if (staleCodeArgs[index] === "--limit" && /^\d+$/.test(staleCodeArgs[index + 1] || "")) {
+        index += 1;
+        continue;
+      }
+      staleCodeArgsSafe = false;
+    }
+    const staleCodeReportControlPlane = staleCodeTokens.length >= 3
+      && commandSegments.length === 1
+      && ["python", "python3"].includes(shellUnescape(staleCodeTokens[0]))
+      && shellUnescape(staleCodeTokens[1]) === "scripts/stale_code_daily.py"
+      && staleCodeArgsSafe
+      && !hasTopLevelSeparator
+      && !unsafeControlSyntax;
+    if (staleCodeSegment >= 0 && !staleCodeReportControlPlane) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: stale-code report generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/stale_code_daily.py --dry-run-notify with an optional numeric --limit.`);
+    }
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree
@@ -768,7 +793,7 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, command, workdir: prodSshControlPlane ? PROJECT_ROOT : worktreePath };
+    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane) ? PROJECT_ROOT : worktreePath };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };

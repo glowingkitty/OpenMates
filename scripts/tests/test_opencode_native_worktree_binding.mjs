@@ -7,7 +7,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -148,6 +148,31 @@ test("prod SSH helper routes through its root control-plane copy", () => {
   assert.match(prodSshSource, /CONTROL_PLANE_ROOT/);
   assert.doesNotMatch(prodSshSource, /OPENMATES_CONTROL_PLANE_ROOT/);
   assert.match(prodSshSource, /Unable to resolve root control-plane checkout/);
+});
+
+test("stale-code report generation uses the current root control plane", () => {
+  assert.equal(existsSync(join(ROOT, "scripts", "stale_code_daily.py")), true);
+  for (const command of [
+    "python3 scripts/stale_code_daily.py --dry-run-notify",
+    "python3 scripts/stale_code_daily.py --limit 25 --dry-run-notify",
+  ]) {
+    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).workdir, ROOT);
+  }
+  for (const command of [
+    "python3 scripts/stale_code_daily.py",
+    "python3 scripts/stale_code_daily.py --install-cron",
+    "python3 scripts/stale_code_daily.py --dry-run-notify > report.json",
+    "python3 scripts/stale_code_daily.py --root /tmp --dry-run-notify",
+    "python3 scripts/stale_code_daily.py --output-dir /tmp --dry-run-notify",
+    "python3 scripts/stale_code_daily.py --dry-run-notify && true",
+    'python3 scripts/stale_code_daily.py --dry-run-notify "$(touch injected)"',
+    "python3 scripts/stale_code_daily.py --root .. --dry-run-notify",
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest("bash", { command }, WORKTREE),
+      /only the report-only dry-run form is allowed/,
+    );
+  }
 });
 
 test("root absolute paths in shell commands are rejected with an actionable alternative", () => {
