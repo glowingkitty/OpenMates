@@ -1075,9 +1075,15 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		* resume state. The UI shows "Resume last chat?" above new chat suggestions,
 		* and the user can click to resume or start fresh.
 		*/
-	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => {
+	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string | null}>) => {
 		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
+		if (!targetChatId) {
+			console.info('[Chats] Phase 1 resume UI skipped because no last chat was provided');
+			await updateChatListFromDB();
+			syncInspirationLoginFallback();
+			return;
+		}
 
 		// DEFENSE-IN-DEPTH: If a chat is already active in the store, skip the entire
 		// Phase 1 resume-card population. The user is viewing a chat (loaded via URL hash,
