@@ -288,6 +288,62 @@ def test_vitest_artifact_records_the_failed_test_file(tmp_path):
     assert tests[0]["file"] == "frontend/packages/ui/src/chat/chat.test.ts"
 
 
+def test_unit_artifact_counts_vitest_collection_failures_and_node_cli_tests(tmp_path):
+    run_tests = load_run_tests_module()
+    (tmp_path / "vitest-ui.json").write_text(
+        json.dumps({
+            "success": False,
+            "testResults": [
+                {
+                    "name": "frontend/packages/ui/src/chat/chat.test.ts",
+                    "status": "passed",
+                    "assertionResults": [{"fullName": "chat renders", "status": "passed", "duration": 5}],
+                },
+                {
+                    "name": "frontend/packages/ui/src/files/file.test.ts",
+                    "status": "failed",
+                    "message": "document is not defined",
+                    "assertionResults": [],
+                },
+            ],
+        }),
+        encoding="utf-8",
+    )
+    (tmp_path / "cli-account-import-tests.txt").write_text(
+        "  ✔ parses an account archive (3.5ms)\n"
+        "  ✖ rejects a corrupt archive (1.25ms)\n"
+        "ℹ tests 2\n",
+        encoding="utf-8",
+    )
+
+    tests = run_tests.TestOrchestrator._parse_unit_test_artifact(tmp_path, "vitest")
+
+    assert [(test["name"], test["status"]) for test in tests] == [
+        ("chat renders", "passed"),
+        ("frontend/packages/ui/src/files/file.test.ts", "failed"),
+        ("parses an account archive", "passed"),
+        ("rejects a corrupt archive", "failed"),
+    ]
+    assert tests[1]["error"] == "document is not defined"
+    assert tests[2]["duration_seconds"] == 0.004
+    assert "file" not in tests[2]
+
+
+def test_unit_artifact_reports_incomplete_node_cli_result_parsing(tmp_path):
+    run_tests = load_run_tests_module()
+    (tmp_path / "cli-account-import-tests.txt").write_text(
+        "  ✔ parses an account archive (3.5ms)\n"
+        "unrecognized reporter output\n"
+        "ℹ tests 2\n",
+        encoding="utf-8",
+    )
+
+    tests = run_tests.TestOrchestrator._parse_unit_test_artifact(tmp_path, "vitest")
+
+    assert tests[-1]["status"] == "failed"
+    assert tests[-1]["error"] == "Parsed 1 of 2 Node test results"
+
+
 def test_failed_unit_workflow_is_not_masked_by_passing_partial_artifact(monkeypatch, tmp_path):
     run_tests = load_run_tests_module()
     orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)

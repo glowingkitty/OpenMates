@@ -6199,7 +6199,8 @@ class TestOrchestrator:
             # Vitest format: { testResults: [{ assertionResults: [...] }] }
             if "testResults" in data:
                 for tf in data.get("testResults", []):
-                    for ar in tf.get("assertionResults", []):
+                    assertion_results = tf.get("assertionResults", [])
+                    for ar in assertion_results:
                         name = ar.get("fullName", ar.get("title", "unknown"))
                         status = "passed" if ar.get("status") == "passed" else "failed"
                         test_dur = ar.get("duration", 0) / 1000.0
@@ -6215,6 +6216,15 @@ class TestOrchestrator:
                             if msgs:
                                 entry["error"] = msgs[0][:MAX_ERROR_SNIPPET]
                         all_tests.append(entry)
+                    if tf.get("status") == "failed" and not assertion_results:
+                        name = tf.get("name", "unknown")
+                        all_tests.append({
+                            "name": name,
+                            "file": name,
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": str(tf.get("message") or "Vitest suite failed during collection")[:MAX_ERROR_SNIPPET],
+                        })
 
             # Pytest-json-report format: { tests: [{ nodeid, outcome, call: { longrepr } }] }
             elif "tests" in data:
@@ -6233,6 +6243,39 @@ class TestOrchestrator:
                         if longrepr:
                             entry["error"] = str(longrepr)[:MAX_ERROR_SNIPPET]
                     all_tests.append(entry)
+
+        for txt_file in sorted(art_path.rglob("cli-account-import-tests.txt")):
+            try:
+                content = txt_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            parsed_node_tests = 0
+            expected_node_tests = None
+            for line in content.splitlines():
+                summary_match = re.match(r"^ℹ tests (\d+)$", line)
+                if summary_match:
+                    expected_node_tests = int(summary_match.group(1))
+                    continue
+                match = re.match(r"^\s{2}([✔✖])\s+(.+?)\s+\(([\d.]+)ms\)$", line)
+                if not match:
+                    continue
+                parsed_node_tests += 1
+                status = "passed" if match.group(1) == "✔" else "failed"
+                entry = {
+                    "name": match.group(2),
+                    "status": status,
+                    "duration_seconds": round(float(match.group(3)) / 1000, 3),
+                }
+                if status == "failed":
+                    entry["error"] = "Node test failed; see cli-account-import-tests.txt"
+                all_tests.append(entry)
+            if expected_node_tests is not None and parsed_node_tests != expected_node_tests:
+                all_tests.append({
+                    "name": "cli-account-import-results",
+                    "status": "failed",
+                    "duration_seconds": 0,
+                    "error": f"Parsed {parsed_node_tests} of {expected_node_tests} Node test results",
+                })
 
         # Fallback: parse pytest verbose text output (test::name PASSED/FAILED lines)
         if not all_tests:
