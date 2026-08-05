@@ -216,7 +216,7 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 								chat_id: body.client_chat_id,
 								message_id: assistantMessageId,
 								user_message_id: body.client_message_id,
-								full_content_so_far: 'Partial anonymous stream',
+								full_content_so_far: 'Partial anonymous stream with [anonymous event](embed:anonymous-event-ref)',
 								sequence: 1,
 								is_final_chunk: false,
 								model_name: 'test-model'
@@ -228,7 +228,7 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 								chat_id: body.client_chat_id,
 								message_id: assistantMessageId,
 								user_message_id: body.client_message_id,
-								full_content_so_far: 'Partial anonymous stream complete',
+								full_content_so_far: 'Partial anonymous stream with [anonymous event](embed:anonymous-event-ref) complete',
 								sequence: 2,
 								is_final_chunk: true,
 								model_name: 'test-model'
@@ -633,6 +633,11 @@ test.describe('Anonymous free chat', () => {
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream' })).toBeVisible({
 			timeout: 5000
 		});
+		const streamingInlineRef = page.getByRole('link', { name: 'anonymous event' });
+		await expect(streamingInlineRef).toBeVisible({ timeout: 5000 });
+		await expect(
+			page.getByTestId('message-content').filter({ has: streamingInlineRef })
+		).toHaveAttribute('data-streaming', 'true');
 		await expect(
 			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
 		).toHaveCount(0);
@@ -641,6 +646,10 @@ test.describe('Anonymous free chat', () => {
 			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
 		).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 5000 });
+		await expect(streamingInlineRef).toBeVisible();
+		await expect(
+			page.getByTestId('message-content').filter({ has: streamingInlineRef })
+		).toHaveAttribute('data-streaming', 'false');
 		const headerSummary = page.getByTestId('chat-header-summary');
 		await expect(headerSummary).toContainText('Anonymous streaming lifecycle completed', {
 			timeout: 5000

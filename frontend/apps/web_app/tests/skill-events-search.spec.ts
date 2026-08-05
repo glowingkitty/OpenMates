@@ -189,10 +189,17 @@ test.describe('App: Events / Skill: search', () => {
 			.filter({ has: page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE }) })
 			.last();
 		await expect(embed).toBeVisible({ timeout: 60_000 });
+		const streamingMessageContent = page
+			.getByTestId('message-content')
+			.filter({ has: embed });
+		await expect(streamingMessageContent).toHaveAttribute('data-streaming', 'true');
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
 
 		const finalGroupedView = page.getByTestId('embeds-map-view').last();
 		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
+		await expect(
+			page.getByTestId('message-content').filter({ has: finalGroupedView })
+		).toHaveAttribute('data-streaming', 'true');
 		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
@@ -215,6 +222,9 @@ test.describe('App: Events / Skill: search', () => {
 
 		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
 		await expect(finalGroupedView).toBeVisible();
+		await expect(
+			page.getByTestId('message-content').filter({ has: finalGroupedView })
+		).toHaveAttribute('data-streaming', 'false');
 		expect(await finalGroupedCards.count()).toBe(finalGroupedCardCount);
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		logCheckpoint('Report Issue opened without reloading the page or changing final grouped embeds.');

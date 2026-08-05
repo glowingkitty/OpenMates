@@ -507,4 +507,36 @@ describe("EmbedsMapView", () => {
     unmount(component);
     target.remove();
   });
+
+  it("cancels one scheduled idle map hydration when unmounted", async () => {
+    const originalRequestIdleCallback = globalThis.requestIdleCallback;
+    const originalCancelIdleCallback = globalThis.cancelIdleCallback;
+    const requestIdleCallback = vi.fn(() => 41);
+    const cancelIdleCallback = vi.fn();
+    Object.assign(globalThis, { requestIdleCallback, cancelIdleCallback });
+
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-idle-cancel",
+        title: "Berlin AI events",
+        embedRefs: ["event-one-111111"],
+        sourceRefs: [],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+    expect(requestIdleCallback).toHaveBeenCalledTimes(1);
+    unmount(component);
+    expect(cancelIdleCallback).toHaveBeenCalledWith(41);
+
+    target.remove();
+    Object.assign(globalThis, {
+      requestIdleCallback: originalRequestIdleCallback,
+      cancelIdleCallback: originalCancelIdleCallback,
+    });
+  });
 });

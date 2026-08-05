@@ -59,6 +59,7 @@ test.describe('Embeds map view preview', () => {
 		const mapView = page.getByTestId('embeds-map-view');
 		await expect(mapView).toBeVisible({ timeout: 30_000 });
 		await expect(mapView).toHaveAttribute('aria-label', 'Berlin AI events and routes');
+		await expect(mapView).toHaveAttribute('data-map-hydration-count', '1', { timeout: 15_000 });
 
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(5, { timeout: 15_000 });
@@ -84,6 +85,7 @@ test.describe('Embeds map view preview', () => {
 		await expect(cards).toHaveCount(5);
 		await mapView.getByTestId('embeds-results-view-tab-map').click();
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'map');
+		await expect(mapView).toHaveAttribute('data-map-hydration-count', '1');
 
 		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
 		await expect(filterButton).toBeVisible();
