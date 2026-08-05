@@ -134,7 +134,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 916fe8fa1e5332e7ed596ad48e85380a4221d9fc
+  subject_commit: 2c3512629a5b421f1cc14d4106618a761728856c
 
 approvals:
   product_contract:
@@ -212,14 +212,37 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-04T00:00:00Z"
     reason: Token-level events are too frequent; streaming heartbeat writes must be debounced and non-blocking.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Select deterministic provider behavior from all historical user messages.
+    outcome: rejected
+    recorded_at: "2026-08-05T00:45:00Z"
+    reason: A prior tool sentinel retriggered during resume; the fixture now selects only the latest user message.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Require idle sessions to remain present in the authoritative session/status map.
+    outcome: rejected
+    recorded_at: "2026-08-05T00:47:00Z"
+    reason: OpenCode returns only non-idle entries; authoritative session and message queries now prove reconciliation.
+  - id: ATTEMPT-6
+    task_id: TASK-1
+    approach: Treat every replayed user message.updated event as a new turn.
+    outcome: rejected
+    recorded_at: "2026-08-05T00:52:00Z"
+    reason: Live metadata-only tracing showed the original user message can replay after completed-idle; user turn identity now prevents that stale transition.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write and run the deterministic event/store contracts red before implementing the reducer or ephemeral store.
-  command: node --test scripts/tests/test_opencode_presence_events.mjs
-  expected_outcome: The red test records the expected official event sequences and fails because no presence reducer exists.
-  blocker: null
-  last_verified_commit: 916fe8fa1e5332e7ed596ad48e85380a4221d9fc
+  current_task_id: TASK-6
+  next_action: Reconcile the dirty root control-plane checkout to origin/dev, start a fresh root-hosted chat so commit 2c35126 is loaded, and ask the user to confirm live status and conflict-only behavior.
+  command: python3 scripts/sessions.py status --session ab41
+  expected_outcome: The fresh root runtime reports live presence without interrupting chats, after which V-USER-CONFIRMATION can close the spec.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: true
+    reason: The implementation is deployed, but concurrent uncommitted root changes prevented the local control-plane fast-forward; overwriting or stashing them is unsafe.
+    question: Please reconcile the root checkout to origin/dev and confirm the live status/collision behavior from a fresh root-hosted OpenCode chat.
+    next_action: Record V-USER-CONFIRMATION, release the task claim, mark TASK-6 complete, run spec_verify.py, and end the session.
+  last_verified_commit: 2c3512629a5b421f1cc14d4106618a761728856c
 
 scenarios:
   - id: S-1
@@ -353,7 +376,7 @@ acceptance_criteria:
     scenario: S-1
     text: Busy and streaming OpenCode lifecycle events create or refresh a privacy-minimal live presence entry within two seconds.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-EVENTS, T-LIVE-OPENCODE]
@@ -361,7 +384,7 @@ acceptance_criteria:
     scenario: S-2
     text: Completed-idle chats are distinguished from currently working chats and from explicit required-user waits.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-EVENTS, T-PYTEST-STATUS, T-LIVE-OPENCODE]
@@ -369,7 +392,7 @@ acceptance_criteria:
     scenario: S-3
     text: Supported permission and question request lifecycles retain per-request required-user state until matching resolution, while unsupported capabilities are reported without guessing from idle.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-EVENTS, T-PYTEST-PRIVACY, T-LIVE-OPENCODE]
@@ -377,7 +400,7 @@ acceptance_criteria:
     scenario: S-4
     text: Aborted processing is recorded as stopped and cannot be overwritten as a completed response by a later idle event.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-EVENTS, T-LIVE-OPENCODE]
@@ -385,7 +408,7 @@ acceptance_criteria:
     scenario: S-5
     text: Missing heartbeats expire busy presence to unknown within two minutes without mutating durable session or worktree state.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PYTEST-STORE, T-PYTEST-FAILURE]
@@ -393,7 +416,7 @@ acceptance_criteria:
     scenario: S-6
     text: Child sessions are grouped by parentID, but read-only or writable ownership is applied only from an explicit OpenMates child-role marker.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-EVENTS, T-NODE-COLLISIONS, T-LIVE-OPENCODE]
@@ -401,7 +424,7 @@ acceptance_criteria:
     scenario: S-7
     text: Unrelated active work adds no tool context, no block, and no user or assistant message.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-COLLISIONS, T-LIVE-OPENCODE]
@@ -409,7 +432,7 @@ acceptance_criteria:
     scenario: S-8
     text: Relevant path collisions use only supported read-output warnings and existing pre-edit hard errors without creating a chat message.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-COLLISIONS, T-LIVE-OPENCODE]
@@ -417,7 +440,7 @@ acceptance_criteria:
     scenario: S-9
     text: Explicit renewable spec-task claims reject duplicate live implementation ownership while allowing declared review roles and deterministic stale takeover.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PYTEST-STORE, T-NODE-COLLISIONS]
@@ -425,7 +448,7 @@ acceptance_criteria:
     scenario: S-10
     text: sessions.py status defaults to live presence and exposes explicit all, conflicts, and single-session views without treating merged worktrees as live work.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PYTEST-STATUS, T-LIVE-OPENCODE]
@@ -433,7 +456,7 @@ acceptance_criteria:
     scenario: S-11
     text: An isolated on-demand verifier uses a deterministic local streaming provider to prove lifecycle and runtime hook behavior with actual concurrent OpenCode sessions.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-LIVE-OPENCODE]
@@ -441,7 +464,7 @@ acceptance_criteria:
     scenario: S-11
     text: Presence processing is debounced, bounded, and does not synchronously spawn a subprocess for each streaming delta.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-PERFORMANCE]
@@ -449,7 +472,7 @@ acceptance_criteria:
     scenario: S-11
     text: Presence storage contains no message bodies, reasoning, tool arguments, tool output, secrets, logs, or source patches.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PYTEST-PRIVACY]
@@ -467,16 +490,18 @@ assumptions:
     text: Assistant time.completed plus session.status idle reliably identifies a completed response in the installed runtime.
     category: runtime
     required_before: task_execution
-    status: checking
+    status: confirmed
     evidence:
       - source: OpenCode AssistantMessage and SessionStatus contracts
-        summary: Both fields exist; their observed ordering must be recorded before enforcement.
+        summary: Isolated runtime proof observed completion followed by idle, plus a late original-user replay; message parent identity keeps the terminal outcome stable.
   - id: A-3
     text: Stopping a running turn emits MessageAbortedError or another stable typed event that can be normalized to stopped.
     category: runtime
     required_before: task_execution
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: python3 scripts/verify_opencode_presence_live.py --isolated
+        summary: Delayed deterministic streaming plus the real abort endpoint emitted MessageAbortedError and normalized to stopped/aborted.
   - id: A-4
     text: The implementation can reconcile every supported pending user request by stable request ID without treating idle as proof of a question.
     category: runtime
@@ -491,10 +516,10 @@ assumptions:
     text: OpenMates can attach an explicit child role to parentID early enough to avoid inferring read-only ownership from hierarchy.
     category: runtime
     required_before: task_execution
-    status: checking
+    status: confirmed
     evidence:
       - source: OpenCode 1.17.20 Session type
-        summary: Session records include optional parentID, but the runtime contract does not describe read/write ownership.
+        summary: Session records include parentID; an explicit owner-only child-role marker groups reviewer activity while inherited parent routes deterministically block child mutation.
   - id: A-6
     text: The presence store can accept concurrent updates from all OpenCode plugin instances without lost updates or corrupt records.
     category: concurrency
@@ -507,14 +532,18 @@ assumptions:
     text: A real OpenCode smoke can create and clean disposable sessions without changing production data, tracked source files, or user chat content.
     category: testing
     required_before: task_execution
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: python3 scripts/verify_opencode_presence_live.py --isolated
+        summary: Three synthetic sessions were created in temporary XDG/Git state and deleted in the finally path without using normal OpenCode data.
   - id: A-8
     text: Supported read-output warnings, pre-edit errors, and status output are sufficient for the first rollout without experimental per-turn system injection.
     category: usability
     required_before: completion
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: T-NODE-COLLISIONS and T-LIVE-OPENCODE at commit 2c3512629
+        summary: Unrelated work received no context, the colliding read received one warning, the owner chat message IDs stayed unchanged, and no prompt/system transform exists.
 
 contracts:
   api:
@@ -593,7 +622,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "node --test scripts/tests/test_opencode_presence_events.mjs", run_id: "local-green-20260805-events", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
   - id: T-PYTEST-STORE
     type: pytest
     file: scripts/tests/test_sessions_presence_store.py
@@ -612,7 +641,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_presence_store.py", run_id: "local-green-20260805-store", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
   - id: T-NODE-COLLISIONS
     type: unit
     file: scripts/tests/test_opencode_presence_collisions.mjs
@@ -632,7 +661,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs", run_id: "local-green-20260805-collisions", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
   - id: T-PYTEST-STATUS
     type: pytest
     file: scripts/tests/test_sessions_presence_status.py
@@ -651,7 +680,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_presence_status.py", run_id: "local-green-20260805-status", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
   - id: T-PYTEST-PRIVACY
     type: pytest
     file: scripts/tests/test_opencode_presence_privacy.py
@@ -670,7 +699,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_presence_privacy.py", run_id: "local-green-20260805-privacy", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
   - id: T-PYTEST-FAILURE
     type: pytest
     file: scripts/tests/test_opencode_presence_failure_containment.py
@@ -688,7 +717,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_presence_failure_containment.py", run_id: "local-green-20260805-failure", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
   - id: T-NODE-PERFORMANCE
     type: unit
     file: scripts/tests/test_opencode_presence_performance.mjs
@@ -706,7 +735,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "node --test scripts/tests/test_opencode_presence_performance.mjs", run_id: "local-green-20260805-performance", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
   - id: T-LIVE-OPENCODE
     type: unit
     file: scripts/verify_opencode_presence_live.py
@@ -731,7 +760,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/verify_opencode_presence_live.py --isolated", run_id: "local-green-20260805-live", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
 
 verifications:
   - id: V-PASSIVE-OBSERVATION
@@ -739,25 +768,27 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
-      actor: ""
-      next_action: Compare a bounded observe-only presence report with actual OpenCode UI state before enabling warnings.
+      status: passed
+      summary: Isolated actual OpenCode status, messages, SSE events, and presence were compared for busy, waiting, completed-idle, resumed, stopped, and explicit child states; metadata tracing corrected one late-user replay ordering bug before enforcement.
+      reason: Actual isolated runtime state matched the reducer and authoritative session/message APIs after the observed ordering correction.
+      timestamp: "2026-08-05T01:11:31Z"
+      actor: OpenCode
+      next_action: none
   - id: V-FALSE-POSITIVE-REVIEW
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-7, AC-8, AC-9, AC-10]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
-      actor: ""
-      next_action: Review recorded synthetic collision decisions and confirm unrelated sessions received no context or blocks.
+      status: passed
+      summary: Deterministic review proved unrelated paths add no output or block, one live colliding read gets one concise warning, duplicate implementation claims alone block, and inherited child mutations are rejected without affecting child reads.
+      reason: Unit policy tests, live collision output, unchanged owner-chat IDs, and a clean adversarial re-review found no false-positive enforcement path.
+      timestamp: "2026-08-05T01:11:31Z"
+      actor: OpenCode code-reviewer
+      next_action: none
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
@@ -840,7 +871,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Confirm installed OpenCode lifecycle assumptions
-    status: in_progress
+    status: done
     phase: checking_assumptions
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-6]
@@ -857,7 +888,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Implement privacy-safe presence reducer and concurrent store
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
@@ -874,7 +905,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Add live status and conflict-only coordination
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-7, S-8, S-9, S-10]
@@ -891,7 +922,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Run observe-only comparison and correct event assumptions
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-10]
@@ -908,7 +939,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Prove behavior with real concurrent OpenCode sessions
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-11]
@@ -925,7 +956,7 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Enable narrow enforcement and document the workflow
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-7, S-8, S-9, S-10, S-11]

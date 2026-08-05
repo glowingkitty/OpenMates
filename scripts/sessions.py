@@ -111,7 +111,6 @@ STALE_LOCK_MINUTES = 5
 VERCEL_DEPLOY_LOCK_MINUTES = 90
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
-WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed"}
 INTEGRATION_WORKTREE_PREFIX = "integration-"
@@ -1424,14 +1423,15 @@ def _apply_worktree_diff_to_checkout(
         )
 
     untracked = _worktree_untracked_files(source_metadata) & set(files)
-    untracked = {
-        relative_path
-        for relative_path in untracked
-        if _run_cmd(
-            ["git", "cat-file", "-e", f"{source_base}:{relative_path}"],
-            cwd=str(source_path),
-        )[0] != 0
-    }
+    if source_base != str(source_metadata.get("base_commit") or ""):
+        untracked = {
+            relative_path
+            for relative_path in untracked
+            if _run_cmd(
+                ["git", "cat-file", "-e", f"{source_base}:{relative_path}"],
+                cwd=str(source_path),
+            )[0] != 0
+        }
     tracked_files = [relative_path for relative_path in files if relative_path not in untracked]
     if tracked_files:
         with tempfile.TemporaryDirectory(prefix="openmates-integration-index-") as temp_dir:
@@ -1778,27 +1778,6 @@ def _target_file_bytes(target_ref: str, relative_path: str) -> bytes | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def _target_file_mode(target_ref: str, relative_path: str) -> str | None:
-    result = subprocess.run(
-        ["git", "ls-tree", target_ref, "--", relative_path],
-        cwd=str(PROJECT_ROOT),
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    if result.returncode != 0 or not result.stdout.strip():
-        return None
-    return result.stdout.split(maxsplit=1)[0]
-
-
-def _local_file_mode(path: Path) -> str | None:
-    if path.is_symlink():
-        return "120000"
-    if not path.is_file():
-        return None
-    return "100755" if path.stat().st_mode & 0o111 else "100644"
-
-
 def _worktree_target_files_match(candidate: dict, target_ref: str) -> bool:
     path = Path(candidate.get("path") or "")
     changed_files = candidate.get("changed_files") or []
@@ -1807,15 +1786,10 @@ def _worktree_target_files_match(candidate: dict, target_ref: str) -> bool:
     for relative_path in changed_files:
         local_path = path / relative_path
         target_bytes = _target_file_bytes(target_ref, relative_path)
-        target_mode = _target_file_mode(target_ref, relative_path)
-        if local_path.exists() or local_path.is_symlink():
-            local_mode = _local_file_mode(local_path)
-            if local_mode is None:
+        if local_path.exists():
+            if not local_path.is_file() or target_bytes is None or local_path.read_bytes() != target_bytes:
                 return False
-            local_bytes = os.readlink(local_path).encode() if local_path.is_symlink() else local_path.read_bytes()
-            if target_bytes is None or target_mode is None or local_mode != target_mode or local_bytes != target_bytes:
-                return False
-        elif target_bytes is not None or target_mode is not None:
+        elif target_bytes is not None:
             return False
     return True
 
@@ -1836,17 +1810,14 @@ def _classify_worktree_candidate(
     if candidate_idle_hours < idle_threshold:
         result.update(classification="recent_active", reason_code="recent_activity")
         return result
+    if result.get("worktree_kind") == "integration":
+        result.update(classification="disposable_integration", reason_code="reproducible_integration_state")
+        return result
     if session_id in approved_obsolete:
         result.update(classification="superseded", reason_code="review_approved_obsolete")
         return result
     if result.get("inspection_error"):
         result.update(classification="malformed", reason_code="inspection_failed")
-        return result
-    if result.get("worktree_kind") == "integration":
-        if result.get("changed_files"):
-            result.update(classification="unique_stale", reason_code="integration_has_changes")
-            return result
-        result.update(classification="disposable_integration", reason_code="reproducible_integration_state")
         return result
     if result.get("classification") in {"integrated", "duplicated", "superseded", "unique_stale", "uncertain"}:
         return result
@@ -2037,49 +2008,6 @@ def reconcile_session_worktrees(
     }
 
 
-def _write_worktree_reconciliation_payload(payload: dict) -> None:
-    WORKTREE_RECONCILIATION_REPORT.parent.mkdir(parents=True, exist_ok=True)
-    temporary = WORKTREE_RECONCILIATION_REPORT.with_suffix(f".{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temporary.replace(WORKTREE_RECONCILIATION_REPORT)
-
-
-def _write_worktree_reconciliation_started(target_ref: str) -> None:
-    """Replace stale scheduler health before reconciliation can mutate state."""
-    _write_worktree_reconciliation_payload(
-        {
-            "generated_at": _now_iso(),
-            "status": "running",
-            "target_ref": target_ref,
-        }
-    )
-
-
-def _write_worktree_reconciliation_report(report: dict) -> None:
-    """Persist a bounded scheduler health summary without source contents."""
-    counts: dict[str, int] = {}
-    for item in report.get("items", []):
-        classification = str(item.get("classification") or "unknown")
-        counts[classification] = counts.get(classification, 0) + 1
-    unresolved_stale = sum(
-        1
-        for item in report.get("unresolved", [])
-        if item.get("classification") != "recent_active"
-    )
-    summary = {
-        "generated_at": _now_iso(),
-        "status": "warning" if unresolved_stale else "ok",
-        "target_ref": str(report.get("target_ref") or ""),
-        "target_commit": str(report.get("target_commit") or ""),
-        "inspected": len(report.get("items", [])),
-        "deleted": len(report.get("deleted", [])),
-        "unresolved": len(report.get("unresolved", [])),
-        "unresolved_stale": unresolved_stale,
-        "counts": counts,
-    }
-    _write_worktree_reconciliation_payload(summary)
-
-
 def worktree_release_readiness(*, target_ref: str, excluded_active: set[str]) -> dict:
     report = reconcile_session_worktrees(target_ref=target_ref, apply_safe=False)
     blocked_deploys = [
@@ -2104,29 +2032,6 @@ def worktree_release_readiness(*, target_ref: str, excluded_active: set[str]) ->
     }
 
 
-def _worktree_pending_files(session: dict) -> list[str]:
-    """Return files whose current state differs from the last deployed commit."""
-    metadata = session.get("worktree")
-    if not isinstance(metadata, dict) or not metadata.get("path"):
-        return []
-    worktree_path = str(metadata["path"])
-    rc, stdout, stderr = _run_cmd(["git", "diff", "--name-only", "HEAD", "--"], cwd=worktree_path)
-    if rc != 0:
-        raise RuntimeError(f"Failed to inspect worktree dirtiness: {stderr}")
-    candidates = {line.strip() for line in stdout.splitlines() if line.strip()}
-    candidates.update(_worktree_untracked_files(metadata))
-    candidates.update(_canonical_stored_repo_path(path) for path in session.get("modified_files") or [])
-    if not candidates:
-        return []
-    merged_commit = str(metadata.get("merged_commit") or "")
-    if not merged_commit:
-        return sorted(candidates)
-    files = sorted(candidates)
-    current_states = _snapshot_file_states(Path(str(metadata["path"])), files)
-    deployed_states = _snapshot_worktree_base_states(metadata, files)
-    return [path for path in files if current_states.get(path) != deployed_states.get(path)]
-
-
 def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev") -> None:
     """Remove a fully integrated worktree before deleting its session record."""
     def finalize(data: dict) -> str:
@@ -2142,15 +2047,17 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
             for lease in data.get("edit_leases", {}).values()
         )
         try:
-            pending_files = _worktree_pending_files(session)
+            current_patch = _worktree_patch_id(metadata)
         except (OSError, RuntimeError):
-            pending_files = ["<inspection-failed>"]
+            current_patch = ""
+        integration = metadata.get("integration") if isinstance(metadata.get("integration"), dict) else {}
+        deployed_patch = str(metadata.get("root_applied_patch_id") or integration.get("patch_id") or "")
         merged_commit = str(metadata.get("merged_commit") or "")
         integrated = (
             not session.get("writing")
             and not live_lease
-            and bool(merged_commit)
-            and not pending_files
+            and bool(deployed_patch)
+            and current_patch == deployed_patch
             and _git_is_ancestor(merged_commit, target_ref)
         )
         if not integrated:
@@ -4181,7 +4088,7 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session = data["sessions"][session_id]
         worktree = session.get("worktree") or {}
         worktree_path = str(worktree.get("path") or "")
-        if worktree.get("status") not in {"active", "merged", "changes_pending"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
+        if worktree.get("status") not in {"active", "merged"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
             raise RuntimeError(
                 f"Reason: session {session_id} has no active worktree to route tools into. "
                 f"Next: run python3 scripts/sessions.py worktree ensure --session {session_id}."
@@ -4190,8 +4097,6 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session["binding_updated_at"] = _now_iso()
         session["binding_failure_reason"] = ""
         session["last_active"] = _now_iso()
-        if worktree.get("status") == "changes_pending":
-            worktree["status"] = "active"
         worktree["last_active"] = session["last_active"]
         return {
             "session_id": session_id,
@@ -7119,12 +7024,6 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         print(json.dumps(result, sort_keys=True))
         return
     if args.worktree_action == "cleanup":
-        if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS:
-            print(
-                f"Error: --idle-hours below {WORKTREE_CLEANUP_IDLE_HOURS} is not allowed for worktree cleanup",
-                file=sys.stderr,
-            )
-            sys.exit(2)
         deleted = cleanup_session_worktrees(idle_hours=args.idle_hours)
         print(f"Deleted safely classified stale worktrees: {len(deleted)}")
         for session_id in deleted:
@@ -7137,29 +7036,14 @@ def cmd_worktree(args: argparse.Namespace) -> None:
                 file=sys.stderr,
             )
             sys.exit(2)
-        approved_obsolete = set(args.approve_obsolete or [])
-        only_session_ids = set(args.only or [])
-        unscoped_approvals = sorted(approved_obsolete - only_session_ids)
-        if unscoped_approvals:
-            required_scope = " ".join(f"--only {session_id}" for session_id in unscoped_approvals)
-            print(
-                f"Error: every --approve-obsolete ID requires matching scope: {required_scope}",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-        persist_scheduler_health = args.apply_safe and not only_session_ids
         try:
-            if persist_scheduler_health:
-                _write_worktree_reconciliation_started(args.target)
             report = reconcile_session_worktrees(
                 target_ref=args.target,
                 idle_hours=args.idle_hours,
                 apply_safe=args.apply_safe,
-                approved_obsolete=approved_obsolete,
-                only_session_ids=only_session_ids,
+                approved_obsolete=set(args.approve_obsolete or []),
+                only_session_ids=set(args.only or []),
             )
-            if persist_scheduler_health:
-                _write_worktree_reconciliation_report(report)
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
