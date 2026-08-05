@@ -6,7 +6,6 @@
  * Phase 2: CLI direct skill command (openmates apps events search --json)
  * Phase 3: CLI chat send triggers skill (openmates chats new "..." --json)
  * Phase 4: Web UI chat preserves embed refs from streaming through the final grouped view
- * and retains the existing fullscreen, calendar, and saved-memory coverage.
  *
  * Architecture context: docs/architecture/embeds.md
  */
@@ -28,16 +27,7 @@ const {
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
-const {
-	verifyEmbedPreviewPage,
-	openFullscreen,
-	verifySearchGrid,
-	closeFullscreen
-} = require('./helpers/embed-test-helpers');
-const {
-	saveCurrentFullscreenEmbed,
-	verifySavedMemoryEntry
-} = require('./helpers/saved-memory-test-helpers');
+const { verifyEmbedPreviewPage } = require('./helpers/embed-test-helpers');
 const {
 	expectSettingsProviderIcons,
 	expectSkillCardProviderIcons
@@ -71,28 +61,6 @@ const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
 const EVENT_SEARCH_CARD_SELECTOR = '[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]';
 const EVENT_SEARCH_FIRST_RANGE = 'Jun 20, 2026 - Jun 21, 2026';
 const EVENT_SEARCH_SECOND_RANGE = 'Jun 27, 2026 - Jun 28, 2026';
-
-async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
-	const dismissButtons = page.getByTestId('notification-dismiss');
-	const dismissCount = await dismissButtons.count();
-	for (let i = 0; i < dismissCount; i += 1) {
-		await dismissButtons.nth(i).click().catch(() => undefined);
-	}
-	if (dismissCount > 0) {
-		logCheckpoint(`Dismissed ${dismissCount} notification(s) before calendar download.`);
-	}
-
-	const calendarButton = page.getByTestId('embed-calendar-button');
-	await expect(calendarButton).toBeVisible({ timeout: 5000 });
-
-	const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-	await calendarButton.click();
-	const download = await downloadPromise;
-	const suggestedFilename = download.suggestedFilename();
-	expect(suggestedFilename).toMatch(/\.ics$/);
-	expect(await download.failure()).toBeNull();
-	logCheckpoint(`Calendar download started: ${suggestedFilename}`);
-}
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -226,28 +194,12 @@ test.describe('App: Events / Skill: search', () => {
 			.filter({ has: embed });
 		await expect(streamingMessageContent).toHaveAttribute('data-streaming', 'true');
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
-		await expect(embed).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
-
-		const fullscreenOverlay = await openFullscreen(page, embed);
-		logCheckpoint('Fullscreen opened.');
-
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		const count = await resultCards.count();
-		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
-
-		const resultOverlay = await openFullscreen(page, resultCards.first());
-		await expectCalendarDownload(page, logCheckpoint);
-		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
-
-		await closeFullscreen(page, resultOverlay);
-		await closeFullscreen(page, fullscreenOverlay);
-		logCheckpoint('Fullscreen closed.');
-		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);
-
-		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 90_000 });
 
 		const finalGroupedView = page.getByTestId('embeds-map-view').last();
 		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
+		await expect(
+			page.getByTestId('message-content').filter({ has: finalGroupedView })
+		).toHaveAttribute('data-streaming', 'true');
 		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);

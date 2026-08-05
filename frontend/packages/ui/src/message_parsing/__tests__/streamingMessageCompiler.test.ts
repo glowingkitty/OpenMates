@@ -5,7 +5,19 @@
 // Only an incomplete trailing construct may remain provisional during streaming.
 // Spec: docs/specs/streaming-message-render-convergence/spec.yml
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Keep this parser contract independent from generated metadata and browser stores.
+vi.mock("../../data/modelsMetadata", () => ({ modelsMetadata: [] }));
+vi.mock("../../data/matesMetadata", () => ({ matesMetadata: [] }));
+vi.mock("../../data/providersMetadata", () => ({ providersMetadata: {} }));
+vi.mock("../../stores/appSettingsMemoriesStore", () => ({
+  appSettingsMemoriesStore: { subscribe: () => () => undefined },
+}));
+vi.mock("../../stores/appSkillsStore", () => ({
+  appSkillsStore: { apps: {}, subscribe: () => () => undefined },
+}));
+
 import { compileAssistantDisplayMessage } from "../streamingMessageCompiler";
 
 function findNodes(node: any, type: string): any[] {

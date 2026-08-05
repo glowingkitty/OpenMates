@@ -946,11 +946,12 @@
                 }
             },
             {
-                // Start loading before message content enters the chat scroller viewport.
-                // The observer root is the browser viewport, not the nested chat scroller,
-                // so short mobile chats after reload need a larger margin to expose text
-                // to search and E2E locators before the user scrolls.
-                rootMargin: '1500px',
+                // Start loading well before message becomes visible to prevent
+                // content cutoff during fast scrolling. 500px buffer ensures editors
+                // are initialized roughly half a mobile screen before entering viewport,
+                // eliminating visual glitches while keeping memory usage reasonable
+                // (only ~2-3 extra editors pre-initialized at any time).
+                rootMargin: '500px',
                 threshold: 0.01
             }
         );
@@ -1159,13 +1160,7 @@
     });
 </script>
 
-<div
-    class="read-only-message"
-    data-testid="message-content"
-    data-streaming={isStreaming}
-    class:is-streaming={isStreaming}
-    class:is-selectable={selectable}
->
+<div class="read-only-message" data-testid="message-content" class:is-streaming={isStreaming} class:is-selectable={selectable}>
     <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
          before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
          Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->
