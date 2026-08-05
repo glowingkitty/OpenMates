@@ -332,11 +332,21 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
 	}
+	const postalInput = checkoutFrame
+		.locator('input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]')
+		.first();
+	if (await postalInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await postalInput.click();
+		await postalInput.pressSequentially('10001', { delay: 30 });
+	}
 	logSignupCheckpoint('Filled card in Stripe Embedded Checkout.');
 	await takeStepScreenshot(page, 'payment-form-filled');
 
 	// Submit payment
-	const payBtn = checkoutFrame.locator('button[type="submit"], button:has-text("Pay"), button:has-text("Subscribe")').first();
+	const payBtn = checkoutFrame
+		.getByRole('button', { name: /pay|subscribe|buy|continue/i })
+		.or(checkoutFrame.locator('button[type="submit"]'))
+		.first();
 	await expect(payBtn).toBeVisible({ timeout: 10000 });
 	await expect(payBtn).toBeEnabled({ timeout: 10000 });
 	const paymentSubmittedAt = new Date().toISOString();
