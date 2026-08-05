@@ -18,6 +18,8 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `account` | `om.account.clearInterests()` | `om.account.clear_interests()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.completeExport()` | `om.account.complete_export()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.completeImport()` | `om.account.complete_import()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | direct |
+| `account` | `om.account.compressImport()` | `om.account.compress_import()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
+| `account` | `om.account.confirmImport()` | `om.account.confirm_import()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.deleteStorage()` | `om.account.delete_storage()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.downloadExport()` | `om.account.download_export()` | direct | direct |
 | `account` | `om.account.exportChunk()` | `om.account.export_chunk()` | direct | direct |
@@ -27,11 +29,13 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `account` | `om.account.exportManifest()` | `om.account.export_manifest()` | direct | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.getExport()` | `om.account.get_export()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.importChats()` | `om.account.import_chats()` | direct | direct |
+| `account` | `om.account.importStatus()` | `om.account.import_status()` | direct | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.info()` | `om.account.info()` | direct | direct |
 | `account` | `om.account.iterExportChunks()` | `om.account.iter_export_chunks()` | direct | direct |
 | `account` | `om.account.listInterests()` | `om.account.list_interests()` | direct | direct |
 | `account` | `om.account.parseChatGPTImport()` | `om.account.parse_chatgpt_import()` | direct | direct |
 | `account` | `om.account.parseClaudeImport()` | `om.account.parse_claude_import()` | direct | direct |
+| `account` | `om.account.parseGenericImport()` | `om.account.parse_generic_import()` | direct | direct |
 | `account` | `om.account.parseOpenCodeImport()` | `om.account.parse_opencode_import()` | direct | direct |
 | `account` | `om.account.parseOpenMatesImport()` | `om.account.parse_openmates_import()` | direct | direct |
 | `account` | `om.account.persistImport()` | `om.account.persist_import()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |

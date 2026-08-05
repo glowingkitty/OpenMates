@@ -37,7 +37,7 @@ describe("topicPreferencesStore guest storage", () => {
       ),
     ).toEqual({
       version: 1,
-      selectedTagIds: ["software_development", "privacy"],
+      selectedTagIds: ["software_development", "privacy_personal_data"],
       updatedAt: "2026-06-20T22:00:00.000Z",
     });
   });
@@ -54,7 +54,11 @@ describe("topicPreferencesStore guest storage", () => {
       },
     );
 
-    expect(payload.selectedTagIds).toEqual(["find_apartments", "find_events"]);
+    expect(payload.selectedTagIds).toEqual([
+      "find_apartments",
+      "find_local_events",
+      "events_networking",
+    ]);
     expect(sessionStorage.getItem(GUEST_TOPIC_PREFERENCES_STORAGE_KEY)).toContain(
       "find_apartments",
     );

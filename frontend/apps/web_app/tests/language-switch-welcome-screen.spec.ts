@@ -207,7 +207,7 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 
 	// Interest tags should be visible with English text
 	expect(enInterestTags.length).toBeGreaterThan(10);
-	expect(enInterestTags).toContain('privacy');
+	expect(enInterestTags).toContain('marketing');
 	expect(enInterestTags).toContain('learning');
 	log('✓ Interest tags visible with English text');
 
@@ -298,7 +298,7 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 
 	const enResetInterestTags = await getInterestTagsText(page);
 	expect(enResetInterestTags.length).toBeGreaterThan(10);
-	expect(enResetInterestTags).toContain('privacy');
+	expect(enResetInterestTags).toContain('marketing');
 	log('✓ Interest tags reset to English');
 
 	const enResetPage = await getWelcomePageText(page);

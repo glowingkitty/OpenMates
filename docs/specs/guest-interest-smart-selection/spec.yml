@@ -325,9 +325,11 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "30953593577"
+        timestamp: "2026-08-04T21:44:16Z"
+        subject_commit: 748f46c54
+        command: python3 scripts/tests.py run --suite vitest
     green_phase:
       required: true
       expected: pass
@@ -394,16 +396,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "30954060666"
+        timestamp: "2026-08-04T21:51:10Z"
+        subject_commit: 748f46c54
+        command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts --gate-deploy --expected-commit 748f46c54
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
-        run_id: "27901184384"
-        timestamp: "2026-06-21T10:18:04Z"
+        status: ""
+        run_id: ""
+        timestamp: ""
 
   - id: T-PLAYWRIGHT-ACCOUNT-INTERESTS
     type: playwright

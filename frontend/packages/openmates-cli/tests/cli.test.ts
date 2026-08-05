@@ -1160,9 +1160,15 @@ describe("account interest commands", () => {
   it("normalizes interest tag IDs and rejects unknown values", () => {
     assert.deepEqual(
       normalizeInterestTagIds(["software_development", "run_code", "software_development"]),
-      ["software_development", "run_code"],
+      ["software_development"],
     );
-    assert.ok(INTEREST_TAG_IDS.includes("privacy"));
+    assert.deepEqual(normalizeInterestTagIds(["marketing_sales", "finance"]), [
+      "marketing",
+      "sales",
+      "finance_bookkeeping",
+      "personal_finances",
+    ]);
+    assert.ok(INTEREST_TAG_IDS.includes("privacy_personal_data"));
     assert.throws(
       () => normalizeInterestTagIds(["unknown_topic"]),
       /Unknown interest tag 'unknown_topic'/,

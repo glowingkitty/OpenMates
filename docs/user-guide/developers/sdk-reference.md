@@ -20,6 +20,8 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.account.clearInterests()` | `om.account.clear_interests()` | `none` | `none` | `object` |
 | `om.account.completeExport()` | `om.account.complete_export()` | `export_id` | `export_id` | `object` |
 | `om.account.completeImport()` | `om.account.complete_import()` | `import_id, imported_chat_ids, source_fingerprints, record_counts, client_failures` | `import_id, imported_chat_ids, source_fingerprints, record_counts, client_failures` | `object` |
+| `om.account.compressImport()` | `om.account.compress_import()` | `import_id, sanitized_messages, scan_sequence, source_fingerprint, prior_summary, sequence, final_batch, batch_id` | `import_id, sanitized_messages, scan_sequence, source_fingerprint, prior_summary, sequence, final_batch, batch_id` | `object` |
+| `om.account.confirmImport()` | `om.account.confirm_import()` | `import_id, selected_fingerprints` | `import_id, selected_fingerprints` | `object` |
 | `om.account.deleteStorage()` | `om.account.delete_storage()` | `confirmed, file_id, category, all` | `confirmed, input` | `object` |
 | `om.account.downloadExport()` | `om.account.download_export()` | `domains, input, format, include_advanced_metadata, accept_partial` | `accept_partial, input` | `object` |
 | `om.account.exportChunk()` | `om.account.export_chunk()` | `export_id, chunk_id` | `export_id, chunk_id` | `object` |
@@ -29,16 +31,18 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.account.exportManifest()` | `om.account.export_manifest()` | `none` | `none` | `object` |
 | `om.account.getExport()` | `om.account.get_export()` | `export_id` | `export_id` | `object` |
 | `om.account.importChats()` | `om.account.import_chats()` | `parsed, select` | `parsed, select` | `object` |
+| `om.account.importStatus()` | `om.account.import_status()` | `import_id` | `import_id` | `object` |
 | `om.account.info()` | `om.account.info()` | `none` | `none` | `object` |
 | `om.account.iterExportChunks()` | `om.account.iter_export_chunks()` | `export_id` | `export_id` | `object` |
 | `om.account.listInterests()` | `om.account.list_interests()` | `none` | `none` | `object` |
-| `om.account.parseChatGPTImport()` | `om.account.parse_chatgpt_import()` | `input, source_name` | `input, source_name` | `object` |
-| `om.account.parseClaudeImport()` | `om.account.parse_claude_import()` | `input, source_name` | `input, source_name` | `object` |
-| `om.account.parseOpenCodeImport()` | `om.account.parse_opencode_import()` | `input, source_name` | `input, source_name` | `object` |
-| `om.account.parseOpenMatesImport()` | `om.account.parse_openmates_import()` | `input, source_name, password` | `input, source_name, password` | `object` |
+| `om.account.parseChatGPTImport()` | `om.account.parse_chatgpt_import()` | `input, source_name, source` | `input, source_name, source` | `object` |
+| `om.account.parseClaudeImport()` | `om.account.parse_claude_import()` | `input, source_name, source` | `input, source_name, source` | `object` |
+| `om.account.parseGenericImport()` | `om.account.parse_generic_import()` | `input, source_name, source` | `input, source, source_name` | `object` |
+| `om.account.parseOpenCodeImport()` | `om.account.parse_opencode_import()` | `input, source_name, source` | `input, source_name, source` | `object` |
+| `om.account.parseOpenMatesImport()` | `om.account.parse_openmates_import()` | `input, source_name, password, source` | `input, source_name, password, source` | `object` |
 | `om.account.persistImport()` | `om.account.persist_import()` | `import_id, chats` | `import_id, chats` | `object` |
-| `om.account.previewImport()` | `om.account.preview_import()` | `source, chats, chat_count, source_fingerprints, estimated_tokens, estimated_bytes` | `source, chats, chat_count, source_fingerprints, estimated_tokens, estimated_bytes` | `object` |
-| `om.account.scanImport()` | `om.account.scan_import()` | `import_id, chats` | `import_id, chats` | `object` |
+| `om.account.previewImport()` | `om.account.preview_import()` | `source, chats, chat_count, source_fingerprints, estimated_tokens, estimated_tokens_by_chat, estimated_bytes` | `source, chats, chat_count, source_fingerprints, estimated_tokens, estimated_tokens_by_chat, estimated_bytes` | `object` |
+| `om.account.scanImport()` | `om.account.scan_import()` | `import_id, chats, sequence, final_batch, batch_id` | `import_id, chats, sequence, final_batch, batch_id` | `object` |
 | `om.account.setInterests()` | `om.account.set_interests()` | `selected_tag_ids` | `selected_tag_ids` | `object` |
 | `om.account.setTimezone()` | `om.account.set_timezone()` | `timezone` | `timezone` | `object` |
 | `om.account.setUsername()` | `om.account.set_username()` | `username` | `username` | `object` |

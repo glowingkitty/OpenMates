@@ -155,6 +155,8 @@
     variant?: 'default' | 'guest-intro';
     /** Increment to force the guest intro carousel back to slide 0. */
     landingIntroResetToken?: number;
+    /** Increment to move the guest carousel to the terminal signup slide. */
+    landingSignupSlideToken?: number;
     /** Start after the expanded intro when returning from a guest example chat. */
     skipLandingIntro?: boolean;
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
@@ -163,7 +165,7 @@
     onLandingIntroExpandedChange?: (phase: LandingIntroPhase) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, skipLandingIntro = false, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, landingSignupSlideToken = 0, skipLandingIntro = false, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
@@ -231,6 +233,7 @@
   let signupStageTransitionTimeout: number | undefined;
   let signupStageAnimationFrame: number | undefined;
   let lastLandingIntroResetToken = $state(0);
+  let lastLandingSignupSlideToken = $state(0);
   let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
@@ -658,6 +661,18 @@
     if (!isGuestIntroVariant || landingIntroResetToken === lastLandingIntroResetToken) return;
     lastLandingIntroResetToken = landingIntroResetToken;
     resetLandingIntroToFirstSlide();
+  });
+
+  $effect(() => {
+    if (!isGuestIntroVariant || landingSignupSlideToken === lastLandingSignupSlideToken) return;
+    lastLandingSignupSlideToken = landingSignupSlideToken;
+    const signupIndex = visibleInspirations.findIndex((inspiration) =>
+      inspiration.inspiration_id === LANDING_SIGNUP_CTA_ID,
+    );
+    if (signupIndex < 0) return;
+    landingIntroDismissed = true;
+    landingIntroPhase = 'regular';
+    goToVisibleIndex(signupIndex);
   });
 
   $effect(() => {
@@ -1566,6 +1581,7 @@
       data-visible-inspiration-ids={visibleInspirations.map((inspiration) => inspiration.inspiration_id).join(',')}
       data-inspiration-source={inspirationSource}
       data-testid="daily-inspiration-banner"
+      data-current-inspiration-id={current.inspiration_id}
       style={gradientStyle}
       onclick={handleStartChat}
       onpointerdown={handleBannerPointerDown}
