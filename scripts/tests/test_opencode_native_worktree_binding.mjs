@@ -7,7 +7,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -20,6 +20,7 @@ import {
 
 const ROOT = "/home/superdev/projects/OpenMates";
 const WORKTREE = `${ROOT}/.openmates-agent-worktrees/agent-abcd`;
+const prodSshSource = readFileSync(new URL("../../scripts/prod-ssh.sh", import.meta.url), "utf8");
 
 const routedSession = (bindingMode = "pending") => ({
   mode: "feature",
@@ -72,6 +73,57 @@ test("bash always receives the resolved worktree as its real workdir", () => {
     routeLocalToolArgsForTest("bash", { command: "pwd", workdir: ROOT }, WORKTREE),
     { command: "pwd", workdir: WORKTREE },
   );
+});
+
+test("prod SSH helper routes through its root control-plane copy", () => {
+  const relativeCommand = 'printf "%s\\n" "<TOTP>" | ./scripts/prod-ssh.sh open';
+  const relative = routeLocalToolArgsForTest("bash", { command: relativeCommand }, WORKTREE);
+  assert.equal(relative.workdir, WORKTREE);
+  assert.equal(relative.command, relativeCommand);
+
+  const rootedCommand = 'printf "%s\\n" "<TOTP>" | /home/superdev/projects/OpenMates/scripts/prod-ssh.sh open';
+  const rooted = routeLocalToolArgsForTest(
+    "bash",
+    { command: rootedCommand },
+    WORKTREE,
+  );
+  assert.equal(rooted.command, rootedCommand);
+
+  for (const command of [
+    "./scripts/prod-ssh.sh status",
+    "  ./scripts/prod-ssh.sh status",
+    "PROD_SSH_PERSIST=5m ./scripts/prod-ssh.sh status",
+    "true && ./scripts/prod-ssh.sh status",
+    "false || ./scripts/prod-ssh.sh status",
+    `${WORKTREE}/scripts/prod-ssh.sh status`,
+  ]) {
+    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).command, command);
+  }
+
+  for (const command of [
+    "printf '%s' './scripts/prod-ssh.sh'",
+    "printf '%s' '; ./scripts/prod-ssh.sh'",
+    "printf '%s' '| ./scripts/prod-ssh.sh'",
+    "printf '%s' 'line one\n./scripts/prod-ssh.sh'",
+  ]) {
+    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).command, command);
+  }
+  for (const command of [
+    "test -f /home/superdev/projects/OpenMates/scripts/prod-ssh.sh",
+    "/home/superdev/projects/OpenMates/scripts/prod-ssh.sh.bak status",
+    "printf '%s' '/home/superdev/projects/OpenMates/scripts/prod-ssh.sh'",
+    "cat \\/home/superdev/projects/OpenMates/.env",
+    "cat /home/superdev/projects/OpenMates/\\.env",
+    "cat \\/home\\/superdev\\/projects\\/OpenMates\\/.env",
+    "cat $'\\057home\\057superdev\\057projects\\057OpenMates\\057.env'",
+    "cat $'\\x2fhome\\x2fsuperdev\\x2fprojects\\x2fOpenMates\\x2f.env'",
+  ]) {
+    assert.throws(() => routeLocalToolArgsForTest("bash", { command }, WORKTREE), /session isolation/);
+  }
+  assert.match(prodSshSource, /rev-parse --path-format=absolute --git-common-dir/);
+  assert.match(prodSshSource, /CONTROL_PLANE_ROOT/);
+  assert.doesNotMatch(prodSshSource, /OPENMATES_CONTROL_PLANE_ROOT/);
+  assert.match(prodSshSource, /Unable to resolve root control-plane checkout/);
 });
 
 test("root absolute paths in shell commands are rejected with an actionable alternative", () => {

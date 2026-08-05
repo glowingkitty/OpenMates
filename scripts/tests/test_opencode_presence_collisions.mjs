@@ -105,6 +105,9 @@ test("inherited children can run known read-only shell diagnostics", () => {
     "./other/issues.py show synthetic-id --env prod",
     "docker exec api python /app/backend/scripts/debug.py logs --query-json --upload-update",
     "docker exec api python /app/backend/scripts/debug.py logs --query-json=--upload-update",
+    "git status --short\ntouch scripts/child-write.py",
+    "git status --short # inspect only\ntouch scripts/child-write.py",
+    "git status --short\ndocker restart api",
   ]) {
     assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "block");
   }

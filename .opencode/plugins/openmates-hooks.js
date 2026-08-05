@@ -35,7 +35,6 @@ const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
 const DOCKER_LOCK_MARKER = "[OpenMates Docker lock guard]";
 const DOCKER_COMPOSE_MUTATIONS = new Set(["build", "down", "kill", "restart", "rm", "start", "stop", "up"]);
-const DOCKER_DISRUPTIVE_ACTIONS = new Set(["down", "kill", "restart", "rm", "stop", "up"]);
 const COMPOSE_OPTIONS_WITH_VALUES = new Set(["-f", "--file", "--env-file", "-p", "--project-name", "--profile", "--project-directory"]);
 const CLI_AUTH_ERROR_PATTERNS = [
   /Authentication failed\. Run [`']openmates login[`'] to re-authenticate\./i,
@@ -92,6 +91,10 @@ function unquote(value) {
   return trimmed;
 }
 
+function shellUnescape(value) {
+  return unquote(value).replace(/\\(.)/g, "$1");
+}
+
 function tokenizeCommand(command) {
   const tokens = [];
   let token = "";
@@ -106,6 +109,12 @@ function tokenizeCommand(command) {
     }
     if (char === '"' || char === "'") {
       quote = char;
+      continue;
+    }
+    if (char === "\n") {
+      if (token) tokens.push(token);
+      token = "";
+      tokens.push(";");
       continue;
     }
     if (/\s/.test(char)) {
@@ -635,11 +644,11 @@ export function childMutationDecisionForTest(route, tool, command = "") {
 }
 
 function routingRecoveryMessage(sessionID) {
-  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"brief description\". Safe reads, searches, status, summary, context, spawn-chat, worktree ensure, and worktree repair remain available.`;
+  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"brief description\". Safe reads, searches, status, summary, context, worktree ensure, and worktree repair remain available.`;
 }
 
 function isRecoveryBash(command) {
-  return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
+  return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
 }
@@ -655,8 +664,25 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
   if (!worktreePath) return input;
   if (BASH_TOOLS.has(tool)) {
     const command = bashCommand(input);
-    const withoutWorktree = command.split(resolve(worktreePath)).join("");
-    if (withoutWorktree.includes(PROJECT_ROOT) || WORKTREE_ROOTS.some((root) => withoutWorktree.includes(root))) {
+    if (command.includes("$'")) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: ANSI-C shell quoting can encode managed paths and bypass session isolation. Next: use ordinary quoted values and repository-relative paths inside ${worktreePath}.`);
+    }
+    const prodSshHelper = `${PROJECT_ROOT}/scripts/prod-ssh.sh`;
+    const routedWorktree = resolve(worktreePath);
+    const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
+    const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
+    const rootReferences = tokensWithoutOwnWorktree
+      .filter((token) => token.includes(PROJECT_ROOT));
+    const rootHelperInvocations = commandSegmentTokens(command).filter((tokens) => {
+      let index = 0;
+      while (index < tokens.length && isAssignment(tokens[index])) index += 1;
+      return shellUnescape(tokens[index]) === prodSshHelper;
+    }).length;
+    const exactRootHelperOnly = rootReferences.length > 0
+      && rootReferences.every((token) => token === prodSshHelper)
+      && rootHelperInvocations === rootReferences.length;
+    const referencesOtherWorktree = tokensWithoutOwnWorktree.some((token) => WORKTREE_ROOTS.some((root) => token.includes(root)));
+    if ((rootReferences.length > 0 && !exactRootHelperOnly) || referencesOtherWorktree) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command explicitly references the root checkout or another managed worktree and would bypass session isolation. Next: use repository-relative paths; this command will run with workdir=${worktreePath}.`);
     }
     const traversal = tokenizeCommand(command).find((token) => {
@@ -666,7 +692,7 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, workdir: worktreePath };
+    return { ...input, command, workdir: worktreePath };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };
@@ -801,22 +827,19 @@ function composeActionFromArgs(args, startIndex) {
 }
 
 function dockerComposeMutation(command) {
-  const actions = new Set();
   for (const tokens of commandSegmentTokens(command.replace(/\\\s*\n/g, " "))) {
     const invocation = normalizedInvocation(tokens);
     const { command: commandName, args } = invocation;
     if (commandName === "docker-compose") {
-      const action = composeActionFromArgs(args, 0);
-      if (DOCKER_COMPOSE_MUTATIONS.has(action)) actions.add(action);
+      if (DOCKER_COMPOSE_MUTATIONS.has(composeActionFromArgs(args, 0))) return true;
       continue;
     }
     if (commandName !== "docker") continue;
     const composeIndex = args.findIndex((arg) => basename(arg) === "compose");
     if (composeIndex === -1) continue;
-    const action = composeActionFromArgs(args, composeIndex + 1);
-    if (DOCKER_COMPOSE_MUTATIONS.has(action)) actions.add(action);
+    if (DOCKER_COMPOSE_MUTATIONS.has(composeActionFromArgs(args, composeIndex + 1))) return true;
   }
-  return [...actions];
+  return false;
 }
 
 function sessionHasDockerLock(sessionID, data = sessionsData()) {
@@ -827,28 +850,16 @@ function sessionHasDockerLock(sessionID, data = sessionsData()) {
 }
 
 export function dockerMutationDecisionForTest({ command = "", sessionID = "", data = null } = {}) {
-  const actions = dockerComposeMutation(command);
-  if (actions.length === 0) return { decision: "allow", message: "not a Docker Compose mutation" };
+  if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
+  if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
   const record = activeSessionRecord(sessionID, data || sessionsData());
   const shortID = record?.id || "<id>";
-  const disruptive = actions.filter((action) => DOCKER_DISRUPTIVE_ACTIONS.has(action));
-  if (disruptive.length > 0) {
-    return {
-      decision: "block",
-      message: actionable(
-        DOCKER_LOCK_MARKER,
-        `Docker Compose ${disruptive.join("/")} can interrupt dependent tests and must record health evidence.`,
-        `run python3 scripts/sessions.py docker restart --session ${shortID} --service <service> (repeat --service for multiple containers; add --build instead of raw up --build).`,
-      ),
-    };
-  }
-  if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
   return {
     decision: "block",
     message: actionable(
       DOCKER_LOCK_MARKER,
       "Docker Compose mutations require the current sessions.py Docker lock.",
-      `run python3 scripts/sessions.py docker restart --session ${shortID} --service <service> for restarts; for other mutations, acquire and release the Docker lock.`,
+      `run python3 scripts/sessions.py lock --session ${shortID} --type docker, retry once, then release immediately with python3 scripts/sessions.py unlock --session ${shortID} --type docker.`,
     ),
   };
 }
@@ -875,12 +886,6 @@ function guardForbiddenLocalTests(command) {
     const { command: commandName, args } = invocation;
     const firstArg = firstNonOption(args);
     const secondArg = firstNonOption(args.slice(args.indexOf(firstArg) + 1));
-
-    const directRunTests = commandName === "run_tests.py" ||
-      (["python", "python3"].includes(commandName) && basename(firstArg) === "run_tests.py");
-    if (directRunTests) {
-      throw new Error(actionable("[OpenMates test command guard]", "direct run_tests.py bypasses Docker resource leases and the test control plane.", "run python3 scripts/tests.py run with the same arguments."));
-    }
 
     if (commandName === "vitest") {
       throw new Error(actionable("[OpenMates test command guard]", "direct local Vitest bypasses the test control plane.", "run python3 scripts/tests.py run --suite vitest."));

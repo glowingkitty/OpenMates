@@ -28,7 +28,13 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${REPO_ROOT}/.env"
+if ! GIT_COMMON_DIR="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+    || [[ "$(basename "$GIT_COMMON_DIR")" != ".git" ]]; then
+    printf '%s\n' "[prod-ssh] ERROR: Unable to resolve root control-plane checkout." >&2
+    exit 1
+fi
+CONTROL_PLANE_ROOT="$(dirname "$GIT_COMMON_DIR")"
+ENV_FILE="${CONTROL_PLANE_ROOT}/.env"
 SOCK_DIR="${HOME}/.ssh/prod-ssh-sockets"
 PERSIST_DURATION="${PROD_SSH_PERSIST:-30m}"
 
