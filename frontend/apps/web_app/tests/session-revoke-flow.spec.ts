@@ -36,6 +36,14 @@ const {
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const GUEST_ONBOARDING_IDS = [
+	'openmates-intro',
+	'openmates-actionable-events',
+	'openmates-privacy-safety',
+	'openmates-mates-focus',
+	'openmates-provider-cross-platform',
+	'openmates-signup-cta'
+];
 
 // ---------------------------------------------------------------------------
 // Login helper (shared between sessions)
@@ -234,6 +242,14 @@ test('session revoke: revoking session B from session A does not log out session
 		const loginBtnB = pageB.getByTestId('header-login-signup-btn');
 		await expect(loginBtnB).toBeVisible({ timeout: 60000 });
 		logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
+		const guestBannerB = pageB.getByTestId('daily-inspiration-banner').first();
+		await expect(guestBannerB).toBeVisible({ timeout: 10000 });
+		await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
+		await expect(guestBannerB).toHaveAttribute(
+			'data-visible-inspiration-ids',
+			GUEST_ONBOARDING_IDS.join(',')
+		);
+		logB('Session B: exact guest onboarding carousel restored after forced logout.');
 		await screenshotB(pageB, '07-session-b-logged-out');
 
 		// ── Step 6: Verify Session A is still logged in ──────────────────────
