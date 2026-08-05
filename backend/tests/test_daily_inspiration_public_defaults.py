@@ -11,6 +11,7 @@ from backend.apps.ai.daily_inspiration.feature_suggestions import (
     GUEST_ONBOARDING_FEATURE_IDS,
     build_feature_inspirations,
     feature_requires_authentication,
+    has_complete_daily_inspiration_set,
 )
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 
@@ -38,6 +39,21 @@ def test_guest_onboarding_features_are_not_daily_inspiration_tips() -> None:
     }
     assert actionable_feature_ids.isdisjoint(GUEST_ONBOARDING_FEATURE_IDS)
     assert "feature.get(\"feature_id\") in GUEST_ONBOARDING_FEATURE_IDS" in route_source
+
+
+def test_authenticated_persistence_rejects_legacy_quota_sets() -> None:
+    complete = [
+        *({"content_type": "video"} for _ in range(3)),
+        *({"content_type": "wiki"} for _ in range(3)),
+        *({"content_type": "feature"} for _ in range(4)),
+    ]
+
+    assert has_complete_daily_inspiration_set(complete) is True
+    assert has_complete_daily_inspiration_set(complete[:-1]) is False
+    assert has_complete_daily_inspiration_set(
+        [{"content_type": "wiki"} for _ in range(4)]
+        + [{"content_type": "feature"} for _ in range(6)]
+    ) is False
 
 
 # Keep backend generation, public selection, and endpoint top-up on one quota contract.

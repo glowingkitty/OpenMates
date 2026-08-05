@@ -4840,7 +4840,16 @@ export function handleDailyInspirationImpl(
     import("../stores/dailyInspirationStore"),
     import("./dailyInspirationDB"),
   ])
-    .then(async ([{ dailyInspirationStore }, dailyInspirationDB]) => {
+    .then(async ([{ dailyInspirationStore, hasCompleteAuthenticatedDailySet }, dailyInspirationDB]) => {
+      if (!hasCompleteAuthenticatedDailySet(payload.inspirations)) {
+        console.warn(
+          "[ChatSyncService:AI] Rejected incomplete daily inspiration set:",
+          payload.inspirations.length,
+        );
+        sendDailyInspirationReceivedAck();
+        return;
+      }
+
       // 1. Update the Svelte store immediately so the banner appears at once.
       //    Mark as personalized so public defaults can never overwrite this data.
       dailyInspirationStore.setInspirations(payload.inspirations, {

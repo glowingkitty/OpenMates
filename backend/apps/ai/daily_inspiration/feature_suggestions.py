@@ -9,7 +9,8 @@
 import os
 import time
 import uuid
-from typing import List
+from collections import Counter
+from typing import Any, List, Mapping, Sequence
 
 from backend.apps.ai.daily_inspiration.schemas import (
     DailyInspiration,
@@ -34,6 +35,19 @@ GUEST_ONBOARDING_FEATURE_IDS = frozenset(
         "openmates-signup-cta",
     }
 )
+DAILY_INSPIRATION_TYPE_QUOTAS = {"video": 3, "wiki": 3, "feature": 4}
+
+
+def has_complete_daily_inspiration_set(
+    inspirations: Sequence[Mapping[str, Any]],
+) -> bool:
+    if len(inspirations) != sum(DAILY_INSPIRATION_TYPE_QUOTAS.values()):
+        return False
+    counts = Counter(item.get("content_type") for item in inspirations)
+    return all(
+        counts[content_type] == count
+        for content_type, count in DAILY_INSPIRATION_TYPE_QUOTAS.items()
+    )
 
 
 FEATURE_TIPS = [

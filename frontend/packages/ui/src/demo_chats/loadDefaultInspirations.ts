@@ -33,6 +33,7 @@ import { locale as svelteLocaleStore, waitLocale } from "svelte-i18n";
 import { getApiEndpoint } from "../config/api";
 import {
   dailyInspirationStore,
+  hasCompleteAuthenticatedDailySet,
   type DailyInspiration,
   type DailyInspirationSurface,
 } from "../stores/dailyInspirationStore";
@@ -231,10 +232,17 @@ export async function loadDefaultInspirations(
       && current.source !== "guest-onboarding"
       && current.source !== "none"
     ) {
-      console.debug(
-        `${LOG_PREFIX} Store already populated with real data (${current.inspirations.length} items) — skipping`,
-      );
-      return;
+      if (
+        current.source !== "personalized"
+        || hasCompleteAuthenticatedDailySet(current.inspirations)
+      ) {
+        console.debug(
+          `${LOG_PREFIX} Store already populated with real data (${current.inspirations.length} items) — skipping`,
+        );
+        return;
+      }
+      dailyInspirationStore.reset();
+      console.warn(`${LOG_PREFIX} Rejected incomplete legacy personalized inspiration set`);
     }
 
     // ── Step 0: Load hardcoded defaults immediately ───────────────────────────
@@ -270,7 +278,7 @@ export async function loadDefaultInspirations(
           return;
         }
 
-        if (persisted.length > 0) {
+        if (persisted.length > 0 && hasCompleteAuthenticatedDailySet(persisted)) {
           // Re-check store — a WS event or Phase 1 sync may have arrived during the async load.
           // If personalized data already landed, skip — it has is_opened / opened_chat_id state
           // that must not be overwritten by anything from this function.
@@ -299,6 +307,9 @@ export async function loadDefaultInspirations(
             `${LOG_PREFIX} WS delivered inspirations while loading from IndexedDB — keeping WS data`,
           );
           return;
+        }
+        if (persisted.length > 0) {
+          console.warn(`${LOG_PREFIX} Rejected incomplete legacy IndexedDB inspiration set`);
         }
       } catch (idbError) {
         // Non-fatal: fall through to server defaults. During logout/cleanup the DB

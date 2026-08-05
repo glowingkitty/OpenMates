@@ -103,6 +103,26 @@ export type DailyInspirationSource =
   | "public-daily"
   | "authenticated-fallback";
 
+const AUTHENTICATED_DAILY_QUOTAS: Record<string, number> = {
+  video: 3,
+  wiki: 3,
+  feature: 4,
+};
+
+export function hasCompleteAuthenticatedDailySet(
+  inspirations: DailyInspiration[],
+): boolean {
+  if (inspirations.length !== 10) return false;
+
+  const counts = inspirations.reduce<Record<string, number>>((result, inspiration) => {
+    result[inspiration.content_type] = (result[inspiration.content_type] ?? 0) + 1;
+    return result;
+  }, {});
+  return Object.entries(AUTHENTICATED_DAILY_QUOTAS).every(
+    ([contentType, count]) => counts[contentType] === count,
+  );
+}
+
 interface DailyInspirationWriteOptions {
   personalized?: boolean;
   source?: Exclude<DailyInspirationSource, "none">;

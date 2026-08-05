@@ -566,7 +566,7 @@ export async function handlePhase1LastChatImpl(
 
     // --- Handle daily inspirations (unchanged from before) ---
     try {
-      const { dailyInspirationStore } =
+      const { dailyInspirationStore, hasCompleteAuthenticatedDailySet } =
         await import("../stores/dailyInspirationStore");
 
       if (payload.daily_inspirations && payload.daily_inspirations.length > 0) {
@@ -576,7 +576,10 @@ export async function handlePhase1LastChatImpl(
           const savedInspirations = await processInspirationRecordsFromSync(
             payload.daily_inspirations,
           );
-          if (savedInspirations && savedInspirations.length > 0) {
+          if (
+            savedInspirations
+            && hasCompleteAuthenticatedDailySet(savedInspirations)
+          ) {
             dailyInspirationStore.setInspirations(savedInspirations, {
               personalized: true,
             });

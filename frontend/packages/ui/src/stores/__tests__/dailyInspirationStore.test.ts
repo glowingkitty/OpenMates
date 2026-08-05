@@ -8,6 +8,7 @@ import { get } from "svelte/store";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   dailyInspirationStore,
+  hasCompleteAuthenticatedDailySet,
   type DailyInspiration,
 } from "../dailyInspirationStore";
 import { getAuthenticatedFallbackInspirations } from "../../demo_chats/hardcodedInspirations";
@@ -125,5 +126,12 @@ describe("dailyInspirationStore", () => {
     expect(counts).toEqual({ video: 3, wiki: 3, feature: 4 });
     expect(fallback.map((item) => item.inspiration_id)).not.toContain("openmates-signup-cta");
     expect(fallback.filter((item) => item.content_type === "feature").every((item) => item.feature?.settings_path)).toBe(true);
+    expect(hasCompleteAuthenticatedDailySet(fallback)).toBe(true);
+    expect(hasCompleteAuthenticatedDailySet(fallback.slice(1))).toBe(false);
+    expect(
+      hasCompleteAuthenticatedDailySet(
+        fallback.map((item) => ({ ...item, content_type: "feature" })),
+      ),
+    ).toBe(false);
   });
 });
