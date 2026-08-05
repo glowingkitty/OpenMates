@@ -292,6 +292,22 @@ export function shouldUpdateMessage(
     return true;
   }
 
+  if (
+    incomingPriority === existingPriority &&
+    existing.status === incoming.status &&
+    (
+      existing.content !== incoming.content ||
+      existing.model_name !== incoming.model_name ||
+      existing.category !== incoming.category ||
+      existing.thinking_content !== incoming.thinking_content ||
+      existing.thinking_signature !== incoming.thinking_signature ||
+      existing.thinking_token_count !== incoming.thinking_token_count ||
+      existing.has_thinking !== incoming.has_thinking
+    )
+  ) {
+    return true;
+  }
+
   return false;
 }
 

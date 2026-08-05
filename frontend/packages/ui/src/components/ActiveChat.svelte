@@ -14433,9 +14433,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-align: center;
         /* Render above ChatHistory (which is also position:absolute and comes after in DOM) */
         z-index: var(--z-index-raised);
-        /* Allow clicks to pass through the non-interactive parts to ChatHistory underneath,
-           but re-enable pointer-events on interactive children (resume card button) */
-        pointer-events: none;
+        pointer-events: auto;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -15006,7 +15004,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background-size: 140% 140%;
         background-position: 0% 50%;
         text-align: left;
-        pointer-events: auto; /* Re-enable clicks (parent center-content has pointer-events: none) */
+        pointer-events: auto;
     }
 
     .resume-chat-card:hover {
