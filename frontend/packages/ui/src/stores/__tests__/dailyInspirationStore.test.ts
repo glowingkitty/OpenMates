@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
 // Regression coverage for authenticated daily inspiration carousel stability.
 // Duplicate WebSocket deliveries can arrive while the user manually navigates
