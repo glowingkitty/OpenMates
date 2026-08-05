@@ -583,6 +583,16 @@ attempts:
       the new test used `landing-actionable-demo` instead of the component's
       existing `landing-actionable-event-demo` test ID. The screenshot showed the
       Actionable card contained; the selector was corrected so Privacy is measured.
+  - id: ATTEMPT-35
+    task_id: TASK-4
+    approach: Run the corrected tablet-landscape contract on a Ready descendant deployment.
+    outcome: rejected
+    recorded_at: "2026-08-05"
+    notes: >
+      GitHub Actions run `30966502316` passed on `5e4985098`, but the contract only
+      measured Actionable and Privacy's first copy scene. That was insufficient for
+      the user-reported later animation positioning failure, so the contract now
+      checks each of the nine scene-specific visual roots against the banner bounds.
 
 handoff:
   current_task_id: TASK-4

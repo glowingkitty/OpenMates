@@ -29,6 +29,18 @@ const PRIVACY_STAGES = [
 	'memory-permission'
 ] as const;
 
+const PRIVACY_STAGE_TEST_IDS = {
+	'saved-data-copy': 'landing-privacy-saved-data-copy',
+	'encryption-lock': 'landing-privacy-encryption',
+	'pii-copy': 'landing-privacy-pii-copy',
+	'pii-detection': 'landing-privacy-pii-message',
+	'originals-copy': 'landing-privacy-originals-copy',
+	'pii-reveal': 'landing-privacy-pii-reveal',
+	'personalized-copy': 'landing-privacy-personalized-copy',
+	'trip-request': 'landing-privacy-trip-request',
+	'memory-permission': 'app-settings-memories-permission-card'
+} as const;
+
 async function openPrivacySlide(page: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/?landing-header-stories'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
@@ -236,9 +248,15 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
 			timeout: HEADING_SETTLE_MS
 		});
-		await expect(page.getByTestId('landing-privacy-saved-data-copy')).toBeVisible();
 		await expectInsideBanner(page, 'landing-privacy-safety-demo');
-		await expectInsideBanner(page, 'landing-privacy-saved-data-copy');
+		for (const stage of PRIVACY_STAGES) {
+			await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', stage, {
+				timeout: 5000
+			});
+			const stageTestId = PRIVACY_STAGE_TEST_IDS[stage];
+			await expect(page.getByTestId(stageTestId)).toBeVisible();
+			await expectInsideBanner(page, stageTestId);
+		}
 	});
 
 	test('guest New chat from an example focuses a blank composer without replaying slide zero', async ({ page }: { page: any }) => {
