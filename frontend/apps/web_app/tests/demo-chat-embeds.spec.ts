@@ -156,6 +156,21 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(fitnessResultFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
 	});
 
+	test('flight inline links render with spaced large previews', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-flights-berlin-bangkok'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+		await expect(assistantMessage.getByRole('link', { name: /morning departure at 10:00/i })).toBeVisible({ timeout: 30000 });
+
+		const largePreview = assistantMessage.getByTestId('embed-preview-large').first();
+		await expect(largePreview).toBeVisible({ timeout: 30000 });
+		await expect(largePreview).toHaveCSS('margin-top', '8px');
+	});
+
 	test('Deutschlandticket app skill preview stays compact in the public example chat', async ({ page }) => {
 		test.setTimeout(90000);
 

@@ -304,6 +304,7 @@
   <div
     bind:this={wrapperEl}
     use:registerSwipeSurface
+    data-testid="embed-preview-large"
     class="embed-preview-large-wrapper"
     class:embed-preview-large-wrapper--has-dots={hasMultiple}
     style="min-height: {shellMinHeight}px;"
