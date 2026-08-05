@@ -8,6 +8,8 @@ key_files:
 - scripts/run_tests.py
 - scripts/auto_fix_failed_tests.py
 - scripts/nightly-dead-code-removal.sh
+- scripts/stale_code_daily.py
+- scripts/stale-code-cron-setup.sh
 - scripts/weekly-codebase-audit.sh
 - scripts/weekly-technical-debt.sh
 - scripts/technical_debt_scan.py
@@ -74,7 +76,7 @@ claims:
 
 ## Why This Exists
 
-Continuous automated maintenance reduces manual toil: deploy failures are auto-investigated, dead code is removed nightly, tests run daily, and security is audited twice weekly.
+Continuous automated maintenance reduces manual toil: deploy failures are monitored, stale-code candidates are reported without automatic edits, tests run daily, and security is audited twice weekly.
 
 ## How It Works
 
@@ -84,7 +86,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 |-------------------------------|----------------------------------------|-------------------------------------------|
 | `0 10 * * 1-5` UTC            | `daily-meeting.sh`                     | **Daily standup**: OpenCode chat + email link |
 | `*/2 * * * *`                 | `check-deploy-status.sh`               | Watch Vercel for build failures           |
-| `02:00 Mon-Fri`               | `nightly-dead-code-removal.sh`         | Remove detected dead code                 |
+| `02:00 daily`                  | `stale_code_daily.py`                  | Report deletion-ready stale code + Discord |
 | `02:00 Mon+Thu`               | `weekly-codebase-audit.sh`             | Top 5 improvement findings (plan only)    |
 | `02:15 Mon-Fri`               | `nightly-quick-wins.sh`                | Quick-win improvements (Haiku, plan only) |
 | `02:30 Tue+Fri`               | `security-audit.sh`                    | Security code review (plan only)          |
@@ -119,7 +121,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches an OpenCode repair chat with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
 
-**Dead code removal** (02:00): Runs `find_dead_code.py` (up to 50 items across Python/TypeScript/Svelte/CSS). Dispatches an OpenCode chat to remove and commit. Skips if HEAD unchanged. State: `scripts/.dead-code-removal-state.json`.
+**Deterministic stale-code report** (02:00 daily): Runs `find_dead_code.py` across Python, TypeScript, Svelte, and CSS. Only narrow Ruff safe-fix imports may be `deletion_ready`; ambiguous functions, classes, exports, components, and selectors are `review_only` or `suppressed`, including Vite glob, app metadata, computed class, generated, route, fixture, migration, public API, and compatibility cases. Writes gitignored `logs/nightly-reports/stale-code.json` and `.md`, then posts a redacted count/status summary through optional `DISCORD_WEBHOOK_DEV_NIGHTLY`. Cron never edits source or launches OpenCode. Install idempotently with `bash scripts/stale-code-cron-setup.sh`; manual cleanup uses the `remove-stale-code` skill, which revalidates the commit and fingerprints before editing. The legacy `nightly-dead-code-removal.sh` path is a report-only compatibility wrapper.
 
 **Codebase audit** (Mon+Thu 02:00): Uses 2 weeks of git history to find top 5 improvements (security, performance, reliability, quality). Plan mode only -- no implementation. State: `scripts/.audit-state.json`.
 
@@ -189,7 +191,8 @@ Most maintenance scripts support `--dry-run` (show prompt, skip agent) or `--for
 
 ```bash
 ./scripts/check-deploy-status.sh --dry-run
-./scripts/nightly-dead-code-removal.sh --force --category python
+python3 scripts/stale_code_daily.py --dry-run-notify
+python3 scripts/find_dead_code.py --category python --json
 ./scripts/run-tests-daily.sh --force
 python3 scripts/_workflow_review_helper.py collect --since 2026-07-03T00:00:00Z --until 2026-07-10T00:00:00Z
 ```
