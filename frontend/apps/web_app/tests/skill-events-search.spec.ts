@@ -201,6 +201,7 @@ test.describe('App: Events / Skill: search', () => {
 			page.getByTestId('message-content').filter({ has: finalGroupedView })
 		).toHaveAttribute('data-streaming', 'true');
 		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
+		await expect(finalGroupedCards.first()).toBeVisible({ timeout: 60_000 });
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
