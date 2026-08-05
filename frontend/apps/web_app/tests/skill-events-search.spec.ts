@@ -230,11 +230,11 @@ test.describe('App: Events / Skill: search', () => {
 		const count = await resultCards.count();
 		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
 
-		await resultCards.first().click();
+		const resultOverlay = await openFullscreen(page, resultCards.first());
 		await expectCalendarDownload(page, logCheckpoint);
 		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
 
-		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
+		await closeFullscreen(page, resultOverlay);
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
 		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);
@@ -262,7 +262,6 @@ test.describe('App: Events / Skill: search', () => {
 			.first()
 			.click();
 		await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
-		await page.waitForTimeout(5_000);
 
 		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
 		await expect(finalGroupedView).toBeVisible();
