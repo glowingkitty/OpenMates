@@ -245,6 +245,11 @@ test.describe('App: Events / Skill: search', () => {
 		});
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		await takeStepScreenshot(page, 'events-search-embeds-after-reload');
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect(reloadedGroupedView).toBeVisible();
+		await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
+		await takeStepScreenshot(page, 'events-search-embeds-after-reload-mobile');
+		await page.setViewportSize({ width: 1280, height: 720 });
 		logCheckpoint('Completed app-skill group retained populated cards after reload.');
 
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
