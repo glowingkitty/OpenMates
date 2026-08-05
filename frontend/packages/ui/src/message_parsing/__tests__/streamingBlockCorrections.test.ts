@@ -45,7 +45,7 @@ describe("assistant block corrections", () => {
     expect(corrected.committed[2].id).toBe(previous.committed[2].id);
   });
 
-  it("reports non-local divergence without a full replacement operation", () => {
+  it("targets each changed block without a full replacement operation", () => {
     const previous = createAssistantRenderPlan("One.\n\nTwo.\n\nThree.", { phase: "final" });
     const divergent = createAssistantRenderPlan("Changed one.\n\nTwo.\n\nChanged three.", {
       phase: "final",
@@ -53,7 +53,8 @@ describe("assistant block corrections", () => {
     });
 
     expect(divergent.operations).toEqual([
-      { kind: "convergence-failure", reason: "non-local-divergence" },
+      expect.objectContaining({ kind: "replace-block", index: 0 }),
+      expect.objectContaining({ kind: "replace-block", index: 2 }),
     ]);
     expect(divergent.operations.map((operation) => operation.kind) as string[]).not.toContain(
       "replace-document",

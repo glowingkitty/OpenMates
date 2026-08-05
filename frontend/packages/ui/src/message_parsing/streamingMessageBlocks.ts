@@ -350,11 +350,7 @@ function deriveOperations(
     }
   }
 
-  if (changedIndexes.length > 1) {
-    return [{ kind: "convergence-failure", reason: "non-local-divergence" }];
-  }
-  if (changedIndexes.length === 1) {
-    const index = changedIndexes[0];
+  for (const index of changedIndexes) {
     plan.committed[index].id = previousBlocks[index].id;
     operations.push({ kind: "replace-block", index, blockId: previousBlocks[index].id });
   }

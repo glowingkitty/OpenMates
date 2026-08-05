@@ -235,7 +235,7 @@ scenarios:
     then:
       - Stable block comparison identifies and replaces only changed blocks.
       - Unaffected prose, app-skill cards, previews, selections, and hydration state remain mounted and ordered.
-      - Unexpected non-local divergence emits a sanitized convergence failure and uses a visible safe fallback rather than silent setContent.
+      - Every changed stable block is replaced in one atomic transaction; transaction or schema failure emits a sanitized visible fallback rather than silent setContent.
 
   - id: S-6
     title: Reload and reopen reproduce the live final message
@@ -295,7 +295,7 @@ acceptance_criteria:
   - {id: AC-2, scenario: S-2, text: "All app-skill executions remain in one top group ordered newest first during streaming, completion, metadata refresh, reload, and reopen while loaded cards retain mounted state.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-APP-SKILLS, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-REOPEN]}
   - {id: AC-3, scenario: S-3, text: "Authored large previews, inline embed links, source quotes, and result views retain Markdown positions and never merge into the app-skill execution group.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-STREAM]}
   - {id: AC-4, scenario: S-4, text: "Normal completion commits only the tail, changes streaming presentation, performs zero existing NodeView remounts, and creates no new loading shell.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-LIFECYCLE, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-CHAT-FLOW]}
-  - {id: AC-5, scenario: S-5, text: "Final corrections replace only changed stable blocks; non-local divergence is observable and cannot silently invoke whole-message setContent.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-CORRECTIONS, T-PLAYWRIGHT-STREAM]}
+  - {id: AC-5, scenario: S-5, text: "Final corrections replace only changed stable blocks in one atomic transaction; transaction failures are observable and cannot silently invoke whole-message setContent.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-CORRECTIONS, T-PLAYWRIGHT-STREAM]}
   - {id: AC-6, scenario: S-6, text: "Normalized live-final and freshly reopened documents have identical ordered block roles, app-skill order, node types, semantic identities, and presentation variants.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-REOPEN, T-PLAYWRIGHT-REOPEN]}
   - {id: AC-7, scenario: S-7, text: "Stable result views recover entries in place and hydrate expensive map/calendar presentation only when eligible, once per mounted identity.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-NODEVIEWS, T-PLAYWRIGHT-MAP]}
   - {id: AC-8, scenario: S-8, text: "Large-stream parsing and mutation are proportional to changed blocks, normal post-init setContent count is zero, and rendering causes no storage writes or provider requests.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-PERF]}
@@ -399,7 +399,7 @@ tests:
     assertions:
       - Normal completion commits only the tail.
       - One changed paragraph or source quote replaces only its stable block.
-      - Unexpected broad divergence returns a sanitized failure and never requests setContent.
+      - Multiple changed blocks produce targeted replacements; an actual transaction failure is sanitized and never requests setContent.
     red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
     green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-VITEST-REOPEN

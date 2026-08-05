@@ -71,4 +71,30 @@ describe("createAssistantRenderPlan", () => {
     expect(plan.committed).toHaveLength(0);
     expect(plan.tail?.markdown).toBe(tail);
   });
+
+  it("retains heading-adjacent result views across cumulative snapshots", () => {
+    const chunks = [
+      "Here are the results.\n\n",
+      "### Weekend 1\n```embeds_results_view\ntitle: First weekend\nembeds: event-one, event-two\n```\n\n",
+      "### Weekend 2\n```embeds_results_view\ntitle: Second weekend\nembeds: event-three\n```\n\n",
+      "More details follow.",
+    ];
+    let markdown = "";
+    let plan: ReturnType<typeof createAssistantRenderPlan> | undefined;
+    for (const chunk of chunks) {
+      markdown += chunk;
+      plan = createAssistantRenderPlan(markdown, {
+        phase: "streaming",
+        previous: plan,
+      });
+    }
+
+    const resultViews = findNodes(plan?.document, "embed").filter(
+      (node) => node.attrs?.type === "embeds-map-view",
+    );
+    expect(resultViews).toHaveLength(2);
+    expect(plan?.operations).not.toContainEqual(
+      expect.objectContaining({ kind: "convergence-failure" }),
+    );
+  });
 });
