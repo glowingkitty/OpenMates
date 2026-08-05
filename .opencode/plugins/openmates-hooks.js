@@ -499,6 +499,7 @@ async function openCodeSession(client, sessionID) {
 
 export async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession }) {
   let currentID = sessionID;
+  let inheritedParentRoute = false;
   const visited = new Set();
   for (let depth = 0; currentID && depth < 12 && !visited.has(currentID); depth += 1) {
     visited.add(currentID);
@@ -510,13 +511,15 @@ export async function resolveWorktreeRouteForTest({ sessionID, data = {}, childR
         repositorySessionID: record.id,
         topLevelOpenCodeSessionID: currentID,
         requestingOpenCodeSessionID: sessionID,
-        inheritedParentRoute: currentID !== sessionID,
+        inheritedParentRoute,
         childRole: childRoles?.[sessionID]?.role || "unknown",
         session: record.session,
       };
     }
     const info = await getSession(currentID);
-    currentID = info?.parentID || "";
+    const parentID = info?.parentID || "";
+    if (parentID) inheritedParentRoute = true;
+    currentID = parentID;
   }
   return {
     decision: "unresolved",
@@ -524,7 +527,7 @@ export async function resolveWorktreeRouteForTest({ sessionID, data = {}, childR
     repositorySessionID: "",
     topLevelOpenCodeSessionID: currentID || sessionID || "",
     requestingOpenCodeSessionID: sessionID || "",
-    inheritedParentRoute: currentID !== sessionID,
+    inheritedParentRoute,
     childRole: childRoles?.[sessionID]?.role || "unknown",
     session: null,
   };
@@ -539,9 +542,57 @@ async function resolveWorktreeRoute(client, sessionID, data = sessionsData()) {
   });
 }
 
-export function childMutationDecisionForTest(route, tool) {
+function isReadOnlyChildBash(command) {
+  if (!command || ["$(", "`", "<(", ">("].some((token) => command.includes(token)) || extractWriteTargets(command).length > 0) return false;
+  const readOnlyCommands = new Set(["pgrep", "ps", "pwd"]);
+  const readOnlyGitCommands = new Set(["diff", "log", "show", "status"]);
+  const readOnlyDockerCommands = new Set(["inspect", "logs", "ps", "stats", "top"]);
+  const readOnlySessionCommands = new Set(["context", "doctor", "status", "summary"]);
+  const readOnlyDebugOptions = {
+    chat: new Set(["--decrypt", "--dev", "--embeds-limit", "--json", "--messages-limit", "--no-cache", "--production", "--share-key", "--share-password", "--share-url", "--usage-limit"]),
+    logs: new Set(["--browser", "--device", "--level", "--max-rows", "--o2", "--preset", "--prod", "--query-json", "--quiet-health", "--search", "--since"]),
+  };
+  const debugCommandIsReadOnly = (action, args) => {
+    const options = readOnlyDebugOptions[action];
+    return Boolean(options) && args.every((arg) => !arg.startsWith("-") || options.has(arg.split("=", 1)[0]));
+  };
+
+  return commandSegmentTokens(command.replace(/\\\s*\n/g, " ")).every((tokens) => {
+    const invocation = normalizedInvocation(tokens);
+    const commandName = invocation.command;
+    const args = invocation.args;
+    if (readOnlyCommands.has(commandName)) return true;
+    if (commandName === "git") {
+      const writesOutput = args.some((arg) => arg === "-o" || arg === "--output" || arg.startsWith("--output="));
+      return !writesOutput && readOnlyGitCommands.has(firstNonOption(args));
+    }
+    if (commandName === "docker") {
+      const action = firstNonOption(args);
+      if (readOnlyDockerCommands.has(action)) return true;
+      if (action !== "exec") return false;
+      const debugIndex = args.findIndex((arg) => basename(arg) === "debug.py");
+      if (debugIndex < 0) return false;
+      return debugCommandIsReadOnly(basename(args[debugIndex + 1]), args.slice(debugIndex + 2));
+    }
+    if (["python", "python3"].includes(commandName)) {
+      const scriptIndex = args.findIndex((arg) => ["debug.py", "sessions.py"].includes(basename(arg)));
+      if (scriptIndex < 0) return false;
+      const script = basename(args[scriptIndex]);
+      const action = basename(args[scriptIndex + 1]);
+      if (script === "debug.py") return debugCommandIsReadOnly(action, args.slice(scriptIndex + 2));
+      if (readOnlySessionCommands.has(action)) return true;
+      return action === "presence" && basename(args[scriptIndex + 2]) === "show";
+    }
+    return false;
+  });
+}
+
+export function childMutationDecisionForTest(route, tool, command = "") {
   if (!route?.inheritedParentRoute || (!EDIT_TOOLS.has(tool) && !BASH_TOOLS.has(tool))) {
     return { decision: "allow", message: "no inherited child mutation" };
+  }
+  if (BASH_TOOLS.has(tool) && isReadOnlyChildBash(command)) {
+    return { decision: "allow", message: "read-only inherited child shell" };
   }
   const role = route.childRole || "unknown";
   const reason = role === "writable"
@@ -1181,7 +1232,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
-      const childMutation = childMutationDecisionForTest(route, tool);
+      const childMutation = childMutationDecisionForTest(route, tool, bashCommand(output?.args || input?.args));
       if (childMutation.decision === "block") throw new Error(childMutation.message);
       if (
         recordRouting

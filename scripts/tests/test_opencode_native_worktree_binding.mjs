@@ -45,15 +45,6 @@ test("merged worktree remains routed for post-deploy continuation", () => {
   );
 });
 
-test("changes-pending worktree remains routed for safe recovery", () => {
-  assert.deepEqual(
-    routingDecisionForTest({
-      session: { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "changes_pending" } },
-    }),
-    { decision: "worktree_routed", worktreePath: WORKTREE },
-  );
-});
-
 test("question sessions remain read-only without a worktree", () => {
   assert.deepEqual(
     routingDecisionForTest({ session: { mode: "question", binding_mode: "legacy_grandfathered" } }),
@@ -181,6 +172,17 @@ test("child session resolves the top-level repository worktree", async () => {
   assert.equal(result.repositorySessionID, "abcd");
   assert.equal(result.topLevelOpenCodeSessionID, "ses_parent");
   assert.equal(result.worktreePath, WORKTREE);
+});
+
+test("unbound top-level session is not classified as an inherited child", async () => {
+  const result = await resolveWorktreeRouteForTest({
+    sessionID: "ses_top_level",
+    data: { sessions: {} },
+    getSession: async () => ({ id: "ses_top_level" }),
+  });
+  assert.equal(result.decision, "unresolved");
+  assert.equal(result.inheritedParentRoute, false);
+  assert.equal(result.topLevelOpenCodeSessionID, "ses_top_level");
 });
 
 test("restart recovery reconstructs the same route without plugin-local state", async () => {

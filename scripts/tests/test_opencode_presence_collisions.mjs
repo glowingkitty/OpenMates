@@ -59,3 +59,32 @@ test("children cannot mutate through an inherited parent route", () => {
   assert.equal(childMutationDecisionForTest({ inheritedParentRoute: true, childRole: "reviewer" }, "read").decision, "allow");
   assert.equal(childMutationDecisionForTest({ inheritedParentRoute: false, childRole: "writable" }, "apply_patch").decision, "allow");
 });
+
+test("inherited children can run known read-only shell diagnostics", () => {
+  const route = { inheritedParentRoute: true, childRole: "unknown" };
+  const commands = [
+    "git status --short",
+    "docker exec api python /app/backend/scripts/debug.py chat synthetic-chat-id",
+    "docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json '{}'",
+  ];
+  for (const command of commands) {
+    assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "allow");
+  }
+  assert.equal(
+    childMutationDecisionForTest(route, "bash", "python3 scripts/sessions.py start --mode bug --task test").decision,
+    "block",
+  );
+  for (const command of [
+    "git status --short && touch scripts/child-write.py",
+    "git status --short $(touch scripts/child-write.py)",
+    "git status --short <(touch scripts/child-write.py)",
+    "git diff --output=scripts/child-write.py",
+    "sort -o scripts/child-write.py package.json",
+    "docker exec api python /app/backend/scripts/debug.py issue synthetic-id --delete --yes",
+    "docker exec api python /app/backend/scripts/debug.py logs --upload-update",
+    "docker exec api python /app/backend/scripts/debug.py logs --preview-update",
+    "docker exec api python /app/backend/scripts/debug.py chat synthetic-id --repair-messages-v",
+  ]) {
+    assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "block");
+  }
+});
