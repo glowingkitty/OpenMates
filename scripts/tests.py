@@ -861,10 +861,39 @@ def current_git_sha() -> str:
     return result.stdout.strip()
 
 
+def integrated_dev_sha() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "origin/dev"],
+        cwd=PROJECT_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
 def _matches_commit_prefix(actual_sha: str, expected_sha: str) -> bool:
     actual = actual_sha.strip().lower()
     expected = expected_sha.strip().lower()
     return bool(expected) and (actual.startswith(expected) or expected.startswith(actual))
+
+
+def resolve_test_subject_commit(expected_commit: str = "") -> str:
+    checkout_commit = current_git_sha()
+    if not expected_commit or _matches_commit_prefix(checkout_commit, expected_commit):
+        return checkout_commit
+
+    # sessions.py deploy integrates from an isolated worktree without rebasing that
+    # worktree. Accept only the exact current dev integration ref, never an arbitrary SHA.
+    dev_commit = integrated_dev_sha()
+    if _matches_commit_prefix(dev_commit, expected_commit):
+        return dev_commit
+    raise RuntimeError(
+        "Refusing to dispatch tests for a moving target: "
+        f"expected commit {expected_commit}, current HEAD is {checkout_commit[:9]} "
+        f"and origin/dev is {dev_commit[:9] or 'unavailable'}"
+    )
 
 
 @dataclass(frozen=True)
@@ -2680,19 +2709,14 @@ def run_e2e_deploy_gate(options: ControlRunOptions) -> None:
         print("E2E deploy gate: SKIPPED (run does not target Playwright)")
         return
     expected_commit = options.expected_commit or current_git_sha()
-    actual_commit = current_git_sha()
-    if not _matches_commit_prefix(actual_commit, expected_commit):
-        raise RuntimeError(
-            "E2E deploy gate refused a moving target: "
-            f"expected {expected_commit}, current HEAD is {actual_commit[:9]}"
-        )
+    subject_commit = resolve_test_subject_commit(expected_commit)
     if os.environ.get("OPENMATES_SKIP_E2E_DEPLOY_GATE", "").lower() == "true":
         print("E2E deploy gate: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
         return
     failures = [*check_vercel_ready_for_commit(expected_commit), *check_dev_health_urls()]
     if failures:
         raise RuntimeError("E2E deploy gate failed: " + "; ".join(failures))
-    print(f"E2E deploy gate: PASSED ({actual_commit[:9]}, dev endpoints reachable)")
+    print(f"E2E deploy gate: PASSED ({subject_commit[:9]}, dev endpoints reachable)")
 
 
 def latest_timestamped_run_artifact(since_mtime: float = 0.0) -> Path | None:
@@ -2766,13 +2790,10 @@ def command_run(runner_args: list[str]) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     if options.expected_commit:
-        actual_commit = current_git_sha()
-        if not _matches_commit_prefix(actual_commit, options.expected_commit):
-            print(
-                "Refusing to dispatch tests for a moving target: "
-                f"expected commit {options.expected_commit}, current HEAD is {actual_commit[:9]}",
-                file=sys.stderr,
-            )
+        try:
+            resolve_test_subject_commit(options.expected_commit)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
             return 2
     active_lease: dict[str, Any] | None = None
     selected_test_keys: list[str] = []

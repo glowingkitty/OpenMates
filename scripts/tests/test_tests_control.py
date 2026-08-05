@@ -272,6 +272,23 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
     assert options.expected_commit == "abc123"
 
 
+def test_subject_commit_accepts_current_integrated_dev_after_session_deploy(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "old-worktree-commit")
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: "deployed-commit-123")
+
+    assert tests_control.resolve_test_subject_commit("deployed-commit") == "deployed-commit-123"
+
+
+def test_subject_commit_rejects_sha_outside_checkout_and_integrated_dev(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "old-worktree-commit")
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: "deployed-commit-123")
+
+    with pytest.raises(RuntimeError, match="moving target"):
+        tests_control.resolve_test_subject_commit("unrelated-commit")
+
+
 def test_seeded_only_failed_files_from_non_spec_lease(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 
