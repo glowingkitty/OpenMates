@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-presence-coordination
 title: Real-Time Agent Presence and Collision Coordination
-status: implementing
+status: verified
 
 goal: >
   Give parallel OpenCode chats an accurate, privacy-minimal view of which work is
@@ -233,16 +233,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Reconcile the dirty root control-plane checkout to origin/dev, start a fresh root-hosted chat so commit 2c35126 is loaded, and ask the user to confirm live status and conflict-only behavior.
-  command: python3 scripts/sessions.py status --session ab41
-  expected_outcome: The fresh root runtime reports live presence without interrupting chats, after which V-USER-CONFIRMATION can close the spec.
-  blocker:
-    task_id: TASK-6
-    requires_user_input: true
-    reason: The implementation is deployed, but concurrent uncommitted root changes prevented the local control-plane fast-forward; overwriting or stashing them is unsafe.
-    question: Please reconcile the root checkout to origin/dev and confirm the live status/collision behavior from a fresh root-hosted OpenCode chat.
-    next_action: Record V-USER-CONFIRMATION, release the task claim, mark TASK-6 complete, run spec_verify.py, and end the session.
-  last_verified_commit: 2c3512629a5b421f1cc14d4106618a761728856c
+  next_action: none
+  command: python3 scripts/spec_verify.py docs/specs/agent-presence-coordination/spec.yml
+  expected_outcome: The verified spec passes with live normal-server and user-confirmation evidence.
+  blocker: null
+  last_verified_commit: 5e498509828e21cf31fbf591516ab6aead1fcc30
 
 scenarios:
   - id: S-1
@@ -794,13 +789,17 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-7, AC-8, AC-10, AC-11]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      summary: User reviewed the live indicators, requested an actual sessions.py status check, and confirmed the behavior after the restarted normal server reported five working sessions, one session waiting for required user input, exact ab41 identity/worktree linkage, and no active conflicts or protected-resource locks.
+      reason: The user explicitly concluded that the live presence behavior works after comparing the UI indicators with current status-script output.
+      command: python3 scripts/sessions.py status
+      run_id: normal-server-live-20260805
+      subject_commit: 5e498509828e21cf31fbf591516ab6aead1fcc30
+      timestamp: "2026-08-05T08:43:42Z"
       actor: user
-      next_action: Ask the user to confirm the live status and collision behavior after the real multi-session smoke passes.
+      next_action: none
 
 implementation_plan:
   spec_path: docs/specs/agent-presence-coordination/spec.yml
@@ -956,7 +955,7 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Enable narrow enforcement and document the workflow
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-7, S-8, S-9, S-10, S-11]
