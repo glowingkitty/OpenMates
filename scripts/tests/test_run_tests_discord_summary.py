@@ -166,6 +166,98 @@ def test_discord_summary_payload_uses_grouped_failure_embeds(monkeypatch):
     assert captured["timeout"] == 30
 
 
+def test_daily_discord_status_reports_phase_and_elapsed_time(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b""
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data)
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(run_tests.urllib.request, "urlopen", fake_urlopen)
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.discord_webhook_url = "https://example.invalid/webhook"
+
+    service.send_daily_discord_status(
+        "1234567890",
+        "dev",
+        "development",
+        "2026-08-05T03:00:00Z",
+        3670,
+        "Apple remote",
+    )
+
+    embed = captured["payload"]["embeds"][0]
+    assert embed["title"] == "⏳ development nightly — still running"
+    assert "**Phase:** Apple remote" in embed["description"]
+    assert "**Elapsed:** 61m" in embed["description"]
+    assert run_tests.DAILY_STATUS_INTERVAL_SECONDS == 30 * 60
+    assert captured["timeout"] == 30
+
+
+def test_daily_status_starts_discord_before_email_and_uses_30_minute_cadence(monkeypatch):
+    run_tests = load_run_tests_module()
+    events = []
+
+    class FakeNotification:
+        def send_daily_discord_status(self, *_args, **kwargs):
+            events.append("discord-start" if kwargs.get("started") else "discord-update")
+
+        def send_start_email(self, *_args):
+            events.append("email-start")
+
+    class FakeThread:
+        def __init__(self, *, target, args, name, daemon):
+            self.target = target
+            self.args = args
+            assert name == "daily-test-discord-status"
+            assert daemon is True
+
+        def start(self):
+            events.append("thread-start")
+
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.notification = FakeNotification()
+    orchestrator.git_sha = "1234567890"
+    orchestrator.git_branch = "dev"
+    orchestrator.environment = "development"
+    orchestrator.run_id = "2026-08-05T03:00:00Z"
+    orchestrator.current_phase = "starting"
+    orchestrator._daily_status_thread = None
+    monkeypatch.setattr(run_tests.threading, "Thread", FakeThread)
+
+    orchestrator._start_daily_status_updates(100.0)
+
+    assert events == ["discord-start", "thread-start", "email-start"]
+
+    waits = []
+
+    class FakeStop:
+        def wait(self, timeout):
+            waits.append(timeout)
+            return len(waits) == 2
+
+    orchestrator._daily_status_stop = FakeStop()
+    monotonic_values = iter([100.0, 1900.0, 1900.0])
+    monkeypatch.setattr(run_tests.time, "monotonic", lambda: next(monotonic_values))
+
+    orchestrator._send_daily_status_updates(100.0)
+
+    assert waits == [1800.0, 1800.0]
+    assert events[-1] == "discord-update"
+
+
 def test_vitest_artifact_records_the_failed_test_file(tmp_path):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "vitest-results.json"

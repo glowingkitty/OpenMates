@@ -52,6 +52,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -128,6 +129,7 @@ NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(
 )
 CREDENTIAL_UPDATE_ARTIFACT_NAMES = frozenset({"new_otp_key.txt", "api_key.txt"})
 POLL_INTERVAL = 15  # seconds between status checks
+DAILY_STATUS_INTERVAL_SECONDS = 30 * 60
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
@@ -2567,6 +2569,58 @@ class NotificationService:
             })
         else:
             _log("No email credentials available — skipping start email", "WARN")
+
+    def send_daily_discord_status(
+        self,
+        git_sha: str,
+        git_branch: str,
+        environment: str,
+        run_id: str,
+        elapsed_seconds: float,
+        phase: str,
+        *,
+        started: bool = False,
+    ) -> None:
+        """Post a non-fatal start or running status update for the daily run."""
+        if not self.discord_webhook_url:
+            _log("DISCORD_WEBHOOK_DEV_NIGHTLY not set — skipping daily Discord status", "DEBUG")
+            return
+
+        elapsed_minutes = max(0, int(elapsed_seconds // 60))
+        title = (
+            f"▶️ {environment} nightly — started"
+            if started
+            else f"⏳ {environment} nightly — still running"
+        )
+        description = (
+            f"**Run ID:** `{run_id}`\n"
+            f"**Phase:** {phase}\n"
+            f"**Elapsed:** {elapsed_minutes}m\n"
+            f"**Git:** `{git_sha[:8]}@{git_branch}`"
+        )
+        payload = {
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": [{"title": title, "description": description, "color": 0x3B82F6}],
+        }
+        try:
+            request = urllib.request.Request(
+                self.discord_webhook_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response.read()
+            _log("Daily Discord start posted" if started else "Daily Discord 30-minute status posted")
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace") if error.fp else ""
+            _log(f"Daily Discord status POST failed: HTTP {error.code} — {body[:300]}", "ERROR")
+        except Exception as error:
+            _log(f"Daily Discord status POST failed: {error}", "ERROR")
 
     def send_summary_email(self, result: RunResult) -> None:
         """Send test summary email after run completes, plus Discord fallback.
@@ -5689,8 +5743,58 @@ class TestOrchestrator:
         self.git_sha, self.git_branch = _git_info()
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.notification = NotificationService()
+        self.current_phase = "starting"
+        self._daily_status_stop = threading.Event()
+        self._daily_status_thread: Optional[threading.Thread] = None
+
+    def _send_daily_status_updates(self, start_time: float) -> None:
+        """Post Discord status every 30 minutes until the daily run finishes."""
+        next_update = start_time + DAILY_STATUS_INTERVAL_SECONDS
+        while not self._daily_status_stop.wait(max(0, next_update - time.monotonic())):
+            self.notification.send_daily_discord_status(
+                self.git_sha,
+                self.git_branch,
+                self.environment,
+                self.run_id,
+                time.monotonic() - start_time,
+                self.current_phase,
+            )
+            next_update += DAILY_STATUS_INTERVAL_SECONDS
+
+    def _start_daily_status_updates(self, start_time: float) -> None:
+        """Post the start status, start the heartbeat, then dispatch email."""
+        self.notification.send_daily_discord_status(
+            self.git_sha,
+            self.git_branch,
+            self.environment,
+            self.run_id,
+            0,
+            self.current_phase,
+            started=True,
+        )
+        self._daily_status_thread = threading.Thread(
+            target=self._send_daily_status_updates,
+            args=(start_time,),
+            name="daily-test-discord-status",
+            daemon=True,
+        )
+        self._daily_status_thread.start()
+        self.notification.send_start_email(self.git_sha, self.git_branch, self.environment)
+
+    def _stop_daily_status_updates(self) -> None:
+        """Stop any heartbeat before a completion summary can be posted."""
+        self._daily_status_stop.set()
+        if self._daily_status_thread and self._daily_status_thread is not threading.current_thread():
+            self._daily_status_thread.join(timeout=35)
 
     def run(self) -> int:
+        """Execute the test run and always stop the daily status heartbeat."""
+        try:
+            return self._run()
+        finally:
+            self._stop_daily_status_updates()
+
+    def _run(self) -> int:
         """Execute the test run. Returns exit code (0=pass, 1=fail)."""
         print()
         print("=" * 60)
@@ -5714,11 +5818,10 @@ class TestOrchestrator:
             if not self._daily_gate():
                 return 0
 
-        # Send start notification
-        if self.daily:
-            self.notification.send_start_email(self.git_sha, self.git_branch, self.environment)
-
         start_time = time.time()
+        status_start_time = time.monotonic()
+        if self.daily:
+            self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
 
         # Archive previous failure screenshots before starting a new run
@@ -5736,23 +5839,29 @@ class TestOrchestrator:
 
         # Run all suites via GitHub Actions (prevents dev server overload)
         if not self.spec and self.suite in ("all", "vitest"):
+            self.current_phase = "vitest"
             suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         if not self.spec and self.suite in ("all", "pytest"):
+            self.current_phase = "pytest"
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         if not self.spec and self.suite in ("all", "cli"):
+            self.current_phase = "CLI integration"
             suites["cli"] = self._run_cli_integration()
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
+            self.current_phase = "Playwright"
             suites["playwright"] = self._run_playwright()
 
         # Run native Apple checks only for nightly cron or explicit --suite apple.
         if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
+            self.current_phase = "Apple remote"
             suites["apple_remote"] = self._run_apple_remote_nightly()
 
         # Aggregate results
+        self.current_phase = "finalizing results"
         duration = time.time() - start_time
         flags = {
             "suite": self.suite,
@@ -5785,6 +5894,7 @@ class TestOrchestrator:
 
         # Daily mode: post-run tasks
         if self.daily and not self.dry_run:
+            self._stop_daily_status_updates()
             self._daily_post_run(result)
 
         return 1 if result.summary["failed"] > 0 else 0
