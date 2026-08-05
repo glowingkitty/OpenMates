@@ -231,7 +231,7 @@ test.describe('Landing page header stories', () => {
 	});
 
 	test('tablet landscape keeps Actionable and Privacy animations inside the daily inspiration banner', async ({ page }: { page: any }) => {
-		test.setTimeout(45000);
+		test.setTimeout(75000);
 		await page.setViewportSize({ width: 1024, height: 576 });
 		await page.goto(getE2EDebugUrl('/?landing-header-tablet-landscape'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
@@ -245,6 +245,29 @@ test.describe('Landing page header stories', () => {
 		await expectInsideBanner(page, 'landing-actionable-event-demo');
 
 		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+			timeout: HEADING_SETTLE_MS
+		});
+		await expectInsideBanner(page, 'landing-privacy-safety-demo');
+		for (const stage of PRIVACY_STAGES) {
+			await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', stage, {
+				timeout: 5000
+			});
+			const stageTestId = PRIVACY_STAGE_TEST_IDS[stage];
+			await expect(page.getByTestId(stageTestId)).toBeVisible();
+			await expectInsideBanner(page, stageTestId);
+		}
+
+		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible({ timeout: 6000 });
+		await expectInsideBanner(page, 'landing-mates-focus-demo');
+		await expect(page.getByTestId('landing-people-experience-demo')).toBeVisible({ timeout: STORY_DURATION_MS + ADVANCE_GRACE_MS });
+		await expectInsideBanner(page, 'landing-people-experience-demo');
+	});
+
+	test('tablet portrait keeps every Privacy animation inside the daily inspiration banner', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 768, height: 1024 });
+		await openPrivacySlide(page);
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
 			timeout: HEADING_SETTLE_MS
 		});

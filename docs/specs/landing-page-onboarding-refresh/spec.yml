@@ -593,6 +593,17 @@ attempts:
       measured Actionable and Privacy's first copy scene. That was insufficient for
       the user-reported later animation positioning failure, so the contract now
       checks each of the nine scene-specific visual roots against the banner bounds.
+  - id: ATTEMPT-36
+    task_id: TASK-4
+    approach: Run all nine scene-specific bounds checks at the reported 1024x576 viewport.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-05"
+    notes: >
+      GitHub Actions run `30967598742` failed consistently: an active Privacy
+      scene ended at y=567.44 while the daily inspiration banner ended at y=315.
+      Failure screenshots match the user report, showing the scene visuals below
+      the purple banner. The story shell retained its inherited 16:9 aspect ratio
+      after entering the absolute compact layout, unlike the Actionable shell.
 
 handoff:
   current_task_id: TASK-4

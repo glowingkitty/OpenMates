@@ -35,7 +35,7 @@
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
-  import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSource, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
+  import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
   import { introBannerVisible } from '../stores/uiStateStore';
@@ -155,8 +155,6 @@
     variant?: 'default' | 'guest-intro';
     /** Increment to force the guest intro carousel back to slide 0. */
     landingIntroResetToken?: number;
-    /** Increment to move the guest carousel to the terminal signup slide. */
-    landingSignupSlideToken?: number;
     /** Start after the expanded intro when returning from a guest example chat. */
     skipLandingIntro?: boolean;
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
@@ -165,14 +163,13 @@
     onLandingIntroExpandedChange?: (phase: LandingIntroPhase) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, landingSignupSlideToken = 0, skipLandingIntro = false, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, skipLandingIntro = false, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
 
   // Mirror of the store – updated via subscription below
   let inspirations = $state<DailyInspiration[]>([]);
-  let inspirationSource = $state<DailyInspirationSource>('none');
   let currentIndex = $state(0);
   let isAuthenticated = $state(false);
 
@@ -233,7 +230,6 @@
   let signupStageTransitionTimeout: number | undefined;
   let signupStageAnimationFrame: number | undefined;
   let lastLandingIntroResetToken = $state(0);
-  let lastLandingSignupSlideToken = $state(0);
   let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
@@ -255,7 +251,6 @@
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
   const unsubscribeDailyInspirations = dailyInspirationStore.subscribe((state) => {
-    inspirationSource = state.source;
     const wasHardcoded = inspirations.length > 0 &&
       inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
     const isNowReal = state.inspirations.length > 0 &&
@@ -292,13 +287,7 @@
   });
 
   const unsubscribeAuth = authStore.subscribe((state) => {
-    const becameAuthenticated = state.isAuthenticated && !isAuthenticated;
     isAuthenticated = state.isAuthenticated;
-    if (becameAuthenticated && surface === 'chats') {
-      void loadDefaultInspirations({ allowIndexedDB: true, surface: 'chats' }).catch((error) => {
-        console.error('[DailyInspirationBanner] Failed to restore authenticated inspirations:', error);
-      });
-    }
   });
 
   onDestroy(() => {
@@ -661,18 +650,6 @@
     if (!isGuestIntroVariant || landingIntroResetToken === lastLandingIntroResetToken) return;
     lastLandingIntroResetToken = landingIntroResetToken;
     resetLandingIntroToFirstSlide();
-  });
-
-  $effect(() => {
-    if (!isGuestIntroVariant || landingSignupSlideToken === lastLandingSignupSlideToken) return;
-    lastLandingSignupSlideToken = landingSignupSlideToken;
-    const signupIndex = visibleInspirations.findIndex((inspiration) =>
-      inspiration.inspiration_id === LANDING_SIGNUP_CTA_ID,
-    );
-    if (signupIndex < 0) return;
-    landingIntroDismissed = true;
-    landingIntroPhase = 'regular';
-    goToVisibleIndex(signupIndex);
   });
 
   $effect(() => {
@@ -1579,9 +1556,7 @@
       data-guest-slide-phase={guestSlidePhase}
       data-mounted-slide-indexes={reachableSlideIndexes.join(',')}
       data-visible-inspiration-ids={visibleInspirations.map((inspiration) => inspiration.inspiration_id).join(',')}
-      data-inspiration-source={inspirationSource}
       data-testid="daily-inspiration-banner"
-      data-current-inspiration-id={current.inspiration_id}
       style={gradientStyle}
       onclick={handleStartChat}
       onpointerdown={handleBannerPointerDown}
@@ -3889,6 +3864,10 @@
     .banner-content.mobile-card-loop .guest-actionable-demo-shell {
       aspect-ratio: auto;
       max-height: 100%;
+    }
+
+    .banner-content.mobile-card-loop .guest-story-demo-shell {
+      aspect-ratio: auto;
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,

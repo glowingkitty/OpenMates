@@ -396,6 +396,14 @@
     .permission-stage { --permission-preview-scale: 0.34; }
   }
 
+  @container chat-side (min-width: 561px) and (max-width: 800px) {
+    .permission-stage { --permission-preview-scale: 0.58; }
+  }
+
+  @media (max-height: 760px) and (min-width: 801px) {
+    .permission-stage { --permission-preview-scale: 0.38; }
+  }
+
   @keyframes piiValueEnter {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
