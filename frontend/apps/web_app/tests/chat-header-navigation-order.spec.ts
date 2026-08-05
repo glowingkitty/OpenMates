@@ -99,7 +99,21 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 				.getByTestId('chat-item-wrapper')
 				.filter({ hasText: draftText });
 			await expect(draftSidebarItem).toBeVisible({ timeout: 15000 });
+			await page
+				.getByTestId('activity-history-wrapper')
+				.getByRole('button', { name: /close/i })
+				.click();
+			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
 
+			await page.getByTestId('new-chat-button').click();
+			await expect(page.getByTestId('resume-chat-draft-card')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('resume-chat-draft-card')).toContainText(draftText);
+			expect(await page.getByTestId('resume-chat-draft-card').getAttribute('data-chat-id')).toBe(draftChatId);
+			await page.getByTestId('resume-chat-draft-card').click();
+			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+			expect(page.url()).toContain(`chat-id=${draftChatId}`);
+
+			await ensureSidebarOpen(page);
 			const regularChats = page
 				.getByTestId('chat-item-wrapper')
 				.filter({ has: page.getByTestId('chat-with-profile') });
@@ -119,14 +133,6 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 			expect(page.url()).toContain(`chat-id=${draftChatId}`);
 			await expect(page.getByTestId('chat-header-title')).toContainText(draftText);
-
-			await page.getByTestId('new-chat-button').click();
-			await expect(page.getByTestId('resume-chat-draft-card')).toBeVisible({ timeout: 15000 });
-			await expect(page.getByTestId('resume-chat-draft-card')).toContainText(draftText);
-			expect(await page.getByTestId('resume-chat-draft-card').getAttribute('data-chat-id')).toBe(draftChatId);
-			await page.getByTestId('resume-chat-draft-card').click();
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-			expect(page.url()).toContain(`chat-id=${draftChatId}`);
 		} finally {
 			if (draftChatId && page.url().includes(draftChatId)) {
 				await messageEditor.click();
