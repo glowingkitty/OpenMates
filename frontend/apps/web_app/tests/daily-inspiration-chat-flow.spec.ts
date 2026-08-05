@@ -184,14 +184,15 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	const authenticatedInspirationIds = ((await inspirationBanner.getAttribute('data-visible-inspiration-ids')) ?? '')
 		.split(',')
 		.filter(Boolean);
-	expect(authenticatedInspirationIds).not.toEqual(expect.arrayContaining([
+	const guestOnboardingIds = new Set([
 		'openmates-intro',
 		'openmates-actionable-events',
 		'openmates-privacy-safety',
 		'openmates-mates-focus',
 		'openmates-provider-cross-platform',
 		'openmates-signup-cta'
-	]));
+	]);
+	expect(authenticatedInspirationIds.filter((id) => guestOnboardingIds.has(id))).toEqual([]);
 	log('Daily inspiration banner is visible.');
 	await screenshot(page, 'inspiration-banner-visible');
 
