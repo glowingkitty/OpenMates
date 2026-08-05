@@ -118,7 +118,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6941203d9
+  subject_commit: 351a57fb7
 
 approvals:
   product_contract:
@@ -544,15 +544,33 @@ attempts:
       transform scaling around the card center displaced the shrunken card downward
       while its unscaled layout box remained taller than the compact stage. The preview
       now scales from its top edge and uses a height-safe narrow scale.
+  - id: ATTEMPT-31
+    task_id: TASK-4
+    approach: Run the focused contract and reviewed visual smoke after anchoring the responsive permission preview.
+    outcome: succeeded
+    recorded_at: "2026-08-05"
+    notes: >
+      GitHub Actions run `30963720278` passed on deployed descendant `351a57fb7`.
+      No intervening commit changed the seven landing implementation, contract, or
+      localization files after source commit `a2b2ca0`. Reviewed visual-smoke run
+      `test-results/visual-smoke/2026-08-05T00-40-33-321Z/summary.json` on the later
+      Ready deployment found no laptop or mobile defects.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the narrow permission-preview containment fix, rerun the focused Playwright contract, and review fresh laptop and mobile screenshots.
-  command: >-
-    python3 scripts/sessions.py deploy --session c3c3 --title "fix: refine responsive landing stories" --message "Symptom: ..."
-  expected_outcome: The exact-commit focused contract and reviewed visual smoke pass with the revised layout and privacy interaction.
-  blocker: null
-  last_verified_commit: 6941203d9
+  next_action: Ask the user to confirm the revised deployed landing stories on app.dev.openmates.org before closing TASK-4.
+  command: Open https://app.dev.openmates.org/ and review the deployed landing stories.
+  expected_outcome: The user approves the responsive spacing, heading motion, PII conversation, copy-only scenes, and contained permission preview.
+  blocker:
+    kind: user_visual_confirmation
+    task_id: TASK-4
+    requires_user_input: true
+    reason: >
+      Focused deployed Playwright and reviewed laptop/mobile visual smoke are green,
+      but this user-visible landing milestone requires final user visual confirmation.
+    question: Does the revised deployed landing story now match the requested spacing, motion, privacy sequence, copy, and responsive permission-card presentation?
+    next_action: If the user confirms, record the user confirmation and close TASK-4; otherwise reproduce and fix the reported mismatch.
+  last_verified_commit: b635411d
 
 scenarios:
   - id: S-1
@@ -1057,9 +1075,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: invalidated_by_contract_change
-        reason: User screenshot review added responsive spacing, clipping, permission containment, and revised PII interaction requirements after this run passed.
-        timestamp: "2026-08-04T20:55:00Z"
+        status: passed
+        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f711ec242
+        run_id: "30963720278"
+        subject_commit: 351a57fb7
+        target: app.dev.openmates.org
+        deployment_reference: dpl_Duucir4LRdWkPc15Q1QnuP7reVNj
+        reason: The tested descendant includes source commit a2b2ca0; no intervening commit changed the seven scoped landing files.
+        timestamp: "2026-08-05T00:39:19Z"
       history:
         - status: passed
           command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f7e3411
@@ -1133,15 +1156,27 @@ verifications:
       - AC-7
       - AC-8
       - AC-9
-    status: pending
+    status: passed
     route: https://app.dev.openmates.org/
     viewports:
       - laptop
       - mobile
     evidence:
-      status: invalidated_by_contract_change
-      reason: User screenshot review identified objective spacing, clipping, copy, and responsive permission-preview defects after this visual smoke was recorded.
-      timestamp: "2026-08-04T20:55:00Z"
+      status: passed
+      reason: Reviewed deployed laptop and mobile screenshots cover the revised responsive landing contract.
+      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session c3c3
+      summary: >
+        Reviewed laptop and mobile screenshots. Defects: none; no clipping,
+        overlap, overflow, broken media, implementation error text, loading stalls,
+        or hidden controls. Accepted differences: the rotating request and
+        highlighted app differ by animation capture time.
+      run_id: test-results/visual-smoke/2026-08-05T00-40-33-321Z/summary.json
+      subject_commit: b635411d
+      target: https://app.dev.openmates.org/
+      viewports:
+        - laptop
+        - mobile
+      timestamp: "2026-08-05T00:40:45Z"
 
 implementation_plan:
   spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml
