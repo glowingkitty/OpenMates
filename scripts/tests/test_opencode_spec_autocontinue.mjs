@@ -13,15 +13,18 @@ import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 const source = readFileSync(new URL("../../.opencode/plugins/openmates-hooks.js", import.meta.url), "utf8");
 
 test("loaded hook exposes no idle spec continuation handler", async () => {
+  let promptCalls = 0;
   const hooks = await OpenMatesHooks({
-    client: { session: { messages: async () => [], prompt: async () => ({}) } },
+    client: { session: { messages: async () => [], prompt: async () => { promptCalls += 1; return {}; } } },
     worktree: "/repo",
   });
 
-  assert.equal(hooks.event, undefined);
+  assert.equal(typeof hooks.event, "function");
+  await hooks.event({ event: { type: "session.idle", properties: { sessionID: "synthetic-idle" } } });
+  assert.equal(promptCalls, 0);
 });
 
 test("loaded hook contains no deterministic spec continuation prompt", () => {
   assert.doesNotMatch(source, /Continue until the full spec is implemented/);
-  assert.doesNotMatch(source, /session\.idle/);
+  assert.doesNotMatch(source, /client\.session\.prompt|experimental\.chat\.system\.transform/);
 });

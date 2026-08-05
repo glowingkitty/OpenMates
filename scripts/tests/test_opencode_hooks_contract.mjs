@@ -53,7 +53,7 @@ async function runAfterShell(command, text) {
 }
 
 test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "resolveWorktreeRouteForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "routeLocalToolArgsForTest", "routingDecisionForTest", "routingFailureForTest"]);
+  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "childMutationDecisionForTest", "createPresenceSchedulerForTest", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "initialPresenceForTest", "readConflictWarningForTest", "reducePresenceEventForTest", "resolveWorktreeRouteForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "routeLocalToolArgsForTest", "routingDecisionForTest", "routingFailureForTest"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
 });
 
@@ -96,7 +96,8 @@ test("Claude edit coordination stays warning-only while OpenCode uses edit lease
 
 test("loaded hook preserves chat identity for blocking edit leases", () => {
   assert.match(source, /env: sessionID \? \{ \.\.\.process\.env, OPENCODE_SESSION_ID: sessionID \}/);
-  assert.doesNotMatch(source, /createSpecAutoContinue|session\.idle|opencode-spec-continuation|createFileLeaseCoordinator/);
+  assert.doesNotMatch(source, /createSpecAutoContinue|opencode-spec-continuation|createFileLeaseCoordinator|experimental\.chat\.system\.transform/);
+  assert.match(source, /event: async \(\{ event \}\)/);
   assert.match(source, /stale-read/);
   assert.match(source, /edit-lease/);
 });

@@ -61,6 +61,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+try:
+    from scripts.opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
+except ModuleNotFoundError:
+    from opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -97,6 +102,8 @@ WORKTREE_PATH_PREFIX_RE = re.compile(r"^(?:\.openmates-agent-worktrees|\.agent-w
 PROJECT_INDEX_FILE = CONTROL_PLANE_ROOT / ".claude" / "project-index.json"
 OPENCODE_STALE_READ_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.json"
 OPENCODE_STALE_READ_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.lock"
+OPENCODE_PRESENCE_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.json"
+OPENCODE_PRESENCE_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.lock"
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
@@ -4935,8 +4942,120 @@ def cmd_visual_smoke(args: argparse.Namespace) -> None:
         print(f"  url: {url}")
 
 
+def _opencode_presence_store() -> PresenceStore:
+    return PresenceStore(
+        OPENCODE_PRESENCE_STATE_FILE,
+        lock_path=OPENCODE_PRESENCE_LOCK_FILE,
+        project_root=CONTROL_PLANE_ROOT,
+    )
+
+
+def _presence_identity_item(session_id: str, record: dict, durable_sessions: dict) -> dict:
+    repository_session_id = ""
+    durable = {}
+    for candidate_id, candidate in durable_sessions.items():
+        if candidate.get("opencode_session_id") == session_id:
+            repository_session_id = candidate_id
+            durable = candidate
+            break
+    return {
+        "opencode_session_id": session_id,
+        "repository_session_id": repository_session_id,
+        "parent_id": record.get("parent_id", ""),
+        "top_level_session_id": record.get("top_level_session_id") or record.get("parent_id") or session_id,
+        "child_role": record.get("child_role", "unknown"),
+        "execution": record.get("execution", "unknown"),
+        "attention": record.get("attention", "none"),
+        "turn": record.get("turn", "none"),
+        "task": durable.get("task", ""),
+        "worktree": durable.get("worktree", {}),
+        "paths": record.get("paths", []),
+        "updated_at": record.get("updated_at", ""),
+    }
+
+
+def presence_status_view(
+    durable: dict,
+    presence: dict,
+    *,
+    include_all: bool = False,
+    conflicts_only: bool = False,
+    session_filter: str = "",
+) -> dict:
+    """Project durable identities onto current ephemeral OpenCode state."""
+    durable_sessions = durable.get("sessions", {})
+    items = {
+        session_id: _presence_identity_item(session_id, record, durable_sessions)
+        for session_id, record in presence.get("sessions", {}).items()
+        if isinstance(record, dict)
+    }
+    view = {
+        "working": [],
+        "waiting_for_user": [],
+        "idle_after_response": [],
+        "stopped_or_failed": [],
+        "conflicts": [],
+        "diagnostics": presence.get("diagnostics", []),
+    }
+    for item in items.values():
+        if item["attention"].startswith("required_"):
+            view["waiting_for_user"].append(item)
+        elif item["execution"] in {"busy", "retrying"}:
+            view["working"].append(item)
+        elif item["execution"] == "idle" and item["turn"] == "completed":
+            view["idle_after_response"].append(item)
+        elif item["execution"] in {"stopped", "error"}:
+            view["stopped_or_failed"].append(item)
+    for section in ("working", "waiting_for_user", "idle_after_response", "stopped_or_failed"):
+        view[section].sort(key=lambda item: item["opencode_session_id"])
+
+    for path, lease in sorted(durable.get("edit_leases", {}).items()):
+        owner = durable_sessions.get(lease.get("session_id", ""), {}) if isinstance(lease, dict) else {}
+        owner_id = owner.get("opencode_session_id", "")
+        if owner_id and items.get(owner_id, {}).get("execution") in {"busy", "retrying"}:
+            view["conflicts"].append({"type": "edit_lease", "path": path, "owner_session_id": lease.get("session_id"), "opencode_session_id": owner_id})
+    for key, claims in sorted(presence.get("task_claims", {}).items()):
+        implementations = [claim for claim in claims if claim.get("role") == "implementation"]
+        if implementations:
+            view["conflicts"].append({"type": "task_claim", "key": key, "claims": implementations})
+
+    if include_all:
+        view["all"] = [
+            {
+                "repository_session_id": repository_session_id,
+                "opencode_session_id": info.get("opencode_session_id", ""),
+                "task": info.get("task", ""),
+                "worktree": info.get("worktree", {}),
+            }
+            for repository_session_id, info in sorted(durable_sessions.items())
+        ]
+    if session_filter:
+        selected_repository_id = session_filter if session_filter in durable_sessions else ""
+        selected_open_code_id = ""
+        if selected_repository_id:
+            selected_open_code_id = durable_sessions[selected_repository_id].get("opencode_session_id", "")
+        elif session_filter in items:
+            selected_open_code_id = session_filter
+            selected_repository_id = items[session_filter].get("repository_session_id", "")
+        selected = items.get(selected_open_code_id)
+        if selected is None and selected_repository_id:
+            info = durable_sessions[selected_repository_id]
+            selected = {
+                "repository_session_id": selected_repository_id,
+                "opencode_session_id": info.get("opencode_session_id", ""),
+                "task": info.get("task", ""),
+                "worktree": info.get("worktree", {}),
+            }
+        if selected is not None:
+            selected = {**selected, "children": [item for item in items.values() if item.get("parent_id") == selected.get("opencode_session_id")]}
+        view["session"] = selected
+    if conflicts_only:
+        return {"conflicts": view["conflicts"], "diagnostics": view["diagnostics"]}
+    return view
+
+
 def cmd_status(args: argparse.Namespace) -> None:
-    """Show current session state."""
+    """Show current OpenCode reality, with durable history available explicitly."""
     data = _load_sessions()
     _prune_stale(data)
     _prune_stale_locks(data)
@@ -4946,11 +5065,22 @@ def cmd_status(args: argparse.Namespace) -> None:
     sessions = data.get("sessions", {})
     locks = data.get("locks", {})
     edit_leases = data.get("edit_leases", {})
+    try:
+        presence = _opencode_presence_store().snapshot()
+    except PresenceStoreError as error:
+        presence = {"sessions": {}, "task_claims": {}, "diagnostics": [{"code": "unavailable_store", "message": str(error)}]}
+    view = presence_status_view(
+        data,
+        presence,
+        include_all=getattr(args, "all", False),
+        conflicts_only=getattr(args, "conflicts", False),
+        session_filter=getattr(args, "session", "") or "",
+    )
 
     # --json: emit raw sessions dict for machine consumers (e.g. opencode plugin)
     if getattr(args, "json", False):
         dirty_files = _get_dirty_files()
-        output = {"sessions": {}, "locks": locks, "edit_leases": edit_leases}
+        output = {"sessions": {}, "locks": locks, "edit_leases": edit_leases, "presence": presence, "live": view}
         for sid, info in sessions.items():
             modified = info.get("modified_files", [])
             uncommitted = [f for f in modified if f in dirty_files]
@@ -4962,8 +5092,43 @@ def cmd_status(args: argparse.Namespace) -> None:
         print(json.dumps(output))
         return
 
-    print("== SESSION STATUS ==")
+    print("== LIVE SESSION STATUS ==")
     print()
+
+    if view.get("session") is not None or getattr(args, "session", ""):
+        print("Session identity chain:")
+        print(f"  {json.dumps(view.get('session'), sort_keys=True)}")
+        print()
+    elif getattr(args, "conflicts", False):
+        print("Relevant active conflicts:")
+        if view["conflicts"]:
+            for conflict in view["conflicts"]:
+                print(f"  - {json.dumps(conflict, sort_keys=True)}")
+        else:
+            print("  none")
+        print()
+    else:
+        labels = (
+            ("working", "Currently working"),
+            ("waiting_for_user", "Waiting for required user input"),
+            ("idle_after_response", "Idle after completed response"),
+            ("stopped_or_failed", "Stopped or failed"),
+        )
+        for key, label in labels:
+            print(f"{label} ({len(view[key])}):")
+            for item in view[key]:
+                repository = item.get("repository_session_id") or "unbound"
+                task = f" - {item['task']}" if item.get("task") else ""
+                print(f"  [{repository}] {item['opencode_session_id']} {item['execution']}/{item['turn']}{task}")
+            if not view[key]:
+                print("  none")
+            print()
+
+    if view.get("diagnostics"):
+        print("Presence diagnostics:")
+        for diagnostic in view["diagnostics"]:
+            print(f"  - {diagnostic.get('code', 'unknown')}: {diagnostic.get('message', '')}")
+        print()
 
     # Locks
     print("Locks:")
@@ -4990,12 +5155,9 @@ def cmd_status(args: argparse.Namespace) -> None:
             )
         print()
 
-    # Sessions
-    if not sessions:
-        print("No active sessions.")
-    else:
-        print(f"Registered sessions ({len(sessions)}):")
-        for sid, info in sessions.items():
+    if getattr(args, "all", False):
+        print(f"Durable and historical sessions ({len(sessions)}):")
+        for sid, info in sorted(sessions.items()):
             writing = info.get("writing")
             mod_count = len(info.get("modified_files", []))
             writing_str = f" WRITING: {writing}" if writing else ""
@@ -5012,7 +5174,7 @@ def cmd_status(args: argparse.Namespace) -> None:
             if info.get("modified_files"):
                 for f in info["modified_files"]:
                     print(f"         - {f}")
-    print()
+        print()
 
     # Stale docs
     stale = _check_stale_docs()
@@ -5535,6 +5697,42 @@ def cmd_stale_read(args: argparse.Namespace) -> None:
     if error:
         print(error, file=sys.stderr)
         sys.exit(2)
+
+
+def cmd_presence(args: argparse.Namespace) -> None:
+    """Update/query ephemeral presence and atomically manage task intent."""
+    store = _opencode_presence_store()
+    action = args.presence_action
+    try:
+        if action == "update":
+            payload = json.load(sys.stdin) if args.json_stdin else {}
+            print(json.dumps(store.update(payload), sort_keys=True))
+            return
+        if action == "show":
+            print(json.dumps(store.snapshot(expire=not args.no_expire), sort_keys=True))
+            return
+        if action == "child-role":
+            print(json.dumps(store.set_child_role(args.session, args.parent, args.role), sort_keys=True))
+            return
+        if action == "claim-task":
+            result = store.claim_task(args.spec, args.task, args.owner, role=args.role, ttl_seconds=args.ttl)
+            print(json.dumps(result, sort_keys=True))
+            return
+        if action == "renew-task":
+            result = store.renew_task(args.spec, args.task, args.owner, ttl_seconds=args.ttl)
+            print(json.dumps(result, sort_keys=True))
+            return
+        if action == "release-task":
+            print(json.dumps(store.release_task(args.spec, args.task, args.owner), sort_keys=True))
+            return
+    except TaskClaimConflict as error:
+        print(f"BLOCKED: {error}", file=sys.stderr)
+        sys.exit(2)
+    except (PresenceStoreError, json.JSONDecodeError) as error:
+        print(f"Presence error: {error}", file=sys.stderr)
+        sys.exit(1)
+    print(f"Error: unknown presence action {action}", file=sys.stderr)
+    sys.exit(1)
 
 
 def _normalize_lock_type(raw: str) -> str:
@@ -9216,6 +9414,9 @@ def main() -> None:
         action="store_true",
         help="Output raw JSON (for machine consumers, e.g. opencode plugin)",
     )
+    p_status.add_argument("--all", action="store_true", help="Include durable and historical repository sessions")
+    p_status.add_argument("--conflicts", action="store_true", help="Show only relevant active path and task conflicts")
+    p_status.add_argument("--session", help="Show one repository/OpenCode identity chain")
 
     # doctor
     p_doctor = sub.add_parser(
@@ -9306,6 +9507,26 @@ def main() -> None:
         p_stale_read_action = p_stale_read_sub.add_parser(action)
         p_stale_read_action.add_argument("--opencode-session", required=True, help="OpenCode session ID")
         p_stale_read_action.add_argument("--file", required=True, help="Repository file path")
+
+    p_presence = sub.add_parser("presence", help="Manage ephemeral OpenCode presence and task intent")
+    p_presence_sub = p_presence.add_subparsers(dest="presence_action", required=True)
+    p_presence_update = p_presence_sub.add_parser("update", help="Apply one allowlisted lifecycle update")
+    p_presence_update.add_argument("--json-stdin", action="store_true", required=True)
+    p_presence_show = p_presence_sub.add_parser("show", help="Show privacy-minimal presence JSON")
+    p_presence_show.add_argument("--no-expire", action="store_true", help="Do not project stale live entries to unknown")
+    p_presence_role = p_presence_sub.add_parser("child-role", help="Set an explicit OpenCode child role")
+    p_presence_role.add_argument("--session", required=True, help="Child OpenCode session ID")
+    p_presence_role.add_argument("--parent", required=True, help="Parent OpenCode session ID")
+    p_presence_role.add_argument("--role", required=True, choices=["read_only", "reviewer", "writable"])
+    for action in ("claim-task", "renew-task", "release-task"):
+        p_presence_task = p_presence_sub.add_parser(action)
+        p_presence_task.add_argument("--spec", required=True, help="Repository-relative executable spec path")
+        p_presence_task.add_argument("--task", required=True, help="Executable spec task ID")
+        p_presence_task.add_argument("--owner", required=True, help="Owning OpenCode session ID")
+        if action == "claim-task":
+            p_presence_task.add_argument("--role", required=True, choices=["implementation", "reviewer", "read_only"])
+        if action != "release-task":
+            p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
@@ -9802,6 +10023,7 @@ def main() -> None:
         "check-write": cmd_check_write,
         "edit-lease": cmd_edit_lease,
         "stale-read": cmd_stale_read,
+        "presence": cmd_presence,
         "worktree": cmd_worktree,
         "lock": cmd_lock,
         "unlock": cmd_unlock,

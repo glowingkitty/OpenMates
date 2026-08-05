@@ -4,7 +4,8 @@
 // hooks only prevent unambiguous unsafe operations and preserve compatibility
 // with the small set of canonical Claude guards.
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
@@ -13,7 +14,7 @@ const READ_TOOLS = new Set(["read", "Read"]);
 const SEARCH_TOOLS = new Set(["glob", "grep", "Glob", "Grep"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const TASK_TOOLS = new Set(["task", "Task"]);
-const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
+const PROJECT_ROOT = process.env.OPENMATES_PROJECT_ROOT || "/home/superdev/projects/OpenMates";
 const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.openmates-agent-worktrees`,
   `${PROJECT_ROOT}/.agent-worktrees`,
@@ -21,6 +22,10 @@ const WORKTREE_ROOTS = [
 ];
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const SESSIONS_FILE = `${PROJECT_ROOT}/.claude/sessions.json`;
+const PRESENCE_FILE = `${PROJECT_ROOT}/.opencode/presence.json`;
+const PRESENCE_DEBOUNCE_MS = 250;
+const PRESENCE_HEARTBEAT_MS = 30_000;
+const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
 const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
@@ -218,6 +223,230 @@ function activeSessionRecord(sessionID, data = sessionsData()) {
   return null;
 }
 
+function isoNow() {
+  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function attentionFromPending(state) {
+  const questions = state.pending_question_ids.length > 0;
+  const permissions = state.pending_permission_ids.length > 0;
+  if (questions && permissions) return "required_both";
+  if (questions) return "required_question";
+  if (permissions) return "required_permission";
+  return state.execution === "idle" ? "optional" : "none";
+}
+
+export function initialPresenceForTest(sessionID, { questionCapability = "unsupported", childRole = "unknown" } = {}) {
+  return {
+    session_id: sessionID,
+    top_level_session_id: sessionID,
+    execution: "unknown",
+    attention: "none",
+    turn: "none",
+    child_role: childRole,
+    pending_permission_ids: [],
+    pending_question_ids: [],
+    capabilities: { question: questionCapability },
+  };
+}
+
+function eventSessionID(event) {
+  const properties = event?.properties || {};
+  return properties.sessionID || properties.info?.sessionID || properties.info?.id || properties.part?.sessionID || "";
+}
+
+function withPending(state, field, id, add) {
+  if (!id) return state;
+  const values = new Set(state[field] || []);
+  if (add) values.add(id);
+  else values.delete(id);
+  const next = { ...state, [field]: [...values].sort() };
+  next.attention = attentionFromPending(next);
+  return next;
+}
+
+export function reducePresenceEventForTest(current, event, { now = isoNow() } = {}) {
+  const sessionID = eventSessionID(event);
+  if (!sessionID || sessionID !== current.session_id) return current;
+  let state = { ...current, updated_at: now };
+  const properties = event.properties || {};
+
+  if (event.type === "session.status") {
+    if (properties.status?.type === "busy") state = { ...state, execution: "busy", heartbeat_at: now };
+    if (properties.status?.type === "retry") state = { ...state, execution: "retrying", heartbeat_at: now };
+    if (properties.status?.type === "idle" && !["aborted", "failed"].includes(state.turn)) {
+      state.execution = "idle";
+    }
+    state.attention = attentionFromPending(state);
+    return state;
+  }
+  if (event.type === "session.idle") {
+    if (!["aborted", "failed"].includes(state.turn)) state.execution = "idle";
+    state.attention = attentionFromPending(state);
+    return state;
+  }
+  if (event.type === "message.part.updated") {
+    const messageID = properties.part?.messageID;
+    if (!messageID) return state;
+    return { ...state, execution: "busy", turn: "streaming", turn_id: messageID, attention: attentionFromPending({ ...state, execution: "busy" }), heartbeat_at: now };
+  }
+  if (event.type === "message.updated") {
+    const info = properties.info || {};
+    if (info.role === "user") {
+      if (info.id && info.id === state.user_turn_id) return state;
+      return { ...state, execution: "busy", turn: "none", turn_id: info.id, user_turn_id: info.id, attention: attentionFromPending({ ...state, execution: "busy" }), heartbeat_at: now };
+    }
+    if (info.role !== "assistant") return state;
+    if (state.turn === "streaming" && state.turn_id && state.turn_id !== info.id) return state;
+    const assistantState = { ...state, turn_id: info.id, user_turn_id: info.parentID || state.user_turn_id };
+    if (info.error?.name === "MessageAbortedError") return { ...assistantState, execution: "stopped", turn: "aborted" };
+    if (info.error) return { ...assistantState, execution: "error", turn: "failed" };
+    if (info.time?.completed) return { ...assistantState, turn: "completed" };
+    return { ...assistantState, execution: "busy", turn: "streaming", heartbeat_at: now };
+  }
+  if (event.type === "permission.updated" || event.type === "permission.asked") {
+    return withPending(state, "pending_permission_ids", properties.id, true);
+  }
+  if (event.type === "permission.replied") {
+    return withPending(state, "pending_permission_ids", properties.permissionID || properties.requestID, false);
+  }
+  if (event.type === "question.asked" && state.capabilities?.question === "supported") {
+    return withPending(state, "pending_question_ids", properties.id, true);
+  }
+  if (["question.replied", "question.rejected"].includes(event.type) && state.capabilities?.question === "supported") {
+    return withPending(state, "pending_question_ids", properties.requestID, false);
+  }
+  if (event.type === "session.error") {
+    if (properties.error?.name === "MessageAbortedError") return { ...state, execution: "stopped", turn: "aborted" };
+    return { ...state, execution: "error", turn: "failed" };
+  }
+  if (event.type === "session.deleted") {
+    return { ...state, execution: "closed", attention: "none", pending_permission_ids: [], pending_question_ids: [], paths: [] };
+  }
+  if (["session.created", "session.updated"].includes(event.type)) {
+    const parentID = properties.info?.parentID;
+    return parentID ? { ...state, parent_id: parentID, top_level_session_id: parentID } : state;
+  }
+  if (event.type === "openmates.child.role") {
+    const role = properties.role;
+    if (!["read_only", "reviewer", "writable"].includes(role)) return state;
+    return { ...state, parent_id: properties.parentID, top_level_session_id: properties.parentID, child_role: role };
+  }
+  return state;
+}
+
+export function createPresenceSchedulerForTest({
+  persist,
+  debounceMs = PRESENCE_DEBOUNCE_MS,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+} = {}) {
+  const pending = new Map();
+  let timer = null;
+  let inFlight = false;
+
+  const arm = () => {
+    if (timer !== null || inFlight || pending.size === 0) return;
+    timer = setTimer(flush, debounceMs);
+    timer?.unref?.();
+  };
+  const flush = async () => {
+    timer = null;
+    if (inFlight || pending.size === 0) return;
+    const records = [...pending.values()];
+    pending.clear();
+    inFlight = true;
+    try {
+      for (const record of records) await persist(record);
+    } finally {
+      inFlight = false;
+      arm();
+    }
+  };
+  return {
+    schedule(record) {
+      pending.set(record.session_id, record);
+      arm();
+    },
+    pendingCount() {
+      return pending.size;
+    },
+    async flush() {
+      if (timer !== null) clearTimer(timer);
+      timer = null;
+      await flush();
+    },
+  };
+}
+
+function persistPresence(record) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn("python3", ["scripts/sessions.py", "presence", "update", "--json-stdin"], {
+      cwd: PROJECT_ROOT,
+      env: process.env,
+      stdio: ["pipe", "ignore", "pipe"],
+    });
+    let errorText = "";
+    child.stderr.on("data", (chunk) => { errorText += chunk.toString(); });
+    child.on("error", rejectPromise);
+    child.on("close", (code) => {
+      if (code === 0) resolvePromise();
+      else rejectPromise(new Error(errorText.trim() || `presence writer exited ${code}`));
+    });
+    child.stdin.end(JSON.stringify(record));
+  });
+}
+
+function presenceData() {
+  try {
+    const parsed = JSON.parse(readFileSync(PRESENCE_FILE, "utf8"));
+    return parsed?.project_root === PROJECT_ROOT && parsed?.sessions ? parsed : { sessions: {}, task_claims: {}, child_roles: {} };
+  } catch {
+    return { sessions: {}, task_claims: {}, child_roles: {} };
+  }
+}
+
+function collisionRelativePath(file, data) {
+  if (!file) return "";
+  const absolute = isAbsolute(file) ? resolve(file) : resolve(PROJECT_ROOT, file);
+  for (const session of Object.values(data?.sessions || {})) {
+    const worktree = session?.worktree?.path;
+    if (!worktree) continue;
+    const candidate = relative(resolve(worktree), absolute);
+    if (candidate && candidate !== ".." && !candidate.startsWith(`..${sep}`) && !isAbsolute(candidate)) return candidate;
+  }
+  if (pathInProjectRoot(absolute)) return relative(PROJECT_ROOT, absolute);
+  return isAbsolute(file) ? "" : file.replace(/^\.\//, "");
+}
+
+function samePresenceWorkUnit(requesterID, ownerID, presence) {
+  if (requesterID === ownerID) return true;
+  const requester = presence?.sessions?.[requesterID] || {};
+  const owner = presence?.sessions?.[ownerID] || {};
+  const requesterTop = requester.top_level_session_id || requester.parent_id || requesterID;
+  const ownerTop = owner.top_level_session_id || owner.parent_id || ownerID;
+  return requesterTop === ownerTop && [requester.child_role, owner.child_role].some((role) => ["read_only", "reviewer"].includes(role));
+}
+
+function presenceRecordIsLive(record) {
+  if (!PRESENCE_LIVE_EXECUTION.has(record?.execution)) return false;
+  const timestamp = record.heartbeat_at || record.updated_at;
+  if (!timestamp) return true;
+  const age = Date.now() - Date.parse(timestamp);
+  return Number.isFinite(age) && age >= -5_000 && age <= 120_000;
+}
+
+export function readConflictWarningForTest({ path = "", sessionID = "", data = {}, presence = {} } = {}) {
+  const relativePath = collisionRelativePath(path, data);
+  const lease = data?.edit_leases?.[relativePath];
+  if (!lease) return "";
+  const ownerRecord = data?.sessions?.[lease.session_id];
+  const ownerOpenCodeID = ownerRecord?.opencode_session_id || "";
+  if (!ownerOpenCodeID || samePresenceWorkUnit(sessionID, ownerOpenCodeID, presence)) return "";
+  if (!presenceRecordIsLive(presence?.sessions?.[ownerOpenCodeID])) return "";
+  return `[OpenMates presence conflict] ${relativePath} currently has a live edit by repository session ${lease.session_id}. This read remains allowed; re-read after the lease releases before editing.`;
+}
+
 export function routingDecisionForTest({ session = {} } = {}) {
   const worktreePath = ["active", "merged", "changes_pending"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
   if (worktreePath && isDirectManagedWorktree(worktreePath)) return { decision: "worktree_routed", worktreePath };
@@ -268,7 +497,7 @@ async function openCodeSession(client, sessionID) {
   }
 }
 
-export async function resolveWorktreeRouteForTest({ sessionID, data = {}, getSession }) {
+export async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession }) {
   let currentID = sessionID;
   const visited = new Set();
   for (let depth = 0; currentID && depth < 12 && !visited.has(currentID); depth += 1) {
@@ -280,6 +509,9 @@ export async function resolveWorktreeRouteForTest({ sessionID, data = {}, getSes
         ...decision,
         repositorySessionID: record.id,
         topLevelOpenCodeSessionID: currentID,
+        requestingOpenCodeSessionID: sessionID,
+        inheritedParentRoute: currentID !== sessionID,
+        childRole: childRoles?.[sessionID]?.role || "unknown",
         session: record.session,
       };
     }
@@ -291,6 +523,9 @@ export async function resolveWorktreeRouteForTest({ sessionID, data = {}, getSes
     worktreePath: "",
     repositorySessionID: "",
     topLevelOpenCodeSessionID: currentID || sessionID || "",
+    requestingOpenCodeSessionID: sessionID || "",
+    inheritedParentRoute: currentID !== sessionID,
+    childRole: childRoles?.[sessionID]?.role || "unknown",
     session: null,
   };
 }
@@ -299,8 +534,27 @@ async function resolveWorktreeRoute(client, sessionID, data = sessionsData()) {
   return resolveWorktreeRouteForTest({
     sessionID,
     data,
+    childRoles: presenceData().child_roles || {},
     getSession: (candidateID) => openCodeSession(client, candidateID),
   });
+}
+
+export function childMutationDecisionForTest(route, tool) {
+  if (!route?.inheritedParentRoute || (!EDIT_TOOLS.has(tool) && !BASH_TOOLS.has(tool))) {
+    return { decision: "allow", message: "no inherited child mutation" };
+  }
+  const role = route.childRole || "unknown";
+  const reason = role === "writable"
+    ? "a writable child must own a separate repository session and disjoint worktree before mutating files"
+    : `child role ${role} may read the parent worktree but may not mutate it`;
+  return {
+    decision: "block",
+    message: actionable(
+      "[OpenMates child ownership guard]",
+      reason,
+      "run the mutation in the parent session, or explicitly assign the child its own writable sessions.py worktree and disjoint file/task ownership.",
+    ),
+  };
 }
 
 function routingRecoveryMessage(sessionID) {
@@ -831,7 +1085,86 @@ function runEditLease(action, files, sessionID) {
 export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true } = {}) => {
   const instanceDirectory = directory || activeCwd();
   const recordedRoutes = new Set();
+  const presenceStates = new Map();
+  const presenceSourceID = randomUUID();
+  const presenceGeneration = Date.now();
+  let presenceSequence = 0;
+  let presenceFailureReported = false;
+  const presenceScheduler = createPresenceSchedulerForTest({
+    persist: async (record) => {
+      try {
+        await persistPresence(record);
+        presenceFailureReported = false;
+      } catch (error) {
+        if (!presenceFailureReported) {
+          console.warn(`[OpenMates presence diagnostic] ${error?.message || error}`);
+          presenceFailureReported = true;
+        }
+      }
+    },
+  });
+
+  const schedulePresence = (state) => {
+    const record = {
+      ...state,
+      source_id: presenceSourceID,
+      generation: presenceGeneration,
+      sequence: ++presenceSequence,
+      updated_at: state.updated_at || isoNow(),
+    };
+    presenceStates.set(state.session_id, record);
+    presenceScheduler.schedule(record);
+  };
+  const currentPresence = (sessionID) => {
+    const persisted = presenceData();
+    const marker = persisted.child_roles?.[sessionID];
+    if (presenceStates.has(sessionID)) {
+      const current = presenceStates.get(sessionID);
+      return marker?.parent_id ? { ...current, parent_id: marker.parent_id, top_level_session_id: marker.parent_id, child_role: marker.role } : current;
+    }
+    const initial = initialPresenceForTest(sessionID, {
+      questionCapability: "unsupported",
+      childRole: marker?.role || "unknown",
+    });
+    if (marker?.parent_id) {
+      initial.parent_id = marker.parent_id;
+      initial.top_level_session_id = marker.parent_id;
+    }
+    return initial;
+  };
+  const recordLifecycleEvent = (event) => {
+    const sessionID = eventSessionID(event);
+    if (!sessionID) return;
+    let current = currentPresence(sessionID);
+    if (event.type.startsWith("question.")) {
+      current = { ...current, capabilities: { ...current.capabilities, question: "supported" } };
+    }
+    schedulePresence(reducePresenceEventForTest(current, event));
+  };
+  const markToolState = (sessionID, paths = [], finished = false) => {
+    if (!sessionID) return;
+    const now = isoNow();
+    const current = currentPresence(sessionID);
+    schedulePresence({
+      ...current,
+      execution: finished && current.turn === "completed" ? "idle" : "busy",
+      paths: finished ? [] : paths,
+      heartbeat_at: now,
+      updated_at: now,
+    });
+  };
+  const heartbeatTimer = setInterval(() => {
+    const now = isoNow();
+    for (const state of presenceStates.values()) {
+      if (PRESENCE_LIVE_EXECUTION.has(state.execution)) schedulePresence({ ...state, heartbeat_at: now, updated_at: now });
+    }
+  }, PRESENCE_HEARTBEAT_MS);
+  heartbeatTimer.unref?.();
+
   return {
+    event: async ({ event }) => {
+      recordLifecycleEvent(event);
+    },
     "shell.env": async (input, output) => {
       if (!input?.sessionID) return;
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
@@ -848,6 +1181,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+      const childMutation = childMutationDecisionForTest(route, tool);
+      if (childMutation.decision === "block") throw new Error(childMutation.message);
       if (
         recordRouting
         &&
@@ -878,6 +1213,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       }
       if (EDIT_TOOLS.has(tool)) {
         const files = editedFilesForTest(output?.args || input?.args, route.worktreePath || instanceDirectory);
+        const relativePaths = files.map((file) => collisionRelativePath(file, routingData || sessionsData())).filter(Boolean);
+        markToolState(routedOpenCodeSessionID, relativePaths);
         runStaleRead("check", files, routedOpenCodeSessionID);
         guardRootEdit(files, routedOpenCodeSessionID, route.worktreePath);
         const routedDirectory = route.worktreePath || instanceDirectory;
@@ -902,7 +1239,19 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) {
         const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
         const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
-        runStaleRead("record", explicitFilesForTest(toolArgs(input, output), route.worktreePath || instanceDirectory), routedOpenCodeSessionID);
+        const files = explicitFilesForTest(toolArgs(input, output), route.worktreePath || instanceDirectory);
+        runStaleRead("record", files, routedOpenCodeSessionID);
+        if (READ_TOOLS.has(tool) && output && typeof output.output === "string") {
+          for (const file of files) {
+            const warning = readConflictWarningForTest({
+              path: file,
+              sessionID: routedOpenCodeSessionID,
+              data: routingData || sessionsData(),
+              presence: presenceData(),
+            });
+            if (warning && !output.output.includes(warning)) output.output += `\n\n${warning}`;
+          }
+        }
       }
       if (!EDIT_TOOLS.has(tool)) return;
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
@@ -914,6 +1263,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         runStaleRead("sync", files, routedOpenCodeSessionID);
       } finally {
         runEditLease("release", files, routedOpenCodeSessionID);
+        markToolState(routedOpenCodeSessionID, [], true);
       }
     },
   };

@@ -67,3 +67,32 @@ Session finalization is transactional: a fully deployed worktree is removed befo
 Verification has two modes. Fast latest-ready checks may use the newest Ready dev deployment when exact proof is unnecessary. Exact-SHA checks must wait for the deployment or test run tied to the requested commit and must not treat a stale Ready deployment as proof for a different commit.
 
 Root guards are strict by default. OpenCode blocks root source edits unless `OPENMATES_ROOT_GUARD=off` is set for an explicit emergency, protects overlapping execute-mode file edits with short-lived `sessions.py edit-lease` records, and blocks raw Docker Compose mutations unless the current session holds the Docker lock. Codex continues to block raw `git worktree` while allowing orchestrated `sessions.py worktree ensure`, `sessions.py worktree reconcile`, and `sessions.py worktree release-readiness` commands.
+
+## OpenCode Presence
+
+OpenCode-specific lifecycle state is intentionally not mirrored into Claude or
+Codex conversation hooks. `.opencode/plugins/openmates-hooks.js` consumes the
+native event stream, reduces execution, attention, and turn outcome separately,
+and debounces allowlisted records into `.opencode/presence.json` through
+`scripts/opencode_presence_store.py`. The store is rooted in the shared control
+plane, protected by `flock` plus atomic replacement, owner-only, and independent
+from durable session/worktree metadata.
+
+The installed `@opencode-ai/plugin` types declare the legacy
+`permission.updated` event, while isolated OpenCode `1.17.20` runtime evidence
+emits `permission.asked`. The reducer normalizes both and capability-gates V2
+question events. Assistant completion, abort, late user-message replay, retries,
+session closure, per-request resolution, and stale heartbeat expiry have explicit
+deterministic transitions.
+
+Presence never sends a prompt, command, or system-transform message. Status,
+completed read output, pre-edit guards, and explicit atomic task-claim commands
+are the only coordination channels. Parent routing permits child reads, but an
+inherited parent route rejects all child mutations; writable children need their
+own repository session/worktree and disjoint ownership.
+
+`scripts/verify_opencode_presence_live.py --isolated` is the runtime parity gate.
+It creates concurrent top-level sessions plus an explicit child against a local
+deterministic streaming provider and proves event delivery, permission handling,
+tool-hook dispatch, relevant collision output, unchanged owner-chat messages,
+resume, abort, and scoped cleanup without accessing normal OpenCode state.

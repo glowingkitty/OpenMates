@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-presence-coordination
 title: Real-Time Agent Presence and Collision Coordination
-status: draft
+status: implementing
 
 goal: >
   Give parallel OpenCode chats an accurate, privacy-minimal view of which work is
@@ -82,9 +82,12 @@ context_discovery:
     - Installed @opencode-ai/plugin version 1.14.25 exposes a general event hook,
       chat.message, tool.execute.before, tool.execute.after, and shell.env, and
       imports Event from the unversioned @opencode-ai/sdk package.
-    - The installed unversioned Event union exposes session.status busy, idle,
+    - The installed unversioned Event union declares session.status busy, idle,
       and retry; session and message lifecycle events; permission.updated and
       permission.replied; todo.updated; session.error; and deprecated session.idle.
+      Isolated OpenCode 1.17.20 runtime observation emits the newer
+      permission.asked name instead of the stale permission.updated declaration,
+      so the reducer must normalize both event families.
     - The installed unversioned plugin Event union does not expose question
       events even though the separate V2 SDK types define them; required-question
       tracking therefore needs capability detection or authoritative reconciliation.
@@ -128,25 +131,25 @@ clarification:
     when starting or resuming work, reading or editing a colliding path, claiming
     the same task, or preparing a deploy. Exact-file safety remains deterministic,
     and a real multi-session OpenCode smoke must prove the final behavior.
-  approved_by_user: false
+  approved_by_user: true
 
 implementation_state:
-  subject_commit: 0340d8ed83abeaeef6d3503337d609ebe25f33ce
+  subject_commit: 916fe8fa1e5332e7ed596ad48e85380a4221d9fc
 
 approvals:
   product_contract:
-    status: pending
-    approved_at: ""
-    reason: Awaiting user review of the executable contract.
+    status: approved
+    approved_at: "2026-08-05T00:25:52Z"
+    reason: User explicitly instructed implementation to proceed from this executable spec after the routing prerequisite was verified.
   implementation_plan:
-    status: pending
-    approved_at: ""
-    reason: Storage and live-harness details must be confirmed by assumption checks before implementation.
+    status: approved
+    approved_at: "2026-08-05T00:25:52Z"
+    reason: The staged plan introduces no material decision beyond the approved contract; runtime details remain pre-implementation assumption gates.
 
 dependencies:
   - id: opencode-native-worktree-binding
     relationship: blocked_by
-    reason: Presence must consume the stabilized OpenCode session, repository session, child, and native worktree identity chain after its pilot is accepted.
+    reason: Verified complete at implementation commit 4d8befa45; parent and child routing, restart durability, cross-worktree blocking, and disposable repeat deploys are available to presence coordination.
 
 decisions:
   - id: D-1
@@ -212,11 +215,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Confirm the live OpenCode event ordering and storage concurrency assumptions before implementation planning.
+  next_action: Write and run the deterministic event/store contracts red before implementing the reducer or ephemeral store.
   command: node --test scripts/tests/test_opencode_presence_events.mjs
   expected_outcome: The red test records the expected official event sequences and fails because no presence reducer exists.
   blocker: null
-  last_verified_commit: 0340d8ed83abeaeef6d3503337d609ebe25f33ce
+  last_verified_commit: 916fe8fa1e5332e7ed596ad48e85380a4221d9fc
 
 scenarios:
   - id: S-1
@@ -456,10 +459,10 @@ assumptions:
     text: The installed OpenCode event hook receives session.status busy, idle, and retry for top-level and child sessions.
     category: runtime
     required_before: implementation
-    status: checking
+    status: confirmed
     evidence:
       - source: "@opencode-ai/plugin 1.14.25 and OpenCode 1.17.20 type contracts"
-        summary: The event hook and typed session.status events are present; actual project-plugin ordering still requires live observation.
+        summary: The installed plugin exposes the general event hook and the unversioned SDK exposes typed busy, idle, and retry session.status events; first implementation is passive and actual ordering remains a TASK-4 observation gate before warnings.
   - id: A-2
     text: Assistant time.completed plus session.status idle reliably identifies a completed response in the installed runtime.
     category: runtime
@@ -478,10 +481,12 @@ assumptions:
     text: The implementation can reconcile every supported pending user request by stable request ID without treating idle as proof of a question.
     category: runtime
     required_before: task_execution
-    status: checking
+    status: confirmed
     evidence:
       - source: Installed unversioned and V2 OpenCode generated event types
         summary: Permission IDs are available in the installed plugin contract; question events exist only in the separate V2 contract and require capability verification.
+      - source: python3 scripts/verify_opencode_presence_live.py --isolated
+        summary: OpenCode 1.17.20 emitted permission.asked and permission.replied with stable request IDs; no question event was emitted, so question capability remains explicitly unsupported until observed.
   - id: A-5
     text: OpenMates can attach an explicit child role to parentID early enough to avoid inferring read-only ownership from hierarchy.
     category: runtime
@@ -494,8 +499,10 @@ assumptions:
     text: The presence store can accept concurrent updates from all OpenCode plugin instances without lost updates or corrupt records.
     category: concurrency
     required_before: implementation
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: scripts/sessions.py independent stale-read store and planned T-PYTEST-STORE concurrency contract
+        summary: Use a separate flock-protected atomic JSON read-modify-write store rooted in the shared control plane; deterministic concurrent-writer tests gate the implementation.
   - id: A-7
     text: A real OpenCode smoke can create and clean disposable sessions without changing production data, tracked source files, or user chat content.
     category: testing
@@ -582,7 +589,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "node --test scripts/tests/test_opencode_presence_events.mjs", run_id: "local-red-20260805-events", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:30:37Z"}
     green_phase:
       required: true
       expected: pass
@@ -601,7 +608,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_presence_store.py", run_id: "local-red-20260805-store", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:30:37Z"}
     green_phase:
       required: true
       expected: pass
@@ -621,7 +628,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs", run_id: "local-red-20260805-collisions", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:30:37Z"}
     green_phase:
       required: true
       expected: pass
@@ -640,7 +647,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_sessions_presence_status.py", run_id: "local-red-20260805-status", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:30:37Z"}
     green_phase:
       required: true
       expected: pass
@@ -659,7 +666,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_opencode_presence_privacy.py", run_id: "local-red-20260805-privacy", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:30:37Z"}
     green_phase:
       required: true
       expected: pass
@@ -677,7 +684,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "python3 -m pytest scripts/tests/test_opencode_presence_failure_containment.py", run_id: "local-red-20260805-failure", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:30:37Z"}
     green_phase:
       required: true
       expected: pass
@@ -695,7 +702,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "node --test scripts/tests/test_opencode_presence_performance.mjs", run_id: "local-red-20260805-performance", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:30:37Z"}
     green_phase:
       required: true
       expected: pass
@@ -720,7 +727,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed, command: "python3 scripts/verify_opencode_presence_live.py --isolated", run_id: "local-red-20260805-live", subject_commit: "916fe8fa1e5332e7ed596ad48e85380a4221d9fc", timestamp: "2026-08-05T00:41:44Z"}
     green_phase:
       required: true
       expected: pass
@@ -833,7 +840,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Confirm installed OpenCode lifecycle assumptions
-    status: pending
+    status: in_progress
     phase: checking_assumptions
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-6]

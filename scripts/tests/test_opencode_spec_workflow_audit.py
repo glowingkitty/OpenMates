@@ -140,7 +140,7 @@ def test_opencode_spec_workflow_audit_rejects_idle_spec_continuation(tmp_path):
     plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
     plugin.parent.mkdir(parents=True)
     plugin.write_text(
-        f"{COORDINATION_PLUGIN_FIXTURE} session.idle",
+        f"{COORDINATION_PLUGIN_FIXTURE} session.idle client.session.prompt(",
         encoding="utf-8",
     )
     warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
@@ -149,7 +149,19 @@ def test_opencode_spec_workflow_audit_rejects_idle_spec_continuation(tmp_path):
 
     failures = audit.audit_opencode_coordination(tmp_path)
 
-    assert any("forbidden blocking term" in failure for failure in failures)
+    assert any("must not prompt" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_allows_passive_idle_presence(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text(f"{COORDINATION_PLUGIN_FIXTURE} session.idle", encoding="utf-8")
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
+
+    assert audit.audit_opencode_coordination(tmp_path) == []
 
 
 def test_opencode_spec_workflow_audit_requires_modern_edit_lease_contract(tmp_path):

@@ -10,6 +10,7 @@ override, canonical SDD skills, and project instruction loading.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -99,8 +100,8 @@ FORBIDDEN_COORDINATION_TERMS = {
     "createFileLeaseCoordinator",
     "createSpecAutoContinue",
     "opencode_file_leases.py",
-    "session.idle",
 }
+IDLE_SIDE_EFFECT_RE = re.compile(r"client\.session\.(?:prompt|command)\s*\(")
 
 
 def _load_opencode_config(path: Path = OPENCODE_CONFIG) -> dict[str, Any]:
@@ -193,6 +194,8 @@ def audit_opencode_coordination(root: Path = REPO_ROOT) -> list[str]:
     for term in sorted(FORBIDDEN_COORDINATION_TERMS):
         if term in source:
             failures.append(f"OpenCode coordination plugin contains forbidden blocking term: {term}")
+    if "session.idle" in source and IDLE_SIDE_EFFECT_RE.search(source):
+        failures.append("OpenCode coordination plugin must not prompt or run commands from passive session.idle observation")
 
     warning_guard = root / OPENCODE_WARNING_GUARD
     if not warning_guard.exists():
