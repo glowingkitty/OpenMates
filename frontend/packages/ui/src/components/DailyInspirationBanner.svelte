@@ -233,6 +233,7 @@
   let signupStageAnimationFrame: number | undefined;
   let lastLandingIntroResetToken = $state(0);
   let lastLandingSignupSlideToken = $state(0);
+  let skipLandingIntroApplied = $state(false);
   let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
@@ -597,7 +598,12 @@
   });
 
   $effect(() => {
-    if (!isGuestIntroVariant || !skipLandingIntro || visibleInspirations.length < 2) return;
+    if (!skipLandingIntro) {
+      skipLandingIntroApplied = false;
+      return;
+    }
+    if (!isGuestIntroVariant || skipLandingIntroApplied || visibleInspirations.length < 2) return;
+    skipLandingIntroApplied = true;
     landingIntroDismissed = true;
     landingIntroPhase = 'regular';
     if (landingIntroIsCurrentSlide) {

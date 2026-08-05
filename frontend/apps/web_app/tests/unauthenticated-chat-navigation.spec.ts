@@ -32,6 +32,7 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const CYCLES = 5;
 const CHAT_LOAD_TIMEOUT = 12000;
 const SETTINGS_TIMEOUT = 8000;
+const SLIDE_NAVIGATION_TIMEOUT = 5000;
 
 function getNewChatButton(page: any) {
 	return page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first();
@@ -58,6 +59,42 @@ async function openFirstIntroOrExampleChat(page: any) {
 async function expectBlankFocusedComposer(page: any) {
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+}
+
+async function expectCurrentLandingSlide(page: any, slideIndex: number, inspirationId: string) {
+	await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')).toHaveAttribute(
+		'data-slide-index',
+		String(slideIndex),
+		{ timeout: SLIDE_NAVIGATION_TIMEOUT }
+	);
+	const banner = page.getByTestId('daily-inspiration-banner');
+	await expect(banner).toHaveAttribute('data-current-inspiration-id', inspirationId, {
+		timeout: SLIDE_NAVIGATION_TIMEOUT
+	});
+	await expect(banner).toHaveAttribute('data-guest-slide-phase', 'idle', {
+		timeout: SLIDE_NAVIGATION_TIMEOUT
+	});
+}
+
+async function expectLandingCarouselNavigatesBothDirections(page: any) {
+	const banner = page.getByTestId('daily-inspiration-banner');
+	await expect(banner).toBeVisible({ timeout: 10000 });
+	const inspirationIds = (await banner.getAttribute('data-visible-inspiration-ids'))
+		?.split(',')
+		.filter(Boolean) ?? [];
+	expect(inspirationIds.length, 'guest landing carousel should contain multiple slides').toBeGreaterThan(1);
+
+	await expectCurrentLandingSlide(page, 0, inspirationIds[0]);
+	for (let slideIndex = 1; slideIndex < inspirationIds.length; slideIndex += 1) {
+		await page.getByTestId('daily-inspiration-next').click();
+		await expectCurrentLandingSlide(page, slideIndex, inspirationIds[slideIndex]);
+	}
+
+	for (let slideIndex = inspirationIds.length - 2; slideIndex >= 0; slideIndex -= 1) {
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expectCurrentLandingSlide(page, slideIndex, inspirationIds[slideIndex]);
+	}
+	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: SLIDE_NAVIGATION_TIMEOUT });
 }
 
 test.describe('Unauthenticated chat navigation stays reactive', () => {
@@ -135,6 +172,9 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await expect(finalNewChatButton).toBeVisible({ timeout: 8000 });
 		await finalNewChatButton.click();
 		await expectBlankFocusedComposer(page);
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expectLandingCarouselNavigatesBothDirections(page);
+		console.log('[chat-nav] Guest landing carousel navigated from first to last slide and back');
 
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 8000 });
