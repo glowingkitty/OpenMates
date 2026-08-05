@@ -291,14 +291,14 @@ scenarios:
       - The Apple parity spec receives the web commit and evidence handoff and becomes the next implementation ledger.
 
 acceptance_criteria:
-  - {id: AC-1, scenario: S-1, text: "Every safe completed streamed block immediately uses final semantic node types, inline links, preview variants, and interactions; only an incomplete tail may be provisional.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-STREAM]}
-  - {id: AC-2, scenario: S-2, text: "All app-skill executions remain in one top group ordered newest first during streaming, completion, metadata refresh, reload, and reopen while loaded cards retain mounted state.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-APP-SKILLS, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-REOPEN]}
-  - {id: AC-3, scenario: S-3, text: "Authored large previews, inline embed links, source quotes, and result views retain Markdown positions and never merge into the app-skill execution group.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-STREAM]}
-  - {id: AC-4, scenario: S-4, text: "Normal completion commits only the tail, changes streaming presentation, performs zero existing NodeView remounts, and creates no new loading shell.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-LIFECYCLE, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-CHAT-FLOW]}
-  - {id: AC-5, scenario: S-5, text: "Final corrections replace only changed stable blocks in one atomic transaction; transaction failures are observable and cannot silently invoke whole-message setContent.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-CORRECTIONS, T-PLAYWRIGHT-STREAM]}
-  - {id: AC-6, scenario: S-6, text: "Normalized live-final and freshly reopened documents have identical ordered block roles, app-skill order, node types, semantic identities, and presentation variants.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-REOPEN, T-PLAYWRIGHT-REOPEN]}
+  - {id: AC-1, scenario: S-1, text: "Every safe completed streamed block immediately uses final semantic node types, inline links, preview variants, and interactions; only an incomplete tail may be provisional.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-STREAM]}
+  - {id: AC-2, scenario: S-2, text: "All app-skill executions remain in one top group ordered newest first during streaming, completion, metadata refresh, reload, and reopen while loaded cards retain mounted state.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-APP-SKILLS, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-REOPEN]}
+  - {id: AC-3, scenario: S-3, text: "Authored large previews, inline embed links, source quotes, and result views retain Markdown positions and never merge into the app-skill execution group.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-STREAM]}
+  - {id: AC-4, scenario: S-4, text: "Normal completion commits only the tail, changes streaming presentation, performs zero existing NodeView remounts, and creates no new loading shell.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-LIFECYCLE, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-CHAT-FLOW]}
+  - {id: AC-5, scenario: S-5, text: "Final corrections replace only changed stable blocks in one atomic transaction; transaction failures are observable and cannot silently invoke whole-message setContent.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-CORRECTIONS, T-PLAYWRIGHT-STREAM]}
+  - {id: AC-6, scenario: S-6, text: "Normalized live-final and freshly reopened documents have identical ordered block roles, app-skill order, node types, semantic identities, and presentation variants.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-REOPEN, T-PLAYWRIGHT-REOPEN]}
   - {id: AC-7, scenario: S-7, text: "Stable result views recover entries in place and hydrate expensive map/calendar presentation only when eligible, once per mounted identity.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-NODEVIEWS, T-PLAYWRIGHT-MAP]}
-  - {id: AC-8, scenario: S-8, text: "Large-stream parsing and mutation are proportional to changed blocks, normal post-init setContent count is zero, and rendering causes no storage writes or provider requests.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-PERF]}
+  - {id: AC-8, scenario: S-8, text: "Large-stream parsing and mutation are proportional to changed blocks, normal post-init setContent count is zero, and rendering causes no storage writes or provider requests.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-PERF]}
   - {id: AC-9, scenario: S-9, text: "Authenticated and anonymous rendering preserve committed blocks, cleanup, persistence, and encryption boundaries through completion and reload.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-LIFECYCLE, T-PLAYWRIGHT-CHAT-FLOW, T-PLAYWRIGHT-ANONYMOUS]}
   - {id: AC-10, scenario: S-10, text: "After deployed web confirmation, the existing Apple streaming parity spec receives the exact web commit and evidence handoff as the immediate next phase.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [V-USER-CONFIRMATION, V-APPLE-HANDOFF]}
 
@@ -449,7 +449,7 @@ tests:
       required: true
       expected: fail
       evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit f2e556f", run_id: "GitHub Actions 31023853273", subject_commit: f2e556f1f, timestamp: "2026-08-05T16:13:00Z", target: "https://app.dev.openmates.org", reason: "Issue 7LZDH class reproduced: completion/layout refresh yields unresolved preview UI and loses stable card presentation."}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit 4c7b2f2", run_id: "GitHub Actions 31042829225", subject_commit: 4c7b2f2ec, timestamp: "2026-08-05T20:13:44Z", target: "https://app.dev.openmates.org"}}
   - id: T-PLAYWRIGHT-CHAT-FLOW
     type: playwright
     file: frontend/apps/web_app/tests/chat-flow.spec.ts
@@ -460,7 +460,7 @@ tests:
       - The canonical authenticated login, send, streaming, completion, persistence, and cleanup flow passes unchanged.
       - The completed assistant message remains visible and interactive without a loading shell or duplicate/reordered message content.
     red_phase: {required: true, expected: pass_or_fail_for_recorded_baseline, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit a56797e33", run_id: "GitHub Actions 31038417124", subject_commit: a56797e33, timestamp: "2026-08-05T19:19:10Z", target: "https://app.dev.openmates.org"}}
   - id: T-PLAYWRIGHT-REOPEN
     type: playwright
     file: frontend/apps/web_app/tests/skill-events-search.spec.ts
@@ -472,7 +472,7 @@ tests:
       - Repeat through the existing shared-chat path without logging private content or refs.
       - Top app-skill order, authored embed positions, node identities, and variants match.
     red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit 4c7b2f2", run_id: "GitHub Actions 31042829225", subject_commit: 4c7b2f2ec, timestamp: "2026-08-05T20:13:44Z", target: "https://app.dev.openmates.org"}}
   - id: T-PLAYWRIGHT-MAP
     type: playwright
     file: frontend/apps/web_app/tests/embeds-map-view.spec.ts
@@ -482,7 +482,7 @@ tests:
     assertions:
       - A closed result view appears during streaming, recovers unresolved rows, hydrates once when visible, and remains interactive through completion and reopen.
     red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit a56797e33", run_id: "GitHub Actions 31040109584", subject_commit: a56797e33, timestamp: "2026-08-05T19:36:59Z", target: "https://app.dev.openmates.org"}}
   - id: T-PLAYWRIGHT-PERF
     type: playwright
     file: frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
@@ -512,10 +512,10 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1, AC-2, AC-3, AC-4, AC-6, AC-7]
-    status: pending
+    status: passed
     target: app.dev.openmates.org
     viewports: [laptop, mobile]
-    evidence: {status: "", method: playwright, run_id: "", screenshot_paths: [], summary: "", timestamp: ""}
+    evidence: {status: passed, method: playwright, run_id: "GitHub Actions 31042829225", screenshot_paths: ["test-results/screenshots/current/skill-events-search/07-events-search-embeds-after-reload.png", "test-results/screenshots/current/skill-events-search/08-events-search-embeds-after-reload-mobile.png"], summary: "Reviewed authenticated completed/reloaded app-skill screenshots at 1280x720 and 390x844. Defects: none; cards remain populated and no Loading preview shell appears. Accepted differences: mobile result cards use the intended horizontal carousel and the fixed composer remains visible.", timestamp: "2026-08-05T20:13:44Z"}
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
