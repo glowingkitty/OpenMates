@@ -147,6 +147,7 @@
     // causing the container height to collapse to 0px before re-expanding.
     // We preserve the previous height as min-height to prevent this visual glitch.
     let preservedMinHeight = $state<number | null>(null);
+    let hasStreamingDocument = $state(false);
 
     const STREAM_CHUNK_FADE_DURATION_MS = 220;
     let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -987,24 +988,30 @@
     // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
     /**
      * Apply a content update to the editor.
-     * During streaming: uses incremental ProseMirror diff to preserve NodeViews.
-     * Otherwise: uses setContent() for full replacement.
+      * Streaming and its first final revision use an incremental ProseMirror diff
+      * to preserve NodeViews. Unrelated final edits use setContent().
      *
      * @param processedContent - Pre-processed TipTap JSON content
-     * @param streaming - Whether this is a streaming update
-     * @param forceFullReplace - Force setContent() even during streaming (locale/embed updates)
+      * @param incremental - Whether to preserve the current document and NodeViews
+      * @param forceFullReplace - Force setContent() even during streaming (locale/embed updates)
+      * @param streamingPresentation - Whether to apply streaming-only height and fade behavior
      */
-    function applyContentUpdate(processedContent: Record<string, unknown> | null, streaming: boolean, forceFullReplace: boolean) {
+    function applyContentUpdate(
+        processedContent: Record<string, unknown> | null,
+        incremental: boolean,
+        forceFullReplace: boolean,
+        streamingPresentation: boolean
+    ) {
         if (!editor || editor.isDestroyed) return;
         const startedAt = typeof performance === 'undefined' ? 0 : performance.now();
         
-        if (streaming && !forceFullReplace) {
+        if (incremental && !forceFullReplace) {
             // STREAMING PATH: Use incremental ProseMirror updates to avoid destroying NodeViews.
             // This preserves mounted Svelte embed components across streaming chunks,
             // eliminating the visual flicker caused by setContent()'s nuclear teardown.
             
             // Preserve current height as safety net
-            if (editorElement) {
+            if (streamingPresentation && editorElement) {
                 const currentHeight = editorElement.offsetHeight;
                 if (currentHeight > 0) {
                     editorElement.style.minHeight = `${currentHeight}px`;
@@ -1043,7 +1050,7 @@
             // full re-render to ensure all NodeViews pick up new state.
             
             // Preserve current height SYNCHRONOUSLY before content replacement
-            if (streaming && editorElement) {
+            if (streamingPresentation && editorElement) {
                 const currentHeight = editorElement.offsetHeight;
                 if (currentHeight > 0) {
                     editorElement.style.minHeight = `${currentHeight}px`;
@@ -1063,7 +1070,7 @@
         triggerStreamChunkFadePulse();
         
         // Update min-height to match actual rendered content
-        if (streaming && editorElement) {
+        if (streamingPresentation && editorElement) {
             requestAnimationFrame(() => {
                 if (!editorElement) return;
                 const newHeight = editorElement.scrollHeight;
@@ -1097,6 +1104,8 @@
         
         if (editor && content) {
             // ChatHistory owns stream coalescing; apply each canonical document immediately.
+            const shouldApplyIncrementally = isStreaming || hasStreamingDocument;
+            if (isStreaming) hasStreamingDocument = true;
             const newProcessedContent = processContent(content);
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
@@ -1108,8 +1117,9 @@
 
                 // During streaming but with locale/embed update: use full replacement
                 const forceFullReplace = localeChanged || !!hasEmbedUpdate;
-                applyContentUpdate(newProcessedContent, isStreaming, forceFullReplace);
+                applyContentUpdate(newProcessedContent, shouldApplyIncrementally, forceFullReplace, isStreaming);
             }
+            if (!isStreaming) hasStreamingDocument = false;
         } else if (editor && !content) {
             // Handle case where content becomes null/undefined after editor initialization
             editor.commands.clearContent(false);
