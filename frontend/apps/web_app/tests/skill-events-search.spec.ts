@@ -222,13 +222,32 @@ test.describe('App: Events / Skill: search', () => {
 		await expect(embed).toBeVisible({ timeout: 60_000 });
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
 		await expect(embed).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
+
+		const fullscreenOverlay = await openFullscreen(page, embed);
+		logCheckpoint('Fullscreen opened.');
+
+		const resultCards = await verifySearchGrid(fullscreenOverlay);
+		const count = await resultCards.count();
+		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
+
+		await resultCards.first().click();
+		await expectCalendarDownload(page, logCheckpoint);
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
+
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
+		await closeFullscreen(page, fullscreenOverlay);
+		logCheckpoint('Fullscreen closed.');
+		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);
+
 		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 90_000 });
 
-		const finishedEmbeds = page.locator(`${EVENT_SEARCH_CARD_SELECTOR}[data-status="finished"]`);
-		const finishedCount = await finishedEmbeds.count();
-		expect(finishedCount).toBeGreaterThanOrEqual(2);
+		const finalGroupedView = page.getByTestId('embeds-map-view').last();
+		await expect(finalGroupedView).toBeVisible({ timeout: 30_000 });
+		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
+		const finalGroupedCardCount = await finalGroupedCards.count();
+		expect(finalGroupedCardCount).toBeGreaterThan(0);
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
-		logCheckpoint(`${finishedCount} finished event embeds remained after streaming completed.`);
+		logCheckpoint(`Resolved final grouped view contains ${finalGroupedCardCount} event embeds.`);
 
 		const stabilityProbe = await page.evaluate(() => {
 			const value = crypto.randomUUID();
@@ -246,29 +265,15 @@ test.describe('App: Events / Skill: search', () => {
 		await page.waitForTimeout(5_000);
 
 		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
-		expect(await finishedEmbeds.count()).toBe(finishedCount);
-		logCheckpoint('Report Issue opened without reloading the page or removing event embeds.');
+		await expect(finalGroupedView).toBeVisible();
+		expect(await finalGroupedCards.count()).toBe(finalGroupedCardCount);
+		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		logCheckpoint('Report Issue opened without reloading the page or changing final grouped embeds.');
 
 		const closeSettings = page.getByTestId('icon-button-close');
 		if (await closeSettings.isVisible().catch(() => false)) {
 			await closeSettings.click();
 		}
-
-		const fullscreenOverlay = await openFullscreen(page, embed);
-		logCheckpoint('Fullscreen opened.');
-
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		const count = await resultCards.count();
-		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
-
-		await resultCards.first().click();
-		await expectCalendarDownload(page, logCheckpoint);
-		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
-
-		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
-		await closeFullscreen(page, fullscreenOverlay);
-		logCheckpoint('Fullscreen closed.');
-		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);
 
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
 	});

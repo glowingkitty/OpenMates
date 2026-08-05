@@ -7,6 +7,7 @@
 # See: backend/apps/ai/testing/caching_llm_wrapper.py.
 
 import asyncio
+import copy
 
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall
@@ -54,9 +55,10 @@ class FakeSavedResponseCache(FakeCache):
 
 
 class FakeFallbackCache(FakeCache):
-    def __init__(self):
+    def __init__(self, response_data=None):
         self.fallback_summary = None
         self.excluded_fingerprint = None
+        self.response_data = response_data or {"type": "stream", "body": "fallback"}
 
     def load(self, group_id, category, fingerprint):
         assert group_id == "fork-conversation"
@@ -69,7 +71,24 @@ class FakeFallbackCache(FakeCache):
         assert category == "llm/test-model"
         self.fallback_summary = request_summary
         self.excluded_fingerprint = excluded_fingerprint
-        return {"response": {"type": "stream", "body": "fallback"}}
+        return {"response": self.response_data}
+
+
+async def _replay(cache, messages):
+    async def provider_fn(**_kwargs):
+        raise AssertionError("mock replay should not call the real provider")
+
+    activate_mock_mode("mock", "fork-conversation")
+    try:
+        wrapped_provider = wrap_provider_with_cache(provider_fn, cache)
+        chunk_stream = await wrapped_provider(
+            model="test-model",
+            messages=messages,
+            stream=True,
+        )
+        return [chunk async for chunk in chunk_stream]
+    finally:
+        deactivate_mock_mode()
 
 
 def test_cached_stream_provider_remains_awaitable():
@@ -171,6 +190,99 @@ def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():
         "last_message_hash": "5a3782b74653d86b",
         "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
     }
+
+
+def test_compatible_fallback_remaps_stale_embed_refs_in_body_and_mixed_text_chunks():
+    response_data = {
+        "type": "mixed_stream",
+        "body": (
+            "```embeds_results_view\nembeds: stale-one-AAA, stale-two-BBB\n```\n"
+            "[First](embed:stale-one-AAA) [Second](embed:stale-two-BBB)"
+        ),
+        "chunks": [
+            {"kind": "text", "value": "```embeds_results_view\nembeds: stale-one-A"},
+            {"kind": "text", "value": "AA, stale-two-BBB\n```\n[First](embed:stale-one-AAA) "},
+            {"kind": "text", "value": "[Second](embed:stale-two-BBB)"},
+        ],
+    }
+    original = copy.deepcopy(response_data)
+    messages = [{
+        "role": "tool",
+        "content": "results[2]:\n  - embed_ref: fresh-one-111\n  - embed_ref: fresh-two-222",
+    }]
+
+    chunks = asyncio.run(_replay(FakeFallbackCache(response_data), messages))
+    replayed = "".join(chunk for chunk in chunks if isinstance(chunk, str))
+
+    assert "embeds: fresh-one-111, fresh-two-222" in replayed
+    assert "(embed:fresh-one-111)" in replayed
+    assert "(embed:fresh-two-222)" in replayed
+    assert "stale-" not in replayed
+    assert response_data == original
+
+
+def test_compatible_fallback_preserves_duplicate_embed_refs():
+    response_data = {
+        "type": "stream",
+        "body": (
+            "```embeds_results_view\nembeds: stale-one-AAA, stale-one-AAA, stale-two-BBB\n```\n"
+            "[First](embed:stale-one-AAA)"
+        ),
+    }
+    messages = [{
+        "role": "tool",
+        "content": "embed_ref: fresh-one-111\nembed_ref: fresh-one-111\nembed_ref: fresh-two-222",
+    }]
+
+    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
+
+    assert replayed.count("fresh-one-111") == 3
+    assert replayed.count("fresh-two-222") == 1
+    assert "stale-" not in replayed
+
+
+def test_exact_cache_hit_does_not_remap_embed_refs():
+    response_data = {
+        "type": "stream",
+        "body": "```embeds_results_view\nembeds: stale-one-AAA\n```",
+    }
+    messages = [{"role": "tool", "content": "embed_ref: fresh-one-111"}]
+
+    replayed = "".join(asyncio.run(_replay(FakeSavedResponseCache(response_data), messages)))
+
+    assert "stale-one-AAA" in replayed
+    assert "fresh-one-111" not in replayed
+
+
+def test_compatible_fallback_leaves_unmatched_refs_visible_and_warns(caplog):
+    response_data = {
+        "type": "stream",
+        "body": "```embeds_results_view\nembeds: stale-one-AAA, stale-two-BBB\n```",
+    }
+    messages = [{"role": "tool", "content": "embed_ref: fresh-one-111"}]
+
+    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
+
+    assert "stale-one-AAA, stale-two-BBB" in replayed
+    assert "fresh-one-111" not in replayed
+    assert "cannot safely remap" in caplog.text
+
+
+def test_compatible_fallback_rejects_extra_current_refs_and_warns(caplog):
+    response_data = {
+        "type": "stream",
+        "body": "```embeds_results_view\nembeds: stale-one-AAA\n```",
+    }
+    messages = [{
+        "role": "tool",
+        "content": "embed_ref: fresh-one-111\nembed_ref: unrelated-extra-222",
+    }]
+
+    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
+
+    assert "stale-one-AAA" in replayed
+    assert "fresh-one-111" not in replayed
+    assert "cannot safely remap" in caplog.text
 
 
 def test_inactive_stream_provider_awaits_real_provider_before_iterating():
