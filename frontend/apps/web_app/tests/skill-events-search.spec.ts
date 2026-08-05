@@ -204,7 +204,7 @@ test.describe('App: Events / Skill: search', () => {
 		await expect(finalGroupedCards.first()).toBeVisible({ timeout: 60_000 });
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
-		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		await expect(finalGroupedView.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		logCheckpoint(`Resolved final grouped view contains ${finalGroupedCardCount} event embeds.`);
 
 		const stabilityProbe = await page.evaluate(() => {
