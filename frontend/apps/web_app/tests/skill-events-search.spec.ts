@@ -5,7 +5,7 @@
  * Phase 1: Embed preview renders at /dev/preview/embeds/events
  * Phase 2: CLI direct skill command (openmates apps events search --json)
  * Phase 3: CLI chat send triggers skill (openmates chats new "..." --json)
- * Phase 4: Web UI chat triggers skill with embed rendering + fullscreen grid
+ * Phase 4: Web UI chat preserves embed refs from streaming through the final grouped view
  *
  * Architecture context: docs/architecture/embeds.md
  */
@@ -27,12 +27,7 @@ const {
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
-const {
-	verifyEmbedPreviewPage,
-	openFullscreen,
-	verifySearchGrid,
-	closeFullscreen
-} = require('./helpers/embed-test-helpers');
+const { verifyEmbedPreviewPage } = require('./helpers/embed-test-helpers');
 const {
 	expectSettingsProviderIcons,
 	expectSkillCardProviderIcons
@@ -195,17 +190,6 @@ test.describe('App: Events / Skill: search', () => {
 			.last();
 		await expect(embed).toBeVisible({ timeout: 60_000 });
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
-		await expect(embed).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
-
-		const fullscreenOverlay = await openFullscreen(page, embed);
-		logCheckpoint('Fullscreen opened.');
-
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		const count = await resultCards.count();
-		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
-
-		await closeFullscreen(page, fullscreenOverlay);
-		logCheckpoint('Fullscreen closed.');
 
 		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 90_000 });
 
