@@ -135,6 +135,38 @@ function tokenizeCommand(command) {
   return tokens;
 }
 
+function hasUnsafeLocalShellExpansionOrRedirection(command) {
+  let quote = "";
+  let escaped = false;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote === "'") {
+      if (char === "'") quote = "";
+      continue;
+    }
+    if (quote === '"') {
+      if (char === '"') quote = "";
+      else if (char === "`" || (char === "$" && command[index + 1] === "(")) return true;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (char === "`" || char === "<" || char === ">" || char === "\n") return true;
+    if (char === "$" && command[index + 1] === "(") return true;
+  }
+  return quote !== "";
+}
+
 function basename(commandToken) {
   return unquote(commandToken).split("/").pop() || "";
 }
@@ -659,6 +691,21 @@ export function routingFailureForTest({ tool = "", sessionID = "", command = "" 
   return { decision: "block", message: routingRecoveryMessage(sessionID) };
 }
 
+function isSharedRuntimeReadPath(candidate, worktreePath) {
+  if (!candidate) return false;
+  const absolute = isAbsolute(candidate) ? resolve(candidate) : resolve(worktreePath, candidate);
+  return [resolve(worktreePath), resolve(PROJECT_ROOT)].some((base) => {
+    const relativePath = relative(base, absolute);
+    return relativePath === "logs/nightly-reports" || relativePath.startsWith(`logs${sep}nightly-reports${sep}`);
+  });
+}
+
+function isSharedSecretRuntimePath(candidate, worktreePath) {
+  if (!candidate) return false;
+  const absolute = isAbsolute(candidate) ? resolve(candidate) : resolve(worktreePath, candidate);
+  return [resolve(worktreePath), resolve(PROJECT_ROOT)].some((base) => relative(base, absolute) === ".env");
+}
+
 export function routeLocalToolArgsForTest(tool, args, worktreePath) {
   const input = toolInput(args);
   if (!worktreePath) return input;
@@ -682,18 +729,21 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
       return prodSshPaths.has(shellUnescape(tokens[index]));
     });
     const prodSshTokens = prodSshSegment >= 0 ? commandSegments[prodSshSegment] : [];
-    const simpleProdSshInvocation = prodSshTokens.length === 2
+    const directProdSshInvocation = commandSegments.length === 1
+      && prodSshTokens.length >= 1
+      && prodSshPaths.has(shellUnescape(prodSshTokens[0]));
+    const prodSshOpenInvocation = prodSshTokens.length === 2
       && prodSshPaths.has(shellUnescape(prodSshTokens[0]))
-      && ["close", "open", "status"].includes(shellUnescape(prodSshTokens[1]));
+      && shellUnescape(prodSshTokens[1]) === "open";
     const safeFeeder = commandSegments.length === 2
       && ["echo", "printf"].includes(shellUnescape(commandSegments[0][0]))
       && (command.match(/\|/g) || []).length === 1;
-    const unsafeControlSyntax = /[;<>&\n]/.test(command)
-      || ["$(", "`", "<(", ">("].some((token) => command.includes(token));
+    const hasTopLevelSeparator = tokenizeCommand(command).some(isSeparator);
+    const unsafeControlSyntax = hasUnsafeLocalShellExpansionOrRedirection(command);
     const prodSshControlPlane = prodSshSegment === commandSegments.length - 1
       && prodSshSegment >= 0
-      && simpleProdSshInvocation
-      && (commandSegments.length === 1 || safeFeeder)
+      && (directProdSshInvocation || (prodSshOpenInvocation && safeFeeder))
+      && (!hasTopLevelSeparator || safeFeeder)
       && !unsafeControlSyntax;
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
@@ -722,12 +772,15 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };
+    if (typeof routed.path === "string" && isSharedSecretRuntimePath(routed.path, worktreePath)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: .env is a shared secret runtime resource and cannot be read or searched directly. Next: run the repository script that consumes the required environment variables without printing them.`);
+    }
     if (typeof routed.path === "string" && targetsDifferentWorktree(routed.path, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute search path targets another managed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
     }
     if (typeof routed.path === "string" && !isAbsolute(routed.path)) {
       const target = resolve(worktreePath, routed.path);
-      if (pathEscapesWorktree(target, worktreePath)) {
+      if (pathEscapesWorktree(target, worktreePath) && !isSharedRuntimeReadPath(routed.path, worktreePath)) {
         throw new Error(`${ROUTING_GUARD_MARKER} Reason: the relative search path escapes the routed worktree. Next: use a path inside ${worktreePath}.`);
       }
     }
@@ -737,12 +790,15 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
   for (const key of ["file_path", "filePath", "path"]) {
     const value = input[key];
     if (typeof value !== "string") continue;
+    if (isSharedSecretRuntimePath(value, worktreePath)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: .env is a shared secret runtime resource and cannot be read or searched directly. Next: run the repository script that consumes the required environment variables without printing them.`);
+    }
     if (targetsDifferentWorktree(value, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute file path targets another managed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
     }
     if (isAbsolute(value)) continue;
     const target = resolve(worktreePath, value);
-    if (pathEscapesWorktree(target, worktreePath)) {
+    if (pathEscapesWorktree(target, worktreePath) && !isSharedRuntimeReadPath(value, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the relative file path escapes the routed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
     }
   }

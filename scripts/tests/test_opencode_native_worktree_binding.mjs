@@ -91,8 +91,12 @@ test("prod SSH helper routes through its root control-plane copy", () => {
   assert.equal(rooted.workdir, ROOT);
 
   for (const command of [
+    "./scripts/prod-ssh.sh",
     "./scripts/prod-ssh.sh status",
     "  ./scripts/prod-ssh.sh status",
+    './scripts/prod-ssh.sh "docker exec api python /app/backend/scripts/debug.py health --log-access"',
+    './scripts/prod-ssh.sh "hostname && whoami"',
+    "./scripts/prod-ssh.sh docker ps",
     "echo 000000 | ./scripts/prod-ssh.sh open",
     `${WORKTREE}/scripts/prod-ssh.sh status`,
   ]) {
@@ -108,7 +112,8 @@ test("prod SSH helper routes through its root control-plane copy", () => {
     "PROD_SSH_PERSIST=5m ./scripts/prod-ssh.sh status",
     "true && ./scripts/prod-ssh.sh status",
     "./scripts/prod-ssh.sh status &",
-    "./scripts/prod-ssh.sh status extra",
+    './scripts/prod-ssh.sh "$(touch injected)"',
+    './scripts/prod-ssh.sh "`touch injected`"',
     "X=y echo 000000 | ./scripts/prod-ssh.sh open",
     "env X=y echo 000000 | ./scripts/prod-ssh.sh open",
     "command echo 000000 | ./scripts/prod-ssh.sh open",
@@ -223,6 +228,39 @@ test("relative file paths cannot escape through a symlink", (context) => {
       return true;
     },
   );
+});
+
+test("shared nightly reports remain readable through their worktree link", (context) => {
+  const fixture = mkdtempSync(join(tmpdir(), "openmates-route-"));
+  const worktree = join(fixture, "worktree");
+  const reports = join(fixture, "nightly-reports");
+  mkdirSync(join(worktree, "logs"), { recursive: true });
+  mkdirSync(reports);
+  symlinkSync(reports, join(worktree, "logs", "nightly-reports"));
+  context.after(() => rmSync(fixture, { recursive: true, force: true }));
+
+  assert.deepEqual(
+    routeLocalToolArgsForTest("read", { filePath: "logs/nightly-reports/stale-code.json" }, worktree),
+    { filePath: join(worktree, "logs", "nightly-reports", "stale-code.json") },
+  );
+  assert.deepEqual(
+    routeLocalToolArgsForTest("grep", { pattern: "finding", path: "logs/nightly-reports" }, worktree),
+    { pattern: "finding", path: join(worktree, "logs", "nightly-reports") },
+  );
+});
+
+test("shared env remains unavailable to read and search tools", () => {
+  for (const [tool, args] of [
+    ["read", { filePath: ".env" }],
+    ["read", { filePath: `${ROOT}/.env` }],
+    ["grep", { pattern: "TOKEN", path: ".env" }],
+    ["grep", { pattern: "TOKEN", path: `${ROOT}/.env` }],
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest(tool, args, WORKTREE),
+      /shared secret runtime resource/,
+    );
+  }
 });
 
 test("child session resolves the top-level repository worktree", async () => {

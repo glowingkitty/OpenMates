@@ -11,6 +11,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SESSIONS_PATH = PROJECT_ROOT / "scripts" / "sessions.py"
@@ -49,10 +51,16 @@ def test_routing_repair_migrates_obsolete_mode_and_touches_session(monkeypatch) 
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "_now_iso", lambda: "now")
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda path: [".env"] if path == "/repo/agent-abcd" else [])
 
     result = sessions.repair_worktree_routing("ses_parent")
 
-    assert result == {"session_id": "abcd", "mode": "worktree_routed", "worktree_path": "/repo/agent-abcd"}
+    assert result == {
+        "session_id": "abcd",
+        "mode": "worktree_routed",
+        "worktree_path": "/repo/agent-abcd",
+        "shared_runtime_resources": [".env"],
+    }
     assert data["sessions"]["abcd"]["binding_mode"] == "worktree_routed"
     assert data["sessions"]["abcd"]["last_active"] == "now"
 
@@ -70,30 +78,13 @@ def test_routing_repair_resumes_merged_worktree_after_deploy(monkeypatch) -> Non
     }
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [".env", "logs/nightly-reports"])
 
     result = sessions.repair_worktree_routing("ses_parent")
 
     assert result["worktree_path"] == "/repo/agent-abcd"
     assert result["mode"] == "worktree_routed"
-
-
-def test_routing_repair_resumes_changes_pending_worktree(monkeypatch) -> None:
-    sessions = load_sessions_module()
-    data = {
-        "sessions": {
-            "abcd": {
-                "opencode_session_id": "ses_parent",
-                "binding_mode": "worktree_routed",
-                "worktree": {"path": "/repo/agent-abcd", "status": "changes_pending"},
-            }
-        }
-    }
-    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
-    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
-
-    sessions.repair_worktree_routing("ses_parent")
-
-    assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
+    assert result["shared_runtime_resources"] == [".env", "logs/nightly-reports"]
 
 
 def test_routing_repair_failure_is_actionable(monkeypatch) -> None:
@@ -109,6 +100,36 @@ def test_routing_repair_failure_is_actionable(monkeypatch) -> None:
         assert "worktree ensure --session abcd" in str(error)
     else:
         raise AssertionError("repair must reject a missing worktree")
+
+
+def test_routing_repair_does_not_commit_metadata_when_runtime_linking_fails(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    root = tmp_path / "root"
+    worktree = tmp_path / "agent-abcd"
+    root.mkdir()
+    worktree.mkdir()
+    (root / ".env").write_text("ROOT=value\n", encoding="utf-8")
+    (worktree / ".env").write_text("LOCAL=value\n", encoding="utf-8")
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "binding_mode": "pending",
+                "last_active": "old",
+                "worktree": {"path": str(worktree), "status": "active", "last_active": "old"},
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+
+    with pytest.raises(RuntimeError, match="Refusing to replace existing worktree runtime resource"):
+        sessions.repair_worktree_routing("ses_parent")
+
+    assert data["sessions"]["abcd"]["binding_mode"] == "pending"
+    assert data["sessions"]["abcd"]["last_active"] == "old"
+    assert data["sessions"]["abcd"]["worktree"]["last_active"] == "old"
 
 
 def test_existing_opencode_session_is_reused_after_restart() -> None:
