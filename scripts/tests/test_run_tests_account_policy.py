@@ -32,6 +32,13 @@ def load_run_tests_module():
     return module
 
 
+def test_git_info_uses_exact_deployed_session_subject(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setenv("OPENMATES_TEST_SUBJECT_COMMIT", "abcdef1234567890")
+
+    assert run_tests._git_info() == ("abcdef123", "dev")
+
+
 def test_worktree_vercel_gate_reads_shared_control_plane_config(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     control_plane_root = tmp_path / "OpenMates"

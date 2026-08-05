@@ -736,6 +736,10 @@ def _log(msg: str, level: str = "INFO") -> None:
 
 def _git_info() -> tuple[str, str]:
     """Return (short_sha, branch)."""
+    subject_commit = os.environ.get("OPENMATES_TEST_SUBJECT_COMMIT", "").strip()
+    if subject_commit:
+        return subject_commit[:9], "dev"
+
     sha = "unknown"
     branch = "unknown"
     try:

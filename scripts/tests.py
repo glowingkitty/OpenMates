@@ -2789,9 +2789,10 @@ def command_run(runner_args: list[str]) -> int:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 2
+    subject_commit = ""
     if options.expected_commit:
         try:
-            resolve_test_subject_commit(options.expected_commit)
+            subject_commit = resolve_test_subject_commit(options.expected_commit)
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
@@ -2860,6 +2861,8 @@ def command_run(runner_args: list[str]) -> int:
 
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
     run_env = os.environ.copy()
+    if subject_commit:
+        run_env["OPENMATES_TEST_SUBJECT_COMMIT"] = subject_commit
     if docker_lease_id:
         run_env["OPENMATES_DOCKER_TEST_LEASE_HELD"] = "1"
     seeded_failed_files = seeded_only_failed_files_from_lease(active_lease, options.forwarded_args)
