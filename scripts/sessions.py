@@ -9285,13 +9285,13 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             f"Read {args.prompt_file} in full and follow all the instructions precisely."
         )
     elif args.prompt:
-        # Write inline prompt to temp file so claude reads it (avoids arg length issues)
-        tmp_dir = PROJECT_ROOT / "scripts" / ".tmp"
+            # Write inline prompt to a temp file to avoid CLI argument-length limits.
+        tmp_dir = CONTROL_PLANE_ROOT / "scripts" / ".tmp"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
         prompt_file = tmp_dir / f"spawn-prompt-{session_name}.txt"
         prompt_file.write_text(args.prompt, encoding="utf-8")
-        rel_path = prompt_file.relative_to(PROJECT_ROOT)
+        rel_path = prompt_file.relative_to(CONTROL_PLANE_ROOT)
         prompt = f"Read {rel_path} in full and follow all the instructions precisely."
     else:
         print("Error: --prompt or --prompt-file is required.", file=sys.stderr)
@@ -9334,7 +9334,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                 # Post pickup comment
                 post_comment(
                     issue_data["id"],
-                    f"**Claude session started:** `{session_name}`\n\n"
+                        f"**OpenCode session started:** `{session_name}`\n\n"
                     f"**Mode:** {permission_mode}\n"
                     f"**Attach:** `zellij attach {session_name}`\n"
                     f"**Web UI:** http://localhost:8082"
@@ -9354,7 +9354,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                     f'  id: "{issue_data["identifier"]}", state: "In Review",\n'
                     f"  and post a final comment with resume commands:\n"
                     f"  zellij attach {session_name}\n"
-                    f"  claude --resume <your-session-id>\n"
+                        f"  opencode run --session <your-session-id>\n"
                 )
             else:
                 print(f"Warning: Could not fetch Linear issue {linear_issue_id}", file=sys.stderr)
@@ -9375,7 +9375,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     success = spawn_opencode_session(
         session_name=session_name,
         prompt=prompt,
-        cwd=str(PROJECT_ROOT),
+        cwd=str(CONTROL_PLANE_ROOT),
         permission_mode=permission_mode,
     )
 

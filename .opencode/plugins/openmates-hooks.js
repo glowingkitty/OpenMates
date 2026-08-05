@@ -610,11 +610,11 @@ export function childMutationDecisionForTest(route, tool, command = "") {
 }
 
 function routingRecoveryMessage(sessionID) {
-  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"brief description\". Safe reads, searches, status, summary, context, worktree ensure, and worktree repair remain available.`;
+  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"brief description\". Safe reads, searches, status, summary, context, spawn-chat, worktree ensure, and worktree repair remain available.`;
 }
 
 function isRecoveryBash(command) {
-  return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor)\b/.test(command)
+  return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
 }

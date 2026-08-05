@@ -8,7 +8,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { editedFilesForTest, rewriteEditArgsForTest, rootGuardDecisionForTest } from "../../.opencode/plugins/openmates-hooks.js";
+import { editedFilesForTest, rewriteEditArgsForTest, rootGuardDecisionForTest, routingFailureForTest } from "../../.opencode/plugins/openmates-hooks.js";
 
 test("root guard warns in transitional mode", () => {
   const decision = rootGuardDecisionForTest({
@@ -87,6 +87,15 @@ test("root guard allows edits outside root", () => {
     sessionID: "ses_test",
   });
   assert.equal(decision.decision, "allow");
+});
+
+test("routing recovery allows spawning an independent OpenCode chat", () => {
+  const decision = routingFailureForTest({
+    tool: "bash",
+    sessionID: "ses_test",
+    command: "python3 scripts/sessions.py spawn-chat --name research-x --prompt 'Research X'",
+  });
+  assert.equal(decision.decision, "allow_recovery");
 });
 
 test("edited files resolve relative paths against active worktree cwd", () => {

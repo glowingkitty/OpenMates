@@ -7,8 +7,10 @@ and never fall back to the retired Claude CLI path used by spawn-chat.
 
 from pathlib import Path
 from subprocess import CompletedProcess
+import sys
+from types import SimpleNamespace
 
-from scripts import _zellij_utils
+from scripts import _zellij_utils, sessions
 
 
 def test_spawn_opencode_session_uses_interactive_plan_agent(tmp_path: Path, monkeypatch) -> None:
@@ -99,3 +101,33 @@ def test_spawn_opencode_rejects_invalid_mode_and_exited_session(tmp_path: Path, 
         str(tmp_path),
         permission_mode="execute",
     )
+
+
+def test_spawn_chat_uses_canonical_control_plane_root(tmp_path: Path, monkeypatch) -> None:
+    worktree = tmp_path / "worktree"
+    canonical = tmp_path / "canonical"
+    (canonical / "scripts").mkdir(parents=True)
+    captured = {}
+
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", worktree)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", canonical)
+    monkeypatch.setitem(sys.modules, "_zellij_utils", _zellij_utils)
+
+    def capture_spawn(**kwargs):
+        captured.update(kwargs)
+        return True
+
+    monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", capture_spawn)
+
+    sessions.cmd_spawn_chat(
+        SimpleNamespace(
+            prompt="Review the report.",
+            prompt_file=None,
+            name="review-report",
+            mode="plan",
+            linear_issue=None,
+        )
+    )
+
+    assert captured["cwd"] == str(canonical)
+    assert "scripts/.tmp/spawn-prompt-review-report.txt" in captured["prompt"]
