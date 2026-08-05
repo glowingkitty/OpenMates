@@ -250,7 +250,7 @@ test.describe('Guest interest smart selection', () => {
 		);
 		expect(defaultTagOrder.indexOf('software_development')).toBeGreaterThan(0);
 
-		await page.getByTestId('daily-inspiration-next').click();
+		await page.getByTestId('daily-inspiration-previous').click();
 		await expect.poll(async () => (await interestTagOrder(page)).join('|'), { timeout: 5000 }).not.toBe(defaultTagOrder.join('|'));
 		const reshuffledRailMetrics = await tagRailMetrics(page);
 		expect(reshuffledRailMetrics.availableTagCount).toBe(10);
