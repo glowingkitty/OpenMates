@@ -763,6 +763,9 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
         changed = set(_worktree_changed_files(metadata))
+        tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
+        if metadata.get("merged_commit"):
+            changed.update(tracked)
         deployed_states = metadata.get("root_applied_files")
         if metadata.get("merged_commit"):
             current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
@@ -780,7 +783,6 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
                 for relative_path in changed
                 if current_states.get(relative_path) != baseline_states.get(relative_path)
             }
-        tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
         if tracked:
             changed &= tracked
         return sorted(f for f in changed if f not in exclude)
@@ -6129,6 +6131,19 @@ def _fast_forward_control_plane(commit_hash: str) -> None:
         )
 
 
+def _control_plane_sync_warning(commit_hash: str) -> str:
+    """Return actionable recovery when a pushed commit cannot load locally yet."""
+    try:
+        _fast_forward_control_plane(commit_hash)
+    except RuntimeError as exc:
+        return (
+            f"CONTROL PLANE SYNC REQUIRED — Reason: {exc} "
+            f"Next: preserve unrelated dirty files, resolve the reported checkout conflict, then run "
+            f"git merge --ff-only {commit_hash}."
+        )
+    return ""
+
+
 def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
     """Build the existing deploy commit message without checkout side effects."""
     commit_msg = args.title
@@ -6171,6 +6186,7 @@ def _deploy_native_worktree(
     integration: dict | None = None
     deploy_lock_held = False
     commit_hash_full = ""
+    control_plane_warning = ""
 
     try:
         prepared_base = _fetch_origin_dev_commit()
@@ -6254,7 +6270,7 @@ def _deploy_native_worktree(
             )
             if rc != 0:
                 raise RuntimeError(f"git push failed: {stderr}")
-            _fast_forward_control_plane(commit_hash_full)
+            control_plane_warning = _control_plane_sync_warning(commit_hash_full)
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
             deploy_lock_held = False
             break
@@ -6283,6 +6299,8 @@ def _deploy_native_worktree(
 
     _save_last_deploy_sha(commit_hash_full)
     _mark_worktree_deployed(sid, patch_id, commit_hash_full, integration=integration)
+    if control_plane_warning:
+        print(control_plane_warning, file=sys.stderr)
     commit_hash = commit_hash_full[:7]
     print()
     print("== DEPLOYED ==")

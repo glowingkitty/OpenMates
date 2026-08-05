@@ -166,6 +166,21 @@ def test_successful_integration_fast_forwards_dirty_control_plane_without_losing
     assert unrelated.read_text(encoding="utf-8") == "keep me\n"
 
 
+def test_post_push_control_plane_failure_returns_actionable_warning(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(
+        sessions,
+        "_fast_forward_control_plane",
+        lambda _commit: (_ for _ in ()).throw(RuntimeError("local overlap")),
+    )
+
+    warning = sessions._control_plane_sync_warning("abc123")
+
+    assert "Reason: local overlap" in warning
+    assert "Next:" in warning
+    assert "git merge --ff-only abc123" in warning
+
+
 def test_gate_runner_uses_integration_checkout(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     checkout = tmp_path / "integration"

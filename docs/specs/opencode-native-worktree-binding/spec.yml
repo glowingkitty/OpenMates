@@ -228,6 +228,12 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-05T00:04:00Z"
     reason: The preview included files already present in the last deployed commit; merged_commit must be authoritative for every retained-worktree state comparison.
+  - id: ATTEMPT-12
+    task_id: TASK-7
+    approach: Treat green happy-path regressions as sufficient without a final adversarial review.
+    outcome: rejected
+    recorded_at: "2026-08-04T23:54:00Z"
+    reason: Review found missed repeat-deploy reverts/deletions, cross-worktree absolute-path access, and a post-push local-sync metadata dead end; focused guards and tests were required.
 
 handoff:
   current_task_id: TASK-4

@@ -86,6 +86,26 @@ test("root absolute paths in shell commands are rejected with an actionable alte
   );
 });
 
+test("absolute paths cannot target another managed worktree", () => {
+  const otherWorktree = `${ROOT}/.openmates-agent-worktrees/agent-other`;
+  for (const [tool, args] of [
+    ["read", { filePath: `${otherWorktree}/scripts/sessions.py` }],
+    ["grep", { pattern: "routing", path: `${otherWorktree}/scripts` }],
+    ["apply_patch", { patchText: `*** Begin Patch\n*** Update File: ${otherWorktree}/example.md\n*** End Patch` }],
+    ["bash", { command: `git -C ${otherWorktree} status` }],
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest(tool, args, WORKTREE),
+      (error) => {
+        assert.match(error.message, /Reason:/);
+        assert.match(error.message, /Next:/);
+        assert.match(error.message, /another managed worktree|session isolation/);
+        return true;
+      },
+    );
+  }
+});
+
 test("relative shell traversal cannot bypass the forced workdir", () => {
   assert.throws(
     () => routeLocalToolArgsForTest("bash", { command: "git -C ../../OpenMates status" }, WORKTREE),

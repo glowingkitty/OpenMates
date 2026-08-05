@@ -254,6 +254,10 @@ function pathEscapesWorktree(candidate, worktreePath) {
   return relativeTarget === ".." || relativeTarget.startsWith(`..${sep}`) || isAbsolute(relativeTarget);
 }
 
+function targetsDifferentWorktree(candidate, worktreePath) {
+  return isAbsolute(candidate) && pathInWorktree(candidate) && pathEscapesWorktree(candidate, worktreePath);
+}
+
 async function openCodeSession(client, sessionID) {
   if (!client?.session?.get || !sessionID) return null;
   try {
@@ -321,8 +325,8 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
   if (BASH_TOOLS.has(tool)) {
     const command = bashCommand(input);
     const withoutWorktree = command.split(resolve(worktreePath)).join("");
-    if (withoutWorktree.includes(PROJECT_ROOT)) {
-      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command explicitly references the root checkout and would bypass worktree routing. Next: use repository-relative paths; this command will run with workdir=${worktreePath}.`);
+    if (withoutWorktree.includes(PROJECT_ROOT) || WORKTREE_ROOTS.some((root) => withoutWorktree.includes(root))) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command explicitly references the root checkout or another managed worktree and would bypass session isolation. Next: use repository-relative paths; this command will run with workdir=${worktreePath}.`);
     }
     const traversal = tokenizeCommand(command).find((token) => {
       const value = unquote(token);
@@ -335,6 +339,9 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };
+    if (typeof routed.path === "string" && targetsDifferentWorktree(routed.path, worktreePath)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute search path targets another managed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
+    }
     if (typeof routed.path === "string" && !isAbsolute(routed.path)) {
       const target = resolve(worktreePath, routed.path);
       if (pathEscapesWorktree(target, worktreePath)) {
@@ -346,7 +353,11 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
   }
   for (const key of ["file_path", "filePath", "path"]) {
     const value = input[key];
-    if (typeof value !== "string" || isAbsolute(value)) continue;
+    if (typeof value !== "string") continue;
+    if (targetsDifferentWorktree(value, worktreePath)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute file path targets another managed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
+    }
+    if (isAbsolute(value)) continue;
     const target = resolve(worktreePath, value);
     if (pathEscapesWorktree(target, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the relative file path escapes the routed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
@@ -357,7 +368,11 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
       .find((candidate) => line.startsWith(candidate));
     if (!prefix) continue;
     const value = line.slice(prefix.length).trim();
-    if (!value || isAbsolute(value)) continue;
+    if (!value) continue;
+    if (targetsDifferentWorktree(value, worktreePath)) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: an absolute patch path targets another managed worktree. Next: use repository-relative patch paths inside ${worktreePath}.`);
+    }
+    if (isAbsolute(value)) continue;
     const target = resolve(worktreePath, value);
     if (pathEscapesWorktree(target, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: a patch path escapes the routed worktree. Next: use repository-relative patch paths inside ${worktreePath}.`);

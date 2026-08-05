@@ -165,6 +165,27 @@ def test_merged_worktree_deploy_selects_only_changes_after_recorded_snapshot(mon
     assert sessions._session_deploy_files(session, exclude=set()) == ["amended.py"]
 
 
+def test_merged_worktree_deploy_selects_revert_and_deletion(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    reverted = tmp_path / "reverted.py"
+    reverted.write_text("original\n", encoding="utf-8")
+    session = {
+        "modified_files": ["reverted.py", "added.py"],
+        "worktree": {"path": str(tmp_path), "status": "merged", "merged_commit": "last-deploy"},
+    }
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: [])
+    monkeypatch.setattr(
+        sessions,
+        "_snapshot_worktree_base_states",
+        lambda _metadata, _files: {
+            "reverted.py": {"exists": True, "sha256": "deployed-content", "executable": False},
+            "added.py": {"exists": True, "sha256": "deployed-added", "executable": False},
+        },
+    )
+
+    assert sessions._session_deploy_files(session, exclude=set()) == ["added.py", "reverted.py"]
+
+
 def test_relative_repo_path_prefers_session_worktree(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     repo = tmp_path / "OpenMates"
