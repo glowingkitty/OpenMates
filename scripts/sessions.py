@@ -9281,18 +9281,9 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
         if not prompt_path.is_file():
             print(f"Error: prompt file not found: {args.prompt_file}", file=sys.stderr)
             sys.exit(1)
-        prompt = (
-            f"Read {args.prompt_file} in full and follow all the instructions precisely."
-        )
+        prompt = prompt_path.read_text(encoding="utf-8")
     elif args.prompt:
-            # Write inline prompt to a temp file to avoid CLI argument-length limits.
-        tmp_dir = CONTROL_PLANE_ROOT / "scripts" / ".tmp"
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
-        prompt_file = tmp_dir / f"spawn-prompt-{session_name}.txt"
-        prompt_file.write_text(args.prompt, encoding="utf-8")
-        rel_path = prompt_file.relative_to(CONTROL_PLANE_ROOT)
-        prompt = f"Read {rel_path} in full and follow all the instructions precisely."
+        prompt = args.prompt
     else:
         print("Error: --prompt or --prompt-file is required.", file=sys.stderr)
         sys.exit(1)
@@ -10394,11 +10385,11 @@ def main() -> None:
     )
     p_spawn.add_argument(
         "--prompt",
-        help="Prompt text to send to OpenCode (written to temp file internally)",
+        help="Prompt text to send directly to OpenCode",
     )
     p_spawn.add_argument(
         "--prompt-file",
-        help="Path to a prompt file (OpenCode reads it directly)",
+        help="Path to a prompt file whose contents are sent to OpenCode",
     )
     p_spawn.add_argument(
         "--name", "-n",

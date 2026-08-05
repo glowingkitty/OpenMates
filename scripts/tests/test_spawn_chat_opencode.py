@@ -103,7 +103,7 @@ def test_spawn_opencode_rejects_invalid_mode_and_exited_session(tmp_path: Path, 
     )
 
 
-def test_spawn_chat_uses_canonical_control_plane_root(tmp_path: Path, monkeypatch) -> None:
+def test_spawn_chat_uses_canonical_root_and_direct_prompt(tmp_path: Path, monkeypatch) -> None:
     worktree = tmp_path / "worktree"
     canonical = tmp_path / "canonical"
     (canonical / "scripts").mkdir(parents=True)
@@ -130,4 +130,5 @@ def test_spawn_chat_uses_canonical_control_plane_root(tmp_path: Path, monkeypatc
     )
 
     assert captured["cwd"] == str(canonical)
-    assert "scripts/.tmp/spawn-prompt-review-report.txt" in captured["prompt"]
+    assert captured["prompt"].endswith("Review the report.")
+    assert "scripts/.tmp" not in captured["prompt"]
