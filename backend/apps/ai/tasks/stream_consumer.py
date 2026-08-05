@@ -1431,13 +1431,11 @@ async def _fix_bad_embed_display_text(
                 "full_match": match.group(0),
             })
 
-    if not bad_links:
-        return aggregated_response
-
-    logger.info(
-        f"{log_prefix} [EMBED_DISPLAY_FIX] Found {len(bad_links)} inline embed link(s) "
-        f"with bad display text"
-    )
+    if bad_links:
+        logger.info(
+            f"{log_prefix} [EMBED_DISPLAY_FIX] Found {len(bad_links)} inline embed link(s) "
+            f"with bad display text"
+        )
 
     # Build embed_ref → title map from child embeds.
     # We need to load parent embeds and their children to find the title for each ref.

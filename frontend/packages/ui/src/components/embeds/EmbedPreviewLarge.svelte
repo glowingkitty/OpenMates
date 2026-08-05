@@ -382,6 +382,7 @@
   .embed-preview-large-wrapper {
     position: relative;
     width: 100%;
+    margin-top: var(--spacing-4);
     touch-action: pan-y;
   }
 
