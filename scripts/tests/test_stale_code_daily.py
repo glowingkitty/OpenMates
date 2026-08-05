@@ -156,6 +156,21 @@ def test_canonical_checkout_root_uses_git_common_directory() -> None:
     assert module.root_from_common_git_dir(Path("/tmp/not-dot-git"), Path("/tmp/worktree")) == Path("/tmp/worktree")
 
 
+def test_webhook_lookup_falls_back_to_canonical_checkout(monkeypatch) -> None:
+    module = load_module()
+    worktree = Path("/tmp/worktree")
+    canonical = Path("/srv/openmates")
+
+    monkeypatch.setattr(module, "canonical_checkout_root", lambda _root: canonical)
+    monkeypatch.setattr(
+        module,
+        "_dotenv_value",
+        lambda root, _key: "https://discord.invalid/<PLACEHOLDER>" if root == canonical else "",
+    )
+
+    assert module.discord_webhook(worktree) == "https://discord.invalid/<PLACEHOLDER>"
+
+
 def test_runner_source_has_no_agent_or_deploy_dispatch() -> None:
     source = MODULE_PATH.read_text(encoding="utf-8")
 

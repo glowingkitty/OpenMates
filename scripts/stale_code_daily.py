@@ -255,6 +255,16 @@ def _dotenv_value(root: Path, key: str) -> str:
     return ""
 
 
+def discord_webhook(root: Path) -> str:
+    configured = _dotenv_value(root, DISCORD_ENV)
+    if configured:
+        return configured
+    canonical_root = canonical_checkout_root(root)
+    if canonical_root != root.resolve():
+        return _dotenv_value(canonical_root, DISCORD_ENV)
+    return ""
+
+
 def run_daily(root: Path, output_dir: Path, limit: int, *, dry_run_notify: bool) -> int:
     with run_lock(output_dir):
         commit = _git_commit(root)
@@ -287,7 +297,7 @@ def run_daily(root: Path, output_dir: Path, limit: int, *, dry_run_notify: bool)
                 report,
                 commit,
                 json_path,
-                _dotenv_value(root, DISCORD_ENV),
+                discord_webhook(root),
             )
         write_reports(
             report,
