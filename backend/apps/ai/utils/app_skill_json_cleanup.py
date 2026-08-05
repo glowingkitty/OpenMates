@@ -1,7 +1,7 @@
 # backend/apps/ai/utils/app_skill_json_cleanup.py
 #
-# Utilities for removing app-skill transport metadata from assistant-visible
-# markdown while preserving a renderable reference to standalone parent embeds.
+# Utilities for reducing app-skill transport metadata to the canonical fields
+# needed to reconstruct the permanent execution group after completion/reload.
 
 from __future__ import annotations
 
@@ -18,15 +18,15 @@ APP_SKILL_EMBED_REFERENCE_FENCE_PATTERN = re.compile(
 )
 
 
-def strip_successful_app_skill_json_blocks(text: str, log_prefix: str = "") -> str:
-    """Remove app-skill JSON while keeping standalone parent embeds renderable."""
+def canonicalize_app_skill_json_blocks(text: str, log_prefix: str = "") -> str:
+    """Keep app-skill identity/order while removing non-canonical request metadata."""
     if not text:
         return text
 
-    stripped_count = 0
+    canonicalized_count = 0
 
     def replace_match(match: re.Match[str]) -> str:
-        nonlocal stripped_count
+        nonlocal canonicalized_count
         try:
             payload = json.loads(match.group(1))
         except json.JSONDecodeError:
@@ -38,17 +38,23 @@ def strip_successful_app_skill_json_blocks(text: str, log_prefix: str = "") -> s
         if not isinstance(embed_id, str) or not embed_id.strip():
             return match.group(0)
 
-        stripped_count += 1
-        return f"[!](embed:{embed_id.strip()})"
+        canonical_payload = {
+            key: payload[key]
+            for key in ("type", "embed_id", "app_id", "skill_id")
+            if key in payload
+        }
+        canonical_payload["embed_id"] = embed_id.strip()
+        canonicalized_count += 1
+        return f"```json\n{json.dumps(canonical_payload, separators=(',', ':'))}\n```"
 
     cleaned = APP_SKILL_EMBED_REFERENCE_FENCE_PATTERN.sub(replace_match, text)
-    if stripped_count == 0:
+    if canonicalized_count == 0:
         return text
 
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
     logger.info(
-        "%s [APP_SKILL_JSON_CLEANUP] Stripped %s app_skill_use JSON fence(s) from assistant text",
+        "%s [APP_SKILL_JSON_CLEANUP] Canonicalized %s app_skill_use JSON fence(s)",
         log_prefix,
-        stripped_count,
+        canonicalized_count,
     )
     return cleaned

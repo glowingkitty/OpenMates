@@ -37,7 +37,7 @@ from backend.apps.ai.utils.embed_display_text import (
     derive_embed_display_title as _derive_embed_display_title,
     is_bad_embed_display_text as _is_bad_embed_display_text,
 )
-from backend.apps.ai.utils.app_skill_json_cleanup import strip_successful_app_skill_json_blocks
+from backend.apps.ai.utils.app_skill_json_cleanup import canonicalize_app_skill_json_blocks
 from backend.apps.ai.utils.remotion_fences import (
     _is_remotion_video_fence,
 )
@@ -8524,11 +8524,10 @@ async def _consume_main_processing_stream(
                         f"(length: {len(aggregated_response)})",
                     )
 
-    # App-skill embed fences are transport metadata for streamed cards. Keep the
-    # actual embed records/tool metadata, but remove the raw JSON from the saved
-    # assistant markdown after map-view logic has had a chance to inspect it.
+    # Keep canonical app-skill identity/order in the encrypted assistant Markdown
+    # so completion, reload, and reopen can reconstruct the same top group.
     if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
-        app_skill_cleaned_response = strip_successful_app_skill_json_blocks(
+        app_skill_cleaned_response = canonicalize_app_skill_json_blocks(
             aggregated_response,
             log_prefix,
         )
@@ -8549,7 +8548,7 @@ async def _consume_main_processing_stream(
                     redis_channel_name,
                     app_skill_cleanup_payload,
                     log_prefix,
-                    "Published response with app-skill JSON fences stripped",
+                    "Published response with canonical app-skill JSON fences",
                 )
 
     # Process assistant-visible URLs with a source allowlist plus the safeguard

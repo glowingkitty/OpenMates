@@ -74,4 +74,26 @@ describe("assistant app-skill top group", () => {
       expect.objectContaining({ kind: "update-app-skill-group" }),
     );
   });
+
+  it("keeps the streamed execution group when canonical content completes", () => {
+    const markdown = [
+      execution("skill-old", "events"),
+      "",
+      execution("skill-new", "events"),
+      "",
+      "Here are both weekends.",
+    ].join("\n");
+    const streaming = createAssistantRenderPlan(markdown, { phase: "streaming" });
+    const completed = createAssistantRenderPlan(markdown, {
+      phase: "final",
+      previous: streaming,
+    });
+
+    expect(completed.appSkillGroup).toBe(streaming.appSkillGroup);
+    expect(completed.appSkillGroup?.executions.map((item) => item.embedId)).toEqual([
+      "skill-new",
+      "skill-old",
+    ]);
+    expect(JSON.stringify(completed.document)).not.toContain("embedPreviewLarge");
+  });
 });

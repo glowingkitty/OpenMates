@@ -647,6 +647,9 @@ tasks:
     phase: working_tasks
     covers: {scenarios: [S-2, S-3, S-6, S-7], acceptance_criteria: [AC-2, AC-3, AC-6, AC-7]}
     expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/apps/ai/utils/app_skill_json_cleanup.py
+      - backend/tests/test_app_skill_json_cleanup.py
       - frontend/packages/ui/src/message_parsing/embedGrouping.ts
       - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
       - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
