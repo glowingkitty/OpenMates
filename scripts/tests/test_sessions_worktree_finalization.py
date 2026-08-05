@@ -41,7 +41,7 @@ def test_finalize_removes_fully_integrated_worktree_before_session(monkeypatch, 
     }
     sessions_file.write_text(json.dumps({"sessions": {"abcd": {"worktree": metadata}}, "deploy_queue": []}), encoding="utf-8")
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda _metadata: "patch")
+    monkeypatch.setattr(sessions, "_worktree_pending_files", lambda _session: [])
     monkeypatch.setattr(sessions, "_git_is_ancestor", lambda commit, target: commit == "commit" and target == "origin/dev")
     order: list[str] = []
     monkeypatch.setattr(sessions, "_remove_git_worktree", lambda _metadata: order.append("worktree"))
@@ -64,7 +64,7 @@ def test_finalize_blocks_residual_changes_and_preserves_metadata(monkeypatch, tm
     }
     sessions_file.write_text(json.dumps({"sessions": {"abcd": {"worktree": metadata}}, "deploy_queue": []}), encoding="utf-8")
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda _metadata: "current-patch")
+    monkeypatch.setattr(sessions, "_worktree_pending_files", lambda _session: ["amended.py"])
     monkeypatch.setattr(sessions, "_git_is_ancestor", lambda _commit, _target: True)
 
     with pytest.raises(RuntimeError, match="residual"):
@@ -88,7 +88,7 @@ def test_finalize_refuses_worktree_outside_managed_directory(monkeypatch, tmp_pa
     sessions_file.write_text(json.dumps({"sessions": {"abcd": {"worktree": metadata}}, "deploy_queue": []}), encoding="utf-8")
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
-    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda _metadata: "patch")
+    monkeypatch.setattr(sessions, "_worktree_pending_files", lambda _session: [])
     monkeypatch.setattr(sessions, "_git_is_ancestor", lambda _commit, _target: True)
 
     with pytest.raises(RuntimeError, match="outside"):

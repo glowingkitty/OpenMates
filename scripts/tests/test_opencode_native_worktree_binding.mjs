@@ -45,6 +45,15 @@ test("merged worktree remains routed for post-deploy continuation", () => {
   );
 });
 
+test("changes-pending worktree remains routed for safe recovery", () => {
+  assert.deepEqual(
+    routingDecisionForTest({
+      session: { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "changes_pending" } },
+    }),
+    { decision: "worktree_routed", worktreePath: WORKTREE },
+  );
+});
+
 test("question sessions remain read-only without a worktree", () => {
   assert.deepEqual(
     routingDecisionForTest({ session: { mode: "question", binding_mode: "legacy_grandfathered" } }),

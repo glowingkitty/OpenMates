@@ -234,6 +234,18 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-04T23:54:00Z"
     reason: Review found missed repeat-deploy reverts/deletions, cross-worktree absolute-path access, and a post-push local-sync metadata dead end; focused guards and tests were required.
+  - id: ATTEMPT-13
+    task_id: TASK-7
+    approach: Finalize a retained worktree by comparing historical full patch IDs after incremental deployments.
+    outcome: rejected
+    recorded_at: "2026-08-05T00:18:00Z"
+    reason: Completion evidence deployed, but cleanup preserved the worktree because historical and incremental patch IDs differ; finalization must compare current file states to merged_commit, and changes_pending must remain routable for recovery.
+  - id: ATTEMPT-14
+    task_id: TASK-7
+    approach: Reconcile source-index untracked classification only when merged_commit differs from base_commit.
+    outcome: rejected
+    recorded_at: "2026-08-05T00:23:00Z"
+    reason: Recovery reset base metadata without rewriting the retained index, so a tracked spec amendment looked untracked; classification must always query the effective source tree.
 
 handoff:
   current_task_id: TASK-8

@@ -77,6 +77,25 @@ def test_routing_repair_resumes_merged_worktree_after_deploy(monkeypatch) -> Non
     assert result["mode"] == "worktree_routed"
 
 
+def test_routing_repair_resumes_changes_pending_worktree(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "binding_mode": "worktree_routed",
+                "worktree": {"path": "/repo/agent-abcd", "status": "changes_pending"},
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+
+    sessions.repair_worktree_routing("ses_parent")
+
+    assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
+
+
 def test_routing_repair_failure_is_actionable(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = {"sessions": {"abcd": {"opencode_session_id": "ses_parent", "binding_mode": "pending"}}}

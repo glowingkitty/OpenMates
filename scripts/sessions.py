@@ -1416,15 +1416,14 @@ def _apply_worktree_diff_to_checkout(
         )
 
     untracked = _worktree_untracked_files(source_metadata) & set(files)
-    if source_base != str(source_metadata.get("base_commit") or ""):
-        untracked = {
-            relative_path
-            for relative_path in untracked
-            if _run_cmd(
-                ["git", "cat-file", "-e", f"{source_base}:{relative_path}"],
-                cwd=str(source_path),
-            )[0] != 0
-        }
+    untracked = {
+        relative_path
+        for relative_path in untracked
+        if _run_cmd(
+            ["git", "cat-file", "-e", f"{source_base}:{relative_path}"],
+            cwd=str(source_path),
+        )[0] != 0
+    }
     tracked_files = [relative_path for relative_path in files if relative_path not in untracked]
     if tracked_files:
         with tempfile.TemporaryDirectory(prefix="openmates-integration-index-") as temp_dir:
@@ -2025,6 +2024,24 @@ def worktree_release_readiness(*, target_ref: str, excluded_active: set[str]) ->
     }
 
 
+def _worktree_pending_files(session: dict) -> list[str]:
+    """Return files whose current state differs from the last deployed commit."""
+    metadata = session.get("worktree")
+    if not isinstance(metadata, dict) or not metadata.get("path"):
+        return []
+    candidates = set(_worktree_changed_files(metadata))
+    candidates.update(_canonical_stored_repo_path(path) for path in session.get("modified_files") or [])
+    if not candidates:
+        return []
+    merged_commit = str(metadata.get("merged_commit") or "")
+    if not merged_commit:
+        return sorted(candidates)
+    files = sorted(candidates)
+    current_states = _snapshot_file_states(Path(str(metadata["path"])), files)
+    deployed_states = _snapshot_worktree_base_states(metadata, files)
+    return [path for path in files if current_states.get(path) != deployed_states.get(path)]
+
+
 def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev") -> None:
     """Remove a fully integrated worktree before deleting its session record."""
     def finalize(data: dict) -> str:
@@ -2040,17 +2057,15 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
             for lease in data.get("edit_leases", {}).values()
         )
         try:
-            current_patch = _worktree_patch_id(metadata)
+            pending_files = _worktree_pending_files(session)
         except (OSError, RuntimeError):
-            current_patch = ""
-        integration = metadata.get("integration") if isinstance(metadata.get("integration"), dict) else {}
-        deployed_patch = str(metadata.get("root_applied_patch_id") or integration.get("patch_id") or "")
+            pending_files = ["<inspection-failed>"]
         merged_commit = str(metadata.get("merged_commit") or "")
         integrated = (
             not session.get("writing")
             and not live_lease
-            and bool(deployed_patch)
-            and current_patch == deployed_patch
+            and bool(merged_commit)
+            and not pending_files
             and _git_is_ancestor(merged_commit, target_ref)
         )
         if not integrated:
@@ -4081,7 +4096,7 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session = data["sessions"][session_id]
         worktree = session.get("worktree") or {}
         worktree_path = str(worktree.get("path") or "")
-        if worktree.get("status") not in {"active", "merged"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
+        if worktree.get("status") not in {"active", "merged", "changes_pending"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
             raise RuntimeError(
                 f"Reason: session {session_id} has no active worktree to route tools into. "
                 f"Next: run python3 scripts/sessions.py worktree ensure --session {session_id}."
@@ -4090,6 +4105,8 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session["binding_updated_at"] = _now_iso()
         session["binding_failure_reason"] = ""
         session["last_active"] = _now_iso()
+        if worktree.get("status") == "changes_pending":
+            worktree["status"] = "active"
         worktree["last_active"] = session["last_active"]
         return {
             "session_id": session_id,

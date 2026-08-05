@@ -219,7 +219,7 @@ function activeSessionRecord(sessionID, data = sessionsData()) {
 }
 
 export function routingDecisionForTest({ session = {} } = {}) {
-  const worktreePath = ["active", "merged"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
+  const worktreePath = ["active", "merged", "changes_pending"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
   if (worktreePath && isDirectManagedWorktree(worktreePath)) return { decision: "worktree_routed", worktreePath };
   if (session?.mode === "question") return { decision: "read_only", worktreePath: "" };
   return { decision: "unresolved", worktreePath: "" };
