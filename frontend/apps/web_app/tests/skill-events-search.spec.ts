@@ -190,60 +190,8 @@ test.describe('App: Events / Skill: search', () => {
 		}
 	});
 
-	// ── Phase 4: Streaming refs remain stable through issue reporting ──────
-	test('Phase 4: Event embeds survive streaming and report issue navigation', async ({ page }: { page: any }) => {
-		test.slow();
-		test.setTimeout(240_000);
-		test.skip(!getTestAccount().email, 'Test account credentials required.');
-
-		const logCheckpoint = createSignupLogger('skill-events-search-report-issue');
-		await loginToTestAccount(page, logCheckpoint);
-		await startNewChat(page, logCheckpoint);
-
-		const message = withLiveMockMarker(
-			'Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date 2026-06-27T00:00:00+02:00 and end_date 2026-06-28T23:59:59+02:00. Show both event search cards before answering.',
-			'events_search_web'
-		);
-		await sendMessage(page, message, logCheckpoint, undefined, 'events-search-report-issue');
-
-		const finishedEmbeds = page.locator(`${EVENT_SEARCH_CARD_SELECTOR}[data-status="finished"]`);
-		await expect(finishedEmbeds.first()).toBeVisible({ timeout: 60_000 });
-		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 90_000 });
-		await page.waitForTimeout(3_000);
-
-		const finishedCount = await finishedEmbeds.count();
-		expect(finishedCount).toBeGreaterThanOrEqual(2);
-		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
-		logCheckpoint(`${finishedCount} finished event embeds remained after streaming completed.`);
-
-		const stabilityProbe = await page.evaluate(() => {
-			const value = crypto.randomUUID();
-			(window as any).__reportIssueStabilityProbe = value;
-			return value;
-		});
-		await page.locator('#settings-menu-toggle').click();
-		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-		await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
-		await settingsMenu
-			.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
-			.first()
-			.click();
-		await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
-		await page.waitForTimeout(5_000);
-
-		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
-		expect(await finishedEmbeds.count()).toBe(finishedCount);
-		logCheckpoint('Report Issue opened without reloading the page or removing event embeds.');
-
-		const closeSettings = page.getByTestId('icon-button-close');
-		if (await closeSettings.isVisible().catch(() => false)) {
-			await closeSettings.click();
-		}
-		await deleteActiveChat(page, logCheckpoint, undefined, 'events-search-report-issue');
-	});
-
-	// ── Phase 5: Web UI chat triggers skill ────────────────────────────────
-	test('Phase 5: Web chat triggers events search with embed', async ({ page }: { page: any }) => {
+	// ── Phase 4: Web UI chat triggers skill ────────────────────────────────
+	test('Phase 4: Web chat triggers events search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -274,6 +222,38 @@ test.describe('App: Events / Skill: search', () => {
 		await expect(embed).toBeVisible({ timeout: 60_000 });
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
 		await expect(embed).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
+		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 90_000 });
+
+		const finishedEmbeds = page.locator(`${EVENT_SEARCH_CARD_SELECTOR}[data-status="finished"]`);
+		const finishedCount = await finishedEmbeds.count();
+		expect(finishedCount).toBeGreaterThanOrEqual(2);
+		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		logCheckpoint(`${finishedCount} finished event embeds remained after streaming completed.`);
+
+		const stabilityProbe = await page.evaluate(() => {
+			const value = crypto.randomUUID();
+			(window as any).__reportIssueStabilityProbe = value;
+			return value;
+		});
+		await page.locator('#settings-menu-toggle').click();
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
+		await settingsMenu
+			.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
+			.first()
+			.click();
+		await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
+		await page.waitForTimeout(5_000);
+
+		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
+		expect(await finishedEmbeds.count()).toBe(finishedCount);
+		logCheckpoint('Report Issue opened without reloading the page or removing event embeds.');
+
+		const closeSettings = page.getByTestId('icon-button-close');
+		if (await closeSettings.isVisible().catch(() => false)) {
+			await closeSettings.click();
+		}
+
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
 
