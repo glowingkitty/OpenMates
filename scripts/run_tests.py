@@ -68,7 +68,30 @@ from zoneinfo import ZoneInfo
 # Constants
 # ---------------------------------------------------------------------------
 
+
+def _resolve_control_plane_root(checkout_root: Path) -> Path:
+    """Resolve the main checkout that owns shared local credentials and config."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(checkout_root),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return checkout_root
+    if result.returncode != 0 or not result.stdout.strip():
+        return checkout_root
+    common_dir = Path(result.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = checkout_root / common_dir
+    common_dir = common_dir.resolve()
+    return common_dir.parent if common_dir.name == ".git" else checkout_root
+
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 TEST_RECORDINGS_DIR = RESULTS_DIR / "recordings" / "latest"
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
@@ -694,8 +717,8 @@ def _full_git_sha(git_ref: str) -> str:
 
 
 def _read_env_file() -> dict[str, str]:
-    """Read .env file from project root."""
-    env_path = PROJECT_ROOT / ".env"
+    """Read .env from the shared control-plane checkout."""
+    env_path = CONTROL_PLANE_ROOT / ".env"
     env_vars: dict[str, str] = {}
     if not env_path.is_file():
         return env_vars
@@ -778,7 +801,7 @@ def _development_backend_live_mock_preflight_error() -> Optional[str]:
 
 def _vercel_project_config() -> tuple[str, str]:
     """Return (team_id, project_id) for the web app Vercel project."""
-    project_json = PROJECT_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
+    project_json = CONTROL_PLANE_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
     if not project_json.is_file():
         raise RuntimeError(f"Vercel project config not found: {project_json}")
     try:

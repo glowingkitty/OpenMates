@@ -133,6 +133,9 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			console.log(`[chat-nav] [${cycle}] Clicked New Chat button`);
 			await expectBlankFocusedComposer(page);
 			console.log(`[chat-nav] [${cycle}] Blank composer focused after New Chat click`);
+			const composer = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+			await composer.blur();
+			await expect(composer).not.toBeFocused();
 
 			// Wait for the welcome screen: message editor and chat cards appear.
 			// The message editor is always present but the nonAuth chat cards only

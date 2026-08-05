@@ -32,6 +32,20 @@ def load_run_tests_module():
     return module
 
 
+def test_worktree_vercel_gate_reads_shared_control_plane_config(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    control_plane_root = tmp_path / "OpenMates"
+    project_dir = control_plane_root / "frontend" / "apps" / "web_app" / ".vercel"
+    project_dir.mkdir(parents=True)
+    (control_plane_root / ".env").write_text("VERCEL_TOKEN=<TOKEN>\n")
+    (project_dir / "project.json").write_text(json.dumps({"orgId": "team", "projectId": "project"}))
+
+    monkeypatch.setattr(run_tests, "CONTROL_PLANE_ROOT", control_plane_root)
+
+    assert run_tests._read_env_file() == {"VERCEL_TOKEN": "<TOKEN>"}
+    assert run_tests._vercel_project_config() == ("team", "project")
+
+
 def test_reserved_specs_use_reserved_accounts_for_single_spec_dispatch():
     run_tests = load_run_tests_module()
 
