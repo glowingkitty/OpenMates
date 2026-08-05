@@ -11064,22 +11064,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (
                 !showWelcome ||
                 currentChat ||
-                !resumeChatData ||
-                targetChatId !== resumeChatData.chat_id ||
+                !targetChatId ||
                 typeof detail?.pinned !== 'boolean'
             ) return;
 
-            resumeChatData = { ...resumeChatData, pinned: detail.pinned };
+            if (resumeChatData?.chat_id === targetChatId) {
+                resumeChatData = { ...resumeChatData, pinned: detail.pinned };
+            }
+            recentChats = recentChats.map((recentChat) =>
+                recentChat.chat.chat_id === targetChatId
+                    ? { ...recentChat, chat: { ...recentChat.chat, pinned: detail.pinned } }
+                    : recentChat
+            );
             carouselInvalidationCounter++;
 
             try {
                 const freshChat = await chatDB.getChat(targetChatId);
-                if (freshChat && resumeChatData?.chat_id === targetChatId) {
-                    resumeChatData = freshChat;
+                if (freshChat) {
+                    if (resumeChatData?.chat_id === targetChatId) {
+                        resumeChatData = freshChat;
+                    }
+                    recentChats = recentChats.map((recentChat) =>
+                        recentChat.chat.chat_id === targetChatId
+                            ? { ...recentChat, chat: freshChat }
+                            : recentChat
+                    );
                 }
             } catch (err) {
-                console.warn('[ActiveChat] Failed to refresh resume card pin state:', err);
+                console.warn('[ActiveChat] Failed to refresh carousel pin state:', err);
             }
+            loadRecentChatsDebounced();
         };
         window.addEventListener('localChatListChanged', handleResumeCardPinRefresh);
         
