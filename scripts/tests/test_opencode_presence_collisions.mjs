@@ -73,6 +73,8 @@ test("inherited children can run known read-only shell diagnostics", () => {
     "python3 scripts/issues.py --help",
     "./scripts/issues.py show synthetic-id --env prod",
     "python3 scripts/sessions.py --help",
+    "python3 scripts/tests.py status --json && python3 scripts/tests.py triage --json",
+    "docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json '{\"stream\":\"client_console\",\"filters\":[],\"since_minutes\":1440,\"limit\":100}' && docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json '{\"stream\":\"default\",\"filters\":[],\"since_minutes\":1440,\"limit\":100}' && docker exec api python /app/backend/scripts/debug.py trace errors --last 24h",
   ];
   for (const command of commands) {
     assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "allow");
@@ -102,6 +104,16 @@ test("inherited children can run known read-only shell diagnostics", () => {
     "python3 scripts/issues.py show synthetic-id --env --unknown-write-flag",
     "python3 scripts/issues.py show synthetic-id --env=--unknown-write-flag",
     "python3 scripts/sessions.py --help --unknown-write-flag",
+    "python3 scripts/tests.py run --suite playwright",
+    "python3 scripts/tests.py next --lease --session child",
+    "python3 scripts/tests.py triage --json --claim",
+    "docker exec api python /app/backend/scripts/debug.py trace errors --last 24h --repair",
+    "git diff {--output=scripts/child-write.py,}",
+    "docker exec api python /app/backend/scripts/debug.py trace errors --last ${IFS}24h${IFS}--repair",
+    "python3 scripts/tests.py status $TEST_FLAGS",
+    "python3 scripts/tests.py status --json=*",
+    "python3 scripts/tests.py status --json=anything",
+    "docker exec api python /app/backend/scripts/debug.py trace errors --production=yes",
     "./other/issues.py show synthetic-id --env prod",
     "docker exec api python /app/backend/scripts/debug.py logs --query-json --upload-update",
     "docker exec api python /app/backend/scripts/debug.py logs --query-json=--upload-update",

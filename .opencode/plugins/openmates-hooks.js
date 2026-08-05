@@ -585,7 +585,35 @@ async function resolveWorktreeRoute(client, sessionID, data = sessionsData()) {
 }
 
 function isReadOnlyChildBash(command) {
-  if (!command || ["$(", "`", "<(", ">("].some((token) => command.includes(token)) || extractWriteTargets(command).length > 0) return false;
+  const hasUnsafeExpansion = (() => {
+    let quote = "";
+    let escaped = false;
+    for (const char of command || "") {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\" && quote !== "'") {
+        escaped = true;
+        continue;
+      }
+      if (quote === "'") {
+        if (char === "'") quote = "";
+        continue;
+      }
+      if (!quote && char === "'") {
+        quote = "'";
+        continue;
+      }
+      if (char === '"') {
+        quote = quote === '"' ? "" : '"';
+        continue;
+      }
+      if (char === "$" || char === "`" || (!quote && "{}*?[~".includes(char))) return true;
+    }
+    return quote !== "";
+  })();
+  if (!command || hasUnsafeExpansion || ["<(", ">("].some((token) => command.includes(token)) || extractWriteTargets(command).length > 0) return false;
   const readOnlyCommands = new Set(["pgrep", "ps", "pwd"]);
   const readOnlyGitCommands = new Set(["diff", "log", "show", "status"]);
   const readOnlyDockerCommands = new Set(["inspect", "logs", "ps", "stats", "top"]);
@@ -598,9 +626,17 @@ function isReadOnlyChildBash(command) {
     show: { booleanOptions: new Set(), valueOptions: new Set(["--env"]), positional: 1 },
     timeline: { booleanOptions: new Set(["--compact"]), valueOptions: new Set(["--env"]), positional: 1 },
   };
+  const readOnlyTestSpecs = {
+    status: { booleanOptions: new Set(["--json"]), valueOptions: new Set(), positional: 0 },
+    triage: { booleanOptions: new Set(["--json"]), valueOptions: new Set(), positional: 0 },
+  };
+  const readOnlyTraceSpecs = {
+    errors: { booleanOptions: new Set(["--production"]), valueOptions: new Set(["--last"]), positional: 0 },
+  };
   const argumentsMatch = (args, spec) => {
     if (!spec) return false;
     let positional = 0;
+    const seenOptions = new Set();
     for (let index = 0; index < args.length; index += 1) {
       const arg = args[index];
       if (!arg.startsWith("-")) {
@@ -608,7 +644,12 @@ function isReadOnlyChildBash(command) {
         continue;
       }
       const option = arg.split("=", 1)[0];
-      if (spec.booleanOptions.has(option)) continue;
+      if (seenOptions.has(option)) return false;
+      seenOptions.add(option);
+      if (spec.booleanOptions.has(option)) {
+        if (arg !== option) return false;
+        continue;
+      }
       if (!spec.valueOptions.has(option)) return false;
       if (arg.includes("=")) {
         if (arg.slice(arg.indexOf("=") + 1).startsWith("-")) return false;
@@ -619,7 +660,10 @@ function isReadOnlyChildBash(command) {
     }
     return positional === spec.positional;
   };
-  const debugCommandIsReadOnly = (action, args) => argumentsMatch(args, readOnlyDebugSpecs[action]);
+  const debugCommandIsReadOnly = (action, args) => {
+    if (action === "trace") return argumentsMatch(args.slice(1), readOnlyTraceSpecs[args[0]]);
+    return argumentsMatch(args, readOnlyDebugSpecs[action]);
+  };
   const issueCommandIsReadOnly = (args) => {
     if (args.length === 1 && ["-h", "--help"].includes(args[0])) return true;
     const action = args[0];
@@ -648,6 +692,7 @@ function isReadOnlyChildBash(command) {
       const script = unquote(args[0] || "").replace(/^\.\//, "");
       if (script === "scripts/issues.py") return issueCommandIsReadOnly(args.slice(1));
       if (script === "scripts/sessions.py") return args.length === 2 && ["-h", "--help"].includes(args[1]);
+      if (script === "scripts/tests.py") return argumentsMatch(args.slice(2), readOnlyTestSpecs[args[1]]);
       return false;
     }
     return false;
