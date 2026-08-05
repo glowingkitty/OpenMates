@@ -12,6 +12,16 @@ import {
   type DailyInspiration,
 } from "../dailyInspirationStore";
 import { getAuthenticatedFallbackInspirations } from "../../demo_chats/hardcodedInspirations";
+import { loadGuestOnboardingInspirations } from "../../demo_chats/loadDefaultInspirations";
+
+const GUEST_ONBOARDING_IDS = [
+  "openmates-intro",
+  "openmates-actionable-events",
+  "openmates-privacy-safety",
+  "openmates-mates-focus",
+  "openmates-provider-cross-platform",
+  "openmates-signup-cta",
+];
 
 const INSPIRATIONS: DailyInspiration[] = [
   {
@@ -103,6 +113,21 @@ describe("dailyInspirationStore", () => {
     expect(state.inspirations).toHaveLength(3);
     expect(state.inspirations.map((item) => item.inspiration_id)).not.toContain(
       "openmates-signup-cta",
+    );
+  });
+
+  it("forces the exact guest onboarding set after authenticated data races with logout", () => {
+    dailyInspirationStore.setInspirations(INSPIRATIONS, {
+      personalized: true,
+      source: "personalized",
+    });
+
+    loadGuestOnboardingInspirations();
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("guest-onboarding");
+    expect(state.inspirations.map((item) => item.inspiration_id)).toEqual(
+      GUEST_ONBOARDING_IDS,
     );
   });
 

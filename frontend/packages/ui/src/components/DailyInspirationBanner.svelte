@@ -36,7 +36,7 @@
   import { text } from '@repo/ui';
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSource, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
-  import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
+  import { loadDefaultInspirations, loadGuestOnboardingInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
   import { introBannerVisible } from '../stores/uiStateStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
@@ -294,11 +294,14 @@
 
   const unsubscribeAuth = authStore.subscribe((state) => {
     const becameAuthenticated = state.isAuthenticated && !isAuthenticated;
+    const becameUnauthenticated = !state.isAuthenticated && isAuthenticated;
     isAuthenticated = state.isAuthenticated;
     if (becameAuthenticated && surface === 'chats') {
       void loadDefaultInspirations({ allowIndexedDB: true, surface: 'chats' }).catch((error) => {
         console.error('[DailyInspirationBanner] Failed to restore authenticated inspirations:', error);
       });
+    } else if (becameUnauthenticated && surface === 'chats') {
+      loadGuestOnboardingInspirations();
     }
   });
 
