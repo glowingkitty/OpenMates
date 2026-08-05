@@ -87,10 +87,10 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 
 		try {
 			await startNewChat(page);
-			await expect(page.getByTestId('resume-chat-draft-card')).toBeVisible({ timeout: 15000 });
-			await expect(page.getByTestId('resume-chat-draft-card')).toContainText(draftText);
-			expect(await page.getByTestId('resume-chat-draft-card').getAttribute('data-chat-id')).toBe(draftChatId);
-			await page.getByTestId('resume-chat-draft-card').click();
+			const resumeDraftCard = page.getByTestId('resume-chat-draft-card').filter({ hasText: draftText });
+			await expect(resumeDraftCard).toBeVisible({ timeout: 15000 });
+			expect(await resumeDraftCard.getAttribute('data-chat-id')).toBe(draftChatId);
+			await resumeDraftCard.click();
 			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 			expect(page.url()).toContain(`chat-id=${draftChatId}`);
 
