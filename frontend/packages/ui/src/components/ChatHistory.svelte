@@ -15,6 +15,8 @@
   import type { ChatCompressionCheckpoint, Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
+  import { compileAssistantDisplayMessage } from '../message_parsing/streamingMessageCompiler';
+  import { StreamingRenderScheduler } from '../message_parsing/streamingRenderScheduler';
   import { truncateTiptapContent } from '../utils/messageTruncation';
   import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
@@ -247,15 +249,18 @@
         contentToProcess = restorePIIInMarkdown(contentToProcess, piiMappings);
       }
       
-      // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
-      // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
-      // This ensures users see "processing" state during streaming instead of waiting for embed data
-      const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
-      const tiptapJson = parse_message(contentToProcess, parseMode, {
-        unifiedParsingEnabled: true,
-        role: incomingMessage.role
-      });
-      processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      if (incomingMessage.role === 'assistant') {
+        processedContent = compileAssistantDisplayMessage(contentToProcess, {
+          phase: incomingMessage.status === 'streaming' ? 'streaming' : 'final',
+          role: 'assistant',
+        });
+      } else {
+        const tiptapJson = parse_message(contentToProcess, 'read', {
+          unifiedParsingEnabled: true,
+          role: incomingMessage.role
+        });
+        processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      }
 
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
       if (incomingMessage.role === 'user' && incomingMessage.content.length > 1000) {
@@ -296,6 +301,39 @@
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+  type ScheduledAssistantRender = {
+    message: GlobalMessage;
+    piiMappings: Map<string, PIIMapping>;
+  };
+  const streamingRenderSchedulers = new Map<string, StreamingRenderScheduler<ScheduledAssistantRender>>();
+  const streamingRenderRevisions = new Map<string, { content: string; revision: number }>();
+
+  function getStreamingRenderScheduler(messageId: string): StreamingRenderScheduler<ScheduledAssistantRender> {
+    const existing = streamingRenderSchedulers.get(messageId);
+    if (existing) return existing;
+
+    const scheduler = new StreamingRenderScheduler<ScheduledAssistantRender>({
+      onFlush: ({ message, piiMappings }, revision) => {
+        if (streamingRenderRevisions.get(messageId)?.revision !== revision) return;
+        const compiled = G_mapToInternalMessage(message, piiMappings);
+        messages = messages.map(current => current.id === messageId ? compiled : current);
+      },
+    });
+    streamingRenderSchedulers.set(messageId, scheduler);
+    return scheduler;
+  }
+
+  function cancelStreamingRender(messageId: string): void {
+    streamingRenderSchedulers.get(messageId)?.cancel();
+    streamingRenderSchedulers.delete(messageId);
+    streamingRenderRevisions.delete(messageId);
+  }
+
+  function cancelAllStreamingRenders(): void {
+    for (const scheduler of streamingRenderSchedulers.values()) scheduler.cancel();
+    streamingRenderSchedulers.clear();
+    streamingRenderRevisions.clear();
+  }
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
@@ -1809,6 +1847,7 @@
    * when the fade-out is complete.
    */
   export async function clearMessages(): Promise<void> {
+    cancelAllStreamingRenders();
     messages = [];
     lastUserMessageId = null;
     shouldScrollToNewUserMessage = false;
@@ -1878,10 +1917,66 @@
     // Build cumulative PII mappings from all user messages in the incoming array
     // This allows assistant messages to restore PII from any preceding user message
     const piiMappings = buildCumulativePIIMappings(mergedForDisplay);
+    const scheduledAssistantRenders: Array<{
+      scheduler: StreamingRenderScheduler<ScheduledAssistantRender>;
+      value: ScheduledAssistantRender;
+      revision: number;
+    }> = [];
+    const activeStreamingMessageIds = new Set<string>();
     
     const newInternalMessages = mergedForDisplay.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
         const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
+
+        if (
+            newMessage.role === 'assistant' &&
+            newMessage.status === 'streaming' &&
+            typeof newMessage.content === 'string'
+        ) {
+            activeStreamingMessageIds.add(newMessage.message_id);
+
+            if (!oldMessage || localeChanged || hasEmbedUpdate) {
+                cancelStreamingRender(newMessage.message_id);
+                const revision = 1;
+                streamingRenderRevisions.set(newMessage.message_id, {
+                    content: newMessage.content,
+                    revision,
+                });
+                getStreamingRenderScheduler(newMessage.message_id).seedRenderedRevision(revision);
+                return G_mapToInternalMessage(newMessage, piiMappings);
+            }
+
+            const previousRevision = streamingRenderRevisions.get(newMessage.message_id);
+            if (previousRevision?.content === newMessage.content) {
+                return {
+                    ...oldMessage,
+                    status: newMessage.status,
+                    original_message: newMessage,
+                    appCards: (newMessage as MessageWithEmbedMetadata).appCards,
+                };
+            }
+
+            const revision = (previousRevision?.revision ?? 0) + 1;
+            streamingRenderRevisions.set(newMessage.message_id, {
+                content: newMessage.content,
+                revision,
+            });
+            scheduledAssistantRenders.push({
+                scheduler: getStreamingRenderScheduler(newMessage.message_id),
+                value: { message: newMessage, piiMappings },
+                revision,
+            });
+
+            // Keep the last compiled document until the per-message scheduler flushes.
+            return {
+                ...oldMessage,
+                status: newMessage.status,
+                original_message: newMessage,
+                appCards: (newMessage as MessageWithEmbedMetadata).appCards,
+            };
+        }
+
+        cancelStreamingRender(newMessage.message_id);
 
         // PERFORMANCE OPTIMIZATION: Skip G_mapToInternalMessage entirely for messages
         // whose raw content, status, and metadata have not changed since the last render.
@@ -1989,6 +2084,15 @@
       console.debug(`[ChatHistory] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active UI window`);
     }
     messages = prunedWindow.messages;
+    const renderedMessageIds = new Set(messages.map(message => message.id));
+    for (const messageId of streamingRenderSchedulers.keys()) {
+      if (!activeStreamingMessageIds.has(messageId) || !renderedMessageIds.has(messageId)) {
+        cancelStreamingRender(messageId);
+      }
+    }
+    for (const { scheduler, value, revision } of scheduledAssistantRenders) {
+      scheduler.update(value, revision);
+    }
     // Add a log to confirm this path is taken and what the new messages are.
     // console.debug('[ChatHistory] updateMessages: messages array REPLACED (intelligent assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
@@ -2623,6 +2727,7 @@
 
   // Cleanup on component destroy
   onDestroy(() => {
+    cancelAllStreamingRenders();
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
@@ -2776,6 +2881,7 @@
                       data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                       data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
                       data-message-id={msg.id}
+                      data-streaming={msg.status === 'streaming' ? 'true' : 'false'}
                       aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
                       style={`
                             opacity: ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1))};

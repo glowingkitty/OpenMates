@@ -8,8 +8,26 @@ import { mount, unmount } from "svelte";
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import EmbedsMapView from "../../../embeds/EmbedsMapView.svelte";
+import { hasStableResultViewIdentity } from "../streamingNodeIdentity";
+import { incrementStreamingRenderMetric } from "../../../../message_parsing/streamingRenderMetrics";
 
-const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+type MountedMapView = ReturnType<typeof mount> & {
+  updateDescriptor?: (attrs: EmbedNodeAttributes) => void;
+};
+
+const mountedComponents = new WeakMap<HTMLElement, {
+  component: MountedMapView;
+  attrs: EmbedNodeAttributes;
+}>();
+
+function copyAttrs(attrs: EmbedNodeAttributes): EmbedNodeAttributes {
+  return {
+    ...attrs,
+    mapEmbedRefs: [...(attrs.mapEmbedRefs || [])],
+    mapSourceRefs: [...(attrs.mapSourceRefs || [])],
+    mapHighlightRefs: [...(attrs.mapHighlightRefs || [])],
+  };
+}
 
 function refsToLine(key: string, refs: string[] | undefined): string {
   if (!refs || refs.length === 0) return "";
@@ -26,6 +44,7 @@ export class EmbedsMapViewRenderer implements EmbedRenderer {
     container.setAttribute("data-testid", "embeds-map-view-renderer");
     container.setAttribute("data-embed-type", "embeds-map-view");
 
+    incrementStreamingRenderMetric("nodeViewMounts");
     const component = mount(EmbedsMapView, {
       target: content,
       props: {
@@ -36,7 +55,10 @@ export class EmbedsMapViewRenderer implements EmbedRenderer {
         highlightRefs: attrs.mapHighlightRefs || [],
       },
     });
-    mountedComponents.set(content, component);
+    mountedComponents.set(content, {
+      component: component as MountedMapView,
+      attrs: copyAttrs(attrs),
+    });
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {
@@ -51,14 +73,21 @@ export class EmbedsMapViewRenderer implements EmbedRenderer {
   }
 
   update(context: EmbedRenderContext): boolean {
-    this.render(context);
+    const mounted = mountedComponents.get(context.content);
+    if (!mounted || !hasStableResultViewIdentity(mounted.attrs, context.attrs)) {
+      this.render(context);
+      return true;
+    }
+
+    mounted.component.updateDescriptor?.(context.attrs);
+    mounted.attrs = copyAttrs(context.attrs);
     return true;
   }
 
   destroy(context: EmbedRenderContext): void {
-    const component = mountedComponents.get(context.content);
-    if (!component) return;
-    unmount(component);
+    const mounted = mountedComponents.get(context.content);
+    if (!mounted) return;
+    unmount(mounted.component);
     mountedComponents.delete(context.content);
   }
 }

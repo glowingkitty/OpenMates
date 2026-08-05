@@ -17,6 +17,7 @@
     import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
+    import { incrementStreamingRenderMetric } from '../message_parsing/streamingRenderMetrics';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
@@ -147,14 +148,6 @@
     // We preserve the previous height as min-height to prevent this visual glitch.
     let preservedMinHeight = $state<number | null>(null);
 
-    // STREAMING DEBOUNCE: Limit content update frequency during streaming.
-    // Streaming chunks arrive every ~30-50ms but DOM updates are expensive.
-    // We debounce to at most once per STREAMING_DEBOUNCE_MS to reduce CPU usage
-    // while keeping the UI responsive. The last pending content is always applied
-    // when the timer fires, so no content is ever lost.
-    const STREAMING_DEBOUNCE_MS = 80;
-    let streamingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let pendingStreamContent: string | Record<string, unknown> | null = null;
     const STREAM_CHUNK_FADE_DURATION_MS = 220;
     let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
     let streamFadeTargetEl: HTMLElement | null = null;
@@ -973,23 +966,9 @@
     // Track previous locale to detect changes
     let previousLocale = $state($locale || 'en');
     
-    // STREAMING FIX: When streaming ends, flush any pending debounced content and clear min-height.
-    // This ensures the final content is rendered and the container resizes properly.
+    // Release the streaming height guard after the canonical final document renders.
     $effect(() => {
         if (!isStreaming) {
-            // Flush any pending debounced streaming content
-            if (streamingDebounceTimer) {
-                clearTimeout(streamingDebounceTimer);
-                streamingDebounceTimer = null;
-            }
-            if (pendingStreamContent && editor && !editor.isDestroyed) {
-                const processed = processContent(pendingStreamContent);
-                pendingStreamContent = null;
-                // Use full setContent() for the final render to ensure clean state
-                editor.commands.setContent(processed, { emitUpdate: false });
-                applyPIIDecorations(editor);
-            }
-            
             // Clear preserved min-height after final content renders
             if (preservedMinHeight !== null) {
                 const cleanup = setTimeout(() => {
@@ -1016,6 +995,7 @@
      */
     function applyContentUpdate(processedContent: Record<string, unknown> | null, streaming: boolean, forceFullReplace: boolean) {
         if (!editor || editor.isDestroyed) return;
+        const startedAt = typeof performance === 'undefined' ? 0 : performance.now();
         
         if (streaming && !forceFullReplace) {
             // STREAMING PATH: Use incremental ProseMirror updates to avoid destroying NodeViews.
@@ -1042,6 +1022,7 @@
             // CSS container queries to use the compact layout.
             if (hasLargePreview && !editorHasLargePreview) {
                 logger.debug('New embedPreviewLarge detected during streaming — using setContent() for clean NodeView mount');
+                incrementStreamingRenderMetric('fullReplacements');
                 editor.commands.setContent(processedContent, { emitUpdate: false });
             } else {
                 // Try incremental update first
@@ -1051,6 +1032,7 @@
                     // Incremental update failed — fall back to setContent()
                     // This should be rare but handles edge cases gracefully
                     logger.debug('Incremental update failed, falling back to setContent()');
+                    incrementStreamingRenderMetric('fullReplacements');
                     editor.commands.setContent(processedContent, { emitUpdate: false });
                 }
             }
@@ -1069,6 +1051,7 @@
             }
             
             // Full content replacement
+            incrementStreamingRenderMetric('fullReplacements');
             editor.commands.setContent(processedContent, { emitUpdate: false });
         }
         
@@ -1085,6 +1068,13 @@
                 const newHeight = editorElement.scrollHeight;
                 editorElement.style.minHeight = `${newHeight}px`;
                 preservedMinHeight = newHeight;
+            });
+        }
+
+        if (typeof performance !== 'undefined') {
+            performance.measure('openmates.streaming.apply', {
+                start: startedAt,
+                end: performance.now(),
             });
         }
     }
@@ -1105,62 +1095,7 @@
         }
         
         if (editor && content) {
-            // For streaming content changes, debounce to limit update frequency.
-            // Streaming chunks arrive every ~30-50ms but parsing + DOM updates are expensive.
-            // We buffer the latest content and apply at most once per STREAMING_DEBOUNCE_MS.
-            if (isStreaming && !localeChanged && !hasEmbedUpdate) {
-                // Check if the new content contains an embed ref link that would produce
-                // an embedPreviewLarge node. If so, bypass debounce and process immediately
-                // to ensure the large preview renders at full size right away.
-                const contentStr = typeof content === 'string' ? content : '';
-                const hasEmbedRefLink = contentStr.includes('](embed:');
-                const editorHasLargePreview = JSON.stringify(editor.getJSON()).includes('"embedPreviewLarge"');
-                if (hasEmbedRefLink && !editorHasLargePreview) {
-                    // Bypass debounce — process immediately so the large preview mounts
-                    // with the editor at full width (avoids 0-width container query issue)
-                    if (streamingDebounceTimer) {
-                        clearTimeout(streamingDebounceTimer);
-                        streamingDebounceTimer = null;
-                    }
-                    pendingStreamContent = null;
-                    const processed = processContent(content);
-                    const currentJson = editor.getJSON();
-                    if (JSON.stringify(currentJson) !== JSON.stringify(processed)) {
-                        applyContentUpdate(processed, true, true); // forceFullReplace for clean mount
-                    }
-                    return;
-                }
-
-                // Store raw content for debounced processing
-                pendingStreamContent = content;
-
-                // If no timer is running, start one
-                if (!streamingDebounceTimer) {
-                    streamingDebounceTimer = setTimeout(() => {
-                        streamingDebounceTimer = null;
-                        if (!editor || editor.isDestroyed || !pendingStreamContent) return;
-
-                        const processed = processContent(pendingStreamContent);
-                        pendingStreamContent = null;
-
-                        // Check if content actually changed
-                        const currentJson = editor.getJSON();
-                        if (JSON.stringify(currentJson) !== JSON.stringify(processed)) {
-                            applyContentUpdate(processed, true, false);
-                        }
-                    }, STREAMING_DEBOUNCE_MS);
-                }
-                
-                // Cleanup: clear timer when effect re-runs or component destroys
-                return () => {
-                    if (streamingDebounceTimer) {
-                        clearTimeout(streamingDebounceTimer);
-                        streamingDebounceTimer = null;
-                    }
-                };
-            }
-            
-            // NON-STREAMING or FORCED path: process immediately
+            // ChatHistory owns stream coalescing; apply each canonical document immediately.
             const newProcessedContent = processContent(content);
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
@@ -1212,18 +1147,12 @@
             editor.view.dom.removeEventListener('click', handleMentionClick as EventListener);
             // Clear any pending touch timers
             clearTouchTimer();
-            // Clear streaming debounce timer
-            if (streamingDebounceTimer) {
-                clearTimeout(streamingDebounceTimer);
-                streamingDebounceTimer = null;
-            }
             if (streamFadeResetTimer) {
                 clearTimeout(streamFadeResetTimer);
                 streamFadeResetTimer = null;
             }
             streamFadeTargetEl?.classList.remove('stream-fade-tail');
             streamFadeTargetEl = null;
-            pendingStreamContent = null;
             editor.destroy();
             editor = null;
         }

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
 // Verifies one canonical assistant display compiler for streaming and final text.
 // Complete Markdown prefixes must keep final embed semantics and stable identities.

@@ -13,6 +13,8 @@
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
   import { embedRefIndexVersion, embedStore } from '../../services/embedStore';
   import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
+  import { incrementStreamingRenderMetric } from '../../message_parsing/streamingRenderMetrics';
+  import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
   const MAX_VISIBLE_ENTRIES = 40;
   const MAX_TRAVEL_LEGS = 8;
@@ -123,11 +125,21 @@
   let unsubscribeRefIndex: (() => void) | null = null;
   let mapHydrationObserver: IntersectionObserver | null = null;
   let mapHydrationTimer: ReturnType<typeof setTimeout> | null = null;
+  let mapHydrationIdleCallback: number | null = null;
   let lastRefIndexVersion = -1;
   let loadGeneration = 0;
 
   const entryCache = new Map<string, { signature: string; entry: MapViewEntry }>();
   const sourceChildrenCache = new Map<string, { signature: string; refs: string[] }>();
+
+  export function updateDescriptor(attrs: EmbedNodeAttributes): void {
+    id = attrs.id;
+    title = attrs.title || 'Results view';
+    embedRefs = [...(attrs.mapEmbedRefs || [])];
+    sourceRefs = [...(attrs.mapSourceRefs || [])];
+    highlightRefs = [...(attrs.mapHighlightRefs || [])];
+    void loadEntries();
+  }
 
   const highlightSet = $derived(new Set(highlightRefs));
   const categories = $derived.by(() => {
@@ -985,16 +997,18 @@
   }
 
   function scheduleMapHydration(): void {
-    if (shouldHydrateMap || mapHydrationTimer) return;
+    if (shouldHydrateMap || mapHydrationTimer || mapHydrationIdleCallback !== null) return;
     const hydrate = () => {
       mapHydrationTimer = null;
+      mapHydrationIdleCallback = null;
       shouldHydrateMap = true;
+      incrementStreamingRenderMetric('mapHydrations');
       mapHydrationObserver?.disconnect();
       mapHydrationObserver = null;
     };
     const requestIdle = (globalThis as typeof globalThis & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number }).requestIdleCallback;
     if (requestIdle) {
-      requestIdle(hydrate, { timeout: 600 });
+      mapHydrationIdleCallback = requestIdle(hydrate, { timeout: 600 });
       return;
     }
     mapHydrationTimer = setTimeout(hydrate, 80);
@@ -1034,6 +1048,9 @@
     mapHydrationObserver = null;
     if (mapHydrationTimer) clearTimeout(mapHydrationTimer);
     mapHydrationTimer = null;
+    const cancelIdle = (globalThis as typeof globalThis & { cancelIdleCallback?: (handle: number) => void }).cancelIdleCallback;
+    if (mapHydrationIdleCallback !== null && cancelIdle) cancelIdle(mapHydrationIdleCallback);
+    mapHydrationIdleCallback = null;
   });
 
   $effect(() => {

@@ -5,26 +5,43 @@
  */
 
 interface CacheEntry {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TipTap JSON is intentionally schema-extensible at this cache boundary.
   content: any;
   timestamp: number;
 }
 
-class ContentCache {
+interface ContentCacheOptions {
+  maxSize?: number;
+  maxAgeMs?: number;
+}
+
+function cloneContent<T>(content: T): T {
+  if (typeof structuredClone === 'function') return structuredClone(content);
+  return JSON.parse(JSON.stringify(content)) as T;
+}
+
+export class ContentCache {
   private cache: Map<string, CacheEntry> = new Map();
-  private readonly MAX_SIZE = 100; // Maximum number of cached items
-  private readonly MAX_AGE = 1000 * 60 * 5; // 5 minutes
+  private readonly maxSize: number;
+  private readonly maxAgeMs: number;
+
+  constructor({ maxSize = 100, maxAgeMs = 1000 * 60 * 5 }: ContentCacheOptions = {}) {
+    this.maxSize = maxSize;
+    this.maxAgeMs = maxAgeMs;
+  }
 
   /**
    * Generate a cache key from content
-   * Uses first 200 characters as key to balance uniqueness and performance
+   * Uses the exact semantic content to prevent shared-prefix collisions.
    */
   private generateKey(content: string): string {
-    return content.substring(0, 200);
+    return content;
   }
 
   /**
    * Get cached content if available and not expired
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Preserve the existing dynamic TipTap cache API for heterogeneous node attributes.
   get(content: string): any | null {
     const key = this.generateKey(content);
     const entry = this.cache.get(key);
@@ -34,28 +51,32 @@ class ContentCache {
     }
 
     // Check if cache entry has expired
-    if (Date.now() - entry.timestamp > this.MAX_AGE) {
+    if (Date.now() - entry.timestamp > this.maxAgeMs) {
       this.cache.delete(key);
       return null;
     }
 
-    return entry.content;
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return cloneContent(entry.content);
   }
 
   /**
    * Store processed content in cache
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Preserve the existing dynamic TipTap cache API for heterogeneous node attributes.
   set(content: string, processedContent: any): void {
     const key = this.generateKey(content);
 
     // If cache is full, remove oldest entry
-    if (this.cache.size >= this.MAX_SIZE) {
+    if (this.cache.has(key)) this.cache.delete(key);
+    if (this.cache.size >= this.maxSize) {
       const oldestKey = this.cache.keys().next().value;
       this.cache.delete(oldestKey);
     }
 
     this.cache.set(key, {
-      content: processedContent,
+      content: cloneContent(processedContent),
       timestamp: Date.now()
     });
   }
@@ -73,7 +94,7 @@ class ContentCache {
   getStats(): { size: number; maxSize: number } {
     return {
       size: this.cache.size,
-      maxSize: this.MAX_SIZE
+      maxSize: this.maxSize
     };
   }
 }

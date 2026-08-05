@@ -89,6 +89,19 @@
     runRef = '',
   }: Props = $props();
 
+  export function updatePresentation(next: Props): void {
+    embedRef = next.embedRef;
+    embedId = next.embedId ?? null;
+    _appId = next.appId ?? null;
+    receiver = next.receiver ?? null;
+    subject = next.subject ?? null;
+    content = next.content ?? null;
+    footer = next.footer ?? null;
+    carouselIndex = next.carouselIndex;
+    carouselTotal = next.carouselTotal;
+    runRef = next.runRef ?? '';
+  }
+
   // ── Carousel state ──────────────────────────────────────────────────────
   let runKey = $derived(
     runRef && runRef.length > 0 ? runRef : embedRef,
