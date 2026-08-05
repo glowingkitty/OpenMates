@@ -469,3 +469,36 @@ class TestFixBadEmbedDisplayText:
             )
         )
         assert result == text
+
+    @pytest.mark.asyncio
+    async def test_converts_known_bare_embed_ref_without_other_bad_links(self, monkeypatch):
+        from backend.core.api.app.services import embed_service as embed_service_module
+        from toon_format import encode
+
+        parent_id = "parent-embed"
+        child_id = "child-embed"
+        embed_ref = "openai.com-Tm7"
+        encoded = {
+            parent_id: encode({"embed_ids": child_id}),
+            child_id: encode({"embed_ref": embed_ref, "title": "GPT-5.6 Launch"}),
+        }
+
+        class FakeEmbedService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def _get_cached_embed_toon(self, embed_id, *_args):
+                return encoded.get(embed_id)
+
+        monkeypatch.setattr(embed_service_module, "EmbedService", FakeEmbedService)
+
+        result = await _fix_bad_embed_display_text(
+            aggregated_response=f"See [{embed_ref}] for details.",
+            tool_calls_info=[{"embed_id": parent_id}],
+            cache_service=object(),
+            directus_service=None,
+            encryption_service=object(),
+            user_vault_key_id="vault-key",
+        )
+
+        assert result == "See [GPT-5.6 Launch](embed:openai.com-Tm7) for details."
