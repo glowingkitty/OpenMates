@@ -139,6 +139,11 @@ async function interestTagsPromptGap(page: any): Promise<number> {
 async function skipExpandedLandingIntro(page: any): Promise<void> {
 	await page.getByTestId('daily-inspiration-next').click();
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
+		'data-landing-intro-phase',
+		'regular',
+		{ timeout: 15000 }
+	);
 }
 
 async function landingIntroState(page: any): Promise<{
@@ -303,7 +308,7 @@ test.describe('Guest interest smart selection', () => {
 
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('guest-interest-prompt')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByText('What are your interests?')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
 		await expectFirstCardIsExampleChat(page);
@@ -318,7 +323,6 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
 		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
 		await expect(page.getByTestId('interest-tag-find_apartments')).toHaveAttribute('data-app-id', 'home');
-		await expect(page.getByText('Explore what you can do:')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-skip')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
@@ -393,7 +397,7 @@ test.describe('Guest interest smart selection', () => {
 		await page.getByTestId('guest-interest-continue').click();
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('guest-interest-prompt')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByText('What are your interests?')).toHaveCount(0);
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
@@ -431,7 +435,7 @@ test.describe('Guest interest smart selection', () => {
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-interest-prompt')).toBeVisible({ timeout: 15000 });
 		await expectFirstCardIsExampleChat(page);
 		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
