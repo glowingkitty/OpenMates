@@ -1,7 +1,9 @@
 ---
 description: "Diagnose iOS, Apple Watch, and macOS app failures using NativeDiagnostics, apple_remote.py, Xcode logs, simulator/startup checks, signing/profile checks, and recent Apple git history. Use for Swift compile failures, native crashes, Watch startup/pairing bugs, macOS app issues, TestFlight crashes, or Apple parity regressions."
 mode: subagent
-model: openai/gpt-5.5
+model: openai/gpt-5.6-sol
+options:
+  reasoningEffort: medium
 steps: 40
 permission:
   read: allow

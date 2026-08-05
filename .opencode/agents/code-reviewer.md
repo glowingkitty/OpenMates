@@ -1,7 +1,9 @@
 ---
 description: "Review code changes for quality, security, redundancy, and adherence to project standards. Use after making significant changes."
 mode: subagent
-model: openai/gpt-5.5
+model: openai/gpt-5.6-terra
+options:
+  reasoningEffort: medium
 steps: 20
 permission:
   read: allow

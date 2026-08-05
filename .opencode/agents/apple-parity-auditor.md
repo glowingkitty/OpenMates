@@ -1,7 +1,9 @@
 ---
 description: "Audit Apple UI and logic parity against the rendered web source of truth using apple_evidence_bundle.py, Apple parity inventories, web specs, Svelte/CSS mappings, and Swift accessibility identifiers. Use for Apple/web UI drift, missing native test IDs, stale web contracts, renderer gaps, or parity regressions."
 mode: subagent
-model: openai/gpt-5.5
+model: openai/gpt-5.6-terra
+options:
+  reasoningEffort: medium
 steps: 40
 permission:
   read: allow

@@ -1,7 +1,9 @@
 ---
 description: "Investigate a specific failing Playwright E2E spec — reads screenshots, queries OpenObserve client+backend logs via debug.py, traces the spec code, reads frontend components, identifies root cause, and proposes or applies a fix. Use for any individual spec failure that needs deep investigation beyond what test-failure-triager provides."
 mode: subagent
-model: openai/gpt-5.5
+model: openai/gpt-5.6-terra
+options:
+  reasoningEffort: medium
 steps: 40
 permission:
   read: allow

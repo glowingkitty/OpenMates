@@ -15,7 +15,7 @@ OpenMates supports Claude Code, Codex, and OpenCode from the same repository. Cl
 - `.codex/agents/`: Codex TOML mirror generated from `.claude/agents/`.
 - `.opencode/agents/`: OpenCode Markdown mirror generated from `.claude/agents/`.
 - `.codex/hooks.json` and `.codex/hooks/claude-hook-bridge.sh`: Codex lifecycle bridge to `.claude/hooks/`.
-- `.opencode/agents/` pins generated subagents to `openai/gpt-5.5`; OpenCode does not load the Claude Code provider.
+- `.opencode/agents/` assigns each generated specialist an explicit GPT-5.6 Luna, Terra, or Sol route at medium reasoning effort. `opencode.json` routes built-in `explore` and `general` subagents to Terra at medium effort. OpenCode does not load the Claude Code provider.
 - `docs/architecture/agent-tooling-parity.yml`: tracked shared-hook inventory for Claude Code, Codex, and OpenCode parity checks.
 
 ## Sync Workflow
@@ -32,7 +32,7 @@ Before deploy or review, verify parity with:
 python3 scripts/sync_agent_parity.py --check
 ```
 
-The check verifies skill mirrors, Codex and OpenCode agent mirrors, copied Codex hook scripts, and Codex hook adapter references.
+The check verifies skill mirrors, explicit OpenCode model routes, Codex and OpenCode agent mirrors, copied Codex hook scripts, and Codex hook adapter references.
 
 Also run the tracked hook/config parity audit when changing agent tooling:
 

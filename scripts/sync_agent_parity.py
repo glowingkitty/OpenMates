@@ -25,11 +25,23 @@ CLAUDE_HOOKS_DIR = REPO_ROOT / ".claude" / "hooks"
 CODEX_HOOKS_DIR = REPO_ROOT / ".codex" / "hooks"
 CODEX_HOOK_BRIDGE = CODEX_HOOKS_DIR / "claude-hook-bridge.sh"
 FRONTMATTER_BOUNDARY = "---"
-OPENCODE_SUBAGENT_MODEL = "openai/gpt-5.5"
-MODEL_MAP = {
-    "haiku": OPENCODE_SUBAGENT_MODEL,
-    "sonnet": OPENCODE_SUBAGENT_MODEL,
-    "opus": OPENCODE_SUBAGENT_MODEL,
+OPENCODE_REASONING_EFFORT = "medium"
+OPENCODE_AGENT_MODELS = {
+    "apple-native-debugger": "openai/gpt-5.6-sol",
+    "apple-parity-auditor": "openai/gpt-5.6-terra",
+    "apple-performance-detective": "openai/gpt-5.6-sol",
+    "chat-sync-detective": "openai/gpt-5.6-sol",
+    "code-reviewer": "openai/gpt-5.6-terra",
+    "e2e-test-investigator": "openai/gpt-5.6-terra",
+    "embed-rendering-investigator": "openai/gpt-5.6-terra",
+    "encryption-flow-tracer": "openai/gpt-5.6-sol",
+    "issue-forensics": "openai/gpt-5.6-sol",
+    "legal-compliance-auditor": "openai/gpt-5.6-sol",
+    "main-processor-guru": "openai/gpt-5.6-sol",
+    "seo-auditor": "openai/gpt-5.6-luna",
+    "settings-ui-consistency-checker": "openai/gpt-5.6-luna",
+    "skill-integration-doctor": "openai/gpt-5.6-terra",
+    "test-failure-triager": "openai/gpt-5.6-luna",
 }
 NON_CLAUDE_HOOK_COMMANDS = {
     "lint-design-tokens.sh": REPO_ROOT / "scripts" / "lint-design-tokens.sh",
@@ -157,11 +169,16 @@ def render_opencode_agent(source: Path) -> str:
         raise ParityError(f"{source} is missing a description")
 
     tools = {tool.strip() for tool in metadata.get("tools", "").split(",") if tool.strip()}
+    model = OPENCODE_AGENT_MODELS.get(source.stem)
+    if not model:
+        raise ParityError(f"{source} is missing an explicit OpenCode model route")
     lines = [
         FRONTMATTER_BOUNDARY,
         f"description: {yaml_scalar(description)}",
         "mode: subagent",
-        f"model: {MODEL_MAP.get(metadata.get('model', ''), OPENCODE_SUBAGENT_MODEL)}",
+        f"model: {model}",
+        "options:",
+        f"  reasoningEffort: {OPENCODE_REASONING_EFFORT}",
     ]
 
     if max_turns := metadata.get("maxTurns"):
@@ -189,6 +206,11 @@ def sync_agents(*, check: bool) -> list[str]:
     claude_names = {path.stem for path in CLAUDE_AGENTS_DIR.glob("*.md")}
     codex_names = {path.stem for path in CODEX_AGENTS_DIR.glob("*.toml")}
     opencode_names = {path.stem for path in OPENCODE_AGENTS_DIR.glob("*.md")}
+
+    for missing_name in sorted(claude_names - OPENCODE_AGENT_MODELS.keys()):
+        problems.append(f"missing OpenCode model route: {missing_name}")
+    for stale_name in sorted(OPENCODE_AGENT_MODELS.keys() - claude_names):
+        problems.append(f"stale OpenCode model route: {stale_name}")
 
     for stale_name in sorted(codex_names - claude_names):
         problems.append(f"stale Codex agent mirror: {CODEX_AGENTS_DIR / (stale_name + '.toml')}")

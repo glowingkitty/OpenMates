@@ -1,7 +1,9 @@
 ---
 description: "Snapshot-scoped auditor for OpenMates settings screens. Runs the deterministic settings contract audit, then checks semantic component, callback, privacy, and i18n rules. Use when touching files under frontend/packages/ui/src/components/settings/**, reviewing a settings PR, or adding a new settings screen."
 mode: subagent
-model: openai/gpt-5.5
+model: openai/gpt-5.6-luna
+options:
+  reasoningEffort: medium
 steps: 15
 permission:
   read: allow

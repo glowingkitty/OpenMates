@@ -1,7 +1,9 @@
 ---
 description: "Deep forensic investigation of a user-reported issue — runs debug.py timeline + trace commands, correlates browser and backend events, identifies suspect files with git blame, and returns a compact root-cause report. Use when given an issue ID (dev or prod)."
 mode: subagent
-model: openai/gpt-5.5
+model: openai/gpt-5.6-sol
+options:
+  reasoningEffort: medium
 steps: 30
 permission:
   read: allow
