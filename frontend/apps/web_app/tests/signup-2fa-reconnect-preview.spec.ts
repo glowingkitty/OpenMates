@@ -15,7 +15,7 @@ test('2FA reconnect preview shows setup actions and OTP input while profile 2FA 
 
     const response = await page.goto(
         '/dev/preview/signup/steps/onetimecodes/OneTimeCodesReconnectPreview',
-        { waitUntil: 'networkidle' }
+        { waitUntil: 'domcontentloaded' }
     );
     expect(response?.status()).toBe(200);
 
