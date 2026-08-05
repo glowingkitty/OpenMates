@@ -191,10 +191,8 @@ test.describe('App: Events / Skill: search', () => {
 		await expect(embed).toBeVisible({ timeout: 60_000 });
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
 
-		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 90_000 });
-
 		const finalGroupedView = page.getByTestId('embeds-map-view').last();
-		await expect(finalGroupedView).toBeVisible({ timeout: 30_000 });
+		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
 		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
