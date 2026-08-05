@@ -273,6 +273,7 @@ test.describe('App: Events / Skill: search', () => {
 			.last();
 		await expect(embed).toBeVisible({ timeout: 60_000 });
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
+		await expect(embed).toHaveAttribute('data-status', 'finished', { timeout: 90_000 });
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
 
