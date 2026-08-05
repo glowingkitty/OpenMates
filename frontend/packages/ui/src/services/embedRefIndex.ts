@@ -18,6 +18,18 @@ const embedRefToIdIndex = new Map<string, EmbedRefIndexEntry>();
 
 export const embedRefIndexVersion = writable(0);
 
+function entriesMatch(
+  left: EmbedRefIndexEntry | undefined,
+  right: EmbedRefIndexEntry,
+): boolean {
+  return (
+    left?.embedId === right.embedId &&
+    left.appId === right.appId &&
+    left.skillId === right.skillId &&
+    left.type === right.type
+  );
+}
+
 export function registerEmbedRefIndex(
   embedRef: string,
   entry: EmbedRefIndexEntry,
@@ -30,9 +42,13 @@ export function registerEmbedRefIndex(
     type: entry.type ?? null,
   };
   // Final message links may use either the human-readable ref or the stable ID.
+  const refEntry = embedRefToIdIndex.get(embedRef);
+  const idEntry = embedRefToIdIndex.get(entry.embedId);
   embedRefToIdIndex.set(embedRef, normalizedEntry);
   embedRefToIdIndex.set(entry.embedId, normalizedEntry);
-  embedRefIndexVersion.update((n) => n + 1);
+  if (!entriesMatch(refEntry, normalizedEntry) || !entriesMatch(idEntry, normalizedEntry)) {
+    embedRefIndexVersion.update((n) => n + 1);
+  }
 }
 
 export function resolveEmbedRefIndexEntry(
