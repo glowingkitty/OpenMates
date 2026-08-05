@@ -214,6 +214,23 @@ def install_cron(project_root: Path) -> None:
         raise RuntimeError(f"crontab installation failed: {result.stderr.strip()}")
 
 
+def root_from_common_git_dir(common_dir: Path, fallback: Path) -> Path:
+    resolved = common_dir.resolve()
+    return resolved.parent if resolved.name == ".git" else fallback.resolve()
+
+
+def canonical_checkout_root(fallback: Path) -> Path:
+    result = subprocess.run(
+        ["git", "-C", str(fallback), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return fallback.resolve()
+    return root_from_common_git_dir(Path(result.stdout.strip()), fallback)
+
+
 def _git_commit(root: Path) -> str:
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -295,8 +312,9 @@ def main() -> int:
     parser.add_argument("--install-cron", action="store_true", help="Idempotently install the daily user cron entry")
     args = parser.parse_args()
     if args.install_cron:
-        install_cron(args.root.resolve())
-        print(f"[stale-code] installed daily cron for {args.root.resolve()}")
+        install_root = canonical_checkout_root(args.root)
+        install_cron(install_root)
+        print(f"[stale-code] installed daily cron for {install_root}")
         return 0
     try:
         return run_daily(args.root.resolve(), args.output_dir.resolve(), args.limit, dry_run_notify=args.dry_run_notify)

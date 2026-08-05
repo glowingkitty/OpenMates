@@ -6,6 +6,4 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-python3 "$SCRIPT_DIR/stale_code_daily.py" --root "$PROJECT_ROOT" --install-cron
+python3 "$SCRIPT_DIR/stale_code_daily.py" --install-cron

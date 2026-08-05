@@ -149,6 +149,13 @@ def test_cron_command_quotes_apostrophe_paths_without_sourcing_env() -> None:
     assert subprocess.run(["bash", "-n", "-c", command], check=False).returncode == 0
 
 
+def test_canonical_checkout_root_uses_git_common_directory() -> None:
+    module = load_module()
+
+    assert module.root_from_common_git_dir(Path("/srv/openmates/.git"), Path("/tmp/worktree")) == Path("/srv/openmates")
+    assert module.root_from_common_git_dir(Path("/tmp/not-dot-git"), Path("/tmp/worktree")) == Path("/tmp/worktree")
+
+
 def test_runner_source_has_no_agent_or_deploy_dispatch() -> None:
     source = MODULE_PATH.read_text(encoding="utf-8")
 
