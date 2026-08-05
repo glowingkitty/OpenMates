@@ -463,8 +463,8 @@ tests:
     green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: ""}}
   - id: T-PLAYWRIGHT-REOPEN
     type: playwright
-    file: frontend/apps/web_app/tests/chat-streaming-reopen-parity.spec.ts
-    command: python3 scripts/tests.py run --spec chat-streaming-reopen-parity.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    file: frontend/apps/web_app/tests/skill-events-search.spec.ts
+    command: python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
     target: app.dev.openmates.org
     covers: [AC-2, AC-6]
     assertions:

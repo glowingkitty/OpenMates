@@ -237,6 +237,16 @@ test.describe('App: Events / Skill: search', () => {
 			await closeSettings.click();
 		}
 
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		const reloadedGroupedView = page.getByTestId('embeds-map-view').last();
+		await expect(reloadedGroupedView).toBeVisible({ timeout: 60_000 });
+		await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible({
+			timeout: 60_000
+		});
+		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		await takeStepScreenshot(page, 'events-search-embeds-after-reload');
+		logCheckpoint('Completed app-skill group retained populated cards after reload.');
+
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
 	});
 });
