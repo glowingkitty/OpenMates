@@ -636,6 +636,13 @@ class WebAnalyticsService:
 
             for day, counters in daily_data.items():
                 daily_key = self._get_daily_key(day)
+                if await client.exists(daily_key):
+                    logger.debug(
+                        "WebAnalyticsService: Skipping backup restore for %s; "
+                        "counters already exist in Redis",
+                        day,
+                    )
+                    continue
                 pipe = client.pipeline()
                 for field, value in counters.items():
                     pipe.hincrby(daily_key, field, value)

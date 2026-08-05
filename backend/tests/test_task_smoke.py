@@ -235,3 +235,44 @@ class TestAppHealthChecks:
 
         assert healthy is True
         assert error is None
+
+    def test_worker_queue_inspection_waits_for_app_workers(self, monkeypatch):
+        from backend.core.api.app.tasks import health_check_tasks
+        from backend.core.api.app.tasks import celery_config
+
+        observed = {}
+
+        class FakeInspect:
+            def active_queues(self):
+                return {"celery@app-worker": [{"name": "app_videos"}]}
+
+        class FakeControl:
+            def inspect(self, *, timeout):
+                observed["timeout"] = timeout
+                return FakeInspect()
+
+        monkeypatch.setattr(celery_config.app, "control", FakeControl())
+
+        assert health_check_tasks._inspect_active_worker_queues() == {
+            "celery@app-worker": [{"name": "app_videos"}]
+        }
+        assert observed["timeout"] == health_check_tasks.CELERY_WORKER_INSPECT_TIMEOUT_SECONDS
+
+
+class TestLeaderboardCache:
+    def test_cached_leaderboard_accepts_deserialized_mapping(self, monkeypatch):
+        from backend.core.api.app.tasks import leaderboard_tasks
+
+        expected = {"rankings": [{"model": "example"}]}
+
+        class FakeCacheService:
+            async def get(self, key):
+                assert key == leaderboard_tasks.LEADERBOARD_CACHE_KEY
+                return expected
+
+            async def close(self):
+                return None
+
+        monkeypatch.setattr(leaderboard_tasks, "CacheService", FakeCacheService)
+
+        assert asyncio.run(leaderboard_tasks._get_cached_leaderboard_async()) == expected

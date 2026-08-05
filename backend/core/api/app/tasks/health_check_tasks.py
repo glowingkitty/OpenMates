@@ -146,6 +146,7 @@ HEALTH_CHECK_FAILURE_THRESHOLD = 3
 SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
+CELERY_WORKER_INSPECT_TIMEOUT_SECONDS = 5.0
 GOOGLE_PROVIDER_HEALTH_ID = "google"
 GOOGLE_AI_STUDIO_SERVER_ID = "google_ai_studio"
 
@@ -1172,7 +1173,7 @@ def _get_app_worker_queue_names(app_id: str) -> set[str]:
 def _inspect_active_worker_queues() -> Optional[Dict[str, Any]]:
     from backend.core.api.app.tasks.celery_config import app as celery_app
 
-    inspect = celery_app.control.inspect()
+    inspect = celery_app.control.inspect(timeout=CELERY_WORKER_INSPECT_TIMEOUT_SECONDS)
     return inspect.active_queues()
 
 
