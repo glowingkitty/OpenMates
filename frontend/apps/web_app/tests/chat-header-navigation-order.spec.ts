@@ -86,6 +86,14 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		expect(draftChatId).toBeTruthy();
 
 		try {
+			await page.getByTestId('new-chat-button').click();
+			await expect(page.getByTestId('resume-chat-draft-card')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('resume-chat-draft-card')).toContainText(draftText);
+			expect(await page.getByTestId('resume-chat-draft-card').getAttribute('data-chat-id')).toBe(draftChatId);
+			await page.getByTestId('resume-chat-draft-card').click();
+			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+			expect(page.url()).toContain(`chat-id=${draftChatId}`);
+
 			await page.setViewportSize({ width: 390, height: 844 });
 			await messageEditor.click();
 			await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -104,14 +112,6 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 				.getByRole('button', { name: /close/i })
 				.click();
 			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
-
-			await page.getByTestId('new-chat-button').click();
-			await expect(page.getByTestId('resume-chat-draft-card')).toBeVisible({ timeout: 15000 });
-			await expect(page.getByTestId('resume-chat-draft-card')).toContainText(draftText);
-			expect(await page.getByTestId('resume-chat-draft-card').getAttribute('data-chat-id')).toBe(draftChatId);
-			await page.getByTestId('resume-chat-draft-card').click();
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-			expect(page.url()).toContain(`chat-id=${draftChatId}`);
 
 			await ensureSidebarOpen(page);
 			const regularChats = page
