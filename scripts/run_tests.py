@@ -6090,20 +6090,16 @@ class TestOrchestrator:
 
         if art_path:
             all_tests = self._parse_unit_test_artifact(art_path, suite_label)
-            if not all_tests and conclusion != "success":
-                # Fallback: no parseable results but the run failed
-                log_error = client.get_failed_job_error(run_id)
-                all_tests = [{"name": f"{suite_label}-run", "status": "failed",
-                              "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
-        elif conclusion != "success":
-            log_error = client.get_failed_job_error(run_id)
-            all_tests = [{"name": f"{suite_label}-run", "status": "failed",
-                          "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
 
-        # Recalculate overall status from actual test results
-        if all_tests:
-            has_failures = any(_is_problem_status(t.get("status", "")) for t in all_tests)
-            overall_status = "failed" if has_failures else "passed"
+        if conclusion != "success" and not any(
+            _is_problem_status(test.get("status", "")) for test in all_tests
+        ):
+            log_error = client.get_failed_job_error(run_id)
+            all_tests.append({"name": f"{suite_label}-run", "status": "failed",
+                              "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"})
+
+        if any(_is_problem_status(test.get("status", "")) for test in all_tests):
+            overall_status = "failed"
 
         shutil.rmtree(artifact_dir, ignore_errors=True)
 

@@ -57,7 +57,7 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd backend
-          mapfile -t PYTEST_TARGETS < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_TARGETS_JSON") or "[]"); print("\n".join(v.removeprefix("backend/") for v in values))')
+          mapfile -t PYTEST_TARGETS < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_TARGETS_JSON") or "[]"); print("\n".join(v.removeprefix("backend/") for v in values), end="")')
           if [ ${#PYTEST_TARGETS[@]} -eq 0 ]; then PYTEST_TARGETS=(tests/); fi
           set +e
           pytest "${PYTEST_TARGETS[@]}" \
@@ -73,7 +73,7 @@ jobs:
             2>&1 | tee $GITHUB_WORKSPACE/test-results/pytest-output.txt
           PYTEST_EXIT=${PIPESTATUS[0]}
           set -e
-          if [ -n "$TEST_TARGETS_JSON" ] && [ $PYTEST_EXIT -ne 0 ]; then exit $PYTEST_EXIT; fi
+          if [ $PYTEST_EXIT -ne 0 ]; then exit $PYTEST_EXIT; fi
       - name: Run Python SDK account import tests
         if: ${{ inputs.test_targets_json == '' }}
         id: python_sdk_account_import_tests

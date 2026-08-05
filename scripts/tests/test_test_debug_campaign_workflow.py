@@ -47,7 +47,9 @@ def test_unit_workflows_accept_exact_campaign_targets():
 
     assert "test_targets_json" in pytest_workflow
     assert 'pytest "${PYTEST_TARGETS[@]}"' in pytest_workflow
+    assert 'for v in values), end="")' in pytest_workflow
     assert "PYTEST_EXIT=${PIPESTATUS[0]}" in pytest_workflow
+    assert 'if [ $PYTEST_EXIT -ne 0 ]; then exit $PYTEST_EXIT; fi' in pytest_workflow
     assert "test_files_json" in vitest_workflow
     assert '"${TEST_FILES[@]}"' in vitest_workflow
     assert "VITEST_EXIT=${PIPESTATUS[0]}" in vitest_workflow

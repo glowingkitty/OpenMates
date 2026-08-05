@@ -13,6 +13,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -285,6 +286,44 @@ def test_vitest_artifact_records_the_failed_test_file(tmp_path):
     tests = run_tests.TestOrchestrator._parse_unit_test_artifact(tmp_path, "vitest")
 
     assert tests[0]["file"] == "frontend/packages/ui/src/chat/chat.test.ts"
+
+
+def test_failed_unit_workflow_is_not_masked_by_passing_partial_artifact(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.campaign_test_labels = []
+    recent_calls = 0
+
+    class FakeClient:
+        def _recent_run_ids(self, **_kwargs):
+            nonlocal recent_calls
+            recent_calls += 1
+            return [111] if recent_calls == 1 else [222, 111]
+
+        def wait_for_runs(self, _run_ids, **_kwargs):
+            return {222: {"conclusion": "failure"}}
+
+        def download_artifact(self, _run_id, _artifact_name, artifact_dir):
+            (artifact_dir / "pytest-results.json").write_text(
+                json.dumps({
+                    "tests": [{"nodeid": "tests/test_sdk.py::test_ok", "outcome": "passed", "duration": 0.1}],
+                }),
+                encoding="utf-8",
+            )
+            return artifact_dir
+
+        def get_failed_job_error(self, _run_id):
+            return "pytest exited with code 3"
+
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
+    monkeypatch.setattr(run_tests.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""))
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(run_tests.tempfile, "mkdtemp", lambda **_kwargs: str(tmp_path))
+
+    result = orchestrator._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results")
+
+    assert result.status == "failed"
+    assert any(test["status"] == "failed" and "code 3" in test["error"] for test in result.tests)
 
 
 def test_discord_description_truncates_at_file_boundaries_with_omission_count():
