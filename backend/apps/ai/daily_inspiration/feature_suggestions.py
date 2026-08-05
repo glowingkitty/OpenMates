@@ -24,6 +24,16 @@ DEFAULT_PRODUCT_VIDEO_BASE_URL = (
     "daily-inspiration/product-videos/v1"
 )
 TEASER_ASSET_BASE_PATH = "/daily-inspiration-videos"
+GUEST_ONBOARDING_FEATURE_IDS = frozenset(
+    {
+        "openmates-intro",
+        "openmates-actionable-events",
+        "openmates-privacy-safety",
+        "openmates-mates-focus",
+        "openmates-provider-cross-platform",
+        "openmates-signup-cta",
+    }
+)
 
 
 FEATURE_TIPS = [

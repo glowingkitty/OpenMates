@@ -8,6 +8,7 @@
 from pathlib import Path
 
 from backend.apps.ai.daily_inspiration.feature_suggestions import (
+    GUEST_ONBOARDING_FEATURE_IDS,
     build_feature_inspirations,
     feature_requires_authentication,
 )
@@ -15,6 +16,28 @@ from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspir
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_guest_onboarding_features_are_not_daily_inspiration_tips() -> None:
+    route_source = (
+        REPO_ROOT / "backend/core/api/app/routes/default_inspirations.py"
+    ).read_text()
+    actionable_feature_ids = {
+        inspiration.feature.feature_id
+        for inspiration in build_feature_inspirations(count=20)
+        if inspiration.feature
+    }
+
+    assert GUEST_ONBOARDING_FEATURE_IDS == {
+        "openmates-intro",
+        "openmates-actionable-events",
+        "openmates-privacy-safety",
+        "openmates-mates-focus",
+        "openmates-provider-cross-platform",
+        "openmates-signup-cta",
+    }
+    assert actionable_feature_ids.isdisjoint(GUEST_ONBOARDING_FEATURE_IDS)
+    assert "feature.get(\"feature_id\") in GUEST_ONBOARDING_FEATURE_IDS" in route_source
 
 
 # Keep backend generation, public selection, and endpoint top-up on one quota contract.

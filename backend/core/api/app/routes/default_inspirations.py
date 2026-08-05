@@ -28,6 +28,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES
 from backend.apps.ai.daily_inspiration.feature_suggestions import (
+    GUEST_ONBOARDING_FEATURE_IDS,
     build_feature_inspirations,
     feature_requires_authentication,
 )
@@ -82,6 +83,9 @@ def _is_public_feature_item(item: Dict[str, Any]) -> bool:
 
     feature = item.get("feature")
     if not isinstance(feature, dict):
+        return False
+
+    if feature.get("feature_id") in GUEST_ONBOARDING_FEATURE_IDS:
         return False
 
     if "requires_authentication" in feature:
