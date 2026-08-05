@@ -299,20 +299,8 @@ test.describe('Guest interest smart selection', () => {
 
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('Hey there!')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('Explore what you can do:')).toHaveCount(0);
 		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 
-		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
-		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
-		await expect(page.getByTestId('interest-tag-find_apartments')).toHaveAttribute('data-app-id', 'home');
-		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
-		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
-		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
-		await expect(page.getByTestId('guest-interest-skip')).toBeVisible({ timeout: 5000 });
-
-		await page.getByTestId('guest-interest-skip').click();
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 5000 });
@@ -329,9 +317,12 @@ test.describe('Guest interest smart selection', () => {
 		);
 		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
 		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
+		await expect(page.getByTestId('interest-tag-find_apartments')).toHaveAttribute('data-app-id', 'home');
 		await expect(page.getByText('Explore what you can do:')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
+		await expect(page.getByTestId('guest-interest-skip')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
+		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
 
 		const defaultTagOrder = await interestTagOrder(page);
 		const defaultRailMetrics = await tagRailMetrics(page);
@@ -460,7 +451,8 @@ test.describe('Guest interest smart selection', () => {
 		await page.waitForLoadState('networkidle');
 		await skipExpandedLandingIntro(page);
 
-		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
+		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
 
 		await page.getByTestId('message-editor').click();
@@ -487,7 +479,14 @@ test.describe('Guest interest smart selection', () => {
 		expect(mobileIntroMetrics.height).toBeGreaterThanOrEqual(mobileIntroMetrics.containerHeight * 0.65);
 
 		await skipExpandedLandingIntro(page);
+		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
+		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
+			'data-current-inspiration-id',
+			'openmates-signup-cta',
+			{ timeout: 5000 }
+		);
 		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
 	});
 });
