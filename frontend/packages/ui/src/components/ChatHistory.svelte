@@ -1070,6 +1070,7 @@
 
   // Props using Svelte 5 runes mode
   let {
+    disablePointerEvents = false,
     messageInputHeight = 0,
     sourceMessages = [],
     containerWidth = 0,
@@ -1109,6 +1110,7 @@
     onChatNavigate = undefined,
     canAnnotate = true,
   }: {
+    disablePointerEvents?: boolean;
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
     containerWidth?: number;
@@ -2638,7 +2640,7 @@
     - Messages are aligned to the top for ChatGPT-style behavior.
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
-<div class="chat-history-wrapper" style={containerStyle}>
+<div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
 <div 
     class="chat-history-container"
     data-testid="chat-history-container"
@@ -2959,6 +2961,10 @@
     top: 0;
     left: 0;
     right: 0;
+  }
+
+  .chat-history-wrapper.disable-pointer-events {
+    pointer-events: none;
   }
 
   .chat-history-container {

@@ -3601,7 +3601,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         selectedTagIds: InterestTagId[] = [],
         includeGuestExamples = false,
         activeInspirationId = GUEST_DEFAULT_INTRO_INSPIRATION_ID,
-        useInterestRanking = false,
     ): Promise<RecentChatMeta[]> {
         const sharedMetas = await loadSharedByOthersRecentChats();
 
@@ -3612,14 +3611,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Example chats are static and always available; intro chats stay reachable
         // through /intro/* but are no longer advertised in this examples list.
         const communityMetas: RecentChatMeta[] = getAllExampleChats().map(buildExampleChatMeta);
-
-        if (useInterestRanking && selectedTagIds.length > 0) {
-            const rankedExampleIds = rankExampleChatIdsByInterests(
-                communityMetas.map((meta) => meta.chat.chat_id),
-                selectedTagIds
-            ).slice(0, RECENT_CHATS_TOTAL);
-            return [...sharedMetas, ...orderMetasByPreferredIds(communityMetas, rankedExampleIds)];
-        }
 
         const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
         if (slideExampleIds) {
@@ -3673,7 +3664,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $appSettingsMemoriesStore.entriesByApp;
         const guestTags = selectedGuestInterestTagIds;
         const guestTagsConfirmed = guestInterestContinueConfirmed;
-        const guestInterestRanking = guestInterestRankingApplied;
         const guestInspirationId = activeGuestInspirationId;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
@@ -3701,7 +3691,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
             const requestId = ++nonAuthRecentChatsRequestId;
-            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, guestInspirationId, guestInterestRanking).then((metas) => {
+            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, guestInspirationId).then((metas) => {
                 if (requestId !== nonAuthRecentChatsRequestId) return;
                 nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
                 nonAuthRecentChats = metas;
@@ -5566,7 +5556,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeSuggestionSearchText = $derived(messageInputRecentlyFocused ? liveInputText : '');
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
     let guestInterestContinueConfirmed = $state(true);
-    let guestInterestRankingApplied = $state(false);
     let guestInterestSelectorVisible = $state(false);
     let guestAllExamplesVisible = $state(false);
     let guestAllExamplesGridEl = $state<HTMLElement | null>(null);
@@ -5576,7 +5565,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroResetToken = $state(0);
-    let guestLandingSignupSlideToken = $state(0);
     let guestSkipLandingIntro = $state(false);
     let guestLandingIntroOverlayActive = $derived(
         !$authStore.isAuthenticated && guestLandingIntroPhase !== 'regular'
@@ -5678,14 +5666,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function handleGuestInterestContinue(selectedTagIds: InterestTagId[]) {
         handleGuestInterestSelectionChange(selectedTagIds);
         guestInterestContinueConfirmed = selectedTagIds.length >= 4;
-        guestInterestRankingApplied = guestInterestContinueConfirmed;
         guestInterestSelectorVisible = false;
         applyGuestInterestPersonalization(selectedTagIds);
     }
 
     function handleGuestInterestSkip() {
         guestInterestContinueConfirmed = true;
-        guestInterestRankingApplied = false;
         guestInterestSelectorVisible = false;
         applyGuestInterestPersonalization([]);
     }
@@ -5693,7 +5679,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function handleGuestInterestSelectInterests() {
         guestInterestContinueConfirmed = false;
         guestInterestSelectorVisible = true;
-        guestLandingSignupSlideToken += 1;
     }
 
     function handleVisibleInspirationChange(inspiration: DailyInspiration) {
@@ -10592,7 +10577,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if ((guestTopicPreferences?.selectedTagIds.length ?? 0) >= 4) {
                     selectedGuestInterestTagIds = guestTopicPreferences!.selectedTagIds;
                     guestInterestContinueConfirmed = true;
-                    guestInterestRankingApplied = true;
                     guestInterestSelectorVisible = false;
                     applyGuestInterestPersonalization(guestTopicPreferences!.selectedTagIds);
                 }
@@ -12449,7 +12433,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else}
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side" class:welcome={showWelcome} data-testid="chat-side" bind:this={chatSideEl}>
+                <div class="chat-side" data-testid="chat-side" bind:this={chatSideEl}>
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
@@ -12470,7 +12454,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 containerWidth={effectiveChatWidth}
                                 variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
                                 landingIntroResetToken={guestLandingIntroResetToken}
-                                landingSignupSlideToken={guestLandingSignupSlideToken}
                                 skipLandingIntro={guestSkipLandingIntro}
                             />
                         </div>
@@ -13266,6 +13249,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                      <ChatHistory
                           bind:this={chatHistoryRef}
+                          disablePointerEvents={showWelcome}
                           messageInputHeight={0}
                           sourceMessages={currentMessages}
                           containerWidth={effectiveChatWidth}
@@ -15758,10 +15742,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
-    }
-
-    .chat-side.welcome :global(.chat-history-wrapper) {
-        pointer-events: none;
     }
 
     /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.
