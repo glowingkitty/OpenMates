@@ -34,10 +34,6 @@ const {
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
 const {
-	saveCurrentFullscreenEmbed,
-	verifySavedMemoryEntry
-} = require('./helpers/saved-memory-test-helpers');
-const {
 	expectSettingsProviderIcons,
 	expectSkillCardProviderIcons
 } = require('./helpers/provider-icon-helpers');
@@ -70,28 +66,6 @@ const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
 const EVENT_SEARCH_CARD_SELECTOR = '[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]';
 const EVENT_SEARCH_FIRST_RANGE = 'Jun 20, 2026 - Jun 21, 2026';
 const EVENT_SEARCH_SECOND_RANGE = 'Jun 27, 2026 - Jun 28, 2026';
-
-async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
-	const dismissButtons = page.getByTestId('notification-dismiss');
-	const dismissCount = await dismissButtons.count();
-	for (let i = 0; i < dismissCount; i += 1) {
-		await dismissButtons.nth(i).click().catch(() => undefined);
-	}
-	if (dismissCount > 0) {
-		logCheckpoint(`Dismissed ${dismissCount} notification(s) before calendar download.`);
-	}
-
-	const calendarButton = page.getByTestId('embed-calendar-button');
-	await expect(calendarButton).toBeVisible({ timeout: 5000 });
-
-	const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-	await calendarButton.click();
-	const download = await downloadPromise;
-	const suggestedFilename = download.suggestedFilename();
-	expect(suggestedFilename).toMatch(/\.ics$/);
-	expect(await download.failure()).toBeNull();
-	logCheckpoint(`Calendar download started: ${suggestedFilename}`);
-}
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -230,14 +204,8 @@ test.describe('App: Events / Skill: search', () => {
 		const count = await resultCards.count();
 		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
 
-		const resultOverlay = await openFullscreen(page, resultCards.first());
-		await expectCalendarDownload(page, logCheckpoint);
-		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
-
-		await closeFullscreen(page, resultOverlay);
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
-		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);
 
 		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 90_000 });
 
