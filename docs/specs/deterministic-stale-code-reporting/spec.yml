@@ -1,7 +1,7 @@
 schema_version: 2
 id: deterministic-stale-code-reporting
 title: Deterministic Stale Code Reporting
-status: implementing
+status: verified
 
 goal: >
   Produce a conservative daily report of code that is safe for a separately
@@ -71,7 +71,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ffde39150
+  subject_commit: 35556ace20dafe5f74af99515aba58244e353398
 
 approvals:
   product_contract:
@@ -110,18 +110,23 @@ attempts:
       It produced 193 findings and demonstrated systematic false positives in
       Svelte import.meta.glob and dynamic CSS classes.
     recorded_at: "2026-08-05"
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Run the broad OpenCode output-quality audit after adding the skill.
+    outcome: blocked
+    notes: >
+      The audit reported pre-existing opencode.json Firecrawl permission gaps
+      unrelated to this skill. Agent skill parity and agent tooling parity both
+      passed; no unrelated opencode.json changes were made.
+    recorded_at: "2026-08-05"
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the verified tooling, install the root-worktree cron entry, and send the real Discord report.
-  command: >
-    python3 scripts/sessions.py deploy --session ae0f
-    --title "chore: add safe stale-code reporting"
-    --message "Replace unsafe automatic deletion with deterministic reports,
-    Discord notification, and a revalidating cleanup skill."
-  expected_outcome: The scoped commit reaches dev so the root cron can invoke the deployed report-only runner.
+  next_action: No implementation work remains; use the remove-stale-code skill when a future report contains deletion_ready findings.
+  command: python3 scripts/stale_code_daily.py --dry-run-notify --limit 100
+  expected_outcome: A report-only scan completes without editing source or launching an agent.
   blocker: null
-  last_verified_commit: ffde39150
+  last_verified_commit: 35556ace20dafe5f74af99515aba58244e353398
 
 scenarios:
   - id: S-1
@@ -291,9 +296,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_find_dead_code.py scripts/tests/test_stale_code_daily.py
-        run_id: local:pytest-stale-code-green-20260805T095807Z
-        subject_commit: ffde39150c5f34d3a40ab005dd33023a43623cc1
-        timestamp: "2026-08-05T09:58:07Z"
+        run_id: local:pytest-stale-code-green-20260805T102442Z
+        subject_commit: 35556ace20dafe5f74af99515aba58244e353398
+        timestamp: "2026-08-05T10:24:42Z"
   - id: T-DETERMINISM
     type: pytest
     file: scripts/tests/test_find_dead_code.py
@@ -317,9 +322,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_find_dead_code.py -k deterministic
-        run_id: local:pytest-stale-code-green-20260805T095807Z
-        subject_commit: ffde39150c5f34d3a40ab005dd33023a43623cc1
-        timestamp: "2026-08-05T09:58:07Z"
+        run_id: local:pytest-stale-code-green-20260805T102442Z
+        subject_commit: 35556ace20dafe5f74af99515aba58244e353398
+        timestamp: "2026-08-05T10:24:42Z"
   - id: T-RUNNER
     type: pytest
     file: scripts/tests/test_stale_code_daily.py
@@ -344,9 +349,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_stale_code_daily.py
-        run_id: local:pytest-stale-code-green-20260805T095807Z
-        subject_commit: ffde39150c5f34d3a40ab005dd33023a43623cc1
-        timestamp: "2026-08-05T09:58:07Z"
+        run_id: local:pytest-stale-code-green-20260805T102442Z
+        subject_commit: 35556ace20dafe5f74af99515aba58244e353398
+        timestamp: "2026-08-05T10:24:42Z"
   - id: T-CRON
     type: pytest
     file: scripts/tests/test_stale_code_daily.py
@@ -371,9 +376,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_stale_code_daily.py -k cron
-        run_id: local:pytest-stale-code-green-20260805T095807Z
-        subject_commit: ffde39150c5f34d3a40ab005dd33023a43623cc1
-        timestamp: "2026-08-05T09:58:07Z"
+        run_id: local:pytest-stale-code-green-20260805T102442Z
+        subject_commit: 35556ace20dafe5f74af99515aba58244e353398
+        timestamp: "2026-08-05T10:24:42Z"
   - id: T-SKILL
     type: lint
     file: scripts/sync_agent_parity.py
@@ -398,9 +403,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/sync_agent_parity.py --check && python3 scripts/audit_agent_tooling_parity.py
-        run_id: local:agent-parity-20260805T095807Z
-        subject_commit: ffde39150c5f34d3a40ab005dd33023a43623cc1
-        timestamp: "2026-08-05T09:58:07Z"
+        run_id: local:agent-parity-20260805T102442Z
+        subject_commit: 35556ace20dafe5f74af99515aba58244e353398
+        timestamp: "2026-08-05T10:24:42Z"
 
 verifications:
   - id: V-OBSERVATION
@@ -413,10 +418,10 @@ verifications:
       status: passed
       reason: A real full-repository scan is required because fixture tests alone cannot demonstrate that current dynamic and registered code is excluded from deletion_ready.
       command: python3 scripts/stale_code_daily.py --dry-run-notify --limit 100
-      run_id: local:stale-code-full-scan-20260805T095807Z
-      subject_commit: ffde39150c5f34d3a40ab005dd33023a43623cc1
-      summary: Real full-repository report completed with zero deletion_ready candidates, 93 review_only candidates, and 141 suppressed candidates. Seeded positive fixtures still produced the narrow expected deletion_ready standard-library import, while known Svelte glob, app metadata, computed CSS, protected path, side-effect import, compatibility, route, migration, fixture, public, and generated cases produced zero deletion_ready false positives.
-      timestamp: "2026-08-05T09:58:07Z"
+      run_id: local:stale-code-full-scan-20260805T102442Z
+      subject_commit: 35556ace20dafe5f74af99515aba58244e353398
+      summary: Real full-repository report completed with zero deletion_ready candidates, 93 review_only candidates, and 141 suppressed candidates. Seeded positive fixtures still produced the narrow expected deletion_ready standard-library import, while known Svelte glob, app metadata, computed CSS, protected path, side-effect import, compatibility, route, migration, fixture, public, and generated cases produced zero deletion_ready false positives. The daily 02:00 UTC root cron was installed exactly once and a real configured Discord notification returned sent without exposing the webhook or an absolute host path.
+      timestamp: "2026-08-05T10:24:42Z"
       actor: OpenCode
 
 implementation_plan:
@@ -559,7 +564,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Verify full scan precision and install schedule
-    status: in_progress
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
