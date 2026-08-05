@@ -12433,7 +12433,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else}
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side" data-testid="chat-side" bind:this={chatSideEl}>
+                <div class="chat-side" class:welcome={showWelcome} data-testid="chat-side" bind:this={chatSideEl}>
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
@@ -15736,6 +15736,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
+    }
+
+    .chat-side.welcome :global(.chat-history-container.empty) {
+        pointer-events: none;
     }
 
     /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.
