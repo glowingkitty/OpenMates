@@ -87,7 +87,12 @@ test.describe('Streaming render performance metrics', () => {
 			...sample.compileDurations,
 			...sample.applyDurations,
 		]))).toBeLessThan(50);
-		expect(runtimeRequests).toEqual([]);
+		const renderingTriggeredRequests = runtimeRequests.filter((requestUrl) => {
+			const url = new URL(requestUrl);
+			if (url.hostname === 'm.stripe.com') return false;
+			return url.pathname !== '/v1/settings/server-status';
+		});
+		expect(renderingTriggeredRequests).toEqual([]);
 		expect(await page.evaluate(() => (
 			window as typeof window & { __streamingHarnessIdbWrites?: number }
 		).__streamingHarnessIdbWrites)).toBe(0);

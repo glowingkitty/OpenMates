@@ -197,11 +197,14 @@ test.describe('App: Events / Skill: search', () => {
 
 		const finalGroupedView = page.getByTestId('embeds-map-view').last();
 		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
+		await expect(
+			page.getByTestId('message-content').filter({ has: finalGroupedView })
+		).toHaveAttribute('data-streaming', 'true');
 		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
-		logCheckpoint(`Resolved non-streaming final grouped view contains ${finalGroupedCardCount} event embeds.`);
+		logCheckpoint(`Resolved final grouped view contains ${finalGroupedCardCount} event embeds.`);
 
 		const stabilityProbe = await page.evaluate(() => {
 			const value = crypto.randomUUID();
