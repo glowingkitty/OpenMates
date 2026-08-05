@@ -15786,6 +15786,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         container-name: chat-side;
     }
 
+    .chat-side:has(.center-content) {
+        pointer-events: none;
+    }
+
+    .chat-side:has(.center-content) .daily-inspiration-area,
+    .chat-side:has(.center-content) .top-buttons,
+    .chat-side:has(.center-content) .center-content,
+    .chat-side:has(.center-content) .guest-interest-tags-overlay {
+        pointer-events: auto;
+    }
+
     /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.
        The visible icon stays centered; the hit area extends horizontally for easy touch/click.
        Overrides global button styles from buttons.css (padding, min-width, height, shadow, etc.) */
