@@ -133,5 +133,11 @@ describe("dailyInspirationStore", () => {
         fallback.map((item) => ({ ...item, content_type: "feature" })),
       ),
     ).toBe(false);
+    expect(
+      hasCompleteAuthenticatedDailySet([
+        { ...fallback[0], feature: { ...fallback[6].feature!, feature_id: "openmates-actionable-events" } },
+        ...fallback.slice(1),
+      ]),
+    ).toBe(false);
   });
 });

@@ -232,17 +232,14 @@ export async function loadDefaultInspirations(
       && current.source !== "guest-onboarding"
       && current.source !== "none"
     ) {
-      if (
-        current.source !== "personalized"
-        || hasCompleteAuthenticatedDailySet(current.inspirations)
-      ) {
+      if (hasCompleteAuthenticatedDailySet(current.inspirations)) {
         console.debug(
           `${LOG_PREFIX} Store already populated with real data (${current.inspirations.length} items) — skipping`,
         );
         return;
       }
       dailyInspirationStore.reset();
-      console.warn(`${LOG_PREFIX} Rejected incomplete legacy personalized inspiration set`);
+      console.warn(`${LOG_PREFIX} Rejected guest or incomplete authenticated inspiration set`);
     }
 
     // ── Step 0: Load hardcoded defaults immediately ───────────────────────────

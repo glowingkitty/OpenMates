@@ -1126,40 +1126,39 @@ export interface ShortUrlRevokeResult {
 }
 
 export type InterestTagId =
-  | "marketing"
   | "software_development"
-  | "finance_bookkeeping"
-  | "ui_ux_design"
-  | "business_planning"
-  | "content_creation"
-  | "project_management"
-  | "admin_operations"
-  | "find_local_events"
-  | "plan_trips"
-  | "writing_editing"
-  | "sales"
-  | "customer_support"
-  | "research_analysis"
-  | "data_spreadsheets"
-  | "legal_compliance"
-  | "events_networking"
-  | "websites_online_shops"
-  | "automation_workflows"
-  | "client_work_proposals"
-  | "branding_images"
-  | "video_social_media"
-  | "productivity_organization"
-  | "learning_new_skills"
-  | "health_wellbeing"
+  | "business_development"
+  | "life_coach_psychology"
+  | "medical_health"
+  | "legal_law"
+  | "finance"
+  | "design"
+  | "marketing_sales"
+  | "science"
+  | "history"
+  | "cooking_food"
+  | "electrical_engineering"
+  | "maker_prototyping"
+  | "movies_tv"
+  | "activism"
+  | "general_knowledge"
+  | "find_events"
+  | "find_restaurant"
   | "find_doctor_appointments"
+  | "plot_charts"
+  | "video_tutorials"
   | "find_apartments"
-  | "find_trains_flights"
-  | "find_restaurants_cafes"
-  | "personal_finances"
-  | "cooking_meal_planning"
-  | "news_current_events"
-  | "diy_electronics"
-  | "privacy_personal_data";
+  | "build_electronics"
+  | "diy_projects"
+  | "create_videos"
+  | "find_travel_connections"
+  | "plan_trips"
+  | "discuss_news"
+  | "discuss_videos"
+  | "run_code"
+  | "privacy"
+  | "learning"
+  | "writing";
 
 export interface TopicPreferencesPayload {
   version: 1;
@@ -1168,80 +1167,40 @@ export interface TopicPreferencesPayload {
 }
 
 export const INTEREST_TAG_IDS: InterestTagId[] = [
-  "marketing",
   "software_development",
-  "finance_bookkeeping",
-  "ui_ux_design",
-  "business_planning",
-  "content_creation",
-  "project_management",
-  "admin_operations",
-  "find_local_events",
-  "plan_trips",
-  "writing_editing",
-  "sales",
-  "customer_support",
-  "research_analysis",
-  "data_spreadsheets",
-  "legal_compliance",
-  "events_networking",
-  "websites_online_shops",
-  "automation_workflows",
-  "client_work_proposals",
-  "branding_images",
-  "video_social_media",
-  "productivity_organization",
-  "learning_new_skills",
-  "health_wellbeing",
+  "business_development",
+  "life_coach_psychology",
+  "medical_health",
+  "legal_law",
+  "finance",
+  "design",
+  "marketing_sales",
+  "science",
+  "history",
+  "cooking_food",
+  "electrical_engineering",
+  "maker_prototyping",
+  "movies_tv",
+  "activism",
+  "general_knowledge",
+  "find_events",
+  "find_restaurant",
   "find_doctor_appointments",
+  "plot_charts",
+  "video_tutorials",
   "find_apartments",
-  "find_trains_flights",
-  "find_restaurants_cafes",
-  "personal_finances",
-  "cooking_meal_planning",
-  "news_current_events",
-  "diy_electronics",
-  "privacy_personal_data",
+  "build_electronics",
+  "diy_projects",
+  "create_videos",
+  "find_travel_connections",
+  "plan_trips",
+  "discuss_news",
+  "discuss_videos",
+  "run_code",
+  "privacy",
+  "learning",
+  "writing",
 ];
-
-const LEGACY_INTEREST_TAG_ALIASES: Record<string, InterestTagId[]> = {
-  business_development: ["business_planning"],
-  life_coach_psychology: ["health_wellbeing", "productivity_organization"],
-  medical_health: ["health_wellbeing"],
-  legal_law: ["legal_compliance"],
-  finance: ["finance_bookkeeping", "personal_finances"],
-  design: ["ui_ux_design", "branding_images"],
-  marketing_sales: ["marketing", "sales"],
-  science: ["research_analysis", "learning_new_skills"],
-  history: ["research_analysis", "learning_new_skills"],
-  cooking_food: ["cooking_meal_planning"],
-  electrical_engineering: ["diy_electronics"],
-  maker_prototyping: ["diy_electronics"],
-  movies_tv: ["video_social_media"],
-  activism: ["news_current_events", "legal_compliance"],
-  general_knowledge: ["research_analysis", "learning_new_skills"],
-  find_events: ["find_local_events", "events_networking"],
-  find_restaurant: ["find_restaurants_cafes"],
-  plot_charts: ["data_spreadsheets"],
-  video_tutorials: ["learning_new_skills", "video_social_media"],
-  build_electronics: ["diy_electronics"],
-  diy_projects: ["diy_electronics"],
-  create_videos: ["video_social_media", "content_creation"],
-  find_travel_connections: ["find_trains_flights"],
-  discuss_news: ["news_current_events"],
-  discuss_videos: ["video_social_media"],
-  run_code: ["software_development"],
-  privacy: ["privacy_personal_data"],
-  learning: ["learning_new_skills"],
-  writing: ["writing_editing"],
-  use_the_cli: ["software_development"],
-  open_source: ["software_development"],
-  read_developer_docs: ["software_development"],
-  protect_my_privacy: ["privacy_personal_data"],
-  summarize_documents: ["writing_editing"],
-  local_life: ["find_local_events"],
-  learn_anything: ["learning_new_skills"],
-};
 
 const TOPIC_PREFERENCES_SETTINGS_KEY = "topic_preferences";
 
@@ -1249,16 +1208,13 @@ export function normalizeInterestTagIds(values: readonly string[]): InterestTagI
   const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
   const normalized: InterestTagId[] = [];
   for (const value of values) {
-    const canonicalIds = validIds.has(value as InterestTagId)
-      ? [value as InterestTagId]
-      : LEGACY_INTEREST_TAG_ALIASES[value];
-    if (!canonicalIds) {
+    if (!validIds.has(value as InterestTagId)) {
       throw new Error(
         `Unknown interest tag '${value}'. Use one of: ${INTEREST_TAG_IDS.join(", ")}`,
       );
     }
-    for (const canonicalId of canonicalIds) {
-      if (!normalized.includes(canonicalId)) normalized.push(canonicalId);
+    if (!normalized.includes(value as InterestTagId)) {
+      normalized.push(value as InterestTagId);
     }
   }
   return normalized;
@@ -1272,14 +1228,13 @@ function normalizeTopicPreferencesPayload(value: unknown): TopicPreferencesPaylo
   if (candidate.version !== 1 || !Array.isArray(candidate.selectedTagIds)) {
     return null;
   }
-  const selectedTagIds = candidate.selectedTagIds.flatMap((value) => {
-    if (typeof value !== "string") return [];
-    try {
-      return normalizeInterestTagIds([value]);
-    } catch {
-      return [];
+  const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
+  const selectedTagIds: InterestTagId[] = [];
+  for (const value of candidate.selectedTagIds) {
+    if (validIds.has(value as InterestTagId) && !selectedTagIds.includes(value as InterestTagId)) {
+      selectedTagIds.push(value as InterestTagId);
     }
-  }).filter((value, index, values) => values.indexOf(value) === index);
+  }
   return {
     version: 1,
     selectedTagIds,

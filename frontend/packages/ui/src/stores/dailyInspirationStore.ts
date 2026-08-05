@@ -108,11 +108,28 @@ const AUTHENTICATED_DAILY_QUOTAS: Record<string, number> = {
   wiki: 3,
   feature: 4,
 };
+const GUEST_ONBOARDING_FEATURE_IDS = new Set([
+  "openmates-intro",
+  "openmates-actionable-events",
+  "openmates-privacy-safety",
+  "openmates-mates-focus",
+  "openmates-provider-cross-platform",
+  "openmates-signup-cta",
+]);
 
 export function hasCompleteAuthenticatedDailySet(
   inspirations: DailyInspiration[],
 ): boolean {
   if (inspirations.length !== 10) return false;
+  if (
+    inspirations.some(
+      (inspiration) =>
+        GUEST_ONBOARDING_FEATURE_IDS.has(inspiration.inspiration_id)
+        || GUEST_ONBOARDING_FEATURE_IDS.has(inspiration.feature?.feature_id ?? ""),
+    )
+  ) {
+    return false;
+  }
 
   const counts = inspirations.reduce<Record<string, number>>((result, inspiration) => {
     result[inspiration.content_type] = (result[inspiration.content_type] ?? 0) + 1;
