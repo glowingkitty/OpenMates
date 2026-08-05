@@ -1035,9 +1035,14 @@ export class EmbedStore {
       encryption_mode?: string;
       vault_key_id?: string;
     },
-    options?: { skipMetadataExtraction?: boolean },
+    options?: {
+      skipMetadataExtraction?: boolean;
+      skipEmbedRefRegistration?: boolean;
+      deferChildEmbedRefRegistration?: boolean;
+    },
   ): Promise<void> {
     const normalizedType = this.normalizeEmbedType(type as unknown as string);
+    let pendingChildRefIndex: unknown;
 
     // Extract app_id and skill_id from plaintext content if provided, otherwise try to decrypt
     // For app_skill_use embeds, we extract metadata to enable efficient filtering in IndexedDB
@@ -1069,6 +1074,9 @@ export class EmbedStore {
             app_id: preExtractedMetadata.app_id,
             skill_id: preExtractedMetadata.skill_id,
           };
+          if (options?.deferChildEmbedRefRegistration && plaintextContent) {
+            pendingChildRefIndex = await decodeToonContentLocal(plaintextContent);
+          }
         } else if (plaintextContent) {
           // Extract from plaintext content (preferred - no decryption needed)
           const decodedContent = await decodeToonContentLocal(plaintextContent);
@@ -1084,7 +1092,11 @@ export class EmbedStore {
             };
             // Also register embed_ref if present (covers finalization path)
             const embedRefPlain = decoded.embed_ref;
-            if (typeof embedRefPlain === "string" && embedRefPlain) {
+            if (
+              !options?.skipEmbedRefRegistration &&
+              typeof embedRefPlain === "string" &&
+              embedRefPlain
+            ) {
               const refEmbedId =
                 (encryptedData.embed_id as string) ||
                 contentRef.replace("embed:", "");
@@ -1096,7 +1108,11 @@ export class EmbedStore {
                 appMetadata.skill_id ?? null,
               );
             }
-            await this.indexChildEmbedRefs(decoded);
+            if (options?.deferChildEmbedRefRegistration) {
+              pendingChildRefIndex = decoded;
+            } else {
+              await this.indexChildEmbedRefs(decoded);
+            }
           }
         } else if (encryptedData.encrypted_content) {
           // Fallback: Try to decrypt content temporarily to extract app_id/skill_id
@@ -1136,7 +1152,11 @@ export class EmbedStore {
                 );
                 // Register embed_ref for inline badge resolution on subsequent renders
                 const embedRefEnc = decoded.embed_ref;
-                if (typeof embedRefEnc === "string" && embedRefEnc) {
+                if (
+                  !options?.skipEmbedRefRegistration &&
+                  typeof embedRefEnc === "string" &&
+                  embedRefEnc
+                ) {
                   this.registerEmbedRef(
                     embedRefEnc,
                     embedId,
@@ -1145,7 +1165,11 @@ export class EmbedStore {
                     appMetadata.skill_id ?? null,
                   );
                 }
-                await this.indexChildEmbedRefs(decoded);
+                if (options?.deferChildEmbedRefRegistration) {
+                  pendingChildRefIndex = decoded;
+                } else {
+                  await this.indexChildEmbedRefs(decoded);
+                }
               }
             }
           } else {
@@ -1244,6 +1268,9 @@ export class EmbedStore {
         "[EmbedStore] Failed to store encrypted embed in IndexedDB, using memory cache only:",
         error,
       );
+    }
+    if (pendingChildRefIndex) {
+      await this.indexChildEmbedRefs(pendingChildRefIndex);
     }
   }
 

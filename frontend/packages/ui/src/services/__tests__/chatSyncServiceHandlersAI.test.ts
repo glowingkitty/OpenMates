@@ -705,7 +705,7 @@ describe("handleSendEmbedDataImpl", () => {
       payload: {
         embed_id: "embed-1",
         type: "pdf",
-        content: "app_id: pdf\nskill_id: read\nstatus: finished\nfilename: refreshed.pdf\nscreenshot_url: https://example.invalid/page.png",
+        content: "app_id: pdf\nskill_id: read\nembed_ref: refreshed-pdf-A1b\nstatus: finished\nfilename: refreshed.pdf\nscreenshot_url: https://example.invalid/page.png",
         text_preview: "Refreshed PDF",
         status: "finished",
         chat_id: "chat-1",
@@ -727,7 +727,22 @@ describe("handleSendEmbedDataImpl", () => {
       "pdf",
       expect.stringContaining("refreshed.pdf"),
       expect.objectContaining({ app_id: "pdf", skill_id: "read" }),
+      {
+        skipEmbedRefRegistration: true,
+        deferChildEmbedRefRegistration: true,
+      },
     );
+    expect(mockEmbedStore.registerEmbedRef).toHaveBeenCalledWith(
+      "refreshed-pdf-A1b",
+      "embed-1",
+      "pdf",
+      "pdf",
+      "read",
+    );
+    expect(mockEmbedStore.putEncrypted.mock.invocationCallOrder[0]).toBeLessThan(
+      mockEmbedStore.registerEmbedRef.mock.invocationCallOrder[0],
+    );
+    expect(mockEmbedStore.registerEmbedRef).toHaveBeenCalledTimes(1);
     expect(mockSendStoreEmbed).toHaveBeenCalledWith(
       service,
       expect.objectContaining({
@@ -815,6 +830,10 @@ describe("handleSendEmbedDataImpl", () => {
       "app_skill_use",
       expect.not.stringContaining("SaaS Vendor Ltd"),
       expect.objectContaining({ app_id: "finance", skill_id: "check_accounts" }),
+      {
+        skipEmbedRefRegistration: true,
+        deferChildEmbedRefRegistration: true,
+      },
     );
     expect(mockSendStoreEmbed).toHaveBeenCalledWith(
       service,
@@ -888,6 +907,10 @@ describe("handleSendEmbedDataImpl", () => {
         "pdf",
         JSON.stringify({ app_id: "pdf", skill_id: "read" }),
         expect.objectContaining({ app_id: "pdf", skill_id: "read" }),
+        {
+          skipEmbedRefRegistration: true,
+          deferChildEmbedRefRegistration: true,
+        },
       );
       expect(mockSendStoreEmbed).toHaveBeenCalledWith(
         service,
@@ -968,6 +991,10 @@ describe("handleSendEmbedDataImpl", () => {
         "pdf",
         JSON.stringify({ app_id: "pdf", skill_id: "read" }),
         expect.objectContaining({ app_id: "pdf", skill_id: "read" }),
+        {
+          skipEmbedRefRegistration: true,
+          deferChildEmbedRefRegistration: true,
+        },
       );
       expect(mockSendStoreEmbed).toHaveBeenCalledWith(
         service,

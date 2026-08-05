@@ -4365,6 +4365,9 @@ export async function handleSendEmbedDataImpl(
       let preExtractedMetadata:
         | { app_id?: string; skill_id?: string }
         | undefined;
+      let pendingEmbedRefRegistration:
+        | { embedRef: string; appId: string | null }
+        | undefined;
       try {
         const decoded = await decodeToonContentSafe(embedData.content);
         if (decoded && typeof decoded === "object" && decoded !== null) {
@@ -4394,12 +4397,12 @@ export async function handleSendEmbedDataImpl(
             embedData.skill_id,
           );
 
-          // Register embed_ref → embed_id mapping for inline embed link resolution.
+          // Capture embed_ref → embed_id metadata for inline embed link resolution.
           // embed_ref is a short descriptive slug (e.g. "ryanair-0600-k8D") generated
           // by the backend and stored ONLY inside the encrypted TOON content — it never
           // appears as an unencrypted field anywhere (zero-knowledge compliance).
           // We extract it here during the brief window when plaintext TOON is available,
-          // before we encrypt it, and store it only in the in-memory index.
+          // then register it after persistence so subscribers can read finalized data.
           // Also store appId so parse_message.ts can colour the badge gradient immediately.
           if (
             typeof decodedObj.embed_ref === "string" &&
@@ -4409,14 +4412,10 @@ export async function handleSendEmbedDataImpl(
               typeof decodedObj.app_id === "string"
                 ? decodedObj.app_id
                 : (preExtractedMetadata?.app_id ?? null);
-            embedStore.registerEmbedRef(
-              decodedObj.embed_ref,
-              embedData.embed_id,
-              refAppId,
-            );
-            console.debug(
-              `[ChatSyncService:AI] Registered embed_ref "${decodedObj.embed_ref}" → ${embedData.embed_id} (appId: ${refAppId})`,
-            );
+            pendingEmbedRefRegistration = {
+              embedRef: decodedObj.embed_ref,
+              appId: refAppId,
+            };
           }
         }
       } catch (metaErr) {
@@ -4453,7 +4452,23 @@ export async function handleSendEmbedDataImpl(
         embedData.type as EmbedType,
         embedData.content,
         preExtractedMetadata,
+        {
+          skipEmbedRefRegistration: true,
+          deferChildEmbedRefRegistration: true,
+        },
       );
+      if (pendingEmbedRefRegistration) {
+        embedStore.registerEmbedRef(
+          pendingEmbedRefRegistration.embedRef,
+          embedData.embed_id,
+          pendingEmbedRefRegistration.appId,
+          embedData.type,
+          preExtractedMetadata?.skill_id ?? null,
+        );
+        console.debug(
+          `[ChatSyncService:AI] Registered embed_ref "${pendingEmbedRefRegistration.embedRef}" → ${embedData.embed_id} after storage (appId: ${pendingEmbedRefRegistration.appId})`,
+        );
+      }
       console.info(
         `[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in local IndexedDB`,
       );

@@ -3,6 +3,51 @@ import { EmbedStore } from '../embedStore';
 import * as cryptoService from '../cryptoService';
 import type { EmbedStoreEntry } from '../../message_parsing/types';
 
+describe('EmbedStore.putEncrypted ref indexing', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('defers child ref indexing until finalized parent data is readable', async () => {
+    const store = new EmbedStore();
+    const registerEmbedRef = vi.spyOn(store, 'registerEmbedRef');
+    const indexChildEmbedRefs = vi
+      .spyOn(store as unknown as { indexChildEmbedRefs(decoded: unknown): Promise<void> }, 'indexChildEmbedRefs')
+      .mockImplementation(async () => {
+        await expect(store.getRawEntry('embed:parent-1')).resolves.toMatchObject({
+          embed_id: 'parent-1',
+          status: 'finished',
+        });
+      });
+
+    await store.putEncrypted(
+      'embed:parent-1',
+      {
+        embed_id: 'parent-1',
+        encrypted_content: '<encrypted>',
+        status: 'finished',
+        embed_ids: ['child-1'],
+      },
+      'app_skill_use',
+      JSON.stringify({
+        app_id: 'events',
+        skill_id: 'search',
+        embed_ref: 'events-parent-A1b',
+        embed_ids: ['child-1'],
+      }),
+      { app_id: 'events', skill_id: 'search' },
+      {
+        skipEmbedRefRegistration: true,
+        deferChildEmbedRefRegistration: true,
+      },
+    );
+
+    expect(registerEmbedRef).not.toHaveBeenCalled();
+    expect(indexChildEmbedRefs).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('EmbedStore.getEmbedKey', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
