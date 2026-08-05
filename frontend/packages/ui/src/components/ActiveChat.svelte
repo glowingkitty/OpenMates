@@ -12631,6 +12631,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             class="center-content"
                             data-testid="welcome-content"
                             class:guest-welcome-content={!$authStore.isAuthenticated}
+                            class:guest-interest-selector-active={!$authStore.isAuthenticated && guestInterestSelectorVisible}
                             class:guest-all-examples-content={guestAllExamplesVisible && !$authStore.isAuthenticated}
                             class:welcome-hiding={hideWelcomeForKeyboard}
                             inert={hideWelcomeForKeyboard}
@@ -14427,6 +14428,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         max-width: 100cqw;
     }
 
+    .center-content.guest-interest-selector-active {
+        top: calc(50% + 17.5vh - var(--spacing-24));
+    }
+
     .center-content.guest-all-examples-content {
         top: calc(50% + 30px);
         height: calc(100% - 100px);
@@ -15898,6 +15903,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
            the remaining space above the message input. */
         .center-content {
             top: calc(50% + 127px);
+        }
+
+        .center-content.guest-interest-selector-active {
+            top: calc(50% + 127px - var(--spacing-24));
         }
     }
 
