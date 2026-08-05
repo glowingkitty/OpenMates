@@ -248,6 +248,9 @@ test.describe('App: Events / Skill: search', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		await expect(reloadedGroupedView).toBeVisible();
 		await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
+		await reloadedGroupedView.evaluate((element: HTMLElement) => {
+			element.scrollIntoView({ block: 'start' });
+		});
 		await takeStepScreenshot(page, 'events-search-embeds-after-reload-mobile');
 		await page.setViewportSize({ width: 1280, height: 720 });
 		logCheckpoint('Completed app-skill group retained populated cards after reload.');
