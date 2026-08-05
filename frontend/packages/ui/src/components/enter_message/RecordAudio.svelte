@@ -43,12 +43,10 @@
     interface Props {
     initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
-        startedFromKeyboard?: boolean;
     }
     let {
         initialPosition,
         externalStream = null,
-        startedFromKeyboard = false
     }: Props = $props();
 
     // --- Internal State ---
@@ -104,11 +102,9 @@
         // overlay owns focus and pointer events.
         document.addEventListener('keydown',   handleKeyDown);
 
-        if (startedFromKeyboard) {
-            requestAnimationFrame(() => {
-                recordOverlayElement?.focus({ preventScroll: true });
-            });
-        }
+        requestAnimationFrame(() => {
+            recordOverlayElement?.focus({ preventScroll: true });
+        });
 
         initializeAndStartRecording();
         dispatch('recordingStateChange', { active: true });

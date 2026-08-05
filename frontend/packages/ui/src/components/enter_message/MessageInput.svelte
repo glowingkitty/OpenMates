@@ -243,7 +243,6 @@
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
     let recordAudioComponent = $state<RecordAudio>();
-    let recordAudioStartedFromKeyboard = $state(false);
     let keyboardRecordingStartCheckTimer: ReturnType<typeof setTimeout> | null = null;
 
     // --- Local UI State ---
@@ -4002,20 +4001,11 @@
             return;
         }
         
-        // The mic button starts a press-and-hold gesture. Letting it take focus
-        // blurs TipTap, and the delayed blur handler collapses the composer while
-        // recording is starting. Keep focus in the editor for this one control.
+        // Recording and text entry are mutually exclusive. Blur TipTap without
+        // collapsing the expanded composer while the recording overlay opens.
         if (target.closest('[data-record-audio-trigger="true"], [data-testid="record-audio-button"]')) {
             event.preventDefault();
-            if (blurTimeoutId) {
-                clearTimeout(blurTimeoutId);
-                blurTimeoutId = null;
-            }
-            if (editor && !editor.isDestroyed) {
-                editor.commands.focus('end');
-            }
-            isMessageFieldFocused = true;
-            isFocused = true;
+            prepareEditorForRecording();
             return;
         }
 
@@ -4910,8 +4900,7 @@
         const action = event.detail.action;
         if (action === 'start') {
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
-            recordAudioStartedFromKeyboard = event.detail.source === 'keyboard';
-            focus();
+            prepareEditorForRecording();
             await tick();
             const position = getKeyboardRecordStartPosition();
             const syntheticMouseDown = new MouseEvent('mousedown', {
@@ -4920,11 +4909,11 @@
                 clientY: position.y,
             });
             await handleRecordMouseDownLogic(syntheticMouseDown);
+            if (!$recordingState.showRecordAudioUI) focus();
             clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
             keyboardRecordingStartCheckTimer = setTimeout(() => {
                 keyboardRecordingStartCheckTimer = null;
                 if (!get(recordingState).showRecordAudioUI) {
-                    recordAudioStartedFromKeyboard = false;
                     window.dispatchEvent(new Event('recordingShortcutFinished'));
                 }
             }, 250);
@@ -4932,7 +4921,6 @@
         }
 
 		await tick();
-		recordAudioStartedFromKeyboard = false;
 		if (action === 'stop') {
 			recordAudioComponent?.stop();
 		} else {
@@ -4988,18 +4976,35 @@
     function handleStopRecordingCleanup() {
         clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
         keyboardRecordingStartCheckTimer = null;
-        recordAudioStartedFromKeyboard = false;
         window.dispatchEvent(new Event('recordingShortcutFinished'));
         cleanupRecordingState();
+        isMessageFieldFocused = false;
+        isFocused = false;
     }
 
     // --- Handlers to bridge ActionButtons events to recordingHandlers ---
     // These now extract the original event from the detail payload
+    function prepareEditorForRecording() {
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        if (editor && !editor.isDestroyed) {
+            editor.commands.blur();
+        }
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
+    }
+
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
-        recordAudioStartedFromKeyboard = false;
-        focus();
+        prepareEditorForRecording();
         await tick();
-        handleRecordMouseDownLogic(event.detail.originalEvent);
+        await handleRecordMouseDownLogic(event.detail.originalEvent);
+        if (!$recordingState.showRecordAudioUI) focus();
     }
     async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
         // Wait for Svelte to render RecordAudio (bind:this is set after the #if block mounts).
@@ -5020,10 +5025,10 @@
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     async function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
-        recordAudioStartedFromKeyboard = false;
-        focus();
+        prepareEditorForRecording();
         await tick();
-        handleRecordTouchStartLogic(event.detail.originalEvent);
+        await handleRecordTouchStartLogic(event.detail.originalEvent);
+        if (!$recordingState.showRecordAudioUI) focus();
     }
     async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
         // Same tick() reasoning as onRecordMouseUp.
@@ -5983,7 +5988,6 @@
             <RecordAudio
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
-                startedFromKeyboard={recordAudioStartedFromKeyboard}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
                 on:cancel={handleStopRecordingCleanup}
