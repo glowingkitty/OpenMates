@@ -967,6 +967,7 @@
 
     // Track previous locale to detect changes
     let previousLocale = $state($locale || 'en');
+    let previousEmbedUpdateTimestamp = $state<number | null>(null);
     
     // Release the streaming height guard after the canonical final document renders.
     $effect(() => {
@@ -1095,7 +1096,10 @@
         // CRITICAL: Track embed update timestamp to force re-render when embed data arrives
         // This handles the race condition where embeds are initially unreadable (keys not cached)
         // but become decryptable after send_embed_data finishes processing
-        const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
+        const hasEmbedUpdate = previousEmbedUpdateTimestamp !== null &&
+            _embedUpdateTimestamp > 0 &&
+            _embedUpdateTimestamp !== previousEmbedUpdateTimestamp;
+        previousEmbedUpdateTimestamp = _embedUpdateTimestamp;
 
         
         if (localeChanged) {
