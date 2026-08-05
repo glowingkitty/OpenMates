@@ -2029,7 +2029,12 @@ def _worktree_pending_files(session: dict) -> list[str]:
     metadata = session.get("worktree")
     if not isinstance(metadata, dict) or not metadata.get("path"):
         return []
-    candidates = set(_worktree_changed_files(metadata))
+    worktree_path = str(metadata["path"])
+    rc, stdout, stderr = _run_cmd(["git", "diff", "--name-only", "HEAD", "--"], cwd=worktree_path)
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect worktree dirtiness: {stderr}")
+    candidates = {line.strip() for line in stdout.splitlines() if line.strip()}
+    candidates.update(_worktree_untracked_files(metadata))
     candidates.update(_canonical_stored_repo_path(path) for path in session.get("modified_files") or [])
     if not candidates:
         return []

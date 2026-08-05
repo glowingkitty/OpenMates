@@ -246,6 +246,12 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-05T00:23:00Z"
     reason: Recovery reset base metadata without rewriting the retained index, so a tracked spec amendment looked untracked; classification must always query the effective source tree.
+  - id: ATTEMPT-15
+    task_id: TASK-7
+    approach: Treat all differences between a stale detached checkout and current dev as unintegrated working-tree residuals.
+    outcome: rejected
+    recorded_at: "2026-08-05T00:27:00Z"
+    reason: Finalization listed unrelated committed branch drift; candidate residuals must come from actual HEAD-relative dirtiness and tracked session paths before state comparison with merged_commit.
 
 handoff:
   current_task_id: TASK-8
