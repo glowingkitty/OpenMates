@@ -1930,6 +1930,7 @@
       scheduler: StreamingRenderScheduler<ScheduledAssistantRender>;
       value: ScheduledAssistantRender;
       revision: number;
+      semanticBoundary: boolean;
     }> = [];
     const activeStreamingMessageIds = new Set<string>();
     
@@ -1971,9 +1972,11 @@
                 revision,
             });
             scheduledAssistantRenders.push({
-                scheduler: getStreamingRenderScheduler(newMessage.message_id),
-                value: { message: newMessage, piiMappings },
-                revision,
+              scheduler: getStreamingRenderScheduler(newMessage.message_id),
+              value: { message: newMessage, piiMappings },
+              revision,
+              semanticBoundary: newMessage.content.slice(previousRevision?.content.length || 0).includes('\n\n') ||
+                /```\s*$/.test(newMessage.content),
             });
 
             // Keep the last compiled document until the per-message scheduler flushes.
@@ -2102,8 +2105,9 @@
     for (const messageId of assistantRenderPlans.keys()) {
       if (!renderedMessageIds.has(messageId)) assistantRenderPlans.delete(messageId);
     }
-    for (const { scheduler, value, revision } of scheduledAssistantRenders) {
+    for (const { scheduler, value, revision, semanticBoundary } of scheduledAssistantRenders) {
       scheduler.update(value, revision);
+      if (semanticBoundary) scheduler.flushSemanticBoundary();
     }
     // Add a log to confirm this path is taken and what the new messages are.
     // console.debug('[ChatHistory] updateMessages: messages array REPLACED (intelligent assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));

@@ -71,6 +71,12 @@ export class StreamingRenderScheduler<T> {
     }
   }
 
+  flushSemanticBoundary(): void {
+    if (!this.active || !this.pending) return;
+    this.clearTimer();
+    this.flush("stream");
+  }
+
   cancel(): void {
     this.active = false;
     this.pending = null;

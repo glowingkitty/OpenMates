@@ -29,7 +29,7 @@ describe("StreamingRenderScheduler", () => {
     expect(flushes.length).toBeGreaterThan(10);
     expect(flushes.length).toBeLessThanOrEqual(14);
     expect(Math.max(...flushes.slice(1).map((entry, index) => entry.at - flushes[index].at))).toBeLessThanOrEqual(80);
-    expect(flushes.at(-1)?.revision).toBeGreaterThanOrEqual(32);
+    expect(flushes[flushes.length - 1]?.revision).toBeGreaterThanOrEqual(32);
   });
 
   it("coalesces pending updates and applies a newer final revision at most once", () => {
@@ -52,6 +52,19 @@ describe("StreamingRenderScheduler", () => {
     scheduler.complete("four", 4);
     expect(onFlush).toHaveBeenCalledTimes(3);
     expect(onFlush).toHaveBeenLastCalledWith("four", 4, "complete");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("flushes a newly complete semantic block without waiting for the cadence timer", () => {
+    const onFlush = vi.fn();
+    const scheduler = new StreamingRenderScheduler<string>({ intervalMs: 80, onFlush });
+
+    scheduler.update("prefix", 1);
+    scheduler.update("prefix\n\nclosed block", 2);
+    scheduler.flushSemanticBoundary();
+
+    expect(onFlush).toHaveBeenCalledTimes(2);
+    expect(onFlush).toHaveBeenLastCalledWith("prefix\n\nclosed block", 2, "stream");
     expect(vi.getTimerCount()).toBe(0);
   });
 });
