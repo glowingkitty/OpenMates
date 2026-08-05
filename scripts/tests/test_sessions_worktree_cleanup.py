@@ -126,3 +126,44 @@ def test_orphan_activity_fallback_ignores_recent_directory_metadata(monkeypatch,
     last_active = sessions._candidate_last_active({}, {}, worktree, [])
 
     assert last_active == sessions.datetime.fromtimestamp(old_timestamp, sessions.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def test_reconciliation_report_persists_unresolved_health_summary(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    report_path = tmp_path / "worktree-reconciliation.json"
+    monkeypatch.setattr(sessions, "WORKTREE_RECONCILIATION_REPORT", report_path)
+    report = {
+        "target_ref": "origin/dev",
+        "target_commit": "abc123",
+        "apply_safe": True,
+        "items": [
+            {"session_id": "recent", "classification": "recent_active"},
+            {"session_id": "unique", "classification": "unique_stale"},
+        ],
+        "deleted": [],
+        "unresolved": [
+            {"session_id": "recent", "classification": "recent_active"},
+            {"session_id": "unique", "classification": "unique_stale"},
+        ],
+    }
+
+    sessions._write_worktree_reconciliation_report(report)
+
+    saved = json.loads(report_path.read_text(encoding="utf-8"))
+    assert saved["status"] == "warning"
+    assert saved["counts"] == {"recent_active": 1, "unique_stale": 1}
+    assert saved["unresolved_stale"] == 1
+    assert saved["deleted"] == 0
+
+
+def test_reconciliation_started_marker_replaces_stale_health(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    report_path = tmp_path / "worktree-reconciliation.json"
+    report_path.write_text('{"status": "ok"}\n', encoding="utf-8")
+    monkeypatch.setattr(sessions, "WORKTREE_RECONCILIATION_REPORT", report_path)
+
+    sessions._write_worktree_reconciliation_started("origin/dev")
+
+    saved = json.loads(report_path.read_text(encoding="utf-8"))
+    assert saved["status"] == "running"
+    assert saved["target_ref"] == "origin/dev"

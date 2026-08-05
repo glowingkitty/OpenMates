@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Reconciliation tests for native source and disposable integration worktrees.
 
-Integration checkouts are reproducible from their source patch and dev base, so
-stale instances may be removed. Native source worktrees retain the conservative
-unique-content policy used by existing sessions.
+Clean integration checkouts are reproducible from their source patch and dev
+base, so stale instances may be removed. Any checkout with changes retains the
+conservative unique-content policy used by native source worktrees.
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ def test_inventory_distinguishes_source_and_integration_worktrees(monkeypatch, t
     assert by_kind["integration"]["session_id"] == "integration-abcd-123456789abc"
 
 
-def test_stale_integration_is_disposable_but_source_changes_remain_unique(monkeypatch, tmp_path):
+def test_clean_stale_integration_is_disposable_but_source_changes_remain_unique(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     managed = tmp_path / "worktrees"
     integration = managed / "integration-abcd-123456789abc"
@@ -86,7 +86,7 @@ def test_stale_integration_is_disposable_but_source_changes_remain_unique(monkey
             "path": str(integration),
             "worktree_kind": "integration",
             "idle_hours": 100,
-            "changed_files": ["staged.py"],
+            "changed_files": [],
             "metadata": {},
         },
         "target",

@@ -108,6 +108,68 @@ def test_inspection_error_is_never_safe_deletable():
     assert result["reason_code"] == "inspection_failed"
 
 
+def test_dirty_integration_worktree_is_never_disposable():
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "integration-dirty",
+        "path": "/tmp/integration-dirty-123456789abc",
+        "worktree_kind": "integration",
+        "idle_hours": 100,
+        "changed_files": ["scripts/sessions.py"],
+        "metadata": {},
+    }
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
+
+    assert result["classification"] == "unique_stale"
+    assert result["reason_code"] == "integration_has_changes"
+
+
+def test_integration_inspection_error_is_never_disposable():
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "integration-broken",
+        "path": "/tmp/integration-broken-123456789abc",
+        "worktree_kind": "integration",
+        "idle_hours": 100,
+        "changed_files": [],
+        "inspection_error": "cannot inspect index",
+        "metadata": {},
+    }
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
+
+    assert result["classification"] == "malformed"
+    assert result["reason_code"] == "inspection_failed"
+
+
+def test_duplicate_comparison_includes_git_file_mode(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "agent-mode"
+    worktree.mkdir()
+    script = worktree / "tool.sh"
+    script.write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
+    script.chmod(0o755)
+    candidate = {"path": str(worktree), "changed_files": ["tool.sh"]}
+    monkeypatch.setattr(sessions, "_target_file_bytes", lambda _target, _path: script.read_bytes())
+    monkeypatch.setattr(sessions, "_target_file_mode", lambda _target, _path: "100644")
+
+    assert not sessions._worktree_target_files_match(candidate, "origin/dev")
+
+
+def test_duplicate_comparison_distinguishes_symlink_from_regular_file(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "agent-link"
+    worktree.mkdir()
+    regular_file = worktree / "linked-config"
+    regular_file.write_text("config.yml", encoding="utf-8")
+    candidate = {"path": str(worktree), "changed_files": ["linked-config"]}
+    monkeypatch.setattr(sessions, "_target_file_bytes", lambda _target, _path: b"config.yml")
+    monkeypatch.setattr(sessions, "_target_file_mode", lambda _target, _path: "120000")
+
+    assert not sessions._worktree_target_files_match(candidate, "origin/dev")
+
+
 def test_review_approved_old_inspection_error_is_superseded():
     sessions = load_sessions_module()
     candidate = {
@@ -184,3 +246,42 @@ def test_cli_refuses_lower_idle_threshold_without_only_scope(monkeypatch, capsys
 
     assert exc_info.value.code == 2
     assert "--only" in capsys.readouterr().err
+
+
+def test_legacy_cleanup_refuses_lower_idle_threshold(monkeypatch, capsys):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(
+        sessions,
+        "cleanup_session_worktrees",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unsafe cleanup started")),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        sessions.cmd_worktree(Namespace(worktree_action="cleanup", idle_hours=0))
+
+    assert exc_info.value.code == 2
+    assert "below 48" in capsys.readouterr().err
+
+
+def test_obsolete_approval_requires_matching_only_scope(monkeypatch, capsys):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(
+        sessions,
+        "reconcile_session_worktrees",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unscoped approval started")),
+    )
+    args = Namespace(
+        worktree_action="reconcile",
+        idle_hours=48,
+        only=[],
+        approve_obsolete=["broken"],
+        target="origin/dev",
+        apply_safe=True,
+        format="text",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        sessions.cmd_worktree(args)
+
+    assert exc_info.value.code == 2
+    assert "--only broken" in capsys.readouterr().err
