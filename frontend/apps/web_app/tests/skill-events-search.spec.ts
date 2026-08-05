@@ -191,7 +191,7 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 4: Streaming refs remain stable through issue reporting ──────
-	test('Phase 4: CSD event embeds survive streaming and report issue navigation', async ({ page }: { page: any }) => {
+	test('Phase 4: Event embeds survive streaming and report issue navigation', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(240_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -201,7 +201,7 @@ test.describe('App: Events / Skill: search', () => {
 		await startNewChat(page, logCheckpoint);
 
 		const message = withLiveMockMarker(
-			'Welche csd Paraden Sind diesen August noch?',
+			'Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date 2026-06-27T00:00:00+02:00 and end_date 2026-06-28T23:59:59+02:00. Show both event search cards before answering.',
 			'events_search_web'
 		);
 		await sendMessage(page, message, logCheckpoint, undefined, 'events-search-report-issue');
