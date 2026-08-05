@@ -1339,8 +1339,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 			// Re-check: WS may have delivered inspirations during the wait
 			const afterWaitState = svGet(inspirationStore);
-			if (afterWaitState.inspirations.length > 0) {
-				console.debug('[Chats] WS delivered inspirations during wait — skipping API fallback');
+			if (afterWaitState.isPersonalized) {
+				console.debug('[Chats] Personalized inspirations arrived during wait — skipping API fallback');
 				return;
 			}
 

@@ -37,7 +37,7 @@ from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e
 logger = logging.getLogger(__name__)
 DAILY_VIDEO_COUNT = 3
 DAILY_WIKI_COUNT = 3
-DAILY_FEATURE_COUNT = 5
+DAILY_FEATURE_COUNT = 4
 DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT
 
 # Cache key to mark that a user has already received their first-run inspirations.

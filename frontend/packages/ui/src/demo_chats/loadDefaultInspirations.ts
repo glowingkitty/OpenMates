@@ -37,12 +37,12 @@ import {
   type DailyInspirationSurface,
 } from "../stores/dailyInspirationStore";
 import { authStore } from "../stores/authStore";
-import { getHardcodedInspirationsForSurface } from "./hardcodedInspirations";
+import {
+  getAuthenticatedFallbackInspirations,
+  getHardcodedInspirationsForSurface,
+} from "./hardcodedInspirations";
 
 const LOG_PREFIX = "[loadDefaultInspirations]";
-
-/** Prefix used by hardcoded inspiration IDs — lets us detect and replace them. */
-const HARDCODED_ID_PREFIX = "hardcoded-";
 
 const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = "shared_chat_cuttlefish";
 
@@ -127,22 +127,20 @@ function getOgExampleInspirations(exampleId: string): DailyInspiration[] {
   ];
 }
 
-/**
- * Check if the store currently holds only hardcoded placeholder inspirations.
- * Hardcoded items use IDs prefixed with "hardcoded-" — any real data (IndexedDB,
- * server, WS) will have different IDs and should replace them.
- */
-function storeHasOnlyHardcoded(): boolean {
-  const state = get(dailyInspirationStore);
-  if (state.inspirations.length === 0) return false;
-  return state.inspirations.every((i) =>
-    i.inspiration_id.startsWith(HARDCODED_ID_PREFIX),
-  );
-}
-
 function storeHasSurfaceData(surface: DailyInspirationSurface): boolean {
   const state = get(dailyInspirationStore);
   return state.inspirations.some((inspiration) => (inspiration.surface ?? "chats") === surface);
+}
+
+export function loadGuestOnboardingInspirations(): void {
+  const currentLang = get(svelteLocaleStore) || "en";
+  const guestInspirations = getHardcodedInspirationsForSurface(currentLang, "chats");
+  dailyInspirationStore.setSurfaceInspirations("chats", guestInspirations, {
+    source: "guest-onboarding",
+  });
+  console.debug(
+    `${LOG_PREFIX} Loaded ${guestInspirations.length} guest onboarding inspiration(s) for lang=${currentLang}`,
+  );
 }
 
 /**
@@ -184,6 +182,7 @@ export async function loadDefaultInspirations(
         if (fixtureInspirations.length > 0) {
           dailyInspirationStore.setInspirations(fixtureInspirations, {
             personalized: false,
+            source: "public-daily",
           });
           console.debug(
             `${LOG_PREFIX} Media mode: loaded ${fixtureInspirations.length} fixed inspiration(s)`,
@@ -200,6 +199,7 @@ export async function loadDefaultInspirations(
       if (fixtureInspirations.length > 0) {
         dailyInspirationStore.setInspirations(fixtureInspirations, {
           personalized: false,
+          source: "public-daily",
         });
         console.debug(
           `${LOG_PREFIX} Loaded ${fixtureInspirations.length} OG fixture inspiration(s) for ${ogExample}`,
@@ -226,7 +226,11 @@ export async function loadDefaultInspirations(
       );
       return;
     }
-    if (current.inspirations.length > 0 && !storeHasOnlyHardcoded()) {
+    if (
+      current.inspirations.length > 0
+      && current.source !== "guest-onboarding"
+      && current.source !== "none"
+    ) {
       console.debug(
         `${LOG_PREFIX} Store already populated with real data (${current.inspirations.length} items) — skipping`,
       );
@@ -236,20 +240,19 @@ export async function loadDefaultInspirations(
     // ── Step 0: Load hardcoded defaults immediately ───────────────────────────
     // Show the banner from the very first frame with hand-picked inspirations.
     // These will be replaced by IndexedDB / server / WS data when it arrives.
-    if (current.inspirations.length === 0) {
-      const currentLangSync = get(svelteLocaleStore) || "en";
-      const hardcoded = getHardcodedInspirationsForSurface(currentLangSync, "chats");
-      dailyInspirationStore.setSurfaceInspirations("chats", hardcoded, {
-        personalized: false,
-      });
-      console.debug(
-        `${LOG_PREFIX} Loaded ${hardcoded.length} hardcoded inspiration(s) for lang=${currentLangSync}`,
-      );
+    const isAuthenticated = get(authStore).isAuthenticated;
+    if (!isAuthenticated && current.inspirations.length === 0) {
+      loadGuestOnboardingInspirations();
     }
 
-    if (!get(authStore).isAuthenticated) {
+    if (!isAuthenticated) {
       console.debug(`${LOG_PREFIX} Guest session: keeping product explainer defaults`);
       return;
+    }
+
+    if (get(dailyInspirationStore).source === "guest-onboarding") {
+      dailyInspirationStore.reset();
+      console.debug(`${LOG_PREFIX} Cleared guest onboarding before authenticated recovery`);
     }
 
     // ── Step 1: Try IndexedDB ─────────────────────────────────────────────────
@@ -262,6 +265,11 @@ export async function loadDefaultInspirations(
           await import("../services/dailyInspirationDB");
         const persisted = await loadInspirationsFromIndexedDB();
 
+        if (!get(authStore).isAuthenticated) {
+          console.debug(`${LOG_PREFIX} Auth ended during IndexedDB recovery — keeping guest onboarding`);
+          return;
+        }
+
         if (persisted.length > 0) {
           // Re-check store — a WS event or Phase 1 sync may have arrived during the async load.
           // If personalized data already landed, skip — it has is_opened / opened_chat_id state
@@ -273,12 +281,13 @@ export async function loadDefaultInspirations(
             );
             return;
           }
-          // Replace hardcoded or empty store with IndexedDB data.
-          if (storeHasOnlyHardcoded() || currentNow.inspirations.length === 0) {
+          // Replace any non-personalized bootstrap/default data with account data.
+          if (!currentNow.isPersonalized) {
             // IndexedDB data is from a prior authenticated session — it IS personalized
             // (it was written by processInspirationRecordsFromSync with is_opened state).
             dailyInspirationStore.setInspirations(persisted, {
               personalized: true,
+              source: "personalized",
             });
             console.debug(
               `${LOG_PREFIX} Loaded ${persisted.length} personalised inspiration(s) from IndexedDB (replaced hardcoded)`,
@@ -315,6 +324,10 @@ export async function loadDefaultInspirations(
 
     // ── Step 2: Fall back to server defaults ──────────────────────────────────
     await waitLocale();
+    if (!get(authStore).isAuthenticated) {
+      console.debug(`${LOG_PREFIX} Auth ended before public fallback — keeping guest onboarding`);
+      return;
+    }
     const currentLang = get(svelteLocaleStore) || "en";
     console.debug(
       `${LOG_PREFIX} Fetching server default inspirations for lang=${currentLang}`,
@@ -323,19 +336,38 @@ export async function loadDefaultInspirations(
     const url = getApiEndpoint(`/v1/default-inspirations?lang=${currentLang}`);
     const response = await fetch(url);
 
+    if (!get(authStore).isAuthenticated) {
+      console.debug(`${LOG_PREFIX} Auth ended during public fallback — keeping guest onboarding`);
+      return;
+    }
+
     if (!response.ok) {
       console.error(
         `${LOG_PREFIX} Server returned ${response.status} fetching default inspirations — hardcoded will remain`,
+      );
+      dailyInspirationStore.setSurfaceInspirations(
+        "chats",
+        getAuthenticatedFallbackInspirations(currentLang),
+        { source: "authenticated-fallback" },
       );
       return;
     }
 
     const data = await response.json();
+    if (!get(authStore).isAuthenticated) {
+      console.debug(`${LOG_PREFIX} Auth ended while parsing public fallback — keeping guest onboarding`);
+      return;
+    }
     const inspirations: DailyInspiration[] = data.inspirations || [];
 
     if (inspirations.length === 0) {
       console.debug(
         `${LOG_PREFIX} No default inspirations available from server — hardcoded will remain`,
+      );
+      dailyInspirationStore.setSurfaceInspirations(
+        "chats",
+        getAuthenticatedFallbackInspirations(currentLang),
+        { source: "authenticated-fallback" },
       );
       return;
     }
@@ -349,23 +381,26 @@ export async function loadDefaultInspirations(
       );
       return;
     }
-    if (currentFinal.inspirations.length > 0 && !storeHasOnlyHardcoded()) {
-      console.debug(
-        `${LOG_PREFIX} Store populated with real data while fetching defaults — skipping server defaults`,
-      );
-      return;
-    }
-
     // Public server defaults: not personalized (no is_opened / opened_chat_id).
     // setInspirations guards against overwriting personalized data, so this is safe.
     dailyInspirationStore.setSurfaceInspirations("chats", inspirations, {
       personalized: false,
+      source: "public-daily",
     });
     console.debug(
       `${LOG_PREFIX} Loaded ${inspirations.length} server default inspiration(s) into store (replaced hardcoded)`,
     );
   } catch (error) {
-    // Non-fatal: hardcoded defaults remain visible, or banner stays hidden
     console.error(`${LOG_PREFIX} Failed to load inspirations:`, error);
+    const surface = options.surface ?? "chats";
+    const state = get(dailyInspirationStore);
+    if (surface === "chats" && get(authStore).isAuthenticated && !state.isPersonalized) {
+      const currentLang = get(svelteLocaleStore) || "en";
+      dailyInspirationStore.setSurfaceInspirations(
+        "chats",
+        getAuthenticatedFallbackInspirations(currentLang),
+        { source: "authenticated-fallback" },
+      );
+    }
   }
 }

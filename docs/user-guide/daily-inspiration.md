@@ -62,7 +62,7 @@ Daily inspiration generation is **free** -- you are not charged for the inspirat
 ## Tips
 
 - If you see an interesting inspiration but are short on time, it will stay until the next refresh.
-- Clicking the video opens the original source in a new tab.
+- Clicking a video preview opens it in the in-app fullscreen viewer without creating a chat.
 - Inspirations cover a wide range of topics -- from science and history to technology and culture.
 
 ## Related

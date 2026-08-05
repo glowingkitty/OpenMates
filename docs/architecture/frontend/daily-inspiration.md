@@ -88,12 +88,14 @@ Runs in `app-ai-worker` Celery container:
 
 **Authenticated users:** Generated -> stored in Redis (7-day TTL) -> broadcast via WebSocket if online -> delivered on login if offline. Cross-device persistence via encrypted Directus `user_daily_inspirations` table.
 
-**Unauthenticated users:** At 06:30 UTC, pool entries scored per language (`interaction_count / (age_hours + 1)`), top 3 written to `daily_inspiration_defaults` table. Frontend fetches via `GET /v1/default-inspirations?lang={code}` (public, 1h cache).
+**Unauthenticated web users:** The new-chat landing keeps its local six-slide OpenMates onboarding carousel. This guest-only source is never persisted as authenticated Daily Inspiration data.
+
+**Public and authenticated fallback clients:** At 06:30 UTC, pool entries are scored per language (`interaction_count / (age_hours + 1)`) and a 3-video, 3-wiki, 4-feature target is written to `daily_inspiration_defaults`. `GET /v1/default-inspirations?lang={code}` exposes the credit-free public fallback with a 1-hour cache. Authenticated clients use it only when personalized IndexedDB, Phase 1, live WebSocket, and account API recovery provide no usable records.
 
 ### Frontend
 
 - `DailyInspirationBanner.svelte` -- carousel of up to 10 cards
-- `dailyInspirationStore.ts` -- Svelte store for state/navigation
+- `dailyInspirationStore.ts` -- Svelte store for state/navigation and explicit guest/personalized/public/fallback source priority
 - `dailyInspirationDB.ts` -- IndexedDB with AES-GCM encryption, 72h TTL
 - `product_features.yml` -- logged-out OpenMates feature headline registry
 - Chat creation: `handleStartChatFromInspiration()` in `ActiveChat.svelte`

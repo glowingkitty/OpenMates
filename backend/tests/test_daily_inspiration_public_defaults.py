@@ -5,6 +5,8 @@
 # settings deep links that only work after authentication. Static Wikipedia
 # fallbacks also need to avoid redirect-only titles that surprise users.
 
+from pathlib import Path
+
 from backend.apps.ai.daily_inspiration.feature_suggestions import (
     build_feature_inspirations,
     feature_requires_authentication,
@@ -12,6 +14,10 @@ from backend.apps.ai.daily_inspiration.feature_suggestions import (
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+# Keep backend generation, public selection, and endpoint top-up on one quota contract.
 def test_public_feature_inspirations_exclude_authenticated_only_tips() -> None:
     inspirations = build_feature_inspirations(
         count=10,
@@ -44,6 +50,43 @@ def test_public_feature_inspirations_prioritize_product_video_tips() -> None:
         "web-video-skills",
         "image-detection",
     ]
+
+
+def test_authenticated_feature_inspirations_are_actionable() -> None:
+    inspirations = build_feature_inspirations(count=10)
+
+    features = [inspiration.feature for inspiration in inspirations if inspiration.feature]
+    feature_ids = [feature.feature_id for feature in features]
+
+    assert "export-data" in feature_ids
+    assert "focus-modes" in feature_ids
+    assert "memories" in feature_ids
+    assert "incognito-mode" in feature_ids
+    assert "openmates-signup-cta" not in feature_ids
+    assert all(feature.settings_path for feature in features)
+
+
+def test_daily_inspiration_quotas_share_the_ten_card_3_3_4_contract() -> None:
+    personalized_source = (
+        REPO_ROOT / "backend/core/api/app/tasks/daily_inspiration_tasks.py"
+    ).read_text()
+    selector_source = (
+        REPO_ROOT / "backend/core/api/app/tasks/default_inspiration_tasks.py"
+    ).read_text()
+    route_source = (
+        REPO_ROOT / "backend/core/api/app/routes/default_inspirations.py"
+    ).read_text()
+
+    assert 'DEFAULT_TYPE_QUOTAS = {"video": 3, "wiki": 3, "feature": 4}' in selector_source
+    assert "DAILY_VIDEO_COUNT = 3" in personalized_source
+    assert "DAILY_WIKI_COUNT = 3" in personalized_source
+    assert "DAILY_FEATURE_COUNT = 4" in personalized_source
+    assert "DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT" in personalized_source
+    assert "_DEFAULT_FEATURE_COUNT = 4" in route_source
+    assert 'build_feature_inspirations(\n                _DEFAULT_FEATURE_COUNT,' in route_source
+    assert 'public:default_inspirations:v9:' in route_source
+    assert 'public:default_inspirations:v9:' in selector_source
+    assert "_limit_default_type(" in route_source
 
 
 def test_feature_product_video_metadata_uses_default_base_url(monkeypatch) -> None:

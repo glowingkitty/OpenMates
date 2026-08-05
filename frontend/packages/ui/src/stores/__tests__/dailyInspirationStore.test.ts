@@ -10,6 +10,7 @@ import {
   dailyInspirationStore,
   type DailyInspiration,
 } from "../dailyInspirationStore";
+import { getAuthenticatedFallbackInspirations } from "../../demo_chats/hardcodedInspirations";
 
 const INSPIRATIONS: DailyInspiration[] = [
   {
@@ -63,5 +64,66 @@ describe("dailyInspirationStore", () => {
       is_opened: true,
       opened_chat_id: "chat-2",
     });
+    expect(state.source).toBe("personalized");
+  });
+
+  it("replaces guest onboarding with an authenticated public source", () => {
+    dailyInspirationStore.setSurfaceInspirations(
+      "chats",
+      [{ ...INSPIRATIONS[0], inspiration_id: "openmates-signup-cta" }],
+      { source: "guest-onboarding" },
+    );
+
+    dailyInspirationStore.setSurfaceInspirations("chats", INSPIRATIONS, {
+      source: "public-daily",
+    });
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("public-daily");
+    expect(state.inspirations.map((item) => item.inspiration_id)).not.toContain(
+      "openmates-signup-cta",
+    );
+  });
+
+  it("does not let guest onboarding overwrite personalized records", () => {
+    dailyInspirationStore.setInspirations(INSPIRATIONS, {
+      personalized: true,
+      source: "personalized",
+    });
+
+    dailyInspirationStore.setSurfaceInspirations(
+      "chats",
+      [{ ...INSPIRATIONS[0], inspiration_id: "openmates-signup-cta" }],
+      { source: "guest-onboarding" },
+    );
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("personalized");
+    expect(state.inspirations).toHaveLength(3);
+    expect(state.inspirations.map((item) => item.inspiration_id)).not.toContain(
+      "openmates-signup-cta",
+    );
+  });
+
+  it("preserves the guest source when local interest ranking rewrites its order", () => {
+    dailyInspirationStore.setSurfaceInspirations("chats", INSPIRATIONS, {
+      source: "guest-onboarding",
+    });
+
+    dailyInspirationStore.setSurfaceInspirations("chats", [...INSPIRATIONS].reverse());
+
+    expect(get(dailyInspirationStore).source).toBe("guest-onboarding");
+  });
+
+  it("provides an authenticated-only 3/3/4 fallback", () => {
+    const fallback = getAuthenticatedFallbackInspirations("en");
+    const counts = fallback.reduce<Record<string, number>>((result, inspiration) => {
+      result[inspiration.content_type] = (result[inspiration.content_type] ?? 0) + 1;
+      return result;
+    }, {});
+
+    expect(counts).toEqual({ video: 3, wiki: 3, feature: 4 });
+    expect(fallback.map((item) => item.inspiration_id)).not.toContain("openmates-signup-cta");
+    expect(fallback.filter((item) => item.content_type === "feature").every((item) => item.feature?.settings_path)).toBe(true);
   });
 });

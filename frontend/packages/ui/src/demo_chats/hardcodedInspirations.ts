@@ -454,6 +454,148 @@ export function getHardcodedInspirations(locale: string): DailyInspiration[] {
   return getGuestProductInspirations(locale);
 }
 
+/** Useful localized video fallback for authenticated sessions when recovery APIs fail. */
+export function getAuthenticatedFallbackInspirations(locale: string): DailyInspiration[] {
+  const lang = locale.split("-")[0].toLowerCase();
+  const dreams = _DREAMS_TEXT[lang] ?? _DREAMS_TEXT.en;
+  const eniac = _ENIAC_TEXT[lang] ?? _ENIAC_TEXT.en;
+  const urbanFarms = _URBAN_FARMS_TEXT[lang] ?? _URBAN_FARMS_TEXT.en;
+  const now = Math.floor(Date.now() / 1000);
+
+  const videos: DailyInspiration[] = [
+    {
+      inspiration_id: "authenticated-fallback-dreams",
+      phrase: dreams.phrase,
+      title: dreams.title,
+      category: "science",
+      content_type: "video",
+      video: { ..._VIDEOS.dreams },
+      generated_at: now,
+      assistant_response: dreams.assistant_response,
+      follow_up_suggestions: [...dreams.follow_up_suggestions],
+    },
+    {
+      inspiration_id: "authenticated-fallback-eniac",
+      phrase: eniac.phrase,
+      title: eniac.title,
+      category: "history",
+      content_type: "video",
+      video: { ..._VIDEOS.eniac },
+      generated_at: now,
+      assistant_response: eniac.assistant_response,
+      follow_up_suggestions: [...eniac.follow_up_suggestions],
+    },
+    {
+      inspiration_id: "authenticated-fallback-urban-farms",
+      phrase: urbanFarms.phrase,
+      title: urbanFarms.title,
+      category: "activism",
+      content_type: "video",
+      video: { ..._VIDEOS.urban_farms },
+      generated_at: now,
+      assistant_response: urbanFarms.assistant_response,
+      follow_up_suggestions: [...urbanFarms.follow_up_suggestions],
+    },
+  ];
+  const wiki: DailyInspiration[] = [
+    {
+      inspiration_id: "authenticated-fallback-antikythera",
+      phrase: "An ancient shipwreck held a machine that predicted the sky.",
+      title: "The Antikythera mechanism",
+      category: "history",
+      content_type: "wiki",
+      video: null,
+      wiki: {
+        title: "The Antikythera mechanism",
+        wiki_title: "Antikythera_mechanism",
+        description: "An ancient Greek hand-powered model of the cosmos.",
+        thumbnail_url: null,
+        wikidata_id: null,
+        extract: "The oldest known analog computer used bronze gears to model astronomical cycles.",
+      },
+      generated_at: now,
+    },
+    {
+      inspiration_id: "authenticated-fallback-bioluminescence",
+      phrase: "Some animals make their own light. The chemistry is surprisingly elegant.",
+      title: "Bioluminescence",
+      category: "science",
+      content_type: "wiki",
+      video: null,
+      wiki: {
+        title: "Bioluminescence",
+        wiki_title: "Bioluminescence",
+        description: "Living organisms producing light through chemistry.",
+        thumbnail_url: null,
+        wikidata_id: null,
+        extract: "Organisms glow for hunting, camouflage, communication, and defense.",
+      },
+      generated_at: now,
+    },
+    {
+      inspiration_id: "authenticated-fallback-fermi",
+      phrase: "If the universe is so large, why does it seem so quiet?",
+      title: "The Fermi paradox",
+      category: "science",
+      content_type: "wiki",
+      video: null,
+      wiki: {
+        title: "The Fermi paradox",
+        wiki_title: "Fermi_paradox",
+        description: "The tension between likely extraterrestrial life and no clear evidence.",
+        thumbnail_url: null,
+        wikidata_id: null,
+        extract: "Possible answers range from rare life to communication limits and self-destruction risks.",
+      },
+      generated_at: now,
+    },
+  ];
+  const features: DailyInspiration[] = [
+    {
+      inspiration_id: "authenticated-fallback-export",
+      phrase: "Keep your own backup. Export your OpenMates data whenever you need it.",
+      title: "Export your OpenMates data",
+      category: "openmates_official",
+      content_type: "feature",
+      video: null,
+      feature: { feature_id: "export-data", icon: "download", title: "Export your OpenMates data", description: "Back up chats, settings, memories, and more.", settings_path: "account/export", requires_authentication: true },
+      generated_at: now,
+    },
+    {
+      inspiration_id: "authenticated-fallback-pii",
+      phrase: "Want stronger privacy controls? Add personal details that OpenMates should hide.",
+      title: "Custom PII detection",
+      category: "openmates_official",
+      content_type: "feature",
+      video: null,
+      feature: { feature_id: "custom-pii-detection", icon: "shield-check", title: "Custom PII detection", description: "Protect personal details before model calls.", settings_path: "privacy/hide-personal-data", requires_authentication: false },
+      generated_at: now,
+    },
+    {
+      inspiration_id: "authenticated-fallback-focus",
+      phrase: "Need a more focused answer? Give your mate a specific job.",
+      title: "Focus modes",
+      category: "openmates_official",
+      content_type: "feature",
+      video: null,
+      feature: { feature_id: "focus-modes", icon: "target", title: "Focus modes", description: "Guide a chat toward a specific goal.", settings_path: "apps/all/focus_modes", requires_authentication: false },
+      generated_at: now,
+    },
+    {
+      inspiration_id: "authenticated-fallback-memories",
+      phrase: "Repeating yourself gets old. Save context your mates should remember.",
+      title: "Memories",
+      category: "openmates_official",
+      content_type: "feature",
+      video: null,
+      feature: { feature_id: "memories", icon: "heart", title: "Memories", description: "Save useful preferences and context.", settings_path: "settings_memories", requires_authentication: false },
+      generated_at: now,
+    },
+  ];
+
+  return [...videos, ...wiki, ...features];
+}
+
 function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {
   const now = Math.floor(Date.now() / 1000);
   if (surface === "projects") {
