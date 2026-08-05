@@ -118,7 +118,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 351a57fb7
+  subject_commit: fbc90d719516d53e7343ff4994cf7ee231f02928
 
 approvals:
   product_contract:
@@ -604,14 +604,39 @@ attempts:
       Failure screenshots match the user report, showing the scene visuals below
       the purple banner. The story shell retained its inherited 16:9 aspect ratio
       after entering the absolute compact layout, unlike the Actionable shell.
+  - id: ATTEMPT-37
+    task_id: TASK-4
+    approach: Remove the inherited compact story-shell aspect ratio and apply viewport-specific permission-preview scales.
+    outcome: succeeded
+    recorded_at: "2026-08-05"
+    notes: >
+      Source commit `091c17e` sets the compact `.guest-story-demo-shell` aspect ratio
+      to auto so its absolute bounds remain owned by the daily inspiration banner.
+      It also uses permission-preview scales of 0.34 for narrow phones, 0.58 for
+      tablet portrait, and 0.38 for short landscape viewports. Test commit `21b1e18`
+      extends containment coverage across all nine Privacy scenes plus Actionable,
+      mates/focus, and people/provider stories at mobile, 768x1024, 1024x576, and
+      desktop sizes.
+  - id: ATTEMPT-38
+    task_id: TASK-4
+    approach: Run the strengthened deployed contract and review laptop, mobile, and iPad-landscape screenshots.
+    outcome: succeeded
+    recorded_at: "2026-08-05"
+    notes: >
+      GitHub Actions run `30970630520` passed all seven focused tests on deployed
+      descendant `fbc90d719516d53e7343ff4994cf7ee231f02928`. Reviewed the retained
+      1024x576 encryption-lock and memory-permission screenshots plus visual-smoke
+      run `test-results/visual-smoke/2026-08-05T03-06-32-831Z/summary.json` at laptop
+      and mobile sizes. No clipping, overlap, overflow, broken media, error text,
+      or loading stalls were visible.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy and run the tablet-landscape containment regression before changing story-shell sizing.
-  command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit <commit>
-  expected_outcome: The focused contract fails because Actionable or Privacy extends below the daily inspiration banner at 1024x576.
+  next_action: Ask the user to confirm the corrected deployed landing stories, especially at iPad landscape.
+  command: Open https://app.dev.openmates.org/ and review the regular-size story animations at 1024x576 or on an iPad in landscape.
+  expected_outcome: Every active story scene remains centered inside the daily inspiration banner throughout its animation.
   blocker: null
-  last_verified_commit: 351a57fb7
+  last_verified_commit: fbc90d719516d53e7343ff4994cf7ee231f02928
 
 scenarios:
   - id: S-1
@@ -1093,6 +1118,7 @@ tests:
       - each timeline advances once at progress completion and signup remains terminal
       - reduced motion renders static summaries, disables autoplay, and preserves manual controls
       - guest New chat clears an open example and focuses the blank composer without resetting slide 0
+      - Actionable, every Privacy scene, mates/focus, and people/provider content remain inside the daily inspiration banner at mobile, tablet portrait, tablet landscape, and desktop viewports
     red_phase:
       required: true
       expected: fail
@@ -1116,9 +1142,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: invalidated_by_contract_change
-        reason: User review added tablet-landscape animation containment after the generic viewport run passed.
-        timestamp: "2026-08-05T01:00:00Z"
+        status: passed
+        command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit 21b1e18
+        run_id: "30970630520"
+        subject_commit: fbc90d719516d53e7343ff4994cf7ee231f02928
+        target: app.dev.openmates.org
+        deployment_reference: dpl_ENLoUDewdQaCA7jm2kzf8W1sHKyZ
+        reason: The deployed descendant passed all seven focused tests, including every-scene containment at the reported 1024x576 iPad-landscape viewport.
+        timestamp: "2026-08-05T03:05:20Z"
       history:
         - status: passed
           command: python3 scripts/tests.py run --spec landing-page-header-stories.spec.ts --gate-deploy --expected-commit f711ec242
@@ -1200,15 +1231,26 @@ verifications:
       - AC-7
       - AC-8
       - AC-9
-    status: pending
+    status: passed
     route: https://app.dev.openmates.org/
     viewports:
       - laptop
       - mobile
+      - tablet-landscape-1024x576
     evidence:
-      status: invalidated_by_contract_change
-      reason: User review found iPad-landscape story content outside the banner; the prior screenshots captured only slide 0 at generic laptop and mobile widths.
-      timestamp: "2026-08-05T01:00:00Z"
+      status: passed
+      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/ --session 2ee2
+      run_id: test-results/visual-smoke/2026-08-05T03-06-32-831Z/summary.json
+      related_playwright_run_id: "30970630520"
+      subject_commit: fbc90d719516d53e7343ff4994cf7ee231f02928
+      target: https://app.dev.openmates.org/
+      viewports:
+        - laptop
+        - mobile
+        - tablet-landscape-1024x576
+      reason: Reviewed generic visual smoke and focused iPad-landscape screenshots for the active encryption and permission scenes.
+      summary: "Reviewed laptop, mobile, and 1024x576 iPad-landscape screenshots, including active Privacy encryption and permission scenes. Defects: none; all animation content remains centered inside the daily inspiration banner with no clipping, overlap, overflow, broken media, error text, or loading stalls. Accepted differences: rotating request, highlighted app, and animation stage differ by capture time."
+      timestamp: "2026-08-05T03:06:32Z"
 
 implementation_plan:
   spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml
