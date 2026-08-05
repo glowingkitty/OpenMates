@@ -341,6 +341,7 @@ function deriveOperations(
 
   const previousBlocks = previous.committed;
   const nextBlocks = plan.committed;
+  let committedPreviousTail = false;
   const sharedLength = Math.min(previousBlocks.length, nextBlocks.length);
   const changedIndexes: number[] = [];
   for (let index = 0; index < sharedLength; index += 1) {
@@ -382,6 +383,7 @@ function deriveOperations(
     const appended = nextBlocks.slice(previousBlocks.length);
     const commitsPreviousTail = previous.tail && appended[0]?.markdown === previous.tail.markdown;
     if (commitsPreviousTail) {
+      committedPreviousTail = true;
       appended[0].id = previous.tail!.id;
       operations.push({ kind: "commit-tail" });
       if (appended.length > 1) {
@@ -392,7 +394,7 @@ function deriveOperations(
     }
   }
 
-  if (plan.tail?.markdown !== previous.tail?.markdown) {
+  if (!committedPreviousTail && plan.tail?.markdown !== previous.tail?.markdown) {
     operations.push({ kind: "replace-tail" });
   }
   return operations;
