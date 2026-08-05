@@ -91,6 +91,37 @@ def test_campaign_start_freezes_scope_and_resumes_active_session(tmp_path, monke
     assert len(groups) == 1
     assert groups[0]["member_test_keys"] == first["selected_test_keys"]
     assert groups[0]["red_evidence"]["run_keys"] == ["run-red"]
+    assert 1_000_000_000 <= groups[0]["selected_at_unix"] <= 2_147_483_647
+
+
+def test_campaign_start_repairs_campaign_left_without_groups(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts"))
+    now = control.utc_now()
+    campaign = control.get_store().create_debug_campaign({
+        "campaign_key": "debug-campaign-interrupted",
+        "title": "Interrupted campaign",
+        "status": "active",
+        "session_id": "session-1",
+        "source_run_keys": ["run-red"],
+        "selected_test_keys": ["playwright::first.spec.ts"],
+        "selected_group_keys": [],
+        "current_group_key": None,
+        "completion_policy": {"group_members_must_pass": True, "combined_final_run_required": False},
+        "blocker": None,
+        "metadata": {"scope_amendments": []},
+        "created_at": now,
+        "updated_at": now,
+        "completed_at": None,
+    })
+
+    resumed = control.start_debug_campaign(session_id="session-1")
+
+    assert resumed["campaign_key"] == campaign["campaign_key"]
+    assert len(resumed["selected_group_keys"]) == 1
+    assert control.debug_groups_for_campaign(campaign["campaign_key"])[0]["member_test_keys"] == [
+        "playwright::first.spec.ts"
+    ]
 
 
 def test_campaign_start_resumes_matching_scope_from_new_session(tmp_path, monkeypatch):

@@ -544,7 +544,15 @@ class DirectusTestControlStore(InMemoryTestControlStore):
         }
 
     def load_history_events(self, days: int = 7) -> list[dict[str, Any]]:
-        rows = self._items("test_results", params={"limit": -1, "sort": "-created_at_unix"})
+        cutoff = int((datetime.now(timezone.utc) - timedelta(days=max(days, 0))).timestamp())
+        rows = self._items(
+            "test_results",
+            params={
+                "filter": json.dumps({"created_at_unix": {"_gte": cutoff}}),
+                "limit": -1,
+                "sort": "-created_at_unix",
+            },
+        )
         events = []
         for row in rows:
             metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
@@ -1946,7 +1954,7 @@ def _create_debug_group(
     discovery_reason: str = "",
 ) -> dict[str, Any]:
     now = utc_now()
-    selected_at_unix = int(datetime.now(timezone.utc).timestamp() * 1000)
+    selected_at_unix = int(datetime.now(timezone.utc).timestamp())
     member_test_keys = sorted({str(entry["key"]) for entry in entries})
     run_keys = sorted({str(entry.get("run_id") or "") for entry in entries if entry.get("run_id")})
     result_keys = sorted({str(entry.get("stable_result_key") or "") for entry in entries if entry.get("stable_result_key")})
@@ -1987,7 +1995,21 @@ def start_debug_campaign(
         return get_store().update_debug_campaign(campaign_key, {"session_id": session_id, "updated_at": utc_now()})
     active = _active_debug_campaign_for_session(session_id)
     if active:
-        return active
+        if active.get("selected_group_keys"):
+            return active
+        triage_entries = list(build_triage().get("entries") or [])
+        selected = set(active.get("selected_test_keys") or [])
+        entries = [entry for entry in triage_entries if entry.get("key") in selected]
+        if not entries:
+            raise RuntimeError(f"Active debug campaign has no recoverable failed tests: {active['campaign_key']}")
+        groups = [
+            _create_debug_group(str(active["campaign_key"]), group_id, group_entries)
+            for group_id, group_entries in _group_entries_by_signature(entries).items()
+        ]
+        return get_store().update_debug_campaign(
+            str(active["campaign_key"]),
+            {"selected_group_keys": [group["group_key"] for group in groups], "updated_at": utc_now()},
+        )
     triage = build_triage()
     entries = list(triage.get("entries") or [])
     if selected_test_keys is not None:

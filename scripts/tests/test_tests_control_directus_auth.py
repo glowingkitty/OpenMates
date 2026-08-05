@@ -163,6 +163,28 @@ def test_result_item_timestamp_fits_directus_integer(monkeypatch):
     assert 1_000_000_000 <= item["created_at_unix"] <= 2_147_483_647
 
 
+def test_directus_history_query_filters_to_requested_window(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+    captured_params = {}
+
+    def fake_items(collection, params=None):
+        assert collection == "test_results"
+        captured_params.update(params or {})
+        return []
+
+    monkeypatch.setattr(store, "_items", fake_items)
+    before = int((tests_control.datetime.now(tests_control.timezone.utc) - tests_control.timedelta(days=3)).timestamp())
+
+    assert store.load_history_events(days=3) == []
+
+    after = int((tests_control.datetime.now(tests_control.timezone.utc) - tests_control.timedelta(days=3)).timestamp())
+    cutoff = json.loads(captured_params["filter"])["created_at_unix"]["_gte"]
+    assert before <= cutoff <= after
+    assert captured_params["sort"] == "-created_at_unix"
+
+
 def test_directus_load_state_repairs_stale_problem_rows(monkeypatch):
     tests_control = load_tests_control()
     monkeypatch.setenv("OPENMATES_DISABLE_FAST_TEST_IMPORT", "1")
