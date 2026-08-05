@@ -953,12 +953,11 @@
                 }
             },
             {
-                // Start loading well before message becomes visible to prevent
-                // content cutoff during fast scrolling. 500px buffer ensures editors
-                // are initialized roughly half a mobile screen before entering viewport,
-                // eliminating visual glitches while keeping memory usage reasonable
-                // (only ~2-3 extra editors pre-initialized at any time).
-                rootMargin: '500px',
+                // Start loading before message content enters the chat scroller viewport.
+                // The observer root is the browser viewport, not the nested chat scroller,
+                // so short mobile chats after reload need a larger margin to expose text
+                // to search and E2E locators before the user scrolls.
+                rootMargin: '1500px',
                 threshold: 0.01
             }
         );

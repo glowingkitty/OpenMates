@@ -14898,7 +14898,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
-        scroll-behavior: smooth;
+        scroll-behavior: auto;
         scrollbar-width: none;
         -ms-overflow-style: none;
         visibility: visible;
