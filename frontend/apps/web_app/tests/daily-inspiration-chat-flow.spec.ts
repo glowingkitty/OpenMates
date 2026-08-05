@@ -180,6 +180,18 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	log('Looking for daily inspiration banner...');
 	const inspirationBanner = page.locator('[data-testid="daily-inspiration-banner"]').first();
 	await expect(inspirationBanner).toBeVisible({ timeout: 15000 });
+	await expect(inspirationBanner).not.toHaveAttribute('data-inspiration-source', 'guest-onboarding');
+	const authenticatedInspirationIds = ((await inspirationBanner.getAttribute('data-visible-inspiration-ids')) ?? '')
+		.split(',')
+		.filter(Boolean);
+	expect(authenticatedInspirationIds).not.toEqual(expect.arrayContaining([
+		'openmates-intro',
+		'openmates-actionable-events',
+		'openmates-privacy-safety',
+		'openmates-mates-focus',
+		'openmates-provider-cross-platform',
+		'openmates-signup-cta'
+	]));
 	log('Daily inspiration banner is visible.');
 	await screenshot(page, 'inspiration-banner-visible');
 

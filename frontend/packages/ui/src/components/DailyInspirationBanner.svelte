@@ -35,7 +35,7 @@
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
-  import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
+  import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSource, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
   import { introBannerVisible } from '../stores/uiStateStore';
@@ -174,6 +174,7 @@
   let inspirations = $state<DailyInspiration[]>([]);
   let currentIndex = $state(0);
   let isAuthenticated = $state(false);
+  let inspirationSource = $state<DailyInspirationSource>('none');
 
   // Track which inspiration_ids we have already sent a `viewed` WS event for.
   // An entry is added as soon as the banner is visible in the viewport AND the
@@ -255,6 +256,7 @@
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
   const unsubscribeDailyInspirations = dailyInspirationStore.subscribe((state) => {
+    inspirationSource = state.source;
     const wasHardcoded = inspirations.length > 0 &&
       inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
     const isNowReal = state.inspirations.length > 0 &&
@@ -291,7 +293,13 @@
   });
 
   const unsubscribeAuth = authStore.subscribe((state) => {
+    const becameAuthenticated = state.isAuthenticated && !isAuthenticated;
     isAuthenticated = state.isAuthenticated;
+    if (becameAuthenticated && surface === 'chats') {
+      void loadDefaultInspirations({ allowIndexedDB: true, surface: 'chats' }).catch((error) => {
+        console.error('[DailyInspirationBanner] Failed to restore authenticated inspirations:', error);
+      });
+    }
   });
 
   onDestroy(() => {
@@ -1577,6 +1585,7 @@
       data-guest-slide-phase={guestSlidePhase}
       data-mounted-slide-indexes={reachableSlideIndexes.join(',')}
       data-visible-inspiration-ids={visibleInspirations.map((inspiration) => inspiration.inspiration_id).join(',')}
+      data-inspiration-source={inspirationSource}
       data-testid="daily-inspiration-banner"
       data-current-inspiration-id={current.inspiration_id}
       style={gradientStyle}
