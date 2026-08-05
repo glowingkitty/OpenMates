@@ -8731,11 +8731,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 return;
             }
-            console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading from IndexedDB for chat:', currentChat.chat_id);
+            console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading stored messages for chat:', currentChat.chat_id);
             try {
-                const freshWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
-                const freshMessages: ChatMessageModel[] = freshWindow.messages;
-                currentMessageWindowHasMoreBefore = freshWindow.hasMoreBefore;
+                let freshMessages: ChatMessageModel[];
+                if (currentChat.is_anonymous) {
+                    freshMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                    currentMessageWindowHasMoreBefore = false;
+                } else {
+                    const freshWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+                    freshMessages = freshWindow.messages;
+                    currentMessageWindowHasMoreBefore = freshWindow.hasMoreBefore;
+                }
 
                 // Preserve any in-flight streaming messages — the DB won't have
                 // the latest streaming content, so keep our local copies.
@@ -8768,7 +8774,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.debug('[ActiveChat] handleChatUpdated: IndexedDB reload returned same message set. No display update needed.');
                 }
             } catch (error) {
-                console.error('[ActiveChat] handleChatUpdated: Failed to reload messages from IndexedDB:', error);
+                console.error('[ActiveChat] handleChatUpdated: Failed to reload stored messages:', error);
             }
         } else {
             console.debug('[ActiveChat] handleChatUpdated: No direct message updates (newMessage or incomingMessages) were applied from the event. Full event.detail:', JSON.parse(JSON.stringify(detail)));
@@ -9557,17 +9563,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     newMessages = [];
                 }
             } else if (currentChat.is_anonymous) {
-                if (isSameActiveChat && currentMessages.length > 0) {
-                    newMessages = currentMessages;
-                    console.debug(`[ActiveChat] Preserved ${newMessages.length} in-memory anonymous messages for same-chat load ${currentChat.chat_id}`);
-                } else {
-                    try {
-                        newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                try {
+                    newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                    if (isSameActiveChat && currentMessages.length > 0) {
+                        const freshMessageIds = new Set(newMessages.map((message) => message.message_id));
+                        const inFlightMessages = currentMessages.filter((message) =>
+                            !freshMessageIds.has(message.message_id) &&
+                            (message.status === 'streaming' || message.status === 'sending' || message.status === 'processing')
+                        );
+                        if (inFlightMessages.length > 0) {
+                            newMessages = [...newMessages, ...inFlightMessages];
+                        }
+                        console.debug(`[ActiveChat] Reloaded ${newMessages.length} anonymous messages for same-chat load ${currentChat.chat_id}`);
+                    } else {
                         console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
-                    } catch (error) {
-                        console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
-                        newMessages = [];
                     }
+                } catch (error) {
+                    console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
+                    newMessages = isSameActiveChat && currentMessages.length > 0 ? currentMessages : [];
                 }
             } else if (!$authStore.isAuthenticated) {
                 // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
