@@ -1,6 +1,6 @@
 # .github/workflows/release-core-journeys.yml
 #
-# Advisory dev-to-main release gate for essential hosted product journeys.
+# Dev-to-main release gate for core availability plus all signup and billing journeys.
 # The dev host prepares Docker services and publishes a commit status first;
 # GitHub then validates deployment state and runs the canonical Playwright matrix.
 
@@ -135,6 +135,7 @@ jobs:
       E2E_DEV_API_URL: ${{ secrets.E2E_DEV_API_URL || secrets.OPENMATES_API_URL }}
       E2E_DEV_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
+      OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
       TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
       TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.account)] }}
       TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.account)] }}

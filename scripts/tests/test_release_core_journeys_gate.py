@@ -18,12 +18,34 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
-EXPECTED_SPECS = [
+EXPECTED_HOURLY_SPECS = [
     "chat-flow.spec.ts",
     "settings-buy-credits-stripe-managed.spec.ts",
     "signup-flow-stripe-managed.spec.ts",
     "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
+EXPECTED_RELEASE_BASELINE = {
+    "chat-flow.spec.ts",
+    "dev-smoke/dev-smoke-reachability.spec.ts",
+    "buy-credits-flow.spec.ts",
+    "referral-signup-purchase.spec.ts",
+    "saved-payment-invoice-flow.spec.ts",
+    "settings-buy-credits-bank-transfer.spec.ts",
+    "settings-buy-credits-stripe-eu.spec.ts",
+    "settings-buy-credits-stripe-managed.spec.ts",
+    "settings-gift-card-bank-transfer.spec.ts",
+    "settings-support-bank-transfer.spec.ts",
+    "settings-support-stripe.spec.ts",
+    "signup-2fa-reconnect-preview.spec.ts",
+    "signup-flow-bank-transfer.spec.ts",
+    "signup-flow-passkey.spec.ts",
+    "signup-flow-stripe-eu.spec.ts",
+    "signup-flow-stripe-managed.spec.ts",
+    "signup-free-testing-credits.spec.ts",
+    "signup-skip-2fa-flow.spec.ts",
+    "usage-token-breakdown.spec.ts",
+}
+EXPECTED_RELEASE_ACCOUNTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27)
 
 
 def load_module(name: str, path: Path):
@@ -47,18 +69,42 @@ def workflow_triggers(workflow: dict) -> dict:
 def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.CaptureFixture[str]) -> None:
     run_tests = load_module("release_gate_run_tests", ROOT / "scripts" / "run_tests.py")
 
-    assert run_tests.CORE_JOURNEY_SPECS == EXPECTED_SPECS
+    assert run_tests.CORE_JOURNEY_SPECS == EXPECTED_HOURLY_SPECS
     assert run_tests.CORE_JOURNEY_ACCOUNT_SLOTS == (2, 3, 5, 6)
     assert run_tests.HOURLY_DEV_SPECS is run_tests.CORE_JOURNEY_SPECS
-    for spec_name in EXPECTED_SPECS:
+    assert run_tests.RELEASE_GATE_SPECS[:2] == list(run_tests.RELEASE_GATE_BASE_SPECS)
+    assert run_tests.RELEASE_GATE_SPECS[2:] == sorted(run_tests.RELEASE_GATE_SPECS[2:])
+    assert EXPECTED_RELEASE_BASELINE <= set(run_tests.RELEASE_GATE_SPECS)
+    assert run_tests.RELEASE_GATE_ACCOUNT_SLOTS == EXPECTED_RELEASE_ACCOUNTS
+    assert len(run_tests.RELEASE_GATE_SPECS) <= (
+        len(run_tests.RELEASE_GATE_ACCOUNT_SLOTS) * run_tests.RELEASE_GATE_MAX_ACCOUNT_WAVES
+    )
+    for pattern in run_tests.RELEASE_GATE_SPEC_PATTERNS:
+        matching_specs = {
+            path.relative_to(run_tests.SPEC_DIR).as_posix()
+            for path in run_tests.SPEC_DIR.rglob(pattern)
+        }
+        expected_specs = {
+            spec for spec in matching_specs
+            if not spec.startswith(run_tests.RELEASE_GATE_EXCLUDED_PREFIXES)
+        }
+        assert expected_specs <= set(run_tests.RELEASE_GATE_SPECS)
+    assert not any(
+        spec.startswith(run_tests.RELEASE_GATE_EXCLUDED_PREFIXES)
+        for spec in run_tests.RELEASE_GATE_SPECS
+    )
+    for spec_name in run_tests.RELEASE_GATE_SPECS:
         assert (ROOT / "frontend" / "apps" / "web_app" / "tests" / spec_name).is_file()
 
     run_tests.print_core_journey_matrix()
     matrix = json.loads(capsys.readouterr().out)
     assert matrix == {
         "include": [
-            {"spec": spec_name, "account": str(account)}
-            for spec_name, account in zip(EXPECTED_SPECS, (2, 3, 5, 6), strict=True)
+            {
+                "spec": spec_name,
+                "account": str(EXPECTED_RELEASE_ACCOUNTS[index % len(EXPECTED_RELEASE_ACCOUNTS)]),
+            }
+            for index, spec_name in enumerate(run_tests.RELEASE_GATE_SPECS)
         ]
     }
 
@@ -66,7 +112,26 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
     orchestrator.spec = None
     orchestrator.core_journeys = True
     orchestrator.only_failed = False
-    assert orchestrator._discover_specs() == EXPECTED_SPECS
+    assert orchestrator._discover_specs() == run_tests.RELEASE_GATE_SPECS
+
+
+def test_release_matrix_fails_closed_when_account_capacity_is_exceeded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_tests = load_module("release_gate_capacity", ROOT / "scripts" / "run_tests.py")
+    monkeypatch.setattr(
+        run_tests,
+        "RELEASE_GATE_SPECS",
+        [
+            f"required-{index}.spec.ts"
+            for index in range(
+                len(run_tests.RELEASE_GATE_ACCOUNT_SLOTS) * run_tests.RELEASE_GATE_MAX_ACCOUNT_WAVES + 1
+            )
+        ],
+    )
+
+    with pytest.raises(RuntimeError, match="serialized account capacity"):
+        run_tests.print_core_journey_matrix()
 
 
 def test_release_workflow_has_stable_fail_closed_gate() -> None:
@@ -91,6 +156,7 @@ def test_release_workflow_has_stable_fail_closed_gate() -> None:
     assert jobs["core-journeys"]["strategy"]["fail-fast"] is False
     assert jobs["core-journeys"]["with"]["checkout_ref"]
     assert jobs["core-journeys"]["with"]["allow_credential_updates"] is False
+    assert "OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON" in jobs["core-journeys"]["secrets"]
     assert jobs["core-journeys-gate"]["if"] == "always()"
     assert jobs["core-journeys-gate"]["name"] == "Release Gate / Core Journeys"
     aggregate_step = jobs["core-journeys-gate"]["steps"][0]
@@ -115,9 +181,9 @@ def test_single_spec_workflow_is_reusable_and_serializes_accounts() -> None:
     mutation_steps = [step for step in steps if step.get("name", "").startswith("Update ")]
     assert mutation_steps
     assert all("inputs.allow_credential_updates" in step["if"] for step in mutation_steps)
-    account_env = next(step["env"] for step in steps if step.get("name") == "Prepare API key for CLI specs")
-    assert "secrets.TEST_ACCOUNT_EMAIL != ''" in account_env["OPENMATES_TEST_ACCOUNT_EMAIL"]
-    assert "github.event_name" not in account_env["OPENMATES_TEST_ACCOUNT_EMAIL"]
+    account_env = next(step["env"] for step in steps if step.get("name") == "Load selected test account credentials")
+    assert "secrets.TEST_ACCOUNT_EMAIL != ''" in account_env["DIRECT_EMAIL"]
+    assert "github.event_name" not in account_env["DIRECT_EMAIL"]
 
 
 def test_backend_attestation_preflight_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:

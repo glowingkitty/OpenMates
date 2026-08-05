@@ -19,8 +19,7 @@ under load (see OPE-349).
 | `signup-flow-stripe-managed.spec.ts` | `tests/` | Cold-boot signup → managed Stripe checkout. Catches signup + payment regressions. |
 | `chat-flow.spec.ts` | `tests/` | Login → send message → AI reply → cleanup. Catches end-to-end chat breakage. |
 
-The list is hard-coded in `scripts/run_tests.py` (`CORE_JOURNEY_SPECS`) and also
-drives `.github/workflows/release-core-journeys.yml`. Keep it
+The list is hard-coded in `scripts/run_tests.py` (`CORE_JOURNEY_SPECS`). Keep it
 **short** — every spec adds ~2-5 min to the hourly wall time. Anything that is
 not "core user flow that must keep working" belongs in the nightly run, not here.
 The matching `CORE_JOURNEY_ACCOUNT_SLOTS` allocation uses healthy persistent
@@ -59,9 +58,12 @@ Results are archived to `test-results/hourly-dev/run-<UTC-timestamp>.json`
 
 ## Release gate
 
-The same four specs form the advisory dev-to-main release gate. Before a manual
-bootstrap run or promotion PR, prepare the Docker-backed dev services and publish
-their exact-commit status:
+The dev-to-main release gate includes chat and reachability from this suite plus
+every signup and billing spec selected by `RELEASE_GATE_SPEC_PATTERNS` in
+`scripts/run_tests.py`. New matching specs therefore become release-blocking by
+default without making the hourly suite longer. Before a manual bootstrap run or
+promotion PR, prepare the Docker-backed dev services and publish their exact-commit
+status:
 
 ```bash
 python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_SHA>
@@ -71,5 +73,6 @@ python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FU
 The first promotion that introduces the workflow to `main` must use this
 control-plane bootstrap because GitHub does not register a brand-new workflow
 from a non-default branch. Later dev-to-main PRs run the aggregate workflow
-automatically. The check remains advisory until repeated green runs justify a
-separate main-only ruleset.
+automatically. The stable aggregate result is `Release Gate / Core Journeys`,
+which the separate main-only ruleset can require without depending on matrix job
+names.

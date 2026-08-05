@@ -282,11 +282,11 @@ nor triggers a brand-new workflow from a non-default branch:
 python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit "$sha"
 ```
 
-Inspect all four exact-commit single-spec runs. Starting with the next promotion,
-inspect the automatic aggregate `Release Gate / Core Journeys` result.
-Do not add the required status check to the shared main/dev ruleset. After the
-workflow exists on `main` and advisory runs are consistently green, create a
-separate main-only ruleset requiring only the aggregate result.
+Inspect every exact-commit run in the generated release matrix. It includes core
+chat and reachability plus all signup and billing specs matched by
+`RELEASE_GATE_SPEC_PATTERNS` in `scripts/run_tests.py`. Starting with the next
+promotion, require the automatic aggregate `Release Gate / Core Journeys` result
+in the separate main-only ruleset; do not add it to the shared main/dev ruleset.
 
 **Step 5 — Create the PR**
 

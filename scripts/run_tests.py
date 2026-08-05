@@ -195,13 +195,56 @@ CORE_JOURNEY_SPECS: list[str] = [
 CORE_JOURNEY_ACCOUNT_SLOTS = (2, 3, 5, 6)
 HOURLY_DEV_SPECS = CORE_JOURNEY_SPECS
 
+# The promotion gate is intentionally broader than the hourly smoke. Filename
+# patterns make new signup and billing specs release-blocking by default.
+RELEASE_GATE_SPEC_PATTERNS = (
+    "*signup*.spec.ts",
+    "buy-credits-flow.spec.ts",
+    "saved-payment-invoice-flow.spec.ts",
+    "settings-buy-credits-*.spec.ts",
+    "settings-gift-card-*.spec.ts",
+    "settings-support-*.spec.ts",
+    "usage-token-breakdown.spec.ts",
+)
+RELEASE_GATE_BASE_SPECS = (
+    "chat-flow.spec.ts",
+    "dev-smoke/dev-smoke-reachability.spec.ts",
+)
+RELEASE_GATE_EXCLUDED_PREFIXES = ("prod-smoke/",)
+RELEASE_GATE_ACCOUNT_SLOTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27)
+RELEASE_GATE_MAX_ACCOUNT_WAVES = 2
+
+
+def discover_release_gate_specs() -> list[str]:
+    """Return core availability plus every signup and billing E2E spec."""
+    related_specs = {
+        path.relative_to(SPEC_DIR).as_posix()
+        for pattern in RELEASE_GATE_SPEC_PATTERNS
+        for path in SPEC_DIR.rglob(pattern)
+    }
+    related_specs = {
+        spec for spec in related_specs
+        if not spec.startswith(RELEASE_GATE_EXCLUDED_PREFIXES)
+    }
+    return [*RELEASE_GATE_BASE_SPECS, *sorted(related_specs - set(RELEASE_GATE_BASE_SPECS))]
+
+
+RELEASE_GATE_SPECS = discover_release_gate_specs()
+
 
 def print_core_journey_matrix() -> None:
     """Print the canonical release-gate matrix for GitHub Actions."""
+    if len(RELEASE_GATE_SPECS) > len(RELEASE_GATE_ACCOUNT_SLOTS) * RELEASE_GATE_MAX_ACCOUNT_WAVES:
+        raise RuntimeError(
+            "Release gate requires more specs than the configured serialized account capacity"
+        )
     matrix = {
         "include": [
-            {"spec": spec, "account": str(account)}
-            for spec, account in zip(CORE_JOURNEY_SPECS, CORE_JOURNEY_ACCOUNT_SLOTS, strict=True)
+            {
+                "spec": spec,
+                "account": str(RELEASE_GATE_ACCOUNT_SLOTS[index % len(RELEASE_GATE_ACCOUNT_SLOTS)]),
+            }
+            for index, spec in enumerate(RELEASE_GATE_SPECS)
         ]
     }
     print(json.dumps(matrix, separators=(",", ":")))
@@ -1346,6 +1389,7 @@ class GitHubActionsClient:
         use_mocks: bool = True,
         record_live_fixtures: bool = False,
         create_account_slot: Optional[int] = None,
+        allow_credential_updates: bool = True,
     ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
@@ -1364,6 +1408,7 @@ class GitHubActionsClient:
             "-f", f"use_mocks={'true' if use_mocks else 'false'}",
             "-f", f"use_live_mocks={'true' if use_mocks else 'false'}",
             "-f", f"record_live_fixtures={'true' if record_live_fixtures else 'false'}",
+            "-f", f"allow_credential_updates={'true' if allow_credential_updates else 'false'}",
             "-f", f"dispatch_token={dispatch_token}",
         ]
         if self.git_sha:
@@ -1699,6 +1744,7 @@ class BatchRunner:
         record_live_fixtures: bool = False,
         normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
         create_account_slot: Optional[int] = None,
+        allow_credential_updates: bool = True,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1708,6 +1754,7 @@ class BatchRunner:
         self.record_live_fixtures = record_live_fixtures
         self.normal_account_slots = normal_account_slots
         self.create_account_slot = create_account_slot
+        self.allow_credential_updates = allow_credential_updates
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -1789,6 +1836,7 @@ class BatchRunner:
                 self.use_mocks,
                 self.record_live_fixtures,
                 create_account_slot=create_account_slot,
+                allow_credential_updates=self.allow_credential_updates,
             )
             if run_id is None:
                 # Retry once
@@ -1799,6 +1847,7 @@ class BatchRunner:
                     self.use_mocks,
                     self.record_live_fixtures,
                     create_account_slot=create_account_slot,
+                    allow_credential_updates=self.allow_credential_updates,
                 )
 
             if run_id is None:
@@ -6375,6 +6424,7 @@ class TestOrchestrator:
             record_live_fixtures=self.record_live_fixtures,
             normal_account_slots=normal_account_slots,
             create_account_slot=self.create_account_slot,
+            allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
         )
         result = runner.run_all_batches()
 
@@ -6661,7 +6711,7 @@ class TestOrchestrator:
             return [self.spec]
 
         if self.core_journeys:
-            return list(CORE_JOURNEY_SPECS)
+            return list(RELEASE_GATE_SPECS)
 
         if self.only_failed:
             failed = ResultAggregator.load_failed_specs()

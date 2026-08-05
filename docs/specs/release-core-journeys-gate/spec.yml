@@ -10,7 +10,8 @@ goal: >
 
 scope:
   in:
-    - One canonical core-journey Playwright suite shared by hourly smoke and release CI.
+    - A short canonical core-journey Playwright suite for hourly smoke.
+    - A broader release matrix containing core availability and every signup and billing Playwright spec.
     - A GitHub Actions workflow for dev-to-main pull requests and manual bootstrap runs.
     - Commit-pinned test code, deployment readiness checks, and one aggregate gate result.
     - A dev-host command that prepares core Docker services and publishes a commit status attestation.
@@ -57,8 +58,11 @@ clarification:
       answer: GitHub CI owns the result while exercising the real dev deployment.
     - question: Should this session create or merge the dev-to-main pull request?
       answer: No; the user will handle it later.
+    - question: Should every signup and billing test pass before a pull request can complete?
+      answer: Yes; expand the existing aggregate release gate to require all of them.
   vision_summary: >
-    GitHub exposes one stable core-journey result. The dev host prepares and
+    GitHub exposes one stable core-journey result covering core availability and
+    every signup and billing spec. The dev host prepares and
     attests the Docker-backed backend because GitHub-hosted runners cannot control
     it. The workflow starts advisory and the first promotion uses the existing
     commit-pinned test control plane because the new workflow is not yet registered on main.
@@ -103,6 +107,11 @@ decisions:
     decision: Allocate core journeys to persistent account slots 2, 3, 5, and 6.
     reason: Exact-commit preflight proved slots 1 and 4 have stale credentials while 2, 3, 5, and 6 are healthy.
     decided_at: "2026-08-03T18:35:00Z"
+  - id: D-6
+    status: active
+    decision: Keep hourly smoke short while discovering all signup and billing specs for the promotion matrix by filename pattern.
+    reason: Pull requests must fail closed for these critical journeys, and future matching specs must not require manual gate registration.
+    decided_at: "2026-08-05T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -134,7 +143,7 @@ handoff:
   current_task_id: TASK-4
   next_action: Prepare the latest clean dev SHA, rerun the core journeys bootstrap, and record green evidence before enabling a main-only required check.
   command: python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_DEV_SHA> && python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FULL_DEV_SHA> --max-concurrent 4 --no-fail-fast
-  expected_outcome: Exact Vercel, hosted billing, backend services, and all four core journeys pass for one SHA.
+  expected_outcome: Exact Vercel, hosted billing, backend services, core availability, and every signup and billing journey pass for one SHA.
   blocker:
     task_id: TASK-4
     requires_user_input: true
@@ -160,7 +169,7 @@ scenarios:
     given:
       - Deployment provenance is valid.
     when:
-      - Reachability, signup, billing, or chat fails.
+      - Reachability, chat, any signup spec, or any billing spec fails.
     then:
       - Diagnostic artifacts are preserved.
       - The remaining core specs complete.
@@ -197,7 +206,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: One manifest contains exactly the approved reachability, chat, managed Stripe purchase, and managed Stripe signup specs and feeds hourly smoke and release CI.
+    text: Hourly smoke retains its four approved core specs, while release CI adds every recursively discovered non-production signup and billing spec.
     required: true
     status: satisfied
     coverage_status: covered
@@ -291,7 +300,8 @@ contracts:
       errors:
         - Missing or non-success status fails readiness.
   data:
-    - CORE_JOURNEY_SPECS is canonical for hourly smoke and release CI.
+    - CORE_JOURNEY_SPECS is canonical for the short hourly smoke suite.
+    - RELEASE_GATE_SPECS is canonical for release CI and includes core availability plus every spec matched by RELEASE_GATE_SPEC_PATTERNS outside prod-smoke.
     - Release-candidate attestation is keyed by exact Git SHA and a stable context and is published only after exact-SHA Vercel readiness plus backend health.
   ui_states:
     - No product UI changes.

@@ -613,6 +613,41 @@ def test_dispatch_passes_full_checkout_ref_to_workflow(monkeypatch):
 
     assert client.dispatch_spec("chat-flow.spec.ts", account=1) == 123
     assert "checkout_ref=abc123" in commands[0]
+    assert "allow_credential_updates=true" in commands[0]
+
+
+def test_dispatch_can_disable_credential_updates_for_release_bootstrap(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        run_tests.subprocess,
+        "run",
+        lambda command, **_kwargs: commands.append(command)
+        or SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+    client = run_tests.GitHubActionsClient(git_sha="abc123")
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec(
+        "signup-flow-stripe-managed.spec.ts",
+        account=2,
+        allow_credential_updates=False,
+    ) == 123
+    assert "allow_credential_updates=false" in commands[0]
 
 
 def test_dispatch_can_pass_create_account_slot_to_workflow(monkeypatch):
