@@ -15,7 +15,10 @@
   import type { ChatCompressionCheckpoint, Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
-  import { compileAssistantDisplayMessage } from '../message_parsing/streamingMessageCompiler';
+  import {
+    createAssistantRenderPlan,
+    type AssistantRenderPlan,
+  } from '../message_parsing/streamingMessageBlocks';
   import { StreamingRenderScheduler } from '../message_parsing/streamingRenderScheduler';
   import { truncateTiptapContent } from '../utils/messageTruncation';
   import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
@@ -230,6 +233,8 @@
     return restorePIIInText(markdown, mappingsArray);
   }
 
+  const assistantRenderPlans = new Map<string, AssistantRenderPlan>();
+
   // Helper function to map incoming message structure to InternalMessage
   // IMPORTANT: piiMappings parameter is optional - when provided, PII restoration is applied
   function G_mapToInternalMessage(
@@ -250,10 +255,13 @@
       }
       
       if (incomingMessage.role === 'assistant') {
-        processedContent = compileAssistantDisplayMessage(contentToProcess, {
+        const plan = createAssistantRenderPlan(contentToProcess, {
           phase: incomingMessage.status === 'streaming' ? 'streaming' : 'final',
-          role: 'assistant',
+          previous: assistantRenderPlans.get(incomingMessage.message_id),
+          chatId: incomingMessage.chat_id,
         });
+        assistantRenderPlans.set(incomingMessage.message_id, plan);
+        processedContent = plan.document;
       } else {
         const tiptapJson = parse_message(contentToProcess, 'read', {
           unifiedParsingEnabled: true,
@@ -333,6 +341,7 @@
     for (const scheduler of streamingRenderSchedulers.values()) scheduler.cancel();
     streamingRenderSchedulers.clear();
     streamingRenderRevisions.clear();
+    assistantRenderPlans.clear();
   }
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
@@ -2089,6 +2098,9 @@
       if (!activeStreamingMessageIds.has(messageId) || !renderedMessageIds.has(messageId)) {
         cancelStreamingRender(messageId);
       }
+    }
+    for (const messageId of assistantRenderPlans.keys()) {
+      if (!renderedMessageIds.has(messageId)) assistantRenderPlans.delete(messageId);
     }
     for (const { scheduler, value, revision } of scheduledAssistantRenders) {
       scheduler.update(value, revision);

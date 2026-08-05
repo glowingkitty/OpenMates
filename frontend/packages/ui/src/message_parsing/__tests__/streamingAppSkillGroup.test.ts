@@ -18,6 +18,12 @@ vi.mock("../../stores/appSkillsStore", () => ({
 
 import { createAssistantRenderPlan } from "../streamingMessageBlocks";
 
+function findNodes(node: any, type: string): any[] {
+  const matches = node?.type === type ? [node] : [];
+  for (const child of node?.content || []) matches.push(...findNodes(child, type));
+  return matches;
+}
+
 const execution = (id: string, app: string) => [
   "```json",
   JSON.stringify({ type: "app_skill_use", embed_id: id, app_id: app, skill_id: "search" }),
@@ -47,7 +53,7 @@ describe("assistant app-skill top group", () => {
       "skill-middle",
       "skill-old",
     ]);
-    expect((plan.document.content?.[0] as any)?.attrs?.type).toBe("app-skill-use-group");
+    expect(findNodes(plan.document, "embed")[0]?.attrs?.type).toBe("app-skill-use-group");
     expect(JSON.stringify(plan.authoredDocument)).toContain("authored-preview");
     expect(JSON.stringify(plan.authoredDocument)).toContain("authored-inline");
   });

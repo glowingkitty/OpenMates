@@ -52,7 +52,17 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
                 if in_code_block:
                     # Look for closing code block delimiter
                     # Scan the whole buffer for closing delimiter as code blocks can be long
-                    end_code_block_idx = buffer.find(code_block_delimiter)
+                    # When the buffered block still starts with its opening fence, skip
+                    # that delimiter so it cannot be mistaken for the closing fence.
+                    delimiter_search_start = (
+                        len(code_block_delimiter)
+                        if buffer.startswith(code_block_delimiter)
+                        else 0
+                    )
+                    end_code_block_idx = buffer.find(
+                        code_block_delimiter,
+                        delimiter_search_start,
+                    )
                     if end_code_block_idx != -1:
                         # Code block ends. Yield the whole block including delimiters.
                         code_block_content = buffer[:end_code_block_idx + len(code_block_delimiter)]

@@ -63,6 +63,8 @@ describe("createAssistantRenderPlan", () => {
     "- first item\n- second item",
     "| A | B |\n|---|---|\n| 1 |",
     "> an unfinished source quote",
+    "An [unfinished\n\nlink](embed:",
+    "- first item\n\n  continued item text",
   ])("keeps unsafe suffix provisional: %s", (tail) => {
     const plan = createAssistantRenderPlan(tail, { phase: "streaming" });
 

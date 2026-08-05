@@ -17,7 +17,6 @@
     import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
-    import { incrementStreamingRenderMetric } from '../message_parsing/streamingRenderMetrics';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
@@ -147,7 +146,6 @@
     // causing the container height to collapse to 0px before re-expanding.
     // We preserve the previous height as min-height to prevent this visual glitch.
     let preservedMinHeight = $state<number | null>(null);
-    let hasStreamingDocument = $state(false);
 
     const STREAM_CHUNK_FADE_DURATION_MS = 220;
     let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -989,79 +987,33 @@
     // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
     /**
      * Apply a content update to the editor.
-      * Streaming and its first final revision use an incremental ProseMirror diff
-      * to preserve NodeViews. Unrelated final edits use setContent().
+      * Every update after editor creation uses an incremental ProseMirror diff
+      * so stable NodeViews survive streaming, completion, and metadata refreshes.
      *
      * @param processedContent - Pre-processed TipTap JSON content
-      * @param incremental - Whether to preserve the current document and NodeViews
-      * @param forceFullReplace - Force setContent() even during streaming (locale/embed updates)
       * @param streamingPresentation - Whether to apply streaming-only height and fade behavior
-     */
+      */
     function applyContentUpdate(
         processedContent: Record<string, unknown> | null,
-        incremental: boolean,
-        forceFullReplace: boolean,
         streamingPresentation: boolean
     ) {
         if (!editor || editor.isDestroyed) return;
         const startedAt = typeof performance === 'undefined' ? 0 : performance.now();
-        
-        if (incremental && !forceFullReplace) {
-            // STREAMING PATH: Use incremental ProseMirror updates to avoid destroying NodeViews.
-            // This preserves mounted Svelte embed components across streaming chunks,
-            // eliminating the visual flicker caused by setContent()'s nuclear teardown.
-            
-            // Preserve current height as safety net
-            if (streamingPresentation && editorElement) {
-                const currentHeight = editorElement.offsetHeight;
-                if (currentHeight > 0) {
-                    editorElement.style.minHeight = `${currentHeight}px`;
-                    preservedMinHeight = currentHeight;
-                }
-            }
-            
-            // Check if new content introduces embedPreviewLarge nodes
-            const hasLargePreview = JSON.stringify(processedContent).includes('"embedPreviewLarge"');
-            const editorHasLargePreview = JSON.stringify(editor.getJSON()).includes('"embedPreviewLarge"');
 
-            // If a new embedPreviewLarge node is being introduced, skip incremental update
-            // and use full setContent(). The ReplaceStep can fail when transitioning from
-            // inline paragraph content to a block-level atom node, and even when it succeeds
-            // the freshly mounted NodeView may get 0-width before layout reflows, causing
-            // CSS container queries to use the compact layout.
-            if (hasLargePreview && !editorHasLargePreview) {
-                logger.debug('New embedPreviewLarge detected during streaming — using setContent() for clean NodeView mount');
-                incrementStreamingRenderMetric('fullReplacements');
-                editor.commands.setContent(processedContent, { emitUpdate: false });
-            } else {
-                // Try incremental update first
-                const result = applyIncrementalUpdate(editor, processedContent);
+        if (streamingPresentation && editorElement) {
+            const currentHeight = editorElement.offsetHeight;
+            if (currentHeight > 0) {
+                editorElement.style.minHeight = `${currentHeight}px`;
+                preservedMinHeight = currentHeight;
+            }
+        }
 
-                if (!result.applied) {
-                    // Incremental update failed — fall back to setContent()
-                    // This should be rare but handles edge cases gracefully
-                    logger.debug('Incremental update failed, falling back to setContent()');
-                    incrementStreamingRenderMetric('fullReplacements');
-                    editor.commands.setContent(processedContent, { emitUpdate: false });
-                }
-            }
-        } else {
-            // NON-STREAMING PATH: Use setContent() for locale changes, embed updates,
-            // and non-streaming content changes. These are infrequent and benefit from
-            // full re-render to ensure all NodeViews pick up new state.
-            
-            // Preserve current height SYNCHRONOUSLY before content replacement
-            if (streamingPresentation && editorElement) {
-                const currentHeight = editorElement.offsetHeight;
-                if (currentHeight > 0) {
-                    editorElement.style.minHeight = `${currentHeight}px`;
-                    preservedMinHeight = currentHeight;
-                }
-            }
-            
-            // Full content replacement
-            incrementStreamingRenderMetric('fullReplacements');
-            editor.commands.setContent(processedContent, { emitUpdate: false });
+        const result = applyIncrementalUpdate(editor, processedContent);
+        if (!result.applied) {
+            console.error('[ReadOnlyMessage] Incremental content update rejected; preserving last good document', {
+                failureClass: 'streaming_document_convergence_failed'
+            });
+            return;
         }
         
         // Re-apply PII decorations after content update
@@ -1108,8 +1060,6 @@
         
         if (editor && content) {
             // ChatHistory owns stream coalescing; apply each canonical document immediately.
-            const shouldApplyIncrementally = isStreaming || hasStreamingDocument || hasEmbedUpdate;
-            if (isStreaming) hasStreamingDocument = true;
             const newProcessedContent = processContent(content);
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
@@ -1119,13 +1069,8 @@
                     logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
                 }
 
-                // Embed metadata changes must preserve stable NodeViews. Re-parsing can
-                // update node attrs incrementally, while embed-store subscriptions
-                // resolve content that does not alter the document itself.
-                const forceFullReplace = localeChanged;
-                applyContentUpdate(newProcessedContent, shouldApplyIncrementally, forceFullReplace, isStreaming);
+                applyContentUpdate(newProcessedContent, isStreaming);
             }
-            if (!isStreaming) hasStreamingDocument = false;
         } else if (editor && !content) {
             // Handle case where content becomes null/undefined after editor initialization
             editor.commands.clearContent(false);
