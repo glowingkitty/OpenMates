@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
 // Regression coverage for authenticated daily inspiration carousel stability.
 // Duplicate WebSocket deliveries can arrive while the user manually navigates
@@ -12,8 +11,10 @@ import {
   hasCompleteAuthenticatedDailySet,
   type DailyInspiration,
 } from "../dailyInspirationStore";
-import { getAuthenticatedFallbackInspirations } from "../../demo_chats/hardcodedInspirations";
-import { loadGuestOnboardingInspirations } from "../../demo_chats/loadDefaultInspirations";
+import {
+  getAuthenticatedFallbackInspirations,
+  getHardcodedInspirationsForSurface,
+} from "../../demo_chats/hardcodedInspirations";
 
 const GUEST_ONBOARDING_IDS = [
   "openmates-intro",
@@ -123,7 +124,9 @@ describe("dailyInspirationStore", () => {
       source: "personalized",
     });
 
-    loadGuestOnboardingInspirations();
+    dailyInspirationStore.restoreGuestOnboarding(
+      getHardcodedInspirationsForSurface("en", "chats"),
+    );
 
     const state = get(dailyInspirationStore);
     expect(state.source).toBe("guest-onboarding");

@@ -136,10 +136,7 @@ function storeHasSurfaceData(surface: DailyInspirationSurface): boolean {
 export function loadGuestOnboardingInspirations(): void {
   const currentLang = get(svelteLocaleStore) || "en";
   const guestInspirations = getHardcodedInspirationsForSurface(currentLang, "chats");
-  dailyInspirationStore.reset();
-  dailyInspirationStore.setSurfaceInspirations("chats", guestInspirations, {
-    source: "guest-onboarding",
-  });
+  dailyInspirationStore.restoreGuestOnboarding(guestInspirations);
   console.debug(
     `${LOG_PREFIX} Loaded ${guestInspirations.length} guest onboarding inspiration(s) for lang=${currentLang}`,
   );

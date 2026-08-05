@@ -344,6 +344,19 @@ export const dailyInspirationStore = {
     });
   },
 
+  /** Replace all account-scoped data with the logged-out onboarding carousel. */
+  restoreGuestOnboarding: (inspirations: DailyInspiration[]): void => {
+    const tagged = inspirations
+      .slice(0, MAX_DAILY_INSPIRATIONS)
+      .map((inspiration) => ({ ...inspiration, surface: "chats" as const }));
+    store.set({
+      ...initialState,
+      inspirations: tagged,
+      currentIndex: preferredIndex(tagged),
+      source: "guest-onboarding",
+    });
+  },
+
   /**
    * Mark a specific inspiration as opened (user has started a chat from it).
    * The carousel remains visible; the next unopened becomes the default unless
