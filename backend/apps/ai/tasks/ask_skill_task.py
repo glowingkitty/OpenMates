@@ -43,7 +43,6 @@ from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
-from backend.apps.ai.processing.focus_mode_routing import resolve_subchat_enablement
 from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
@@ -1449,21 +1448,7 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
             raise RuntimeError(f"Preprocessing failed: {e}")
 
-        # --- User override: start focus mode from @focus:app_id:focus_id ---
-        # When the user explicitly mentions exactly one focus mode, set it as active for this request
-        # so the main processor injects the focus prompt and the model runs in that focus.
-        if user_overrides and len(user_overrides.focus_modes) == 1:
-            app_id, focus_id = user_overrides.focus_modes[0]
-            requested_focus_id = f"{app_id}-{focus_id}"
-            request_data.active_focus_id = requested_focus_id
-            preprocessing_result.enable_subchats = resolve_subchat_enablement(
-                preprocessing_result.enable_subchats,
-                active_focus_id=requested_focus_id,
-            )
-            logger.info(
-                f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
-            )
-        elif user_overrides:
+        if user_overrides:
             available_focus_modes = set()
             for app_id, app_metadata in (discovered_apps_metadata or {}).items():
                 focuses = getattr(app_metadata, "focuses", None) or []

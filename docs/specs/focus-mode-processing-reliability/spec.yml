@@ -81,7 +81,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d5188e1
+  subject_commit: de53771
 
 approvals:
   product_contract:
@@ -154,14 +154,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-06T15:45:27Z"
     summary: The click and custom event reached ActiveChat, but manual reparenting removed the Svelte-owned focus context menu before it rendered.
+  - id: ATTEMPT-8
+    task_id: TASK-2
+    approach: Review the cumulative implementation against the canonical activation and encrypted persistence contract.
+    outcome: rejected
+    recorded_at: "2026-08-06T17:36:00Z"
+    summary: Directly assigning active_focus_id for @focus overrides bypassed the existing zero-countdown auto-confirm branch and its canonical activation event.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Deploy the Svelte-owned focus context menu lifecycle fix, then rerun the activation Playwright spec.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: keep focus context menu under Svelte ownership" --message "Symptom/Cause/Fix"'
-  expected_outcome: The activated focus card opens a visible Details/Stop menu through the normal click path.
+  current_task_id: TASK-2
+  next_action: Deploy the explicit-focus activation pipeline correction, rebuild the AI worker, and repeat container plus real CLI verification.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: preserve explicit focus activation contract" --message "Symptom/Cause/Fix"'
+  expected_outcome: "@Web-Research enters the zero-countdown auto-confirm path, publishes the canonical activation event, and only then delegates through active Deep research."
   blocker: null
-  last_verified_commit: 4150b03
+  last_verified_commit: de53771
 
 scenarios:
   - id: S-1
@@ -394,12 +400,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        command: openmates chats new "@Web-Research compare today's major AI announcements and cite current sources" --auto-approve --json
-        run_id: live-cli-focus-green-20260806T1446Z
-        subject_commit: d5188e1
-        timestamp: "2026-08-06T14:46:00Z"
+      evidence: {status: pending}
   - id: T-CLI-RECOVERY
     type: unit
     file: frontend/packages/openmates-cli/tests/ws.test.ts
@@ -595,7 +596,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Repair relevant versus active focus routing
-    status: done
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
