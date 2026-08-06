@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-workflow-quality-parity
 title: Agent Workflow Output Quality And Tool Parity
-status: implementing
+status: verified
 
 goal: >
   Improve OpenCode output quality and context efficiency for OpenMates repo work,
@@ -91,7 +91,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree@447789aeed5b803da4718cfc8e2d82416060172c
+  subject_commit: bfe2a09a2cbf0dbd05431c49dd0e59bc35fc9ae7
 
 approvals:
   product_contract:
@@ -144,11 +144,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the verified retrospective instruction and audit changes, then replace working-tree evidence with the resulting commit SHA.
-  command: 'python3 scripts/sessions.py deploy --session 15b3 --title "feat: require workflow retrospectives" --end'
-  expected_outcome: The scoped instruction, audit, test, and spec changes are committed and pushed to dev.
+  next_action: No implementation work remains; monitor task-closing summaries and strengthen the existing deterministic audit only if repeated concrete drift is observed.
+  command: python3 scripts/spec_verify.py docs/specs/agent-workflow-quality-parity/spec.yml
+  expected_outcome: The verified spec continues to report complete evidence for the deployed subject commit.
   blocker: null
-  last_verified_commit: working-tree@447789aeed5b803da4718cfc8e2d82416060172c
+  last_verified_commit: bfe2a09a2cbf0dbd05431c49dd0e59bc35fc9ae7
 
 scenarios:
   - id: S-1
@@ -438,7 +438,7 @@ tests:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_passes_current_repo scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms
         run_id: local-2026-08-06-workflow-retrospective-green
-        subject_commit: working-tree@447789aeed5b803da4718cfc8e2d82416060172c
+        subject_commit: bfe2a09a2cbf0dbd05431c49dd0e59bc35fc9ae7
         timestamp: "2026-08-06T18:42:41Z"
         summary: 16 focused tests passed, including clause-level mutation coverage that requires every retrospective guarantee inside the dedicated Markdown section.
 
