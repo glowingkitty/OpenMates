@@ -180,7 +180,9 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
         output_path=tmp_path / "end-frame.png",
     )
     assert Path(end_frame["path"]).is_file()
-    assert end_frame["timestamp_seconds"] == module.video_metadata(output)["duration_seconds"]
+    assert end_frame["timestamp_seconds"] == pytest.approx(
+        module.video_metadata(output)["duration_seconds"] - module.END_FRAME_OFFSET_SECONDS,
+    )
 
 
 def test_complete_frame_scan_detects_secret_visible_for_one_frame() -> None:

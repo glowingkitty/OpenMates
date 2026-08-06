@@ -1025,7 +1025,7 @@ def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Pa
     if result.returncode != 0 or not output_path.is_file():
         raise DemonstrationError(f"FFmpeg frame extraction failed: {result.stderr.strip()[-500:]}")
     return {
-        "timestamp_seconds": round(float(timestamp_seconds), 3),
+        "timestamp_seconds": round(float(seek_seconds), 3),
         "path": str(output_path),
         "sha256": sha256_file(output_path),
     }
