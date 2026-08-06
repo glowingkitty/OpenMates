@@ -375,3 +375,26 @@ test("unresolved sessions can run the bounded OpenCode workflow audit", () => {
   });
   assert.equal(audit.decision, "allow_recovery");
 });
+
+test("question sessions can run bounded observational shell commands without a worktree", () => {
+  for (const command of [
+    "git blame -L 10,20 -- scripts/sessions.py",
+    "git show origin/dev:scripts/sessions.py",
+    "python3 scripts/issues.py show synthetic-id --env dev --full --json",
+    "python3 scripts/tests.py status --json",
+    "gh run view 31112777028 --log-failed",
+  ]) {
+    assert.equal(
+      routingFailureForTest({ tool: "bash", sessionID: "ses-question", command }).decision,
+      "allow_recovery",
+    );
+  }
+  assert.equal(
+    routingFailureForTest({
+      tool: "bash",
+      sessionID: "ses-question",
+      command: "python3 scripts/sessions.py deploy --session abcd --title unsafe",
+    }).decision,
+    "block",
+  );
+});

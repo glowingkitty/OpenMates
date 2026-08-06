@@ -58,7 +58,9 @@ The repository root checkout is the control plane. Use it for orchestration comm
 python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
 ```
 
-`dev` remains the only integration and deploy branch. Session worktrees are disposable local workspaces, not long-lived user-managed branches. Native deploys reproduce only the selected source patch in a unique detached integration worktree based on an exact fetched `origin/dev` commit. Source-dependent gates and commit hooks run there, leaving root unchanged on failure. Finalization briefly locks, refreshes `origin/dev`, and either pushes the validated detached `HEAD:refs/heads/dev` without force or releases the lock to rebuild and rerun gates on the newer base. Grandfathered sessions retain the legacy root path until they finish.
+`dev` remains the only integration and deploy branch. Session worktrees are disposable local workspaces, not long-lived user-managed branches. Native deploys reproduce only the selected source patch in a unique detached integration worktree based on an exact fetched `origin/dev` commit. Source-dependent gates and commit hooks run there, leaving root unchanged on failure. Finalization briefly locks, refreshes `origin/dev`, and either pushes the validated detached `HEAD:refs/heads/dev` without force or releases the lock to rebuild and rerun gates on the newer base. Deployed source worktrees remain untouched; durable workspace metadata distinguishes integrated patches from residual or concurrent changes without risking an automatic destructive reset. Grandfathered sessions retain the legacy root path until they finish.
+
+Top-level mutating OpenCode chats create a local `refs/openmates/checkpoints/<session>` commit when they become idle or close. This does not change `dev` or the source worktree. New mutating sessions opt into periodic recovery: after a grace period, the hourly controller rechecks the exact patch identity, live presence, edit leases, explicit holds, and sensitive paths, then invokes the normal `sessions.py deploy` transaction without test or hook waivers. Failed gates and conflicts remain durable `recovery_needed` state; legacy and uncheckpointed worktrees are never implicit integration inputs.
 
 Worktree reconciliation compares the session registry, Git-linked worktrees, and physical agent-worktree directories against an exact `origin/dev` commit. It distinguishes native, pilot-fallback, grandfathered source worktrees, and nonce-shaped disposable integration worktrees. Report-only reconciliation is the default. Safe application may delete a source worktree only after 48 hours without activity when its content is integrated, duplicated, or review-approved as superseded; stale integration worktrees are reproducible and may be removed under the same idle threshold. Deletion retains a compact source-free manifest for 30 days; recent, unique, and uncertain source work remains visible.
 
@@ -85,11 +87,15 @@ question events. Assistant completion, abort, late user-message replay, retries,
 session closure, per-request resolution, and stale heartbeat expiry have explicit
 deterministic transitions.
 
-Presence never sends a prompt, command, or system-transform message. Status,
-completed read output, pre-edit guards, and explicit atomic task-claim commands
-are the only coordination channels. Parent routing permits child reads, but an
-inherited parent route rejects all child mutations; writable children need their
-own repository session/worktree and disjoint ownership.
+Presence never sends a prompt or system-transform message. A passive idle or
+close event may launch only the bounded local worktree checkpoint command; it
+cannot integrate code or start another assistant turn. Status, completed read
+output, pre-edit guards, and explicit atomic task-claim commands are the only
+coordination channels. Parent routing permits bounded Git history/diff, issue,
+test-status, GitHub-run, and Docker-log inspection. Inherited children default
+to read-only even before role metadata arrives; edits, test execution, service
+mutation, shell expansion/redirection, and deploys remain blocked. Writable
+children need their own repository session/worktree and disjoint ownership.
 
 `scripts/verify_opencode_presence_live.py --isolated` is the runtime parity gate.
 It creates concurrent top-level sessions plus an explicit child against a local

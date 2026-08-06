@@ -12,7 +12,7 @@ from scripts import sessions
 def fixtures():
     durable = {
         "sessions": {
-            "a111": {"opencode_session_id": "ses-stream", "task": "stream", "worktree": {"status": "active", "path": "/tmp/a"}},
+            "a111": {"opencode_session_id": "ses-stream", "task": "stream", "workspace_state": "checkpointed", "worktree": {"status": "active", "path": "/tmp/a"}},
             "b222": {"opencode_session_id": "ses-merged", "task": "merged", "worktree": {"status": "merged", "path": "/tmp/b"}},
             "c333": {"opencode_session_id": "ses-wait", "task": "wait", "worktree": {"status": "active", "path": "/tmp/c"}},
         },
@@ -51,6 +51,7 @@ def test_single_session_view_follows_identity_chain():
     assert view["session"]["repository_session_id"] == "a111"
     assert view["session"]["opencode_session_id"] == "ses-stream"
     assert view["session"]["worktree"]["status"] == "active"
+    assert view["session"]["workspace_state"] == "checkpointed"
 
 
 def test_status_projects_persisted_child_role_onto_existing_presence():

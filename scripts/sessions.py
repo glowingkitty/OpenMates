@@ -59,6 +59,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -124,6 +125,29 @@ DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-comp
 DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
+WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES = 15
+WORKTREE_AUTO_INTEGRATION_BINDING_MODES = {"native", "pilot_fallback", "worktree_routed"}
+WORKTREE_AUTO_INTEGRATION_SENSITIVE_PREFIXES = (
+    ".env",
+    ".claude/",
+    ".codex/",
+    ".github/workflows/",
+    ".opencode/",
+    "apple/",
+    "backend/core/api/app/routes/auth",
+    "backend/core/directus/migrations/",
+    "backend/core/directus/schema/",
+    "scripts/apple_remote.py",
+    "scripts/prod-",
+    "scripts/sessions.py",
+    "scripts/worktree-",
+)
+WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE = re.compile(
+    r"(^|/)(auth|billing|encrypt(?:ion)?|entitlements?|migrations?|payments?|permissions?|privacy|secrets?|signing)(/|[._-])",
+    re.IGNORECASE,
+)
+WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES = (".key", ".mobileprovision", ".p12", ".pbxproj", ".pem")
+WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
@@ -1547,6 +1571,16 @@ def _mark_worktree_deployed(
     integration: dict | None = None,
 ) -> None:
     """Mark a worktree merged and clear its matching blocked deploy record."""
+    checkpoint_files = sorted(str(path) for path in (integration or {}).get("files") or [])
+    source_patch_still_matches = True
+    current_session = _load_sessions().get("sessions", {}).get(session_id, {})
+    current_metadata = current_session.get("worktree") if isinstance(current_session, dict) else None
+    if checkpoint_files and isinstance(current_metadata, dict):
+        try:
+            source_patch_still_matches = _worktree_patch_id(current_metadata, checkpoint_files) == patch_id
+        except (OSError, RuntimeError):
+            source_patch_still_matches = False
+
     def mark(data: dict) -> None:
         metadata = data.get("sessions", {}).get(session_id, {}).get("worktree")
         if isinstance(metadata, dict):
@@ -1565,6 +1599,13 @@ def _mark_worktree_deployed(
                     "completed_at": _now_iso(),
                     "status": "merged",
                 }
+            session = data.get("sessions", {}).get(session_id)
+            if isinstance(session, dict):
+                session["workspace_state"] = "integrated" if source_patch_still_matches else "changes_pending"
+                auto = session.get("auto_integration")
+                if isinstance(auto, dict):
+                    auto["status"] = "integrated" if source_patch_still_matches else "changes_pending"
+                    auto["updated_at"] = _now_iso()
         if patch_id:
             data["deploy_queue"] = [
                 item
@@ -1573,6 +1614,15 @@ def _mark_worktree_deployed(
             ]
 
     _mutate_sessions(mark)
+    if source_patch_still_matches:
+        with _worktree_checkpoint_lock(session_id):
+            latest_session = _load_sessions().get("sessions", {}).get(session_id, {})
+            latest_auto = latest_session.get("auto_integration") if isinstance(latest_session.get("auto_integration"), dict) else {}
+            if latest_auto.get("patch_id") == patch_id and latest_auto.get("status") == "integrated":
+                _delete_worktree_checkpoint_ref(
+                    session_id,
+                    expected_commit=str(latest_auto.get("checkpoint_commit") or ""),
+                )
 
 
 def _git_is_ancestor(commit: str, target_ref: str) -> bool:
@@ -1733,12 +1783,55 @@ def _apply_worktree_diff_to_checkout(
     *,
     patch_id: str,
     prepared_base: str,
+    checkpoint_commit: str = "",
 ) -> None:
     """Apply selected source changes to a clean integration checkout and stage them."""
     source_path = Path(str(source_metadata.get("path") or ""))
     source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
+    if checkpoint_commit:
+        rc, checkpoint_parent, stderr = _run_cmd(
+            ["git", "rev-parse", f"{checkpoint_commit}^"],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        checkpoint_parent = checkpoint_parent.strip()
+        if rc != 0 or checkpoint_parent != source_base:
+            raise IntegrationConflict(
+                stderr or "Checkpoint parent no longer matches the recorded source base",
+                patch_id=patch_id,
+                source_base=source_base,
+                final_base=prepared_base,
+            )
+        diff_result = subprocess.run(
+            ["git", "diff", "--binary", source_base, checkpoint_commit, "--", *files],
+            cwd=str(CONTROL_PLANE_ROOT),
+            capture_output=True,
+            timeout=120,
+        )
+        if diff_result.returncode != 0:
+            raise RuntimeError(diff_result.stderr.decode("utf-8", errors="replace").strip())
+        diff_bytes = diff_result.stdout
+        if diff_bytes:
+            apply_command = ["git", "apply", "--index", "--whitespace=nowarn"]
+            if prepared_base != source_base:
+                apply_command.append("--3way")
+            apply_result = subprocess.run(
+                [*apply_command, "-"],
+                cwd=str(checkout_root),
+                input=diff_bytes,
+                capture_output=True,
+                timeout=120,
+            )
+            if apply_result.returncode != 0:
+                detail = apply_result.stderr.decode("utf-8", errors="replace").strip()
+                raise IntegrationConflict(
+                    detail or "Checkpoint conflicts with current origin/dev",
+                    patch_id=patch_id,
+                    source_base=source_base,
+                    final_base=prepared_base,
+                )
+        return
     current_patch_id = _worktree_patch_id(source_metadata, files)
     if current_patch_id != patch_id:
         raise IntegrationConflict(
@@ -1824,6 +1917,8 @@ def _prepare_integration_worktree(
     files: list[str],
     patch_id: str,
     prepared_base: str,
+    *,
+    checkpoint_commit: str = "",
 ) -> dict:
     """Create and populate one disposable exact-base integration checkout."""
     if not files or not patch_id or not prepared_base:
@@ -1838,6 +1933,7 @@ def _prepare_integration_worktree(
         "source_base": str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or ""),
         "prepared_base": prepared_base,
         "files": sorted(files),
+        "checkpoint_commit": checkpoint_commit,
         "created_at": _now_iso(),
     }
     rc, _stdout, stderr = _run_cmd(
@@ -1853,6 +1949,7 @@ def _prepare_integration_worktree(
             path,
             patch_id=patch_id,
             prepared_base=prepared_base,
+            checkpoint_commit=checkpoint_commit,
         )
     except Exception:
         _remove_integration_worktree(integration)
@@ -1868,13 +1965,17 @@ def _rebuild_integration_worktree(
 ) -> dict:
     """Discard stale prepared state and reproduce the same patch on a newer base."""
     _remove_integration_worktree(integration)
-    return _prepare_integration_worktree(
+    prepare_args = (
         str(integration.get("session_id") or "unknown"),
         source_metadata,
         files,
         str(integration.get("patch_id") or ""),
         prepared_base,
     )
+    checkpoint_commit = str(integration.get("checkpoint_commit") or "")
+    if checkpoint_commit:
+        return _prepare_integration_worktree(*prepare_args, checkpoint_commit=checkpoint_commit)
+    return _prepare_integration_worktree(*prepare_args)
 
 
 def enqueue_worktree_deploy(
@@ -1919,6 +2020,466 @@ def enqueue_worktree_deploy(
         return dict(item)
 
     return _mutate_sessions(store)
+
+
+def _worktree_checkpoint_ref(session_id: str) -> str:
+    """Return the local-only Git ref used to retain one session checkpoint."""
+    safe_session_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:64] or "unknown"
+    return f"refs/openmates/checkpoints/{safe_session_id}"
+
+
+def _delete_worktree_checkpoint_ref(session_id: str, *, expected_commit: str = "") -> bool:
+    """Delete a local checkpoint ref after its exact patch is integrated."""
+    command = ["git", "update-ref", "-d", _worktree_checkpoint_ref(session_id)]
+    if expected_commit:
+        command.append(expected_commit)
+    rc, _stdout, _stderr = _run_cmd(command, cwd=str(CONTROL_PLANE_ROOT))
+    if rc == 0:
+        return True
+    verify_rc, _actual, _verify_stderr = _run_cmd(
+        ["git", "rev-parse", "--verify", _worktree_checkpoint_ref(session_id)],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    return verify_rc != 0
+
+
+@contextmanager
+def _worktree_checkpoint_lock(session_id: str):
+    """Serialize checkpoint ref and metadata updates for one session."""
+    WORKTREE_CHECKPOINT_LOCKS_DIR.mkdir(parents=True, exist_ok=True)
+    safe_session_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:64] or "unknown"
+    with (WORKTREE_CHECKPOINT_LOCKS_DIR / f"{safe_session_id}.lock").open("a+", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+
+
+def _create_worktree_checkpoint_commit(
+    session_id: str,
+    metadata: dict,
+    files: list[str],
+    patch_id: str,
+) -> str:
+    """Commit an exact source patch to a local ref without changing source or dev."""
+    source_base = str(metadata.get("merged_commit") or metadata.get("base_commit") or "")
+    if not source_base:
+        raise RuntimeError("Cannot checkpoint a worktree without a source base")
+    integration = _prepare_integration_worktree(session_id, metadata, files, patch_id, source_base)
+    try:
+        checkout_root = Path(str(integration["path"]))
+        rc, _stdout, stderr = _run_cmd(
+            ["git", "commit", "--no-verify", "-m", f"checkpoint: preserve session {session_id}"],
+            cwd=str(checkout_root),
+            timeout=300,
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not create worktree checkpoint commit: {stderr}")
+        rc, commit_hash, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(checkout_root))
+        commit_hash = commit_hash.strip()
+        if rc != 0 or not commit_hash:
+            raise RuntimeError(f"Could not resolve worktree checkpoint commit: {stderr}")
+        checkpoint_ref = _worktree_checkpoint_ref(session_id)
+        rc, previous_commit, _stderr = _run_cmd(
+            ["git", "rev-parse", "--verify", checkpoint_ref],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        expected_commit = previous_commit.strip() if rc == 0 else "0" * 40
+        rc, _stdout, stderr = _run_cmd(
+            ["git", "update-ref", checkpoint_ref, commit_hash, expected_commit],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not retain worktree checkpoint ref: {stderr}")
+        return commit_hash
+    finally:
+        _remove_integration_worktree(integration)
+
+
+def _auto_integration_block_reason(files: list[str]) -> str:
+    """Return a stable reason when a patch requires explicit operator review."""
+    for relative_path in files:
+        if any(relative_path == prefix or relative_path.startswith(prefix) for prefix in WORKTREE_AUTO_INTEGRATION_SENSITIVE_PREFIXES):
+            return f"sensitive_path:{relative_path}"
+        if relative_path.endswith(WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES) or WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE.search(relative_path):
+            return f"sensitive_path:{relative_path}"
+    return ""
+
+
+def checkpoint_session_worktree(opencode_session_id: str, *, event: str) -> dict:
+    """Checkpoint one top-level mutating chat and make safe patches integration eligible."""
+    if event not in {"idle", "closed"}:
+        raise ValueError("checkpoint event must be idle or closed")
+    data = _load_sessions()
+    matched = session_for_opencode(data, opencode_session_id)
+    if not matched:
+        return {"status": "skipped", "reason": "not_top_level_session"}
+    session_id, session = matched
+    if session.get("auto_integration_policy") != "enabled":
+        return {"status": "skipped", "reason": "automatic_recovery_not_enabled"}
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    if (
+        session.get("mode") == "question"
+        or not metadata
+        or not metadata.get("path")
+        or session.get("binding_mode") not in WORKTREE_AUTO_INTEGRATION_BINDING_MODES
+    ):
+        return {"status": "skipped", "reason": "not_mutating_worktree"}
+    with _worktree_checkpoint_lock(session_id):
+        return _checkpoint_session_worktree_locked(session_id, event=event)
+
+
+def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
+    """Create and persist one checkpoint while holding its session lock."""
+    data = _load_sessions()
+    session = data.get("sessions", {}).get(session_id)
+    if not isinstance(session, dict):
+        return {"status": "skipped", "reason": "session_disappeared"}
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    if not metadata or not metadata.get("path"):
+        return {"status": "skipped", "reason": "worktree_binding_changed"}
+    files = _session_deploy_files(session, set())
+    if not files:
+        workspace_state = "integrated" if metadata.get("merged_commit") else "clean"
+
+        def mark_clean(current: dict) -> None:
+            current_session = current.get("sessions", {}).get(session_id)
+            if isinstance(current_session, dict):
+                current_session["workspace_state"] = workspace_state
+
+        _mutate_sessions(mark_clean)
+        return {"status": "skipped", "reason": "no_pending_changes", "workspace_state": workspace_state}
+
+    patch_id = _worktree_patch_id(metadata, files)
+    def mark_checkpointing(current: dict) -> None:
+        current_session = current.get("sessions", {}).get(session_id)
+        if isinstance(current_session, dict):
+            current_session["workspace_state"] = "changes_pending"
+
+    _mutate_sessions(mark_checkpointing)
+    try:
+        checkpoint_commit = _create_worktree_checkpoint_commit(session_id, metadata, files, patch_id)
+    except (OSError, RuntimeError) as exc:
+        failure_reason = f"checkpoint_failed:{str(exc)[-1000:]}"
+
+        def mark_failed(current: dict) -> None:
+            current_session = current.get("sessions", {}).get(session_id)
+            if not isinstance(current_session, dict):
+                return
+            current_session["workspace_state"] = "recovery_needed"
+            current_session["auto_integration"] = {
+                "status": "blocked",
+                "event": event,
+                "patch_id": patch_id,
+                "files": sorted(files),
+                "checkpointed_at": _now_iso(),
+                "block_reason": failure_reason,
+            }
+
+        _mutate_sessions(mark_failed)
+        raise
+    current_patch_id = _worktree_patch_id(metadata, files)
+    existing = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+    hold = bool(existing.get("hold"))
+    live_lease = any(
+        isinstance(lease, dict) and lease.get("session_id") == session_id
+        for lease in data.get("edit_leases", {}).values()
+    )
+    block_reason = _auto_integration_block_reason(files)
+    if current_patch_id != patch_id:
+        status = "recovery_needed"
+        block_reason = "patch_changed_during_checkpoint"
+    elif hold or live_lease:
+        status = "held"
+        block_reason = "explicit_hold" if hold else "live_edit_lease"
+    elif block_reason:
+        status = "blocked"
+    else:
+        status = "eligible"
+    eligible_after = (
+        datetime.now(timezone.utc) + timedelta(minutes=WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = _now_iso()
+
+    def store(current: dict) -> dict:
+        current_session = current.get("sessions", {}).get(session_id)
+        if not isinstance(current_session, dict):
+            raise RuntimeError(f"Session {session_id} disappeared during checkpoint")
+        current_session["workspace_state"] = "checkpointed" if status == "eligible" else ("held" if status == "held" else "recovery_needed")
+        current_session["auto_integration"] = {
+            "status": status,
+            "hold": hold,
+            "event": event,
+            "patch_id": patch_id,
+            "checkpoint_commit": checkpoint_commit,
+            "checkpoint_ref": _worktree_checkpoint_ref(session_id),
+            "files": sorted(files),
+            "checkpointed_at": now,
+            "eligible_after": eligible_after,
+            "block_reason": block_reason,
+        }
+        return dict(current_session["auto_integration"])
+
+    result = _mutate_sessions(store)
+    return {"session_id": session_id, **result}
+
+
+def _auto_integration_presence_is_live(session: dict) -> bool:
+    """Return whether the top-level OpenCode chat is currently executing."""
+    opencode_session_id = str(session.get("opencode_session_id") or "")
+    if not opencode_session_id:
+        return False
+    try:
+        record = _opencode_presence_store().snapshot().get("sessions", {}).get(opencode_session_id, {})
+    except (OSError, PresenceStoreError):
+        return True
+    return record.get("execution") in {"busy", "retrying"}
+
+
+def _checkpoint_ref_matches(session_id: str, auto: dict) -> bool:
+    """Return whether durable metadata still names the retained checkpoint ref."""
+    checkpoint_ref = str(auto.get("checkpoint_ref") or "")
+    checkpoint_commit = str(auto.get("checkpoint_commit") or "")
+    if checkpoint_ref != _worktree_checkpoint_ref(session_id) or not checkpoint_commit:
+        return False
+    rc, actual_commit, _stderr = _run_cmd(
+        ["git", "rev-parse", "--verify", checkpoint_ref],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    return rc == 0 and actual_commit.strip() == checkpoint_commit
+
+
+def select_auto_integration_candidates(*, now: str | None = None) -> list[dict]:
+    """Return exact current checkpoints eligible for the normal deploy transaction."""
+    data = _load_sessions()
+    current_time = _parse_iso(now or _now_iso())
+    selected: list[dict] = []
+    rejected: list[tuple[str, str, str]] = []
+    for session_id, session in sorted(data.get("sessions", {}).items()):
+        if not isinstance(session, dict):
+            continue
+        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        if auto.get("status") != "eligible" or not metadata.get("path"):
+            continue
+        if auto.get("hold"):
+            rejected.append((session_id, "held", "explicit_hold"))
+            continue
+        if session.get("auto_integration_policy") != "enabled" or session.get("binding_mode") not in WORKTREE_AUTO_INTEGRATION_BINDING_MODES:
+            rejected.append((session_id, "blocked", "legacy_or_unapproved_session"))
+            continue
+        if not _checkpoint_ref_matches(session_id, auto):
+            rejected.append((session_id, "recovery_needed", "checkpoint_ref_missing_or_changed"))
+            continue
+        try:
+            if _parse_iso(str(auto.get("eligible_after") or "")) > current_time:
+                continue
+        except (TypeError, ValueError):
+            rejected.append((session_id, "recovery_needed", "invalid_eligible_after"))
+            continue
+        if _auto_integration_presence_is_live(session):
+            rejected.append((session_id, "held", "live_presence"))
+            continue
+        if any(
+            isinstance(lease, dict) and lease.get("session_id") == session_id
+            for lease in data.get("edit_leases", {}).values()
+        ):
+            rejected.append((session_id, "held", "live_edit_lease"))
+            continue
+        files = _session_deploy_files(session, set())
+        checkpoint_files = sorted(str(path) for path in auto.get("files") or [])
+        if sorted(files) != checkpoint_files:
+            rejected.append((session_id, "recovery_needed", "checkpoint_file_set_changed"))
+            continue
+        block_reason = _auto_integration_block_reason(files)
+        if block_reason:
+            rejected.append((session_id, "blocked", block_reason))
+            continue
+        if not files or _worktree_patch_id(metadata, files) != auto.get("patch_id"):
+            rejected.append((session_id, "recovery_needed", "checkpoint_patch_changed"))
+            continue
+        selected.append(
+            {
+                "session_id": session_id,
+                "task": str(session.get("task") or "checkpointed work"),
+                "patch_id": str(auto.get("patch_id") or ""),
+                "checkpoint_commit": str(auto.get("checkpoint_commit") or ""),
+                "files": files,
+            }
+        )
+    for session_id, status, reason in rejected:
+        _record_auto_integration_state(session_id, status, reason=reason)
+    return selected
+
+
+def _record_auto_integration_state(session_id: str, status: str, *, reason: str = "") -> None:
+    """Persist an automatic integration transition independently from chat presence."""
+    def store(data: dict) -> None:
+        session = data.get("sessions", {}).get(session_id)
+        if not isinstance(session, dict):
+            return
+        auto = session.setdefault("auto_integration", {})
+        auto["status"] = status
+        auto["updated_at"] = _now_iso()
+        auto["block_reason"] = reason
+        if status in {"changes_pending", "integrated", "integrating", "held"}:
+            session["workspace_state"] = status
+        else:
+            session["workspace_state"] = "recovery_needed"
+
+    _mutate_sessions(store)
+
+
+def checkpoint_idle_sessions(*, now: str | None = None) -> list[dict]:
+    """Checkpoint opted-in mutating sessions that stopped producing heartbeats."""
+    current_time = _parse_iso(now or _now_iso())
+    data = _load_sessions()
+    results: list[dict] = []
+    for _session_id, session in sorted(data.get("sessions", {}).items()):
+        if not isinstance(session, dict) or session.get("auto_integration_policy") != "enabled":
+            continue
+        opencode_session_id = str(session.get("opencode_session_id") or "")
+        if not opencode_session_id or _auto_integration_presence_is_live(session):
+            continue
+        last_active = str(session.get("last_active") or session.get("started") or "")
+        try:
+            idle_minutes = (current_time - _parse_iso(last_active)).total_seconds() / 60
+        except (TypeError, ValueError):
+            continue
+        if idle_minutes < WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES:
+            continue
+        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        files = _session_deploy_files(session, set())
+        if not files:
+            continue
+        retryable_status = auto.get("status") in {"blocked", "recovery_needed"} or (
+            auto.get("status") == "held" and auto.get("block_reason") != "explicit_hold"
+        )
+        if not retryable_status and auto.get("patch_id") and auto.get("files") == files:
+            try:
+                if _worktree_patch_id(metadata, files) == auto.get("patch_id"):
+                    continue
+            except (OSError, RuntimeError):
+                pass
+        results.append(checkpoint_session_worktree(opencode_session_id, event="idle"))
+    return results
+
+
+def _complete_auto_integration(candidate: dict) -> bool:
+    """Finish only the checkpoint that the worker actually deployed."""
+    session_id = str(candidate["session_id"])
+    with _worktree_checkpoint_lock(session_id):
+        session = _load_sessions().get("sessions", {}).get(session_id, {})
+        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        if (
+            auto.get("status") != "integrated"
+            or auto.get("patch_id") != candidate.get("patch_id")
+            or auto.get("checkpoint_commit") != candidate.get("checkpoint_commit")
+        ):
+            return False
+        metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        files = sorted(str(path) for path in candidate.get("files") or [])
+        try:
+            source_still_matches = bool(files) and _worktree_patch_id(metadata, files) == candidate.get("patch_id")
+        except (OSError, RuntimeError):
+            source_still_matches = False
+        if not source_still_matches:
+            _record_auto_integration_state(session_id, "changes_pending", reason="source_changed_during_deploy")
+            return False
+        if not _delete_worktree_checkpoint_ref(
+            session_id,
+            expected_commit=str(candidate.get("checkpoint_commit") or ""),
+        ):
+            _record_auto_integration_state(session_id, "recovery_needed", reason="checkpoint_ref_cleanup_failed")
+            return False
+        _record_auto_integration_state(session_id, "integrated")
+        return True
+
+
+def _claim_auto_integration(candidate: dict) -> bool:
+    """Atomically claim one unchanged eligible checkpoint for a worker."""
+    session_id = str(candidate["session_id"])
+    with _worktree_checkpoint_lock(session_id):
+        session = _load_sessions().get("sessions", {}).get(session_id, {})
+        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        if (
+            auto.get("status") != "eligible"
+            or auto.get("patch_id") != candidate.get("patch_id")
+            or auto.get("checkpoint_commit") != candidate.get("checkpoint_commit")
+            or not _checkpoint_ref_matches(session_id, auto)
+        ):
+            return False
+        _record_auto_integration_state(session_id, "integrating")
+        return True
+
+
+def _fail_auto_integration(candidate: dict, reason: str) -> None:
+    """Block only the same checkpoint claimed by this worker."""
+    session_id = str(candidate["session_id"])
+    with _worktree_checkpoint_lock(session_id):
+        session = _load_sessions().get("sessions", {}).get(session_id, {})
+        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        if (
+            auto.get("patch_id") == candidate.get("patch_id")
+            and auto.get("checkpoint_commit") == candidate.get("checkpoint_commit")
+        ):
+            _record_auto_integration_state(session_id, "blocked", reason=reason)
+
+
+def auto_integrate_checkpoints(*, runner=None, now: str | None = None, dry_run: bool = False) -> dict:
+    """Integrate eligible checkpoints through sessions.py deploy with no gate waivers."""
+    checkpointed = [] if dry_run else checkpoint_idle_sessions(now=now)
+    candidates = select_auto_integration_candidates(now=now)
+    result = {
+        "checkpointed": checkpointed,
+        "eligible": [item["session_id"] for item in candidates],
+        "integrated": [],
+        "blocked": [],
+    }
+    if dry_run:
+        return result
+    if runner is None:
+        def runner(command: list[str]) -> tuple[int, str, str]:
+            completed = subprocess.run(
+                command,
+                cwd=str(CONTROL_PLANE_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=3600,
+            )
+            return completed.returncode, completed.stdout, completed.stderr
+    for candidate in candidates:
+        session_id = candidate["session_id"]
+        if not _claim_auto_integration(candidate):
+            continue
+        command = [
+            sys.executable,
+            "scripts/sessions.py",
+            "deploy",
+            "--session",
+            session_id,
+            "--title",
+            f"chore: integrate idle session {session_id}",
+            "--message",
+            f"Automatically integrate the validated checkpoint for: {candidate['task']}",
+            "--expected-patch-id",
+            candidate["patch_id"],
+            "--expected-checkpoint-commit",
+            candidate["checkpoint_commit"],
+        ]
+        returncode, stdout, stderr = runner(command)
+        if returncode == 0:
+            if _complete_auto_integration(candidate):
+                result["integrated"].append(session_id)
+            else:
+                result["blocked"].append({"session_id": session_id, "reason": "checkpoint_changed_during_deploy"})
+            continue
+        reason = (stderr or stdout or "automatic deploy failed").strip()[-2000:]
+        _fail_auto_integration(candidate, reason)
+        result["blocked"].append({"session_id": session_id, "reason": reason})
+    return result
 
 
 def _validate_managed_worktree_path(path: str | Path) -> Path:
@@ -4647,6 +5208,7 @@ def cmd_start(args: argparse.Namespace) -> None:
             "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
             "opencode_session_id": None,
             "binding_mode": "pending" if opencode_session_id and mode != "question" else "legacy_grandfathered",
+            "auto_integration_policy": "enabled" if opencode_session_id and mode != "question" else "disabled",
         }
         sid, pruned, cleared_locks, data = register_session_record(
             session_record,
@@ -5399,6 +5961,8 @@ def _presence_identity_item(
         "turn": record.get("turn", "none"),
         "task": durable.get("task", ""),
         "worktree": durable.get("worktree", {}),
+        "workspace_state": durable.get("workspace_state", "unknown"),
+        "auto_integration": durable.get("auto_integration", {}),
         "paths": record.get("paths", []),
         "updated_at": record.get("updated_at", ""),
     }
@@ -7132,13 +7696,18 @@ def _deploy_native_worktree(
 
     try:
         prepared_base = _fetch_origin_dev_commit()
-        integration = _prepare_integration_worktree(
+        prepare_args = (
             sid,
             worktree_metadata,
             to_commit,
             patch_id,
             prepared_base,
         )
+        checkpoint_commit = str(getattr(args, "expected_checkpoint_commit", "") or "")
+        if checkpoint_commit:
+            integration = _prepare_integration_worktree(*prepare_args, checkpoint_commit=checkpoint_commit)
+        else:
+            integration = _prepare_integration_worktree(*prepare_args)
 
         while True:
             checkout_root = Path(integration["path"])
@@ -7302,6 +7871,27 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         modified = sorted(set(modified) | set(to_commit))
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
     worktree_patch_id = _worktree_patch_id(worktree_metadata, to_commit) if worktree_metadata and to_commit else ""
+    expected_patch_id = str(getattr(args, "expected_patch_id", "") or "")
+    expected_checkpoint_commit = str(getattr(args, "expected_checkpoint_commit", "") or "")
+    if expected_patch_id and worktree_patch_id != expected_patch_id:
+        print(
+            "WORKTREE DEPLOY BLOCKED — checkpoint patch changed before integration. "
+            "Create a new checkpoint and retry.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if expected_checkpoint_commit:
+        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        if (
+            auto.get("patch_id") != expected_patch_id
+            or auto.get("checkpoint_commit") != expected_checkpoint_commit
+            or not _checkpoint_ref_matches(sid, auto)
+        ):
+            print(
+                "WORKTREE DEPLOY BLOCKED — checkpoint metadata or retained ref changed before integration.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
     pending_worktree_commit = _pending_worktree_push_commit(
         sid,
         worktree_patch_id,
@@ -7767,6 +8357,24 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             sys.exit(2)
         print(json.dumps(result, sort_keys=True))
         return
+    if args.worktree_action == "checkpoint":
+        try:
+            result = checkpoint_session_worktree(args.opencode_session, event=args.event)
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(result, sort_keys=True))
+        return
+    if args.worktree_action == "auto-integrate":
+        try:
+            result = auto_integrate_checkpoints(dry_run=args.dry_run)
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        if result["blocked"]:
+            sys.exit(1)
+        return
     if args.worktree_action == "cleanup":
         if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS:
             print(
@@ -8022,6 +8630,12 @@ def cmd_summary(args: argparse.Namespace) -> None:
     print(f"Tags: {', '.join(tags) if tags else '(none)'}")
     print(f"Started: {session.get('started', '?')}")
     print(f"Last active: {session.get('last_active', '?')}")
+    print(f"Workspace state: {session.get('workspace_state', 'unknown')}")
+    auto_integration = session.get("auto_integration")
+    if isinstance(auto_integration, dict) and auto_integration.get("status"):
+        print(f"Auto-integration: {auto_integration.get('status')}")
+        if auto_integration.get("block_reason"):
+            print(f"Auto-integration reason: {auto_integration.get('block_reason')}")
     print()
 
     if modified:
@@ -8045,9 +8659,12 @@ def cmd_summary(args: argparse.Namespace) -> None:
 
     # Deploy status — show clearly whether files are committed or pending
     if modified:
-        dirty_files = _get_dirty_files()
-        uncommitted = [f for f in modified if f in dirty_files]
-        committed = [f for f in modified if f not in dirty_files]
+        if isinstance(session.get("worktree"), dict):
+            uncommitted = _session_deploy_files(session, set())
+        else:
+            dirty_files = _get_dirty_files()
+            uncommitted = [f for f in modified if f in dirty_files]
+        committed = [f for f in modified if f not in set(uncommitted)]
 
         if uncommitted:
             print(f"Deploy status: PENDING ({len(uncommitted)} file(s) not yet committed)")
@@ -10188,6 +10805,11 @@ def main() -> None:
     p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
     p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
     p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    p_worktree_checkpoint = p_worktree_sub.add_parser("checkpoint", help="Checkpoint an idle or closed mutating OpenCode session")
+    p_worktree_checkpoint.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    p_worktree_checkpoint.add_argument("--event", required=True, choices=["idle", "closed"])
+    p_worktree_auto_integrate = p_worktree_sub.add_parser("auto-integrate", help="Integrate eligible checkpointed work through normal deploy gates")
+    p_worktree_auto_integrate.add_argument("--dry-run", action="store_true", help="List eligible checkpoints without deploying")
     p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Delete safely classified stale worktrees")
     p_worktree_cleanup.add_argument(
         "--idle-hours",
@@ -10351,6 +10973,16 @@ def main() -> None:
         action="store_true",
         dest="require_parity",
         help="Require a fresh no-skip scripts/verify_parity.py summary before deploy.",
+    )
+    p_deploy.add_argument(
+        "--expected-patch-id",
+        dest="expected_patch_id",
+        help=argparse.SUPPRESS,
+    )
+    p_deploy.add_argument(
+        "--expected-checkpoint-commit",
+        dest="expected_checkpoint_commit",
+        help=argparse.SUPPRESS,
     )
     p_deploy.add_argument(
         "--lock-timeout",

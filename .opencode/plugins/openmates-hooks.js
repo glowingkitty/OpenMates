@@ -604,10 +604,17 @@ async function resolveWorktreeRoute(client, sessionID, data = sessionsData()) {
 }
 
 function isReadOnlyChildBash(command) {
+  const safeCommand = (() => {
+    let unsafeSubstitution = false;
+    const replaced = String(command || "").replace(/\$\(\s*git\s+merge-base\s+([A-Za-z0-9_./:@^~-]+)\s+([A-Za-z0-9_./:@^~-]+)\s*\)/g, "SAFE_MERGE_BASE");
+    if (replaced.includes("$(")) unsafeSubstitution = true;
+    return unsafeSubstitution ? "" : replaced;
+  })();
+  if (!safeCommand) return false;
   const hasUnsafeExpansion = (() => {
     let quote = "";
     let escaped = false;
-    for (const char of command || "") {
+    for (const char of safeCommand) {
       if (escaped) {
         escaped = false;
         continue;
@@ -632,9 +639,9 @@ function isReadOnlyChildBash(command) {
     }
     return quote !== "";
   })();
-  if (!command || hasUnsafeExpansion || ["<(", ">("].some((token) => command.includes(token)) || extractWriteTargets(command).length > 0) return false;
-  const readOnlyCommands = new Set(["pgrep", "ps", "pwd"]);
-  const readOnlyGitCommands = new Set(["diff", "log", "show", "status"]);
+  if (hasUnsafeExpansion || ["<(", ">("].some((token) => safeCommand.includes(token)) || extractWriteTargets(safeCommand).length > 0) return false;
+  const readOnlyCommands = new Set(["head", "jq", "pgrep", "ps", "pwd", "rg", "tail", "wc"]);
+  const readOnlyGitCommands = new Set(["blame", "branch", "describe", "diff", "log", "ls-files", "ls-tree", "merge-base", "name-rev", "rev-parse", "show", "status"]);
   const readOnlyDockerCommands = new Set(["inspect", "logs", "ps", "stats", "top"]);
   const readOnlyDebugSpecs = {
     chat: { booleanOptions: new Set(), valueOptions: new Set(), positional: 1 },
@@ -642,7 +649,7 @@ function isReadOnlyChildBash(command) {
     logs: { booleanOptions: new Set(["--o2"]), valueOptions: new Set(["--query-json"]), positional: 0 },
   };
   const readOnlyIssueSpecs = {
-    show: { booleanOptions: new Set(), valueOptions: new Set(["--env"]), positional: 1 },
+    show: { booleanOptions: new Set(["--full", "--json", "--no-logs"]), valueOptions: new Set(["--env"]), positional: 1 },
     timeline: { booleanOptions: new Set(["--compact"]), valueOptions: new Set(["--env"]), positional: 1 },
   };
   const readOnlyTestSpecs = {
@@ -692,16 +699,26 @@ function isReadOnlyChildBash(command) {
     return argumentsMatch(args.slice(1), readOnlyIssueSpecs[action]);
   };
 
-  return commandSegmentTokens(command.replace(/\\\s*\n/g, " ")).every((tokens) => {
+  return commandSegmentTokens(safeCommand.replace(/\\\s*\n/g, " ")).every((tokens) => {
+    if (tokens.some((token) => isAssignment(token)) || basename(unquote(tokens[0] || "")) === "env") return false;
     const directScript = unquote(tokens[0] || "").replace(/^\.\//, "");
     if (directScript === "scripts/issues.py") return issueCommandIsReadOnly(tokens.slice(1));
     const invocation = normalizedInvocation(tokens);
     const commandName = invocation.command;
     const args = invocation.args;
+    if (commandName === "rg") {
+      const executionOptions = ["--pre", "--pre-glob", "--hostname-bin", "--search-zip"];
+      return !args.some((arg) => executionOptions.some((option) => arg === option || arg.startsWith(`${option}=`)));
+    }
     if (readOnlyCommands.has(commandName)) return true;
     if (commandName === "git") {
+      const unsafeGitOptions = ["-c", "--config-env", "--exec-path", "--ext-diff", "--paginate", "--textconv"];
+      const hasUnsafeOption = args.some((arg) => unsafeGitOptions.some((option) => arg === option || arg.startsWith(`${option}=`)));
       const writesOutput = args.some((arg) => arg === "-o" || arg === "--output" || arg.startsWith("--output="));
-      return !writesOutput && readOnlyGitCommands.has(firstNonOption(args));
+      return !hasUnsafeOption && !writesOutput && readOnlyGitCommands.has(firstNonOption(args));
+    }
+    if (commandName === "gh") {
+      return args[0] === "run" && args[1] === "view" && args.slice(2).every((arg) => !["--delete", "--cancel", "--rerun"].includes(arg));
     }
     if (commandName === "docker") {
       const action = args[0];
@@ -758,7 +775,7 @@ function isRecoveryBash(command) {
 
 function routingFailureForTest({ tool = "", sessionID = "", command = "" } = {}) {
   if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) return { decision: "allow_read", message: "" };
-  if (BASH_TOOLS.has(tool) && isRecoveryBash(command)) return { decision: "allow_recovery", message: "" };
+  if (BASH_TOOLS.has(tool) && (isRecoveryBash(command) || isReadOnlyChildBash(command))) return { decision: "allow_recovery", message: "" };
   return { decision: "block", message: routingRecoveryMessage(sessionID) };
 }
 
@@ -960,6 +977,33 @@ function recordWorktreeRouting(opencodeSessionID) {
     return false;
   }
   return true;
+}
+
+function scheduleWorktreeCheckpoint(opencodeSessionID, event) {
+  if (!opencodeSessionID || !["idle", "closed"].includes(event)) return;
+  // Root checkout is the OpenMates control plane; sessions.py resolves the routed source worktree.
+  const child = spawn(
+    "python3",
+    [
+      "scripts/sessions.py",
+      "worktree",
+      "checkpoint",
+      "--opencode-session",
+      opencodeSessionID,
+      "--event",
+      event,
+    ],
+    { cwd: PROJECT_ROOT, env: process.env, detached: true, stdio: "ignore" },
+  );
+  child.on("error", (error) => {
+    console.warn(`${ROUTING_GUARD_MARKER} Reason: could not schedule ${event} checkpoint for ${opencodeSessionID}. The periodic reconciliation worker will retry. Detail: ${error.message}`);
+  });
+  child.on("close", (code) => {
+    if (code !== 0) {
+      console.warn(`${ROUTING_GUARD_MARKER} Reason: ${event} checkpoint for ${opencodeSessionID} exited with status ${code}. The periodic reconciliation worker will retry.`);
+    }
+  });
+  child.unref();
 }
 
 function pathInProjectRoot(file) {
@@ -1517,6 +1561,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   return {
     event: async ({ event }) => {
       recordLifecycleEvent(event);
+      if (event.type === "session.idle") scheduleWorktreeCheckpoint(eventSessionID(event), "idle");
+      if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
     },
     "shell.env": async (input, output) => {
       if (!input?.sessionID) return;

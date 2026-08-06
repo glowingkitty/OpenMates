@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-worktree-deploy
 title: Agent Worktree Deploy Isolation and Reconciliation
-status: verified
+status: implementing
 goal: 'Replace the shared-checkout deployment workflow with automatic ephemeral session worktrees that isolate agent edits,
   integrate through the existing dev branch only for the shortest practical window, verify deploys against the relevant commit,
   and reconcile workspaces without overwriting newer dev commits or allowing forgotten worktrees to accumulate.
@@ -18,6 +18,8 @@ scope:
   - Replace the global Vercel deploy lock as a proof primitive with commit-scoped deploy/test verification while retaining
     bounded deploy serialization for root integration, commit, and push.
   - Reconcile registered and orphaned worktrees against `origin/dev`, including the one-time cleanup of the existing backlog.
+  - Checkpoint mutating top-level sessions when they become idle or close, then automatically integrate current validated checkpoints
+    into `dev` without requiring the user to return to the chat.
   - Automatically delete worktrees after 48 hours without activity when deterministic comparison proves their changes are
     integrated, duplicated, or superseded; retain a compact deletion manifest for 30 days without retaining deleted code.
   - Batch-review stale worktrees containing unique changes and require operator review only for meaningful work that cannot
@@ -34,7 +36,7 @@ scope:
   out:
   - Creating long-lived feature branches that users must manage manually.
   - Replacing `dev` as the integration branch or changing the repository default branch.
-  - Automatically merging unique or uncertain stale changes into `dev`.
+  - Automatically integrating legacy, ambiguous, conflicting, explicitly held, or uncheckpointed worktree changes into `dev`.
   - Preserving patch bundles or copied source files after a high-confidence automatic stale deletion.
   - Blocking a pull request solely because recent active work is explicitly excluded from that release.
   - Rewriting unrelated session, CI, or product deployment behavior outside the worktree deploy path.
@@ -106,6 +108,9 @@ clarification:
   - question: How should unique stale work be decided?
     answer: Use deterministic checks plus batched read-only review. Automatically delete high-confidence obsolete work and ask
       the user only about meaningful unique work that remains uncertain.
+  - question: What should happen when the user forgets to return to a mutating chat with valuable changes?
+    answer: Durably checkpoint the current patch and automatically integrate it into `dev` after a grace period when the exact
+      checkpoint still matches, normal deploy gates pass, and no conflict, explicit hold, or sensitive-path blocker exists.
   vision_summary: 'Agents receive isolated worktrees automatically and do their edits outside the shared root checkout. Deploy
     integration still lands on dev, but the critical window is bounded and guarded so unrelated staged changes cannot contaminate
     a commit. Verification follows the commit that matters rather than a stale global deploy lock, and stale dirty worktrees
@@ -116,7 +121,7 @@ clarification:
     '
   approved_by_user: true
 implementation_state:
-  subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+  subject_commit: de5377177d7c0ce825c592111533514700ddeea3
 approvals:
   product_contract:
     status: approved
@@ -125,9 +130,9 @@ approvals:
       remediation contract.
   implementation_plan:
     status: approved
-    approved_at: '2026-08-04T00:00:00Z'
-    reason: The remediation extends the existing sessions.py lifecycle with deterministic reconciliation and does not introduce
-      a new external dependency or product data boundary.
+    approved_at: '2026-08-06T17:24:00Z'
+    reason: The user approved immediate coherent-slice deploys, unconditional local checkpoints, and deterministic idle
+      auto-integration to dev with conflict, gate, hold, and sensitive-path blockers.
 decisions:
 - id: D-1
   status: active
@@ -146,7 +151,7 @@ decisions:
     iteration.
   decided_at: '2026-07-26T00:00:00Z'
 - id: D-4
-  status: active
+  status: superseded
   decision: Archive stale dirty worktrees visibly after 12 hours instead of auto-committing, pushing, or deleting their changes.
   reason: Unreviewed changes may contain useful work or user data and must not be silently lost or merged.
   decided_at: '2026-07-26T00:00:00Z'
@@ -190,6 +195,26 @@ decisions:
   reason: Batched review found this was the only meaningful stale behavior absent from dev; all other stale unique patches were
     duplicate or superseded.
   decided_at: '2026-08-04T00:00:00Z'
+- id: D-12
+  status: active
+  decision: Durably checkpoint every current mutating top-level worktree when its OpenCode chat becomes idle or closes.
+  reason: A forgotten or crashed chat must not leave its only valuable copy as an uncommitted filesystem diff.
+  decided_at: '2026-08-06T17:24:00Z'
+- id: D-13
+  status: active
+  decision: Automatically integrate current checkpointed changes into dev after a grace period when normal deploy gates pass.
+  reason: The user considers forgotten important changes a greater risk than bounded automatic commits to the integration branch.
+  decided_at: '2026-08-06T17:24:00Z'
+- id: D-14
+  status: active
+  decision: Keep automatic checkpointing separate from automatic integration eligibility.
+  reason: Partial, conflicting, sensitive, explicitly held, or stale checkpoints must remain recoverable without being pushed.
+  decided_at: '2026-08-06T17:24:00Z'
+- id: D-15
+  status: active
+  decision: Treat inherited task children as read-only by default and permit deterministic observational commands without a child worktree.
+  reason: Transcript evidence showed the command allowlist blocked ordinary investigation and made agents fight the lifecycle system.
+  decided_at: '2026-08-06T17:24:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -221,12 +246,12 @@ attempts:
     malformed, uncertain, or unique unresolved worktrees. The state retained 257 source-free deletion manifests and two new
     concurrent blocked deploys that were intentionally not modified.
 handoff:
-  current_task_id: TASK-15
-  next_action: No implementation action remains; hourly reconciliation will retain recent work and clean eligible stale work.
-  command: python3 scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48
-  expected_outcome: Current worktrees remain recent-active or are safely classified when they cross the 48-hour threshold.
+  current_task_id: TASK-19
+  next_action: Validate and verify the resumed lifecycle spec, then deploy the scoped implementation to dev.
+  command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
+  expected_outcome: The resumed lifecycle contract validates with current green checkpoint, integration, and hook evidence.
   blocker: null
-  last_verified_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
+  last_verified_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3
 scenarios:
 - id: S-1
   title: Agent starts in an isolated worktree
@@ -342,6 +367,43 @@ scenarios:
   - A focused red test is added against current dev behavior.
   - The smallest compatible change is reapplied on the current dev base rather than merging the stale snapshot wholesale.
   - Focused green tests pass before the stale source worktree is removed.
+- id: S-11
+  title: Forgotten mutating chat is checkpointed
+  given:
+  - A top-level mutating OpenCode chat has current worktree changes.
+  when:
+  - The chat becomes idle or closes.
+  then:
+  - The exact selected patch is committed to a local session checkpoint ref without changing the source worktree or dev.
+  - Durable workspace metadata records the checkpoint identity, files, patch hash, state, and integration eligibility time.
+- id: S-12
+  title: Current checkpoint automatically integrates to dev
+  given:
+  - A checkpoint remains current after its grace period.
+  - No explicit hold, conflict, sensitive path, or live edit lease exists.
+  when:
+  - Periodic reconciliation processes eligible checkpoints.
+  then:
+  - The existing exact-base integration path reruns normal deploy gates and pushes only the checkpointed patch to dev.
+  - A failed gate or conflict remains visible and recoverable without modifying dev.
+- id: S-13
+  title: Research children inspect without hook friction
+  given:
+  - A read-only or not-yet-classified child inherits its parent worktree route.
+  when:
+  - It runs bounded Git history/diff, issue inspection, test-status, GitHub-run, or Docker-log diagnostics.
+  then:
+  - The command runs in the inherited worktree.
+  - File edits, service mutations, test execution, deploys, shell expansion, and output redirection remain blocked.
+- id: S-14
+  title: Execution and workspace state remain distinct
+  given:
+  - A chat may be idle while its patch is pending, or active after its latest patch was integrated.
+  when:
+  - Status and reconciliation inspect the session.
+  then:
+  - Ephemeral chat execution state comes from presence.
+  - Durable workspace state independently reports clean, changes_pending, checkpointed, integrating, integrated, held, or recovery_needed.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
@@ -467,6 +529,38 @@ acceptance_criteria:
   verification_scope: related_backend
   verification_ids:
   - T-PYTEST-STALE-INTEGRATION
+- id: AC-13
+  scenario: S-11
+  text: Idle and closed top-level mutating chats create an exact local checkpoint ref and durable metadata without changing dev or the source worktree.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids: [T-PYTEST-WORKTREE-CHECKPOINT]
+- id: AC-14
+  scenario: S-12
+  text: Periodic reconciliation automatically integrates only current eligible checkpoints through the normal exact-base deploy gates and preserves failures visibly.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids: [T-PYTEST-AUTO-INTEGRATION]
+- id: AC-15
+  scenario: S-13
+  text: Transcript-derived observational child commands are allowed while mutations and ambiguous shell forms remain blocked.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids: [T-NODE-READONLY-ROUTING]
+- id: AC-16
+  scenario: S-14
+  text: Durable workspace state is independent from ephemeral chat execution state and remains visible after presence expires.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids: [T-PYTEST-WORKTREE-CHECKPOINT]
 tests:
 - id: T-PYTEST-WORKTREE-LIFECYCLE
   type: pytest
@@ -773,6 +867,59 @@ tests:
     required: true
     expected: pass
     evidence: {status: passed, command: "python3 -m pytest backend/tests/test_embed_methods.py backend/tests/test_share_chat_window_loading.py", run_id: local-stale-integration-final-20260804, subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75, timestamp: '2026-08-04T11:40:00Z'}
+- id: T-PYTEST-WORKTREE-CHECKPOINT
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_checkpoints.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py
+  covers: [AC-13, AC-16]
+  assertions:
+  - An idle or closed mutating top-level session stores an exact local checkpoint ref without changing source or dev.
+  - Repeated checkpoints replace the session ref atomically and record only the current patch identity and files.
+  - Question sessions, child identities, clean worktrees, explicit holds, and live edit leases do not become integration eligible.
+  - Durable workspace state remains independent from ephemeral presence execution state.
+  red_phase:
+    required: true
+    expected: fail
+    evidence: {status: missing_test, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py", run_id: local-worktree-checkpoint-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py scripts/tests/test_sessions_auto_integration.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_integration_concurrency.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: local-lifecycle-green-20260806-1911, subject_commit: de5377177d7c0ce825c592111533514700ddeea3, timestamp: '2026-08-06T19:11:54Z'}
+- id: T-PYTEST-AUTO-INTEGRATION
+  type: pytest
+  file: scripts/tests/test_sessions_auto_integration.py
+  command: python3 -m pytest scripts/tests/test_sessions_auto_integration.py
+  covers: [AC-14]
+  assertions:
+  - Only current checkpoint hashes past their grace period are selected.
+  - Sensitive paths, holds, conflicts, changed patches, and live leases become visible blockers without touching dev.
+  - Eligible checkpoints invoke the existing verified sessions.py deploy path with no skipped gates.
+  - Successful integration clears checkpoint eligibility and records integrated workspace state.
+  red_phase:
+    required: true
+    expected: fail
+    evidence: {status: missing_test, command: "python3 -m pytest scripts/tests/test_sessions_auto_integration.py", run_id: local-auto-integration-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py scripts/tests/test_sessions_auto_integration.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_integration_concurrency.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: local-lifecycle-green-20260806-1911, subject_commit: de5377177d7c0ce825c592111533514700ddeea3, timestamp: '2026-08-06T19:11:54Z'}
+- id: T-NODE-READONLY-ROUTING
+  type: unit
+  file: scripts/tests/test_opencode_presence_collisions.mjs
+  command: node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs
+  covers: [AC-15]
+  assertions:
+  - Transcript-derived Git, issue, status, GitHub-run, and Docker-log inspection commands run for unknown/read-only children.
+  - The same observational commands run in a top-level question session without requiring a worktree.
+  - Mutations, ambiguous expansions, redirection, tests, and deploys remain blocked.
+  red_phase:
+    required: true
+    expected: fail
+    evidence: {status: missing_test, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: local-readonly-routing-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: passed, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_task_child_roles.mjs", run_id: local-readonly-routing-green-20260806-1911, subject_commit: de5377177d7c0ce825c592111533514700ddeea3, timestamp: '2026-08-06T19:11:54Z'}
 assumptions:
 - id: A-1
   text: Existing `sessions.py` metadata can be extended without replacing `.claude/sessions.json` as the shared state file.
@@ -873,7 +1020,8 @@ implementation_plan:
     safe-apply cleanup, transactional finalization, deletion manifests, and release readiness. Reconciliation compares the
     sessions registry, linked Git worktree admin records, physical worktree paths, and an exact `origin/dev` target without
     checking out or modifying dev. Deploy and end delegate to one finalizer so metadata cannot disappear before the physical
-    worktree is removed or residual changes are recorded.
+    worktree is removed or residual changes are recorded. OpenCode idle and close events create local checkpoint refs only;
+    the periodic controller separately integrates current eligible checkpoints through the existing gated deploy transaction.
 
     '
   existing_patterns:
@@ -884,6 +1032,9 @@ implementation_plan:
   data_flow:
   - Session start or first edit resolves the agent identity and worktree path, then records base commit and activity metadata.
   - Agent edits happen in the session worktree.
+  - Top-level mutating chat idle or close records an exact local checkpoint and durable workspace state without changing dev.
+  - Periodic reconciliation waits for the grace period, rechecks patch identity and blockers, then invokes the normal gated
+    deploy path for eligible checkpoints; failures remain durable recovery items.
   - Deploy reads the worktree diff, guards root integration with the dev deploy verification lock or writes a blocked-deploy
     record, applies only the intended diff to `dev`, commits, and pushes.
   - Verification records whether it used fast latest-ready mode or exact-SHA mode for the resulting commit.
@@ -896,7 +1047,7 @@ implementation_plan:
   - Pull-request readiness reruns reconciliation against the exact release SHA and blocks unresolved state.
   affected_files:
   - path: scripts/sessions.py
-    reason: Add reconciliation, classification, safe deletion, manifests, transactional finalization, and release readiness.
+    reason: Add checkpoints, auto-integration eligibility, workspace state, reconciliation, safe deletion, and finalization.
   - path: scripts/worktree-reconciliation-setup.sh
     reason: Provision the documented periodic reconciliation job deterministically.
   - path: scripts/tests.py
@@ -908,7 +1059,13 @@ implementation_plan:
   - path: scripts/ci_impact.py
     reason: Reuse or extend impact classification for fast versus exact verification decisions.
   - path: .opencode/plugins/openmates-hooks.js
-    reason: Warn or block unsafe root source edits and point sessions at worktree commands.
+    reason: Checkpoint top-level idle chats and permit bounded observational parent/child commands without weakening mutation guards.
+  - path: scripts/tests/test_sessions_worktree_checkpoints.py
+    reason: Prove durable checkpoints and workspace-state separation.
+  - path: scripts/tests/test_sessions_auto_integration.py
+    reason: Prove only current, eligible, gated checkpoints reach dev.
+  - path: scripts/tests/test_opencode_presence_collisions.mjs
+    reason: Cover transcript-derived read-only commands and hostile near-matches.
   - path: .codex/hooks/bash-guard.sh
     reason: Keep Codex command guardrails aligned with root control-plane policy.
   - path: .agents/skills/deploy/SKILL.md
@@ -948,6 +1105,7 @@ implementation_plan:
   - path: scripts/audit_worktree_deploy_contract.py
     reason: New low-noise documentation and instruction audit for the workflow contract.
   verification_strategy:
+  - Add transcript-derived red tests for read-only command routing, durable checkpoints, and bounded automatic integration.
   - Add and run focused red tests for finalization, reconciliation, cleanup, and PR readiness before implementation.
   - Implement report-only inventory and classification before any deleting behavior.
   - Implement transactional finalization before using safe apply on the existing backlog.
@@ -957,6 +1115,8 @@ implementation_plan:
   - Run `spec_validate.py` after each spec edit and `spec_verify.py` before declaring the spec complete.
   verification_order:
   - python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
+  - node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs
+  - python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py scripts/tests/test_sessions_auto_integration.py
   - python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py
   - python3 -m pytest scripts/tests/test_sessions_worktree_deploy.py
   - python3 -m pytest scripts/tests/test_sessions_worktree_deploy_queue.py
@@ -1380,4 +1540,93 @@ tasks:
   independently_deployable: false
   ownership:
     files: [docs/specs/agent-worktree-deploy/spec.yml]
+    shared_files: []
+- id: TASK-16
+  title: Add read-only routing and checkpoint red tests
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-11, S-13, S-14]
+    acceptance_criteria: [AC-13, AC-15, AC-16]
+  expected_files:
+  - scripts/tests/test_opencode_presence_collisions.mjs
+  - scripts/tests/test_opencode_native_worktree_binding.mjs
+  - scripts/tests/test_sessions_worktree_checkpoints.py
+  verification_ids: [T-NODE-READONLY-ROUTING, T-PYTEST-WORKTREE-CHECKPOINT]
+  dependencies: []
+  blockers: []
+  follow_up_tasks: [TASK-17, TASK-18]
+  independently_deployable: false
+  ownership:
+    files:
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    shared_files: []
+- id: TASK-17
+  title: Remove false read-only hook blocks
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-13]
+    acceptance_criteria: [AC-15]
+  expected_files: [.opencode/plugins/openmates-hooks.js]
+  verification_ids: [T-NODE-READONLY-ROUTING]
+  dependencies: [TASK-16]
+  blockers: []
+  follow_up_tasks: [TASK-19]
+  independently_deployable: true
+  ownership:
+    files: [.opencode/plugins/openmates-hooks.js]
+    shared_files: []
+- id: TASK-18
+  title: Implement checkpoints and bounded automatic dev integration
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-11, S-12, S-14]
+    acceptance_criteria: [AC-13, AC-14, AC-16]
+  expected_files:
+  - scripts/sessions.py
+  - scripts/worktree-reconciliation-setup.sh
+  - scripts/tests/test_sessions_auto_integration.py
+  verification_ids: [T-PYTEST-WORKTREE-CHECKPOINT, T-PYTEST-AUTO-INTEGRATION]
+  dependencies: [TASK-16]
+  blockers: []
+  follow_up_tasks: [TASK-19]
+  independently_deployable: true
+  ownership:
+    files:
+    - scripts/sessions.py
+    - scripts/worktree-reconciliation-setup.sh
+    - scripts/tests/test_sessions_auto_integration.py
+    shared_files: [.claude/sessions.json, .openmates-agent-worktrees]
+- id: TASK-19
+  title: Document, audit, and verify the resumed lifecycle contract
+  status: in_progress
+  phase: running_checks
+  covers:
+    scenarios: [S-11, S-12, S-13, S-14]
+    acceptance_criteria: [AC-13, AC-14, AC-15, AC-16]
+  expected_files:
+  - docs/architecture/agent-tooling-parity.md
+  - docs/architecture/infrastructure/cronjobs.md
+  - .claude/rules/session-lifecycle.md
+  - docs/specs/agent-worktree-deploy/spec.yml
+  verification_ids:
+  - T-NODE-READONLY-ROUTING
+  - T-PYTEST-WORKTREE-CHECKPOINT
+  - T-PYTEST-AUTO-INTEGRATION
+  - V-SPEC-VALIDATE
+  - V-SPEC-VERIFY
+  dependencies: [TASK-17, TASK-18]
+  blockers: []
+  follow_up_tasks: []
+  independently_deployable: false
+  ownership:
+    files:
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - .claude/rules/session-lifecycle.md
+    - docs/specs/agent-worktree-deploy/spec.yml
     shared_files: []

@@ -111,6 +111,39 @@ def test_selected_patch_is_reproduced_without_mutating_root_or_source(monkeypatc
     assert not checkout.exists()
 
 
+def test_checkpoint_source_ignores_newer_live_edits(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, source, base = create_fixture(tmp_path)
+    integrations = root / ".openmates-agent-worktrees"
+    integrations.mkdir()
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+    metadata = {"path": str(source), "base_commit": base}
+    files = ["changed.txt", "deleted.txt", "new.bin", "tool.sh", "tracked.bin"]
+    patch_id = sessions._worktree_patch_id(metadata, files)
+
+    checkpoint = sessions._prepare_integration_worktree("abcd", metadata, files, patch_id, base)
+    checkpoint_path = Path(checkpoint["path"])
+    git(checkpoint_path, "commit", "-m", "checkpoint")
+    checkpoint_commit = git(checkpoint_path, "rev-parse", "HEAD")
+    sessions._remove_integration_worktree(checkpoint)
+
+    (source / "changed.txt").write_text("newer live edit\n", encoding="utf-8")
+    prepared = sessions._prepare_integration_worktree(
+        "abcd",
+        metadata,
+        files,
+        patch_id,
+        base,
+        checkpoint_commit=checkpoint_commit,
+    )
+
+    checkout = Path(prepared["path"])
+    assert (checkout / "changed.txt").read_text(encoding="utf-8") == "after\n"
+    assert (checkout / "new.bin").read_bytes() == b"\x00\x01new\xff"
+    sessions._remove_integration_worktree(prepared)
+
+
 def test_amended_patch_uses_last_deployed_commit_as_integration_base(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     root, source, base = create_fixture(tmp_path)
