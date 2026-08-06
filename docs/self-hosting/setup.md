@@ -180,10 +180,21 @@ Use `openmates server ai models list|test|remove` to manage saved local models. 
 | Stop | `openmates server stop --path ~/openmates` |
 | Preview update | `openmates server update --path ~/openmates --dry-run` |
 | Update | `openmates server update --path ~/openmates` |
+| Verify runtime | `openmates server verify --path ~/openmates --role core` |
+| Monitoring status | `openmates server monitoring status --path ~/openmates --role core` |
+| Test notifications | `openmates server notifications test --channel all --path ~/openmates --json` |
 | Backup | `openmates server backup --path ~/openmates --role core` |
 | Uninstall | `openmates server uninstall --path ~/openmates --yes` |
 
 Backups contain secrets. Store them on encrypted disks or move them to a secure backup location.
+
+Install or repair the five-minute runtime monitor and independent stale watchdog with host privileges:
+
+```bash
+sudo "$(command -v openmates)" server monitoring install-service --role core --path ~/openmates
+```
+
+Every update runs the same provider-free runtime verifier before reporting success. A failed required check leaves updated containers running, records degraded state, and offers a restore command only when a verified backup exists. Self-hosted servers omit billing checks entirely.
 
 See [CLI server management](../user-guide/cli/server-management.md) for the full command reference.
 
@@ -245,6 +256,8 @@ The default install uses invite codes only. Change signup mode in `~/openmates/.
 - Do not commit or share `~/openmates/.env`.
 - Restrict database, Redis, Directus, and monitoring ports to trusted networks.
 - Back up Docker volumes before updates.
+- Configure at least two independent runtime-health notification destinations on public production hosts.
+- Confirm `openmates server monitoring status --role core` is fresh after installation and updates.
 - Rotate provider API keys if `.env` is exposed.
 - Configure a small swap file on production hosts to reduce the chance of abrupt OOM kills during short memory spikes.
 

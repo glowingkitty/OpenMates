@@ -1,12 +1,14 @@
 ---
 status: active
-last_verified: 2026-06-21
+last_verified: 2026-08-06
 key_files:
 - backend/core/docker-compose.yml
 - backend/core/docker-compose.selfhost.yml
 - backend/upload/docker-compose.selfhost.yml
 - backend/preview/docker-compose.selfhost.yml
 - backend/preview/docker-compose.preview.yml
+- backend/scripts/runtime_health_verifier.py
+- frontend/packages/openmates-cli/src/serverHealth.ts
 - deployment/dev_server/Caddyfile
 claims:
 - id: arch-core-servers-behavior
@@ -55,13 +57,13 @@ claims:
 - Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
-- Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, and manages host-level Caddyfile drift.
+- Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, manages host-level Caddyfile drift, and owns post-update/periodic runtime verification.
 
 ## CLI-Managed Roles
 
 | Role | Compose source | Data-bearing | Health check | Purpose |
 | --- | --- | --- | --- | --- |
-| `core` | `backend/core/docker-compose.selfhost.yml` | Yes | `http://localhost:8000/health` | API, Directus, Postgres, Vault, cache, workers, optional web app |
+| `core` | `backend/core/docker-compose.selfhost.yml` | Yes | `http://localhost:8000/v1/health` | API, Directus, Postgres, Vault, cache, workers, optional web app |
 | `upload` | `backend/upload/docker-compose.selfhost.yml` | Yes | `http://localhost:8000/health` | Isolated uploads service, local Vault, ClamAV, admin sidecar |
 | `preview` | `backend/preview/docker-compose.selfhost.yml` | No product data | `http://localhost:8080/health` | Isolated image/favicon/metadata proxy with cache |
 
@@ -124,6 +126,16 @@ Workers also build their own `SkillRegistry` instance in `init_worker_process()`
 | `promtail` | `grafana/promtail:3.4.2` | Log shipping to OpenObserve |
 
 Grafana and a backup-service are defined but commented out.
+
+### Host Runtime Contract
+
+The host CLI invokes `backend/scripts/runtime_health_verifier.py` inside the role's Python container after Compose readiness and every five minutes thereafter. This is an internal container-exec contract, not a public HTTP endpoint. Independent checks run concurrently after required service and HTTP baselines pass, with a single 60-second global deadline.
+
+Core chat plumbing is tested with a dedicated provider-free Celery task routed to `app_ai`; it exercises dispatch, worker execution, result transport, and Redis without model inference or user records. Celery Beat writes a no-spend scheduler heartbeat through the `health_check` queue. Database, cache, Vault, upload antivirus, and preview renderer checks use role-specific operational probes.
+
+The host owns incident state and notification delivery so API/Celery failure cannot suppress stale detection. It installs separate systemd monitor and watchdog timers, stores mode-`0600` atomic state under `<install>/.openmates/runtime-health/`, and sends independently retried email, Discord, or signed webhook events. Generic webhook delivery pins a validated public address, rejects redirects/private networks, and includes replay-bounded HMAC headers.
+
+Billing authority comes only from `OPENMATES_DEPLOYMENT_MODE`. `official_cloud` additionally requires agreeing overlay, environment, package-import, hosting-domain, and encrypted-domain witnesses. Any missing or conflicting witness selects `self_host` before billing imports or secret reads. Self-host inventories contain no billing check IDs; official-cloud checks are read-only and cannot create payment-provider resources.
 
 ### Preview Server
 

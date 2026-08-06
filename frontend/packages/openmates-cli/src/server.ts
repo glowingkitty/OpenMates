@@ -3248,6 +3248,9 @@ Commands:
   status          Show server status (container health)
   logs            Display server logs
   update          Update to latest version (pull images, or git pull + rebuild for source installs)
+  verify          Run the role-aware provider-free runtime contract without updating
+  monitoring      Install, run, or inspect periodic runtime monitoring and the host watchdog
+  notifications   Send labeled runtime-health notification delivery tests
   preflight       Show role/update/Caddy preflight plan
   env             Safely list, set, unset, check, doctor, or edit the runtime .env
   caddy           Plan host-level Caddyfile check/status/diff/apply operations
@@ -3304,6 +3307,18 @@ Command Options:
     --interval <min>    Foreground continuous update interval (default: 30)
     install-service --continuous --channel <name> --window <window>
     --force             Source mode: stash local changes before pulling
+
+  verify:
+    openmates server verify [--role core|upload|preview] [--json]
+
+  monitoring:
+    openmates server monitoring install-service [--role core|upload|preview] [--dry-run]
+    openmates server monitoring run [--role core|upload|preview] [--watchdog]
+    openmates server monitoring status [--role core|upload|preview] [--json]
+    System service installation requires root privileges.
+
+  notifications:
+    openmates server notifications test --channel email|discord|webhook|all [--json]
 
   env:
     openmates server env list [providers|integrations|observability|advanced|runtime]
