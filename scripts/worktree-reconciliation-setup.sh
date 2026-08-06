@@ -4,7 +4,7 @@
 #
 # Installs a user-level systemd oneshot and hourly timer on the dev machine.
 # The job first integrates current eligible checkpoints through normal deploy
-# gates, then safely reconciles stale worktrees. Legacy state is never merged.
+# gates, then reports stale worktrees without deleting them. Legacy state is never merged.
 # Run manually after deploying lifecycle changes to the root control plane.
 # =============================================================================
 set -euo pipefail
@@ -23,7 +23,7 @@ Description=OpenMates agent worktree reconciliation
 [Service]
 Type=oneshot
 WorkingDirectory=$PROJECT_ROOT
-ExecStart=/bin/bash -lc 'git fetch origin dev || exit; auto_status=0; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree auto-integrate || auto_status=\$?; reconcile_status=0; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe || reconcile_status=\$?; if [ "\$reconcile_status" -ne 0 ]; then exit "\$reconcile_status"; fi; exit "\$auto_status"'
+ExecStart=/bin/bash -lc 'git fetch origin dev || exit; auto_status=0; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree auto-integrate || auto_status=\$?; reconcile_status=0; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 || reconcile_status=\$?; if [ "\$reconcile_status" -ne 0 ]; then exit "\$reconcile_status"; fi; exit "\$auto_status"'
 EOF
 
 cat > "$SYSTEMD_DIR/worktree-reconciliation.timer" <<EOF
