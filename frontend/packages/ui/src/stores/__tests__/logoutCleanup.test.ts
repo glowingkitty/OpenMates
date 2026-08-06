@@ -254,6 +254,7 @@ vi.mock("../../services/clientLogForwarder", () => ({
 
 vi.mock("../../demo_chats/loadDefaultInspirations", () => ({
   loadDefaultInspirations: vi.fn(),
+  loadGuestOnboardingInspirations: vi.fn(),
 }));
 
 vi.mock("../../services/pendingChatDeletions", () => ({
@@ -282,6 +283,13 @@ vi.stubGlobal("fetch", mockFetch);
 
 // Mock document.cookie for deleteAllCookies
 vi.stubGlobal("document", { cookie: "" });
+Object.assign(window, {
+  location: {
+    hash: "",
+    origin: "http://test",
+    search: "",
+  },
+});
 
 // ─── Import module under test AFTER all mocks ───────────────────────────
 
