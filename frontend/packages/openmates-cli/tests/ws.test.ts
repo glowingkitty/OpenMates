@@ -752,6 +752,104 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("waits for the continuation recovery job while sub-chats are running", async () => {
+    const chatId = "chat-sub-chat-recovery";
+    const userMessageId = "user-message-sub-chat-recovery";
+    const turnId = "turn-sub-chat-recovery";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "awaiting_sub_chats_completion",
+          payload: { chat_id: chatId, task_id: "task-interim" },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: userMessageId,
+            message_id: "assistant-interim",
+            task_id: "task-interim",
+            chat_id: chatId,
+            is_final_chunk: true,
+            full_content_so_far: "```json\n{\"type\":\"sub_chat_batch\"}\n```",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "recovery_jobs_available",
+          payload: {
+            jobs: [{
+              job_id: "recovery-job-interim",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "assistant-interim",
+              chat_key_version: 1,
+            }],
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 5);
+
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "sub_chat_completed",
+          payload: { chat_id: chatId, task_id: "task-child" },
+        }));
+        socket.send(JSON.stringify({
+          type: "recovery_jobs_available",
+          payload: {
+            jobs: [{
+              job_id: "recovery-job-final",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "assistant-final",
+              chat_key_version: 1,
+            }],
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: "server-continuation-message",
+            message_id: "assistant-final",
+            task_id: "task-interim",
+            chat_id: chatId,
+            is_sub_chat_continuation: true,
+            is_final_chunk: true,
+            full_content_so_far: "## Short Answer\n\nFinal sourced synthesis.",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 80);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-sub-chat-recovery",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
+      assert.equal(response.messageId, "assistant-final");
+      assert.equal(response.recoveryJobId, "recovery-job-final");
+    } finally {
+      client.close();
+    }
+  });
+
   it("resolves awaiting_user_input for child chat events routed through the active parent", async () => {
     const chatId = "parent-waiting-chat";
     const childChatId = "child-waiting-chat";

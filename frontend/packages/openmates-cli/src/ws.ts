@@ -983,6 +983,7 @@ export class OpenMatesWsClient {
         }
         if (type === "awaiting_sub_chats_completion") {
           awaitingSubChatsCompletion = true;
+          taskId = typeof eventPayload.task_id === "string" ? eventPayload.task_id : taskId;
           resetTimeout(SUB_CHAT_COMPLETION_TIMEOUT_MS);
         }
         const handler = options?.onSubChatEvent;
@@ -1037,11 +1038,10 @@ export class OpenMatesWsClient {
       // Called once AI response is done. Start a short window to wait for
       // post_processing_metadata which may carry follow-up suggestions.
       const scheduleResolve = (content: string) => {
-        if (
-          awaitingSubChatsCompletion &&
-          content.trim().startsWith(SUB_CHAT_PARENT_STATUS_MESSAGE)
-        ) {
-          latestContent = "";
+        if (awaitingSubChatsCompletion) {
+          latestContent = content.trim().startsWith(SUB_CHAT_PARENT_STATUS_MESSAGE)
+            ? ""
+            : content;
           return;
         }
         aiResponseDone = true;
@@ -1049,6 +1049,21 @@ export class OpenMatesWsClient {
         clearTimeout(timeout);
         // Start the post-processing window — resolve early if we get suggestions.
         postProcessingTimer = setTimeout(finishPostProcessingWait, POST_PROCESSING_WINDOW_MS);
+      };
+
+      const beginSubChatContinuation = (payload: Record<string, unknown>) => {
+        if (!awaitingSubChatsCompletion) return;
+        if (payload.is_sub_chat_continuation !== true) return;
+
+        awaitingSubChatsCompletion = false;
+        aiResponseDone = false;
+        postProcessingDone = false;
+        latestContent = "";
+        if (postProcessingTimer) {
+          clearTimeout(postProcessingTimer);
+          postProcessingTimer = null;
+        }
+        resetTimeout(timeoutMs);
       };
 
       const onMessage = (rawData: RawData) => {
@@ -1144,6 +1159,7 @@ export class OpenMatesWsClient {
             if (!job) return;
             recoveryJobId = job.job_id;
             messageId = job.assistant_message_id;
+            if (awaitingSubChatsCompletion) return;
             if (aiResponseDone) maybeResolve();
             else scheduleResolve(latestContent);
             return;
@@ -1153,6 +1169,7 @@ export class OpenMatesWsClient {
           if (type === "ai_message_update") {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId !== userMessageId && p.chat_id !== chatId) return;
+            beginSubChatContinuation(p);
             capture(p);
             if (typeof p.full_content_so_far === "string") {
               latestContent = p.full_content_so_far;
@@ -1181,6 +1198,7 @@ export class OpenMatesWsClient {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
             if (!msgId && p.chat_id !== chatId) return;
+            beginSubChatContinuation(p);
             capture(p);
             const content =
               typeof p.full_content === "string"

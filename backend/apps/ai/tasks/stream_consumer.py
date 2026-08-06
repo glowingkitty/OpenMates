@@ -95,6 +95,14 @@ SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
 
 
+def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
+    if request_data.recovery_task_id:
+        return request_data.recovery_task_id
+    if request_data.is_sub_chat_continuation:
+        return request_data.recovery_inference_task_id
+    return None
+
+
 async def _finalize_legacy_cutover_before_final_marker(
     *,
     request_data: AskSkillRequest,
@@ -441,6 +449,11 @@ async def _dispatch_sub_chat_parent_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
+        recovery_inference_task_id=original_request.recovery_task_id,
+        recovery_preflight_id=original_request.recovery_preflight_id,
+        recovery_turn_id=original_request.recovery_turn_id,
+        recovery_public_key=original_request.recovery_public_key,
+        chat_key_version=original_request.chat_key_version,
         user_preferences=original_request.user_preferences,
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
@@ -1990,7 +2003,8 @@ async def _persist_sealed_recovery_job(
     category: str | None,
     model_name: str | None,
 ) -> dict[str, Any] | None:
-    if not request_data.recovery_task_id:
+    inference_task_id = _recovery_inference_task_id(request_data)
+    if not inference_task_id:
         return None
     required = {
         "recovery_preflight_id": request_data.recovery_preflight_id,
@@ -2007,6 +2021,7 @@ async def _persist_sealed_recovery_job(
         turn_id=request_data.recovery_turn_id,
         preflight_id=request_data.recovery_preflight_id,
         task_id=task_id,
+        inference_task_id=inference_task_id,
         recovery_public_key=request_data.recovery_public_key,
         chat_key_version=request_data.chat_key_version,
         content=content,
@@ -2081,10 +2096,12 @@ def _create_redis_payload(
     if category:
         payload["category"] = category
 
-    if request_data.recovery_task_id:
+    if _recovery_inference_task_id(request_data):
         payload["recovery_provisional"] = not is_final
         payload["recovery_turn_id"] = request_data.recovery_turn_id
         payload["chat_key_version"] = request_data.chat_key_version
+    if request_data.is_sub_chat_continuation:
+        payload["is_sub_chat_continuation"] = True
     
     # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
     # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.
@@ -2311,7 +2328,7 @@ async def _update_chat_metadata(
             persisted event is broadcast with the correct role/status for system
             rejection messages (e.g. "insufficient_credits").
     """
-    if getattr(request_data, "recovery_task_id", None):
+    if _recovery_inference_task_id(request_data):
         fields_to_update = {
             "last_edited_overall_timestamp": timestamp,
             "last_mate_category": category,
@@ -2874,7 +2891,7 @@ async def _generate_fake_stream_for_harmful_content(
     
     category = "general_knowledge"  # Default category for harmful content responses
     recovery_job = None
-    if request_data.recovery_task_id:
+    if _recovery_inference_task_id(request_data):
         if directus_service is None:
             raise RuntimeError("Epoch-1 harmful-content response is missing Directus recovery service")
         recovery_job = await _persist_sealed_recovery_job(
@@ -8856,7 +8873,7 @@ async def _consume_main_processing_stream(
     )
 
     recovery_job = None
-    if request_data.recovery_task_id:
+    if _recovery_inference_task_id(request_data) and not awaiting_sub_chats_completion:
         recovery_job = await _persist_sealed_recovery_job(
             directus_service=directus_service,
             request_data=request_data,

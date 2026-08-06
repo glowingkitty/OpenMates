@@ -6,7 +6,7 @@ key_files:
 - backend/apps/ai/processing/main_processor.py
 - backend/core/api/app/services/embed_service.py
 - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
-- frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
+- frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
 - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
 claims:
 - id: arch-apps-focus-modes-implementation-behavior
@@ -17,7 +17,7 @@ claims:
   - backend/apps/ai/processing/main_processor.py
   - backend/core/api/app/services/embed_service.py
   - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
-  - frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
+  - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
   test:
     file: scripts/tests/test_architecture_behavioral_claims.py
     command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
@@ -62,24 +62,28 @@ Allows the LLM to dynamically switch into specialized modes (e.g., "web research
 2. **Preprocessor** identifies relevant focus modes from available list
 3. **Main Processor** generates `activate_focus_mode` / `deactivate_focus_mode` tools
 4. **LLM** decides to call activation/deactivation
-5. **Tool execution** -> updates cache + Directus, creates `focus_mode_activation` embed
-6. **Embed streamed** as JSON reference inline in message stream
-7. **Processing restarts** with focus mode prompt in system prompt
+5. **Tool execution** -> creates and streams a `focus_mode_activation` countdown embed, stores pending continuation context, and exits cleanly
+6. **User decision** -> rejection resumes ordinary processing; otherwise auto-confirm publishes `focus_mode_activated`
+7. **Client persistence** -> the first-party client encrypts the focus ID with the chat key and returns the encrypted value for persistence
+8. **Processing restarts** with active focus state and the focus-mode prompt in the system prompt
 
 ### Backend: Tool Generation (`main_processor.py`)
 
 - `activate_focus_mode`: generated when preprocessor finds relevant focus modes AND no mode is currently active. Parameters include enum of relevant focus mode IDs with descriptions.
 - `deactivate_focus_mode`: generated when `active_focus_id` is set. No parameters.
 - Tool names use `system-` prefix to distinguish from regular skills.
+- Relevant focus modes are activation candidates only. They do not set `active_focus_id`, enable focus-specific routing, or suppress ordinary preselected skills.
+- Active Deep research enables and forces its sub-chat delegation policy only after the activation continuation supplies `active_focus_id: web-research`.
 
 ### Backend: Activation Flow
 
 When `activate_focus_mode` is called:
-1. Update `active_focus_id` in cache via `CacheService`
-2. Persist to Directus via Celery task (`persist_chat_active_focus_id`)
-3. Create `focus_mode_activation` embed via `embed_service.create_focus_mode_activation_embed()` (TOON-encoded, encrypted, cached, streamed to client)
-4. Set `restart_required = True`, break tool loop
-5. Re-construct system prompt with focus mode prompt, re-run LLM call from iteration 0
+1. Create a `focus_mode_activation` embed via `embed_service.create_focus_mode_activation_embed()` (TOON-encoded, encrypted, cached, streamed to the client).
+2. Store pending activation context in Redis with a bounded TTL.
+3. Schedule `focus_mode_auto_confirm_task` and end the current processing task without assigning `active_focus_id`.
+4. If the user rejects during the countdown, consume the pending context and resume without focus state.
+5. Otherwise auto-confirm publishes `focus_mode_activated` and dispatches continuation with the active focus prompt.
+6. The client encrypts the focus ID with the chat key, stores it locally, and sends `update_encrypted_active_focus_id` for server persistence.
 
 ### Backend: Deactivation
 

@@ -99,6 +99,9 @@ from backend.apps.ai.processing.audio_recording_guard import (
 from backend.apps.ai.processing.connected_account_receipts import (
     attach_connected_account_action_metadata,
 )
+from backend.apps.ai.processing.focus_mode_routing import (
+    gate_tools_for_deep_research,
+)
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
     MAX_DIRECT_SUB_CHATS_PER_PARENT,
@@ -2809,14 +2812,13 @@ async def handle_main_processing(
     if (
         chat_depth == 0
         and enable_subchats_results
-        and (
-            request_data.active_focus_id == "web-research"
-            or "web-research" in relevant_focus_modes
-        )
+        and request_data.active_focus_id == "web-research"
     ):
-        if not request_data.active_focus_id:
-            request_data.active_focus_id = "web-research"
-        available_tools_for_llm = [start_sub_chats_tool]
+        available_tools_for_llm = gate_tools_for_deep_research(
+            available_tools_for_llm,
+            active_focus_id=request_data.active_focus_id,
+            start_sub_chats_tool=start_sub_chats_tool,
+        )
         logger.info(
             f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
         )

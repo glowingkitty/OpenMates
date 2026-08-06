@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.tasks import stream_consumer
+from backend.apps.ai.tasks import ask_skill_task
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 
 
@@ -266,6 +267,43 @@ def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence
     assert "last_message_timestamp" not in directus.updates[0]
 
 
+def test_sub_chat_continuation_uses_recovery_only_metadata_path() -> None:
+    request_data = SimpleNamespace(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        recovery_task_id=None,
+        recovery_inference_task_id="11111111-1111-4111-8111-111111111111",
+        is_sub_chat_continuation=True,
+    )
+    directus = _MetadataDirectus()
+    cache = _RecoveryCache()
+
+    asyncio.run(
+        stream_consumer._update_chat_metadata(
+            request_data=request_data,
+            category="software_development",
+            timestamp=1234,
+            content_markdown="final synthesis",
+            content_tiptap="final synthesis",
+            directus_service=directus,
+            cache_service=cache,
+            encryption_service=_Encryption(),
+            user_vault_key_id="vault-key",
+            task_id="88888888-8888-4888-8888-888888888888",
+            log_prefix="test",
+            model_name="Gemini 3.6 Flash",
+        )
+    )
+
+    assert cache.version_increments == []
+    assert cache.version_sets == []
+    assert cache.events == []
+    assert len(cache.ai_messages) == 1
+    assert "messages_v" not in directus.updates[0]
+    assert "last_message_timestamp" not in directus.updates[0]
+
+
 def test_standardized_server_error_fallback_can_be_sealed_for_recovery(monkeypatch) -> None:
     task_id = "11111111-1111-4111-8111-111111111111"
     request_data = AskSkillRequest(
@@ -325,3 +363,87 @@ def test_standardized_server_error_fallback_can_be_sealed_for_recovery(monkeypat
     assert captured["category"] == "general_knowledge"
     assert captured["model_name"] == "fallback-model"
     assert result == {"job_id": "77777777-7777-4777-8777-777777777777"}
+
+
+def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -> None:
+    original_request = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="research this", created_at=100)],
+        active_focus_id="web-research",
+        recovery_task_id="11111111-1111-4111-8111-111111111111",
+        recovery_preflight_id="55555555-5555-4555-8555-555555555555",
+        recovery_turn_id="66666666-6666-4666-8666-666666666666",
+        recovery_public_key="public-key",
+        chat_key_version=1,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_send_task(*, name: str, kwargs: dict, queue: str, task_id: str | None = None):
+        captured.update(name=name, kwargs=kwargs, queue=queue, task_id=task_id)
+        return SimpleNamespace(id="77777777-7777-4777-8777-777777777777")
+
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
+
+    asyncio.run(
+        stream_consumer._dispatch_sub_chat_parent_continuation(
+            pending_context={
+                "parent_request_data": original_request.model_dump(mode="json"),
+                "skill_config_dict": {},
+                "expected_sub_chat_ids": ["child-1"],
+                "completed": {"child-1": {"summary": "Sourced child report"}},
+            },
+            parent_chat_id=original_request.chat_id,
+            log_prefix="test",
+        )
+    )
+
+    request_payload = captured["kwargs"]["request_data_dict"]
+    assert captured["task_id"] is None
+    assert request_payload["recovery_task_id"] is None
+    assert request_payload["recovery_inference_task_id"] == original_request.recovery_task_id
+    assert request_payload["recovery_preflight_id"] == original_request.recovery_preflight_id
+    assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id
+    assert request_payload["recovery_public_key"] == original_request.recovery_public_key
+    assert request_payload["chat_key_version"] == original_request.chat_key_version
+
+
+def test_sub_chat_continuation_failure_marks_original_inference(monkeypatch) -> None:
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="research this", created_at=100)],
+        recovery_inference_task_id="11111111-1111-4111-8111-111111111111",
+        is_sub_chat_continuation=True,
+    )
+    captured: dict[str, object] = {}
+
+    class FakeDirectusService:
+        async def close(self) -> None:
+            return None
+
+    class FakeChatRecoveryService:
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, data: dict[str, object]) -> dict[str, object]:
+            captured.update(operation=operation, data=data)
+            return {"failed": True}
+
+    monkeypatch.setattr(ask_skill_task, "DirectusService", FakeDirectusService)
+    monkeypatch.setattr(ask_skill_task, "ChatRecoveryService", FakeChatRecoveryService)
+
+    asyncio.run(
+        ask_skill_task._mark_recovery_inference_failed(
+            request_data,
+            "88888888-8888-4888-8888-888888888888",
+            "runtime_error",
+        )
+    )
+
+    assert captured["operation"] == "mark_inference_failed"
+    assert captured["data"]["inference_task_id"] == request_data.recovery_inference_task_id

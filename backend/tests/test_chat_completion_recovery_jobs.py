@@ -73,3 +73,29 @@ def test_recovery_job_identity_is_stable_across_retries() -> None:
         "model_name": None,
     }
     assert build_sealed_recovery_job_data(**kwargs)["job_id"] == build_sealed_recovery_job_data(**kwargs)["job_id"]
+
+
+def test_continuation_separates_preflight_inference_and_assistant_identities() -> None:
+    chat_key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+    chat_id = "22222222-2222-4222-8222-222222222222"
+    _, public_key = derive_recovery_keypair(chat_key, chat_id, 7)
+    continuation_task_id = "88888888-8888-4888-8888-888888888888"
+    original_inference_task_id = "66666666-6666-4666-8666-666666666666"
+
+    data = build_sealed_recovery_job_data(
+        owner_id="11111111-1111-4111-8111-111111111111",
+        owner_hash="owner-hash",
+        chat_id=chat_id,
+        turn_id="33333333-3333-4333-8333-333333333333",
+        preflight_id="77777777-7777-4777-8777-777777777777",
+        task_id=continuation_task_id,
+        inference_task_id=original_inference_task_id,
+        recovery_public_key=public_key,
+        chat_key_version=7,
+        content="Final synthesis",
+        category="general_knowledge",
+        model_name="model-a",
+    )
+
+    assert data["inference_task_id"] == original_inference_task_id
+    assert data["assistant_message_id"] == continuation_task_id

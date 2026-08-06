@@ -79,6 +79,7 @@ class AskSkillRequest(BaseModel):
     team_workspace_type: Optional[str] = Field(default="chat", description="Team workspace type used for team usage attribution.")
     team_object_id_hash: Optional[str] = Field(default=None, description="Hashed team object id for usage attribution.")
     recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    recovery_inference_task_id: Optional[str] = Field(default=None, description="Original durable inference identity reused only when an internal continuation seals a new assistant response.")
     legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
     recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
     recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")

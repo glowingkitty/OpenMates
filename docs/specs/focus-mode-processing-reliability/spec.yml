@@ -1,0 +1,674 @@
+schema_version: 2
+id: focus-mode-processing-reliability
+title: Focus Mode Processing Reliability
+status: implementing
+
+goal: >
+  Restore the focus-mode state machine so preprocessing only recommends relevant
+  modes, the main model explicitly decides whether to activate one, users always
+  see and can reject AI-initiated activation, and active Deep research delegates
+  through sub-chats without suppressing valid ordinary web searches before
+  activation.
+
+scope:
+  in:
+    - Separate relevant focus-mode candidates from active focus-mode state in AI preprocessing and main processing.
+    - Preserve ordinary preselected skills while a relevant focus mode remains only a candidate.
+    - Require AI-initiated focus activation to use the existing rejectable countdown, auto-confirm, client event, encrypted persistence, and continuation flow.
+    - Apply Deep research sub-chat-only routing only after `web-research` is legitimately active.
+    - Add deterministic backend regression coverage for issue `69YT9` without storing private report data.
+    - Diagnose and repair source or test defects in the activation, rejection, and continuation Playwright specs that exercise this contract.
+    - Verify explicit focus-mode activation and focused continuation through a real OpenMates CLI chat against the dev server.
+    - Update stale focus-mode architecture documentation to match the deferred activation implementation.
+  out:
+    - Focus-mode mention-dropdown search and rendering.
+    - Static focus-mode example-chat rendering.
+    - New focus modes, focus metadata formats, or focus-mode visual redesign.
+    - Changing sub-chat count, depth, budget, or approval limits.
+    - Changing developer REST endpoints or exposing encrypted focus state publicly.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401 and the gh CLI fallback returned no matching issue for focus-mode activation or web-research routing.
+  reported_issues:
+    - "Dev issue 69YT9: model emitted a valid web-search call, but a Deep research gate rejected it and forced a tool-free answer."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apps/focus-modes-implementation.md
+    - docs/architecture/apps/function-calling.md
+    - docs/specs/focus-mode-example-chat-rendering/spec.yml
+    - docs/specs/apple-sub-chat-focus-parity/spec.yml
+  code_patterns:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+  tests:
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+  findings:
+    - Preprocessing selected `web-research` as relevant while the request had no active focus mode.
+    - Main processing initially exposed `activate_focus_mode`, then the Deep research gate assigned `active_focus_id` directly and replaced all tools with `start_sub_chats`.
+    - Gemini requested the valid preselected `web-search` tool; strict validation rejected it because the gate had removed it, then hallucination recovery disabled all tools.
+    - No countdown, auto-confirm, `focus_mode_activated` event, encrypted persistence, or sub-chat creation occurred for issue `69YT9`.
+    - Current failure records show recurring activation/rejection/continuation failures; mention-dropdown failure is a separate frontend root cause.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+  parity_expectations:
+    - Apple receives the same backend activation and continuation events as web and must never display a merely relevant mode as active.
+    - No Apple source change is expected unless verification exposes a parity defect.
+  verification:
+    - Run the existing targeted Apple focus/chat tests when available, otherwise build iOS after web and user-confirmation gates.
+  intentional_native_differences:
+    - Apple renders the activation affordance natively rather than using the Svelte activation embed component.
+
+clarification:
+  rounds:
+    - question: When `web-research` is only relevant, should the model retain both ordinary web search and explicit focus activation as choices, with forced sub-chat delegation beginning only after activation?
+      answer: Yes exactly.
+  vision_summary: >
+    Preprocessing recommends relevant modes but never activates them. The main
+    model can use an ordinary skill without changing focus state or explicitly
+    activate a focus mode through the visible, rejectable flow. Only a confirmed
+    active Deep research mode may force sub-chat delegation.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 41464e83a
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-08-06T13:33:26Z"
+  implementation_plan:
+    status: not_required
+    reason: The approved contract preserves the existing deferred activation architecture and requires only a bounded state-machine repair plus regression coverage.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Treat `relevant_focus_modes` only as candidates that may be exposed through `activate_focus_mode`.
+    reason: Relevance is model preselection, not user-visible or persisted active state.
+    decided_at: "2026-08-06T13:33:26Z"
+  - id: D-2
+    status: active
+    decision: Preserve ordinary preselected skills while a focus mode is only relevant.
+    reason: The main model must be able to satisfy a normal current-information request with web search without entering Deep research.
+    decided_at: "2026-08-06T13:33:26Z"
+  - id: D-3
+    status: active
+    decision: Force Deep research delegation only on a continuation whose `active_focus_id` was established by the normal activation contract.
+    reason: Sub-chat-only routing is focus behavior and must not bypass activation or suppress valid tools prematurely.
+    decided_at: "2026-08-06T13:33:26Z"
+  - id: D-4
+    status: active
+    decision: Keep mention-dropdown and static example-chat failures outside this repair.
+    reason: Their source paths and failure modes are independent from backend focus activation state.
+    decided_at: "2026-08-06T13:33:26Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Trace dev issue 69YT9 through preprocessing, tool exposure, model output, and recovery.
+    outcome: succeeded
+    recorded_at: "2026-08-06T13:33:26Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Correlate current focus-mode Playwright failures with the reported trace.
+    outcome: succeeded
+    recorded_at: "2026-08-06T13:33:26Z"
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Run explicit Deep research through the real CLI and poll the stored parent chat.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-06T13:52:00Z"
+    summary: Activation and sub-chat spawn succeeded, but the CLI closed after the interim recovery job and did not encrypt or persist the later final synthesis.
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Deploy the backend and CLI continuation fix, run backend recovery tests in the integrated container, then repeat the real CLI activation gate.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "Fix focus mode processing and CLI continuation" --message "fix: repair focus mode processing reliability"'
+  expected_outcome: Dev runs the active-only focus routing and CLI remains connected until final Deep research synthesis is encrypted and persisted.
+  blocker: null
+  last_verified_commit: 41464e83a
+
+scenarios:
+  - id: S-1
+    title: Relevant Deep research remains an activation candidate
+    given:
+      - A user sends a current-information request without selecting a focus mode.
+      - Preprocessing returns `web-search` as a relevant skill and `web-research` as a relevant focus mode.
+      - The chat has no active focus mode.
+    when:
+      - Main processing constructs the available tools.
+    then:
+      - "`web-search` remains available."
+      - "`activate_focus_mode` is available with `web-research` as a valid candidate."
+      - "`active_focus_id` remains unset."
+      - "`start_sub_chats` may remain available, but it is not the only tool forced by focus relevance."
+  - id: S-2
+    title: Ordinary web search runs without activating Deep research
+    given:
+      - The tools from S-1 are available.
+    when:
+      - The main model calls `web-search`.
+    then:
+      - The call passes the strict allow-list and executes normally.
+      - No focus countdown, active-focus event, focus persistence, or sub-chat is created.
+      - The final answer incorporates actual search results.
+  - id: S-3
+    title: Main model explicitly requests focus activation
+    given:
+      - "`web-research` is relevant but inactive."
+    when:
+      - The main model calls `activate_focus_mode` with `web-research`.
+    then:
+      - A visible activation embed starts in countdown state.
+      - The user can reject activation before auto-confirm.
+      - Main processing does not directly assign or persist active focus state.
+  - id: S-4
+    title: Confirmed Deep research continues with delegated research
+    given:
+      - The user did not reject the countdown.
+    when:
+      - Auto-confirm publishes `focus_mode_activated` and continuation starts with `active_focus_id` set to `web-research`.
+    then:
+      - Web stores and returns the encrypted active focus identifier through the existing first-party WebSocket contract.
+      - The active focus pill and activation state are visible.
+      - Deep research instructions are injected.
+      - The active-mode continuation exposes the intended sub-chat delegation path.
+  - id: S-5
+    title: User rejects focus activation
+    given:
+      - A focus activation countdown is visible.
+    when:
+      - The user rejects it before auto-confirm.
+    then:
+      - The focus mode never becomes active or persisted.
+      - The activation card leaves countdown state and hides according to the existing UI contract.
+      - Processing continues without the focus prompt and can still use ordinary relevant skills.
+  - id: S-6
+    title: Related deployed focus-mode journeys remain healthy
+    given:
+      - The backend state-machine repair is deployed to dev.
+    when:
+      - Activation, rejection, post-activation UI, and real video continuation specs run.
+    then:
+      - Failures caused by this state-machine defect pass.
+      - Any unrelated test or UI defect is documented and repaired separately without weakening assertions.
+  - id: S-7
+    title: OpenMates CLI explicitly activates Deep research
+    given:
+      - A user is authenticated in OpenMates CLI against the dev server.
+      - CLI app metadata resolves `@Web-Research` to `@focus:web:research`.
+    when:
+      - The user runs `openmates chats new "@Web-Research compare today's major AI announcements and cite current sources" --json`.
+    then:
+      - The CLI sends an explicit focus-mode override through the real dev chat path.
+      - The backend activates the requested focus mode through the existing explicit-user activation path rather than treating it as an inferred candidate.
+      - The returned chat and embed data identify Deep research as active.
+      - Focused continuation delegates research through sub-chats and returns a final sourced answer without invalid-tool or preprocessing errors.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Relevant focus modes never mutate `active_focus_id` or remove ordinary preselected skills before explicit activation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-FOCUS-STATE]
+  - id: AC-2
+    scenario: S-2
+    text: A valid preselected web-search call remains allow-listed and executes when Deep research is relevant but inactive.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-FOCUS-STATE, T-CLI-FOCUS]
+  - id: AC-3
+    scenario: S-3
+    text: AI-initiated focus activation always enters the existing rejectable countdown flow and does not directly set active state.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-FOCUS-STATE, T-E2E-REJECTION]
+  - id: AC-4
+    scenario: S-4
+    text: Auto-confirmed focus activation publishes the activation event, persists encrypted client state, resumes with the focus prompt, and displays active UI.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-E2E-ACTIVATION, T-E2E-VIDEO]
+  - id: AC-5
+    scenario: S-4
+    text: Sub-chat-only Deep research routing applies only when `web-research` is already active on the continuation request.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-FOCUS-STATE, T-CLI-FOCUS]
+  - id: AC-6
+    scenario: S-5
+    text: Rejecting countdown prevents active-state persistence and resumes ordinary processing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-E2E-REJECTION]
+  - id: AC-7
+    scenario: S-6
+    text: Related focus-mode specs are investigated from reports and screenshots, and only failures within this contract are fixed in this work.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO]
+  - id: AC-8
+    scenario: S-7
+    text: A real OpenMates CLI chat can explicitly activate Deep research, observe active focus metadata, complete delegated research, and return a sourced answer against the dev server.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-RECOVERY, T-CLI-FOCUS]
+
+assumptions:
+  - id: A-1
+    text: "`focus_mode_activated` remains the canonical event that authorizes clients to display and persist active focus state."
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+        summary: Auto-confirm publishes the event only after the countdown completes.
+      - source: frontend/packages/ui/src/services/chatSyncService.ts
+        summary: Web updates active UI and encrypted persistence only after receiving this event.
+  - id: A-2
+    text: Existing activation and rejection WebSocket messages remain first-party-only and no route contract changes are required.
+    category: api
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/apps/focus-modes-implementation.md
+        summary: Focus activation and rejection are part of the authenticated chat WebSocket lifecycle.
+
+contracts:
+  api:
+    - surface: Existing chat WebSocket focus activation, rejection, encrypted focus update, and continuation messages.
+      access_model: first-party client surface only
+      auth: Authenticated user and owned chat context are required.
+      rate_limits: Existing chat and AI task limits are unchanged.
+      credit_budget: Existing AI inference and skill/sub-chat budgets are unchanged.
+      encryption: The server emits a plaintext focus identifier only to the authenticated first-party client; the client encrypts it with the chat key before persistence. No decrypted chat content or key material is added to the contract.
+  state:
+    - "`relevant_focus_modes` contains candidates only and must not be persisted or displayed as active."
+    - "`active_focus_id` is input state from an explicit client selection or completed activation continuation, never a side effect of relevance."
+    - Active Deep research may alter tool routing; relevant Deep research may not.
+  ui_states:
+    - inactive candidate with no focus UI
+    - countdown activation card with reject action
+    - activated card and active focus pill
+    - rejected card hidden with ordinary processing resumed
+  privacy_security:
+    - Preserve client-side encryption of persisted active focus metadata.
+    - Do not commit issue share keys, user identifiers, chat identifiers, raw private prompts, or trace payloads.
+
+tests:
+  - id: T-PYTEST-FOCUS-STATE
+    type: pytest
+    file: backend/tests/test_focus_mode_routing.py
+    command: python3 -m pytest backend/tests/test_focus_mode_routing.py backend/tests/test_main_processor_invalid_tool_calls.py
+    covers: [AC-1, AC-2, AC-3, AC-5]
+    assertions:
+      - relevant web-research keeps active_focus_id unset
+      - relevant web-research retains web-search and activate_focus_mode
+      - active web-research applies the delegation gate
+      - a valid preselected web-search call is never classified as hallucinated because of relevance
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_focus_mode_routing.py
+        run_id: local-pytest-focus-red-20260806T1338Z
+        subject_commit: 41464e83a
+        timestamp: "2026-08-06T13:38:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-CLI-FOCUS
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: openmates chats new "@Web-Research compare today's major AI announcements and cite current sources" --json
+    target: api.dev.openmates.org
+    covers: [AC-2, AC-5, AC-8]
+    assertions:
+      - CLI resolves and sends the explicit Deep research focus override through the real dev API and WebSocket path
+      - returned chat or embed metadata proves Deep research became active
+      - focused continuation delegates only after activation and returns a sourced answer
+      - no invalid-tool, preprocessing, or technical fallback error is returned
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {status: not_applicable, reason: Deterministic red behavior is captured by pytest before source changes.}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-CLI-RECOVERY
+    type: unit
+    file: frontend/packages/openmates-cli/tests/ws.test.ts
+    command: node --test --experimental-strip-types --test-name-pattern "continuation recovery job" frontend/packages/openmates-cli/tests/ws.test.ts && python3 -m pytest backend/tests/test_stream_consumer_recovery.py -k sub_chat_parent_continuation
+    covers: [AC-8]
+    assertions:
+      - interim sub-chat recovery state does not resolve the CLI collector
+      - production recovery discovery before the final continuation frame is preserved
+      - backend continuation keeps the reserved task and sealed recovery identities
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node --test --experimental-strip-types --test-name-pattern "continuation recovery job" frontend/packages/openmates-cli/tests/ws.test.ts
+        run_id: local-node-cli-focus-red-20260806T1355Z
+        subject_commit: 41464e83a
+        timestamp: "2026-08-06T13:55:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --test-name-pattern "continuation recovery job" frontend/packages/openmates-cli/tests/ws.test.ts
+        run_id: local-node-cli-focus-green-20260806T1401Z
+        subject_commit: worktree
+        timestamp: "2026-08-06T14:01:00Z"
+  - id: T-E2E-REJECTION
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+    command: python3 scripts/tests.py run --spec focus-mode-rejection.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-3, AC-6, AC-7]
+    assertions:
+      - activation countdown is visible and rejectable
+      - rejection prevents active focus UI and ordinary response continues
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec focus-mode-rejection.spec.ts
+        run_id: "2026-08-06T03:00:02Z"
+        subject_commit: 41464e83a
+        timestamp: "2026-08-06T03:00:02Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {status: pending}
+  - id: T-E2E-ACTIVATION
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    command: python3 scripts/tests.py run --spec focus-mode-ui-after-activation.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-4, AC-7]
+    assertions:
+      - activated focus pill and controls are visible after auto-confirm
+      - continuation becomes idle and encrypted state survives follow-up behavior
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec focus-mode-ui-after-activation.spec.ts
+        run_id: "2026-08-06T03:00:02Z"
+        subject_commit: 41464e83a
+        timestamp: "2026-08-06T03:00:02Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {status: pending}
+  - id: T-E2E-VIDEO
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    command: python3 scripts/tests.py run --spec focus-mode-video-real-request.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-4, AC-7]
+    assertions:
+      - real-provider focus activation completes
+      - continuation produces a non-technical assistant response and remains active
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec focus-mode-video-real-request.spec.ts
+        run_id: "2026-08-06T09:40:03Z"
+        subject_commit: 41464e83a
+        timestamp: "2026-08-06T09:40:03Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {status: pending}
+
+verifications:
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-3, AC-4, AC-6]
+    status: pending
+    target: https://app.dev.openmates.org/
+    viewports: [laptop, mobile]
+    evidence: {status: pending}
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-3, AC-4, AC-6]
+    status: pending
+    evidence: {status: pending}
+  - id: V-APPLE
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    covers: [AC-4, AC-6]
+    status: pending
+    evidence: {status: pending}
+
+implementation_plan:
+  spec_path: docs/specs/focus-mode-processing-reliability/spec.yml
+  existing_patterns:
+    - backend/apps/ai/processing/main_processor.py deferred focus activation tool handling
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py activation continuation
+    - backend/tests/test_main_processor_invalid_tool_calls.py isolated main-processor regression harness
+  architecture: >
+    Extract or reuse a small deterministic tool-routing decision that distinguishes
+    relevant from active focus state. Keep the existing deferred activation and
+    encryption architecture unchanged. Diagnose each E2E failure from its report,
+    screenshots, and logs before changing source or assertions.
+  data_flow:
+    - Preprocessor validates relevant skills and focus candidates.
+    - Main processor exposes ordinary skills plus activation when no focus is active.
+    - Explicit activation creates countdown and stores pending continuation context.
+    - Auto-confirm emits activation, the client encrypts focus metadata, and processing resumes active.
+    - Only active Deep research narrows routing toward sub-chat delegation.
+  affected_files:
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Correct relevant-versus-active tool routing.
+    - path: backend/apps/ai/processing/preprocessor.py
+      reason: Stop focus relevance from enabling sub-chats deterministically.
+    - path: backend/apps/ai/processing/focus_mode_routing.py
+      reason: Share the dependency-free active-focus routing invariant across both processing phases.
+    - path: backend/apps/ai/tasks/ask_skill_task.py
+      reason: Allow the reserved recovery task to resume an already-running preflight for sub-chat continuation.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Preserve recovery identity and mark the final sub-chat continuation stream.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Keep saved CLI chats connected through interim recovery and final synthesis persistence.
+    - path: backend/tests/test_focus_mode_routing.py
+      reason: Add deterministic state-machine regression coverage.
+    - path: docs/architecture/apps/focus-modes-implementation.md
+      reason: Align stale activation documentation with deferred activation.
+    - path: frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+      reason: Change only if investigation confirms a test defect rather than product defect.
+    - path: frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+      reason: Change only if investigation confirms a test defect rather than product defect.
+    - path: frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+      reason: Change only if investigation confirms a test defect rather than product defect.
+  verification_strategy:
+    - Record deterministic pytest red evidence before source edits and green evidence after the minimal fix.
+    - Restart affected local Docker AI workers/API and run ordinary-search plus explicit `@Web-Research` CLI chats against dev.
+    - Deploy the scoped backend/test changes before Playwright green runs.
+    - Investigate each remaining E2E failure independently; do not weaken product assertions.
+    - Review laptop and mobile screenshots, request user confirmation, then verify Apple last.
+  verification_order:
+    - Deterministic backend contract
+    - Real first-party CLI/WebSocket behavior against dev
+    - npm and pip SDK parity marked not applicable unless implementation changes their explicit focus contract
+    - Deployed web Playwright specs
+    - Reviewed laptop/mobile visual smoke
+    - User confirmation
+    - Apple remote test or build
+
+tasks:
+  - id: TASK-1
+    title: Add red focus routing regression coverage
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-5]
+    expected_files:
+      - backend/tests/test_focus_mode_routing.py
+    verification: [T-PYTEST-FOCUS-STATE]
+    verification_ids: [T-PYTEST-FOCUS-STATE]
+    dependencies: []
+    ownership:
+      files: [backend/tests/test_focus_mode_routing.py]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Repair relevant versus active focus routing
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-5]
+    expected_files:
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/processing/preprocessor.py
+      - backend/apps/ai/processing/focus_mode_routing.py
+      - backend/apps/ai/tasks/ask_skill_task.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - frontend/packages/openmates-cli/src/ws.ts
+      - frontend/packages/openmates-cli/tests/ws.test.ts
+      - backend/tests/test_stream_consumer_recovery.py
+      - docs/architecture/apps/focus-modes-implementation.md
+    verification: [T-PYTEST-FOCUS-STATE, T-CLI-RECOVERY, T-CLI-FOCUS]
+    verification_ids: [T-PYTEST-FOCUS-STATE, T-CLI-RECOVERY, T-CLI-FOCUS]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/apps/ai/processing/main_processor.py
+        - backend/apps/ai/processing/preprocessor.py
+        - backend/apps/ai/processing/focus_mode_routing.py
+        - docs/architecture/apps/focus-modes-implementation.md
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Diagnose and repair focus activation E2E failures
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-3, AC-4, AC-6, AC-7, AC-8]
+    expected_files:
+      - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+      - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+      - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    verification: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO]
+    verification_ids: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+        - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+        - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Complete deployed visual user and Apple verification
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-3, AC-4, AC-6, AC-7]
+    expected_files:
+      - docs/specs/focus-mode-processing-reliability/spec.yml
+    verification: [V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE]
+    verification_ids: [V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE]
+    dependencies: [TASK-3]
+    ownership:
+      files: [docs/specs/focus-mode-processing-reliability/spec.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: Focus activation countdown, active state, rejection, and continuation are user-visible chat behavior.
+    classified_at: "2026-08-06T13:33:26Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show that an ordinary current-information request can search without silently activating Deep research.
+      expected_proof: Search-backed response appears with no active focus pill or sub-chat delegation when ordinary search is chosen.
+      scenario_ids: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    - id: NARR-2
+      purpose: Show explicit focus activation and rejection.
+      expected_proof: Countdown appears, rejection removes it, and ordinary processing continues without active focus UI.
+      scenario_ids: [S-3, S-5]
+      acceptance_criteria: [AC-3, AC-6]
+    - id: NARR-3
+      purpose: Show confirmed Deep research activation.
+      expected_proof: Countdown completes, active focus UI appears, and delegated continuation completes without technical errors.
+      scenario_ids: [S-4, S-6, S-7]
+      acceptance_criteria: [AC-4, AC-5, AC-7, AC-8]
+  evidence:
+    status: pending
+    privacy_status: pending
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+risks:
+  - Removing the gate entirely could weaken active Deep research delegation; tests must distinguish inactive relevance from active continuation.
+  - Live model choice is nondeterministic; backend invariants require deterministic tests in addition to real-provider E2E evidence.
+  - Existing E2E failures may include test timing or shared app-skill infrastructure defects unrelated to focus state.
+  - Focus activation persists encrypted metadata across clients; accidental server-side persistence would violate the encryption boundary.
+
+open_questions: []

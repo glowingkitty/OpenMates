@@ -41,6 +41,9 @@ from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     remove_audio_transcribe_for_transcribed_recordings,
 )
+from backend.apps.ai.processing.focus_mode_routing import (
+    should_enable_subchats_for_active_focus,
+)
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -3149,16 +3152,13 @@ async def handle_preprocessing(
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
 
     if (
-        (
-            "web-research" in validated_relevant_focus_modes
-            or request_data.active_focus_id == "web-research"
-        )
+        should_enable_subchats_for_active_focus(request_data.active_focus_id)
         and not enable_subchats_val
     ):
         enable_subchats_val = True
         llm_analysis_args["enable_subchats"] = True
         logger.info(
-            f"{log_prefix} Deep research focus mode active or selected; enabling sub-chats deterministically."
+            f"{log_prefix} Deep research focus mode active; enabling sub-chats deterministically."
         )
     
     # --- Rule-based skill forcing based on embed type in message history ---
