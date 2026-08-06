@@ -578,18 +578,24 @@ def write_tutorial_captions(
     text: str,
     duration_seconds: float,
     narration_id: str,
+    first_transition_at: float | None = None,
 ) -> list[dict[str, Any]]:
     """Split tutorial narration into readable sentence-level caption cues."""
     sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
     if not sentences or duration_seconds <= 0:
         raise DemonstrationError("Tutorial narration and duration are required")
     weights = [max(1, len(sentence.split())) for sentence in sentences]
-    total_weight = sum(weights)
     segments: list[dict[str, Any]] = []
     cursor = 0.0
     blocks: list[str] = []
     for index, (sentence, weight) in enumerate(zip(sentences, weights, strict=True), start=1):
-        end = duration_seconds if index == len(sentences) else cursor + duration_seconds * weight / total_weight
+        if index == 1 and first_transition_at is not None and len(sentences) > 1:
+            end = min(duration_seconds, max(0.1, first_transition_at))
+        elif index == len(sentences):
+            end = duration_seconds
+        else:
+            remaining_weights = sum(weights[index - 1 :])
+            end = cursor + (duration_seconds - cursor) * weight / remaining_weights
         segments.append(
             {
                 "id": f"CAP-{index}",
@@ -773,6 +779,7 @@ def produce_cli_demonstration(
         text=caption_text,
         duration_seconds=duration,
         narration_id=narration_id,
+        first_transition_at=timeline["first_output_at"],
     )
     render_terminal_video(timeline, captions_path, video_path)
     return prepare_review_artifacts(

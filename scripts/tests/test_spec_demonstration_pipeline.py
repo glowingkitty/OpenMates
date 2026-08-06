@@ -221,10 +221,12 @@ def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) 
         text="First, create the Plan. Next, inspect the returned fields. The undo commands make the change reversible.",
         duration_seconds=15,
         narration_id="NARR-1",
+        first_transition_at=7,
     )
 
     assert [segment["id"] for segment in segments] == ["CAP-1", "CAP-2", "CAP-3"]
     assert segments[0]["start"] == 0
+    assert segments[0]["end"] == 7
     assert segments[-1]["end"] == 15
     assert path.read_text(encoding="utf-8").count(" --> ") == 3
 
