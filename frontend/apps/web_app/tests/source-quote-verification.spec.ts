@@ -80,6 +80,46 @@ test.describe('Source quote verification', () => {
 		await deleteActiveChat(page, log, screenshot, 'false-source-quote');
 	});
 
+	test('normalizes grouped cite links and promotes image results to large previews', async ({ page }: { page: any }) => {
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+
+		const log = createSignupLogger('grouped-cites-image-preview');
+		await archiveExistingScreenshots(log);
+		const screenshot = createStepScreenshotter(log);
+
+		await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
+		await startNewChat(page, log);
+		await sendMessage(
+			page,
+			'<<<TEST_MOCK:grouped_cites_image_preview>>> Reproduce grouped citations and an image result.',
+			log,
+			screenshot,
+			'grouped-cites-image-preview'
+		);
+
+		const assistantMessage = await waitForAssistantMessage(page, {
+			which: 'last',
+			contains: 'The market is expanding',
+			timeout: 120_000,
+			logCheckpoint: log
+		});
+
+		await expect(assistantMessage).not.toContainText('[cite:');
+		await expect(assistantMessage.getByRole('link', { name: 'CNBC AI Infrastructure' })).toBeVisible();
+		await expect(assistantMessage.getByRole('link', { name: 'Second Talent Market Report' })).toBeVisible();
+
+		const largePreview = assistantMessage.getByTestId('embed-preview-large').first();
+		await expect(largePreview).toBeVisible({ timeout: 30_000 });
+		await expect(
+			largePreview.locator(
+				'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="image_result"]'
+			)
+		).toBeVisible({ timeout: 30_000 });
+		await screenshot(page, 'grouped-cites-image-preview-normalized');
+
+		await deleteActiveChat(page, log, screenshot, 'grouped-cites-image-preview');
+	});
+
 	test('clicking a website source quote highlights matching fullscreen text', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 

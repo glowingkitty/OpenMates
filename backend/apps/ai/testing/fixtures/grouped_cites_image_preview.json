@@ -1,0 +1,89 @@
+{
+  "fixture_id": "grouped_cites_image_preview",
+  "recorded_at": "2026-08-06T09:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Regression fixture for grouped cites and image preview promotion",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Grouped Citation Regression",
+    "icon_names": ["search", "image"],
+    "selected_model_id": "mock/fixture",
+    "selected_model_name": "Mock Fixture",
+    "mate_id": "default",
+    "chat_summary": "Testing grouped cite and image preview finalization.",
+    "chat_tags": ["test", "citations", "images"],
+    "relevant_app_skills": ["web-search", "images-search"],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Mock Fixture",
+    "provider_name": "Mock",
+    "server_region": "EU"
+  },
+  "response": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"21111111-1111-4111-8111-111111111111\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"AI infrastructure market\", \"provider\": \"Fixture\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"31111111-1111-4111-8111-111111111111\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"AI infrastructure illustration\", \"provider\": \"Fixture\"}\n```\n\nThe market is expanding according to these sources [cite: cnbc.com-vcZ, secondtalent.com-RFp].\n\n### Related image\n\n[](embed:images.example-I9x)",
+  "embeds": {
+    "21111111-1111-4111-8111-111111111111": {
+      "type": "app_skill_use",
+      "app_id": "web",
+      "skill_id": "search",
+      "metadata": {
+        "query": "AI infrastructure market",
+        "provider": "Fixture"
+      },
+      "results": [
+        {
+          "type": "search_result",
+          "title": "CNBC AI Infrastructure",
+          "url": "https://example.com/cnbc-ai-infrastructure",
+          "description": "Synthetic public fixture describing infrastructure investment.",
+          "profile_name": "CNBC",
+          "embed_ref": "cnbc.com-vcZ"
+        },
+        {
+          "type": "search_result",
+          "title": "Second Talent Market Report",
+          "url": "https://example.com/second-talent-market",
+          "description": "Synthetic public fixture describing market growth.",
+          "profile_name": "Second Talent",
+          "embed_ref": "secondtalent.com-RFp"
+        }
+      ]
+    },
+    "31111111-1111-4111-8111-111111111111": {
+      "type": "app_skill_use",
+      "app_id": "images",
+      "skill_id": "search",
+      "metadata": {
+        "query": "AI infrastructure illustration",
+        "provider": "Fixture"
+      },
+      "results": [
+        {
+          "type": "image_result",
+          "title": "AI infrastructure illustration",
+          "source_page_url": "https://example.com/ai-infrastructure",
+          "image_url": "https://example.com/ai-infrastructure.png",
+          "thumbnail_url": "https://example.com/ai-infrastructure-thumb.png",
+          "source": "example.com",
+          "embed_ref": "images.example-I9x"
+        }
+      ]
+    }
+  },
+  "tool_calls_info": [
+    {"embed_id": "21111111-1111-4111-8111-111111111111"},
+    {"embed_id": "31111111-1111-4111-8111-111111111111"}
+  ],
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 80,
+    "total_credits": 3,
+    "model_name": "Mock Fixture"
+  }
+}
