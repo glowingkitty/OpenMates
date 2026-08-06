@@ -174,6 +174,12 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-31T13:19:33Z"
     notes: "`python3 scripts/apple_remote.py status` reported sanitized SSH reachability. Static inspection found no `code-notebook`/Notebook renderer, `EmbedType` enum case, or `EmbedContentView` routing case yet, so Apple read-only notebook parity still requires implementation. Per the Apple workflow, native implementation is deferred until `V-USER-CONFIRM-NOTEBOOK-UI` confirms the deployed web notebook UI."
+  - id: ATTEMPT-8
+    task_id: TASK-5
+    approach: Run an authenticated Firecrawl CDP smoke against the deployed public Open-Meteo notebook example and click the real notebook `Run cell` and `Run all` controls in laptop and mobile viewports.
+    outcome: succeeded
+    recorded_at: "2026-08-01T10:07:41Z"
+    notes: "Firecrawl session `019fbcc3-d8ca-77ef-86eb-6d4305ae0261` authenticated through the web UI and then hash-deep-linked the public example in the same page because Firecrawl did not persist the stay-logged-in master key across full reloads. Laptop and mobile runs both posted `200` to `/v1/code/notebooks/run`; `Run cell` sent `run_scope: cells` with `cell_indices: [1]`, `Run all` sent `run_scope: all`, both payloads included `client_notebook`, live output rendered inline under the executed cell, no direct fullscreen global run panel appeared, logs stayed tailed, and no notebook API failures were observed. `python3 scripts/sessions.py visual-smoke --session cf55 ... --run-id 019fbcc3-d8ca-77ef-86eb-6d4305ae0261` recorded the evidence for current dev commit `d313020a1`; notebook fix commit `9544421` is an ancestor."
 
 handoff:
   current_task_id: TASK-8
