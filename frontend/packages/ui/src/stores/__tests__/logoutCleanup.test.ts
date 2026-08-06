@@ -264,10 +264,7 @@ const mockFetch = vi.fn().mockResolvedValue({
 vi.stubGlobal("fetch", mockFetch);
 
 // Mock document.cookie for deleteAllCookies
-Object.defineProperty(document, "cookie", {
-  writable: true,
-  value: "",
-});
+vi.stubGlobal("document", { cookie: "" });
 
 // ─── Import module under test AFTER all mocks ───────────────────────────
 
