@@ -582,7 +582,8 @@ class TestFixBadEmbedDisplayText:
         response = (
             f"Source: {grouped_cite}\n\n"
             f"> Literal quote {grouped_cite}\n\n"
-            f"```text\nLiteral code {grouped_cite}\n```"
+            f"Inline code `{grouped_cite}`\n\n"
+            f"```text\nLiteral fenced code {grouped_cite}\n```"
         )
 
         result = await _fix_bad_embed_display_text(
@@ -597,7 +598,8 @@ class TestFixBadEmbedDisplayText:
         assert result == (
             "Source: [Research \\[Draft\\] &lt;img src=x&gt;](embed:example.com-X7z)\n\n"
             f"> Literal quote {grouped_cite}\n\n"
-            f"```text\nLiteral code {grouped_cite}\n```"
+            f"Inline code `{grouped_cite}`\n\n"
+            f"```text\nLiteral fenced code {grouped_cite}\n```"
         )
 
     @pytest.mark.asyncio

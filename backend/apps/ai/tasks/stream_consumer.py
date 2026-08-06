@@ -1378,9 +1378,10 @@ async def _verify_and_strip_bad_quotes(
 
 
 def _is_markdown_literal_position(markdown: str, position: int) -> bool:
-    """Return whether a position is inside a blockquote or fenced code block."""
+    """Return whether a position is inside quoted or code-formatted Markdown."""
     line_start = markdown.rfind("\n", 0, position) + 1
-    if markdown[line_start:position].lstrip().startswith(">"):
+    line_prefix = markdown[line_start:position]
+    if line_prefix.lstrip().startswith(">"):
         return True
 
     fence_character = ""
@@ -1397,7 +1398,20 @@ def _is_markdown_literal_position(markdown: str, position: int) -> bool:
             fence_character = ""
             fence_length = 0
 
-    return bool(fence_character)
+    if fence_character:
+        return True
+
+    inline_code_delimiter = 0
+    for marker_match in re.finditer(r"`+", line_prefix):
+        if marker_match.start() > 0 and line_prefix[marker_match.start() - 1] == "\\":
+            continue
+        marker_length = len(marker_match.group(0))
+        if not inline_code_delimiter:
+            inline_code_delimiter = marker_length
+        elif marker_length == inline_code_delimiter:
+            inline_code_delimiter = 0
+
+    return bool(inline_code_delimiter)
 
 
 async def _fix_bad_embed_display_text(
