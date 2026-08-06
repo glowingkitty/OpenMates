@@ -372,6 +372,13 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 		// as guest chrome, so the Login CTA is the unauthenticated-shell proof.
 		await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).not.toHaveClass(/visible/, { timeout: 10000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'main');
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-area')).toHaveClass(
+			/landing-intro-overlay-active/
+		);
 		logSignupCheckpoint('Returned to logged-out home after account deletion.');
 	} finally {
 		await teardownVirtualPasskeyAuthenticator(client, authenticatorId);
