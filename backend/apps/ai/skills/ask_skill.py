@@ -112,6 +112,14 @@ class AskSkillRequest(BaseModel):
     # Allow populating by name even with aliases
     model_config = {"populate_by_name": True}
 
+    def resolved_recovery_inference_task_id(self) -> Optional[str]:
+        """Return the durable inference identity for initial or internal continuation tasks."""
+        if self.recovery_task_id:
+            return self.recovery_task_id
+        if self.is_sub_chat_continuation or self.is_focus_mode_continuation:
+            return self.recovery_inference_task_id
+        return None
+
 class AskSkillResponse(BaseModel):
     task_id: str = Field(..., description="The ID of the Celery task processing the request.")
     status: str = Field(default="processing", description="The initial status of the request.")

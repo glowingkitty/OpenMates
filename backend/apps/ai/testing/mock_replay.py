@@ -79,6 +79,10 @@ DEFAULT_SPEED_PROFILE = "instant"
 DEFAULT_INITIAL_CHUNK_DELAY_MS = 250
 
 
+def _contains_focus_mode_activation_embed(content: str) -> bool:
+    return '"type":"focus_mode_activation"' in content or '"type": "focus_mode_activation"' in content
+
+
 def detect_marker(content: str) -> Optional[Tuple[str, str, Optional[str]]]:
     """
     Detect a TEST_MOCK or TEST_RECORD marker in message content.
@@ -395,14 +399,16 @@ async def replay_fixture(
     total_chunks = len(cumulative_chunks)
     model_name = usage.get("model_name") or preprocessing_result.selected_main_llm_model_name
     category = preprocessing_result.category
-    recovery_job = await _persist_mock_replay_recovery_job(
-        directus_service=directus_service,
-        request_data=request_data,
-        task_id=task_id,
-        content=full_response,
-        category=category or "general_knowledge",
-        model_name=model_name,
-    )
+    recovery_job = None
+    if not _contains_focus_mode_activation_embed(full_response):
+        recovery_job = await _persist_mock_replay_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=full_response,
+            category=category or "general_knowledge",
+            model_name=model_name,
+        )
 
     for i, content_so_far in enumerate(cumulative_chunks):
         sequence = i + 1
@@ -438,7 +444,7 @@ async def replay_fixture(
         if category:
             payload["category"] = category
 
-        if request_data.recovery_task_id:
+        if request_data.resolved_recovery_inference_task_id():
             payload["recovery_provisional"] = not is_final
             payload["recovery_turn_id"] = request_data.recovery_turn_id
             payload["chat_key_version"] = request_data.chat_key_version
@@ -522,7 +528,8 @@ async def _persist_mock_replay_recovery_job(
     category: Optional[str],
     model_name: Optional[str],
 ) -> Optional[Dict[str, Any]]:
-    if not request_data.recovery_task_id:
+    inference_task_id = request_data.resolved_recovery_inference_task_id()
+    if not inference_task_id:
         return None
     if directus_service is None:
         raise RuntimeError("Epoch-1 mock replay requires Directus service")
@@ -541,6 +548,7 @@ async def _persist_mock_replay_recovery_job(
         turn_id=request_data.recovery_turn_id,
         preflight_id=request_data.recovery_preflight_id,
         task_id=task_id,
+        inference_task_id=inference_task_id,
         recovery_public_key=request_data.recovery_public_key,
         chat_key_version=request_data.chat_key_version,
         content=content,
@@ -633,6 +641,11 @@ def _build_mock_pending_focus_activation_context(
         "chat_has_title": request_data.chat_has_title,
         "is_incognito": getattr(request_data, "is_incognito", False),
         "task_id": task_id,
+        "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
+        "recovery_preflight_id": request_data.recovery_preflight_id,
+        "recovery_turn_id": request_data.recovery_turn_id,
+        "recovery_public_key": request_data.recovery_public_key,
+        "chat_key_version": request_data.chat_key_version,
     }
 
 

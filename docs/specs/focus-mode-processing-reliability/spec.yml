@@ -112,6 +112,11 @@ decisions:
     decision: Keep mention-dropdown and static example-chat failures outside this repair.
     reason: Their source paths and failure modes are independent from backend focus activation state.
     decided_at: "2026-08-06T13:33:26Z"
+  - id: D-5
+    status: active
+    decision: Preserve the original durable inference identity across focus activation, rejection, mock replay, and nested sub-chat continuations.
+    reason: Internal continuation Celery tasks use new task IDs, but the final sealed recovery job must complete the original CLI turn.
+    decided_at: "2026-08-06T18:43:46Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -160,14 +165,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-06T17:36:00Z"
     summary: Directly assigning active_focus_id for @focus overrides bypassed the existing zero-countdown auto-confirm branch and its canonical activation event.
+  - id: ATTEMPT-9
+    task_id: TASK-2
+    approach: Run explicit Deep research through the real CLI after canonical activation was restored, then trace why the completed backend synthesis never resolved the CLI collector.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-06T18:43:46Z"
+    summary: The focus pending context discarded the recovery envelope, and focus plus nested sub-chat continuations accepted recovery_inference_task_id only on the sub-chat-only path, so no final sealed job completed the original CLI turn.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the explicit-focus activation pipeline correction, rebuild the AI worker, and repeat container plus real CLI verification.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: preserve explicit focus activation contract" --message "Symptom/Cause/Fix"'
-  expected_outcome: "@Web-Research enters the zero-countdown auto-confirm path, publishes the canonical activation event, and only then delegates through active Deep research."
+  next_action: Deploy recovery identity propagation, restart the AI services, run the scoped container regressions, and repeat one bounded real CLI Deep research chat.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: preserve focus continuation recovery identity" --message "Symptom/Cause/Fix"'
+  expected_outcome: "The focus activation and nested sub-chat continuations create exactly one final sealed recovery job for the original inference, allowing the CLI to persist the sourced answer and exit."
   blocker: null
-  last_verified_commit: de53771
+  last_verified_commit: eab5ba2
 
 scenarios:
   - id: S-1
@@ -581,8 +592,8 @@ tasks:
     status: done
     phase: working_tasks
     covers:
-      scenarios: [S-1, S-2, S-3, S-4]
-      acceptance_criteria: [AC-1, AC-2, AC-3, AC-5]
+      scenarios: [S-1, S-2, S-3, S-4, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-5, AC-8]
     expected_files:
       - backend/tests/test_focus_mode_routing.py
     verification: [T-PYTEST-FOCUS-STATE]
@@ -605,10 +616,16 @@ tasks:
       - backend/apps/ai/processing/main_processor.py
       - backend/apps/ai/processing/preprocessor.py
       - backend/apps/ai/processing/focus_mode_routing.py
+      - backend/apps/ai/skills/ask_skill.py
       - backend/apps/ai/tasks/ask_skill_task.py
+      - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
       - backend/apps/ai/tasks/stream_consumer.py
+      - backend/apps/ai/testing/mock_replay.py
+      - backend/apps/ai/tests/test_ask_skill_task.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
       - frontend/packages/openmates-cli/src/ws.ts
       - frontend/packages/openmates-cli/tests/ws.test.ts
+      - backend/tests/test_mock_replay.py
       - backend/tests/test_stream_consumer_recovery.py
       - docs/architecture/apps/focus-modes-implementation.md
     verification: [T-PYTEST-FOCUS-STATE, T-CLI-RECOVERY, T-CLI-FOCUS]

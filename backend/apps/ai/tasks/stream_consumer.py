@@ -96,11 +96,7 @@ SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue o
 
 
 def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
-    if request_data.recovery_task_id:
-        return request_data.recovery_task_id
-    if request_data.is_sub_chat_continuation:
-        return request_data.recovery_inference_task_id
-    return None
+    return request_data.resolved_recovery_inference_task_id()
 
 
 async def _finalize_legacy_cutover_before_final_marker(
@@ -449,7 +445,9 @@ async def _dispatch_sub_chat_parent_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
-        recovery_inference_task_id=original_request.recovery_task_id,
+        recovery_inference_task_id=(
+            original_request.recovery_task_id or original_request.recovery_inference_task_id
+        ),
         recovery_preflight_id=original_request.recovery_preflight_id,
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,

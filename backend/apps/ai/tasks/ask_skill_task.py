@@ -547,9 +547,7 @@ async def _mark_recovery_inference_failed(
     task_id: str,
     failure_category: str,
 ) -> None:
-    inference_task_id = request_data.recovery_task_id
-    if request_data.is_sub_chat_continuation:
-        inference_task_id = request_data.recovery_inference_task_id
+    inference_task_id = request_data.resolved_recovery_inference_task_id()
     if not inference_task_id:
         return
     directus_service = DirectusService()

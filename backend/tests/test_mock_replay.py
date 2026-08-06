@@ -89,6 +89,42 @@ def test_mock_focus_activation_context_uses_deferred_production_contract() -> No
     assert context["embed_id"] == "33333333-3333-4333-8333-333333333333"
 
 
+def test_mock_focus_activation_parent_does_not_seal_recovery_job(monkeypatch) -> None:
+    task_id = "66666666-6666-4666-8666-666666666666"
+    fixture = {
+        "response": '```json\n{"type":"focus_mode_activation","embed_id":"33333333-3333-4333-8333-333333333333"}\n```',
+        "initial_delay_ms": 0,
+        "preprocessing": {"category": "general_knowledge"},
+    }
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="research this", created_at=1)],
+        recovery_task_id=task_id,
+    )
+
+    async def keep_fixture_response(response: str, *_args, **_kwargs) -> str:
+        return response
+
+    async def reject_recovery_job(**_kwargs):
+        raise AssertionError("focus activation parent must not create a sealed recovery job")
+
+    monkeypatch.setattr(mock_replay, "load_fixture", lambda _fixture_id: fixture)
+    monkeypatch.setattr(mock_replay, "_recreate_fixture_embeds", keep_fixture_response)
+    monkeypatch.setattr(mock_replay, "_persist_mock_replay_recovery_job", reject_recovery_job)
+
+    asyncio.run(
+        replay_fixture(
+            fixture_id="focus_activation",
+            task_id=task_id,
+            request_data=request_data,
+            cache_service=_StubCacheService(),
+        )
+    )
+
+
 def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
     fixture = mock_replay.load_fixture("travel_train_web")
     embed = fixture["embeds"]["11111111-1111-4111-8111-111111111111"]
@@ -105,7 +141,27 @@ def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
     assert results[0]["legs"][0]["segments"][0]["departure_station"]
 
 
-def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("recovery_fields", "expected_inference_task_id"),
+    [
+        (
+            {"recovery_task_id": "66666666-6666-4666-8666-666666666666"},
+            "66666666-6666-4666-8666-666666666666",
+        ),
+        (
+            {
+                "recovery_inference_task_id": "88888888-8888-4888-8888-888888888888",
+                "is_focus_mode_continuation": True,
+            },
+            "88888888-8888-4888-8888-888888888888",
+        ),
+    ],
+)
+def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(
+    monkeypatch,
+    recovery_fields: dict,
+    expected_inference_task_id: str,
+) -> None:
     chat_id = "22222222-2222-4222-8222-222222222222"
     task_id = "66666666-6666-4666-8666-666666666666"
     _, public_key = derive_recovery_keypair(
@@ -130,11 +186,11 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(monkey
         message_history=[
             AIHistoryMessage(role="user", content="hello", created_at=1),
         ],
-        recovery_task_id=task_id,
         recovery_preflight_id="77777777-7777-4777-8777-777777777777",
         recovery_turn_id="33333333-3333-4333-8333-333333333333",
         recovery_public_key=public_key,
         chat_key_version=7,
+        **recovery_fields,
     )
     cache_service = _StubCacheService()
     directus_service = _StubDirectusService()
@@ -161,7 +217,7 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(monkey
     ]
     assert len(final_chunks) == 1
     assert directus_service.requests[0]["operation"] == "create_sealed_job"
-    assert directus_service.requests[0]["data"]["inference_task_id"] == task_id
+    assert directus_service.requests[0]["data"]["inference_task_id"] == expected_inference_task_id
     assert "Recovered hello" not in str(directus_service.requests[0]["data"])
 
     final_chunk = final_chunks[0]

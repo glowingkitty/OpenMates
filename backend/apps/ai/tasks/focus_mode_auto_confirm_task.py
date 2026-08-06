@@ -262,6 +262,11 @@ async def _async_focus_mode_auto_confirm(
             "is_incognito": is_incognito,
             "mate_id": mate_id,
             "active_focus_id": focus_id,  # Focus mode is NOW active for this continuation
+            "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
+            "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
+            "recovery_turn_id": pending_context.get("recovery_turn_id"),
+            "recovery_public_key": pending_context.get("recovery_public_key"),
+            "chat_key_version": pending_context.get("chat_key_version"),
             # Signal that this is a continuation after focus mode activation.
             # The task should NOT re-persist the user message (it's already persisted).
             # This continuation creates a SEPARATE assistant message (new task_id = new message_id).

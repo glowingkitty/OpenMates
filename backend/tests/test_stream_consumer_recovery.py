@@ -373,11 +373,12 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -
         user_id_hash="a" * 64,
         message_history=[AIHistoryMessage(role="user", content="research this", created_at=100)],
         active_focus_id="web-research",
-        recovery_task_id="11111111-1111-4111-8111-111111111111",
+        recovery_inference_task_id="11111111-1111-4111-8111-111111111111",
         recovery_preflight_id="55555555-5555-4555-8555-555555555555",
         recovery_turn_id="66666666-6666-4666-8666-666666666666",
         recovery_public_key="public-key",
         chat_key_version=1,
+        is_focus_mode_continuation=True,
     )
     captured: dict[str, object] = {}
 
@@ -403,7 +404,7 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -
     request_payload = captured["kwargs"]["request_data_dict"]
     assert captured["task_id"] is None
     assert request_payload["recovery_task_id"] is None
-    assert request_payload["recovery_inference_task_id"] == original_request.recovery_task_id
+    assert request_payload["recovery_inference_task_id"] == original_request.recovery_inference_task_id
     assert request_payload["recovery_preflight_id"] == original_request.recovery_preflight_id
     assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id
     assert request_payload["recovery_public_key"] == original_request.recovery_public_key

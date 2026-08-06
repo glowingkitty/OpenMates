@@ -3074,6 +3074,11 @@ async def handle_main_processing(
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
+                    "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
+                    "recovery_preflight_id": request_data.recovery_preflight_id,
+                    "recovery_turn_id": request_data.recovery_turn_id,
+                    "recovery_public_key": request_data.recovery_public_key,
+                    "chat_key_version": request_data.chat_key_version,
                 }
                 await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
@@ -4525,6 +4530,11 @@ async def handle_main_processing(
                                     "chat_has_title": request_data.chat_has_title,
                                     "is_incognito": getattr(request_data, 'is_incognito', False),
                                     "task_id": task_id,
+                                    "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
+                                    "recovery_preflight_id": request_data.recovery_preflight_id,
+                                    "recovery_turn_id": request_data.recovery_turn_id,
+                                    "recovery_public_key": request_data.recovery_public_key,
+                                    "chat_key_version": request_data.chat_key_version,
                                 }
                                 await cache_service.store_pending_focus_activation(
                                     chat_id=request_data.chat_id,
