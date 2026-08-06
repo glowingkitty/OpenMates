@@ -1754,6 +1754,10 @@ async def cancel_workflow_run(
 
 def _dispatch_cancelled_scheduled_trigger(trigger_id: str) -> None:
     """Advance a cancelled due occurrence through the regular fenced scheduler path."""
-    from backend.core.api.app.tasks.workflow_tasks import run_scheduled_workflow_trigger_task
+    from backend.core.api.app.tasks.workflow_tasks import (
+        _release_scheduled_execution_lock,
+        run_scheduled_workflow_trigger_task,
+    )
 
+    _release_scheduled_execution_lock(trigger_id)
     run_scheduled_workflow_trigger_task.delay(trigger_id)

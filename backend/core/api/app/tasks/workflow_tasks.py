@@ -48,6 +48,13 @@ def _acquire_scheduled_execution_lock(trigger_id: str) -> bool:
     )
 
 
+def _release_scheduled_execution_lock(trigger_id: str) -> bool:
+    return release_celery_task_dedup_lock(
+        f"{_SCHEDULED_EXECUTION_LOCK_PREFIX}{trigger_id}",
+        broker_url=broker_url,
+    )
+
+
 def cleanup_expired_temporary_workflows(user_id: str | None = None, now: int | None = None) -> dict[str, Any]:
     deleted = get_workflow_service().cleanup_expired_temporary_workflows(user_id=user_id, now=now)
     return {"deleted": deleted}

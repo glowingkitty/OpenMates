@@ -107,3 +107,23 @@ def test_scheduled_trigger_execution_lock_deduplicates_legacy_queue_entries(monk
         "workflow-scheduled-execution:trigger-1",
         "workflow-scheduled-execution:trigger-1",
     ]
+
+
+def test_cancelled_scheduled_trigger_releases_execution_lock_before_requeue(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.core.api.app.routes import workflows
+
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        workflow_tasks,
+        "_release_scheduled_execution_lock",
+        lambda trigger_id: calls.append(("release", trigger_id)) or True,
+    )
+    monkeypatch.setattr(
+        workflow_tasks.run_scheduled_workflow_trigger_task,
+        "delay",
+        lambda trigger_id: calls.append(("publish", trigger_id)),
+    )
+
+    workflows._dispatch_cancelled_scheduled_trigger("trigger-1")
+
+    assert calls == [("release", "trigger-1"), ("publish", "trigger-1")]
