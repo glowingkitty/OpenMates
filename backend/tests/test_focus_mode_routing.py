@@ -6,6 +6,7 @@
 
 from backend.apps.ai.processing.focus_mode_routing import (
     gate_tools_for_deep_research,
+    resolve_deep_research_tool_choice,
     resolve_subchat_enablement,
     should_enable_subchats_for_active_focus,
 )
@@ -53,3 +54,19 @@ def test_active_deep_research_forces_sub_chat_delegation() -> None:
     )
 
     assert gated_tools == [start_sub_chats_tool]
+
+
+def test_active_deep_research_requires_the_sub_chat_tool() -> None:
+    assert resolve_deep_research_tool_choice(
+        "auto",
+        active_focus_id="web-research",
+        chat_depth=0,
+    ) == "required"
+
+
+def test_deep_research_does_not_override_terminal_no_tool_choice() -> None:
+    assert resolve_deep_research_tool_choice(
+        "none",
+        active_focus_id="web-research",
+        chat_depth=0,
+    ) == "none"

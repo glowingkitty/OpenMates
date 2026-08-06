@@ -101,6 +101,7 @@ from backend.apps.ai.processing.connected_account_receipts import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     gate_tools_for_deep_research,
+    resolve_deep_research_tool_choice,
 )
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
@@ -3208,6 +3209,16 @@ async def handle_main_processing(
             )
         else:
             current_tool_choice = "auto"
+
+        current_tool_choice = resolve_deep_research_tool_choice(
+            current_tool_choice,
+            active_focus_id=request_data.active_focus_id,
+            chat_depth=chat_depth,
+        )
+        if current_tool_choice == "required":
+            logger.info(
+                f"{log_prefix} [SUB_CHAT] Requiring start_sub_chats for active Deep research."
+            )
         
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit

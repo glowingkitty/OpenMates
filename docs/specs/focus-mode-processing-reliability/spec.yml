@@ -171,14 +171,20 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-06T18:43:46Z"
     summary: The focus pending context discarded the recovery envelope, and focus plus nested sub-chat continuations accepted recovery_inference_task_id only on the sub-chat-only path, so no final sealed job completed the original CLI turn.
+  - id: ATTEMPT-10
+    task_id: TASK-2
+    approach: Run explicit Deep research through the real CLI after recovery identity deployment and inspect its exact chat trace.
+    outcome: rejected
+    recorded_at: "2026-08-06T18:58:13Z"
+    summary: Activation, sealing, persistence, and CLI exit succeeded, but the parent model received only start_sub_chats with tool_choice auto, hallucinated removed web/news tools through all iterations, and returned an unsourced fallback instead of delegating.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy recovery identity propagation, restart the AI services, run the scoped container regressions, and repeat one bounded real CLI Deep research chat.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: preserve focus continuation recovery identity" --message "Symptom/Cause/Fix"'
-  expected_outcome: "The focus activation and nested sub-chat continuations create exactly one final sealed recovery job for the original inference, allowing the CLI to persist the sourced answer and exit."
+  next_action: Deploy required first-step Deep research delegation, restart the AI worker, rerun the scoped container regressions, and repeat one bounded real CLI chat.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: require deep research delegation" --message "Symptom/Cause/Fix"'
+  expected_outcome: "Active parent Deep research sends start_sub_chats as the sole required tool, then seals and persists the final sourced synthesis so the CLI exits normally."
   blocker: null
-  last_verified_commit: eab5ba2
+  last_verified_commit: 7f1862d
 
 scenarios:
   - id: S-1

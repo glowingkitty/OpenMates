@@ -31,3 +31,18 @@ def gate_tools_for_deep_research(
     if should_enable_subchats_for_active_focus(active_focus_id):
         return [start_sub_chats_tool]
     return available_tools
+
+
+def resolve_deep_research_tool_choice(
+    tool_choice: str,
+    *,
+    active_focus_id: str | None,
+    chat_depth: int,
+) -> str:
+    if (
+        tool_choice == "auto"
+        and chat_depth == 0
+        and should_enable_subchats_for_active_focus(active_focus_id)
+    ):
+        return "required"
+    return tool_choice
