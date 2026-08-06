@@ -8,6 +8,7 @@
  */
 
 import assert from "node:assert/strict";
+import { webcrypto } from "node:crypto";
 import { describe, it } from "vitest";
 
 import {
@@ -22,6 +23,12 @@ import {
   deriveProjectRemoteAccessSessionKey,
   openProjectRemoteAccessEnvelope,
 } from "../projectRemoteAccessCrypto.ts";
+
+Object.defineProperty(globalThis, "crypto", {
+  value: webcrypto,
+  writable: true,
+  configurable: true,
+});
 
 const cryptoIdentity = {
   ownerId: "owner-1",

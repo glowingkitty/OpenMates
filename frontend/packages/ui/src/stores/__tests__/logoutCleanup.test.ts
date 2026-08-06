@@ -232,6 +232,18 @@ vi.mock("../theme", () => ({
   applyServerDarkMode: vi.fn(),
 }));
 
+vi.mock("../uiFont", () => ({
+  applyServerUiFont: vi.fn(),
+}));
+
+vi.mock("../../services/topicPreferencesSync", () => ({
+  promoteGuestTopicPreferencesIfNeeded: vi.fn(async () => undefined),
+}));
+
+vi.mock("../serverStatusStore", () => ({
+  markDeviceReceivedFreeTestingCredits: vi.fn(),
+}));
+
 vi.mock("../../services/clientLogForwarder", () => ({
   clientLogForwarder: {
     start: vi.fn(),
