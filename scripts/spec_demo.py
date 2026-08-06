@@ -47,6 +47,7 @@ PLAYWRIGHT_SOURCE_FIELDS = {
 }
 MAX_REVIEW_INTERVAL_SECONDS = 3.0
 MAX_ADDITIONAL_FRAME_REQUESTS = 10
+END_FRAME_OFFSET_SECONDS = 0.1
 REVIEW_VERDICTS = {"supported", "contradicted", "not_visible", "ambiguous", "wrong_time"}
 DEFECT_RETURN_STAGES = {
     "implementation": "implementation",
@@ -994,13 +995,15 @@ def register_exact_timestamp_request(
 def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, Any]:
     if timestamp_seconds < 0:
         raise DemonstrationError("Frame timestamp must be non-negative")
+    duration_seconds = video_metadata(video_path)["duration_seconds"]
+    seek_seconds = min(timestamp_seconds, max(0.0, duration_seconds - END_FRAME_OFFSET_SECONDS))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
         [
             "ffmpeg",
             "-y",
             "-ss",
-            str(timestamp_seconds),
+            str(seek_seconds),
             "-i",
             str(video_path),
             "-frames:v",

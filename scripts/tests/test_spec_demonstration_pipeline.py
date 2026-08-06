@@ -169,6 +169,13 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     privacy = module.scan_video_privacy(output)
     assert privacy["status"] == "passed"
     assert privacy["decoded_frame_count"] >= 30
+    end_frame = module.extract_frame(
+        output,
+        timestamp_seconds=module.video_metadata(output)["duration_seconds"],
+        output_path=tmp_path / "end-frame.png",
+    )
+    assert Path(end_frame["path"]).is_file()
+    assert end_frame["timestamp_seconds"] == module.video_metadata(output)["duration_seconds"]
 
 
 def test_complete_frame_scan_detects_secret_visible_for_one_frame() -> None:
