@@ -71,7 +71,16 @@ import {
   planDockerComposeArgs,
   defaultOpenMatesCloudComposeFile,
   defaultOpenMatesCloudOverlayPath,
+  buildRuntimeCheckInventory,
+  planRuntimeMonitoringServices,
+  planRuntimeVerification,
+  resolveRuntimeDeploymentMode,
 } from "../src/serverPlanning.ts";
+import {
+  applyRuntimeCheckResults,
+  signRuntimeWebhookPayload,
+  validateRuntimeWebhookDestination,
+} from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
@@ -940,6 +949,85 @@ describe("server preflight and Caddy planning", () => {
     assert.match(added, /SECRET__FIRECRAWL__API_KEY=firecrawl-secret/);
     assert.doesNotMatch(removed, /SECRET__BRAVE__API_KEY=/);
     assert.match(removed, /DATABASE_NAME=directus/);
+  });
+});
+
+describe("post-update runtime health", () => {
+  it("fails closed to self-host for missing, malformed, duplicate, and conflicting mode", () => {
+    for (const envText of [
+      "",
+      "OPENMATES_DEPLOYMENT_MODE=cloud\n",
+      "OPENMATES_DEPLOYMENT_MODE=OFFICIAL_CLOUD\n",
+      "OPENMATES_DEPLOYMENT_MODE=official_cloud\nOPENMATES_DEPLOYMENT_MODE=self_host\n",
+      "OPENMATES_DEPLOYMENT_MODE=official_cloud\nOPENMATES_CLOUD_OVERLAY_ENABLED=false\n",
+    ]) {
+      const result = resolveRuntimeDeploymentMode({ envText, overlayExists: true });
+      assert.equal(result.effectiveMode, "self_host");
+      assert.equal(result.billingEnabled, false);
+    }
+  });
+
+  it("omits billing checks for self-host inventories", () => {
+    const checks = buildRuntimeCheckInventory("core", "self_host");
+    assert.ok(checks.some((check) => check.id === "core.chat_plumbing"));
+    assert.equal(checks.some((check) => check.id.startsWith("billing.")), false);
+    assert.ok(checks.every((check) => check.timeoutSeconds > 0 && check.timeoutSeconds <= 60));
+  });
+
+  it("uses one bounded parallel verification plan and reports restore availability", () => {
+    const withBackup = planRuntimeVerification({ role: "core", deploymentMode: "self_host", hasVerifiedBackup: true });
+    const withoutBackup = planRuntimeVerification({ role: "core", deploymentMode: "self_host", hasVerifiedBackup: false });
+
+    assert.equal(withBackup.globalDeadlineSeconds, 60);
+    assert.deepEqual(withBackup.phases[0].checkIds, ["compose.required_services", "http.role_health"]);
+    assert.equal(withBackup.restoreStatus, "available");
+    assert.match(withBackup.restoreCommand ?? "", /openmates server restore --role core/);
+    assert.equal(withoutBackup.restoreStatus, "restore_unavailable");
+    assert.equal(withoutBackup.restoreCommand, null);
+  });
+
+  it("renders an idempotent secret-free runtime monitor service and timer", () => {
+    const plan = planRuntimeMonitoringServices({ role: "core", installPath: "/srv/openmates" });
+
+    assert.equal(plan.serviceName, "openmates-core-runtime-monitor.service");
+    assert.equal(plan.timerName, "openmates-core-runtime-monitor.timer");
+    assert.match(plan.timer, /Persistent=true/);
+    assert.match(plan.unit, /server monitoring run --role core/);
+    assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
+  });
+
+  it("alerts on the second transient failure, deduplicates, then recovers", () => {
+    const first = applyRuntimeCheckResults(undefined, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:00:00Z");
+    const second = applyRuntimeCheckResults(first.state, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:05:00Z");
+    const repeated = applyRuntimeCheckResults(second.state, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:10:00Z");
+    const recovered = applyRuntimeCheckResults(repeated.state, [{ id: "core.cache", status: "passed" }], "2026-08-06T10:15:00Z");
+
+    assert.deepEqual(first.events, []);
+    assert.equal(second.events[0]?.type, "service_unhealthy");
+    assert.deepEqual(repeated.events, []);
+    assert.equal(recovered.events[0]?.type, "recovered");
+  });
+
+  it("tracks failure thresholds per check instead of combining unrelated failures", () => {
+    const first = applyRuntimeCheckResults(undefined, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:00:00Z");
+    const unrelated = applyRuntimeCheckResults(first.state, [{ id: "core.database", status: "failed", failureClass: "connection" }], "2026-08-06T10:05:00Z");
+
+    assert.deepEqual(unrelated.events, []);
+    assert.equal(unrelated.state.checks?.["core.cache"]?.consecutiveFailures, 1);
+    assert.equal(unrelated.state.checks?.["core.database"]?.consecutiveFailures, 1);
+  });
+
+  it("signs canonical webhook payloads and rejects unsafe destinations", async () => {
+    const signed = signRuntimeWebhookPayload({ type: "delivery_test", checkId: "monitor" }, "test-secret", "2026-08-06T10:00:00Z", "event-1");
+    assert.match(signed.headers["X-OpenMates-Signature"], /^sha256=/);
+    assert.equal(signed.headers["X-OpenMates-Event-Id"], "event-1");
+
+    await assert.rejects(() => validateRuntimeWebhookDestination("http://example.org/hook", ["93.184.216.34"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["127.0.0.1"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["169.254.1.1"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::ffff:a00:1"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::a9fe:101"]));
+    await assert.doesNotReject(() => validateRuntimeWebhookDestination("https://example.org/hook", ["93.184.216.34"]));
   });
 });
 

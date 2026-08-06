@@ -28,6 +28,8 @@ services:
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
       MOCK_EXTERNAL_APIS: "true"
       APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
@@ -201,6 +203,9 @@ services:
       VAULT_URL: "http://vault:8200"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
       MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
@@ -270,6 +275,9 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
       MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "workflow"
       CELERY_AUTOSCALE_MAX: "${WORKFLOW_WORKER_CONCURRENCY:-2}"
@@ -321,6 +329,9 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
       MOCK_EXTERNAL_APIS: "true"
     command: >
       sh -c "python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
@@ -368,6 +379,9 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
       MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)

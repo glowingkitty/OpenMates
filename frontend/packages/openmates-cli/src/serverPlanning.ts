@@ -147,6 +147,31 @@ export type ContinuousUpdateServicePlan = {
   timer: string;
 };
 
+export type RuntimeCheckDefinition = {
+  id: string;
+  required: boolean;
+  timeoutSeconds: number;
+};
+
+export type RuntimeDeploymentModeResult = {
+  effectiveMode: ServerDeploymentMode;
+  status: "valid" | "missing" | "malformed" | "conflicting" | "unavailable";
+  reason: string;
+  billingEnabled: boolean;
+};
+
+export type RuntimeMonitoringServicePlan = {
+  role: ServerRole;
+  serviceName: string;
+  timerName: string;
+  unit: string;
+  timer: string;
+  watchdogServiceName?: string;
+  watchdogTimerName?: string;
+  watchdogUnit?: string;
+  watchdogTimer?: string;
+};
+
 const CORE_WORKER_SERVICES = [
   "task-worker",
   "task-scheduler",
@@ -233,6 +258,39 @@ const INTEGRATION_SECRET_PREFIXES = [
   "SECRET__STRIPE__",
   "SECRET__REVOLUT_BUSINESS__",
   "SECRET__INVOICE_",
+];
+
+const RUNTIME_CHECKS: Record<ServerRole, RuntimeCheckDefinition[]> = {
+  core: [
+    { id: "compose.required_services", required: true, timeoutSeconds: 15 },
+    { id: "http.role_health", required: true, timeoutSeconds: 10 },
+    { id: "core.database", required: true, timeoutSeconds: 10 },
+    { id: "core.cache", required: true, timeoutSeconds: 10 },
+    { id: "core.vault", required: true, timeoutSeconds: 10 },
+    { id: "core.worker_queue", required: true, timeoutSeconds: 15 },
+    { id: "core.scheduler_freshness", required: true, timeoutSeconds: 5 },
+    { id: "core.chat_plumbing", required: true, timeoutSeconds: 20 },
+  ],
+  upload: [
+    { id: "compose.required_services", required: true, timeoutSeconds: 15 },
+    { id: "http.role_health", required: true, timeoutSeconds: 10 },
+    { id: "core.vault", required: true, timeoutSeconds: 10 },
+    { id: "upload.antivirus", required: true, timeoutSeconds: 10 },
+  ],
+  preview: [
+    { id: "compose.required_services", required: true, timeoutSeconds: 15 },
+    { id: "http.role_health", required: true, timeoutSeconds: 10 },
+    { id: "preview.renderer", required: true, timeoutSeconds: 15 },
+  ],
+};
+
+const BILLING_RUNTIME_CHECKS: RuntimeCheckDefinition[] = [
+  { id: "billing.mode_enabled", required: true, timeoutSeconds: 5 },
+  { id: "billing.stripe_account_read", required: true, timeoutSeconds: 15 },
+  { id: "billing.routes_registered", required: true, timeoutSeconds: 5 },
+  { id: "billing.workers_registered", required: true, timeoutSeconds: 10 },
+  { id: "billing.webhook_configured", required: true, timeoutSeconds: 5 },
+  { id: "billing.health_freshness", required: true, timeoutSeconds: 5 },
 ];
 const INTEGRATION_ENV_KEYS = new Set([
   "GOOGLE_CALENDAR_OAUTH_REDIRECT_URI",
@@ -634,6 +692,143 @@ export function planContinuousUpdateService(input: { role?: ServerRole | string;
       "[Timer]",
       "OnCalendar=*:0/30",
       "Persistent=true",
+      "",
+      "[Install]",
+      "WantedBy=timers.target",
+      "",
+    ].join("\n"),
+  };
+}
+
+export function resolveRuntimeDeploymentMode(input: { envText: string; overlayExists: boolean }): RuntimeDeploymentModeResult {
+  const { envText, overlayExists } = input;
+  const modeEntries = parseEnvEntries(envText).filter((entry) => entry.key === "OPENMATES_DEPLOYMENT_MODE");
+  if (modeEntries.length > 1) {
+    return { effectiveMode: "self_host", status: "conflicting", reason: "deployment_mode_duplicate", billingEnabled: false };
+  }
+  const values = new Map(parseEnvEntries(envText).map((entry) => [entry.key, entry.value]));
+  const rawMode = values.get("OPENMATES_DEPLOYMENT_MODE");
+  if (!rawMode) {
+    return { effectiveMode: "self_host", status: "missing", reason: "deployment_mode_missing", billingEnabled: false };
+  }
+  if (rawMode !== "self_host" && rawMode !== "official_cloud") {
+    return { effectiveMode: "self_host", status: "malformed", reason: "deployment_mode_invalid", billingEnabled: false };
+  }
+
+  const overlayEnabled = values.get("OPENMATES_CLOUD_OVERLAY_ENABLED") === "true";
+  const overlayPackage = values.get("OPENMATES_CLOUD_OVERLAY_PACKAGE");
+  if (rawMode === "self_host") {
+    const conflicting = overlayEnabled || overlayPackage === "OpenMatesCloud";
+    return {
+      effectiveMode: "self_host",
+      status: conflicting ? "conflicting" : "valid",
+      reason: conflicting ? "self_host_overlay_conflict" : "self_host_explicit",
+      billingEnabled: false,
+    };
+  }
+  if (!overlayEnabled || overlayPackage !== "OpenMatesCloud") {
+    return { effectiveMode: "self_host", status: "conflicting", reason: "official_cloud_overlay_conflict", billingEnabled: false };
+  }
+  if (!overlayExists) {
+    return { effectiveMode: "self_host", status: "unavailable", reason: "official_cloud_overlay_unavailable", billingEnabled: false };
+  }
+  return { effectiveMode: "official_cloud", status: "valid", reason: "official_cloud_verified", billingEnabled: true };
+}
+
+export function buildRuntimeCheckInventory(role: ServerRole, mode: ServerDeploymentMode): RuntimeCheckDefinition[] {
+  const checks = RUNTIME_CHECKS[role].map((check) => ({ ...check }));
+  if (role === "core" && mode === "official_cloud") {
+    checks.push(...BILLING_RUNTIME_CHECKS.map((check) => ({ ...check })));
+  }
+  return checks;
+}
+
+export function planRuntimeVerification(
+  input: { role: ServerRole; deploymentMode: ServerDeploymentMode; hasVerifiedBackup: boolean },
+): {
+  command: string;
+  globalDeadlineSeconds: number;
+  checks: RuntimeCheckDefinition[];
+  phases: { checkIds: string[] }[];
+  restoreStatus: "available" | "restore_unavailable";
+  restoreCommand: string | null;
+} {
+  const checks = buildRuntimeCheckInventory(input.role, input.deploymentMode);
+  const verifierService = { core: "api", upload: "app-uploads", preview: "preview" }[input.role];
+  return {
+    command: `docker compose exec -T ${verifierService} python -m backend.scripts.runtime_health_verifier --role ${input.role} --json`,
+    globalDeadlineSeconds: 60,
+    checks,
+    phases: [
+      { checkIds: checks.filter((check) => check.id === "compose.required_services" || check.id === "http.role_health").map((check) => check.id) },
+      { checkIds: checks.filter((check) => check.id !== "compose.required_services" && check.id !== "http.role_health").map((check) => check.id) },
+    ],
+    restoreStatus: input.hasVerifiedBackup ? "available" : "restore_unavailable",
+    restoreCommand: input.hasVerifiedBackup ? `openmates server restore --role ${input.role} --backup latest-pre-update-${input.role}.tar.gz` : null,
+  };
+}
+
+export function planRuntimeMonitoringServices(
+  input: { role: ServerRole; installPath: string; executablePath?: string },
+): RuntimeMonitoringServicePlan {
+  const executablePath = input.executablePath ?? "/usr/local/bin/openmates";
+  const serviceName = `openmates-${input.role}-runtime-monitor.service`;
+  const timerName = `openmates-${input.role}-runtime-monitor.timer`;
+  const watchdogServiceName = `openmates-${input.role}-runtime-watchdog.service`;
+  const watchdogTimerName = `openmates-${input.role}-runtime-watchdog.timer`;
+  return {
+    role: input.role,
+    serviceName,
+    timerName,
+    unit: [
+      "[Unit]",
+      `Description=OpenMates ${input.role} runtime health monitor`,
+      "After=docker.service network-online.target",
+      "Wants=network-online.target",
+      "",
+      "[Service]",
+      "Type=oneshot",
+      `WorkingDirectory=${input.installPath}`,
+      `ExecStart=${executablePath} server monitoring run --role ${input.role}`,
+      "",
+    ].join("\n"),
+    timer: [
+      "[Unit]",
+      `Description=Schedule OpenMates ${input.role} runtime health monitor`,
+      "",
+      "[Timer]",
+      "OnBootSec=2min",
+      "OnUnitActiveSec=5min",
+      "Persistent=true",
+      `Unit=${serviceName}`,
+      "",
+      "[Install]",
+      "WantedBy=timers.target",
+      "",
+    ].join("\n"),
+    watchdogServiceName,
+    watchdogTimerName,
+    watchdogUnit: [
+      "[Unit]",
+      `Description=OpenMates ${input.role} independent runtime watchdog`,
+      "After=network-online.target",
+      "Wants=network-online.target",
+      "",
+      "[Service]",
+      "Type=oneshot",
+      `WorkingDirectory=${input.installPath}`,
+      `ExecStart=${executablePath} server monitoring run --role ${input.role} --watchdog`,
+      "",
+    ].join("\n"),
+    watchdogTimer: [
+      "[Unit]",
+      `Description=Schedule OpenMates ${input.role} independent runtime watchdog`,
+      "",
+      "[Timer]",
+      "OnBootSec=3min",
+      "OnUnitActiveSec=5min",
+      "Persistent=true",
+      `Unit=${watchdogServiceName}`,
       "",
       "[Install]",
       "WantedBy=timers.target",

@@ -82,16 +82,20 @@ def _calls_guarded_by_cloud_billing(
 def test_cloud_billing_requires_explicit_openmatescloud_overlay(monkeypatch) -> None:
     monkeypatch.delenv(CLOUD_OVERLAY_ENV, raising=False)
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
-    monkeypatch.setenv("PRODUCTION_URL", "http://localhost:5173")
-    monkeypatch.setenv("FRONTEND_URLS", "http://localhost:5173")
+    monkeypatch.setenv("PRODUCTION_URL", "https://dev.example.org")
+    monkeypatch.setenv("FRONTEND_URLS", "https://dev.example.org")
 
     from backend.core.api.app.utils import server_mode
+    monkeypatch.setattr(server_mode, "get_allowed_domain", lambda: "example.org")
 
     assert server_mode.is_payment_enabled() is True
     assert server_mode.is_openmates_cloud_overlay_enabled() is False
     assert server_mode.is_cloud_billing_enabled() is False
 
     monkeypatch.setenv(CLOUD_OVERLAY_ENV, "true")
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", "official_cloud")
+    monkeypatch.setenv("OPENMATES_CLOUD_OVERLAY_PACKAGE", "OpenMatesCloud")
+    monkeypatch.setattr(server_mode, "find_spec", lambda _name: object())
 
     assert server_mode.is_openmates_cloud_overlay_enabled() is True
     assert server_mode.is_cloud_billing_enabled() is True

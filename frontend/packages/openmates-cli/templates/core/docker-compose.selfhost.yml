@@ -16,6 +16,8 @@ x-openmates-worker-base: &openmates-worker-base
     PROVIDER_CONFIG_DIR: /app_config/providers
     BACKEND_CONFIG_FILE: /app_config/backend_config.yml
     OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
+    OPENMATES_CLOUD_OVERLAY_PACKAGE: ""
+    OPENMATES_DEPLOYMENT_MODE: "self_host"
     LOG_LEVEL: ${LOG_LEVEL:-info}
     SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
     MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
@@ -52,6 +54,8 @@ services:
       PROVIDER_CONFIG_DIR: /app_config/providers
       BACKEND_CONFIG_FILE: /app_config/backend_config.yml
       OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ""
+      OPENMATES_DEPLOYMENT_MODE: "self_host"
       SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
       MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
     ports:

@@ -31,6 +31,26 @@ from backend.apps.ai.utils.llm_utils import (
 
 logger = logging.getLogger(__name__)
 
+RUNTIME_HEALTH_SCHEDULER_KEY = "runtime_health:scheduler:last_seen"
+
+
+@app.task(name="runtime_health.scheduler_heartbeat")
+def runtime_health_scheduler_heartbeat() -> Dict[str, Any]:
+    """Write a no-spend heartbeat proving Celery Beat can reach a worker."""
+    async def write_heartbeat() -> int:
+        timestamp = int(time.time())
+        cache = CacheService()
+        try:
+            client = await cache.client
+            if client is None:
+                raise RuntimeError("cache_unavailable")
+            await client.set(RUNTIME_HEALTH_SCHEDULER_KEY, str(timestamp), ex=900)
+            return timestamp
+        finally:
+            await cache.close()
+
+    return {"completed_at": asyncio.run(write_heartbeat())}
+
 # Flag to track if DirectusService is available for health event recording
 # This is set to True once the service is properly initialized during startup
 _directus_service_available = False

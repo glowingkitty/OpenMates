@@ -992,6 +992,8 @@ task_routes = {
     # Explicit routing for tasks with custom names that don't match module patterns
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
+    "runtime_health.worker_probe": {'queue': 'app_ai'},
+    "runtime_health.scheduler_heartbeat": {'queue': 'health_check'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
     "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
@@ -1045,6 +1047,8 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.skill_ask": "app_ai",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
+    "runtime_health.worker_probe": "app_ai",
+    "runtime_health.scheduler_heartbeat": "health_check",
     
     # Health check tasks
     "health_check.check_all_providers": "health_check",
@@ -1235,6 +1239,11 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'runtime-health-scheduler-heartbeat': {
+        'task': 'runtime_health.scheduler_heartbeat',
+        'schedule': timedelta(seconds=300),
+        'options': {'queue': 'health_check'},
+    },
     'cleanup-expired-chat-recovery-jobs': {
         'task': 'app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs',
         'schedule': timedelta(hours=1),

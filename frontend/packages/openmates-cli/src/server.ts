@@ -38,6 +38,8 @@ import {
   planBackup,
   planCaddyCommand,
   planContinuousUpdateService,
+  planRuntimeMonitoringServices,
+  planRuntimeVerification,
   planDockerComposeArgs,
   planRestore,
   planServerRuntime,
@@ -46,6 +48,7 @@ import {
   parseSecretEnvKey,
   redactEnvValue,
   resolveServiceSelection,
+  resolveRuntimeDeploymentMode,
   shouldCheckWebHealth,
   summarizeSecretPreflight,
   type SecretPreflightSummary,
@@ -53,6 +56,17 @@ import {
   upsertEnvValue,
   type VaultSecretPresence,
 } from "./serverPlanning.js";
+import {
+  applyRuntimeCheckResults,
+  deliverRuntimeNotification,
+  evaluateRuntimeHeartbeat,
+  evaluateRuntimeWatchdog,
+  readRuntimeIncidentState,
+  writeRuntimeIncidentState,
+  type RuntimeCheckResult,
+  type RuntimeNotificationDelivery,
+  type RuntimeNotificationPayload,
+} from "./serverHealth.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -1006,8 +1020,10 @@ function writeDeploymentModeEnv(
   overlayPath?: string,
 ): { overlayPath: string | null } {
   let content = readEnvContent(installPath);
+  content = setEnvVar(content, "OPENMATES_DEPLOYMENT_MODE", deploymentMode);
   if (deploymentMode === "self_host") {
     content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_ENABLED", "false");
+    content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_PACKAGE", "");
     content = unsetEnvValue(content, "OPENMATES_CLOUD_OVERLAY_PATH");
     writeEnvContent(installPath, content);
     return { overlayPath: null };
@@ -1023,6 +1039,7 @@ function writeDeploymentModeEnv(
   }
 
   content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_ENABLED", "true");
+  content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_PACKAGE", "OpenMatesCloud");
   content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_PATH", resolvedOverlayPath);
   writeEnvContent(installPath, content);
   return { overlayPath: resolvedOverlayPath };
@@ -1742,6 +1759,11 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       imageTag,
       ...cliUrls,
     });
+    try {
+      installRuntimeMonitoringServices(installPath, role);
+    } catch (error) {
+      throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
     if (flags.json === true) {
       printJson({ command: "install", status: "success", path: installPath, mode: "image", imageTag });
@@ -1831,6 +1853,11 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
     ...cliUrls,
   });
+  try {
+    installRuntimeMonitoringServices(installPath, role);
+  } catch (error) {
+    throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   if (flags.json === true) {
     printJson({ command: "install", status: "success", path: installPath, mode: "source" });
@@ -1872,6 +1899,124 @@ async function installContinuousUpdateService(flags: Record<string, string | boo
   }
 
   console.log(`Installed ${plan.timerName}.`);
+}
+
+type RuntimeVerifierOutput = {
+  status: "passed" | "failed";
+  role: ServerRole;
+  completed_at: number;
+  checks: Array<RuntimeCheckResult & { required: boolean; duration_ms: number; sanitized_reason?: string; failure_class?: string }>;
+  restoreCommand?: string | null;
+  restoreStatus?: "available" | "restore_unavailable";
+};
+
+function runRuntimeVerification(installPath: string, role: ServerRole, config: ServerConfig | null): RuntimeVerifierOutput {
+  const envText = existsSync(join(installPath, ".env")) ? readFileSync(join(installPath, ".env"), "utf-8") : "";
+  const mode = resolveRuntimeDeploymentMode({
+    envText,
+    overlayExists: existsSync(config?.openMatesCloudOverlayPath ?? defaultOpenMatesCloudOverlayPath(installPath)),
+  });
+  const backupPath = join(roleBackupDir(installPath, role), `latest-pre-update-${role}.tar.gz`);
+  const plan = planRuntimeVerification({ role, deploymentMode: mode.effectiveMode, hasVerifiedBackup: existsSync(backupPath) });
+  const verifierService = { core: "api", upload: "app-uploads", preview: "preview" }[role];
+  const installMode = getInstallMode(installPath, config);
+  const withOverrides = config?.composeProfile === "full";
+
+  console.error("Post-update runtime contract:");
+  for (const check of plan.checks) console.error(`  [ ] ${check.id}`);
+  const result = spawnSync(
+    "docker",
+    [...composeArgs(installPath, withOverrides, installMode, role), "exec", "-T", verifierService, "python", "-m", "backend.scripts.runtime_health_verifier", "--role", role, "--json"],
+    { cwd: installPath, encoding: "utf-8", timeout: (plan.globalDeadlineSeconds + 5) * 1000 },
+  );
+  if (result.error) throw result.error;
+  let output: RuntimeVerifierOutput;
+  try {
+    output = JSON.parse(result.stdout.trim()) as RuntimeVerifierOutput;
+  } catch {
+    throw new Error(`Runtime verifier returned invalid output (${result.status ?? "unknown"}).`);
+  }
+  output.checks = output.checks.map((check) => ({ ...check, failureClass: check.failureClass ?? check.failure_class }));
+  if (mode.effectiveMode === "official_cloud") {
+    const destinations = runtimeNotificationConfig(installPath);
+    const configuredCount = [destinations.email, destinations.discordWebhookUrl, destinations.genericWebhook].filter(Boolean).length;
+    if (configuredCount < 2) {
+      output.status = "failed";
+      output.checks.push({
+        id: "notifications.destination_configured",
+        status: "failed",
+        required: true,
+        duration_ms: 0,
+        failureClass: "configuration",
+        sanitized_reason: "notification_destination_or_fallback_missing",
+      });
+    }
+  }
+  for (const check of output.checks) {
+    const marker = check.status === "passed" ? "x" : "!";
+    console.error(`  [${marker}] ${check.id}${check.sanitized_reason ? ` (${check.sanitized_reason})` : ""}`);
+  }
+  return { ...output, restoreCommand: plan.restoreCommand, restoreStatus: plan.restoreStatus };
+}
+
+function runtimeNotificationConfig(installPath: string) {
+  const env = readEnvMap(installPath);
+  const email = env.OPENMATES_RUNTIME_HEALTH_EMAIL_TO && env.OPENMATES_RUNTIME_HEALTH_EMAIL_FROM && env.OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY
+    ? { to: env.OPENMATES_RUNTIME_HEALTH_EMAIL_TO, from: env.OPENMATES_RUNTIME_HEALTH_EMAIL_FROM, apiKey: env.OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY }
+    : undefined;
+  const genericWebhook = env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL && env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET
+    ? { url: env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL, secret: env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET }
+    : undefined;
+  return { email, discordWebhookUrl: env.OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL || undefined, genericWebhook };
+}
+
+async function dispatchRuntimeEvent(
+  installPath: string,
+  role: ServerRole,
+  kind: RuntimeNotificationPayload["kind"],
+  checks: RuntimeVerifierOutput["checks"],
+  occurredAt: string,
+): Promise<RuntimeNotificationDelivery[]> {
+  const failedChecks = checks.filter((check) => check.status === "failed");
+  return deliverRuntimeNotification(runtimeNotificationConfig(installPath), {
+    role,
+    kind,
+    occurredAt,
+    checkIds: (failedChecks.length ? failedChecks : checks).map((check) => check.id),
+    sanitizedReason: failedChecks[0]?.sanitized_reason ?? (kind === "recovery" ? "required_checks_recovered" : "runtime_health_event"),
+  });
+}
+
+async function persistRuntimeResult(installPath: string, role: ServerRole, output: RuntimeVerifierOutput): Promise<RuntimeNotificationDelivery[]> {
+  const previous = await readRuntimeIncidentState(installPath, role);
+  const requiredResults = output.checks.filter((check) => check.required);
+  const applied = applyRuntimeCheckResults(previous, requiredResults, new Date(output.completed_at * 1000).toISOString());
+  await writeRuntimeIncidentState(installPath, role, applied.state);
+  const event = applied.events[0];
+  if (!event) return [];
+  return dispatchRuntimeEvent(
+    installPath,
+    role,
+    event.type === "recovered" ? "recovery" : "incident",
+    output.checks,
+    new Date(output.completed_at * 1000).toISOString(),
+  );
+}
+
+function installRuntimeMonitoringServices(installPath: string, role: ServerRole): void {
+  const executablePath = resolve(process.argv[1] ?? "/usr/local/bin/openmates");
+  const plan = planRuntimeMonitoringServices({ role, installPath, executablePath });
+  const files = [
+    [plan.serviceName, plan.unit],
+    [plan.timerName, plan.timer],
+    [plan.watchdogServiceName, plan.watchdogUnit],
+    [plan.watchdogTimerName, plan.watchdogTimer],
+  ].filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]));
+  for (const [name, content] of files) writeFileSync(join("/etc", "systemd", "system", name), content, { mode: 0o644 });
+  execSync("systemctl daemon-reload", { stdio: "pipe" });
+  const timers = files.filter(([name]) => name.endsWith(".timer")).map(([name]) => name);
+  execSync(`systemctl enable --now ${timers.map(shellQuote).join(" ")}`, { stdio: "pipe" });
+  for (const timer of timers) execFileSync("systemctl", ["is-active", "--quiet", timer], { stdio: "pipe" });
 }
 
 async function serverUpdate(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
@@ -2035,11 +2180,36 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (code !== 0) process.exit(code);
 
     console.error("Waiting for role health checks...");
+    let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
     try {
       writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "health-check" });
       await waitForServerHealth(installPath, role, {
         checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
       });
+      const runtimeOutput = runRuntimeVerification(installPath, role, config);
+      await persistRuntimeResult(installPath, role, runtimeOutput);
+      if (runtimeOutput.status !== "passed") {
+        const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
+        let monitoringProvision = "installed";
+        try {
+          installRuntimeMonitoringServices(installPath, role);
+        } catch {
+          monitoringProvision = "failed";
+        }
+        writeUpdateStatus(installPath, role, {
+          status: "degraded",
+          targetImageTag: target.tag,
+          step: "runtime-verification",
+          checks: runtimeOutput.checks,
+          restoreStatus: runtimeOutput.restoreStatus,
+          restoreCommand: runtimeOutput.restoreCommand,
+          notificationDelivery,
+          monitoringProvision,
+        });
+        const restore = runtimeOutput.restoreCommand ? ` Restore with: ${runtimeOutput.restoreCommand}` : " restore_unavailable";
+        throw new Error(`Post-update runtime verification failed; updated containers remain running.${restore}`);
+      }
+      successfulRuntimeOutput = runtimeOutput;
     } catch (error) {
       await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
       throw error;
@@ -2048,10 +2218,33 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (config) {
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
-    writeUpdateStatus(installPath, role, { status: "success", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "complete" });
+    try {
+      installRuntimeMonitoringServices(installPath, role);
+    } catch (error) {
+      const restoreCommand = safetyPlan.backupName
+        ? `openmates server restore --role ${role} --file ${join(roleBackupDir(installPath, role), safetyPlan.backupName)}`
+        : null;
+      writeUpdateStatus(installPath, role, {
+        status: "degraded",
+        targetImageTag: target.tag,
+        step: "monitoring-service",
+        restoreStatus: restoreCommand ? "available" : "restore_unavailable",
+        restoreCommand,
+      });
+      throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    writeUpdateStatus(installPath, role, {
+      status: "success",
+      targetImageTag: target.tag,
+      sourceLinks,
+      providerKeyReminders: secretPreflight.emptySecretEnvKeys,
+      step: "complete",
+      checks: successfulRuntimeOutput?.checks ?? [],
+      runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+    });
 
     if (flags.json === true) {
-      printJson({ ...plan, status: "success", dryRun: false });
+      printJson({ ...plan, status: "success", dryRun: false, runtimeVerification: successfulRuntimeOutput });
     } else {
       console.log("Server images updated, containers restarted, and health checks passed.");
     }
@@ -2125,18 +2318,147 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
 
   const checkWebApp = shouldCheckWebHealth({ role, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
+  let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
   try {
     await waitForServerHealth(installPath, role, { checkWebApp });
+    const runtimeOutput = runRuntimeVerification(installPath, role, config);
+    await persistRuntimeResult(installPath, role, runtimeOutput);
+    if (runtimeOutput.status !== "passed") {
+      const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
+      let monitoringProvision = "installed";
+      try {
+        installRuntimeMonitoringServices(installPath, role);
+      } catch {
+        monitoringProvision = "failed";
+      }
+      writeUpdateStatus(installPath, role, {
+        status: "degraded",
+        step: "runtime-verification",
+        checks: runtimeOutput.checks,
+        restoreStatus: runtimeOutput.restoreStatus,
+        restoreCommand: runtimeOutput.restoreCommand,
+        notificationDelivery,
+        monitoringProvision,
+      });
+      const restore = runtimeOutput.restoreCommand ? ` Restore with: ${runtimeOutput.restoreCommand}` : " restore_unavailable";
+      throw new Error(`Post-update runtime verification failed; updated containers remain running.${restore}`);
+    }
+    successfulRuntimeOutput = runtimeOutput;
   } catch (error) {
     await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
     throw error;
   }
 
+  try {
+    installRuntimeMonitoringServices(installPath, role);
+  } catch (error) {
+    writeUpdateStatus(installPath, role, { status: "degraded", step: "monitoring-service", restoreStatus: "restore_unavailable", restoreCommand: null });
+    throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  writeUpdateStatus(installPath, role, {
+    status: "success",
+    step: "complete",
+    checks: successfulRuntimeOutput?.checks ?? [],
+    runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+  });
   if (flags.json === true) {
-    printJson({ command: "update", status: "success", path: installPath, mode: "source" });
+    printJson({ command: "update", status: "success", path: installPath, mode: "source", runtimeVerification: successfulRuntimeOutput });
   } else {
     console.log("Server updated, restarted, and health checks passed.");
   }
+}
+
+async function serverVerify(flags: Record<string, string | boolean>): Promise<void> {
+  requireDocker();
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const output = runRuntimeVerification(installPath, role, config);
+  await persistRuntimeResult(installPath, role, output);
+  if (flags.json === true) printJson(output);
+  else console.log(`Runtime verification ${output.status} for ${role}.`);
+  if (output.status !== "passed") throw new Error("One or more required runtime checks failed.");
+}
+
+async function serverMonitoring(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  if (rest[0] === "install-service") {
+    const plan = planRuntimeMonitoringServices({ role, installPath, executablePath: resolve(process.argv[1] ?? "/usr/local/bin/openmates") });
+    const files = [
+      [plan.serviceName, plan.unit],
+      [plan.timerName, plan.timer],
+      [plan.watchdogServiceName, plan.watchdogUnit],
+      [plan.watchdogTimerName, plan.watchdogTimer],
+    ].filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]));
+    if (flags["dry-run"] === true || flags.json === true) {
+      printJson({ command: "monitoring install-service", status: "planned", role, files: files.map(([name, content]) => ({ name, content })) });
+      return;
+    }
+    installRuntimeMonitoringServices(installPath, role);
+    console.log(`Installed runtime monitor and independent watchdog for ${role}.`);
+    return;
+  }
+
+  const state = await readRuntimeIncidentState(installPath, role);
+  if (rest[0] === "status") {
+    const watchdog = evaluateRuntimeWatchdog(state, new Date());
+    const output = { role, ...state, stale: watchdog.notification?.kind === "stale" };
+    if (flags.json === true) printJson(output);
+    else console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+  if (rest[0] !== "run") throw new Error("Usage: openmates server monitoring run|status|install-service [--role core|upload|preview]");
+
+  if (flags.watchdog === true) {
+    const evaluated = evaluateRuntimeWatchdog(state, new Date());
+    await writeRuntimeIncidentState(installPath, role, evaluated.state);
+    const delivery = evaluated.notification
+      ? await dispatchRuntimeEvent(installPath, role, "monitor_stale", [], new Date().toISOString())
+      : [];
+    if (flags.json === true) printJson({ role, notification: evaluated.notification, delivery, state: evaluated.state });
+    return;
+  }
+
+  requireDocker();
+  const output = runRuntimeVerification(installPath, role, config);
+  await persistRuntimeResult(installPath, role, output);
+  let nextState = await readRuntimeIncidentState(installPath, role);
+  const heartbeat = evaluateRuntimeHeartbeat(nextState, new Date());
+  nextState = heartbeat.state;
+  await writeRuntimeIncidentState(installPath, role, nextState);
+  const heartbeatDelivery = heartbeat.notification
+    ? await dispatchRuntimeEvent(installPath, role, "daily_heartbeat", output.checks, new Date().toISOString())
+    : [];
+  if (flags.json === true) printJson({ ...output, notification: heartbeat.notification, notificationDelivery: heartbeatDelivery });
+  if (output.status !== "passed") throw new Error("Runtime monitor found required check failures.");
+}
+
+async function serverNotifications(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  if (rest[0] !== "test") throw new Error("Usage: openmates server notifications test --channel email|discord|webhook|all [--json]");
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const channel = typeof flags.channel === "string" ? flags.channel : "all";
+  if (!new Set(["email", "discord", "webhook", "all"]).has(channel)) throw new Error("--channel must be email, discord, webhook, or all.");
+  const notificationConfig = runtimeNotificationConfig(installPath);
+  if (channel !== "all") {
+    if (channel !== "email") notificationConfig.email = undefined;
+    if (channel !== "discord") notificationConfig.discordWebhookUrl = undefined;
+    if (channel !== "webhook") notificationConfig.genericWebhook = undefined;
+  }
+  const deliveries = await deliverRuntimeNotification(notificationConfig, {
+    role,
+    kind: "delivery_test",
+    occurredAt: new Date().toISOString(),
+    checkIds: ["monitor"],
+    sanitizedReason: "operator_requested_delivery_test",
+  });
+  const output = { command: "notifications test", role, configured: deliveries.length > 0, deliveries };
+  if (flags.json === true) printJson(output);
+  else console.log(JSON.stringify(output, null, 2));
+  if (deliveries.some((delivery) => delivery.status === "exhausted")) throw new Error("One or more notification delivery tests failed.");
 }
 
 async function serverReset(flags: Record<string, string | boolean>): Promise<void> {
@@ -3057,6 +3379,9 @@ export async function handleServer(
     case "logs":       return serverLogs(flags);
     case "install":    return serverInstall(flags);
     case "update":     return serverUpdate(rest, flags);
+    case "verify":     return serverVerify(flags);
+    case "monitoring": return serverMonitoring(rest, flags);
+    case "notifications": return serverNotifications(rest, flags);
     case "preflight":  return serverPreflight(flags);
     case "env":        return serverEnv(rest, flags);
     case "caddy":      return serverCaddy(rest, flags);
