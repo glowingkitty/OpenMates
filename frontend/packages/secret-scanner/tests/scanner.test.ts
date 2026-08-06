@@ -150,6 +150,14 @@ MIIEowIBAAKCAQEA2a2rwplBQLz8EHt5sxxH
       assert.equal(mappings.length, 0);
     });
 
+    it("does not classify a hexadecimal commit hash as a phone", () => {
+      const { mappings } = scanner.redact(
+        "2b2965917058f9213b926f55ee58c98fa73db9a5",
+      );
+
+      assert.equal(mappings.length, 0);
+    });
+
     it("still detects a standalone phone number", () => {
       const { mappings } = scanner.redact("Call 202-555-0147 for support");
 
