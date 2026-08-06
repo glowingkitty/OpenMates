@@ -5459,11 +5459,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // won't trigger re-evaluation of $derived values that depend on this variable
     let currentTypingStatus = $state<AITypingStatus | null>(null);
 
-    // Derive whether assistant is currently typing in this chat (drives rainbow glow on container)
-    let isAssistantTyping = $derived(
-        currentTypingStatus?.isTyping === true &&
-        currentTypingStatus?.chatId === currentChat?.chat_id
-    );
+    // Show the rainbow for the full server-confirmed processing lifecycle, including
+    // queue/preprocessing time before ai_typing_started provides model metadata.
+    let showProcessingRainbow = $derived.by(() => {
+        void _aiTaskStateTrigger;
+        const chatId = currentChat?.chat_id;
+        if (!chatId) return false;
+
+        return chatSyncService.getActiveAITaskIdForChat(chatId) !== null || (
+            currentTypingStatus?.isTyping === true && currentTypingStatus.chatId === chatId
+        );
+    });
 
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
@@ -12414,7 +12420,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
-    class:ai-typing={isAssistantTyping}
+    class:ai-typing={showProcessingRainbow}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
     class:scaled={activeScaling}
