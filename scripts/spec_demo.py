@@ -1119,9 +1119,7 @@ def publish_reviewed_video(
                 )
             else:
                 if send_link is None:
-                    from scripts.discord_webhook import post_message
-
-                    send_link = post_message
+                    send_link = _discord_webhook_module().post_message
                 delivery = send_link(webhook_url=webhook_url, payload=link_payload)
             if isinstance(delivery, dict) and delivery.get("message_id"):
                 publication.update(
@@ -1147,9 +1145,7 @@ def publish_reviewed_video(
         _write_run_json(run_dir / "manifest.json", manifest)
         return manifest
     if send is None:
-        from scripts.discord_webhook import post_attachment
-
-        send = post_attachment
+        send = _discord_webhook_module().post_attachment
     delivery = send(
         webhook_url=webhook_url,
         payload=payload,
@@ -1177,6 +1173,15 @@ def publish_reviewed_video(
     _write_run_json(run_dir / "publication.json", publication)
     _write_run_json(run_dir / "manifest.json", manifest)
     return manifest
+
+
+def _discord_webhook_module() -> Any:
+    """Load the sibling helper in both script and repository-module contexts."""
+    try:
+        import discord_webhook
+    except ModuleNotFoundError:
+        from scripts import discord_webhook
+    return discord_webhook
 
 
 def expire_pending_video(run_dir: Path, manifest: dict[str, Any], *, now: datetime) -> dict[str, Any]:

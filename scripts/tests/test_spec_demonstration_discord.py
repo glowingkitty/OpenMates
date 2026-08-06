@@ -14,6 +14,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 
@@ -28,6 +29,19 @@ def load_module(name: str):
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def test_discord_helper_imports_from_direct_script_context() -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", "import spec_demo; print(spec_demo._discord_webhook_module().__name__)"],
+        cwd=ROOT / "scripts",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "discord_webhook"
 
 
 def demo_run(tmp_path: Path) -> tuple[Path, dict]:
