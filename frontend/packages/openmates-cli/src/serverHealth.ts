@@ -11,6 +11,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { isIP } from "node:net";
 import { request as httpsRequest } from "node:https";
+import { request as httpRequest } from "node:http";
 import path from "node:path";
 import type { ServerRole } from "./serverPlanning.js";
 
@@ -69,7 +70,7 @@ export type RuntimeNotificationDelivery = {
 export type RuntimeNotificationConfig = {
   email?: { apiKey: string; from: string; to: string };
   discordWebhookUrl?: string;
-  genericWebhook?: { url: string; secret: string };
+  genericWebhook?: { url: string; secret: string; allowLocalDevelopmentFixture?: boolean };
 };
 
 export function initialRuntimeIncidentState(): RuntimeIncidentState {
@@ -194,15 +195,19 @@ function isPrivateAddress(address: string): boolean {
     || octets[0] >= 224;
 }
 
-async function resolveGenericWebhookTarget(rawUrl: string): Promise<{ url: URL; addresses: Array<{ address: string; family: number }> }> {
+async function resolveGenericWebhookTarget(
+  rawUrl: string,
+  allowLocalDevelopmentFixture = false,
+): Promise<{ url: URL; addresses: Array<{ address: string; family: number }> }> {
   const url = new URL(rawUrl);
-  if (url.protocol !== "https:" || url.username || url.password || url.hash) throw new Error("webhook_target_not_allowed");
+  const localFixture = allowLocalDevelopmentFixture && url.protocol === "http:" && ["127.0.0.1", "::1", "localhost"].includes(url.hostname);
+  if ((!localFixture && url.protocol !== "https:") || url.username || url.password || url.hash) throw new Error("webhook_target_not_allowed");
   const port = url.port ? Number(url.port) : 443;
-  if (!ALLOWED_WEBHOOK_PORTS.has(port) || url.hostname === "localhost") throw new Error("webhook_target_not_allowed");
+  if ((!localFixture && !ALLOWED_WEBHOOK_PORTS.has(port)) || (localFixture && port < 1024)) throw new Error("webhook_target_not_allowed");
   const addresses = isIP(url.hostname)
     ? [{ address: url.hostname, family: isIP(url.hostname) }]
     : await dns.lookup(url.hostname, { all: true, verbatim: true, hints: dnsModule.ADDRCONFIG });
-  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) throw new Error("webhook_target_not_allowed");
+  if (!addresses.length || (!localFixture && addresses.some(({ address }) => isPrivateAddress(address)))) throw new Error("webhook_target_not_allowed");
   return { url, addresses };
 }
 
@@ -214,18 +219,20 @@ export async function sendGenericWebhook(
   target: string,
   secret: string,
   payload: RuntimeNotificationPayload,
+  allowLocalDevelopmentFixture = false,
 ): Promise<void> {
-  const { url, addresses } = await resolveGenericWebhookTarget(target);
+  const { url, addresses } = await resolveGenericWebhookTarget(target, allowLocalDevelopmentFixture);
   const timestamp = new Date().toISOString();
   const eventId = randomUUID();
   const signed = signRuntimeWebhookPayload(payload as unknown as Record<string, unknown>, secret, timestamp, eventId);
   const selected = addresses[0];
   await new Promise<void>((resolve, reject) => {
-    const request = httpsRequest({
-      protocol: "https:",
+    const requestFunction = url.protocol === "https:" ? httpsRequest : httpRequest;
+    const request = requestFunction({
+      protocol: url.protocol,
       hostname: url.hostname,
-      servername: url.hostname,
-      port: url.port ? Number(url.port) : 443,
+      ...(url.protocol === "https:" ? { servername: url.hostname } : {}),
+      port: url.port ? Number(url.port) : url.protocol === "https:" ? 443 : 80,
       path: `${url.pathname}${url.search}`,
       method: "POST",
       headers: { ...signed.headers, "Content-Length": Buffer.byteLength(signed.body) },
@@ -303,7 +310,12 @@ export async function deliverRuntimeNotification(
   if (config.email) deliveries.push(deliverWithRetries("email", () => sendRuntimeEmail(config.email!, payload)));
   if (config.discordWebhookUrl) deliveries.push(deliverWithRetries("discord", () => sendDiscordWebhook(config.discordWebhookUrl!, payload)));
   if (config.genericWebhook) {
-    deliveries.push(deliverWithRetries("webhook", () => sendGenericWebhook(config.genericWebhook!.url, config.genericWebhook!.secret, payload)));
+    deliveries.push(deliverWithRetries("webhook", () => sendGenericWebhook(
+      config.genericWebhook!.url,
+      config.genericWebhook!.secret,
+      payload,
+      config.genericWebhook!.allowLocalDevelopmentFixture,
+    )));
   }
   return Promise.all(deliveries);
 }

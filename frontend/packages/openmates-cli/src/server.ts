@@ -1961,13 +1961,25 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
 
 function runtimeNotificationConfig(installPath: string) {
   const env = readEnvMap(installPath);
-  const email = env.OPENMATES_RUNTIME_HEALTH_EMAIL_TO && env.OPENMATES_RUNTIME_HEALTH_EMAIL_FROM && env.OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY
-    ? { to: env.OPENMATES_RUNTIME_HEALTH_EMAIL_TO, from: env.OPENMATES_RUNTIME_HEALTH_EMAIL_FROM, apiKey: env.OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY }
+  const value = (key: string): string | undefined => process.env[key] || env[key] || undefined;
+  const emailTo = value("OPENMATES_RUNTIME_HEALTH_EMAIL_TO") || value("ADMIN_NOTIFY_EMAIL");
+  const emailFrom = value("OPENMATES_RUNTIME_HEALTH_EMAIL_FROM") || value("EMAIL_SENDER_EMAIL") || "noreply@openmates.org";
+  const emailApiKey = value("OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY") || value("BREVO_API_KEY");
+  const email = emailTo && emailFrom && emailApiKey
+    ? { to: emailTo, from: emailFrom, apiKey: emailApiKey }
     : undefined;
-  const genericWebhook = env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL && env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET
-    ? { url: env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL, secret: env.OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET }
+  const webhookUrl = value("OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL");
+  const webhookSecret = value("OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET");
+  const allowLocalDevelopmentFixture = value("SERVER_ENVIRONMENT") === "development"
+    && value("OPENMATES_RUNTIME_HEALTH_ALLOW_LOCAL_WEBHOOK_FIXTURE") === "true";
+  const genericWebhook = webhookUrl && webhookSecret
+    ? { url: webhookUrl, secret: webhookSecret, allowLocalDevelopmentFixture }
     : undefined;
-  return { email, discordWebhookUrl: env.OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL || undefined, genericWebhook };
+  return {
+    email,
+    discordWebhookUrl: value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL") || value("DISCORD_WEBHOOK_DEV_SMOKE"),
+    genericWebhook,
+  };
 }
 
 async function dispatchRuntimeEvent(
