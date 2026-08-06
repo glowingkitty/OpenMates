@@ -274,7 +274,13 @@ class FakeConfigManager:
         return self.config
 
 
-def build_client(team_service, team_billing_service=None, config: dict | None = None) -> TestClient:
+def build_client(
+    team_service,
+    team_billing_service=None,
+    config: dict | None = None,
+    *,
+    override_payment_service: bool = True,
+) -> TestClient:
     app = FastAPI()
     app.include_router(teams.router)
     app.state.directus_service = FakeDirectusService(team_service)
@@ -288,7 +294,8 @@ def build_client(team_service, team_billing_service=None, config: dict | None = 
         return User(id="alice", username="alice", vault_key_id="vault-alice")
 
     app.dependency_overrides[teams._current_user] = fake_current_user
-    app.dependency_overrides[teams.get_payment_service] = lambda: app.state.payment_service
+    if override_payment_service:
+        app.dependency_overrides[teams.get_payment_service] = lambda: app.state.payment_service
     client_index = next(_TEST_CLIENT_COUNTER)
     return TestClient(app, client=(f"teams-test-{client_index}", 50000 + client_index))
 
@@ -417,6 +424,25 @@ def test_teams_routes_expose_billing_contract(monkeypatch) -> None:
     usage_response = client.get("/v1/teams/team-1/billing/usage?member_user_id=bob")
     assert usage_response.status_code == 200
     assert usage_response.json()["usage"] == [{"event_id": "usage-1", "credit_amount": 10}]
+
+
+def test_team_bank_transfer_routes_fail_closed_without_cloud_billing(monkeypatch) -> None:
+    from backend.core.api.app.utils import server_mode
+
+    monkeypatch.setattr(server_mode, "is_cloud_billing_enabled", lambda: False)
+    client = build_client(
+        FakeTeamService(),
+        FakeTeamBillingService(),
+        override_payment_service=False,
+    )
+
+    response = client.post(
+        "/v1/teams/team-1/billing/bank-transfer-orders",
+        json={"credits_amount": 50, "currency": "eur", "email_encryption_key": "email-key"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Feature not available on this server edition"
 
 
 def test_team_bank_transfer_create_requires_owner_or_admin(monkeypatch) -> None:
