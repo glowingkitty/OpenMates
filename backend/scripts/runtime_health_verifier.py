@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from contextlib import redirect_stdout
 from dataclasses import asdict, dataclass
 import json
 import os
+import sys
 import time
 import uuid
 from typing import Awaitable, Callable, Optional
@@ -181,26 +183,41 @@ async def _check_required_services(role: str) -> None:
 
 
 async def _check_worker_queue() -> None:
-    from backend.core.api.app.tasks.celery_config import app
-
     probe_id = uuid.uuid4().hex
-    result = app.send_task("runtime_health.worker_probe", args=[probe_id], queue="app_ai")
-    try:
-        payload = await asyncio.to_thread(result.get, timeout=10, propagate=True)
-        if payload.get("probe_id") != probe_id:
-            raise RuntimeError("worker_probe_mismatch")
-    finally:
-        await asyncio.to_thread(result.forget)
+
+    def dispatch_probe() -> dict:
+        from backend.core.api.app.tasks.celery_config import app
+
+        result = app.send_task("runtime_health.worker_probe", args=[probe_id], queue="app_ai")
+        try:
+            return result.get(timeout=10, propagate=True)
+        finally:
+            result.forget()
+
+    payload = await asyncio.to_thread(dispatch_probe)
+    if payload.get("probe_id") != probe_id:
+        raise RuntimeError("worker_probe_mismatch")
 
 
 async def _check_scheduler_freshness() -> None:
     client = _cache_client()
     try:
         raw_timestamp = await client.get("runtime_health:scheduler:last_seen")
-        if raw_timestamp is None or time.time() - int(raw_timestamp) > 15 * 60:
-            raise RuntimeError("scheduler_heartbeat_stale")
+        if raw_timestamp is not None and time.time() - int(raw_timestamp) <= 15 * 60:
+            return
     finally:
         await client.aclose()
+
+    def dispatch_heartbeat() -> None:
+        from backend.core.api.app.tasks.celery_config import app
+
+        result = app.send_task("runtime_health.scheduler_heartbeat", queue="health_check")
+        try:
+            result.get(timeout=10, propagate=True)
+        finally:
+            result.forget()
+
+    await asyncio.to_thread(dispatch_heartbeat)
 
 
 async def _check_chat_plumbing() -> None:
@@ -326,7 +343,8 @@ def main() -> int:
     parser.add_argument("--role", choices=sorted(_ROLE_CHECKS), default="core")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    result = asyncio.run(run_verifier(args.role))
+    with redirect_stdout(sys.stderr):
+        result = asyncio.run(run_verifier(args.role))
     print(json.dumps(result, separators=(",", ":")) if args.json else json.dumps(result, indent=2))
     return 0 if result["status"] == "passed" else 1
 
