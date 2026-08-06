@@ -248,6 +248,7 @@ vi.mock("../../services/clientLogForwarder", () => ({
   clientLogForwarder: {
     start: vi.fn(),
     stop: vi.fn(),
+    stopEphemeral: vi.fn(),
   },
 }));
 
