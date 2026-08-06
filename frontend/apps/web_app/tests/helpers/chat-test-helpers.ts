@@ -26,6 +26,9 @@ const noopScreenshot = async (_page: any, _label: string): Promise<void> => {};
 /** No-op log function for when logging isn't needed */
 const noopLog = (_message: string, _metadata?: Record<string, unknown>): void => {};
 
+const LOGIN_RATE_LIMIT_COOLDOWN_MS = 65_000;
+const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
+
 type LastSendState = {
 	assistantCount: number;
 	assistantMessageIds: string[];
@@ -246,10 +249,17 @@ async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promi
 	return waitForAuthenticatedUi(page, authSignal, 20000);
 }
 
-async function waitForOtpOrAuthenticated(page: any, otpInput: any, authSignal: any, timeout = 15000): Promise<'otp' | 'auth' | null> {
+async function waitForOtpOrAuthenticated(
+	page: any,
+	otpInput: any,
+	authSignal: any,
+	timeout = 15000,
+	loginRateLimited?: Promise<'rate-limited'>
+): Promise<'otp' | 'auth' | 'rate-limited' | null> {
 	return Promise.race([
 		otpInput.waitFor({ state: 'visible', timeout }).then(() => 'otp' as const).catch(() => null),
 		authSignal.waitFor({ state: 'visible', timeout }).then(() => 'auth' as const).catch(() => null),
+		...(loginRateLimited ? [loginRateLimited] : []),
 		page.waitForTimeout(timeout).then(() => null)
 	]);
 }
@@ -354,6 +364,7 @@ async function loginToTestAccount(
 	options: {
 		waitForEditor?: boolean;
 		credentials?: { email?: string; password?: string; otpKey?: string };
+		rateLimitRetryCount?: number;
 	} = {}
 ): Promise<void> {
 	const {
@@ -362,11 +373,18 @@ async function loginToTestAccount(
 		otpKey: TEST_OTP_KEY
 	} = options.credentials ?? getTestAccount();
 
-	// Monitor for 429 rate limit responses during login flow
+	// Monitor the password login endpoint separately so a 429 cannot masquerade as an OTP timeout.
 	let hit429 = false;
+	let signalLoginRateLimited: (() => void) | undefined;
+	const loginRateLimited = new Promise<'rate-limited'>((resolve) => {
+		signalLoginRateLimited = () => resolve('rate-limited');
+	});
 	const on429 = (response: any) => {
 		if (response.status() === 429) {
 			hit429 = true;
+			if (new URL(response.url()).pathname.endsWith('/v1/auth/login')) {
+				signalLoginRateLimited?.();
+			}
 		}
 	};
 	page.on('response', on429);
@@ -467,7 +485,20 @@ async function loginToTestAccount(
 	// Race: either OTP field appears (2FA required) or login succeeds immediately
 	// (2FA not configured for this account). Some test accounts may have lost their
 	// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
-	const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal);
+	const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal, 15000, loginRateLimited);
+	if (otpOrAuth === 'rate-limited') {
+		page.off('response', on429);
+		const retryCount = options.rateLimitRetryCount ?? 0;
+		if (retryCount >= MAX_LOGIN_RATE_LIMIT_RETRIES) {
+			throw new Error('Login remained rate limited after the bounded cooldown retry.');
+		}
+		logCheckpoint(`Password login rate limited; waiting ${LOGIN_RATE_LIMIT_COOLDOWN_MS / 1000}s before one retry.`);
+		await page.waitForTimeout(LOGIN_RATE_LIMIT_COOLDOWN_MS);
+		return loginToTestAccount(page, logCheckpoint, takeStepScreenshot, {
+			...options,
+			rateLimitRetryCount: retryCount + 1
+		});
+	}
 	if (!otpOrAuth) {
 		throw new Error('Login did not show OTP input or authenticated UI after password submit.');
 	}
