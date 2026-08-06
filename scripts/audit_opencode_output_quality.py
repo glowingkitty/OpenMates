@@ -86,8 +86,24 @@ class AuditIssue:
     message: str
 
 
+class DuplicateConfigKeyError(ValueError):
+    """Raised when JSON parsing would silently overwrite a duplicate key."""
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise DuplicateConfigKeyError(key)
+        result[key] = value
+    return result
+
+
 def _load_config(path: Path = OPENCODE_CONFIG) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_json_keys,
+    )
 
 
 def _contains_any(text: str, terms: tuple[str, ...]) -> bool:
@@ -150,7 +166,10 @@ def _duplicate_guidance_lines(text: str) -> list[str]:
 
 def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | None = None) -> list[AuditIssue]:
     if config is None:
-        config = _load_config(root / "opencode.json")
+        try:
+            config = _load_config(root / "opencode.json")
+        except DuplicateConfigKeyError as error:
+            return [AuditIssue("opencode.json", f"duplicate JSON key: {error}")]
     issues = audit_config(config, root=root)
 
     for instruction in config.get("instructions", []):

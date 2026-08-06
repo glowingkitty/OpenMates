@@ -51,6 +51,19 @@ def test_rejects_eager_long_rule_docs(tmp_path: Path) -> None:
     assert any("always-loaded" in issue.message for issue in issues)
 
 
+def test_rejects_duplicate_opencode_config_keys(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    (tmp_path / "opencode.json").write_text(
+        '{"permission":{"firecrawl_firecrawl_search":"ask","firecrawl_firecrawl_search":"deny"}}',
+        encoding="utf-8",
+    )
+
+    issues = audit.audit_instruction_surface(tmp_path)
+
+    assert len(issues) == 1
+    assert issues[0].message == "duplicate JSON key: firecrawl_firecrawl_search"
+
+
 def test_accepts_concise_core_with_lazy_loading_and_quality_guidance(tmp_path: Path) -> None:
     audit = load_audit_module()
     write_core(
