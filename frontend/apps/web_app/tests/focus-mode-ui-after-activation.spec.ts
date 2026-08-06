@@ -151,14 +151,14 @@ async function waitForAssistantIdle(
 
 async function openFocusModeContextMenu(
 	page: any,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>,
+	takeStepScreenshot: (page: any, label: string, options?: { fullPage?: boolean }) => Promise<void>,
 	stepLabel: string
 ): Promise<void> {
 	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated).first();
 	await expect(activatedEmbed).toBeVisible({ timeout: 5000 });
 	await activatedEmbed.click();
 	await expect(page.getByTestId('focus-mode-context-menu')).toBeVisible({ timeout: 5000 });
-	await takeStepScreenshot(page, stepLabel);
+	await takeStepScreenshot(page, stepLabel, { fullPage: false });
 }
 
 function setupPageListeners(page: any): void {
