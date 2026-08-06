@@ -64,6 +64,10 @@ PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
 LEASE_TTL_HOURS = 8
 MAX_LINKED_FILES = 12
 MAX_IMPORTED_ERROR_CHARS = 4000
+PARALLEL_DEBUG_ALLOWED_CATEGORIES = {"missing_element", "timeout", "unit_regression", "test_infra"}
+PARALLEL_DEBUG_MAX_MEMBERS = 2
+PARALLEL_DEBUG_MAX_LINKED_FILES = 4
+MAX_PARALLEL_DEBUG_WORKERS = 3
 
 CATEGORY_PRIORITY = {
     "environment_blocked": 5,
@@ -2009,6 +2013,10 @@ def _create_debug_group(
         "updated_at": now,
         "metadata": {"discovery_reason": discovery_reason} if discovery_reason else {},
     }
+    group["metadata"].update({
+        "category": str(entries[0].get("category") or "unknown"),
+        "linked_files": sorted({path for entry in entries for path in entry.get("linked_files") or []}),
+    })
     return get_store().create_debug_group(group)
 
 
@@ -2280,12 +2288,74 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
     for group in groups:
         group_status = str(group.get("status") or "selected")
         counts[group_status] = counts.get(group_status, 0) + 1
+    now = datetime.now(timezone.utc)
+    workers = []
+    for claim in load_leases().get("leases") or []:
+        if claim.get("campaign_key") != campaign_key or claim.get("status") != "active":
+            continue
+        expires_at = parse_utc(str(claim.get("expires_at") or ""))
+        if expires_at is not None and expires_at <= now:
+            continue
+        workers.append({
+            "lease_id": claim.get("lease_id") or claim.get("claim_key"),
+            "group_key": claim.get("debug_group_key"),
+            "session_id": claim.get("session_id"),
+            "worker_id": claim.get("worker_id"),
+            "leased_at": claim.get("leased_at"),
+            "expires_at": claim.get("expires_at"),
+        })
     return {
         "campaign": campaign,
         "groups": groups,
         "counts": counts,
+        "workers": workers,
         "next_action": str((blocker or {}).get("next_action") or (next_group or {}).get("verification_command") or ""),
     }
+
+
+def select_parallel_debug_groups(
+    groups: list[dict[str, Any]],
+    active_group_keys: set[str],
+    max_workers: int,
+    triage_groups: dict[str, dict[str, Any]] | None = None,
+    active_linked_files: set[str] | None = None,
+) -> dict[str, Any]:
+    """Select narrow groups whose known edit surfaces do not overlap."""
+    selected = []
+    skipped: dict[str, str] = {}
+    selected_files: set[str] = set(active_linked_files or set())
+    triage_groups = triage_groups or {}
+
+    for group in groups:
+        group_key = str(group.get("group_key") or "")
+        if len(selected) >= max_workers:
+            break
+        if group.get("status") in {"green", "blocked"} or group_key in active_group_keys:
+            skipped[group_key] = "group is completed, blocked, or already leased"
+            continue
+        metadata = dict(group.get("metadata") or {})
+        triage = triage_groups.get(str(group.get("triage_group_id") or ""), {})
+        category = str(metadata.get("category") or triage.get("category") or "unknown")
+        linked_files = set(metadata.get("linked_files") or triage.get("linked_files") or [])
+        if category not in PARALLEL_DEBUG_ALLOWED_CATEGORIES:
+            skipped[group_key] = "high-risk category requires dedicated supervision"
+            continue
+        if not linked_files:
+            skipped[group_key] = "no deterministic linked-file boundary"
+            continue
+        if len(group.get("member_test_keys") or []) > PARALLEL_DEBUG_MAX_MEMBERS:
+            skipped[group_key] = "group is too broad for parallel debugging"
+            continue
+        if len(linked_files) > PARALLEL_DEBUG_MAX_LINKED_FILES:
+            skipped[group_key] = "linked-file boundary is too broad"
+            continue
+        if selected_files.intersection(linked_files):
+            skipped[group_key] = "linked files overlap another selected group"
+            continue
+        selected.append({**group, "parallel_category": category, "parallel_linked_files": sorted(linked_files)})
+        selected_files.update(linked_files)
+
+    return {"selected": selected, "skipped": skipped}
 
 
 def verification_command(failure: dict[str, Any]) -> str:
@@ -2389,6 +2459,109 @@ def load_leases() -> dict[str, Any]:
     return {"leases": get_store().list_claims()}
 
 
+def _active_debug_claims(claims: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
+    current_time = now or datetime.now(timezone.utc)
+    active = []
+    for claim in claims:
+        if claim.get("status") != "active" or not claim.get("debug_group_key"):
+            continue
+        expires_at = parse_utc(str(claim.get("expires_at") or ""))
+        if expires_at is not None and expires_at <= current_time:
+            continue
+        active.append(claim)
+    return active
+
+
+def _active_debug_group_keys(claims: list[dict[str, Any]], now: datetime | None = None) -> set[str]:
+    return {str(claim["debug_group_key"]) for claim in _active_debug_claims(claims, now=now)}
+
+
+def _claim_linked_files(
+    claim: dict[str, Any],
+    triage_by_id: dict[str, dict[str, Any]] | None = None,
+) -> set[str]:
+    entry = claim.get("entry") if isinstance(claim.get("entry"), dict) else claim.get("entry_json")
+    entry = entry if isinstance(entry, dict) else {}
+    linked_files = set(entry.get("linked_files") or [])
+    if linked_files:
+        return linked_files
+    triage = (triage_by_id or {}).get(str(claim.get("group_id") or ""), {})
+    return set(triage.get("linked_files") or [])
+
+
+def _create_debug_group_claim(
+    campaign_key: str,
+    group: dict[str, Any],
+    session_id: str,
+    worker_id: str,
+    linked_files: list[str] | None = None,
+) -> dict[str, Any]:
+    group_key = str(group["group_key"])
+    digest = hashlib.sha1(f"{group_key}:{session_id}:{utc_now()}".encode("utf-8")).hexdigest()[:8]
+    lease_id = f"lease-{group.get('triage_group_id')}-{digest}"
+    lease = {
+        "lease_id": lease_id,
+        "claim_key": lease_id,
+        "group_id": group.get("triage_group_id"),
+        "campaign_key": campaign_key,
+        "debug_group_key": group_key,
+        "status": "active",
+        "session_id": session_id,
+        "worker_id": worker_id,
+        "leased_at": utc_now(),
+        "expires_at": lease_deadline(),
+        "expires_at_unix": int((datetime.now(timezone.utc) + timedelta(hours=LEASE_TTL_HOURS)).timestamp()),
+        "entry": {
+            "group_id": group.get("triage_group_id"),
+            "group_key": group_key,
+            "member_test_keys": group.get("member_test_keys") or [],
+            "verification_command": group.get("verification_command"),
+            "linked_files": linked_files or list((group.get("metadata") or {}).get("linked_files") or []),
+        },
+    }
+    return get_store().create_claim(lease)
+
+
+def claim_debug_group(
+    campaign_key: str,
+    group_key: str,
+    session_id: str,
+    worker_id: str = "",
+    linked_files: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Atomically lease one explicitly selected durable campaign group."""
+    def _claim() -> dict[str, Any] | None:
+        group = _debug_group(group_key)
+        if group.get("campaign_key") != campaign_key:
+            raise RuntimeError(f"Debug group {group_key} does not belong to campaign {campaign_key}")
+        if group.get("status") in {"green", "blocked"}:
+            return None
+        claims = load_leases().get("leases") or []
+        if group_key in _active_debug_group_keys(claims):
+            return None
+        candidate_files = set(linked_files or [])
+        if candidate_files:
+            active_claims = _active_debug_claims(claims)
+            active_parallel_claims = [claim for claim in active_claims if claim.get("worker_id")]
+            if len(active_parallel_claims) >= MAX_PARALLEL_DEBUG_WORKERS:
+                return None
+            triage_by_id = {str(item["group_id"]): item for item in build_triage().get("groups") or []}
+            for claim in active_claims:
+                active_files = _claim_linked_files(claim, triage_by_id)
+                if not active_files:
+                    raise RuntimeError(
+                        f"Active debug lease {claim.get('lease_id') or claim.get('claim_key')} has no linked-file boundary"
+                    )
+                if candidate_files.intersection(active_files):
+                    return None
+        campaign = _debug_campaign(campaign_key)
+        if campaign.get("status") == "blocked":
+            return None
+        return _create_debug_group_claim(campaign_key, group, session_id, worker_id, linked_files=linked_files)
+
+    return with_lease_lock(_claim)
+
+
 def claim_next(session_id: str, worker_id: str = "", days: int = 7) -> dict[str, Any] | None:
     def _claim() -> dict[str, Any] | None:
         triage = build_triage(days=days)
@@ -2420,55 +2593,196 @@ def claim_next(session_id: str, worker_id: str = "", days: int = 7) -> dict[str,
 
 
 def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = "") -> dict[str, Any] | None:
+    if worker_id:
+        status = debug_campaign_status(campaign_key)
+        claims = load_leases().get("leases") or []
+        active_claims = _active_debug_claims(claims)
+        triage_by_id = {str(group["group_id"]): group for group in build_triage().get("groups") or []}
+        active_linked_files = {
+            path
+            for claim in active_claims
+            for path in _claim_linked_files(claim, triage_by_id)
+        }
+        selection = select_parallel_debug_groups(
+            status["groups"],
+            _active_debug_group_keys(claims),
+            max_workers=1,
+            triage_groups=triage_by_id,
+            active_linked_files=active_linked_files,
+        )
+        if not selection["selected"]:
+            return None
+        group = selection["selected"][0]
+        return claim_debug_group(
+            campaign_key,
+            str(group["group_key"]),
+            session_id,
+            worker_id=worker_id,
+            linked_files=list(group.get("parallel_linked_files") or []),
+        )
+
     def _claim() -> dict[str, Any] | None:
         status = debug_campaign_status(campaign_key)
         if status["campaign"].get("status") == "blocked":
             return None
         existing_claims = load_leases().get("leases") or []
-        now = datetime.now(timezone.utc)
-        active_debug_group_keys = set()
-        for claim in existing_claims:
-            if claim.get("status") != "active":
-                continue
-            expires_at = parse_utc(str(claim.get("expires_at") or ""))
-            if expires_at is not None and expires_at <= now:
-                continue
-            active_debug_group_keys.add(str(claim.get("debug_group_key") or ""))
+        active_debug_group_keys = _active_debug_group_keys(existing_claims)
         for group in status["groups"]:
             group_key = str(group["group_key"])
             if group.get("status") in {"green", "blocked"} or group_key in active_debug_group_keys:
                 continue
-            digest = hashlib.sha1(f"{group_key}:{session_id}:{utc_now()}".encode("utf-8")).hexdigest()[:8]
-            lease_id = f"lease-{group.get('triage_group_id')}-{digest}"
-            entry = {
-                "group_id": group.get("triage_group_id"),
-                "group_key": group_key,
-                "member_test_keys": group.get("member_test_keys") or [],
-                "verification_command": group.get("verification_command"),
-            }
-            lease = {
-                "lease_id": lease_id,
-                "claim_key": lease_id,
-                "group_id": group.get("triage_group_id"),
-                "campaign_key": campaign_key,
-                "debug_group_key": group_key,
-                "status": "active",
-                "session_id": session_id,
-                "worker_id": worker_id,
-                "leased_at": utc_now(),
-                "expires_at": lease_deadline(),
-                "expires_at_unix": int((datetime.now(timezone.utc) + timedelta(hours=LEASE_TTL_HOURS)).timestamp()),
-                "entry": entry,
-            }
-            get_store().create_claim(lease)
-            get_store().update_debug_campaign(campaign_key, {
-                "current_group_key": group_key,
-                "session_id": session_id,
-                "updated_at": utc_now(),
-            })
-            return lease
+            return _create_debug_group_claim(campaign_key, group, session_id, worker_id)
         return None
     return with_lease_lock(_claim)
+
+
+def _parallel_debug_chat_name(prefix: str, group: dict[str, Any], index: int) -> str:
+    category = re.sub(r"[^a-z0-9]+", "-", str(group.get("parallel_category") or "test").lower()).strip("-")
+    suffix = str(group.get("group_key") or "group")[-6:]
+    return f"{prefix}-{index}-{category}-{suffix}"[:50].rstrip("-")
+
+
+def _parallel_debug_prompt(campaign_key: str, group: dict[str, Any], lease: dict[str, Any], chat_name: str) -> str:
+    member_lines = "\n".join(f"- `{key}`" for key in group.get("member_test_keys") or [])
+    file_lines = "\n".join(f"- `{path}`" for path in group.get("parallel_linked_files") or [])
+    return f"""Debug one leased OpenMates failed-test root-cause group in an isolated worktree.
+
+Before edits or Bash-heavy investigation, run:
+python3 scripts/sessions.py start --mode testing --task "Debug {group.get('triage_group_id')}" --opencode-session "${{OPENCODE_SESSION_ID}}"
+Use the returned short session ID for tracking. Do not spawn another chat.
+
+Campaign: `{campaign_key}`
+Group: `{group.get('group_key')}`
+Lease: `{lease.get('lease_id')}`
+Chat worker: `{chat_name}`
+
+Group members:
+{member_lines}
+
+Deterministic file boundary:
+{file_lines}
+
+Required workflow:
+1. Confirm the lease with `python3 scripts/tests.py lease-required --lease-id {lease.get('lease_id')}`.
+2. Read every member test and its failure evidence. Persist expected behavior before edits with `campaign prepare`.
+3. Investigate the root cause and apply the smallest correct fix only inside the listed file boundary.
+4. If a fix requires any unlisted shared file, auth, encryption, billing, sync, API, schema, migration, privacy, or product behavior change, do not edit it. Record a blocked campaign attempt explaining the required boundary expansion.
+5. Record every approach with `campaign attempt`, including changed files.
+6. Do not deploy, commit, release the lease, or run Playwright/Vitest locally. The coordinator will integrate and verify parallel work after review.
+7. Leave a concise final message with the root cause, current status, changed files, and exact recommended verification command.
+"""
+
+
+def available_zellij_session_slots() -> int:
+    try:
+        from _zellij_utils import MAX_CONCURRENT_SESSIONS, _run_zellij
+    except ImportError:
+        from scripts._zellij_utils import MAX_CONCURRENT_SESSIONS, _run_zellij
+    result = _run_zellij(["list-sessions", "--no-formatting"])
+    if result is None or result.returncode != 0:
+        raise RuntimeError("Could not determine Zellij session capacity")
+    active = sum(1 for line in result.stdout.splitlines() if line.strip() and "EXITED" not in line)
+    return max(0, MAX_CONCURRENT_SESSIONS - active)
+
+
+def dispatch_parallel_debug_chats(
+    campaign_key: str,
+    coordinator_session: str,
+    max_workers: int = 3,
+    name_prefix: str = "test-debug",
+) -> dict[str, Any]:
+    status = debug_campaign_status(campaign_key)
+    if status["campaign"].get("status") == "blocked":
+        raise RuntimeError("Campaign is blocked; resolve its required user input before parallel dispatch")
+    claims = load_leases().get("leases") or []
+    active_claims = _active_debug_claims(claims)
+    active_parallel_claims = [claim for claim in active_claims if claim.get("worker_id")]
+    if len(active_parallel_claims) >= MAX_PARALLEL_DEBUG_WORKERS:
+        raise RuntimeError(f"Parallel debug worker cap reached ({MAX_PARALLEL_DEBUG_WORKERS})")
+    zellij_slots = available_zellij_session_slots()
+    if zellij_slots <= 0:
+        raise RuntimeError("No Zellij session capacity is available for parallel debug workers")
+    active_linked_files: set[str] = set()
+    triage_by_id = {str(group["group_id"]): group for group in build_triage().get("groups") or []}
+    for claim in active_claims:
+        linked_files = _claim_linked_files(claim, triage_by_id)
+        if not linked_files:
+            raise RuntimeError(
+                f"Active debug lease {claim.get('lease_id') or claim.get('claim_key')} has no linked-file boundary"
+            )
+        active_linked_files.update(str(path) for path in linked_files)
+    selection = select_parallel_debug_groups(
+        status["groups"],
+        _active_debug_group_keys(claims),
+        max_workers=min(max_workers, MAX_PARALLEL_DEBUG_WORKERS - len(active_parallel_claims), zellij_slots),
+        triage_groups=triage_by_id,
+        active_linked_files=active_linked_files,
+    )
+    spawned = []
+    for index, group in enumerate(selection["selected"], start=1):
+        chat_name = _parallel_debug_chat_name(name_prefix, group, index)
+        lease = claim_debug_group(
+            campaign_key,
+            str(group["group_key"]),
+            chat_name,
+            worker_id=chat_name,
+            linked_files=list(group.get("parallel_linked_files") or []),
+        )
+        if lease is None:
+            selection["skipped"][str(group["group_key"])] = "group became leased before chat launch"
+            continue
+        prompt = _parallel_debug_prompt(campaign_key, group, lease, chat_name)
+        command = [
+            sys.executable,
+            "scripts/sessions.py",
+            "spawn-chat",
+            "--prompt",
+            prompt,
+            "--name",
+            chat_name,
+            "--mode",
+            "execute",
+        ]
+        try:
+            result = subprocess.run(
+                command,
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            update_lease(str(lease["lease_id"]), "active", launch_status="unknown", launch_error="spawn timed out")
+            selection["skipped"][str(group["group_key"])] = "chat launch timed out; lease retained pending observation"
+            continue
+        except OSError as exc:
+            release_lease(str(lease["lease_id"]), reason=f"OpenCode chat launch failed: {exc}")
+            selection["skipped"][str(group["group_key"])] = str(exc)[:500]
+            continue
+        if result.returncode != 0:
+            update_lease(
+                str(lease["lease_id"]),
+                "active",
+                launch_status="unknown",
+                launch_error=(result.stderr or result.stdout).strip()[:500],
+            )
+            selection["skipped"][str(group["group_key"])] = "chat launch was not confirmed; lease retained pending observation"
+            continue
+        spawned.append({
+            "chat_name": chat_name,
+            "campaign_key": campaign_key,
+            "group_key": group.get("group_key"),
+            "lease_id": lease.get("lease_id"),
+            "member_test_keys": group.get("member_test_keys") or [],
+            "linked_files": group.get("parallel_linked_files") or [],
+            "attach_command": f"zellij attach {chat_name}",
+        })
+    return {
+        "campaign_key": campaign_key,
+        "coordinator_session": coordinator_session,
+        "spawned": spawned,
+        "skipped": selection["skipped"],
+    }
 
 
 def update_lease(lease_id: str, status: str, **fields: Any) -> dict[str, Any]:
@@ -2971,6 +3285,12 @@ def main(argv: list[str] | None = None) -> int:
     campaign_next.add_argument("--worker", default="")
     campaign_next.add_argument("--lease", action="store_true")
     campaign_next.add_argument("--json", action="store_true")
+    campaign_dispatch = campaign_sub.add_parser("dispatch", help="Spawn independent leased OpenCode debug chats")
+    campaign_dispatch.add_argument("--campaign", default="")
+    campaign_dispatch.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_dispatch.add_argument("--max-workers", type=int, default=3)
+    campaign_dispatch.add_argument("--name-prefix", default="test-debug")
+    campaign_dispatch.add_argument("--json", action="store_true")
     campaign_prepare = campaign_sub.add_parser("prepare", help="Record expected behavior and acceptance criteria")
     campaign_prepare.add_argument("--group", required=True)
     campaign_prepare.add_argument("--expected-behavior", required=True)
@@ -3082,6 +3402,18 @@ def main(argv: list[str] | None = None) -> int:
                 payload = claim_next_debug_group(args.campaign, args.session, worker_id=args.worker)
                 if payload is None:
                     raise RuntimeError("No available campaign group; inspect campaign status for blockers or completion")
+            elif args.campaign_command == "dispatch":
+                campaign_key = args.campaign
+                if not campaign_key:
+                    campaign_key = str(start_debug_campaign(args.session)["campaign_key"])
+                payload = dispatch_parallel_debug_chats(
+                    campaign_key,
+                    coordinator_session=args.session,
+                    max_workers=max(1, args.max_workers),
+                    name_prefix=args.name_prefix,
+                )
+                if not payload["spawned"]:
+                    raise RuntimeError("No conflict-safe campaign groups were available for parallel dispatch")
             elif args.campaign_command == "prepare":
                 payload = prepare_debug_group(args.group, args.expected_behavior, args.criterion)
             elif args.campaign_command == "attempt":

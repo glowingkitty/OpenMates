@@ -304,6 +304,64 @@ def test_specific_group_lease_atomically_rejects_active_file_overlap(tmp_path, m
     assert second is None
 
 
+def test_campaign_next_worker_rejects_active_file_overlap(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
+    campaign = control.start_debug_campaign(session_id="coordinator")
+    first_group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+    control.get_store().create_debug_group({
+        **first_group,
+        "group_key": "second-group",
+        "triage_group_id": "test_infra-second",
+        "member_test_keys": ["vitest::second.test.ts"],
+        "metadata": {"category": "test_infra", "linked_files": ["frontend/shared.ts"]},
+    })
+    first = control.claim_debug_group(
+        campaign["campaign_key"],
+        first_group["group_key"],
+        session_id="worker-one",
+        worker_id="chat-one",
+        linked_files=["frontend/shared.ts"],
+    )
+
+    second = control.claim_next_debug_group(
+        campaign["campaign_key"],
+        session_id="worker-two",
+        worker_id="chat-two",
+    )
+
+    assert first is not None
+    assert second is None
+
+
+def test_specific_group_lease_ignores_released_legacy_worker_claims(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
+    campaign = control.start_debug_campaign(session_id="coordinator")
+    group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+    for index in range(control.MAX_PARALLEL_DEBUG_WORKERS):
+        control.get_store().create_claim({
+            "lease_id": f"legacy-{index}",
+            "claim_key": f"legacy-{index}",
+            "group_id": f"legacy-group-{index}",
+            "status": "released",
+            "session_id": f"legacy-session-{index}",
+            "worker_id": f"legacy-worker-{index}",
+            "expires_at": control.lease_deadline(),
+            "entry": {},
+        })
+
+    lease = control.claim_debug_group(
+        campaign["campaign_key"],
+        group["group_key"],
+        session_id="worker-one",
+        worker_id="chat-one",
+        linked_files=["frontend/first.test.ts"],
+    )
+
+    assert lease is not None
+
+
 def test_parallel_group_selection_rejects_high_risk_and_file_overlap(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     groups = [
