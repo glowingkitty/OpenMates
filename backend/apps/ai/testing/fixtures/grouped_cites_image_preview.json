@@ -2,6 +2,7 @@
   "fixture_id": "grouped_cites_image_preview",
   "recorded_at": "2026-08-06T09:00:00Z",
   "speed_profile": "instant",
+  "normalize_embed_links": true,
   "user_message_snippet": "Regression fixture for grouped cites and image preview promotion",
   "preprocessing": {
     "can_proceed": true,

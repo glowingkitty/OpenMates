@@ -299,6 +299,26 @@ async def replay_fixture(
     # Update fixture data so downstream code uses the rewritten response
     fixture_data["response"] = full_response
 
+    if fixture_data.get("normalize_embed_links"):
+        from backend.apps.ai.tasks.stream_consumer import _fix_bad_embed_display_text
+
+        normalized_response = await _fix_bad_embed_display_text(
+            aggregated_response=full_response,
+            tool_calls_info=fixture_data.get("tool_calls_info", []),
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
+            log_prefix=f"[MOCK fixture={fixture_id}]",
+        )
+        if normalized_response != full_response:
+            logger.info(
+                f"[MOCK] Embed link normalization updated fixture response "
+                f"({len(full_response)} → {len(normalized_response)} chars)"
+            )
+            full_response = normalized_response
+            fixture_data["response"] = full_response
+
     if fixture_data.get("verify_source_quotes"):
         from backend.apps.ai.tasks.stream_consumer import _verify_and_strip_bad_quotes
 
