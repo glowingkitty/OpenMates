@@ -18,6 +18,17 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 AUDIT_PATH = ROOT / "scripts/audit_opencode_output_quality.py"
+RETROSPECTIVE_GUIDANCE = """
+## Workflow Retrospective
+
+For every non-trivial task-closing summary, cover what went wrong, where
+avoidable time or tool calls were spent, and the resulting workflow changes.
+Classify recommendations as hooks, skills, and agent instructions, or as
+deterministic audits/tests, or state that no change is warranted. Use None observed
+rather than inventing failures, waste, or recommendations. Do not expose
+hidden reasoning, guess durations, or include raw private logs or private chat content.
+Simple requests, clarification-only turns, and progress updates are excluded.
+""".strip()
 
 
 def load_audit_module():
@@ -34,6 +45,11 @@ def write_core(root: Path, text: str) -> Path:
     path.parent.mkdir(parents=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def write_runtime_instructions(root: Path, text: str) -> None:
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        (root / name).write_text(text, encoding="utf-8")
 
 
 def test_rejects_eager_long_rule_docs(tmp_path: Path) -> None:
@@ -68,7 +84,7 @@ def test_accepts_concise_core_with_lazy_loading_and_quality_guidance(tmp_path: P
     audit = load_audit_module()
     write_core(
         tmp_path,
-        """
+        f"""
 # Agent Workflow Core
 
 Keep default context concise. Lazy-load frontend, backend, testing, privacy,
@@ -78,12 +94,17 @@ Use exact commands and state when verification was not run. Firecrawl is a
 quota-backed fallback only.
 Batch independent calls in one turn. When a todo update and the next operation
 are independent, avoid a standalone model round-trip.
+{RETROSPECTIVE_GUIDANCE}
 Playwright `*.spec.ts` verification is deployed-code verification. If local UI,
 embed, or spec changes are needed, perform a scoped `dev` deploy with
 `python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch
 `python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <sha>`
 against `https://app.dev.openmates.org`.
-""".strip(),
+        """.strip(),
+    )
+    write_runtime_instructions(
+        tmp_path,
+        RETROSPECTIVE_GUIDANCE,
     )
     config = {
         "instructions": ["docs/contributing/guides/agent-workflow-core.md"],
@@ -114,6 +135,57 @@ Keep default context concise.
 
     assert any("duplicated guidance" in issue.message for issue in issues)
     assert any("final-answer evidence" in issue.message for issue in issues)
+
+
+def test_rejects_missing_workflow_retrospective(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    write_core(
+        tmp_path,
+        """
+# Agent Workflow Core
+
+Lazy-load detailed rules. Include verification, uncertainty, and exact command
+evidence in every final response. Firecrawl is a quota-backed fallback.
+Batch independent calls in one turn and avoid a standalone todo update model round-trip.
+Playwright `*.spec.ts` verification is deployed-code verification.
+Run python3 scripts/sessions.py deploy and then use
+--gate-deploy --expected-commit against https://app.dev.openmates.org.
+""".strip(),
+    )
+    write_runtime_instructions(tmp_path, "No retrospective guidance.")
+    config = {
+        "instructions": ["docs/contributing/guides/agent-workflow-core.md"],
+        "permission": {tool: "ask" for tool in audit.FIRECRAWL_TOOL_PERMISSIONS},
+    }
+
+    issues = audit.audit_instruction_surface(tmp_path, config)
+
+    assert any("workflow retrospective" in issue.message for issue in issues)
+
+
+def test_requires_cross_runtime_workflow_retrospective_guidance(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    write_core(tmp_path, "Workflow Retrospective with None observed.")
+    write_runtime_instructions(tmp_path, "Ordinary instructions without the required contract.")
+
+    issues = audit.audit_instruction_surface(tmp_path, {"instructions": []})
+
+    assert any(issue.path == "AGENTS.md" and "workflow retrospective" in issue.message for issue in issues)
+    assert any(issue.path == "CLAUDE.md" and "workflow retrospective" in issue.message for issue in issues)
+
+
+def test_retrospective_contract_clauses_must_be_in_the_section() -> None:
+    audit = load_audit_module()
+
+    for phrase in audit.REQUIRED_RETROSPECTIVE_PHRASES:
+        mutated = RETROSPECTIVE_GUIDANCE.replace(phrase, "omitted", 1)
+        if phrase != "Workflow Retrospective":
+            mutated += f"\n\n## Other Guidance\n{phrase}"
+
+        issues = audit._audit_retrospective_guidance("AGENTS.md", mutated)
+
+        assert issues, phrase
+        assert phrase in issues[0].message
 
 
 def test_aggregate_telemetry_report_redacts_raw_chat_content() -> None:

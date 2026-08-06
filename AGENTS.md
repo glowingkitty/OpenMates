@@ -88,6 +88,10 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Firecrawl MCP tools are quota-backed and project ask-gated. Do not use Firecrawl for routine docs/API research, routine web search, or routine OpenMates UI validation. Prefer Context7 for library docs, Brave/WebFetch for general web research, and Playwright for OpenMates visual validation; use Firecrawl only when those cannot produce the needed evidence, keep calls tightly bounded, and explain the reason.
 - If verification is not run, state why.
 
+### Workflow Retrospective
+
+For every non-trivial task-closing summary, include a concise retrospective covering what went wrong, where avoidable time or tool calls were spent, and the resulting workflow changes. Classify recommendations as hooks, skills, agent instructions, deterministic audits/tests, or state that no change is warranted. Use `None observed` rather than inventing failures, waste, or recommendations. Report only observed facts; do not expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require the retrospective.
+
 ---
 
 ## Safety Rules

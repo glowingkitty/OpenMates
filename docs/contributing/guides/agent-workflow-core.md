@@ -47,6 +47,18 @@ web fetches cannot produce the needed evidence. If verification was not run, say
 why. Do not include raw private logs, credentials, session titles, prompt text, or
 reasoning traces.
 
+## Workflow Retrospective
+
+For every non-trivial task-closing summary, include a concise retrospective
+covering what went wrong, where avoidable time or tool calls were
+spent, and the resulting workflow changes. Classify recommendations as hooks,
+skills, agent instructions, deterministic audits/tests, or state that no change
+is warranted. Use `None observed` rather than inventing failures, waste, or
+recommendations. Report only observed facts; do not expose hidden reasoning or
+guess durations or include raw private logs or private chat content. Simple
+requests, clarification-only turns, and progress updates do not require the
+retrospective.
+
 Eligible full specs and user-visible Tier 1 plans finish with a captioned
 implementation demonstration after applicable green gates. Give the active agent
 the canonical captions and bounded image frames, never the full video. Use a

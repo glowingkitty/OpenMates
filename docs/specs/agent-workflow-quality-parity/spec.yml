@@ -81,6 +81,8 @@ clarification:
       answer: Repo tooling only.
     - question: Confirm the vision is higher OpenCode output quality/context efficiency and stronger Claude Code/Codex/OpenCode parity through deterministic audits and tracked hook/config alignment.
       answer: Confirmed.
+    - question: Should every non-trivial task-closing summary include observed workflow failures, avoidable waste, and resulting workflow recommendations across research, debugging, planning, and implementation chats?
+      answer: Yes. Apply it across chat types, allow "None observed", and enforce it through shared instructions and deterministic audits rather than a skill or lifecycle hook.
   vision_summary: >
     This spec improves the local OpenMates agent workflow rather than the
     OpenMates product. The first slice focuses on making OpenCode produce better,
@@ -89,7 +91,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+  subject_commit: working-tree@447789aeed5b803da4718cfc8e2d82416060172c
 
 approvals:
   product_contract:
@@ -120,6 +122,11 @@ decisions:
     decision: Use aggregate-only OpenCode telemetry for quality and context reports.
     reason: Reports must not persist raw prompts, reasoning, command output bodies, private messages, credentials, or session titles.
     decided_at: "2026-07-29T15:20:00Z"
+  - id: D-5
+    status: active
+    decision: Require a concise workflow retrospective in every non-trivial task-closing summary across supported agent runtimes.
+    reason: A universal instruction plus deterministic audit applies to research, debugging, planning, and implementation without relying on optional skill loading or unreliable end-of-chat lifecycle detection.
+    decided_at: "2026-08-06T18:32:24Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -136,12 +143,12 @@ attempts:
     reason: The file is ignored by git and cannot make a fresh clone reproduce Claude Code hook coverage.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Commit or deploy the implemented tooling changes, then replace working-tree evidence subject refs with the final commit SHA before marking the spec verified.
-  command: python3 scripts/spec_verify.py docs/specs/agent-workflow-quality-parity/spec.yml
-  expected_outcome: The spec evidence remains complete, but final verified status waits for commit-stable evidence.
+  current_task_id: TASK-5
+  next_action: Deploy the verified retrospective instruction and audit changes, then replace working-tree evidence with the resulting commit SHA.
+  command: 'python3 scripts/sessions.py deploy --session 15b3 --title "feat: require workflow retrospectives" --end'
+  expected_outcome: The scoped instruction, audit, test, and spec changes are committed and pushed to dev.
   blocker: null
-  last_verified_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+  last_verified_commit: working-tree@447789aeed5b803da4718cfc8e2d82416060172c
 
 scenarios:
   - id: S-1
@@ -212,6 +219,19 @@ scenarios:
       - It links to deeper docs instead of duplicating long policy text.
       - It calls out that product agentic-coding design is tracked separately.
 
+  - id: S-7
+    title: Non-trivial task summaries include workflow retrospectives
+    given:
+      - An agent completes a non-trivial research, debugging, planning, review, spec, or implementation task.
+    when:
+      - It returns the task-closing summary.
+    then:
+      - The summary states what went wrong, where avoidable time or tool calls were spent, and any resulting workflow changes.
+      - It states "None observed" instead of inventing failures, waste, or recommendations.
+      - Recommendations identify hooks, skills, agent instructions, deterministic audits or tests, or state that no change is warranted.
+      - It reports observed facts without hidden reasoning, guessed durations, raw private logs, or private chat content.
+      - Simple requests, clarification-only turns, and progress updates do not require the retrospective.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -281,6 +301,15 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids:
       - T-TOOLING-PARITY-AUDIT
+  - id: AC-8
+    scenario: S-7
+    text: OpenCode, Codex, and Claude-compatible instruction surfaces require a concise, factual workflow retrospective in every non-trivial task-closing summary, and deterministic audits fail when that contract is missing.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-WORKFLOW-RETROSPECTIVE
 
 assumptions:
   - id: A-1
@@ -329,6 +358,11 @@ contracts:
     - Always-loaded OpenCode repository instructions must remain concise and point to lazy-loaded rules or skills for detail.
     - Output-quality guidance must emphasize evidence, exact files/commands, uncertainty, verification results, and concise final responses.
     - Output-quality audits must be deterministic and runnable without network access.
+  workflow_retrospective:
+    - Every non-trivial task-closing summary must cover observed failures, avoidable waste, and resulting workflow recommendations.
+    - The requirement applies to research, debugging, planning, review, spec, and implementation work, but not simple requests, clarification-only turns, or progress updates.
+    - Agents must use "None observed" where appropriate and must not invent issues, recommendations, hidden reasoning, or guessed durations.
+    - Recommendations must identify hooks, skills, agent instructions, deterministic audits or tests, or state that no workflow change is warranted.
   telemetry_privacy:
     - Aggregate reports may include counts, timestamps rounded or bounded to report periods, token percentiles, agent/model names, and error category counts.
     - Aggregate reports must not include raw prompt text, raw assistant text, reasoning, tool output bodies, session titles, private identifiers, credentials, or source code excerpts from chats.
@@ -374,6 +408,39 @@ tests:
         subject_commit: working-tree@65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
         timestamp: "2026-07-29T15:39:00Z"
         summary: 4 tests passed; pytest cache warning was unrelated permission noise.
+
+  - id: T-WORKFLOW-RETROSPECTIVE
+    type: pytest
+    file: scripts/tests/test_opencode_output_quality_audit.py
+    command: python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_passes_current_repo scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms
+    covers:
+      - AC-8
+    assertions:
+      - output-quality audit rejects a core instruction that omits the task-closing workflow retrospective
+      - instruction audit requires retrospective guidance in AGENTS.md and CLAUDE.md for cross-runtime coverage
+      - guidance requires observed failures, avoidable waste, concrete workflow-change categories, and "None observed"
+      - guidance excludes simple requests, clarification-only turns, and progress updates
+      - guidance prohibits invented issues, hidden reasoning, and guessed durations
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_spec_workflow_audit.py
+        run_id: local-2026-08-06-workflow-retrospective-red
+        subject_commit: working-tree@447789aee
+        timestamp: "2026-08-06T18:32:24Z"
+        summary: The new output-quality checks and source-contract check failed because the core, AGENTS.md, CLAUDE.md, and audit inventories did not yet require the approved retrospective guidance. Three unrelated pre-existing demonstration-term source-contract assertions also failed in the same combined run.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_passes_current_repo scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms
+        run_id: local-2026-08-06-workflow-retrospective-green
+        subject_commit: working-tree@447789aeed5b803da4718cfc8e2d82416060172c
+        timestamp: "2026-08-06T18:42:41Z"
+        summary: 16 focused tests passed, including clause-level mutation coverage that requires every retrospective guarantee inside the dedicated Markdown section.
 
   - id: T-TOOLING-PARITY-AUDIT
     type: pytest
@@ -625,6 +692,7 @@ implementation_plan:
     - python3 scripts/audit_opencode_spec_workflow.py
     - python3 scripts/audit_worktree_deploy_contract.py
     - node --test scripts/tests/test_opencode_hooks_contract.mjs
+    - python3 scripts/audit_opencode_output_quality.py
     - Manual review of one privacy-safe OpenCode sample or aggregate report for raw-content leakage.
   verification_order:
     - Run spec validation after every spec edit.
@@ -791,5 +859,46 @@ tasks:
       shared_files:
         - AGENTS.md
         - docs/architecture/agent-tooling-parity.md
+    blockers: []
+    follow_up_tasks: []
+
+  - id: TASK-5
+    title: Require cross-runtime workflow retrospectives
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - docs/contributing/guides/agent-workflow-core.md
+      - AGENTS.md
+      - CLAUDE.md
+      - scripts/audit_opencode_output_quality.py
+      - scripts/tests/test_opencode_output_quality_audit.py
+      - scripts/audit_opencode_spec_workflow.py
+      - scripts/tests/test_opencode_spec_workflow_audit.py
+      - docs/specs/agent-workflow-quality-parity/spec.yml
+    verification:
+      - T-WORKFLOW-RETROSPECTIVE
+    verification_ids:
+      - T-WORKFLOW-RETROSPECTIVE
+    dependencies:
+      - TASK-1
+      - TASK-4
+    ownership:
+      files:
+        - docs/contributing/guides/agent-workflow-core.md
+        - AGENTS.md
+        - CLAUDE.md
+        - scripts/audit_opencode_output_quality.py
+        - scripts/tests/test_opencode_output_quality_audit.py
+        - scripts/audit_opencode_spec_workflow.py
+        - scripts/tests/test_opencode_spec_workflow_audit.py
+        - docs/specs/agent-workflow-quality-parity/spec.yml
+      shared_files:
+        - AGENTS.md
+        - CLAUDE.md
     blockers: []
     follow_up_tasks: []

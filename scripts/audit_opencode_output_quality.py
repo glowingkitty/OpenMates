@@ -14,6 +14,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
+import re
 import sqlite3
 import statistics
 import sys
@@ -25,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENCODE_CONFIG = REPO_ROOT / "opencode.json"
 OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
 CORE_INSTRUCTION = "docs/contributing/guides/agent-workflow-core.md"
+RUNTIME_INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md")
 EAGER_LONG_INSTRUCTIONS = {
     ".claude/rules/planning.md",
     ".claude/rules/testing.md",
@@ -49,6 +51,27 @@ REQUIRED_CORE_PHRASES = {
         "https://app.dev.openmates.org",
     ),
 }
+REQUIRED_RETROSPECTIVE_PHRASES = (
+    "Workflow Retrospective",
+    "task-closing",
+    "what went wrong",
+    "avoidable time or tool calls",
+    "resulting workflow changes",
+    "hooks",
+    "skills",
+    "agent instructions",
+    "deterministic audits/tests",
+    "no change is warranted",
+    "None observed",
+    "rather than inventing",
+    "hidden reasoning",
+    "guess durations",
+    "raw private logs",
+    "private chat content",
+    "Simple requests",
+    "clarification-only turns",
+    "progress updates",
+)
 FIRECRAWL_TOOL_PERMISSIONS = {
     "firecrawl_firecrawl_agent",
     "firecrawl_firecrawl_agent_status",
@@ -109,6 +132,19 @@ def _load_config(path: Path = OPENCODE_CONFIG) -> dict[str, Any]:
 def _contains_any(text: str, terms: tuple[str, ...]) -> bool:
     lower = text.lower()
     return any(term.lower() in lower for term in terms)
+
+
+def _audit_retrospective_guidance(path: str, text: str) -> list[AuditIssue]:
+    heading = re.search(r"(?im)^#{2,3}\s+Workflow Retrospective\s*$", text)
+    if heading is None:
+        return [AuditIssue(path, "workflow retrospective guidance missing: Workflow Retrospective")]
+    next_heading = re.search(r"(?m)^#{1,3}\s+", text[heading.end() :])
+    end = heading.end() + next_heading.start() if next_heading else len(text)
+    normalized = " ".join(text[heading.start() : end].lower().split())
+    missing = [phrase for phrase in REQUIRED_RETROSPECTIVE_PHRASES if phrase.lower() not in normalized]
+    if not missing:
+        return []
+    return [AuditIssue(path, f"workflow retrospective guidance missing: {missing[0]}")]
 
 
 def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[AuditIssue]:
@@ -194,6 +230,13 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
                 issues.append(AuditIssue(CORE_INSTRUCTION, f"core instruction missing {label}: {missing[0]}"))
         if not (_contains_any(core, ("final response", "final responses")) and "evidence" in core.lower()):
             issues.append(AuditIssue(CORE_INSTRUCTION, "core instruction missing final-answer evidence guidance"))
+        issues.extend(_audit_retrospective_guidance(CORE_INSTRUCTION, core))
+    for rel_path in RUNTIME_INSTRUCTIONS:
+        path = root / rel_path
+        if not path.exists():
+            issues.append(AuditIssue(rel_path, "cross-runtime instruction file is missing"))
+            continue
+        issues.extend(_audit_retrospective_guidance(rel_path, path.read_text(encoding="utf-8", errors="replace")))
     return issues
 
 

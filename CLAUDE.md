@@ -52,6 +52,10 @@ OpenMates/
 
 Architecture decisions: write once in `docs/architecture/`, reference in code.
 
+## Workflow Retrospective
+
+For every non-trivial task-closing summary, include a concise retrospective covering what went wrong, where avoidable time or tool calls were spent, and the resulting workflow changes. Classify recommendations as hooks, skills, agent instructions, deterministic audits/tests, or state that no change is warranted. Use `None observed` rather than inventing failures, waste, or recommendations. Report only observed facts; do not expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require the retrospective.
+
 ## Obsidian Vault
 
 - The Obsidian vault lives at `/home/superdev/projects/OpenMates/vaults/memory/` (`vaults/memory/` from the repo root).

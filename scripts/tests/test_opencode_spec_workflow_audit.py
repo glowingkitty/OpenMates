@@ -208,3 +208,14 @@ def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms()
 
     assert "demonstration review" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
     assert "full video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
+
+
+def test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms():
+    audit = load_audit_module()
+
+    for path in ("AGENTS.md", "CLAUDE.md", "docs/contributing/guides/agent-workflow-core.md"):
+        assert {
+            "Workflow Retrospective",
+            "task-closing",
+            "None observed",
+        }.issubset(audit.INSTRUCTION_TERMS[path])
