@@ -247,14 +247,16 @@ vi.mock("../../services/pendingChatDeletions", () => ({
   clearAllPendingChatDeletions: vi.fn(),
 }));
 
-vi.mock("../../i18n/setup", () => ({
-  getCurrentLanguage: vi.fn(() => "en"),
-}));
-
 vi.mock("svelte-i18n", async () => {
   const { writable } = await import("svelte/store");
   return {
+    _: writable((key: string) => key),
+    addMessages: vi.fn(),
+    getLocaleFromNavigator: vi.fn(() => "en"),
+    init: vi.fn(),
     locale: writable("en"),
+    register: vi.fn(),
+    waitLocale: vi.fn(async () => undefined),
   };
 });
 
