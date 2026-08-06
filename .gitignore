@@ -338,6 +338,8 @@ backend/tests/output/
 !.opencode/
 !.opencode/agents/
 !.opencode/agents/*.md
+!.opencode/commands/
+!.opencode/commands/*.md
 !.opencode/plugins/
 !.opencode/plugins/openmates-claude-hooks.js
 

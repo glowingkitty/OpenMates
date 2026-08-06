@@ -6,24 +6,40 @@ disable-model-invocation: false
 argument-hint: "[title]"
 ---
 
-## Current State (Remote Refs)
-!`git fetch origin main dev 2>/dev/null && echo "=== Commit count (main-ahead : dev-ahead) ===" && git rev-list --left-right --count origin/main...origin/dev && echo "" && echo "=== Commits on dev not in main ===" && git log --oneline origin/main..origin/dev`
-
-## Changed Files
-!`git diff --stat origin/main...origin/dev 2>/dev/null`
-
-## Prior Promotion And Markdown Sources
-!`latest_pr=$(gh pr list --base main --head dev --state merged --limit 1 --json number,title,mergedAt,mergeCommit,url --jq '.[0] // empty' 2>/dev/null); latest_pr_date=$(printf '%s' "$latest_pr" | jq -r '.mergedAt // empty' 2>/dev/null | cut -dT -f1); echo "=== Latest merged dev to main PR ==="; if [ -n "$latest_pr" ]; then printf '%s\n' "$latest_pr"; else echo "None found"; fi; echo ""; echo "=== Daily Markdown summaries after boundary ==="; if [ -n "$latest_pr_date" ]; then for file in docs/releases/daily/*.md; do day=$(basename "$file" .md); [ "$day" ">" "$latest_pr_date" ] && echo "$file"; done; else ls docs/releases/daily/*.md 2>/dev/null; fi; echo ""; echo "=== Weekly Markdown summaries to inspect for overlapping post-boundary coverage ==="; ls docs/releases/weekly/*.md 2>/dev/null`
-
 ## Instructions
 
 **IMPORTANT: Only create a PR when the user explicitly asks.**
 
+OpenCode users invoke this workflow through `/pullrequest`. That command creates
+a visible user turn and loads this skill through the `skill` tool. Keep this
+file static: execute commands explicitly during the workflow rather than using
+Claude command-template shell expansion in `SKILL.md`.
+
 ### Step 0 — Summarize Changelog Markdown Before Asking Questions (CRITICAL)
 
-Identify the most recent **merged** `dev` → `main` PR using `--state merged` and its `mergedAt` value. Read every compact
-`docs/releases/daily/YYYY-MM-DD.md` after that merge date and every `docs/releases/weekly/YYYY-Www.md` whose covered date range overlaps the post-merge period.
+Identify the most recent **merged** `dev` → `main` PR using `--state merged` and
+its `mergedAt` value. Read every compact
+`docs/releases/daily/YYYY-MM-DD.md` on or after that merge date and every
+`docs/releases/weekly/YYYY-Www.md` whose covered date range overlaps the
+post-merge period.
 Do not refresh or write release-intelligence artifacts yet.
+
+Start with explicit read-only discovery:
+
+```bash
+git fetch origin main dev
+gh pr list --base main --head dev --state merged --limit 1 \
+  --json number,title,mergedAt,mergeCommit,url
+git rev-list --left-right --count origin/main...origin/dev
+git diff --stat origin/main...origin/dev
+```
+
+Use the merged PR's `mergedAt` date to select the daily Markdown files, then
+inspect weekly Markdown files whose stated date range overlaps that boundary.
+Read the selected files in full before producing the summary. For the merge-day
+file, include only entries supported by commits in `origin/main..origin/dev`;
+exclude entries already reachable from the prior PR's merge commit. This keeps
+changes made later on the merge day without repeating the prior release.
 
 Before asking any clarifying question, give the user one concise, source-grounded summary with these headings:
 
@@ -46,7 +62,12 @@ After presenting the changelog summary, ask exactly five clarifying questions be
 - Cover these five decision areas, adapting the wording to the discovered changes: code inclusion versus public release-note treatment; enabled versus disabled feature readiness; `main`-only commit reconciliation; required validation/risk exceptions; and PR narrative/release emphasis.
 - For branch reconciliation, inspect the `main`-only commits before making a recommendation. Recommend preserving legitimate fixes and merge history. Ask the user about ambiguous commits or behavioral conflicts rather than guessing.
 
-After the fifth answer, summarize the confirmed decisions and provide the execution plan. Continue autonomously only when the user approves that plan.
+After the fifth answer, summarize the confirmed decisions and execution plan,
+then continue autonomously through the readiness gates and PR creation. Do not
+ask for a separate plan approval; the user's explicit `/pullrequest` invocation
+and five answers authorize the workflow. Stop only for a failed required gate,
+an unclassified feature introduced after the questions, or another concrete
+safety/reconciliation decision that the five answers could not cover.
 
 ### Step 2 — Resolve Worktree Readiness (CRITICAL)
 
@@ -105,11 +126,15 @@ Use the most recent merged `dev` → `main` PR boundary established in Step 0. R
 latest_pr_date=$(gh pr list --base main --head dev --state merged --limit 1 --json mergedAt --jq '.[0].mergedAt // empty' | cut -dT -f1)
 ls docs/releases/daily/*.md | while read -r file; do
   day=$(basename "$file" .md)
-  [ -z "$latest_pr_date" ] || [ "$day" ">" "$latest_pr_date" ] && echo "$file"
+  if [ -z "$latest_pr_date" ] || [ "$day" = "$latest_pr_date" ] || [ "$day" ">" "$latest_pr_date" ]; then
+    echo "$file"
+  fi
 done
 ```
 
 Use the Markdown overview, grouped changes, and newsletter guidance to build the PR body. Keep unreleased/disabled-feature work out of public release/newsletter language, but include it in the PR when it is part of the code diff. Use companion YAML fields such as `sections`, `marketing_candidates`, and `unreleased_progress` only when deeper structured evidence is required.
+Apply the same merge-day commit-evidence filter used in Step 0 before adding
+items from the refreshed Markdown companion.
 
 ### Step 5 — Feature Readiness Gate (CRITICAL)
 
@@ -143,7 +168,9 @@ If the user says a feature is not ready, keep the code but deactivate access thr
 - For apps, skills, embeds, focus modes, or memory types, set `default_enabled: false` on the relevant `backend/apps/*/app.yml` entry.
 - Re-run `python3 scripts/release_intelligence.py pr-readiness --from-ref origin/main --to-ref origin/dev --format markdown --stdout` and show the updated status before continuing.
 
-Only continue after the user confirms that the remaining accessible features are ready for the PR.
+Continue automatically when the five answers classify every reported feature
+and confirm that the remaining accessible features are ready for the PR. Do not
+request the same confirmation again at this gate.
 
 ### Step 6 — Analyze Remaining Commit Details
 

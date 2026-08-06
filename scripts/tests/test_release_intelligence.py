@@ -607,6 +607,8 @@ def test_release_intelligence_cron_wrapper_documents_all_modes() -> None:
 
 def test_create_pr_skill_requires_feature_readiness_gate() -> None:
     skill = (ROOT / ".claude" / "skills" / "create-pr" / "SKILL.md").read_text(encoding="utf-8")
+    opencode_skill = (ROOT / ".agents" / "skills" / "create-pr" / "SKILL.md").read_text(encoding="utf-8")
+    opencode_command = (ROOT / ".opencode" / "commands" / "pullrequest.md").read_text(encoding="utf-8")
 
     assert "pr-readiness" in skill
     assert "Feature Readiness" in skill
@@ -617,13 +619,25 @@ def test_create_pr_skill_requires_feature_readiness_gate() -> None:
     assert "createdAt" not in skill
     assert "docs/releases/daily/YYYY-MM-DD.md" in skill
     assert "docs/releases/weekly/YYYY-Www.md" in skill
+    assert "on or after that merge date" in skill
+    assert "For the merge-day\nfile" in skill
+    assert "exclude entries already reachable from the prior PR's merge commit" in skill
     assert skill.index("Summarize Changelog Markdown") < skill.index("Ask Exactly Five Clarifying Questions")
     assert "Ask one question per assistant message" in skill
     assert "Question 1 of 5" in skill
     assert "Question 5 of 5" in skill
     assert "Include a concrete recommendation in each question" in skill
+    assert "continue autonomously" in skill
+    assert "do not\nask for a separate plan approval" in skill.lower()
+    assert "Do not\nrequest the same confirmation again" in skill
+    assert "Only continue after the user confirms" not in skill
+    assert "!`" not in skill
     assert "2>/dev/null || true" not in skill
     assert "tail -30" not in skill
+    assert opencode_skill == skill.replace("name: openmates:pullrequest", "name: create-pr", 1)
+    assert "Load the `create-pr` skill with the `skill` tool" in opencode_command
+    assert "asks exactly five clarifying" in opencode_command
+    assert opencode_command.split("---", 2)[2].strip()
 
 
 def test_llm_summary_normalization_keeps_only_known_commit_evidence() -> None:

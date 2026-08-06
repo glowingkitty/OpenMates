@@ -36,7 +36,8 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         "worktree-reconciliation-setup.sh",
     ],
     ".claude/skills/create-pr/SKILL.md": [
-        "Step 0 — Resolve Worktree Readiness",
+        "Step 0 — Summarize Changelog Markdown Before Asking Questions",
+        "Step 2 — Resolve Worktree Readiness",
         "worktree release-readiness --target origin/dev",
         "--exclude-active",
     ],
@@ -52,7 +53,7 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         "raw git worktree is forbidden",
     ],
     ".opencode/plugins/openmates-hooks.js": [
-        "Root checkout is the OpenMates control plane",
+        "root checkout or another managed worktree",
         "OPENMATES_ROOT_GUARD",
     ],
     "AGENTS.md": [
