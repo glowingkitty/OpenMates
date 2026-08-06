@@ -10,7 +10,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+GIT_COMMON_DIR="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common-dir)"
+PROJECT_ROOT="$(cd "$GIT_COMMON_DIR/.." && pwd)"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
 
 mkdir -p "$SYSTEMD_DIR"
