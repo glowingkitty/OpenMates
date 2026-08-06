@@ -223,10 +223,12 @@ def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypat
 
 
 def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence() -> None:
-    request_data = SimpleNamespace(
+    request_data = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
         user_id="44444444-4444-4444-8444-444444444444",
         user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="hello", created_at=100)],
         recovery_task_id="11111111-1111-4111-8111-111111111111",
     )
     directus = _MetadataDirectus()
@@ -268,10 +270,12 @@ def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence
 
 
 def test_sub_chat_continuation_uses_recovery_only_metadata_path() -> None:
-    request_data = SimpleNamespace(
+    request_data = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
         user_id="44444444-4444-4444-8444-444444444444",
         user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="hello", created_at=100)],
         recovery_task_id=None,
         recovery_inference_task_id="11111111-1111-4111-8111-111111111111",
         is_sub_chat_continuation=True,
