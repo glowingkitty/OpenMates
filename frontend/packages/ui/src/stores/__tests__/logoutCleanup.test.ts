@@ -247,11 +247,13 @@ vi.mock("../../services/pendingChatDeletions", () => ({
   clearAllPendingChatDeletions: vi.fn(),
 }));
 
-vi.mock("svelte-i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("svelte-i18n")>();
+vi.mock("../../i18n/setup", () => ({
+  getCurrentLanguage: vi.fn(() => "en"),
+}));
+
+vi.mock("svelte-i18n", async () => {
   const { writable } = await import("svelte/store");
   return {
-    ...actual,
     locale: writable("en"),
   };
 });
