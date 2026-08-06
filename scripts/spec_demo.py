@@ -25,6 +25,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import textwrap
 import time
 from typing import Any, Callable, Iterable
 from urllib.parse import urlparse
@@ -32,8 +33,12 @@ from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
-TERMINAL_VIDEO_SIZE = "1920x1080"
-TERMINAL_FONT_SIZE = 16
+TERMINAL_VIDEO_SIZE = "1280x720"
+TERMINAL_FONT_SIZE = 28
+TERMINAL_COLUMNS = 72
+TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
+TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
+TERMINAL_RESULT_HOLD_SECONDS = 8.0
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 SHOWINFO_PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)")
@@ -232,27 +237,94 @@ def _ffmpeg_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
-def render_terminal_video(
-    transcript_path: Path,
-    captions_path: Path,
-    output_path: Path,
-    *,
-    duration_seconds: float,
-) -> None:
-    """Render a deterministic terminal reconstruction with canonical captions."""
-    for path in (transcript_path, captions_path, TERMINAL_FONT):
+def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build visible typing and output states while preserving captured delays."""
+    command = f"$ {shlex.join(argv)}"
+    states: list[dict[str, Any]] = []
+    visible = "$ "
+    for character in command[2:]:
+        states.append({"start": len(states) * TERMINAL_TYPING_INTERVAL_SECONDS, "text": visible})
+        visible += character
+    typing_completed_at = len(states) * TERMINAL_TYPING_INTERVAL_SECONDS
+    if not states:
+        states.append({"start": 0.0, "text": visible})
+    states.append({"start": typing_completed_at, "text": visible})
+    first_output_at: float | None = None
+    for event in events:
+        if event.get("stream") != "output":
+            continue
+        event_time = max(0.0, float(event.get("time_seconds", 0.0)))
+        if first_output_at is None and not visible.endswith("\n"):
+            visible += "\n"
+        visible += str(event.get("text", ""))
+        shifted_time = typing_completed_at + event_time
+        first_output_at = shifted_time if first_output_at is None else first_output_at
+        states.append({"start": shifted_time, "text": visible})
+    last_change = float(states[-1]["start"])
+    duration = max(TERMINAL_TUTORIAL_MIN_SECONDS, last_change + TERMINAL_RESULT_HOLD_SECONDS)
+    for index, state in enumerate(states):
+        state["end"] = float(states[index + 1]["start"]) if index + 1 < len(states) else duration
+    return {
+        "states": states,
+        "typing_completed_at": typing_completed_at,
+        "first_output_at": first_output_at,
+        "duration_seconds": duration,
+    }
+
+
+def _ass_timestamp(seconds: float) -> str:
+    centiseconds = max(0, round(seconds * 100))
+    hours, remainder = divmod(centiseconds, 360_000)
+    minutes, remainder = divmod(remainder, 6_000)
+    whole_seconds, centiseconds = divmod(remainder, 100)
+    return f"{hours}:{minutes:02d}:{whole_seconds:02d}.{centiseconds:02d}"
+
+
+def _terminal_ass_text(text: str) -> str:
+    wrapped: list[str] = []
+    for line in text.splitlines():
+        wrapped.extend(textwrap.wrap(line, width=TERMINAL_COLUMNS, replace_whitespace=False) or [""])
+    escaped = "\n".join(wrapped).replace("\\", r"\\").replace("{", r"\{").replace("}", r"\}")
+    return escaped.replace("\n", r"\N")
+
+
+def _write_terminal_timeline(path: Path, timeline: dict[str, Any]) -> None:
+    header = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Terminal,DejaVu Sans Mono,{TERMINAL_FONT_SIZE},&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,32,32,32,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    dialogues = "".join(
+        f"Dialogue: 0,{_ass_timestamp(float(state['start']))},{_ass_timestamp(float(state['end']))},Terminal,,0,0,0,,{_terminal_ass_text(str(state['text']))}\n"
+        for state in timeline["states"]
+        if float(state["end"]) > float(state["start"])
+    )
+    _write_private(path, header + dialogues)
+
+
+def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_path: Path) -> None:
+    """Render a readable timed terminal tutorial with canonical captions."""
+    for path in (captions_path, TERMINAL_FONT):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
+    duration_seconds = float(timeline.get("duration_seconds", 0))
     if duration_seconds <= 0:
         raise DemonstrationError("Video duration must be positive")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    terminal = _ffmpeg_filter_path(transcript_path)
+    timeline_path = output_path.with_suffix(".terminal.ass")
+    _write_terminal_timeline(timeline_path, timeline)
+    terminal = _ffmpeg_filter_path(timeline_path)
     captions = _ffmpeg_filter_path(captions_path)
-    font = _ffmpeg_filter_path(TERMINAL_FONT)
     video_filter = (
-        f"drawtext=fontfile='{font}':textfile='{terminal}':fontcolor=white:fontsize={TERMINAL_FONT_SIZE}:"
-        "x=40:y=40:line_spacing=8:fix_bounds=true,"
-        f"subtitles='{captions}':force_style='FontName=DejaVu Sans,FontSize=20,"
+        f"subtitles='{terminal}',"
+        f"subtitles='{captions}':force_style='FontName=DejaVu Sans,FontSize=22,"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,MarginV=36'"
     )
     result = subprocess.run(
@@ -285,6 +357,7 @@ def render_terminal_video(
     )
     if result.returncode != 0:
         raise DemonstrationError(f"FFmpeg terminal render failed: {result.stderr.strip()[-1000:]}")
+    timeline_path.unlink(missing_ok=True)
 
 
 def render_captioned_video(source_path: Path, captions_path: Path, output_path: Path) -> None:
@@ -499,6 +572,42 @@ def write_single_caption(path: Path, *, text: str, duration_seconds: float) -> N
     )
 
 
+def write_tutorial_captions(
+    path: Path,
+    *,
+    text: str,
+    duration_seconds: float,
+    narration_id: str,
+) -> list[dict[str, Any]]:
+    """Split tutorial narration into readable sentence-level caption cues."""
+    sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
+    if not sentences or duration_seconds <= 0:
+        raise DemonstrationError("Tutorial narration and duration are required")
+    weights = [max(1, len(sentence.split())) for sentence in sentences]
+    total_weight = sum(weights)
+    segments: list[dict[str, Any]] = []
+    cursor = 0.0
+    blocks: list[str] = []
+    for index, (sentence, weight) in enumerate(zip(sentences, weights, strict=True), start=1):
+        end = duration_seconds if index == len(sentences) else cursor + duration_seconds * weight / total_weight
+        segments.append(
+            {
+                "id": f"CAP-{index}",
+                "narration_id": narration_id,
+                "text": sentence,
+                "start": round(cursor, 3),
+                "end": round(end, 3),
+                "claim_ids": ["CLAIM-1"],
+            }
+        )
+        blocks.append(
+            f"{index}\n{_srt_timestamp(cursor)} --> {_srt_timestamp(end)}\n{sentence}\n"
+        )
+        cursor = end
+    _write_private(path, "\n".join(blocks))
+    return segments
+
+
 def prepare_review_artifacts(
     *,
     run_dir: Path,
@@ -510,6 +619,7 @@ def prepare_review_artifacts(
     expected_proof: str,
     acceptance_criteria: list[str],
     source: dict[str, Any],
+    caption_segments: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
     text_privacy = scan_text_sources(
@@ -524,25 +634,7 @@ def prepare_review_artifacts(
     )
     if text_privacy["status"] != "passed":
         raise DemonstrationError("Text privacy scan found sensitive content before review")
-    frame_dir = run_dir / "frames"
-    frame_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    frame_dir.chmod(0o700)
-    frames: list[dict[str, Any]] = []
-    for index, timestamp in enumerate(
-        build_review_frame_times(
-            duration_seconds=metadata["duration_seconds"],
-            interval_seconds=MAX_REVIEW_INTERVAL_SECONDS,
-            caption_intervals=[(0, metadata["duration_seconds"])],
-        )
-    ):
-        frame = extract_frame(
-            video_path,
-            timestamp_seconds=timestamp,
-            output_path=frame_dir / f"frame-{index:04d}.png",
-        )
-        frame["path"] = str(Path(frame["path"]).relative_to(run_dir))
-        frames.append(frame)
-    captions = [
+    captions = caption_segments or [
         {
             "id": "CAP-1",
             "narration_id": narration_id,
@@ -552,6 +644,24 @@ def prepare_review_artifacts(
             "claim_ids": ["CLAIM-1"],
         }
     ]
+    frame_dir = run_dir / "frames"
+    frame_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    frame_dir.chmod(0o700)
+    frames: list[dict[str, Any]] = []
+    for index, timestamp in enumerate(
+        build_review_frame_times(
+            duration_seconds=metadata["duration_seconds"],
+            interval_seconds=MAX_REVIEW_INTERVAL_SECONDS,
+            caption_intervals=[(float(caption["start"]), float(caption["end"])) for caption in captions],
+        )
+    ):
+        frame = extract_frame(
+            video_path,
+            timestamp_seconds=timestamp,
+            output_path=frame_dir / f"frame-{index:04d}.png",
+        )
+        frame["path"] = str(Path(frame["path"]).relative_to(run_dir))
+        frames.append(frame)
     if not acceptance_criteria or not all(isinstance(value, str) and value for value in acceptance_criteria):
         raise DemonstrationError("Every demonstration claim requires acceptance-criterion links")
     expected = [
@@ -627,9 +737,15 @@ def produce_cli_demonstration(
         output_dir=run_dir,
         test_account_provenance=test_account_provenance,
     )
+    terminal_events: list[dict[str, Any]] = []
     try:
         if anonymize_sensitive:
             capture = anonymize_cli_capture(run_dir, capture)
+        for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
+            event = json.loads(line)
+            if event.get("stream") == "output" and anonymize_sensitive:
+                event["text"] = redact_text_with_canonical_scanner(str(event.get("text", "")))["text"]
+            terminal_events.append(event)
         pre_render_privacy = scan_text_sources(
             {
                 "argv": json.dumps(capture["argv"]),
@@ -648,11 +764,17 @@ def produce_cli_demonstration(
         raise
     finally:
         (run_dir / "events.jsonl").unlink(missing_ok=True)
-    duration = max(2.0, float(capture["duration_seconds"]) + 0.5)
+    timeline = build_cli_terminal_timeline(argv=list(capture["argv"]), events=terminal_events)
+    duration = float(timeline["duration_seconds"])
     captions_path = run_dir / "captions.srt"
     video_path = run_dir / "demo.mp4"
-    write_single_caption(captions_path, text=caption_text, duration_seconds=duration)
-    render_terminal_video(run_dir / "transcript.txt", captions_path, video_path, duration_seconds=duration)
+    caption_segments = write_tutorial_captions(
+        captions_path,
+        text=caption_text,
+        duration_seconds=duration,
+        narration_id=narration_id,
+    )
+    render_terminal_video(timeline, captions_path, video_path)
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -663,6 +785,7 @@ def produce_cli_demonstration(
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
         source={"kind": "cli", **capture},
+        caption_segments=caption_segments,
     )
 
 

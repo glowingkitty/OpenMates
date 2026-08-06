@@ -117,7 +117,8 @@ For full specs:
     docs/specs/<slug>/spec.yml`.
 15. For eligible Tier 2 specs, and for user-visible Tier 1 plans, run the
     implementation demonstration gate after all applicable normal green gates.
-    Write exact captions from the verified behavior, render real Playwright or
+    Write tutorial-style captions that explain the feature, the action, and what
+    the viewer should verify on screen from the verified behavior; render real Playwright or
     PTY evidence, scan all text entering the rendered artifact, and perform a
     demonstration review from captions plus bounded frames. Never place the full
     video in agent/model context. Default to frames every three seconds plus
@@ -154,9 +155,11 @@ acceptance criteria. A concretely justified `surface: non_visual` record may use
 `status: not_applicable`. Browser, CLI, and native behavior cannot use that
 classification.
 
-The exact narration text is generated only after applicable tests, deployed
-Playwright, visual-smoke, user-confirmation, and Apple gates are complete. The
-caption text is canonical in v1; audio is optional follow-up work. Raw evidence
+    The exact narration text is generated only after applicable tests, deployed
+    Playwright, visual-smoke, user-confirmation, and Apple gates are complete. The
+    narration should work as a short tutorial: explain the feature, describe the
+    action being shown, and tell the viewer what visible result confirms success so
+    review can detect obvious mismatches. Caption text is canonical in v1; audio is optional follow-up work. Raw evidence
 and edited demonstration media remain distinct, and reconstructed terminal
 segments must match a real sanitized transcript hash and show a reconstruction
 label.

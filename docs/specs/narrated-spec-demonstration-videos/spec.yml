@@ -259,6 +259,11 @@ decisions:
   decision: Remove OCR and decoded-frame privacy scanning; scan command arguments, transcripts, captions, metadata, filenames, and publication text with the canonical scanner instead.
   reason: The user determined that the added calculation and latency are disproportionate to the sensitive-data exposure risk for reviewed implementation demonstrations.
   decided_at: '2026-08-06T09:20:00Z'
+- id: D-13
+  status: active
+  decision: CLI demonstrations use a readable 1280x720 terminal tutorial composition with large text, visible command typing, captured output timing, only command/output in the terminal, and narration that explains the feature and visible evidence.
+  reason: User review found the static 1920x1080 snapshot too small, too brief, and insufficiently instructional to validate obvious visual mismatches.
+  decided_at: '2026-08-06T10:00:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -420,8 +425,9 @@ acceptance_criteria:
   - V-PLAYWRIGHT-DEMO
 - id: AC-4
   scenario: S-4
-  text: CLI demonstrations preserve exact sanitized terminal input, output, timing, exit status, transcript hash, and run
-    provenance; reconstructions are labeled and never replace verification evidence.
+  text: CLI demonstrations visibly type the exact sanitized command, preserve the captured delay and output timing, render only
+    command and output at a readable scale, and retain exit status, transcript hash, and run provenance in evidence rather than
+    adding them to the visible terminal; reconstructions are labeled and never replace verification evidence.
   required: true
   status: pending
   coverage_status: covered

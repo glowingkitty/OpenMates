@@ -152,8 +152,10 @@ def test_reconstruction_requires_visible_label_and_matching_transcript_hash() ->
 
 def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     module = load_module()
-    transcript = tmp_path / "transcript.txt"
-    transcript.write_text("$ openmates demo\nexact terminal output\n", encoding="utf-8")
+    timeline = module.build_cli_terminal_timeline(
+        argv=["openmates", "demo"],
+        events=[{"time_seconds": 0.8, "stream": "output", "text": "exact terminal output\n"}],
+    )
     captions = tmp_path / "captions.srt"
     captions.write_text(
         "1\n00:00:00,000 --> 00:00:01,000\nThe exact output is visible.\n",
@@ -161,7 +163,7 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     )
     output = tmp_path / "demo.mp4"
 
-    module.render_terminal_video(transcript, captions, output, duration_seconds=1.2)
+    module.render_terminal_video(timeline, captions, output)
 
     assert output.is_file() and output.stat().st_size > 0
     probe = subprocess.run(
@@ -172,7 +174,7 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     )
     assert float(json.loads(probe.stdout)["format"]["duration"]) >= 1.0
     metadata = module.video_metadata(output)
-    assert (metadata["width"], metadata["height"]) == (1920, 1080)
+    assert (metadata["width"], metadata["height"]) == (1280, 720)
     end_frame = module.extract_frame(
         output,
         timestamp_seconds=module.video_metadata(output)["duration_seconds"],
@@ -188,6 +190,43 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
         output_path=tmp_path / "between-frame.png",
     )
     assert between_frame["timestamp_seconds"] == pytest.approx(0.533, abs=0.002)
+
+
+def test_cli_terminal_timeline_types_command_then_replays_real_output_delay() -> None:
+    module = load_module()
+    timeline = module.build_cli_terminal_timeline(
+        argv=["openmates", "plans", "create", "--title", "Tutorial plan"],
+        events=[
+            {"time_seconds": 1.25, "stream": "output", "text": "Plan PLAN-"},
+            {"time_seconds": 1.5, "stream": "output", "text": "123456\nStatus: draft\n"},
+        ],
+    )
+
+    states = timeline["states"]
+    assert states[0]["text"] == "$ "
+    assert states[1]["text"].startswith("$ o")
+    assert states[-1]["text"].endswith("Status: draft\n")
+    assert timeline["first_output_at"] == pytest.approx(timeline["typing_completed_at"] + 1.25)
+    assert timeline["duration_seconds"] >= 15
+    assert all("exit_status" not in state["text"] for state in states)
+    assert all("run_id" not in state["text"] for state in states)
+
+
+def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "captions.srt"
+
+    segments = module.write_tutorial_captions(
+        path,
+        text="First, create the Plan. Next, inspect the returned fields. The undo commands make the change reversible.",
+        duration_seconds=15,
+        narration_id="NARR-1",
+    )
+
+    assert [segment["id"] for segment in segments] == ["CAP-1", "CAP-2", "CAP-3"]
+    assert segments[0]["start"] == 0
+    assert segments[-1]["end"] == 15
+    assert path.read_text(encoding="utf-8").count(" --> ") == 3
 
 
 def test_text_scan_detects_known_environment_secret(monkeypatch: pytest.MonkeyPatch) -> None:
