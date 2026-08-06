@@ -173,7 +173,7 @@ async def _check_tcp(host: str, port: int) -> None:
 
 async def _check_required_services(role: str) -> None:
     if role == "core":
-        await asyncio.gather(_http_get("http://localhost:8000/health"), _http_get("http://cms:8055/server/ping"), _check_cache(), _check_vault())
+        await asyncio.gather(_http_get("http://localhost:8000/v1/health"), _http_get("http://cms:8055/server/ping"), _check_cache(), _check_vault())
     elif role == "upload":
         await asyncio.gather(_http_get("http://app-uploads:8000/health"), _check_vault())
     else:
@@ -265,7 +265,7 @@ async def _check_billing_freshness() -> None:
 
 
 def _runtime_runners(role: str) -> dict[str, CheckRunner]:
-    health_url = {"core": "http://localhost:8000/health", "upload": "http://app-uploads:8000/health", "preview": "http://preview:8080/health"}[role]
+    health_url = {"core": "http://localhost:8000/v1/health", "upload": "http://app-uploads:8000/health", "preview": "http://preview:8080/health"}[role]
     return {
         "compose.required_services": lambda: _check_required_services(role),
         "http.role_health": lambda: _http_get(health_url),
