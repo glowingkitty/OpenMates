@@ -1,7 +1,7 @@
 schema_version: 2
 id: narrated-spec-demonstration-videos
 title: Narrated Demonstration Videos For OpenCode Specs
-status: implementing
+status: verified
 goal: 'Make completed OpenCode implementation work visibly understandable by requiring planned narration points, real execution
   recordings, canonical synchronized captions, and an AI-reviewed demonstration video before eligible specs or plans are considered
   complete, then publish the reviewed result to Discord when a destination is configured.
@@ -164,19 +164,19 @@ demonstration:
     - AC-12
   evidence:
     status: passed
-    subject_commit: 8e6e802b6cd38bacf52fe34246cabef946574722
-    manifest_path: test-results/spec-demos/narrated-spec-demonstration-videos/cli-8e6e802/manifest.json
-    manifest_hash: sha256:55ace0c057b6ecde57a9d31c500501c804e96e306ef9a4fbec6744537ec599a4
+    subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    manifest_path: test-results/proof-videos/d465/plans-create-tutorial-final/manifest.json
+    manifest_hash: sha256:a020d2d2f67611a71f7a554c113dd5187f6a3aece580bc0be3d36c536f401fda
     privacy_status: passed
     review_status: passed
-    review_run_id: review-cli-8e6e802
+    review_run_id: review-plans-create-tutorial-final
     review_attempts: 1
-    timestamp: '2026-08-06T04:08:00Z'
-    publication_status: not_configured
-    command: python3 scripts/spec_demo.py produce-cli and record-review
-    run_id: review-cli-8e6e802
+    timestamp: '2026-08-06T10:07:38Z'
+    publication_status: delivered
+    command: python3 scripts/sessions.py proof-video produce, review, and publish
+    run_id: plans-create-tutorial-final
 implementation_state:
-  subject_commit: working-tree@1d61e5b0bfeb6270d82522c0eb65a7a81776d958
+  subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
 approvals:
   product_contract:
     status: approved
@@ -287,11 +287,11 @@ attempts:
     all passed.
 handoff:
   current_task_id: TASK-13
-  next_action: Deploy the sessions.py proof-video wrapper, then create and publish a real dev Plans CLI recording to Discord dev-smoke.
-  command: python3 scripts/sessions.py proof-video produce --session d465 ... -- openmates plans create ...
-  expected_outcome: A reviewed, exact or visibly anonymized real CLI plan-creation video is delivered to the dev-smoke channel.
+  next_action: No further implementation action; retain the sanitized evidence ledger.
+  command: python3 scripts/spec_verify.py docs/specs/narrated-spec-demonstration-videos/spec.yml
+  expected_outcome: Final conformance remains green for the verified implementation subject.
   blocker: null
-  last_verified_commit: 1d61e5b0bfeb6270d82522c0eb65a7a81776d958
+  last_verified_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
 scenarios:
 - id: S-1
   title: Full spec declares what its final demonstration must prove
@@ -955,17 +955,17 @@ verifications:
   - AC-7
   status: passed
   evidence:
-    command: python3 scripts/spec_validate.py docs/specs/narrated-spec-demonstration-videos/spec.yml
-    target_environment: local clean worktree at deployed dev commit
-    run_id: cli-spec-validate-8e6e802
-    subject_commit_when_repository_backed: 8e6e802b6cd38bacf52fe34246cabef946574722
+    command: openmates plans create --title 'Discord CLI tutorial plan' --goal 'Demonstrate timed CLI plan creation' --summary 'Created by the tutorial proof workflow' --status draft
+    target_environment: https://api.dev.openmates.org
+    run_id: plans-create-tutorial-final
+    subject_commit_when_repository_backed: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
     exit_status: 0
-    transcript_hash: sha256:da181d3e2be1118032fe046e5eec0051c1276fa76d40114aa62afb3f3acc7cc9
-    artifact_hash: sha256:b3cce8573623fb951b51805ae3d08a1e562aa9e9fe766df6d2b273e4c1832e5e
-    test_account_provenance: no account used
-    review_run_id: review-cli-8e6e802
+    transcript_hash: sha256:ffc1cc8e77624437501e1b82aa7a4105a82b6e54ff0173f30bd8124ff4e681f0
+    artifact_hash: sha256:dfdfb14d1a5f87d3f37fc17055e30e4b72f196ab97c2595a32d5d3fb066bc995
+    test_account_provenance: OpenMates CLI stored session; authentication credentials are not rendered
+    review_run_id: review-plans-create-tutorial-final
     review_status: passed
-    timestamp: '2026-08-06T04:08:00Z'
+    timestamp: '2026-08-06T10:07:38Z'
   evidence_requirements:
   - command
   - target_environment
@@ -983,11 +983,11 @@ verifications:
   - AC-10
   status: passed
   evidence:
-    command: python3 scripts/spec_demo.py produce-cli and produce_playwright_demonstration
-    run_id: privacy-cli-8e6e802-playwright-e0d3738
-    subject_commit: 8e6e802b6cd38bacf52fe34246cabef946574722
-    timestamp: '2026-08-06T04:08:00Z'
-    reason: Canonical text scanning found no sensitive content in either reviewed demonstration.
+    command: python3 scripts/sessions.py proof-video produce --session d465
+    run_id: plans-create-tutorial-final
+    subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    timestamp: '2026-08-06T10:07:38Z'
+    reason: Canonical text scanning found no sensitive content in the reviewed tutorial demonstration.
     findings: []
     status: passed
 - id: V-DISCORD-DELIVERY
@@ -996,15 +996,14 @@ verifications:
   required_for_done: false
   covers:
   - AC-11
-  status: skipped
+  status: passed
   evidence:
-    command: python3 scripts/spec_demo.py publish
-    run_id: publication-cli-8e6e802-playwright-e0d3738
-    subject_commit: 8e6e802b6cd38bacf52fe34246cabef946574722
-    timestamp: '2026-08-06T04:08:00Z'
-    publication_status: not_configured
-    summary: Dedicated DISCORD_WEBHOOK_SPEC_DEMOS was not configured; both manifests retain retry and expiry state without
-      invalidating passed reviews.
+    command: python3 scripts/sessions.py proof-video publish --session d465 --run-dir test-results/proof-videos/d465/plans-create-tutorial-final
+    run_id: plans-create-tutorial-final
+    subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    timestamp: '2026-08-06T10:07:38Z'
+    publication_status: delivered
+    summary: Discord confirmed the dev-smoke message and attachment; generated video and review frames were deleted while sanitized text evidence was retained.
 implementation_plan:
   spec_path: docs/specs/narrated-spec-demonstration-videos/spec.yml
   first_slice: 'Enforce the demonstration eligibility and completion contract in fixture specs, then prove one synthetic CLI
@@ -1643,8 +1642,8 @@ tasks:
   independently_deployable: true
 - id: TASK-13
   title: Add session proof-video orchestration and publish a real Plans CLI recording
-  status: in_progress
-  phase: running_checks
+  status: done
+  phase: complete
   covers:
     scenarios: [S-4, S-6, S-8]
     acceptance_criteria: [AC-4, AC-7, AC-10, AC-11, AC-12]
