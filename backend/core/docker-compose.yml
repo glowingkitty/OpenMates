@@ -205,7 +205,6 @@ services:
       OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
       OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
       OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
-      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
       MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)

@@ -30,7 +30,7 @@ SELFHOST_COMPOSE_FILES = (
     ROOT / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
 )
 CLOUD_OVERLAY_ENV = "OPENMATES_CLOUD_OVERLAY_ENABLED"
-CLOUD_ROUTE_MODULES = {"credit_note", "creators", "invoice", "payments"}
+CLOUD_ROUTE_MODULES = {"credit_note", "creators", "invoice", "payments", "referrals"}
 CLOUD_SERVICE_MODULES = {
     "backend.core.api.app.services.invoiceninja.invoiceninja",
     "backend.core.api.app.services.payment.payment_service",

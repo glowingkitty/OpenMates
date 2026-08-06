@@ -69,7 +69,6 @@ services:
       CORE_SIDECAR_URL: "http://admin-sidecar:8001"
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
-      OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
     command: sh /app/backend/core/api/wait-for-vault.sh
     ports:
       - "127.0.0.1:8000:8000"
