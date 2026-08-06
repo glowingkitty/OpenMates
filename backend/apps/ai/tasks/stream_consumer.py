@@ -35,6 +35,7 @@ from backend.apps.ai.utils.embed_display_text import (
     EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
     derive_display_text_from_embed_ref as _derive_display_text_from_embed_ref,
     derive_embed_display_title as _derive_embed_display_title,
+    escape_markdown_link_label as _escape_markdown_link_label,
     is_bad_embed_display_text as _is_bad_embed_display_text,
 )
 from backend.apps.ai.utils.app_skill_json_cleanup import canonicalize_app_skill_json_blocks
@@ -1376,6 +1377,29 @@ async def _verify_and_strip_bad_quotes(
     return aggregated_response
 
 
+def _is_markdown_literal_position(markdown: str, position: int) -> bool:
+    """Return whether a position is inside a blockquote or fenced code block."""
+    line_start = markdown.rfind("\n", 0, position) + 1
+    if markdown[line_start:position].lstrip().startswith(">"):
+        return True
+
+    fence_character = ""
+    fence_length = 0
+    for line in markdown[:position].splitlines():
+        marker_match = re.match(r"\s*(`{3,}|~{3,})", line)
+        if not marker_match:
+            continue
+        marker = marker_match.group(1)
+        if not fence_character:
+            fence_character = marker[0]
+            fence_length = len(marker)
+        elif marker[0] == fence_character and len(marker) >= fence_length:
+            fence_character = ""
+            fence_length = 0
+
+    return bool(fence_character)
+
+
 async def _fix_bad_embed_display_text(
     aggregated_response: str,
     tool_calls_info: Optional[List[Dict[str, Any]]],
@@ -1561,7 +1585,7 @@ async def _fix_bad_embed_display_text(
             new_display = _derive_display_text_from_embed_ref(embed_ref)
 
         if new_display and new_display != old_display:
-            new_link = f"[{new_display}](embed:{embed_ref})"
+            new_link = f"[{_escape_markdown_link_label(new_display)}](embed:{embed_ref})"
             modified = modified.replace(full_match, new_link, 1)
             replacements_made += 1
             logger.info(
@@ -1592,7 +1616,7 @@ async def _fix_bad_embed_display_text(
             embed_ref = match.group(1)
             full_match = match.group(0)
             display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
-            new_link = f"[{display}](embed:{embed_ref})"
+            new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
             modified = modified[:match.start()] + new_link + modified[match.end():]
             bare_fixed += 1
             logger.info(
@@ -1611,12 +1635,14 @@ async def _fix_bad_embed_display_text(
         current_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(modified))
         grouped_fixed = 0
         for match in reversed(current_cite_matches):
+            if _is_markdown_literal_position(modified, match.start()):
+                continue
             embed_refs = [ref.strip() for ref in match.group(1).split(",") if ref.strip()]
             if not embed_refs or any(ref not in embed_ref_to_title for ref in embed_refs):
                 continue
 
             links = ", ".join(
-                f"[{embed_ref_to_title[embed_ref]}](embed:{embed_ref})"
+                f"[{_escape_markdown_link_label(embed_ref_to_title[embed_ref])}](embed:{embed_ref})"
                 for embed_ref in embed_refs
             )
             modified = modified[:match.start()] + links + modified[match.end():]
