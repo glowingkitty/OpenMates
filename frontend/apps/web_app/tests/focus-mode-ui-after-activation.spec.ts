@@ -40,6 +40,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -156,8 +157,14 @@ async function openFocusModeContextMenu(
 ): Promise<void> {
 	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated).first();
 	await expect(activatedEmbed).toBeVisible({ timeout: 5000 });
-	await activatedEmbed.click();
-	await expect(page.getByTestId('focus-mode-context-menu')).toBeVisible({ timeout: 5000 });
+	const contextMenu = page.getByTestId('focus-mode-context-menu');
+	await expect(async () => {
+		if (await contextMenu.isVisible().catch(() => false)) return;
+		await dismissVisibleNotifications(page);
+		await activatedEmbed.scrollIntoViewIfNeeded();
+		await activatedEmbed.click();
+		await expect(contextMenu).toBeVisible({ timeout: 1500 });
+	}).toPass({ timeout: 10000 });
 	await takeStepScreenshot(page, stepLabel, { fullPage: false });
 }
 
@@ -210,6 +217,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	const careerMessage =
 		"I've been stuck in my career for years and need help deciding what to do next professionally. Can you help me?";
 
+	await dismissVisibleNotifications(page);
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_1'), logCheckpoint, takeStepScreenshot, 'ui-career');
 
 	logCheckpoint('Waiting for assistant response...');
@@ -343,6 +351,7 @@ test('focus mode UI elements work correctly after activation', async ({
 			"I'm particularly interested in transitioning to a product management role. " +
 			'What skills do I need and how should I prepare?';
 
+		await dismissVisibleNotifications(page);
 		await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_followup'), logCheckpoint, takeStepScreenshot, 'ui-followup');
 
 		logCheckpoint('Waiting for follow-up assistant response...');

@@ -135,6 +135,17 @@ async function dismissVisibleNotifications(page: any): Promise<void> {
 			await button.click({ timeout: 1000 }).catch(() => undefined);
 		}
 	}
+
+	const chatNotifications = page.getByTestId('chat-notification');
+	for (let index = await chatNotifications.count() - 1; index >= 0; index -= 1) {
+		const notification = chatNotifications.nth(index);
+		if (await notification.isVisible({ timeout: 250 }).catch(() => false)) {
+			await notification
+				.getByRole('button', { name: 'Dismiss notification' })
+				.click({ timeout: 1000 })
+				.catch(() => undefined);
+		}
+	}
 }
 
 /**
@@ -210,6 +221,7 @@ module.exports = {
 	EXPECTED_DT_HEADINGS,
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
+	dismissVisibleNotifications,
 	openFullscreen,
 	verifySearchGrid,
 	closeFullscreen
