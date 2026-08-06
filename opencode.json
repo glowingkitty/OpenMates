@@ -1,7 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
-    "docs/contributing/guides/agent-workflow-core.md"
+    "docs/contributing/guides/agent-workflow-core.md",
+    "docs/contributing/guides/spec-driven-development.md"
   ],
   "permission": {
     "external_directory": {

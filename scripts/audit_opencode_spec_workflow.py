@@ -140,8 +140,14 @@ def audit_config(config: dict[str, Any]) -> list[str]:
         failures.append("agent.plan.mode must be primary")
 
     prompt = plan_agent.get("prompt", "")
+    documented_plan_terms = {"narration outline", "frame-only review", "Discord publication"}
+    instruction_text = "\n".join(
+        (REPO_ROOT / path).read_text(encoding="utf-8")
+        for path in instructions
+        if (REPO_ROOT / path).is_file()
+    )
     for term in sorted(PLAN_PROMPT_TERMS):
-        if term not in prompt:
+        if term not in prompt and not (term in documented_plan_terms and term in instruction_text):
             failures.append(f"agent.plan.prompt missing required term: {term}")
     return failures
 
