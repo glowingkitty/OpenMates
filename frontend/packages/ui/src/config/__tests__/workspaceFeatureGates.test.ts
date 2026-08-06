@@ -22,6 +22,20 @@ describe("isWorkspaceFeatureAvailable", () => {
     expect(isWorkspaceFeatureAvailable("platform:workflows", {})).toBe(true);
   });
 
+  it("hides every optional header workspace disabled by the release backend", () => {
+    const disabled = {
+      "platform:projects": true,
+      "platform:plans": true,
+      "platform:tasks": true,
+      "platform:workflows": true,
+    } as const;
+
+    expect(isWorkspaceFeatureAvailable("platform:projects", disabled)).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:plans", disabled)).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:tasks", disabled)).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:workflows", disabled)).toBe(false);
+  });
+
   it("keeps disabled chats hidden if backend explicitly disables them", () => {
     expect(isWorkspaceFeatureAvailable("platform:chats", { "platform:chats": true }, true)).toBe(false);
   });

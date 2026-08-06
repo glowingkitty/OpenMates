@@ -2,7 +2,7 @@
 #
 # This file is selected only by backend/core/docker-compose.override.yml on the
 # OpenMates dev machine. Production and self-hosted deployments continue using
-# backend_config.yml, where Teams remains disabled until Teams V1 is verified.
+# backend_config.yml, where unreleased product surfaces remain disabled.
 
 feature_overrides:
   enabled:

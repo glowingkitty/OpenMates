@@ -6,8 +6,11 @@
 #
 # Spec: docs/specs/simplified-feature-availability/spec.yml
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import yaml
 
 from backend.core.api.app.routes import features as features_route
 from backend.core.api.app.services.feature_availability_service import (
@@ -17,6 +20,22 @@ from backend.core.api.app.services.feature_availability_service import (
     migrate_legacy_disabled_apps,
 )
 from backend.core.api.app.routes.features import _definitions_from_raw_manifests
+
+
+BACKEND_CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
+UNRELEASED_PLATFORM_FEATURES = {
+    "platform:teams",
+    "platform:projects",
+    "platform:tasks",
+    "platform:plans",
+    "platform:workflows",
+}
+UNRELEASED_AI_APPS = {
+    "app:projects",
+    "app:tasks",
+    "app:plans",
+    "app:workflows",
+}
 
 
 def test_features_are_enabled_by_default() -> None:
@@ -94,6 +113,19 @@ def test_unfinished_platform_features_are_default_disabled() -> None:
         "platform:workflows",
         "platform:tasks",
     }
+
+
+def test_release_config_disables_unreleased_surfaces_while_dev_enables_them() -> None:
+    release_config = yaml.safe_load((BACKEND_CONFIG_DIR / "backend_config.yml").read_text(encoding="utf-8"))
+    dev_config = yaml.safe_load((BACKEND_CONFIG_DIR / "backend_config.dev.yml").read_text(encoding="utf-8"))
+
+    release_overrides = release_config["feature_overrides"]
+    dev_overrides = dev_config["feature_overrides"]
+
+    assert UNRELEASED_PLATFORM_FEATURES.isdisjoint(release_overrides["enabled"])
+    assert UNRELEASED_PLATFORM_FEATURES | UNRELEASED_AI_APPS <= set(release_overrides["disabled"])
+    assert UNRELEASED_PLATFORM_FEATURES <= set(dev_overrides["enabled"])
+    assert UNRELEASED_AI_APPS.isdisjoint(dev_overrides["disabled"])
 
 
 def test_availability_route_returns_sparse_disabled_ids(monkeypatch) -> None:

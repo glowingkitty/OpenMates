@@ -16,12 +16,18 @@
 # Admin overrides. `enabled` is only needed to opt into features that ship with
 # default_enabled: false. `disabled` can disable default-on features.
 feature_overrides:
-  enabled:
-    - "platform:projects"
-    - "platform:plans"
-    - "platform:tasks"
-    - "platform:workflows"
+  enabled: []
   disabled:
+    # Unreleased product surfaces remain available through backend_config.dev.yml.
+    - "platform:teams"
+    - "platform:projects"
+    - "platform:tasks"
+    - "platform:plans"
+    - "platform:workflows"
+    - "app:projects"
+    - "app:tasks"
+    - "app:plans"
+    - "app:workflows"
     # Placeholder app folders without implemented runtime behavior yet
     - "app:life_coaching"
     - "app:plants"
