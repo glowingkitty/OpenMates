@@ -102,7 +102,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 1616ef4e682efc5dd8c650bbea7b8c53a4118a76
+  subject_commit: 0234d717caca75835ec8c9f424b013f62c370b43
 
 approvals:
   product_contract:
@@ -172,19 +172,37 @@ attempts:
     outcome: blocked
     reason: The dev API container has no openmatescloud package or overlay mount and resolves explicitly to self_host.
     recorded_at: "2026-08-06T12:01:00Z"
+  - id: ATTEMPT-4
+    task_id: TASK-6
+    approach: Publish and install the current alpha CLI, then run standalone server verification against the rebuilt dev stack.
+    outcome: succeeded
+    reason: Publish CLI run 31104093074 passed; openmates 0.15.0-alpha.107 ran all eight self-host core checks successfully.
+    recorded_at: "2026-08-06T13:06:00Z"
+  - id: ATTEMPT-5
+    task_id: TASK-6
+    approach: Send independently labeled dev notification tests through Discord, email, and a signed generic webhook fixture.
+    outcome: blocked
+    reason: Discord delivered and the generic webhook validated HMAC, timestamp, and event ID; host-level Brevo credentials are not configured, so the corrected verifier fails the requested email channel.
+    recorded_at: "2026-08-06T13:08:00Z"
+  - id: ATTEMPT-6
+    task_id: TASK-6
+    approach: Install system-level periodic monitor and independent watchdog units from the current CLI.
+    outcome: blocked
+    reason: The host requires an interactive sudo password to write /etc/systemd/system; dry-run unit generation passed.
+    recorded_at: "2026-08-06T13:08:00Z"
 
 handoff:
   current_task_id: TASK-6
-  next_action: Mount the official-cloud overlay into dev and provide approved dev notification destinations, then run the billing, notification, and current-source CLI gates.
-  command: python3 scripts/verify_post_update_runtime_health.py --target dev --scenario billing-no-spend
-  expected_outcome: The official-cloud read-only billing inventory passes without creating or mutating payment resources.
+  next_action: Complete the three operator-owned dev prerequisites, then rerun billing, notification, monitor, and same-tag update gates.
+  command: sudo openmates server monitoring install-service --role core --path /home/superdev/projects/OpenMates
+  expected_outcome: System monitor and watchdog timers are installed and active; the overlay and host email prerequisites then unblock the remaining scripts.
   blocker:
     task_id: TASK-6
     requires_user_input: true
-    reason: The dev container lacks the private official-cloud overlay, approved notification destinations are not available to this session, and the installed CLI is older than the deployed source.
-    question: Should the dev official-cloud overlay and notification test destinations be provisioned now so the remaining live gates can run?
-    next_action: Rebuild dev in official_cloud mode, publish or install the current CLI artifact, and run T-DEV-BILLING-001, T-DEV-NOTIFY-001, and T-DEV-CLI-001.
-  last_verified_commit: 1616ef4e682efc5dd8c650bbea7b8c53a4118a76
+    reason: Dev still needs an operator-entered sudo password for systemd, host-level Brevo credentials for independent email, and an OpenMatesCloud overlay mount that this repository-isolated session cannot perform.
+    question: After the sudo unit install, overlay mount, and host Brevo configuration are completed, rerun the remaining live gates.
+    next_action: Run T-DEV-BILLING-001, T-DEV-NOTIFY-001, T-DEV-CLI-001, and confirm monitoring status is fresh.
+  last_verified_commit: 0234d717caca75835ec8c9f424b013f62c370b43
 
 scenarios:
   - id: S-1
@@ -1176,7 +1194,9 @@ tasks:
       shared_files:
         - docs/specs/post-update-runtime-health-alerting/spec.yml
     blockers:
-      - Dev official-cloud overlay and approved notification destinations are unavailable; installed CLI 0.14.6 predates the new commands.
+      - Dev official-cloud overlay is not mounted and cross-repository access is blocked in this session.
+      - Systemd installation requires an interactive sudo password.
+      - Independent email delivery lacks host-level Brevo credentials; Discord and signed generic webhook delivery pass.
     follow_up_tasks: [TASK-7]
     independently_deployable: false
 
