@@ -53,7 +53,7 @@ async function runAfterShell(command, text) {
 }
 
 test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "childMutationDecisionForTest", "createPresenceSchedulerForTest", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "initialPresenceForTest", "readConflictWarningForTest", "reducePresenceEventForTest", "resolveWorktreeRouteForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "routeLocalToolArgsForTest", "routingDecisionForTest", "routingFailureForTest"]);
+  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "childMutationDecisionForTest", "createPresenceSchedulerForTest", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "initialPresenceForTest", "readConflictWarningForTest", "reducePresenceEventForTest", "resolveWorktreeRouteForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "routeLocalToolArgsForTest", "routingDecisionForTest", "routingFailureForTest", "taskChildClassificationForTest"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
 });
 
@@ -230,6 +230,23 @@ test("command doctor appends script usage suggestions", async () => {
   );
   assert.match(output, /\[OpenMates command doctor\]/);
   assert.match(output, /python3 scripts\/tests\.py run --suite <suite>/);
+});
+
+test("command doctor does not add failure guidance to successful test summaries", async () => {
+  const output = await runAfterShell(
+    "python3 scripts/tests.py run --suite vitest",
+    "Total: 718  Passed: 718  Failed: 0  Dispatch errors: 0",
+  );
+  assert.doesNotMatch(output, /\[OpenMates command doctor\]/);
+});
+
+test("command doctor adds lease guidance only for nonzero failure summaries", async () => {
+  const output = await runAfterShell(
+    "python3 scripts/tests.py run --suite vitest",
+    "Total: 718  Passed: 717  Failed: 1  Dispatch errors: 0",
+  );
+  assert.match(output, /\[OpenMates command doctor\]/);
+  assert.match(output, /tests\.py next --lease/);
 });
 
 test("failed test triage output gets lease hint", async () => {

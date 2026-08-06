@@ -275,6 +275,7 @@ python3 scripts/tests.py run --suite pytest            # Pytest via GitHub Actio
 python3 scripts/tests.py run                           # Full suite (local orchestration + GitHub Actions)
 python3 scripts/tests.py run --only-failed             # Rerun failures
 python3 scripts/tests.py run --spec chat-flow.spec.ts  # Single Playwright spec
+python3 scripts/tests.py run --spec chat-flow.spec.ts --detach  # Dispatch in background
 python3 scripts/tests.py run --suite playwright        # All E2E specs via GitHub Actions
 python3 scripts/tests.py run --daily                   # Cron mode (commit gate, emails)
 python3 scripts/tests.py run --daily --force           # Skip commit check
@@ -296,6 +297,10 @@ python3 scripts/tests.py run --campaign <id> --group <group-id>
 `scripts/run_tests.py` remains the underlying execution engine. Agents and humans
 should use `scripts/tests.py run` so current state, history, and failure leases
 stay consistent.
+
+Use `--detach` when the caller should return immediately instead of holding a
+shell open while GitHub Actions runs. The command prints the background log path
+and the `scripts/tests.py status --json` command for following the recorded run.
 
 When fixing multiple current failures, use the campaign commands rather than a
 local progress file or an unscoped `--only-failed` rerun. Each durable group must

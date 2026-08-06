@@ -51,6 +51,25 @@ def test_busy_presence_expires_to_unknown_without_touching_durable_state(tmp_pat
     assert durable.read_bytes() == b'{"sessions":{"keep":true}}\n'
 
 
+def test_automatic_child_role_does_not_replace_explicit_role(tmp_path):
+    store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path)
+    store.set_child_role("ses-child", "ses-parent", "reviewer")
+
+    marker = store.set_child_role("ses-child", "ses-parent", "read_only", if_unset=True)
+
+    assert marker["role"] == "reviewer"
+    assert store.snapshot(expire=False)["child_roles"]["ses-child"]["role"] == "reviewer"
+
+
+def test_explicit_child_role_can_replace_automatic_role(tmp_path):
+    store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path)
+    store.set_child_role("ses-child", "ses-parent", "read_only", if_unset=True)
+
+    marker = store.set_child_role("ses-child", "ses-parent", "reviewer")
+
+    assert marker["role"] == "reviewer"
+
+
 def test_task_claim_lifecycle_is_atomic_and_role_aware(tmp_path):
     store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path, now=lambda: "2026-08-05T00:00:00Z")
     first = store.claim_task("docs/specs/example/spec.yml", "TASK-4", "ses-a", role="implementation", ttl_seconds=60)

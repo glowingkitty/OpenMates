@@ -27,6 +27,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -905,6 +906,7 @@ class ControlRunOptions:
     lease_id: str = ""
     campaign_key: str = ""
     debug_group_key: str = ""
+    detach: bool = False
 
 
 def parse_control_run_options(args: list[str]) -> ControlRunOptions:
@@ -916,6 +918,7 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
     lease_id = ""
     campaign_key = ""
     debug_group_key = ""
+    detach = False
     index = 0
     while index < len(args):
         arg = args[index]
@@ -935,6 +938,10 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
             continue
         if arg == "--gate-deploy":
             gate_deploy = True
+            index += 1
+            continue
+        if arg == "--detach":
+            detach = True
             index += 1
             continue
         if arg in {"--lease-required", "--require-lease"}:
@@ -980,7 +987,89 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
         lease_id=lease_id,
         campaign_key=campaign_key,
         debug_group_key=debug_group_key,
+        detach=detach,
     )
+
+
+def mark_test_keys_dispatch_error(test_keys: list[str], error: str) -> None:
+    """Replace a detached launch's running markers when no child was started."""
+    state = load_state()
+    current_tests = dict(state.get("tests") or {})
+    timestamp = utc_now()
+    run_id = f"detached-launch-{timestamp}"
+    events = []
+    for key in test_keys:
+        suite, _, label = key.partition("::")
+        previous = dict(current_tests.get(key) or {})
+        record = {
+            **previous,
+            "suite": suite,
+            "test": label,
+            "key": key,
+            "status": "dispatch_error",
+            "stable_status": "dispatch_error",
+            "stable_run_id": run_id,
+            "active_status": None,
+            "active_run_id": None,
+            "event": "failed",
+            "run_id": run_id,
+            "error": sanitize_debug_text(error),
+            "updated_at": timestamp,
+        }
+        current_tests[key] = record
+        events.append({**record, "timestamp": timestamp, "event_id": f"{run_id}:{key}:failed"})
+    state["tests"] = current_tests
+    state["summary"] = summarize_current_tests(current_tests)
+    state["updated_at"] = timestamp
+    get_store().save_current_state(state, events)
+
+
+def launch_detached_run(
+    runner_args: list[str],
+    *,
+    test_keys: list[str],
+    docker_lease_id: str = "",
+) -> int:
+    """Start the normal test control path outside the caller's shell lifetime."""
+    log_dir = RESULTS_DIR / "dispatch-logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    log_path = log_dir / f"tests-{timestamp}-{uuid.uuid4().hex[:8]}.log"
+    command = [sys.executable, str(Path(__file__).resolve()), "run", *runner_args]
+    run_env = os.environ.copy()
+    run_env["OPENMATES_DETACHED_RUN_MARKED"] = "1"
+    if docker_lease_id:
+        run_env["OPENMATES_DETACHED_DOCKER_LEASE_ID"] = docker_lease_id
+    try:
+        with log_path.open("ab") as log_handle:
+            process = subprocess.Popen(
+                command,
+                cwd=PROJECT_ROOT,
+                env=run_env,
+                stdin=subprocess.DEVNULL,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        if docker_lease_id:
+            transfer_docker_test_lease(docker_lease_id, process.pid)
+    except OSError as exc:
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
+        mark_test_keys_dispatch_error(test_keys, f"Could not start detached test process: {exc}")
+        print(f"Could not start detached test process: {exc}", file=sys.stderr)
+        return 2
+    except RuntimeError as exc:
+        process.terminate()
+        process.wait(timeout=5)
+        release_docker_test_lease(docker_lease_id)
+        mark_test_keys_dispatch_error(test_keys, f"Could not transfer Docker test lease: {exc}")
+        print(f"Could not transfer Docker test lease: {exc}", file=sys.stderr)
+        return 2
+    print(f"Detached test run started. PID: {process.pid}")
+    print(f"Log: {display_path(log_path)}")
+    print("Status: python3 scripts/tests.py status --json")
+    return 0
 
 
 def parse_control_run_args(args: list[str]) -> tuple[list[str], str]:
@@ -2677,6 +2766,23 @@ def release_docker_test_lease(lease_id: str) -> None:
     session_control.release_test_resource_lease(lease_id)
 
 
+def transfer_docker_test_lease(lease_id: str, child_pid: int) -> None:
+    session_control.transfer_test_resource_lease(
+        lease_id,
+        expected_owner_pid=os.getpid(),
+        new_owner_pid=child_pid,
+    )
+
+
+def wait_for_docker_test_lease_owner(lease_id: str, *, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if session_control.test_resource_lease_owned_by(lease_id, owner_pid=os.getpid()):
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int = 10) -> list[str]:
     failures: list[str] = []
     for url in urls:
@@ -2814,6 +2920,7 @@ def command_run(runner_args: list[str]) -> int:
                 lease_id=options.lease_id,
                 campaign_key=options.campaign_key,
                 debug_group_key=options.debug_group_key,
+                detach=options.detach,
             )
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
@@ -2828,8 +2935,12 @@ def command_run(runner_args: list[str]) -> int:
             print(str(exc), file=sys.stderr)
             return 2
     resources = docker_resources_for_run(options.forwarded_args)
-    docker_lease_id = f"test-{uuid.uuid4().hex[:12]}" if resources else ""
-    if docker_lease_id:
+    inherited_docker_lease_id = os.environ.get("OPENMATES_DETACHED_DOCKER_LEASE_ID", "")
+    docker_lease_id = inherited_docker_lease_id or (f"test-{uuid.uuid4().hex[:12]}" if resources else "")
+    if inherited_docker_lease_id and not wait_for_docker_test_lease_owner(inherited_docker_lease_id):
+        print("Detached Docker test lease ownership could not be verified.", file=sys.stderr)
+        return 2
+    if docker_lease_id and not inherited_docker_lease_id:
         try:
             acquire_docker_test_lease(
                 docker_lease_id,
@@ -2859,6 +2970,23 @@ def command_run(runner_args: list[str]) -> int:
             release_docker_test_lease(docker_lease_id)
         return 2
 
+    if options.detach:
+        if selected_test_keys:
+            detached_test_keys = selected_test_keys
+            mark_test_keys_running(
+                selected_test_keys,
+                command=["python3", "scripts/tests.py", "run", *runner_args],
+            )
+        else:
+            suite, tests = infer_run_suite_and_tests(options.forwarded_args)
+            detached_test_keys = [f"{suite}::{label}" for label in tests or [suite]]
+            mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
+        return launch_detached_run(
+            [arg for arg in runner_args if arg != "--detach"],
+            test_keys=detached_test_keys,
+            docker_lease_id=docker_lease_id,
+        )
+
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
     run_env = os.environ.copy()
     if subject_commit:
@@ -2873,11 +3001,12 @@ def command_run(runner_args: list[str]) -> int:
     if seeded_failed_files:
         run_env["OPENMATES_ONLY_FAILED_FILES_JSON"] = json.dumps(seeded_failed_files)
     try:
-        if selected_test_keys:
-            mark_test_keys_running(selected_test_keys, command=["python3", "scripts/tests.py", "run", *runner_args])
-        else:
-            suite, tests = infer_run_suite_and_tests(options.forwarded_args)
-            mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
+        if os.environ.get("OPENMATES_DETACHED_RUN_MARKED") != "1":
+            if selected_test_keys:
+                mark_test_keys_running(selected_test_keys, command=["python3", "scripts/tests.py", "run", *runner_args])
+            else:
+                suite, tests = infer_run_suite_and_tests(options.forwarded_args)
+                mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
         result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
         recorded_commit = record_latest_run_artifact(

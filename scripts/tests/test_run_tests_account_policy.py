@@ -84,6 +84,31 @@ def test_batch_size_is_capped_to_normal_account_pool():
     assert plan[20] == (1, "regular-20.spec.ts", 1)
 
 
+def test_batch_does_not_retry_an_accepted_dispatch_with_delayed_run_id(monkeypatch):
+    run_tests = load_run_tests_module()
+
+    class FakeClient:
+        last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
+
+        def __init__(self):
+            self.dispatch_calls = 0
+
+        def dispatch_spec(self, *_args, **_kwargs):
+            self.dispatch_calls += 1
+            return None
+
+    client = FakeClient()
+    runner = run_tests.BatchRunner(client, ["chat-flow.spec.ts"])
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    results = runner._run_batch(["chat-flow.spec.ts"], batch_idx=0)
+
+    assert client.dispatch_calls == 1
+    assert len(results) == 1
+    assert results[0].status == "dispatch_error"
+    assert results[0].error == client.last_dispatch_error
+
+
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
     run_tests = load_run_tests_module()
     regular_specs = [f"regular-{index}.spec.ts" for index in range(5)]

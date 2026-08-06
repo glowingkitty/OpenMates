@@ -195,6 +195,13 @@ DEPLOY_PHASE_DOCS = {"guides/git-and-deployment.md"}
 # ---------------------------------------------------------------------------
 
 VALID_MODES = ("feature", "bug", "docs", "question", "testing")
+MODE_ALIASES = {
+    "debug": "bug",
+    "execute": "feature",
+    "investigate": "question",
+    "investigation": "question",
+    "plan": "question",
+}
 
 # Keywords in task descriptions that auto-infer tags
 TAG_KEYWORDS: dict[str, list[str]] = {
@@ -756,6 +763,34 @@ def release_test_resource_lease(lease_id: str) -> bool:
         return _infrastructure_state(data)["test_leases"].pop(lease_id, None) is not None
 
     return _mutate_sessions(mutate)
+
+
+def transfer_test_resource_lease(lease_id: str, *, expected_owner_pid: int, new_owner_pid: int) -> dict:
+    """Atomically transfer a local test lease to a spawned child process."""
+    host = socket.gethostname()
+
+    def mutate(data: dict) -> dict:
+        lease = _infrastructure_state(data)["test_leases"].get(lease_id)
+        if not isinstance(lease, dict):
+            raise RuntimeError(f"Docker test lease {lease_id} no longer exists")
+        if lease.get("owner_host") != host or int(lease.get("owner_pid") or 0) != expected_owner_pid:
+            raise RuntimeError(f"Docker test lease {lease_id} is not owned by the launching process")
+        lease["owner_pid"] = new_owner_pid
+        lease["updated_at"] = _now_iso()
+        return dict(lease)
+
+    return _mutate_sessions(mutate)
+
+
+def test_resource_lease_owned_by(lease_id: str, *, owner_pid: int) -> bool:
+    """Return whether a local lease is currently owned by the expected process."""
+    data = _load_sessions()
+    lease = _infrastructure_state(data)["test_leases"].get(lease_id)
+    return bool(
+        isinstance(lease, dict)
+        and lease.get("owner_host") == socket.gethostname()
+        and int(lease.get("owner_pid") or 0) == owner_pid
+    )
 
 
 def request_docker_restart(session_id: str, services: list[str]) -> dict:
@@ -2436,12 +2471,18 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
         except (OSError, RuntimeError):
             pending_files = ["<inspection-failed>"]
         merged_commit = str(metadata.get("merged_commit") or "")
+        pristine_undeployed = (
+            not merged_commit
+            and not pending_files
+            and _current_git_sha(Path(str(metadata["path"]))) == str(metadata.get("base_commit") or "")
+        )
         integrated = (
             not session.get("writing")
             and not live_lease
-            and bool(merged_commit)
-            and not pending_files
-            and _git_is_ancestor(merged_commit, target_ref)
+            and (
+                pristine_undeployed
+                or (bool(merged_commit) and not pending_files and _git_is_ancestor(merged_commit, target_ref))
+            )
         )
         if not integrated:
             metadata["status"] = "changes_pending"
@@ -5244,7 +5285,12 @@ def _opencode_presence_store() -> PresenceStore:
     )
 
 
-def _presence_identity_item(session_id: str, record: dict, durable_sessions: dict) -> dict:
+def _presence_identity_item(
+    session_id: str,
+    record: dict,
+    durable_sessions: dict,
+    child_roles: dict,
+) -> dict:
     repository_session_id = ""
     durable = {}
     for candidate_id, candidate in durable_sessions.items():
@@ -5252,12 +5298,14 @@ def _presence_identity_item(session_id: str, record: dict, durable_sessions: dic
             repository_session_id = candidate_id
             durable = candidate
             break
+    marker = child_roles.get(session_id, {}) if isinstance(child_roles, dict) else {}
+    parent_id = marker.get("parent_id") or record.get("parent_id", "")
     return {
         "opencode_session_id": session_id,
         "repository_session_id": repository_session_id,
-        "parent_id": record.get("parent_id", ""),
-        "top_level_session_id": record.get("top_level_session_id") or record.get("parent_id") or session_id,
-        "child_role": record.get("child_role", "unknown"),
+        "parent_id": parent_id,
+        "top_level_session_id": record.get("top_level_session_id") or parent_id or session_id,
+        "child_role": marker.get("role") or record.get("child_role", "unknown"),
         "execution": record.get("execution", "unknown"),
         "attention": record.get("attention", "none"),
         "turn": record.get("turn", "none"),
@@ -5278,8 +5326,9 @@ def presence_status_view(
 ) -> dict:
     """Project durable identities onto current ephemeral OpenCode state."""
     durable_sessions = durable.get("sessions", {})
+    child_roles = presence.get("child_roles", {})
     items = {
-        session_id: _presence_identity_item(session_id, record, durable_sessions)
+        session_id: _presence_identity_item(session_id, record, durable_sessions, child_roles)
         for session_id, record in presence.get("sessions", {}).items()
         if isinstance(record, dict)
     }
@@ -6006,7 +6055,12 @@ def cmd_presence(args: argparse.Namespace) -> None:
             print(json.dumps(store.snapshot(expire=not args.no_expire), sort_keys=True))
             return
         if action == "child-role":
-            print(json.dumps(store.set_child_role(args.session, args.parent, args.role), sort_keys=True))
+            print(json.dumps(store.set_child_role(
+                args.session,
+                args.parent,
+                args.role,
+                if_unset=args.if_unset,
+            ), sort_keys=True))
             return
         if action == "claim-task":
             result = store.claim_task(args.spec, args.task, args.owner, role=args.role, ttl_seconds=args.ttl)
@@ -9761,7 +9815,8 @@ def main() -> None:
     p_start.add_argument(
         "--mode", "-m",
         required=True,
-        choices=VALID_MODES,
+        choices=(*VALID_MODES, *MODE_ALIASES),
+        type=lambda value: MODE_ALIASES.get(value, value),
         help="Session mode: 'feature' (new functionality), 'bug' (debugging), "
         "'docs' (documentation), 'question' (codebase questions). "
         "Controls which context sections are shown.",
@@ -10025,6 +10080,7 @@ def main() -> None:
     p_presence_role.add_argument("--session", required=True, help="Child OpenCode session ID")
     p_presence_role.add_argument("--parent", required=True, help="Parent OpenCode session ID")
     p_presence_role.add_argument("--role", required=True, choices=["read_only", "reviewer", "writable"])
+    p_presence_role.add_argument("--if-unset", action="store_true", help="Keep an existing explicit child role")
     for action in ("claim-task", "renew-task", "release-task"):
         p_presence_task = p_presence_sub.add_parser(action)
         p_presence_task.add_argument("--spec", required=True, help="Repository-relative executable spec path")

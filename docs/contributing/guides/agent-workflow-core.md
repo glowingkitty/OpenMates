@@ -53,6 +53,7 @@ Common commands:
 - `python3 scripts/audit_opencode_output_quality.py`
 - `python3 scripts/audit_agent_tooling_parity.py`
 - `python3 scripts/tests.py run --spec <name>.spec.ts`
+- `python3 scripts/tests.py run --spec <name>.spec.ts --detach`
 - `node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>`
 - `python3 scripts/sessions.py visual-smoke --session <id> --url https://app.dev.openmates.org/<route> --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/visual-smoke/<run>/summary.json --summary "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."`
 - `python3 scripts/sessions.py deploy --session <id> --title "..." --message "..."`

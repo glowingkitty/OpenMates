@@ -1,6 +1,6 @@
 ---
 name: start
-description: Start a new sessions.py session with appropriate mode and context
+description: Start or reuse a top-level sessions.py session before mutating work. Use only in the main conversation, never inside a task child.
 user-invocable: true
 argument-hint: "<mode> <task description> [flags]"
 ---
@@ -12,6 +12,10 @@ Start a new session using sessions.py. Parse the user's arguments to determine:
 1. **Mode** (required): `feature`, `bug`, `docs`, `question`, `testing`
 2. **Task description** (required): Brief description of the work
 3. **Optional flags**: Pass through any prefetch flags
+
+Do not invoke this skill from a task child. Read-only research, review, and status commands do not need a repository session. Repeated calls for the same OpenCode chat are idempotent and reuse its existing mapping.
+
+Normalize common intent words before invoking the command: `debug` to `bug`, `execute` to `feature`, and `plan`, `investigate`, or `investigation` to `question`.
 
 ```bash
 python3 scripts/sessions.py start --mode <MODE> --task "<TASK>" [flags]

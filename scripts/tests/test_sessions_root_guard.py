@@ -30,7 +30,9 @@ def test_root_guard_warns_in_transition_mode(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setenv("OPENMATES_ROOT_GUARD", "warn")
 
-    result = sessions.evaluate_root_guard("edit", PROJECT_ROOT / "scripts" / "sessions.py", session_id="abcd")
+    result = sessions.evaluate_root_guard(
+        "edit", sessions.CONTROL_PLANE_ROOT / "scripts" / "sessions.py", session_id="abcd"
+    )
 
     assert result["decision"] == "warn"
     assert "worktree" in result["message"]
@@ -41,7 +43,9 @@ def test_root_guard_blocks_strict_source_edit(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setenv("OPENMATES_ROOT_GUARD", "strict")
 
-    result = sessions.evaluate_root_guard("edit", PROJECT_ROOT / "scripts" / "sessions.py", session_id="abcd")
+    result = sessions.evaluate_root_guard(
+        "edit", sessions.CONTROL_PLANE_ROOT / "scripts" / "sessions.py", session_id="abcd"
+    )
 
     assert result["decision"] == "block"
 
@@ -50,7 +54,9 @@ def test_root_guard_blocks_source_edit_by_default(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.delenv("OPENMATES_ROOT_GUARD", raising=False)
 
-    result = sessions.evaluate_root_guard("edit", PROJECT_ROOT / "scripts" / "sessions.py", session_id="abcd")
+    result = sessions.evaluate_root_guard(
+        "edit", sessions.CONTROL_PLANE_ROOT / "scripts" / "sessions.py", session_id="abcd"
+    )
 
     assert result["decision"] == "block"
 
@@ -62,3 +68,16 @@ def test_root_guard_allows_control_plane_command(monkeypatch):
     result = sessions.evaluate_root_guard("control-plane", PROJECT_ROOT / "scripts" / "sessions.py", session_id="abcd")
 
     assert result["decision"] == "allow"
+
+
+def test_session_mode_aliases_map_to_supported_modes():
+    sessions = load_sessions_module()
+
+    assert sessions.MODE_ALIASES == {
+        "debug": "bug",
+        "execute": "feature",
+        "investigate": "question",
+        "investigation": "question",
+        "plan": "question",
+    }
+    assert set(sessions.MODE_ALIASES.values()) <= set(sessions.VALID_MODES)

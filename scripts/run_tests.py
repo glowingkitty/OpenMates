@@ -1843,21 +1843,9 @@ class BatchRunner:
                 allow_credential_updates=self.allow_credential_updates,
             )
             if run_id is None:
-                # Retry once
-                time.sleep(5)
-                run_id = self.client.dispatch_spec(
-                    spec,
-                    account,
-                    self.use_mocks,
-                    self.record_live_fixtures,
-                    create_account_slot=create_account_slot,
-                    allow_credential_updates=self.allow_credential_updates,
-                )
-
-            if run_id is None:
                 dispatch_errors.append(SpecResult(
                     name=spec, file=spec, status="dispatch_error",
-                    error=self.client.last_dispatch_error or "Failed to dispatch workflow after retry",
+                    error=self.client.last_dispatch_error or "Failed to dispatch workflow",
                 ))
             else:
                 dispatched.append((spec, account, run_id))

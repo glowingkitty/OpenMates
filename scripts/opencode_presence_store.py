@@ -319,7 +319,7 @@ class PresenceStore:
 
         return self._transaction(apply)
 
-    def set_child_role(self, session_id: str, parent_id: str, role: str) -> dict:
+    def set_child_role(self, session_id: str, parent_id: str, role: str, *, if_unset: bool = False) -> dict:
         if role not in CHILD_ROLES - {"unknown"}:
             raise PresenceStoreError(f"Unsupported child role: {role}")
         child = _safe_identifier(session_id)
@@ -328,6 +328,9 @@ class PresenceStore:
             raise PresenceStoreError("Child role requires safe child and parent session IDs")
 
         def apply(data: dict) -> dict:
+            existing = data["child_roles"].get(child)
+            if if_unset and isinstance(existing, dict):
+                return existing
             marker = {"session_id": child, "parent_id": parent, "role": role, "updated_at": self.now()}
             data["child_roles"][child] = marker
             return marker

@@ -191,7 +191,42 @@ def test_tool_turn_telemetry_counts_only_conservative_batching_candidates() -> N
         "conservative_batchable_turns": 1,
         "standalone_todo_turns": 1,
         "todo_next_turn_context": {"tokens_input": 40, "tokens_cache_read": 400},
+        "tool_error_counts": {},
     }
+
+
+def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
+    audit = load_audit_module()
+    report = audit.summarize_tool_turns(
+        [
+            {
+                "session_id": "one",
+                "time_created": 1_000,
+                "tools": [
+                    {
+                        "name": "bash",
+                        "args": {},
+                        "status": "error",
+                        "error": "[OpenMates child ownership guard] Reason: child role unknown",
+                    }
+                ],
+            },
+            {
+                "session_id": "one",
+                "time_created": 2_000,
+                "tools": [
+                    {
+                        "name": "grep",
+                        "args": {},
+                        "status": "error",
+                        "error": "Ripgrep JSON record exceeded 65536 bytes",
+                    }
+                ],
+            },
+        ]
+    )
+
+    assert report["tool_error_counts"] == {"child_role": 1, "grep_output_too_large": 1}
 
 
 def test_tool_turn_telemetry_keeps_dependent_same_file_reads_sequential() -> None:

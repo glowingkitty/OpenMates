@@ -14,6 +14,25 @@ const READ_TOOLS = new Set(["read", "Read"]);
 const SEARCH_TOOLS = new Set(["glob", "grep", "Glob", "Grep"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const TASK_TOOLS = new Set(["task", "Task"]);
+const REVIEWER_SUBAGENTS = new Set(["code-reviewer"]);
+const READ_ONLY_SUBAGENTS = new Set([
+  "apple-native-debugger",
+  "apple-parity-auditor",
+  "apple-performance-detective",
+  "chat-sync-detective",
+  "e2e-test-investigator",
+  "embed-rendering-investigator",
+  "encryption-flow-tracer",
+  "explore",
+  "general",
+  "issue-forensics",
+  "legal-compliance-auditor",
+  "main-processor-guru",
+  "seo-auditor",
+  "settings-ui-consistency-checker",
+  "skill-integration-doctor",
+  "test-failure-triager",
+]);
 const PROJECT_ROOT = process.env.OPENMATES_PROJECT_ROOT || "/home/superdev/projects/OpenMates";
 const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.openmates-agent-worktrees`,
@@ -631,7 +650,10 @@ function isReadOnlyChildBash(command) {
     triage: { booleanOptions: new Set(["--json"]), valueOptions: new Set(), positional: 0 },
   };
   const readOnlyTraceSpecs = {
-    errors: { booleanOptions: new Set(["--production"]), valueOptions: new Set(["--last"]), positional: 0 },
+    errors: { booleanOptions: new Set(["--production"]), valueOptions: new Set(["--last", "--route"]), positional: 0 },
+    login: { booleanOptions: new Set(["--production"]), valueOptions: new Set(["--user"]), positional: 0 },
+    request: { booleanOptions: new Set(["--production"]), valueOptions: new Set(["--id"]), positional: 0 },
+    task: { booleanOptions: new Set(["--production"]), valueOptions: new Set(["--id"]), positional: 0 },
   };
   const argumentsMatch = (args, spec) => {
     if (!spec) return false;
@@ -710,12 +732,15 @@ export function childMutationDecisionForTest(route, tool, command = "") {
   const reason = role === "writable"
     ? "a writable child must own a separate repository session and disjoint worktree before mutating files"
     : `child role ${role} may read the parent worktree but may not mutate it`;
+  const next = role === "writable"
+    ? "assign the child its own writable sessions.py worktree and disjoint file/task ownership."
+    : "finish the read-only investigation and return the finding to the parent; do not start another repository session.";
   return {
     decision: "block",
     message: actionable(
       "[OpenMates child ownership guard]",
       reason,
-      "run the mutation in the parent session, or explicitly assign the child its own writable sessions.py worktree and disjoint file/task ownership.",
+      next,
     ),
   };
 }
@@ -727,6 +752,7 @@ function routingRecoveryMessage(sessionID) {
 function isRecoveryBash(command) {
   return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
+    || /^\s*python3\s+scripts\/audit_opencode_output_quality\.py\b/.test(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
 }
 
@@ -743,6 +769,30 @@ function isSharedRuntimeReadPath(candidate, worktreePath) {
     const relativePath = relative(base, absolute);
     return relativePath === "logs/nightly-reports" || relativePath.startsWith(`logs${sep}nightly-reports${sep}`);
   });
+}
+
+function approvedSharedRuntimeRelativePath(candidate, worktreePath) {
+  if (!candidate) return "";
+  const absolute = isAbsolute(candidate) ? resolve(candidate) : resolve(worktreePath, candidate);
+  const worktreeRelative = relative(resolve(worktreePath), absolute);
+  const rootRelative = relative(resolve(PROJECT_ROOT), absolute);
+  const relativePath = !worktreeRelative.startsWith("..") && !isAbsolute(worktreeRelative)
+    ? worktreeRelative
+    : (!rootRelative.startsWith("..") && !isAbsolute(rootRelative) ? rootRelative : "");
+  if (
+    relativePath === ".claude/sessions.json"
+    || relativePath === ".opencode/presence.json"
+    || relativePath === "test-results"
+    || relativePath.startsWith(`test-results${sep}`)
+  ) return relativePath;
+  return "";
+}
+
+function sharedRuntimeFallback(candidate, worktreePath) {
+  const relativePath = approvedSharedRuntimeRelativePath(candidate, worktreePath);
+  if (!relativePath) return "";
+  const worktreeTarget = resolve(worktreePath, relativePath);
+  return existsSync(worktreeTarget) ? worktreeTarget : resolve(PROJECT_ROOT, relativePath);
 }
 
 function isSharedSecretRuntimePath(candidate, worktreePath) {
@@ -817,8 +867,7 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
-    const rootReferences = tokensWithoutOwnWorktree
-      .filter((token) => token.includes(PROJECT_ROOT));
+    const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
     const rootHelperInvocations = commandSegmentTokens(command).filter((tokens) => {
       let index = 0;
       while (index < tokens.length && isAssignment(tokens[index])) index += 1;
@@ -854,7 +903,8 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
         throw new Error(`${ROUTING_GUARD_MARKER} Reason: the relative search path escapes the routed worktree. Next: use a path inside ${worktreePath}.`);
       }
     }
-    routed.path = rewritePathForWorktree(routed.path || ".", worktreePath);
+    const sharedFallback = sharedRuntimeFallback(routed.path, worktreePath);
+    routed.path = sharedFallback || rewritePathForWorktree(routed.path || ".", worktreePath);
     return routed;
   }
   for (const key of ["file_path", "filePath", "path"]) {
@@ -870,6 +920,13 @@ export function routeLocalToolArgsForTest(tool, args, worktreePath) {
     const target = resolve(worktreePath, value);
     if (pathEscapesWorktree(target, worktreePath) && !isSharedRuntimeReadPath(value, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the relative file path escapes the routed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
+    }
+  }
+  if (READ_TOOLS.has(tool)) {
+    for (const key of ["file_path", "filePath", "path"]) {
+      if (typeof input[key] !== "string") continue;
+      const sharedFallback = sharedRuntimeFallback(input[key], worktreePath);
+      if (sharedFallback) return { ...input, [key]: sharedFallback };
     }
   }
   for (const line of (input.patchText || input.patch || "").split("\n")) {
@@ -1175,7 +1232,10 @@ function appendCommandDoctorHint(command, output) {
   if (/usage: sessions\.py[\s\S]*unrecognized arguments: --session\b/.test(text) && /scripts\/sessions\.py\s+status\b/.test(command)) {
     suggestions.push("sessions.py status does not take --session in older checkouts. Use python3 scripts/sessions.py status, or python3 scripts/sessions.py summary --session <id> for one session.");
   }
-  if (/scripts\/tests\.py\s+run\b/.test(command) && /(?:failed|timeout|timed out|result_unknown|dispatch_error)/i.test(text)) {
+  const failedSummary = /\bFailed:\s*[1-9]\d*\b/i.test(text)
+    || /\bDispatch errors:\s*[1-9]\d*\b/i.test(text)
+    || /\b(?:result_unknown|dispatch_error|timed out)\b/i.test(text);
+  if (/scripts\/tests\.py\s+run\b/.test(command) && failedSummary) {
     suggestions.push("If this is daily-failure debugging, claim a failure lease before editing: python3 scripts/tests.py next --lease --session ${OPENCODE_SESSION_ID:-manual}. Then rerun with --lease-required --lease-id <lease>.");
   }
   if (!suggestions.length) return;
@@ -1183,6 +1243,44 @@ function appendCommandDoctorHint(command, output) {
 
 ${COMMAND_DOCTOR_MARKER}
 ${suggestions.map((suggestion) => `- ${suggestion}`).join("\n")}`;
+}
+
+export function taskChildClassificationForTest(input, output) {
+  if (!TASK_TOOLS.has(input?.tool || "")) return null;
+  const metadata = output?.metadata || {};
+  const parentID = String(metadata.parentSessionId || "");
+  const sessionID = String(metadata.sessionId || "");
+  const subagentType = String((input?.args || {}).subagent_type || "");
+  if (!parentID || parentID !== input?.sessionID || !sessionID) return null;
+  const role = REVIEWER_SUBAGENTS.has(subagentType)
+    ? "reviewer"
+    : (READ_ONLY_SUBAGENTS.has(subagentType) ? "read_only" : "");
+  return role ? { sessionID, parentID, role } : null;
+}
+
+function recordTaskChildRole(input, output) {
+  const classification = taskChildClassificationForTest(input, output);
+  if (!classification) return;
+  const result = spawnSync(
+    "python3",
+    [
+      "scripts/sessions.py",
+      "presence",
+      "child-role",
+      "--session",
+      classification.sessionID,
+      "--parent",
+      classification.parentID,
+      "--role",
+      classification.role,
+      "--if-unset",
+    ],
+    { cwd: PROJECT_ROOT, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || "unknown error").trim();
+    console.warn(`[OpenMates presence diagnostic] Could not record task child role: ${detail}`);
+  }
 }
 
 function appendFailedTestLeaseHint(command, output) {
@@ -1482,6 +1580,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     },
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
+      if (TASK_TOOLS.has(tool)) {
+        recordTaskChildRole(input, output);
+        return;
+      }
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(toolArgs(input, output));
         if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);

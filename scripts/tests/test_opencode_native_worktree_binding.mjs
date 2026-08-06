@@ -187,6 +187,18 @@ test("root absolute paths in shell commands are rejected with an actionable alte
   );
 });
 
+test("root paths inside Python source cannot bypass worktree isolation", () => {
+  for (const command of [
+    `python3 -c 'print("${ROOT}")'`,
+    `python3 -c 'print(open("${ROOT}/.env").read())'`,
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest("bash", { command }, WORKTREE),
+      /root checkout|session isolation/,
+    );
+  }
+});
+
 test("absolute paths cannot target another managed worktree", () => {
   const otherWorktree = `${ROOT}/.openmates-agent-worktrees/agent-other`;
   for (const [tool, args] of [
@@ -274,6 +286,17 @@ test("shared nightly reports remain readable through their worktree link", (cont
   );
 });
 
+test("missing approved runtime artifacts fall back to the root control plane", () => {
+  for (const [tool, args, expected] of [
+    ["read", { filePath: "test-results/last-run.json" }, { filePath: `${ROOT}/test-results/last-run.json` }],
+    ["grep", { pattern: "failure", path: "test-results/reports" }, { pattern: "failure", path: `${ROOT}/test-results/reports` }],
+    ["read", { filePath: ".claude/sessions.json" }, { filePath: `${ROOT}/.claude/sessions.json` }],
+    ["read", { filePath: ".opencode/presence.json" }, { filePath: `${ROOT}/.opencode/presence.json` }],
+  ]) {
+    assert.deepEqual(routeLocalToolArgsForTest(tool, args, WORKTREE), expected);
+  }
+});
+
 test("shared env remains unavailable to read and search tools", () => {
   for (const [tool, args] of [
     ["read", { filePath: ".env" }],
@@ -340,4 +363,13 @@ test("unresolved mutation preserves a recovery lane with exact next command", ()
   assert.match(edit.message, /Reason:/);
   assert.match(edit.message, /Next:/);
   assert.match(edit.message, /sessions\.py start/);
+});
+
+test("unresolved sessions can run the bounded OpenCode workflow audit", () => {
+  const audit = routingFailureForTest({
+    tool: "bash",
+    sessionID: "ses_missing",
+    command: "python3 scripts/audit_opencode_output_quality.py --telemetry-days 1 --json",
+  });
+  assert.equal(audit.decision, "allow_recovery");
 });

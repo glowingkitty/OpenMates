@@ -53,6 +53,29 @@ def test_single_session_view_follows_identity_chain():
     assert view["session"]["worktree"]["status"] == "active"
 
 
+def test_status_projects_persisted_child_role_onto_existing_presence():
+    durable, presence = fixtures()
+    presence["sessions"]["ses-child"] = {
+        "session_id": "ses-child",
+        "execution": "idle",
+        "turn": "completed",
+        "attention": "none",
+        "child_role": "unknown",
+    }
+    presence["child_roles"] = {
+        "ses-child": {
+            "session_id": "ses-child",
+            "parent_id": "ses-stream",
+            "role": "reviewer",
+        }
+    }
+
+    view = sessions.presence_status_view(durable, presence, session_filter="a111")
+
+    assert view["session"]["children"][0]["opencode_session_id"] == "ses-child"
+    assert view["session"]["children"][0]["child_role"] == "reviewer"
+
+
 def test_infrastructure_view_exposes_active_and_recent_docker_operations():
     durable, presence = fixtures()
     durable["infrastructure"] = {

@@ -315,6 +315,28 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
             todo_next_input += int(next_turn.get("tokens_input") or 0)
             todo_next_cache_read += int(next_turn.get("tokens_cache_read") or 0)
 
+    error_counts = Counter()
+    for turn in tool_turns:
+        for tool in turn.get("tools") or []:
+            if tool.get("status") != "error":
+                continue
+            error = str(tool.get("error") or "")
+            if "child ownership guard" in error:
+                category = "child_role"
+            elif "explicitly references the root checkout" in error:
+                category = "root_path_routing"
+            elif "no active sessions.py worktree" in error:
+                category = "missing_session"
+            elif "Ripgrep JSON record exceeded" in error:
+                category = "grep_output_too_large"
+            elif "File not found" in error or "BadResource" in error:
+                category = "missing_runtime_artifact"
+            elif "stale-read guard" in error:
+                category = "stale_read"
+            else:
+                category = "other"
+            error_counts[category] += 1
+
     return {
         "assistant_tool_turns": len(tool_turns),
         "tool_calls": tool_calls,
@@ -326,6 +348,7 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
             "tokens_input": todo_next_input,
             "tokens_cache_read": todo_next_cache_read,
         },
+        "tool_error_counts": dict(sorted(error_counts.items())),
     }
 
 
@@ -378,7 +401,12 @@ def collect_tool_turns(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[d
         if part.get("type") == "tool":
             state = part.get("state") or {}
             args = state.get("input") if isinstance(state.get("input"), dict) else {}
-            turn["tools"].append({"name": str(part.get("tool") or "unknown"), "args": args})
+            turn["tools"].append({
+                "name": str(part.get("tool") or "unknown"),
+                "args": args,
+                "status": str(state.get("status") or ""),
+                "error": str(state.get("error") or ""),
+            })
     return list(turns.values())
 
 

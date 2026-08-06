@@ -92,6 +92,28 @@ def test_restart_waits_for_existing_dependent_test(monkeypatch, tmp_path):
     assert sessions.wait_for_docker_test_leases(operation["id"], timeout=0, poll=1) == []
 
 
+def test_test_lease_transfer_requires_current_owner_and_updates_child_pid(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+    parent_pid = sessions.os.getpid()
+    sessions.acquire_test_resource_lease("run-1", "test-session", {"dev-stack"}, timeout=0)
+
+    transferred = sessions.transfer_test_resource_lease(
+        "run-1",
+        expected_owner_pid=parent_pid,
+        new_owner_pid=4321,
+    )
+
+    assert transferred["owner_pid"] == 4321
+    assert sessions.test_resource_lease_owned_by("run-1", owner_pid=4321) is True
+    assert sessions.test_resource_lease_owned_by("run-1", owner_pid=parent_pid) is False
+    with pytest.raises(RuntimeError, match="not owned by the launching process"):
+        sessions.transfer_test_resource_lease(
+            "run-1",
+            expected_owner_pid=parent_pid,
+            new_owner_pid=9999,
+        )
+
+
 def test_completed_restart_is_retained_with_health_evidence(monkeypatch, tmp_path):
     configure_state(monkeypatch, tmp_path)
     operation = sessions.request_docker_restart("a111", ["api"])
