@@ -2561,6 +2561,19 @@ def _active_debug_group_keys(claims: list[dict[str, Any]], now: datetime | None 
     return active
 
 
+def _claim_linked_files(
+    claim: dict[str, Any],
+    triage_by_id: dict[str, dict[str, Any]] | None = None,
+) -> set[str]:
+    entry = claim.get("entry") if isinstance(claim.get("entry"), dict) else claim.get("entry_json")
+    entry = entry if isinstance(entry, dict) else {}
+    linked_files = set(entry.get("linked_files") or [])
+    if linked_files:
+        return linked_files
+    triage = (triage_by_id or {}).get(str(claim.get("group_id") or ""), {})
+    return set(triage.get("linked_files") or [])
+
+
 def _create_debug_group_claim(
     campaign_key: str,
     group: dict[str, Any],
@@ -2620,10 +2633,9 @@ def claim_debug_group(
             ]
             if len(active_claims) >= MAX_PARALLEL_DEBUG_WORKERS:
                 return None
+            triage_by_id = {str(item["group_id"]): item for item in build_triage().get("groups") or []}
             for claim in active_claims:
-                entry = claim.get("entry") if isinstance(claim.get("entry"), dict) else claim.get("entry_json")
-                entry = entry if isinstance(entry, dict) else {}
-                active_files = set(entry.get("linked_files") or [])
+                active_files = _claim_linked_files(claim, triage_by_id)
                 if not active_files:
                     raise RuntimeError(
                         f"Active debug lease {claim.get('lease_id') or claim.get('claim_key')} has no linked-file boundary"
@@ -2750,16 +2762,14 @@ def dispatch_parallel_debug_chats(
     if zellij_slots <= 0:
         raise RuntimeError("No Zellij session capacity is available for parallel debug workers")
     active_linked_files: set[str] = set()
+    triage_by_id = {str(group["group_id"]): group for group in build_triage().get("groups") or []}
     for claim in active_claims:
-        entry = claim.get("entry") if isinstance(claim.get("entry"), dict) else claim.get("entry_json")
-        entry = entry if isinstance(entry, dict) else {}
-        linked_files = entry.get("linked_files") or []
+        linked_files = _claim_linked_files(claim, triage_by_id)
         if not linked_files:
             raise RuntimeError(
                 f"Active debug lease {claim.get('lease_id') or claim.get('claim_key')} has no linked-file boundary"
             )
         active_linked_files.update(str(path) for path in linked_files)
-    triage_by_id = {str(group["group_id"]): group for group in build_triage().get("groups") or []}
     selection = select_parallel_debug_groups(
         status["groups"],
         _active_debug_group_keys(claims),
