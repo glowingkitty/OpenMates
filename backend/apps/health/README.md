@@ -125,7 +125,7 @@ Prepare for your next appointment by discussing symptoms, necessary tests, and r
 
 ## Memories
 
-The Health app stores encrypted user data for better health management and doctor appointment preparation.
+Health memory fields are implemented but temporarily disabled by default pending a consumer-health privacy and consent review. Existing encrypted records are preserved while the fields are unavailable in normal product surfaces.
 
 ### Appointments
 Store health-related appointments including doctor visits, operations, specialist consultations, dental visits, eye care, therapy sessions, and vaccinations. The system automatically identifies upcoming appointments based on the appointment date.
@@ -146,7 +146,7 @@ For detailed information, see [Health App Architecture](../../architecture/apps/
 
 ## Data Privacy & Security
 
-All user settings and health memories are encrypted end-to-end using the same security model as financial and authentication data. This ensures sensitive health information remains private and secure.
+Stored health memories use OpenMates client-side encryption. This is not end-to-end encryption: relevant content may be decrypted transiently in server memory when a server-powered feature needs it.
 
 Encrypted data storage includes:
 - Appointments (doctor visits, operations, specialist consultations, etc.)

@@ -6961,7 +6961,7 @@ def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
 
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
     """Provide ignored frontend prerequisites only when selected files need them."""
-    if not _has_frontend_files(files):
+    if not (_has_frontend_files(files) or _should_validate_embed_registry(files)):
         return
     result = bootstrap_session_worktree(checkout_root)
     if result.get("status") != "ready":

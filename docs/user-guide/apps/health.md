@@ -14,11 +14,11 @@ claims:
 
 # Health
 
-> Find doctor appointments and track your medical history.
+> Find available doctor appointments.
 
 ## What It Does
 
-The Health app helps you find available doctor appointments and keeps track of your health information so your mate can help you prepare for visits.
+The Health app helps you find available doctor appointments.
 
 **Available skills:**
 
@@ -39,15 +39,13 @@ The Health app helps you find available doctor appointments and keeps track of y
 
 ## Memories
 
-- **Appointments** -- Track upcoming doctor visits, operations, and check-ups with dates and notes.
-- **Medical History** -- Record past surgeries, chronic conditions, allergies, medications, vaccinations, and injuries. This helps your mate prepare comprehensive doctor visit summaries.
+Health memories are temporarily unavailable while we review the consent and privacy requirements for storing consumer health data. Existing encrypted entries are preserved but are not offered as active memory categories.
 
 ## Tips
 
 - Search results include the doctor's name, speciality, next available appointment, address, and a direct link to book online.
 - Both Doctolib and Jameda are searched in parallel to give you the widest selection.
-- Your health data is encrypted and only shared with your mate when you give permission for each conversation.
-- Save your medical history and appointments so your mate can help you prepare for doctor visits.
+- Avoid including identifying medical details in appointment searches unless they are necessary for the search.
 
 ## Related
 

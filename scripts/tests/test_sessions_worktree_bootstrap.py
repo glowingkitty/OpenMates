@@ -71,6 +71,20 @@ def test_bootstrap_failure_never_reports_ready(monkeypatch: pytest.MonkeyPatch, 
     assert "offline cache miss" in result["message"]
 
 
+def test_integration_bootstraps_for_backend_app_metadata(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    calls: list[Path] = []
+    monkeypatch.setattr(
+        sessions,
+        "bootstrap_session_worktree",
+        lambda root: calls.append(root) or {"status": "ready"},
+    )
+
+    sessions._bootstrap_integration_for_files(tmp_path, ["backend/apps/health/app.yml"])
+
+    assert calls == [tmp_path]
+
+
 def test_shared_runtime_resources_are_linked_into_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     sessions = load_sessions_module()
     root = tmp_path / "root"
