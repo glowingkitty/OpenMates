@@ -164,19 +164,19 @@ demonstration:
     - AC-12
   evidence:
     status: passed
-    subject_commit: b8e9bfc65bdc4bf7436221248926d442a7179bdf
-    manifest_path: test-results/spec-demos/narrated-spec-demonstration-videos/cli-b8e9bfc/manifest.json
-    manifest_hash: sha256:37b1f8864aca3aec84c16d2c6ddc0632bff762090773eeb9c05b09790989a787
+    subject_commit: 7cf67ad305648ba52851c01a020adf6da27dde95
+    manifest_path: test-results/spec-demos/narrated-spec-demonstration-videos/cli-7cf67ad/manifest.json
+    manifest_hash: sha256:77112cecabe60f089c4a4ad5d357c58b4fe95549c82e42fc02eaf6f22d7d67dc
     privacy_status: passed
     review_status: passed
-    review_run_id: review-cli-b8e9bfc
+    review_run_id: review-cli-7cf67ad
     review_attempts: 1
-    timestamp: '2026-08-06T03:55:34Z'
+    timestamp: '2026-08-06T04:03:00Z'
     publication_status: not_configured
     command: python3 scripts/spec_demo.py produce-cli and record-review
-    run_id: review-cli-b8e9bfc
+    run_id: review-cli-7cf67ad
 implementation_state:
-  subject_commit: b8e9bfc65bdc4bf7436221248926d442a7179bdf
+  subject_commit: 7cf67ad305648ba52851c01a020adf6da27dde95
 approvals:
   product_contract:
     status: approved
@@ -273,10 +273,11 @@ attempts:
 handoff:
   current_task_id: TASK-12
   next_action: Run final schema and immutable evidence verification, then deploy this completed evidence ledger.
-  command: python3 scripts/spec_validate.py docs/specs/narrated-spec-demonstration-videos/spec.yml && python3 scripts/spec_verify.py docs/specs/narrated-spec-demonstration-videos/spec.yml
+  command: python3 scripts/spec_validate.py docs/specs/narrated-spec-demonstration-videos/spec.yml && python3 scripts/spec_verify.py
+    docs/specs/narrated-spec-demonstration-videos/spec.yml
   expected_outcome: The completed spec passes schema, current-subject demonstration, required verification, and task gates.
   blocker: null
-  last_verified_commit: b8e9bfc65bdc4bf7436221248926d442a7179bdf
+  last_verified_commit: 7cf67ad305648ba52851c01a020adf6da27dde95
 scenarios:
 - id: S-1
   title: Full spec declares what its final demonstration must prove
@@ -945,15 +946,15 @@ verifications:
   evidence:
     command: python3 scripts/spec_validate.py docs/specs/narrated-spec-demonstration-videos/spec.yml
     target_environment: local clean worktree at deployed dev commit
-    run_id: cli-spec-validate-b8e9bfc
-    subject_commit_when_repository_backed: b8e9bfc65bdc4bf7436221248926d442a7179bdf
+    run_id: cli-spec-validate-7cf67ad
+    subject_commit_when_repository_backed: 7cf67ad305648ba52851c01a020adf6da27dde95
     exit_status: 0
-    transcript_hash: sha256:8a38b967f5973b8d0eeb2f1ad11ed88c092292c5c690321b4cf7a8bca1141080
-    artifact_hash: sha256:d27b4fb5a9416037300d060b13d504147b2ff21c7ef5102d4c36c051d8939cf6
+    transcript_hash: sha256:10ad382319a2d01d96667b4bfb3b51fb1c5fb84f22e36e1673be2a1398eb69c4
+    artifact_hash: sha256:f35a0ec511ffffa85f0415cc8e548a8ac10e0a107345c66360d0e9eef3234dc1
     test_account_provenance: no account used
-    review_run_id: review-cli-b8e9bfc
+    review_run_id: review-cli-7cf67ad
     review_status: passed
-    timestamp: '2026-08-06T03:55:34Z'
+    timestamp: '2026-08-06T04:03:00Z'
   evidence_requirements:
   - command
   - target_environment
@@ -972,9 +973,9 @@ verifications:
   status: passed
   evidence:
     command: python3 scripts/spec_demo.py produce-cli and produce_playwright_demonstration
-    run_id: privacy-cli-b8e9bfc-playwright-e0d3738
-    subject_commit: b8e9bfc65bdc4bf7436221248926d442a7179bdf
-    timestamp: '2026-08-06T03:55:34Z'
+    run_id: privacy-cli-7cf67ad-playwright-e0d3738
+    subject_commit: 7cf67ad305648ba52851c01a020adf6da27dde95
+    timestamp: '2026-08-06T04:03:00Z'
     reason: Canonical text scanning and complete-frame OCR found no sensitive content in either reviewed demonstration.
     cli_decoded_frames: 60
     playwright_decoded_frames: 84
@@ -989,11 +990,12 @@ verifications:
   status: skipped
   evidence:
     command: python3 scripts/spec_demo.py publish
-    run_id: publication-cli-b8e9bfc-playwright-e0d3738
-    subject_commit: b8e9bfc65bdc4bf7436221248926d442a7179bdf
-    timestamp: '2026-08-06T03:55:34Z'
+    run_id: publication-cli-7cf67ad-playwright-e0d3738
+    subject_commit: 7cf67ad305648ba52851c01a020adf6da27dde95
+    timestamp: '2026-08-06T04:03:00Z'
     publication_status: not_configured
-    summary: Dedicated DISCORD_WEBHOOK_SPEC_DEMOS was not configured; both manifests retain retry and expiry state without invalidating passed reviews.
+    summary: Dedicated DISCORD_WEBHOOK_SPEC_DEMOS was not configured; both manifests retain retry and expiry state without
+      invalidating passed reviews.
 implementation_plan:
   spec_path: docs/specs/narrated-spec-demonstration-videos/spec.yml
   first_slice: 'Enforce the demonstration eligibility and completion contract in fixture specs, then prove one synthetic CLI
