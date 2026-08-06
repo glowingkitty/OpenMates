@@ -33,10 +33,19 @@ logger = logging.getLogger(__name__)
 
 _WORKFLOW_SERVICE = WorkflowService(repository=DirectusWorkflowRepository())
 _SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
+_SCHEDULED_EXECUTION_LOCK_PREFIX = "workflow-scheduled-execution:"
 
 
 def get_workflow_service() -> WorkflowService:
     return _WORKFLOW_SERVICE
+
+
+def _acquire_scheduled_execution_lock(trigger_id: str) -> bool:
+    return acquire_celery_task_dedup_lock(
+        f"{_SCHEDULED_EXECUTION_LOCK_PREFIX}{trigger_id}",
+        broker_url=broker_url,
+        ttl_seconds=DEFAULT_DEDUP_TTL_SECONDS,
+    )
 
 
 def cleanup_expired_temporary_workflows(user_id: str | None = None, now: int | None = None) -> dict[str, Any]:
@@ -319,6 +328,10 @@ def run_workflow_task(
 @app.task(name="workflows.run_scheduled_trigger", base=BaseServiceTask, bind=True)
 def run_scheduled_workflow_trigger_task(self: BaseServiceTask, trigger_id: str) -> dict[str, Any]:
     try:
+        if not _acquire_scheduled_execution_lock(trigger_id):
+            logger.info("Workflow scheduled trigger execution already attempted: trigger_id=%s", trigger_id)
+            return {"accepted": False, "deduplicated": True, "trigger_id": trigger_id}
+
         async def run() -> dict[str, Any]:
             await self.initialize_services()
             return await run_scheduled_workflow_trigger_now(

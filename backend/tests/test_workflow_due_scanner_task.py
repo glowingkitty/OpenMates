@@ -90,3 +90,20 @@ async def test_scan_due_workflow_triggers_releases_lock_when_publish_fails(monke
         )
 
     assert released == ["workflow-scheduled-dispatch:trigger-1"]
+
+
+def test_scheduled_trigger_execution_lock_deduplicates_legacy_queue_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    acquired: list[str] = []
+    outcomes = iter([True, False])
+    monkeypatch.setattr(
+        workflow_tasks,
+        "acquire_celery_task_dedup_lock",
+        lambda lock_id, **_kwargs: acquired.append(lock_id) or next(outcomes),
+    )
+
+    assert workflow_tasks._acquire_scheduled_execution_lock("trigger-1") is True
+    assert workflow_tasks._acquire_scheduled_execution_lock("trigger-1") is False
+    assert acquired == [
+        "workflow-scheduled-execution:trigger-1",
+        "workflow-scheduled-execution:trigger-1",
+    ]
