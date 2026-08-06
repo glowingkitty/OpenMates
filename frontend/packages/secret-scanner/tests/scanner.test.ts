@@ -38,7 +38,7 @@ describe("SecretScanner", () => {
 
     it("detects GitHub PATs", () => {
       const text = "Token: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij";
-      const { redacted, mappings } = scanner.redact(text);
+      const { mappings } = scanner.redact(text);
 
       assert.equal(mappings.length, 1);
       assert.equal(mappings[0].type, "GITHUB_PAT");
@@ -47,7 +47,7 @@ describe("SecretScanner", () => {
 
     it("detects Stripe keys", () => {
       const text = "sk_test_AAAAAABBBBBBCCCCCCDDDDDDDD";
-      const { redacted, mappings } = scanner.redact(text);
+      const { mappings } = scanner.redact(text);
 
       assert.equal(mappings.length, 1);
       assert.equal(mappings[0].type, "STRIPE_KEY");
@@ -57,7 +57,7 @@ describe("SecretScanner", () => {
     it("detects JWT tokens", () => {
       const text =
         "Token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
-      const { redacted, mappings } = scanner.redact(text);
+      const { mappings } = scanner.redact(text);
 
       assert.equal(mappings.length, 1);
       assert.equal(mappings[0].type, "JWT");
@@ -68,7 +68,7 @@ describe("SecretScanner", () => {
       const text = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA2a2rwplBQLz8EHt5sxxH
 -----END RSA PRIVATE KEY-----`;
-      const { redacted, mappings } = scanner.redact(text);
+      const { mappings } = scanner.redact(text);
 
       assert.equal(mappings.length, 1);
       assert.equal(mappings[0].type, "PRIVATE_KEY");
@@ -77,7 +77,7 @@ MIIEowIBAAKCAQEA2a2rwplBQLz8EHt5sxxH
 
     it("detects generic secrets with assignment context", () => {
       const text = 'api_key="my_super_secret_key_value_123"';
-      const { redacted, mappings } = scanner.redact(text);
+      const { mappings } = scanner.redact(text);
 
       assert.equal(mappings.length, 1);
       assert.equal(mappings[0].type, "GENERIC_SECRET");
@@ -122,7 +122,7 @@ MIIEowIBAAKCAQEA2a2rwplBQLz8EHt5sxxH
       );
 
       const text = "Key: sk-proj-abc123def456ghi789";
-      const { redacted, mappings } = scanner.redact(text);
+      const { mappings } = scanner.redact(text);
 
       // Should be detected by registry (ENV_VAR type), not pattern (OPENAI_KEY)
       assert.equal(mappings.length, 1);
@@ -144,6 +144,19 @@ MIIEowIBAAKCAQEA2a2rwplBQLz8EHt5sxxH
   });
 
   describe("personal data detection", () => {
+    it("does not classify fractional media duration metadata as a phone", () => {
+      const { mappings } = scanner.redact("00:00:02.400000000");
+
+      assert.equal(mappings.length, 0);
+    });
+
+    it("still detects a standalone phone number", () => {
+      const { mappings } = scanner.redact("Call 202-555-0147 for support");
+
+      assert.equal(mappings.length, 1);
+      assert.equal(mappings[0].type, "PHONE");
+    });
+
     it("detects personal data entries (case-insensitive)", () => {
       scanner.addPersonalData({
         id: "name-1",
