@@ -41,8 +41,12 @@ evidence. Confirm or record in the spec/inline contract:
    GitHub Actions for CI/daily tests.
 3. Web preview/fullscreen components and Playwright coverage start only after CLI
    and required SDK evidence are green.
-4. The user must confirm the deployed dev web embed works and looks correct before
-   Apple parity starts. `*.spec.ts` evidence alone is not enough.
+4. Run deployed Playwright visual smoke for larger embed/UI surfaces in both
+   laptop and mobile viewports, fixing and redeploying any objective rendering,
+   error, loading, or responsiveness issue. Use Firecrawl only as a recorded
+   fallback when Playwright is impractical or blocked. The user must then confirm
+   the deployed dev web embed works and looks correct before Apple parity starts.
+   `*.spec.ts` evidence alone is not enough.
 5. Apple embed parity starts only after CLI, SDK, web, and user-confirmation
    evidence are complete, or after an explicit waiver/blocker is recorded.
 

@@ -64,8 +64,16 @@ Pass only when:
   implementation/testing against the dev server, npm SDK and pip SDK
   parity/testing locally against the dev server when applicable, GitHub Actions
   CI/daily-test reproduction only after local CLI and SDK success, web
-  implementation/testing, user confirmation for user-visible deployed web
-  behavior, then Apple parity/testing when applicable.
+  implementation/testing, deployed Playwright visual smoke for larger web UI in
+  both laptop and mobile viewports, user confirmation for user-visible deployed
+  web behavior, then Apple parity/testing when applicable.
+- Larger user-visible web/UI work has a passing or explicitly skipped
+  `V-UI-VISUAL-SMOKE` artifact review before user confirmation or complete
+  status. The evidence must name the deployed route(s), both laptop and mobile
+  viewports, Playwright run/screenshot paths, obvious
+  rendering/error/loading/responsiveness findings, subject commit, and whether any
+  objective issue was fixed and rerun. Existing legacy `V-FIRECRAWL-VISUAL-SMOKE`
+  records are accepted, but new specs should use `V-UI-VISUAL-SMOKE`.
 - CLI and SDK phase-gate evidence shows real commands/SDK calls against the real
   dev API/WebSocket path with real auth/test-account state. Mocked OpenMates API
   calls, mocked SDK clients, stubbed servers, direct function calls, fixture
@@ -95,8 +103,10 @@ deployed to dev, Vercel is Ready, and the spec has run against
 `app.dev.openmates.org`.
 
 For user-visible web behavior, Playwright green evidence is not enough to unblock
-Apple parity. The spec must also include user-confirmation evidence or an
-explicit waiver before Apple implementation or verification can be marked ready.
+Apple parity. Larger UI work must first include Playwright laptop/mobile
+visual-smoke evidence,
+then user-confirmation evidence or an explicit waiver before Apple implementation
+or verification can be marked ready.
 
 ### Step 4: Output Report
 
@@ -137,8 +147,10 @@ context pressure, task size, or a concurrent worktree is not a valid stop reason
 - Do not weaken or remove acceptance criteria to make verification pass.
 - Do not mark ambiguous coverage as complete; normalize vague criteria into
   concrete checks first.
-- Prefer Playwright/pytest/vitest via repo-approved test commands over manual
-  browser checks.
+- Prefer Playwright/pytest/vitest via repo-approved test commands for repeatable
+  assertions; use Playwright visual smoke for larger deployed UI work, not as a
+  replacement for tests. Firecrawl is a fallback only when Playwright is
+  impractical or blocked.
 - Manual verification is allowed only when automation is impractical and the
   reason is documented.
 - Do not mark a full spec verified while required green evidence is missing.

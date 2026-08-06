@@ -148,8 +148,12 @@ full spec:
    the same coverage into GitHub Actions for CI/daily tests.
 3. Implement web settings, examples, or Playwright coverage only after CLI and
    required SDK evidence are green.
-4. Ask the user to confirm the deployed dev web behavior works and looks correct
-   before starting Apple parity. `*.spec.ts` evidence alone is not enough.
+4. Run deployed Playwright visual smoke for larger web/UI surfaces in both laptop
+   and mobile viewports, fixing and redeploying any objective rendering, error,
+   loading, or responsiveness issue, then ask the user to confirm the deployed dev
+   web behavior works and looks correct before starting Apple parity. Use
+   Firecrawl only as a recorded fallback when Playwright is impractical or
+   blocked. `*.spec.ts` evidence alone is not enough.
 5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
    complete, or after an explicit waiver/blocker is recorded.
 

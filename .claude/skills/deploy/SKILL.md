@@ -53,9 +53,39 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
    ```bash
    python3 scripts/sessions.py deploy --session <SESSION_ID> \
      --title "type: short description" \
-     --message "Longer explanation of why" \
-     --end
+     --message "Longer explanation of why"
    ```
+
+   For larger user-visible web/UI changes, do not include `--end` on the deploy
+   command yet. After Vercel is Ready and Playwright evidence is green, run a
+   Playwright visual smoke on the deployed route(s) in both laptop and mobile
+   viewports, checking obvious rendering defects, implementation-related error
+   text, long loading/spinner states, and basic primary-control responsiveness
+   where practical. Prefer:
+   ```bash
+   node frontend/apps/web_app/scripts/visual-smoke.mjs \
+     --url https://app.dev.openmates.org/<route> \
+     --session <SESSION_ID>
+   ```
+   If you use a different Playwright screenshot/report artifact, record it:
+   ```bash
+    python3 scripts/sessions.py visual-smoke --session <SESSION_ID> \
+      --url https://app.dev.openmates.org/<route> \
+      --viewport laptop \
+      --viewport mobile \
+      --result passed \
+      --method playwright \
+      --run-id <playwright-artifact> \
+      --summary "Checked laptop and mobile rendering, implementation error text, loading states, and responsiveness smoke."
+   ```
+   Use Firecrawl only as an explicit fallback when Playwright is impractical or
+   blocked; keep calls minimal and record why. Fix objective issues, redeploy,
+   and rerun the smoke.
+   End only after that record exists:
+   ```bash
+   python3 scripts/sessions.py end --session <SESSION_ID>
+   ```
+   Use `--skip-visual-smoke "reason"` only for Tier 0/non-visual work.
 
 ### Commit Message Format
 - Prefix: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`, `style:`, `perf:`, `ci:`, `revert:`
@@ -70,4 +100,5 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
 
 ### After Deploy
 Write the task completion summary with the commit SHA from the deploy output.
-For non-trivial work, include `Spec:` and `Tests:` lines in the summary.
+For non-trivial work, include `Spec:`, `Tests:`, and for larger UI work
+`Visual smoke:` lines in the summary.

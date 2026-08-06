@@ -187,7 +187,10 @@ The final acceptance criterion should be:
 ```
 
 This ensures the fix is confirmed by repeatable behavior, not just by reading
-code. Firecrawl is a debugging fallback, not the default acceptance proof.
+code. Playwright remains the default repeatable acceptance proof; for larger
+deployed UI fixes, run Playwright visual smoke as the final laptop/mobile
+visual/error/responsiveness smoke before completion. Use Firecrawl only as a
+recorded fallback when Playwright is impractical or blocked.
 
 **Example (bug fix — embed not resolving):**
 

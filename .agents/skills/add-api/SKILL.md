@@ -66,8 +66,12 @@ memory behavior, the spec or inline contract must also define this phase gate:
    into GitHub Actions for CI/daily tests.
 3. Implement web UI, embeds, or Playwright coverage only after CLI and required
    SDK evidence are green.
-4. Ask the user to confirm the deployed dev web behavior works and looks correct
-   before starting Apple parity. `*.spec.ts` evidence alone is not enough.
+4. Run deployed Playwright visual smoke for larger web/UI surfaces in both laptop
+   and mobile viewports, fixing and redeploying any objective rendering, error,
+   loading, or responsiveness issue, then ask the user to confirm the deployed dev
+   web behavior works and looks correct before starting Apple parity. Use
+   Firecrawl only as a recorded fallback when Playwright is impractical or
+   blocked. `*.spec.ts` evidence alone is not enough.
 5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
    complete, or after an explicit waiver/blocker is recorded.
 
@@ -141,7 +145,9 @@ Ask the user if privacy policy updates are needed for this provider.
 ### Step 7: Reverse-Engineered APIs (No Official API)
 
 If using web scraping instead of an official API:
-1. Use Firecrawl for discovery (`firecrawl_map` + `firecrawl_scrape`)
+1. Use official docs, Brave, and WebFetch first. Use Firecrawl only when those
+   cannot inspect the needed JS-heavy or dynamic page; keep crawl/scrape limits
+   tight and record why Firecrawl was necessary.
 2. Add fragility warnings to documentation
 3. Note: monitor for failures, re-test monthly, document selectors
 4. Check `robots.txt` and ToS — implement rate limiting, cache aggressively

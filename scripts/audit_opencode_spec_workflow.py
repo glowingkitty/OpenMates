@@ -38,6 +38,8 @@ PLAN_PROMPT_TERMS = {
     "spec_verify.py",
     "schema_version",
     "subject_commit",
+    "V-UI-VISUAL-SMOKE",
+    "viewports: [laptop, mobile]",
     "handoff",
 }
 PLAN_EDIT_PERMISSION_ITEMS = (
@@ -52,6 +54,8 @@ SKILL_TERMS = {
         "assumptions",
         "vague criteria",
         "schema_version",
+        "V-UI-VISUAL-SMOKE",
+        "viewports: [laptop, mobile]",
         "handoff",
     },
     ".claude/skills/plan-from-spec/SKILL.md": {
@@ -65,6 +69,8 @@ SKILL_TERMS = {
         "failed required checks",
         "follow-up tasks",
         "verification_ids",
+        "UI visual smoke",
+        "--viewport laptop --viewport mobile",
         "ownership",
         "handoff",
     },
@@ -73,6 +79,8 @@ SKILL_TERMS = {
         "coverage_status",
         "required assumptions",
         "failed required checks",
+        "visual-smoke evidence",
+        "laptop/mobile",
         "subject commit",
         "material",
     },
@@ -85,7 +93,7 @@ INSTRUCTION_TERMS = {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",

@@ -67,7 +67,8 @@ The plan must include:
 - For shared product surfaces, implementation phase order: CLI against the dev
   server first, npm SDK and pip SDK parity locally against the dev server second,
   GitHub Actions CI/daily-test reproduction only after local CLI and SDK success,
-  web third, user confirmation fourth, Apple last
+  web third, deployed Playwright visual smoke fourth for larger web UI in both
+  laptop and mobile viewports, user confirmation fifth, Apple last
 - Required assumptions that must be checked before implementation and which
   source areas or subagents should verify them
 - required assumptions must not be left unchecked when they block implementation
@@ -100,9 +101,12 @@ wired into GitHub Actions for daily tests before the plan proceeds to SDK parity
 The CLI evidence must use real CLI commands against the real dev API/WebSocket
 path with real auth/test-account state; mocked OpenMates API calls, mocked SDK
 clients, stubbed servers, direct function calls, and fixture replay do not
-satisfy it. Web work must wait for CLI and required SDK parity. Apple work must
-wait for CLI, SDK, web, and user confirmation that deployed dev web behavior
-works and looks correct.
+satisfy it. Web work must wait for CLI and required SDK parity. Larger UI work
+must include a deployed Playwright visual-smoke plan for both laptop and mobile
+viewports before user confirmation. Firecrawl is a fallback only when Playwright
+is impractical or blocked.
+Apple work must wait for CLI, SDK, web, visual smoke when required, and user
+confirmation that deployed dev web behavior works and looks correct.
 
 Record `approvals.implementation_plan: pending` and stop when the plan introduces
 a material architecture, security, privacy, migration, rollout, or external

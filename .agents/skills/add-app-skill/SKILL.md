@@ -58,8 +58,12 @@ The spec or inline contract must also define the phase gate for this skill:
    into GitHub Actions for CI/daily tests.
 3. Implement web app surfaces, embeds, and app-store examples only after CLI and
    SDK parity are green.
-4. Ask the user to confirm the deployed dev web behavior works and looks correct
-   before starting any Apple parity work. Playwright alone is not enough.
+4. Run deployed Playwright visual smoke for larger web/UI surfaces in both laptop
+   and mobile viewports, fixing and redeploying any objective rendering, error,
+   loading, or responsiveness issue, then ask the user to confirm the deployed dev
+   web behavior works and looks correct before starting any Apple parity work. Use
+   Firecrawl only as a recorded fallback when Playwright is impractical or
+   blocked. Playwright specs alone are not enough.
 5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
    complete, or after the spec records an explicit waiver/blocker.
 

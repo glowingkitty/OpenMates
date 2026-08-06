@@ -255,23 +255,23 @@ python3 scripts/sessions.py debug-vercel
 | `ERROR` status      | Build failure            | `debug.py vercel --all`  |
 | 404 on routes       | Adapter misconfiguration | `debug.py vercel`        |
 | Runtime crash (500) | Missing env var          | `debug.py vercel`        |
-| App blank           | Client-side JS error     | Firecrawl or OpenObserve |
+| App blank           | Client-side JS error     | Playwright smoke or OpenObserve |
 
 Do NOT run `vercel build` locally. Fix code → push → auto-deploys.
 
 ---
 
-## Browser-Based Debugging with Firecrawl
+## Browser-Based Debugging
+
+Prefer local Playwright or the deployed Playwright visual-smoke helper first.
+Use Firecrawl only as an explicit fallback when Playwright cannot reproduce or
+inspect the route practically.
 
 ```
-firecrawl_browser_create
-→ agent-browser open https://app.dev.openmates.org
-→ agent-browser snapshot -i -c
-→ [reproduce bug]
-→ agent-browser screenshot
-[fix → rebuild/push]
-→ [verify fix]
-→ agent-browser screenshot
+node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>
+→ inspect screenshots and summary
+→ [fix → rebuild/push]
+→ [verify fix with Playwright spec and visual smoke]
 ```
 
 ### Client-side state inspection:

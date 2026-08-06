@@ -127,11 +127,14 @@ Brief description of what the API does and why we're using it.
 
 ## Firecrawl Reverse-Engineering (When No Official API)
 
-1. Use `firecrawl_map` to discover site structure
-2. Use `firecrawl_scrape` with JSON format + schema to extract data
-3. Test across multiple pages/examples
-4. Follow same test script structure, add `--url` parameter
-5. Add fragility warning section to docs:
+1. Use official docs, Brave, and WebFetch first.
+2. Use Firecrawl only when those cannot inspect the needed JS-heavy or dynamic
+   page; keep crawl/scrape limits tight and record why it was necessary.
+3. If Firecrawl is necessary, use `firecrawl_map` for a narrow site slice and
+   `firecrawl_scrape` with JSON format + schema to extract data.
+4. Test across multiple pages/examples.
+5. Follow same test script structure, add `--url` parameter.
+6. Add fragility warning section to docs:
 
 ```markdown
 ## Reverse-Engineered Integration Warning

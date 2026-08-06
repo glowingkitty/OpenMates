@@ -104,8 +104,18 @@ Every full spec must include:
   against the dev server second, npm SDK and pip SDK parity/testing locally
   against the dev server third, GitHub Actions CI/daily-test reproduction only
   after local REST/API, CLI, and SDK success, web implementation/testing fourth,
-  user confirmation of deployed dev web behavior and visual quality fifth, then
-  Apple parity/testing last.
+  deployed Playwright visual smoke fifth for larger web UI in both laptop and
+  mobile viewports, user confirmation of deployed dev web behavior and visual
+  quality sixth, then Apple parity/testing last.
+- For larger user-visible web/UI work, include a required final
+  `V-UI-VISUAL-SMOKE` artifact-review verification that records the
+  deployed `app.dev.openmates.org` route(s), `viewports: [laptop, mobile]`,
+  Playwright run/screenshot paths, obvious rendering defects, implementation-related
+  error text, long loading/spinner states, and basic responsiveness/unresponsiveness
+  of primary controls where practical. The implementation task is not complete
+  until objective issues are fixed, redeployed, and the smoke is rerun or
+  explicitly skipped for Tier 0/non-visual scope with a reason. Use Firecrawl
+  only as a recorded fallback when Playwright is impractical or blocked.
 - The REST/API gate must classify every changed endpoint as unauthenticated
   public REST API, developer API-key REST API, first-party client surface only,
   or internal-only, and must state auth, rate limits, credit/budget limits, and

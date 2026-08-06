@@ -52,12 +52,23 @@ For shared product surfaces, task dependencies must enforce this order: CLI
 implementation/testing against the dev server first, npm SDK and pip SDK
 parity/testing locally against the dev server second, GitHub Actions CI/daily-test
 reproduction only after local CLI and SDK success, web implementation/testing
-third, user confirmation fourth, Apple parity/testing last. Do not create an
-SDK, web, or Apple task that can start while an earlier required phase is still
-pending, unless the spec records an explicit waiver or accepted external blocker.
+third, deployed Playwright visual smoke fourth for larger web UI in both laptop
+and mobile viewports, user confirmation fifth, Apple parity/testing last. Do not
+create an SDK, web, user confirmation, or Apple task that can start while an
+earlier required phase is still pending, unless the spec records an explicit
+waiver or accepted external blocker.
 The CLI and SDK tasks must run real commands/SDK calls against the real dev
 API/WebSocket path; mocked API-call tests can be supplemental unit tasks only and
 must not satisfy these gates.
+
+For larger user-visible web/UI work, add a final UI visual smoke deploy-verification task linked
+to `V-UI-VISUAL-SMOKE`. It must run after Playwright green evidence and
+before user confirmation. The task records `python3 scripts/sessions.py
+visual-smoke --session <id> --method playwright --viewport laptop --viewport mobile ...` evidence
+after inspecting the deployed route in both viewports for obvious rendering
+issues, implementation error text, long loading/spinner states, and basic
+primary-control responsiveness where practical. Use Firecrawl only as a recorded
+fallback when Playwright is impractical or blocked.
 
 Run validation after editing:
 
@@ -81,7 +92,8 @@ manual task.
 
 User confirmation that deployed dev web behavior works and looks correct is a
 real task or verification gate when the feature is user-visible. A passing
-Playwright `*.spec.ts` task does not unblock Apple parity by itself.
+Playwright `*.spec.ts` task and laptop/mobile visual smoke do not unblock Apple
+parity by themselves; user confirmation remains required unless waived.
 
 ### Step 4: Output Summary
 
