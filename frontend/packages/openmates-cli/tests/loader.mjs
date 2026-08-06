@@ -4,11 +4,12 @@
 
 export async function resolve(specifier, context, nextResolve) {
   const parentUrl = context.parentURL ?? '';
+  const parentPath = parentUrl.split(/[?#]/, 1)[0];
   const isWorkspaceTypeScriptParent =
-    parentUrl.includes('/frontend/packages/') &&
-    !parentUrl.includes('/node_modules/') &&
-    !parentUrl.includes('/dist/') &&
-    /\.tsx?$/.test(parentUrl);
+    parentPath.includes('/frontend/packages/') &&
+    !parentPath.includes('/node_modules/') &&
+    !parentPath.includes('/dist/') &&
+    /\.tsx?$/.test(parentPath);
 
   if (!isWorkspaceTypeScriptParent) {
     return nextResolve(specifier, context);
