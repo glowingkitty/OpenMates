@@ -846,6 +846,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint(
 		'Phase 4.5: Verifying recently created chat appears after navigating to new chat...'
 	);
+	await expect(page).toHaveTitle(/.+ \| OpenMates$/, { timeout: 15000 });
 
 	// Click the "New Chat" button to navigate away from the current chat
 	const newChatCta = page.getByTestId('new-chat-button');
@@ -865,6 +866,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Verify we're on the new chat screen (no active chat in URL)
 	const urlAfterNewChat = page.url();
 	logChatCheckpoint(`URL after new chat: ${urlAfterNewChat}`);
+	await expect(page).toHaveTitle('OpenMates', { timeout: 5000 });
 
 	// Now open the sidebar — this is the critical test. The sidebar was closed (default)
 	// during the entire chat creation flow. On mount, Chats.svelte should read fresh data
@@ -1176,6 +1178,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Verify chat is removed
 	await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
+	await expect(page).toHaveTitle('OpenMates', { timeout: 5000 });
 	await takeStepScreenshot(page, '13-chat-deleted');
 	logChatCheckpoint('Chat deleted successfully. Test complete.');
 });

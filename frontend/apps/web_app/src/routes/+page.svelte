@@ -548,7 +548,11 @@
 	// $text() is reactive and will update when language changes
 	// If translations aren't loaded, $text() returns the key itself as fallback
 	let activeBrowserChatTitle = $state<string | null>(null);
-	let seoTitle = $derived(activeBrowserChatTitle ? `${activeBrowserChatTitle} | OpenMates` : $text('metadata.webapp.title'));
+	let seoTitle = $derived(
+		$activeChatStore && activeBrowserChatTitle
+			? `${activeBrowserChatTitle} | OpenMates`
+			: $text('metadata.webapp.title')
+	);
 	let seoDescription = $derived($text('metadata.webapp.description'));
 	let seoKeywords = $derived($text('metadata.default.keywords'));
 	let browserTitleGeneration = 0;
