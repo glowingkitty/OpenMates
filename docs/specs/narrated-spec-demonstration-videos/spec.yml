@@ -176,7 +176,7 @@ demonstration:
     command: python3 scripts/spec_demo.py produce-cli and record-review
     run_id: review-cli-8e6e802
 implementation_state:
-  subject_commit: 8e6e802b6cd38bacf52fe34246cabef946574722
+  subject_commit: working-tree@1d61e5b0bfeb6270d82522c0eb65a7a81776d958
 approvals:
   product_contract:
     status: approved
@@ -249,6 +249,11 @@ decisions:
     Discord delivery or after 24 hours if delivery remains unsuccessful.
   reason: The user wants the transcript retained but does not want video files accumulating on disk.
   decided_at: '2026-08-06T01:12:50Z'
+- id: D-11
+  status: active
+  decision: Expose CLI proof production, frame review, and dev-smoke publication through sessions.py; preserve exact CLI input and output unless the canonical scanner replaces detected sensitive values with conspicuous typed placeholders.
+  reason: The user requires operationally useful one-to-one CLI recordings while allowing clearly visible anonymization for credentials and personal data before Discord delivery.
+  decided_at: '2026-08-06T04:20:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -271,13 +276,12 @@ attempts:
   reason: The expanded 94-test workflow suite, schema validation, Python compilation, media doctor, and OpenCode/tooling audits
     all passed.
 handoff:
-  current_task_id: TASK-12
-  next_action: Run final schema and immutable evidence verification, then deploy this completed evidence ledger.
-  command: python3 scripts/spec_validate.py docs/specs/narrated-spec-demonstration-videos/spec.yml && python3 scripts/spec_verify.py
-    docs/specs/narrated-spec-demonstration-videos/spec.yml
-  expected_outcome: The completed spec passes schema, current-subject demonstration, required verification, and task gates.
+  current_task_id: TASK-13
+  next_action: Deploy the sessions.py proof-video wrapper, then create and publish a real dev Plans CLI recording to Discord dev-smoke.
+  command: python3 scripts/sessions.py proof-video produce --session d465 ... -- openmates plans create ...
+  expected_outcome: A reviewed, exact or visibly anonymized real CLI plan-creation video is delivered to the dev-smoke channel.
   blocker: null
-  last_verified_commit: 8e6e802b6cd38bacf52fe34246cabef946574722
+  last_verified_commit: 1d61e5b0bfeb6270d82522c0eb65a7a81776d958
 scenarios:
 - id: S-1
   title: Full spec declares what its final demonstration must prove
@@ -1635,11 +1639,43 @@ tasks:
     shared_files:
     - docs/specs/narrated-spec-demonstration-videos/spec.yml
   independently_deployable: true
+- id: TASK-13
+  title: Add session proof-video orchestration and publish a real Plans CLI recording
+  status: in_progress
+  phase: running_checks
+  covers:
+    scenarios: [S-4, S-6, S-8]
+    acceptance_criteria: [AC-4, AC-7, AC-10, AC-11, AC-12]
+  expected_files:
+  - scripts/sessions.py
+  - scripts/spec_demo.py
+  - frontend/packages/secret-scanner/src/cli.ts
+  - scripts/tests/test_sessions_proof_video.py
+  - scripts/tests/test_spec_demonstration_pipeline.py
+  - docs/specs/narrated-spec-demonstration-videos/spec.yml
+  - test-results/proof-videos
+  verification_ids: [T-DEMO-PIPELINE, T-DEMO-REVIEW, T-DEMO-DISCORD, V-CLI-DEMO, V-PRIVACY-REVIEW, V-DISCORD-DELIVERY]
+  dependencies: [TASK-12]
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - frontend/packages/secret-scanner/src/cli.ts
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - test-results/proof-videos
+    shared_files:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+  independently_deployable: true
 risks:
 - Video rendering and multimodal review can add material completion latency and compute cost; bounded retries and eligibility
   rules limit the impact.
-- Recordings can expose credentials or private account content that text-only test evidence does not; pre-review and pre-publication
-  scanning must fail closed.
+- Recordings can expose credentials or private account content that text-only test evidence does not; canonical scanning must replace detected values with conspicuous typed placeholders before review and publication while preserving all unaffected CLI input and output exactly.
 - Fixed-interval frames can miss brief errors or state changes; action, scene, and caption-boundary sampling plus bounded
   exact-timestamp follow-up requests are required in addition to periodic frames.
 - An AI reviewer may misclassify a video-production defect as an implementation defect; structured categories and evidence-invalidation

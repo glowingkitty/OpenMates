@@ -234,6 +234,89 @@ def test_text_scan_detects_dedicated_discord_webhook(monkeypatch: pytest.MonkeyP
     assert module.scan_text_with_canonical_scanner(f"visible {secret}")
 
 
+def test_cli_anonymization_uses_visible_typed_placeholders(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    secret = "synthetic-webhook-value-without-vendor-pattern"
+    monkeypatch.setenv("SYNTHETIC_WEBHOOK_TOKEN", secret)
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text(f"token={secret}\n", encoding="utf-8")
+    capture = {
+        "argv": ["example", secret],
+        "transcript_hash": module.sha256_file(transcript),
+    }
+
+    anonymized = module.anonymize_cli_capture(tmp_path, capture)
+    rendered = transcript.read_text(encoding="utf-8")
+
+    assert secret not in rendered
+    assert secret[-8:] not in rendered
+    assert "[REDACTED_GENERIC_SECRET_1]" in rendered
+    assert all(secret not in value for value in anonymized["argv"])
+    assert all(secret[-8:] not in value for value in anonymized["argv"])
+    assert anonymized["anonymization"]["applied"] is True
+    assert anonymized["transcript_hash"] == module.sha256_file(transcript)
+
+
+def test_cli_anonymization_failure_removes_raw_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    monkeypatch.setattr(
+        module,
+        "anonymize_cli_capture",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(module.DemonstrationError("scanner failed")),
+    )
+
+    with pytest.raises(module.DemonstrationError, match="scanner failed"):
+        module.produce_cli_demonstration(
+            run_dir=tmp_path,
+            argv=[sys.executable, "-c", "print('raw sensitive output')"],
+            spec_id="example",
+            subject_commit="abc1234",
+            run_id="run-1",
+            target_environment="local fixture",
+            test_account_provenance="no account used",
+            narration_id="NARR-1",
+            caption_text="Safe caption.",
+            expected_proof="Safe output is visible.",
+            acceptance_criteria=["AC-1"],
+            anonymize_sensitive=True,
+        )
+
+    assert not (tmp_path / "transcript.txt").exists()
+    assert not (tmp_path / "events.jsonl").exists()
+
+
+@pytest.mark.parametrize("suffix", ["_", "-", "=", "/"])
+def test_cli_anonymization_never_retains_secret_punctuation_suffixes(
+    suffix: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    secret = f"synthetic-command-secret-value{suffix}"
+    monkeypatch.setenv("SYNTHETIC_COMMAND_TOKEN", secret)
+
+    result = module.redact_text_with_canonical_scanner(f"token={secret}")
+
+    assert secret not in result["text"]
+    assert "synthetic-command-secret-value" not in result["text"]
+    assert "[REDACTED_" in result["text"]
+
+
+def test_cli_anonymization_preserves_benign_placeholder_shaped_output() -> None:
+    module = load_module()
+    text = "Build completed [BUILD_abc] without findings."
+
+    result = module.redact_text_with_canonical_scanner(text)
+
+    assert result["text"] == text
+    assert result["count"] == 0
+
+
 def test_playwright_render_input_must_match_selected_artifact(tmp_path: Path) -> None:
     module = load_module()
     selected_video = tmp_path / "selected.webm"
@@ -313,3 +396,40 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
 
     assert result["status"] == "review_ready"
     assert observed["acceptance_criteria"] == ["AC-1"]
+
+
+def test_cli_production_anonymizes_sensitive_argv_before_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    secret = "synthetic-sensitive-command-value"
+    observed: dict[str, object] = {}
+    monkeypatch.setenv("SYNTHETIC_COMMAND_TOKEN", secret)
+    monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+
+    def prepare(**kwargs: object) -> dict[str, str]:
+        observed.update(kwargs)
+        return {"status": "review_ready"}
+
+    monkeypatch.setattr(module, "prepare_review_artifacts", prepare)
+
+    result = module.produce_cli_demonstration(
+        run_dir=tmp_path,
+        argv=[sys.executable, "-c", "print('created')", secret],
+        spec_id="example",
+        subject_commit="abc1234",
+        run_id="run-1",
+        target_environment="local fixture",
+        test_account_provenance="no account used",
+        narration_id="NARR-1",
+        caption_text="Safe caption.",
+        expected_proof="Safe output is visible.",
+        acceptance_criteria=["AC-1"],
+        anonymize_sensitive=True,
+    )
+
+    assert result["status"] == "review_ready"
+    assert secret not in json.dumps(observed["source"])
+    assert secret[-8:] not in json.dumps(observed["source"])
+    assert "[REDACTED_" in (tmp_path / "transcript.txt").read_text(encoding="utf-8")

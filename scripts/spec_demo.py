@@ -349,6 +349,59 @@ def scan_text_with_canonical_scanner(text: str) -> list[str]:
     return types
 
 
+def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
+    """Return typed-placeholder text without exposing matched values."""
+    result = subprocess.run(
+        ["node", "--experimental-strip-types", str(SECRET_SCANNER_CLI)],
+        input=json.dumps({"text": text, "knownSecrets": _known_secret_values(), "redact": True}),
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=REPO_ROOT,
+    )
+    if result.returncode != 0:
+        raise DemonstrationError(f"Canonical secret redaction failed: {result.stderr.strip()[-500:]}")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise DemonstrationError("Canonical secret redaction returned invalid JSON") from exc
+    redacted = payload.get("redacted")
+    types = payload.get("types")
+    count = payload.get("count")
+    if (
+        not isinstance(redacted, str)
+        or not isinstance(types, list)
+        or not all(isinstance(value, str) for value in types)
+        or isinstance(count, bool)
+        or not isinstance(count, int)
+    ):
+        raise DemonstrationError("Canonical secret redaction returned an invalid payload")
+    return {
+        "text": redacted,
+        "types": types,
+        "count": count,
+    }
+
+
+def anonymize_cli_capture(run_dir: Path, capture: dict[str, Any]) -> dict[str, Any]:
+    """Replace sensitive values with conspicuous typed placeholders before rendering."""
+    transcript_path = run_dir / "transcript.txt"
+    transcript = redact_text_with_canonical_scanner(transcript_path.read_text(encoding="utf-8"))
+    _write_private(transcript_path, transcript["text"])
+    redacted_argv = [redact_text_with_canonical_scanner(str(value))["text"] for value in capture.get("argv", [])]
+    return {
+        **capture,
+        "argv": redacted_argv,
+        "transcript_hash": sha256_file(transcript_path),
+        "anonymization": {
+            "applied": transcript["count"] > 0,
+            "finding_count": transcript["count"],
+            "finding_types": transcript["types"],
+            "placeholder_style": "typed_and_numbered",
+        },
+    }
+
+
 def _known_secret_values() -> list[dict[str, str]]:
     values: dict[str, str] = {}
     for name, value in os.environ.items():
@@ -693,6 +746,7 @@ def produce_cli_demonstration(
     caption_text: str,
     expected_proof: str,
     acceptance_criteria: list[str],
+    anonymize_sensitive: bool = False,
 ) -> dict[str, Any]:
     capture = capture_pty(
         argv,
@@ -701,20 +755,27 @@ def produce_cli_demonstration(
         output_dir=run_dir,
         test_account_provenance=test_account_provenance,
     )
-    pre_render_privacy = scan_text_sources(
-        {
-            "argv": json.dumps(argv),
-            "transcript": (run_dir / "transcript.txt").read_text(encoding="utf-8"),
-            "caption_text": caption_text,
-            "expected_proof": expected_proof,
-            "output_filename": "demo.mp4",
-        }
-    )
-    if pre_render_privacy["status"] != "passed":
-        for path in (run_dir / "transcript.txt", run_dir / "events.jsonl"):
-            path.unlink(missing_ok=True)
-        raise DemonstrationError("Text privacy scan found sensitive CLI content before rendering")
-    (run_dir / "events.jsonl").unlink(missing_ok=True)
+    try:
+        if anonymize_sensitive:
+            capture = anonymize_cli_capture(run_dir, capture)
+        pre_render_privacy = scan_text_sources(
+            {
+                "argv": json.dumps(capture["argv"]),
+                "transcript": (run_dir / "transcript.txt").read_text(encoding="utf-8"),
+                "caption_text": caption_text,
+                "expected_proof": expected_proof,
+                "output_filename": "demo.mp4",
+            }
+        )
+        if pre_render_privacy["status"] != "passed":
+            (run_dir / "transcript.txt").unlink(missing_ok=True)
+            raise DemonstrationError("Text privacy scan found sensitive CLI content before rendering")
+    except Exception:
+        if anonymize_sensitive:
+            (run_dir / "transcript.txt").unlink(missing_ok=True)
+        raise
+    finally:
+        (run_dir / "events.jsonl").unlink(missing_ok=True)
     duration = max(2.0, float(capture["duration_seconds"]) + 0.5)
     captions_path = run_dir / "captions.srt"
     video_path = run_dir / "demo.mp4"
@@ -1390,6 +1451,7 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--caption", required=True)
     cli_parser.add_argument("--expected-proof", required=True)
     cli_parser.add_argument("--acceptance-criterion", action="append", required=True)
+    cli_parser.add_argument("--anonymize-sensitive", action="store_true")
     cli_parser.add_argument("argv", nargs=argparse.REMAINDER)
     review_parser = subparsers.add_parser("record-review")
     review_parser.add_argument("--run-dir", type=Path, required=True)
@@ -1422,6 +1484,7 @@ def main(argv: list[str] | None = None) -> int:
             caption_text=args.caption,
             expected_proof=args.expected_proof,
             acceptance_criteria=args.acceptance_criterion,
+            anonymize_sensitive=args.anonymize_sensitive,
         )
         print(json.dumps({"status": "review_ready", "manifest": str(args.run_dir / "manifest.json"), "privacy": result["privacy"]}, sort_keys=True))
         return 0

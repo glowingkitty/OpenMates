@@ -5277,6 +5277,64 @@ def cmd_visual_smoke(args: argparse.Namespace) -> None:
         print(f"  url: {url}")
 
 
+def cmd_proof_video(args: argparse.Namespace) -> None:
+    """Produce, review, or publish exact CLI proof videos for one session."""
+    from spec_demo import (
+        DemonstrationError,
+        produce_cli_demonstration,
+        publish_reviewed_video,
+        record_review,
+    )
+
+    data = _load_sessions()
+    if args.session not in data.get("sessions", {}):
+        raise DemonstrationError(f"Session {args.session} not found")
+    if args.proof_action == "produce":
+        command_argv = args.argv[1:] if args.argv and args.argv[0] == "--" else args.argv
+        if not command_argv:
+            raise DemonstrationError("proof-video produce requires an explicit command after --")
+        run_dir = args.run_dir or (
+            PROJECT_ROOT / "test-results" / "proof-videos" / args.session / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        )
+        subject_commit = args.subject_commit or _current_git_sha(Path.cwd())
+        result = produce_cli_demonstration(
+            run_dir=run_dir,
+            argv=command_argv,
+            spec_id=args.proof_id,
+            subject_commit=subject_commit,
+            run_id=args.run_id or f"proof-{args.session}-{int(time.time())}",
+            target_environment=args.target_environment,
+            test_account_provenance=args.test_account_provenance,
+            narration_id=args.narration_id,
+            caption_text=args.caption,
+            expected_proof=args.expected_proof,
+            acceptance_criteria=args.acceptance_criterion,
+            anonymize_sensitive=True,
+        )
+        print(json.dumps({"status": "review_ready", "run_dir": str(run_dir), "privacy": result["privacy"]}, sort_keys=True))
+        return
+    run_dir = args.run_dir
+    if args.proof_action == "review":
+        claims = json.loads(args.claims_json)
+        if not isinstance(claims, list):
+            raise DemonstrationError("--claims-json must contain a JSON array")
+        result = record_review(run_dir, claims)
+        print(json.dumps({"status": result["review"]["status"], "run_dir": str(run_dir)}, sort_keys=True))
+        return
+    env = {**_load_env_pairs(ENV_FILE), **os.environ}
+    webhook = env.get("DISCORD_WEBHOOK_DEV_SMOKE", "")
+    if not webhook:
+        raise DemonstrationError("DISCORD_WEBHOOK_DEV_SMOKE is not configured")
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    result = publish_reviewed_video(
+        run_dir,
+        manifest,
+        webhook_url=webhook,
+        now=datetime.now(timezone.utc),
+    )
+    print(json.dumps({"status": result["publication"]["status"], "run_dir": str(run_dir)}, sort_keys=True))
+
+
 def _opencode_presence_store() -> PresenceStore:
     return PresenceStore(
         OPENCODE_PRESENCE_STATE_FILE,
@@ -9959,6 +10017,36 @@ def main() -> None:
     p_visual_smoke.add_argument("--reason", help="Required when result is skipped; optional context otherwise.")
     p_visual_smoke.add_argument("--commit", help="Subject commit SHA. Defaults to current HEAD.")
 
+    # proof-video
+    p_proof_video = sub.add_parser(
+        "proof-video",
+        help="Produce, review, and publish exact CLI proof videos to the dev-smoke Discord channel",
+    )
+    proof_actions = p_proof_video.add_subparsers(dest="proof_action", required=True)
+    p_proof_produce = proof_actions.add_parser("produce", help="Capture and render an exact CLI command")
+    p_proof_produce.add_argument("--session", "-s", required=True, help="Session ID")
+    p_proof_produce.add_argument("--run-dir", type=Path)
+    p_proof_produce.add_argument("--proof-id", default="session-proof")
+    p_proof_produce.add_argument("--subject-commit")
+    p_proof_produce.add_argument("--run-id")
+    p_proof_produce.add_argument("--target-environment", default="OpenMates dev API")
+    p_proof_produce.add_argument(
+        "--test-account-provenance",
+        default="OpenMates CLI stored session; authentication credentials are not rendered",
+    )
+    p_proof_produce.add_argument("--narration-id", default="NARR-1")
+    p_proof_produce.add_argument("--caption", required=True)
+    p_proof_produce.add_argument("--expected-proof", required=True)
+    p_proof_produce.add_argument("--acceptance-criterion", action="append", required=True)
+    p_proof_produce.add_argument("argv", nargs=argparse.REMAINDER)
+    p_proof_review = proof_actions.add_parser("review", help="Record frame-only claim verdicts")
+    p_proof_review.add_argument("--session", "-s", required=True, help="Session ID")
+    p_proof_review.add_argument("--run-dir", type=Path, required=True)
+    p_proof_review.add_argument("--claims-json", required=True)
+    p_proof_publish = proof_actions.add_parser("publish", help="Publish a passed proof to dev-smoke Discord")
+    p_proof_publish.add_argument("--session", "-s", required=True, help="Session ID")
+    p_proof_publish.add_argument("--run-dir", type=Path, required=True)
+
     # status
     p_status = sub.add_parser("status", help="Show current session state")
     p_status.add_argument(
@@ -10593,6 +10681,7 @@ def main() -> None:
         "start": cmd_start,
         "end": cmd_end,
         "visual-smoke": cmd_visual_smoke,
+        "proof-video": cmd_proof_video,
         "status": cmd_status,
         "doctor": cmd_doctor,
         "update": cmd_update,
