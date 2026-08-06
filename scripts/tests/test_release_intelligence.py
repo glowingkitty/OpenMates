@@ -612,6 +612,18 @@ def test_create_pr_skill_requires_feature_readiness_gate() -> None:
     assert "Feature Readiness" in skill
     assert "stop" in skill.lower()
     assert "gh pr create" in skill
+    assert "--state merged" in skill
+    assert "mergedAt" in skill
+    assert "createdAt" not in skill
+    assert "docs/releases/daily/YYYY-MM-DD.md" in skill
+    assert "docs/releases/weekly/YYYY-Www.md" in skill
+    assert skill.index("Summarize Changelog Markdown") < skill.index("Ask Exactly Five Clarifying Questions")
+    assert "Ask one question per assistant message" in skill
+    assert "Question 1 of 5" in skill
+    assert "Question 5 of 5" in skill
+    assert "Include a concrete recommendation in each question" in skill
+    assert "2>/dev/null || true" not in skill
+    assert "tail -30" not in skill
 
 
 def test_llm_summary_normalization_keeps_only_known_commit_evidence() -> None:
