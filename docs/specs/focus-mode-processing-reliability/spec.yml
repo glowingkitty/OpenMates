@@ -148,14 +148,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-06T15:25:06Z"
     summary: Activation and encrypted persistence passed, but the spec used an unsupported right-click plus fixed sleep to open the activated focus card menu.
+  - id: ATTEMPT-7
+    task_id: TASK-3
+    approach: Rerun focus-mode-ui-after-activation.spec.ts with the supported click path against deployed commit 4150b03 and inspect client event logs.
+    outcome: rejected
+    recorded_at: "2026-08-06T15:45:27Z"
+    summary: The click and custom event reached ActiveChat, but manual reparenting removed the Svelte-owned focus context menu before it rendered.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Deploy the deterministic focus context-menu interaction helper, then rerun the activation Playwright spec.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "test: stabilize focus context menu interaction" --message "Use the supported click path and wait for the menu test ID."'
-  expected_outcome: Details and Stop actions consistently open from the activated focus card on both Playwright retries.
+  next_action: Deploy the Svelte-owned focus context menu lifecycle fix, then rerun the activation Playwright spec.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: keep focus context menu under Svelte ownership" --message "Symptom/Cause/Fix"'
+  expected_outcome: The activated focus card opens a visible Details/Stop menu through the normal click path.
   blocker: null
-  last_verified_commit: 4cf06c1
+  last_verified_commit: 4150b03
 
 scenarios:
   - id: S-1
