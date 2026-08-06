@@ -22,11 +22,17 @@ from backend.core.api.app.services.workflow_runtime_service import WorkflowRunti
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
-from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.tasks.celery_config import app, broker_url
+from backend.shared.python_utils.celery_dedup import (
+    DEFAULT_DEDUP_TTL_SECONDS,
+    acquire_celery_task_dedup_lock,
+    release_celery_task_dedup_lock,
+)
 
 logger = logging.getLogger(__name__)
 
 _WORKFLOW_SERVICE = WorkflowService(repository=DirectusWorkflowRepository())
+_SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
 
 
 def get_workflow_service() -> WorkflowService:
@@ -133,8 +139,27 @@ async def scan_due_workflow_triggers_now(
     limit: int = 100,
     runtime_service: WorkflowRuntimeService,
 ) -> dict[str, Any]:
-    async def dispatch_trigger(trigger_id: str) -> None:
-        run_scheduled_workflow_trigger_task.delay(trigger_id)
+    async def dispatch_trigger(trigger_id: str) -> bool:
+        lock_id = f"{_SCHEDULED_DISPATCH_LOCK_PREFIX}{trigger_id}"
+        acquired = await asyncio.to_thread(
+            acquire_celery_task_dedup_lock,
+            lock_id,
+            broker_url=broker_url,
+            ttl_seconds=DEFAULT_DEDUP_TTL_SECONDS,
+        )
+        if not acquired:
+            logger.info("Workflow scheduled trigger dispatch already queued: trigger_id=%s", trigger_id)
+            return False
+        try:
+            await asyncio.to_thread(run_scheduled_workflow_trigger_task.delay, trigger_id)
+        except Exception:
+            await asyncio.to_thread(
+                release_celery_task_dedup_lock,
+                lock_id,
+                broker_url=broker_url,
+            )
+            raise
+        return True
 
     return await WorkflowSchedulerService(runtime_service).scan_due_triggers(
         now=now if now is not None else int(time.time()),

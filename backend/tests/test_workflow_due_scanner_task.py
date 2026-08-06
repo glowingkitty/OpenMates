@@ -30,9 +30,63 @@ async def test_scan_due_workflow_triggers_dispatches_each_due_trigger(monkeypatc
     runtime = FakeRuntime()
     dispatched: list[str] = []
     monkeypatch.setattr(workflow_tasks.run_scheduled_workflow_trigger_task, "delay", dispatched.append)
+    monkeypatch.setattr(workflow_tasks, "acquire_celery_task_dedup_lock", lambda *_args, **_kwargs: True)
 
     result = await workflow_tasks.scan_due_workflow_triggers_now(now=1_800_000_000, limit=25, runtime_service=runtime)
 
     assert runtime.calls == [("list_due_triggers", {"now": 1_800_000_000, "limit": 25})]
     assert dispatched == ["trigger-1", "trigger-2"]
     assert result == {"checked": 2, "dispatched": 2, "trigger_ids": ["trigger-1", "trigger-2"]}
+
+
+@pytest.mark.anyio
+async def test_scan_due_workflow_triggers_suppresses_duplicate_dispatches(monkeypatch: pytest.MonkeyPatch) -> None:
+    runtime = FakeRuntime()
+    dispatched: list[str] = []
+    acquired: list[str] = []
+
+    monkeypatch.setattr(workflow_tasks.run_scheduled_workflow_trigger_task, "delay", dispatched.append)
+    monkeypatch.setattr(
+        workflow_tasks,
+        "acquire_celery_task_dedup_lock",
+        lambda lock_id, **_kwargs: acquired.append(lock_id) or lock_id.endswith("trigger-1"),
+    )
+
+    result = await workflow_tasks.scan_due_workflow_triggers_now(
+        now=1_800_000_000,
+        limit=25,
+        runtime_service=runtime,
+    )
+
+    assert acquired == [
+        "workflow-scheduled-dispatch:trigger-1",
+        "workflow-scheduled-dispatch:trigger-2",
+    ]
+    assert dispatched == ["trigger-1"]
+    assert result == {"checked": 2, "dispatched": 1, "trigger_ids": ["trigger-1"]}
+
+
+@pytest.mark.anyio
+async def test_scan_due_workflow_triggers_releases_lock_when_publish_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    runtime = FakeRuntime()
+    released: list[str] = []
+
+    def fail_publish(_trigger_id: str) -> None:
+        raise RuntimeError("broker unavailable")
+
+    monkeypatch.setattr(workflow_tasks.run_scheduled_workflow_trigger_task, "delay", fail_publish)
+    monkeypatch.setattr(workflow_tasks, "acquire_celery_task_dedup_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        workflow_tasks,
+        "release_celery_task_dedup_lock",
+        lambda lock_id, **_kwargs: released.append(lock_id) or True,
+    )
+
+    with pytest.raises(RuntimeError, match="broker unavailable"):
+        await workflow_tasks.scan_due_workflow_triggers_now(
+            now=1_800_000_000,
+            limit=25,
+            runtime_service=runtime,
+        )
+
+    assert released == ["workflow-scheduled-dispatch:trigger-1"]

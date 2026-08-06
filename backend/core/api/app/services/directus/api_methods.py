@@ -7,7 +7,8 @@ logger = logging.getLogger(__name__)
 
 # Connection-level errors that indicate CMS is temporarily unreachable.
 # These get exponential backoff with more retries than token refresh errors.
-_CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout, OSError)
+_CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
+_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 _PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION = {
     "chats": frozenset({
@@ -115,15 +116,47 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
             connection_failures += 1
             if connection_failures < max_connection_retries:
                 backoff = min(2 ** connection_failures, 16)
-                logger.warning(f"CMS connection failed ({type(e).__name__}): {e}. "
-                               f"Retrying in {backoff}s ({connection_failures}/{max_connection_retries})...")
+                logger.warning(
+                    "CMS connection failed (%s). Retrying in %ss (%s/%s)...",
+                    type(e).__name__,
+                    backoff,
+                    connection_failures,
+                    max_connection_retries,
+                )
                 await asyncio.sleep(backoff)
             else:
                 logger.error(f"CMS unreachable after {max_connection_retries} connection retries: {e}")
                 raise e
+        except httpx.TransportError as e:
+            if method.upper() not in _READ_ONLY_METHODS:
+                logger.warning(
+                    "CMS mutation transport failed (%s); not retrying without an idempotency guarantee",
+                    type(e).__name__,
+                )
+                raise
+            connection_failures += 1
+            if connection_failures < max_connection_retries:
+                backoff = min(2 ** connection_failures, 16)
+                logger.warning(
+                    "CMS read transport failed (%s). Retrying in %ss (%s/%s)...",
+                    type(e).__name__,
+                    backoff,
+                    connection_failures,
+                    max_connection_retries,
+                )
+                await asyncio.sleep(backoff)
+            else:
+                logger.error("CMS read transport failed after %s retries (%s)", max_connection_retries, type(e).__name__)
+                raise
         except Exception as e:
+            if method.upper() not in _READ_ONLY_METHODS:
+                logger.warning(
+                    "CMS mutation request failed (%s); not retrying without an idempotency guarantee",
+                    type(e).__name__,
+                )
+                raise
             if attempt < self.max_retries - 1:
-                logger.warning(f"Request failed: {str(e)}. Retrying...")
+                logger.warning("CMS read request failed (%s). Retrying...", type(e).__name__)
                 await asyncio.sleep(1)
             else:
                 raise e

@@ -42,7 +42,9 @@ class WorkflowSchedulerService:
         for trigger_id in trigger_ids:
             if not isinstance(trigger_id, str) or not trigger_id:
                 continue
-            await dispatch_trigger(trigger_id)
+            dispatched_now = await dispatch_trigger(trigger_id)
+            if dispatched_now is False:
+                continue
             dispatched.append(trigger_id)
         return {"checked": len(trigger_ids), "dispatched": len(dispatched), "trigger_ids": dispatched}
 

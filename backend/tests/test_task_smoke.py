@@ -258,6 +258,28 @@ class TestAppHealthChecks:
         }
         assert observed["timeout"] == health_check_tasks.CELERY_WORKER_INSPECT_TIMEOUT_SECONDS
 
+    def test_worker_queue_inspection_retries_and_merges_partial_replies(self, monkeypatch):
+        from backend.core.api.app.tasks import health_check_tasks
+
+        snapshots = iter([
+            {"celery@task-worker": [{"name": "health_check"}]},
+            {"celery@app-worker": [{"name": "app_videos"}]},
+        ])
+        monkeypatch.setattr(
+            health_check_tasks,
+            "_inspect_active_worker_queues",
+            lambda: next(snapshots),
+        )
+
+        active_workers = asyncio.run(
+            health_check_tasks._inspect_active_worker_queues_with_retry(["videos"])
+        )
+
+        assert active_workers == {
+            "celery@task-worker": [{"name": "health_check"}],
+            "celery@app-worker": [{"name": "app_videos"}],
+        }
+
 
 class TestLeaderboardCache:
     def test_cached_leaderboard_accepts_deserialized_mapping(self, monkeypatch):
