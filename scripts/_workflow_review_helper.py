@@ -23,6 +23,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
 REPORTS_DIR = PROJECT_ROOT / "test-results" / "workflow-review"
 STATE_FILE = PROJECT_ROOT / "scripts" / ".workflow-review-state.json"
+MIN_TRANSCRIPT_EVIDENCE_BYTES = 4_096
 
 
 def _parse_timestamp(value: str) -> datetime:
@@ -77,6 +78,322 @@ def normalize_tool_failure(raw_error: str) -> str:
     if "blocked:" in value or '"decision":"block"' in value:
         return "policy_block"
     return "other"
+
+
+def _truncate_json(value: Any, max_chars: int, truncated: dict[str, bool]) -> Any:
+    if isinstance(value, str):
+        if len(value) > max_chars:
+            truncated["fields"] = True
+            return value[:max_chars] + "...[truncated]"
+        return value
+    if isinstance(value, list):
+        return [_truncate_json(item, max_chars, truncated) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _truncate_json(item, max_chars, truncated) for key, item in value.items()}
+    return value
+
+
+def _decode_bounded_json(raw: str, max_chars: int, truncated: dict[str, bool]) -> Any:
+    try:
+        value = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        value = str(raw)
+    return _truncate_json(value, max_chars, truncated)
+
+
+def _project_message_data(data: Any) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {"value": data}
+    projected = {
+        key: data[key]
+        for key in ("role", "agent", "mode", "modelID", "providerID", "finish")
+        if key in data
+    }
+    model = data.get("model")
+    if isinstance(model, dict):
+        projected["model"] = {
+            key: model[key]
+            for key in ("providerID", "modelID", "variant")
+            if key in model
+        }
+    return projected
+
+
+def _project_part_data(data: Any) -> dict[str, Any] | None:
+    if not isinstance(data, dict):
+        return {"type": "unknown", "value": data}
+    part_type = str(data.get("type") or "unknown")
+    if part_type in {"reasoning", "step-start", "step-finish", "snapshot"}:
+        return None
+    if part_type == "text":
+        return {"type": "text", "text": data.get("text", "")}
+    if part_type == "tool":
+        state = data.get("state") if isinstance(data.get("state"), dict) else {}
+        return {
+            "type": "tool",
+            "tool": data.get("tool", "unknown"),
+            "status": state.get("status", "unknown"),
+            "input": state.get("input"),
+            "output": state.get("output"),
+            "error": state.get("error"),
+        }
+    if part_type in {"file", "image", "attachment"}:
+        return {
+            "type": part_type,
+            "filename": data.get("filename") or data.get("name"),
+            "mime": data.get("mime") or data.get("mimeType"),
+            "content_omitted": True,
+        }
+    return {"type": part_type, "status": data.get("status")}
+
+
+def collect_transcript_evidence(
+    period_start: str,
+    period_end: str,
+    *,
+    project_directory: Path | None = None,
+    exclude_session_ids: set[str] | None = None,
+    exclude_title_prefixes: tuple[str, ...] = ("opencode improvement research ",),
+    max_sessions: int = 100,
+    max_messages: int = 2_000,
+    max_parts: int = 2_000,
+    max_field_chars: int = 4_000,
+    max_total_bytes: int = 500_000,
+    max_parts_per_message: int = 4,
+) -> dict[str, Any]:
+    """Collect bounded local transcript evidence for repository workflow research."""
+    if min(max_sessions, max_messages, max_parts, max_field_chars, max_parts_per_message) <= 0:
+        raise ValueError("transcript evidence limits must be positive")
+    if max_total_bytes < MIN_TRANSCRIPT_EVIDENCE_BYTES:
+        raise ValueError(f"max_total_bytes must be at least {MIN_TRANSCRIPT_EVIDENCE_BYTES}")
+    start_ms = _epoch_ms(period_start)
+    end_ms = _epoch_ms(period_end)
+    if start_ms >= end_ms:
+        raise ValueError("period_start must be earlier than period_end")
+
+    excluded = exclude_session_ids or set()
+    directory = str((project_directory or PROJECT_ROOT).resolve())
+    worktree_pattern = f"{directory}/.openmates-agent-worktrees/%"
+    exclusion_clauses: list[str] = []
+    exclusion_parameters: list[Any] = []
+    if excluded:
+        placeholders = ", ".join("?" for _ in excluded)
+        exclusion_clauses.append(f"id NOT IN ({placeholders})")
+        exclusion_parameters.extend(sorted(excluded))
+    normalized_prefixes = tuple(prefix.casefold() for prefix in exclude_title_prefixes)
+    for prefix in normalized_prefixes:
+        exclusion_clauses.append("LOWER(title) NOT LIKE ?")
+        exclusion_parameters.append(prefix.replace("%", "\\%").replace("_", "\\_") + "%")
+    exclusion_sql = "" if not exclusion_clauses else " AND " + " AND ".join(exclusion_clauses)
+    truncated = {"sessions": False, "messages": False, "parts": False, "fields": False, "total_bytes": False}
+    try:
+        with _readonly_connection() as connection:
+            query = (
+                """
+                SELECT id, parent_id, title, time_created, time_updated
+                FROM session
+                WHERE (directory = ? OR directory LIKE ?)
+                  AND time_created < ? AND time_updated >= ?
+                """
+                + exclusion_sql
+                + """
+                ORDER BY time_updated ASC, id ASC
+                LIMIT ?
+                """
+            )
+            session_rows = connection.execute(
+                query,
+                (directory, worktree_pattern, end_ms, start_ms, *exclusion_parameters, max_sessions + 1),
+            ).fetchall()
+    except (OSError, sqlite3.Error) as exc:
+        return {
+            "status": "unavailable",
+            "error": type(exc).__name__,
+            "session_count": 0,
+            "message_count": 0,
+            "part_count": 0,
+            "sessions": [],
+            "limits": {
+                "max_sessions": max_sessions,
+                "max_messages": max_messages,
+                "max_parts": max_parts,
+                "max_field_chars": max_field_chars,
+                "max_total_bytes": max_total_bytes,
+                "max_parts_per_message": max_parts_per_message,
+            },
+            "truncated": truncated,
+        }
+
+    if len(session_rows) > max_sessions:
+        truncated["sessions"] = True
+        session_rows = session_rows[:max_sessions]
+    parent_by_id = {
+        str(session_id): str(parent_id) if parent_id else None
+        for session_id, parent_id, _title, _created, _updated in session_rows
+    }
+    pending_parent_ids = {parent for parent in parent_by_id.values() if parent and parent not in parent_by_id}
+    with _readonly_connection() as connection:
+        while pending_parent_ids:
+            parent_id = pending_parent_ids.pop()
+            row = connection.execute("SELECT parent_id FROM session WHERE id = ?", (parent_id,)).fetchone()
+            parent = str(row[0]) if row and row[0] else None
+            parent_by_id[parent_id] = parent
+            if parent and parent not in parent_by_id:
+                pending_parent_ids.add(parent)
+
+    def root_session_id(session_id: str) -> str:
+        current = session_id
+        seen = {current}
+        while parent := parent_by_id.get(current):
+            if parent in seen:
+                break
+            current = parent
+            seen.add(current)
+        return current
+
+    def session_depth(session_id: str) -> int:
+        current = session_id
+        seen = {current}
+        depth = 0
+        while parent := parent_by_id.get(current):
+            if parent in seen:
+                break
+            current = parent
+            seen.add(current)
+            depth += 1
+        return depth
+
+    selected_rows = [
+        row
+        for row in session_rows
+        if str(row[0]) not in excluded
+        and not str(row[2]).casefold().startswith(normalized_prefixes)
+    ]
+    selected_rows.sort(key=lambda row: (root_session_id(str(row[0])), session_depth(str(row[0])), int(row[4]), str(row[0])))
+    sessions: list[dict[str, Any]] = []
+    total_parts = 0
+    total_messages = 0
+    total_bytes = 0
+    session_byte_budget = max(1, max_total_bytes // max(len(selected_rows), 1))
+    session_message_budget = max(1, max_messages // max(len(selected_rows), 1))
+    with _readonly_connection() as connection:
+        for session_id, parent_id, title, time_created, time_updated in selected_rows:
+            session_id = str(session_id)
+            remaining_parts = max_parts - total_parts
+            if remaining_parts <= 0:
+                truncated["parts"] = True
+                break
+            message_rows = connection.execute(
+                """
+                SELECT id, time_created, data
+                FROM message
+                WHERE session_id = ? AND time_created < ? AND time_updated >= ?
+                ORDER BY time_created ASC, id ASC
+                LIMIT ?
+                """,
+                (session_id, end_ms, start_ms, session_message_budget + 1),
+            ).fetchall()
+            if len(message_rows) > session_message_budget:
+                truncated["messages"] = True
+                message_rows = message_rows[:session_message_budget]
+            if len(message_rows) > 1:
+                message_rows = [message_rows[0], *reversed(message_rows[1:])]
+            messages: list[dict[str, Any]] = []
+            session_bytes = 0
+            for message_id, message_created, message_data in message_rows:
+                part_rows = connection.execute(
+                    """
+                    SELECT time_created, data
+                    FROM part
+                    WHERE session_id = ? AND message_id = ? AND time_created < ? AND time_updated >= ?
+                    ORDER BY time_created ASC, id ASC
+                    LIMIT ?
+                    """,
+                    (
+                        session_id,
+                        str(message_id),
+                        end_ms,
+                        start_ms,
+                        max(min(remaining_parts, max_parts_per_message), 1),
+                    ),
+                ).fetchall()
+                parts = []
+                for part_created, part_data in part_rows:
+                    decoded_part = _decode_bounded_json(str(part_data), max_field_chars, truncated)
+                    projected_part = _project_part_data(decoded_part)
+                    if projected_part is not None:
+                        parts.append({"time_created": int(part_created), "data": projected_part})
+                decoded_message = _decode_bounded_json(str(message_data), max_field_chars, truncated)
+                message = {
+                    "time_created": int(message_created),
+                    "data": _project_message_data(decoded_message),
+                    "parts": parts,
+                }
+                candidate_bytes = len(json.dumps(message, ensure_ascii=False).encode("utf-8"))
+                if session_bytes + candidate_bytes > session_byte_budget:
+                    truncated["total_bytes"] = True
+                    break
+                messages.append(message)
+                session_bytes += candidate_bytes
+                total_bytes += candidate_bytes
+                total_parts += len(parts)
+                total_messages += 1
+                remaining_parts = max_parts - total_parts
+                if remaining_parts <= 0:
+                    truncated["parts"] = True
+                    break
+            sessions.append(
+                {
+                    "session_id": session_id,
+                    "parent_session_id": str(parent_id) if parent_id else None,
+                    "root_session_id": root_session_id(session_id),
+                    "title": _truncate_json(str(title), min(max_field_chars, 500), truncated),
+                    "time_created": int(time_created),
+                    "time_updated": int(time_updated),
+                    "messages": messages,
+                }
+            )
+            if truncated["parts"]:
+                break
+
+    result = {
+        "status": "ok",
+        "period": {"start": period_start, "end": period_end},
+        "session_count": len(sessions),
+        "message_count": total_messages,
+        "part_count": total_parts,
+        "sessions": sessions,
+        "limits": {
+            "max_sessions": max_sessions,
+            "max_messages": max_messages,
+            "max_parts": max_parts,
+            "max_field_chars": max_field_chars,
+            "max_total_bytes": max_total_bytes,
+            "max_session_bytes": session_byte_budget,
+            "max_session_messages": session_message_budget,
+            "max_parts_per_message": max_parts_per_message,
+        },
+        "truncated": truncated,
+    }
+    while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_total_bytes:
+        session_with_messages = max(sessions, key=lambda item: len(item["messages"]), default=None)
+        if session_with_messages and session_with_messages["messages"]:
+            removed = session_with_messages["messages"].pop()
+            total_messages -= 1
+            total_parts -= len(removed["parts"])
+            result["message_count"] = total_messages
+            result["part_count"] = total_parts
+            truncated["total_bytes"] = True
+            continue
+        if sessions:
+            sessions.pop()
+            result["session_count"] = len(sessions)
+            truncated["sessions"] = True
+            continue
+        break
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_total_bytes:
+        raise ValueError("transcript evidence envelope exceeds max_total_bytes")
+    return result
 
 
 def collect_opencode_metadata(period_start: str, period_end: str) -> dict[str, Any]:

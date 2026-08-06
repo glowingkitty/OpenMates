@@ -95,6 +95,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
 | `03:00 Mon-Fri`               | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
 | `00:20 daily`                 | `release-intelligence-cron.sh daily`   | Generate yesterday's daily release-intelligence changelog |
+| `01:45 daily`                 | `opencode_chat_improvement_review.py`  | Luna research over the previous 24h of OpenCode chats + Discord |
 | `00:45 Mon`                   | `release-intelligence-cron.sh weekly`  | Generate last-7-days weekly rollup + Discord summary |
 | `01:10 1st day`               | `release-intelligence-cron.sh monthly` | Generate previous-month monthly rollup    |
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
@@ -113,7 +114,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
 | `hourly`                      | `sessions.py worktree reconcile --apply-safe` | Delete safely classified agent worktrees after 48h idle and retain manifests for 30 days |
 
-> **Workflow review:** The former scheduled workflow review was removed. `scripts/_workflow_review_helper.py` is an explicit, OpenCode-only deterministic collector and is not part of the daily meeting.
+> **Workflow review:** `scripts/_workflow_review_helper.py collect` remains the explicit aggregate-only collector. The separate daily OpenCode improvement research job analyzes bounded local transcripts but cannot edit tracked files; implementation always requires a user-invoked skill in a new chat.
 
 ### Job Details
 
@@ -144,6 +145,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 **EU vulnerability check** (hourly at xx:35, 5 min after Dependabot): Queries OSV + NVD for vulnerabilities Dependabot misses. Cross-refs against `dependabot-processed.json`. No-ops in seconds when no new vulns found. Uses `sessions.py deploy` for commits. Resolved entries auto-pruned after 72h. State: `scripts/eu-vuln-processed.json`.
 
 **Workflow review**: Maintainer-invoked only. Run `python3 scripts/_workflow_review_helper.py collect --since <UTC_ISO> --until <UTC_ISO>` to create a bounded OpenCode, git, and test evidence report under `test-results/workflow-review/`. It never schedules or launches an agent.
+
+**Daily OpenCode improvement research** (`01:45 UTC`): Reads bounded top-level and subagent transcript/tool evidence from the previous 24 hours in the local OpenCode SQLite store, excluding prior analyzer chats, then starts one persisted `openai/gpt-5.6-luna` session using the `opencode-improvement-research` skill and dedicated `cron-research` agent. That agent is enforced read-only: edit, Bash, child-agent, question, and todo tools are denied. Luna researches current skills, hooks, agents, instructions, deterministic guards, tests, and official tool documentation where needed. Latest plus dated JSON/Markdown reports are written under gitignored `logs/nightly-reports/opencode-improvements/`; a compact top-level nightly summary is available to the daily meeting, and a canonical-secret-scanned Markdown report is sent through optional `DISCORD_WEBHOOK_DEV_NIGHTLY`. Cron never edits tracked files, invokes an editing workflow, commits, or deploys. A maintainer later starts a new chat and explicitly invokes `implement-opencode-improvements` to select and revalidate report items before normal verified changes. Install idempotently with `python3 scripts/opencode_chat_improvement_review.py --install-cron`. Manual research: `python3 scripts/opencode_chat_improvement_review.py --hours 24 --dry-run-notify`.
 
 **Security audit** (Tue+Fri 02:30): Reviews files changed since last audit. Top 5 critical security issues with OWASP mapping. Monthly full sweep. Acknowledged findings suppressed via `_security_helper.py acknowledge`. State: `.claude/security-audit-state.json` (gitignored).
 
