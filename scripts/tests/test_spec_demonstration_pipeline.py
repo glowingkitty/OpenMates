@@ -183,6 +183,12 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     assert end_frame["timestamp_seconds"] == pytest.approx(
         module.video_metadata(output)["duration_seconds"] - module.END_FRAME_OFFSET_SECONDS,
     )
+    between_frame = module.extract_frame(
+        output,
+        timestamp_seconds=0.515,
+        output_path=tmp_path / "between-frame.png",
+    )
+    assert between_frame["timestamp_seconds"] == pytest.approx(0.533, abs=0.002)
 
 
 def test_complete_frame_scan_detects_secret_visible_for_one_frame() -> None:

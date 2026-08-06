@@ -35,6 +35,7 @@ TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 OCR_CLI = REPO_ROOT / "scripts/spec_demo_ocr.mjs"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+SHOWINFO_PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)")
 SECRET_ENV_NAME_RE = re.compile(r"(?:_KEY|_SECRET|_TOKEN|_PASSWORD|_PASSWD|_CREDENTIAL)$|(?:^|_)WEBHOOK(?:_|$)|^(?:API_KEY|AUTH_TOKEN|SECRET|DATABASE_URL|REDIS_URL|MONGODB_URI|AMQP_URL)$")
 PLAYWRIGHT_SOURCE_FIELDS = {
     "command_or_spec",
@@ -1012,8 +1013,11 @@ def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Pa
             "-y",
             "-ss",
             str(seek_seconds),
+            "-copyts",
             "-i",
             str(video_path),
+            "-vf",
+            "showinfo",
             "-frames:v",
             "1",
             str(output_path),
@@ -1024,8 +1028,11 @@ def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Pa
     )
     if result.returncode != 0 or not output_path.is_file():
         raise DemonstrationError(f"FFmpeg frame extraction failed: {result.stderr.strip()[-500:]}")
+    pts_match = SHOWINFO_PTS_RE.search(result.stderr)
+    if not pts_match:
+        raise DemonstrationError("FFmpeg frame extraction did not report a decoded frame timestamp")
     return {
-        "timestamp_seconds": round(float(seek_seconds), 3),
+        "timestamp_seconds": round(float(pts_match.group(1)), 3),
         "path": str(output_path),
         "sha256": sha256_file(output_path),
     }
