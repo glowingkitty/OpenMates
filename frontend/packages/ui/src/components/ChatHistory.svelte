@@ -611,7 +611,7 @@
 
   /**
    * Helper to read thinking entries from the map with a stable signature.
-   * This keeps the repeated template lookups consistent without unsupported {@const} placement.
+   * This keeps template logic concise and avoids unsupported {@const} placement.
    */
   function getThinkingEntry(messageId: string | undefined) {
     if (!messageId) return undefined;

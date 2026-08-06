@@ -263,7 +263,6 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
         "--lease-id",
         "lease-chat-123",
         "--expected-commit=abc123",
-        "--detach",
     ])
 
     assert options.forwarded_args == ["--spec", "chat-flow.spec.ts"]
@@ -271,130 +270,6 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
     assert options.lease_required is True
     assert options.lease_id == "lease-chat-123"
     assert options.expected_commit == "abc123"
-    assert options.detach is True
-
-
-def test_detached_run_reexecutes_without_detach_and_returns_immediately(tmp_path, monkeypatch, capsys):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    popen_calls = []
-    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
-    monkeypatch.setattr(tests_control, "mark_running", lambda **_kwargs: None)
-    monkeypatch.setattr(tests_control, "docker_resources_for_run", lambda _args: set())
-    monkeypatch.setattr(
-        tests_control.subprocess,
-        "Popen",
-        lambda *args, **kwargs: popen_calls.append((args, kwargs)) or type("Process", (), {"pid": 1234})(),
-    )
-
-    assert tests_control.command_run(["--suite", "vitest", "--detach"]) == 0
-
-    command = popen_calls[0][0][0]
-    kwargs = popen_calls[0][1]
-    assert command[:3] == [tests_control.sys.executable, str(tests_control.Path(tests_control.__file__)), "run"]
-    assert "--detach" not in command
-    assert kwargs["start_new_session"] is True
-    assert kwargs["env"]["OPENMATES_DETACHED_RUN_MARKED"] == "1"
-    output = capsys.readouterr().out
-    assert "PID: 1234" in output
-    assert "scripts/tests.py status --json" in output
-
-
-def test_detached_launch_failure_records_dispatch_error_and_releases_lease(tmp_path, monkeypatch, capsys):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    recorded = []
-    released = []
-    monkeypatch.setattr(
-        tests_control.subprocess,
-        "Popen",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("process unavailable")),
-    )
-    monkeypatch.setattr(
-        tests_control,
-        "mark_test_keys_dispatch_error",
-        lambda test_keys, error: recorded.append((test_keys, error)),
-    )
-    monkeypatch.setattr(tests_control, "release_docker_test_lease", released.append)
-
-    result = tests_control.launch_detached_run(
-        ["--suite", "vitest"],
-        test_keys=["vitest::vitest"],
-        docker_lease_id="lease-123",
-    )
-
-    assert result == 2
-    assert released == ["lease-123"]
-    assert recorded == [(["vitest::vitest"], "Could not start detached test process: process unavailable")]
-    assert "Could not start detached test process" in capsys.readouterr().err
-
-
-def test_detached_launch_transfers_docker_lease_to_child_pid(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    transferred = []
-
-    class Process:
-        pid = 4321
-
-    monkeypatch.setattr(tests_control.subprocess, "Popen", lambda *_args, **_kwargs: Process())
-    monkeypatch.setattr(
-        tests_control,
-        "transfer_docker_test_lease",
-        lambda lease_id, child_pid: transferred.append((lease_id, child_pid)),
-    )
-
-    result = tests_control.launch_detached_run(
-        ["--suite", "playwright"],
-        test_keys=["playwright::playwright"],
-        docker_lease_id="lease-123",
-    )
-
-    assert result == 0
-    assert transferred == [("lease-123", 4321)]
-
-
-def test_campaign_detach_transfers_docker_lease_to_background_child(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    acquired = []
-    released = []
-    launched = []
-    monkeypatch.setattr(
-        tests_control,
-        "debug_group_test_keys",
-        lambda _campaign, _group: ["playwright::chat-flow.spec.ts"],
-    )
-    monkeypatch.setattr(
-        tests_control,
-        "campaign_runner_args",
-        lambda _keys, _args: (["--spec", "chat-flow.spec.ts"], ["chat-flow.spec.ts"]),
-    )
-    monkeypatch.setattr(tests_control, "docker_resources_for_run", lambda _args: {"playwright"})
-    monkeypatch.setattr(
-        tests_control,
-        "acquire_docker_test_lease",
-        lambda lease_id, owner, resources: acquired.append((lease_id, owner, resources)),
-    )
-    monkeypatch.setattr(tests_control, "release_docker_test_lease", released.append)
-    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
-    monkeypatch.setattr(tests_control, "mark_test_keys_running", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(
-        tests_control,
-        "launch_detached_run",
-        lambda args, **kwargs: launched.append((args, kwargs)) or 0,
-    )
-
-    result = tests_control.command_run([
-        "--campaign", "campaign-1", "--group", "group-1", "--detach",
-    ])
-
-    assert result == 0
-    assert len(acquired) == 1
-    lease_id = acquired[0][0]
-    assert acquired[0][2] == {"playwright"}
-    assert released == []
-    assert launched[0][1] == {
-        "test_keys": ["playwright::chat-flow.spec.ts"],
-        "docker_lease_id": lease_id,
-    }
-    assert "--detach" not in launched[0][0]
 
 
 def test_subject_commit_accepts_current_integrated_dev_after_session_deploy(tmp_path, monkeypatch):

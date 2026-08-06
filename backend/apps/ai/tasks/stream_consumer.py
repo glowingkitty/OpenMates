@@ -703,6 +703,10 @@ _INLINE_EMBED_LINK_PATTERN = re.compile(
 # Example: [news.ycombinator.com-ANo] → should become [Hacker News](embed:news.ycombinator.com-ANo)
 _BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+-[a-zA-Z0-9]{2,4})\](?!\()')
 
+# Legacy grouped citations emitted by some models. Known refs are expanded into
+# separate canonical inline links during finalization.
+_GROUPED_CITE_REFS_PATTERN = re.compile(r'\[cite:\s*([^\]\n]+)\]', re.IGNORECASE)
+
 # Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
 # https:// link and an (embed:ref) parenthetical for the same anchor.
 # Matches: [display text](https://some-url) (embed:some-ref)
@@ -1407,8 +1411,9 @@ async def _fix_bad_embed_display_text(
         m for m in bare_matches
         if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
     ]
+    grouped_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(aggregated_response))
 
-    if not all_matches and not bare_matches:
+    if not all_matches and not bare_matches and not grouped_cite_matches:
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
@@ -1440,6 +1445,7 @@ async def _fix_bad_embed_display_text(
     # Build embed_ref → title map from child embeds.
     # We need to load parent embeds and their children to find the title for each ref.
     embed_ref_to_title: Dict[str, str] = {}
+    embed_ref_to_type: Dict[str, str] = {}
     try:
         all_embed_ids: List[str] = []
 
@@ -1504,6 +1510,9 @@ async def _fix_bad_embed_display_text(
                             if isinstance(child_decoded, dict):
                                 child_ref = child_decoded.get("embed_ref")
                                 if child_ref:
+                                    child_type = child_decoded.get("type")
+                                    if child_type:
+                                        embed_ref_to_type[child_ref] = str(child_type)
                                     child_title = _derive_embed_display_title(
                                         child_decoded,
                                         child_ref,
@@ -1533,6 +1542,16 @@ async def _fix_bad_embed_display_text(
         embed_ref = link_info["embed_ref"]
         old_display = link_info["display_text"]
         full_match = link_info["full_match"]
+
+        if not old_display.strip() and embed_ref_to_type.get(embed_ref) == "image_result":
+            new_link = f"[!](embed:{embed_ref})"
+            modified = modified.replace(full_match, new_link, 1)
+            replacements_made += 1
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Promoted empty image ref to large preview "
+                f"(embed_ref: {embed_ref})"
+            )
+            continue
 
         # Try to find the title from the embed data
         new_display = embed_ref_to_title.get(embed_ref)
@@ -1583,6 +1602,29 @@ async def _fix_bad_embed_display_text(
         if bare_fixed > 0:
             logger.info(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
+            )
+
+    # Expand legacy grouped citations only when every ref resolves to a child
+    # embed from this response. Unknown tokens remain untouched rather than
+    # creating links that cannot resolve in the client.
+    if grouped_cite_matches and embed_ref_to_title:
+        current_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(modified))
+        grouped_fixed = 0
+        for match in reversed(current_cite_matches):
+            embed_refs = [ref.strip() for ref in match.group(1).split(",") if ref.strip()]
+            if not embed_refs or any(ref not in embed_ref_to_title for ref in embed_refs):
+                continue
+
+            links = ", ".join(
+                f"[{embed_ref_to_title[embed_ref]}](embed:{embed_ref})"
+                for embed_ref in embed_refs
+            )
+            modified = modified[:match.start()] + links + modified[match.end():]
+            grouped_fixed += 1
+
+        if grouped_fixed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Expanded {grouped_fixed} grouped citation(s)"
             )
 
     return modified
