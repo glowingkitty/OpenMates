@@ -40,7 +40,8 @@ def test_spawn_opencode_session_uses_interactive_plan_agent(tmp_path: Path, monk
 
     layout = captured["layout"]
     assert 'pane command="opencode"' in layout
-    assert '"run" "--interactive" "--title" "research-example" "--agent" "plan"' in layout
+    assert '"run" "--attach" "http://127.0.0.1:4096" "--interactive"' in layout
+    assert '"--title" "research-example" "--agent" "plan"' in layout
     assert "Review the \\\"example\\\" flow." in layout
     assert "claude" not in layout
     assert "--auto" not in layout
@@ -73,7 +74,8 @@ def test_spawn_opencode_execute_mode_auto_approves_permissions(tmp_path: Path, m
 
     layout = captured["layout"]
     assert 'pane command="opencode"' in layout
-    assert '"run" "--interactive" "--title" "fix-example" "--auto"' in layout
+    assert '"run" "--attach" "http://127.0.0.1:4096" "--interactive"' in layout
+    assert '"--title" "fix-example" "--agent" "build" "--model" "openai/gpt-5.6-sol" "--auto"' in layout
     assert '"--agent" "plan"' not in layout
 
 

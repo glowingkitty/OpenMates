@@ -4,11 +4,11 @@
  * Purpose: verify virtual remote previews and source payload normalization
  * without browser state or real network calls.
  * Security: remote previews are virtual message-local data, not persisted embeds.
- * Run: node --test --experimental-strip-types src/services/__tests__/projectRemoteSources.test.js
+ * Run: python3 scripts/tests.py run --suite vitest
  */
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 
 import {
   buildRemoteFileUploadCandidate,

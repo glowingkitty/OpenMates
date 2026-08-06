@@ -319,7 +319,7 @@ class TestCustomEvent {
 }
 
 vi.stubGlobal("CustomEvent", TestCustomEvent);
-vi.stubGlobal("window", {
+Object.assign(window, {
   location: {
     hash: "",
     origin: "http://test",

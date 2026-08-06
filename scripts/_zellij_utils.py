@@ -27,6 +27,8 @@ from typing import Dict, List, Optional
 
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
+OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
+OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.6-sol")
 
 # Hard cap on concurrent Zellij sessions to prevent OOM on a 30GB server.
 # Each Claude session uses ~500MB RAM. 6 sessions = ~3GB headroom.
@@ -587,11 +589,11 @@ def spawn_opencode_session(
                     print(f"Warning: Zellij session '{session_name}' already exists.", file=sys.stderr)
                     return False
 
-    command = ["run", "--interactive", "--title", session_name]
+    command = ["run", "--attach", OPENCODE_SERVER_URL, "--interactive", "--title", session_name]
     if permission_mode == "plan":
         command.extend(["--agent", "plan"])
     else:
-        command.append("--auto")
+        command.extend(["--agent", "build", "--model", OPENCODE_EXECUTE_MODEL, "--auto"])
     command.append(prompt)
 
     def kdl_quote(value: str) -> str:
