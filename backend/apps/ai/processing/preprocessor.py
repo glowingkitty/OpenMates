@@ -42,7 +42,7 @@ from backend.apps.ai.processing.audio_recording_guard import (
     remove_audio_transcribe_for_transcribed_recordings,
 )
 from backend.apps.ai.processing.focus_mode_routing import (
-    should_enable_subchats_for_active_focus,
+    resolve_subchat_enablement,
 )
 
 # Import comprehensive ASCII smuggling sanitization
@@ -3151,11 +3151,12 @@ async def handle_preprocessing(
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
 
-    if (
-        should_enable_subchats_for_active_focus(request_data.active_focus_id)
-        and not enable_subchats_val
-    ):
-        enable_subchats_val = True
+    resolved_enable_subchats = resolve_subchat_enablement(
+        enable_subchats_val,
+        active_focus_id=request_data.active_focus_id,
+    )
+    if resolved_enable_subchats != enable_subchats_val:
+        enable_subchats_val = resolved_enable_subchats
         llm_analysis_args["enable_subchats"] = True
         logger.info(
             f"{log_prefix} Deep research focus mode active; enabling sub-chats deterministically."

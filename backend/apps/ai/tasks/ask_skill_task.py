@@ -43,6 +43,7 @@ from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from backend.apps.ai.processing.focus_mode_routing import resolve_subchat_enablement
 from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
@@ -1455,6 +1456,10 @@ async def _async_process_ai_skill_ask_task(
             app_id, focus_id = user_overrides.focus_modes[0]
             requested_focus_id = f"{app_id}-{focus_id}"
             request_data.active_focus_id = requested_focus_id
+            preprocessing_result.enable_subchats = resolve_subchat_enablement(
+                preprocessing_result.enable_subchats,
+                active_focus_id=requested_focus_id,
+            )
             logger.info(
                 f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
             )

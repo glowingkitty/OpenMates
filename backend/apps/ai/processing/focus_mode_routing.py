@@ -14,6 +14,14 @@ def should_enable_subchats_for_active_focus(active_focus_id: str | None) -> bool
     return active_focus_id == DEEP_RESEARCH_FOCUS_ID
 
 
+def resolve_subchat_enablement(
+    enable_subchats: bool,
+    *,
+    active_focus_id: str | None,
+) -> bool:
+    return enable_subchats or should_enable_subchats_for_active_focus(active_focus_id)
+
+
 def gate_tools_for_deep_research(
     available_tools: list[dict[str, Any]],
     *,

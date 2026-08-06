@@ -18,3 +18,13 @@ def test_chat_compression_does_not_persist_server_encrypted_summary_to_history()
     )[0]
 
     assert "persist_new_chat_message" not in compression_block
+
+
+def test_explicit_focus_override_refreshes_subchat_routing_after_preprocessing():
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    override_block = source.split(
+        "# --- User override: start focus mode from @focus:app_id:focus_id ---",
+        maxsplit=1,
+    )[1].split("elif user_overrides:", maxsplit=1)[0]
+
+    assert "preprocessing_result.enable_subchats = resolve_subchat_enablement(" in override_block

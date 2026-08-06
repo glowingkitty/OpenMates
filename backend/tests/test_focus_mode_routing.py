@@ -6,6 +6,7 @@
 
 from backend.apps.ai.processing.focus_mode_routing import (
     gate_tools_for_deep_research,
+    resolve_subchat_enablement,
     should_enable_subchats_for_active_focus,
 )
 
@@ -16,6 +17,14 @@ def test_relevant_deep_research_does_not_enable_subchats_by_itself() -> None:
 
 def test_active_deep_research_enables_subchats() -> None:
     assert should_enable_subchats_for_active_focus("web-research") is True
+
+
+def test_active_deep_research_overrides_preprocessing_subchat_decision() -> None:
+    assert resolve_subchat_enablement(False, active_focus_id="web-research") is True
+
+
+def test_existing_subchat_enablement_is_preserved_without_active_focus() -> None:
+    assert resolve_subchat_enablement(True, active_focus_id=None) is True
 
 
 def test_relevant_deep_research_preserves_preselected_tools() -> None:

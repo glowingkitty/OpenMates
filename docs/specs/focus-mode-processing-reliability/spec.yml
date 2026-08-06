@@ -130,14 +130,20 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-06T13:52:00Z"
     summary: Activation and sub-chat spawn succeeded, but the CLI closed after the interim recovery job and did not encrypt or persist the later final synthesis.
+  - id: ATTEMPT-4
+    task_id: TASK-2
+    approach: Repeat explicit Deep research through the real CLI after deploying commit 2531d38 and inspect the AI worker trace.
+    outcome: rejected
+    recorded_at: "2026-08-06T14:33:00Z"
+    summary: The override set active_focus_id after preprocessing, leaving enable_subchats false; ordinary web search completed, but the active Deep research request could not delegate.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the backend and CLI continuation fix, run backend recovery tests in the integrated container, then repeat the real CLI activation gate.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "Fix focus mode processing and CLI continuation" --message "fix: repair focus mode processing reliability"'
-  expected_outcome: Dev runs the active-only focus routing and CLI remains connected until final Deep research synthesis is encrypted and persisted.
+  next_action: Deploy the post-preprocessing explicit-focus routing fix, rebuild the AI worker, then repeat the real CLI activation gate.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: enable explicit Deep research delegation" --message "Symptom/Cause/Fix"'
+  expected_outcome: Explicit @Web-Research activation enables sub-chat delegation and the CLI waits for the sealed final synthesis.
   blocker: null
-  last_verified_commit: 41464e83a
+  last_verified_commit: 2531d38
 
 scenarios:
   - id: S-1
