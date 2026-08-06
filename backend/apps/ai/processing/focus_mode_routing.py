@@ -14,6 +14,28 @@ def should_enable_subchats_for_active_focus(active_focus_id: str | None) -> bool
     return active_focus_id == DEEP_RESEARCH_FOCUS_ID
 
 
+def should_force_deep_research_delegation(
+    *,
+    active_focus_id: str | None,
+    chat_depth: int,
+    is_sub_chat_continuation: bool,
+) -> bool:
+    return (
+        chat_depth == 0
+        and not is_sub_chat_continuation
+        and should_enable_subchats_for_active_focus(active_focus_id)
+    )
+
+
+def should_expose_subchat_tool(
+    *,
+    enable_subchats: bool,
+    chat_depth: int,
+    is_sub_chat_continuation: bool,
+) -> bool:
+    return enable_subchats and chat_depth < 2 and not is_sub_chat_continuation
+
+
 def resolve_subchat_enablement(
     enable_subchats: bool,
     *,
@@ -38,11 +60,15 @@ def resolve_deep_research_tool_choice(
     *,
     active_focus_id: str | None,
     chat_depth: int,
+    is_sub_chat_continuation: bool,
 ) -> str:
     if (
         tool_choice == "auto"
-        and chat_depth == 0
-        and should_enable_subchats_for_active_focus(active_focus_id)
+        and should_force_deep_research_delegation(
+            active_focus_id=active_focus_id,
+            chat_depth=chat_depth,
+            is_sub_chat_continuation=is_sub_chat_continuation,
+        )
     ):
         return "required"
     return tool_choice

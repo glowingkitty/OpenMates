@@ -177,14 +177,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-06T18:58:13Z"
     summary: Activation, sealing, persistence, and CLI exit succeeded, but the parent model received only start_sub_chats with tool_choice auto, hallucinated removed web/news tools through all iterations, and returned an unsourced fallback instead of delegating.
+  - id: ATTEMPT-11
+    task_id: TASK-2
+    approach: Repeat explicit Deep research after requiring start_sub_chats and inspect the parent continuation trace when the bounded CLI command failed to return JSON.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-06T19:26:12Z"
+    summary: Initial delegation succeeded, but every parent synthesis continuation was depth zero with active web-research and received start_sub_chats again, creating repeated delegated batches instead of final synthesis.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy required first-step Deep research delegation, restart the AI worker, rerun the scoped container regressions, and repeat one bounded real CLI chat.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: require deep research delegation" --message "Symptom/Cause/Fix"'
-  expected_outcome: "Active parent Deep research sends start_sub_chats as the sole required tool, then seals and persists the final sourced synthesis so the CLI exits normally."
+  next_action: Deploy the synthesis continuation guard, restart the AI worker, rerun the scoped container regressions, and repeat one bounded real CLI chat.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: stop deep research redelegation loop" --message "Symptom/Cause/Fix"'
+  expected_outcome: "Only the initial active Deep research continuation can start sub-chats; parent synthesis cannot see start_sub_chats and returns one final sealed sourced response."
   blocker: null
-  last_verified_commit: 7f1862d
+  last_verified_commit: "3864550"
 
 scenarios:
   - id: S-1

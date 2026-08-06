@@ -102,6 +102,8 @@ from backend.apps.ai.processing.connected_account_receipts import (
 from backend.apps.ai.processing.focus_mode_routing import (
     gate_tools_for_deep_research,
     resolve_deep_research_tool_choice,
+    should_expose_subchat_tool,
+    should_force_deep_research_delegation,
 )
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
@@ -2806,15 +2808,20 @@ async def handle_main_processing(
         }
     }
 
-    if chat_depth < 2 and enable_subchats_results:
+    if should_expose_subchat_tool(
+        enable_subchats=enable_subchats_results,
+        chat_depth=chat_depth,
+        is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+    ):
         available_tools_for_llm.append(start_sub_chats_tool)
         logger.info(f"{log_prefix} Added start_sub_chats tool to main LLM tools.")
 
-    if (
-        chat_depth == 0
-        and enable_subchats_results
-        and request_data.active_focus_id == "web-research"
-    ):
+    force_deep_research_delegation = should_force_deep_research_delegation(
+        active_focus_id=request_data.active_focus_id,
+        chat_depth=chat_depth,
+        is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+    )
+    if enable_subchats_results and force_deep_research_delegation:
         available_tools_for_llm = gate_tools_for_deep_research(
             available_tools_for_llm,
             active_focus_id=request_data.active_focus_id,
@@ -3190,7 +3197,11 @@ async def handle_main_processing(
         # === LAST ITERATION SAFETY CHECK ===
         # If we're on the last iteration, always force no tools to ensure we get an answer.
         # This acts as a safety net in case the budget limits weren't reached.
-        if iteration == MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
+        if (
+            iteration == MAX_TOOL_CALL_ITERATIONS - 1
+            and not force_no_tools
+            and not force_deep_research_delegation
+        ):
             force_no_tools = True
             if not budget_warning_injected:
                 budget_warning_injected = True
@@ -3214,6 +3225,7 @@ async def handle_main_processing(
             current_tool_choice,
             active_focus_id=request_data.active_focus_id,
             chat_depth=chat_depth,
+            is_sub_chat_continuation=request_data.is_sub_chat_continuation,
         )
         if current_tool_choice == "required":
             logger.info(
@@ -3978,12 +3990,19 @@ async def handle_main_processing(
 
                 has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
                 if has_retry_iteration:
-                    logger.warning(
-                        f"{log_prefix} [HALLUCINATION_RECOVERY] All {hallucinated_rejections_this_turn} "
-                        f"tool call(s) this turn were rejected and no text was produced. "
-                        f"Forcing one more iteration with tool_choice='none' to generate a response."
-                    )
-                    force_no_tools = True
+                    if force_deep_research_delegation:
+                        logger.warning(
+                            f"{log_prefix} [HALLUCINATION_RECOVERY] Deep research delegation call was rejected; "
+                            "retrying with required start_sub_chats."
+                        )
+                        force_no_tools = False
+                    else:
+                        logger.warning(
+                            f"{log_prefix} [HALLUCINATION_RECOVERY] All {hallucinated_rejections_this_turn} "
+                            f"tool call(s) this turn were rejected and no text was produced. "
+                            f"Forcing one more iteration with tool_choice='none' to generate a response."
+                        )
+                        force_no_tools = True
                     continue
 
                 logger.error(
