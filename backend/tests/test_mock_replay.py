@@ -13,6 +13,7 @@ import pytest
 try:
     from backend.apps.ai.testing.mock_replay import (
         DEFAULT_INITIAL_CHUNK_DELAY_MS,
+        _build_mock_pending_focus_activation_context,
         get_fixture_initial_delay_seconds,
         replay_fixture,
     )
@@ -64,6 +65,28 @@ def test_fixture_initial_delay_can_be_overridden_to_zero() -> None:
 
 def test_fixture_initial_delay_uses_fixture_value() -> None:
     assert get_fixture_initial_delay_seconds({"initial_delay_ms": 750}) == 0.75
+
+
+def test_mock_focus_activation_context_uses_deferred_production_contract() -> None:
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="career help", created_at=1)],
+    )
+
+    context = _build_mock_pending_focus_activation_context(
+        request_data,
+        focus_id="jobs-career_insights",
+        embed_id="33333333-3333-4333-8333-333333333333",
+        task_id="66666666-6666-4666-8666-666666666666",
+    )
+
+    assert context["focus_id"] == "jobs-career_insights"
+    assert context["chat_id"] == request_data.chat_id
+    assert context["message_id"] == request_data.message_id
+    assert context["embed_id"] == "33333333-3333-4333-8333-333333333333"
 
 
 def test_travel_train_web_fixture_has_renderable_connection_results() -> None:

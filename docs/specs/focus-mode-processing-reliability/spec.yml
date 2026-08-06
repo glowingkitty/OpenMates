@@ -81,7 +81,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 41464e83a
+  subject_commit: d5188e1
 
 approvals:
   product_contract:
@@ -136,14 +136,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-06T14:33:00Z"
     summary: The override set active_focus_id after preprocessing, leaving enable_subchats false; ordinary web search completed, but the active Deep research request could not delegate.
+  - id: ATTEMPT-5
+    task_id: TASK-3
+    approach: Run focus-mode-rejection.spec.ts against deployed commit d5188e1 and inspect its screenshots, logs, and mock replay source.
+    outcome: rejected
+    recorded_at: "2026-08-06T14:52:08Z"
+    summary: Mock replay emitted focus_mode_activated immediately instead of preserving the production countdown, so the rejection window never existed.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Deploy the post-preprocessing explicit-focus routing fix, rebuild the AI worker, then repeat the real CLI activation gate.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: enable explicit Deep research delegation" --message "Symptom/Cause/Fix"'
-  expected_outcome: Explicit @Web-Research activation enables sub-chat delegation and the CLI waits for the sealed final synthesis.
+  current_task_id: TASK-3
+  next_action: Deploy deferred focus activation for mock replay, rebuild the AI worker, then rerun the rejection Playwright spec.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: preserve focus rejection countdown in mock replay" --message "Symptom/Cause/Fix"'
+  expected_outcome: The mock activation card remains in counting state until rejection or the standard five-second auto-confirm task.
   blocker: null
-  last_verified_commit: 2531d38
+  last_verified_commit: d5188e1
 
 scenarios:
   - id: S-1
@@ -352,7 +358,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest backend/tests/test_focus_mode_routing.py backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_main_processor_invalid_tool_calls.py backend/tests/test_stream_consumer_recovery.py -k "sub_chat_parent_continuation or focus_mode or valid_preselected_web_search or explicit_focus_override or chat_compression"
+        run_id: docker-api-focus-routing-green-20260806T1444Z
+        subject_commit: d5188e1
+        timestamp: "2026-08-06T14:44:00Z"
   - id: T-CLI-FOCUS
     type: manual
     file: frontend/packages/openmates-cli
@@ -371,7 +382,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: openmates chats new "@Web-Research compare today's major AI announcements and cite current sources" --auto-approve --json
+        run_id: live-cli-focus-green-20260806T1446Z
+        subject_commit: d5188e1
+        timestamp: "2026-08-06T14:46:00Z"
   - id: T-CLI-RECOVERY
     type: unit
     file: frontend/packages/openmates-cli/tests/ws.test.ts
@@ -567,7 +583,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Repair relevant versus active focus routing
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -597,7 +613,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Diagnose and repair focus activation E2E failures
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4, S-5, S-6, S-7]

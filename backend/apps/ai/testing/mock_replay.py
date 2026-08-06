@@ -614,6 +614,28 @@ _EMBED_REF_PATTERN = re.compile(
 )
 
 
+def _build_mock_pending_focus_activation_context(
+    request_data: "AskSkillRequest",
+    *,
+    focus_id: str,
+    embed_id: str,
+    task_id: str,
+) -> Dict[str, Any]:
+    return {
+        "focus_id": focus_id,
+        "focus_prompt": "",
+        "embed_id": embed_id,
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "user_id": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "mate_id": request_data.mate_id,
+        "chat_has_title": request_data.chat_has_title,
+        "is_incognito": getattr(request_data, "is_incognito", False),
+        "task_id": task_id,
+    }
+
+
 async def _recreate_fixture_embeds(
     response: str,
     fixture_data: Dict[str, Any],
@@ -704,9 +726,9 @@ async def _recreate_fixture_embeds(
             elif embed_type == "focus_mode_activation":
                 # Focus mode activation embeds are recreated from the fields
                 # inlined in the fixture JSON block (focus_id, app_id,
-                # focus_mode_name). Mock replay emits the activation event so
-                # frontend active-focus UI can be tested without starting a
-                # real continuation task.
+                # focus_mode_name). Replay follows the production pending and
+                # auto-confirm path so rejection remains possible during the
+                # client countdown.
                 focus_id = embed_meta.get("focus_id") or ref_fields.get("focus_id")
                 app_id = embed_meta.get("app_id") or ref_fields.get("app_id")
                 focus_mode_name = (
@@ -737,18 +759,28 @@ async def _recreate_fixture_embeds(
                     new_ref = fm_embed_data["embed_reference"]
                     new_block = f"```json\n{new_ref}\n```"
                     response = response[:match.start()] + new_block + response[match.end():]
-                    await cache_service.publish_event(
-                        f"user_cache_events:{request_data.user_id}",
-                        {
-                            "event_type": "focus_mode_activated",
-                            "payload": {
-                                "chat_id": request_data.chat_id,
-                                "focus_id": focus_id,
-                            },
-                        },
+                    await cache_service.store_pending_focus_activation(
+                        chat_id=request_data.chat_id,
+                        context=_build_mock_pending_focus_activation_context(
+                            request_data,
+                            focus_id=focus_id,
+                            embed_id=fm_embed_data["embed_id"],
+                            task_id=task_id,
+                        ),
+                    )
+                    from backend.apps.ai.tasks.focus_mode_auto_confirm_task import (
+                        FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
+                    )
+                    from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+
+                    celery_app_instance.send_task(
+                        "apps.ai.tasks.focus_mode_auto_confirm",
+                        kwargs={"chat_id": request_data.chat_id},
+                        queue="app_ai",
+                        countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
                     )
                     logger.info(
-                        f"[MOCK] Recreated focus_mode_activation embed: "
+                        f"[MOCK] Recreated pending focus_mode_activation embed: "
                         f"{old_embed_id} → {fm_embed_data['embed_id']}"
                     )
             elif embed_type == "app_skill_use":
