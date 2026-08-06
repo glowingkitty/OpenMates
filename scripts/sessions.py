@@ -9359,31 +9359,22 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 def cmd_spawn_chat(args: argparse.Namespace) -> None:
-    """Spawn a new Claude Code session in a separate Zellij tab.
+    """Spawn a new OpenCode chat in a separate Zellij session.
 
-    Creates an interactive Claude session visible in the Zellij web UI
+    Creates an interactive OpenCode chat visible in the OpenCode UI
     (localhost:8082) and attachable via `zellij attach <name>`.
 
     Default is plan mode (read-only). Use --mode execute for full edit access.
     """
-    # Resolve prompt text
+    # Resolve prompt text before launching from the canonical repository root.
     if args.prompt_file:
         prompt_path = Path(args.prompt_file)
         if not prompt_path.is_file():
             print(f"Error: prompt file not found: {args.prompt_file}", file=sys.stderr)
             sys.exit(1)
-        prompt = (
-            f"Read {args.prompt_file} in full and follow all the instructions precisely."
-        )
+        prompt = prompt_path.read_text(encoding="utf-8")
     elif args.prompt:
-        # Write inline prompt to temp file so claude reads it (avoids arg length issues)
-        tmp_dir = PROJECT_ROOT / "scripts" / ".tmp"
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
-        prompt_file = tmp_dir / f"spawn-prompt-{session_name}.txt"
-        prompt_file.write_text(args.prompt, encoding="utf-8")
-        rel_path = prompt_file.relative_to(PROJECT_ROOT)
-        prompt = f"Read {rel_path} in full and follow all the instructions precisely."
+        prompt = args.prompt
     else:
         print("Error: --prompt or --prompt-file is required.", file=sys.stderr)
         sys.exit(1)
@@ -9405,7 +9396,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "IMPORTANT: This is an EXECUTE session. "
             "You have full access to read, edit, and create files. "
             "Investigate the issue and implement the fix directly. "
-            "Use sessions.py deploy to commit and push when done.\n\n"
+            "Follow the task instructions for deployment and verification.\n\n"
         )
 
     # Handle Linear issue linking
@@ -9425,7 +9416,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                 # Post pickup comment
                 post_comment(
                     issue_data["id"],
-                    f"**Claude session started:** `{session_name}`\n\n"
+                    f"**OpenCode session started:** `{session_name}`\n\n"
                     f"**Mode:** {permission_mode}\n"
                     f"**Attach:** `zellij attach {session_name}`\n"
                     f"**Web UI:** http://localhost:8082"
@@ -9445,7 +9436,6 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                     f'  id: "{issue_data["identifier"]}", state: "In Review",\n'
                     f"  and post a final comment with resume commands:\n"
                     f"  zellij attach {session_name}\n"
-                    f"  claude --resume <your-session-id>\n"
                 )
             else:
                 print(f"Warning: Could not fetch Linear issue {linear_issue_id}", file=sys.stderr)
@@ -9455,23 +9445,23 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     prompt = mode_prefix + prompt + linear_suffix
 
     try:
-        from _zellij_utils import spawn_claude_session
+        from _zellij_utils import spawn_opencode_session
     except ImportError:
         # Add scripts dir to path for import
         scripts_dir = str(PROJECT_ROOT / "scripts")
         if scripts_dir not in sys.path:
             sys.path.insert(0, scripts_dir)
-        from _zellij_utils import spawn_claude_session
+        from _zellij_utils import spawn_opencode_session
 
-    success = spawn_claude_session(
+    success = spawn_opencode_session(
         session_name=session_name,
         prompt=prompt,
-        cwd=str(PROJECT_ROOT),
+        cwd=str(CONTROL_PLANE_ROOT),
         permission_mode=permission_mode,
     )
 
     if success:
-        mode_label = "execute (full access, skip-permissions)" if permission_mode == "execute" else "plan (research only, skip-permissions)"
+        mode_label = "execute (full access)" if permission_mode == "execute" else "plan (research only)"
         print(f"Session spawned: {session_name}")
         print(f"Mode: {mode_label}")
         print(f"Attach: zellij attach {session_name}")
@@ -10483,15 +10473,15 @@ def main() -> None:
     # spawn-chat
     p_spawn = sub.add_parser(
         "spawn-chat",
-        help="Spawn a Claude Code session in a separate Zellij tab",
+        help="Spawn an interactive OpenCode chat in a separate Zellij session",
     )
     p_spawn.add_argument(
         "--prompt",
-        help="Prompt text to send to Claude (written to temp file internally)",
+        help="Prompt text to send directly to OpenCode",
     )
     p_spawn.add_argument(
         "--prompt-file",
-        help="Path to a prompt file (Claude reads it directly)",
+        help="Path to a prompt file whose contents are sent to OpenCode",
     )
     p_spawn.add_argument(
         "--name", "-n",
@@ -10501,14 +10491,13 @@ def main() -> None:
         "--mode",
         choices=["plan", "execute"],
         default="plan",
-        help="Permission mode: 'plan' (read-only, default) or "
-        "'execute' (full edit access via --dangerously-skip-permissions)",
+        help="Permission mode: 'plan' (read-only, default) or 'execute' (full edit access)",
     )
     p_spawn.add_argument(
         "--linear-issue", "--linear",
         metavar="ISSUE_ID",
         help="Linear issue to link (e.g., OPE-42). Auto-marks In Progress, "
-        "adds claude-is-working label, and injects Linear update instructions.",
+        "adds the working label, and injects Linear update instructions.",
     )
 
     # restore

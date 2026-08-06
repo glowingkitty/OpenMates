@@ -75,6 +75,13 @@ and manual jobs from using the same persistent account concurrently.
 6. Verify exact Directus-backed membership with `python3 scripts/tests.py run --campaign <id> --group <id>`.
 7. Complete the group only after every member has passing run/result evidence, then continue until all selected and child groups are green.
 
+For explicitly requested parallel work, `campaign dispatch` selects only narrow
+groups whose deterministic linked-file boundaries do not overlap, atomically
+leases each group, and launches one visible OpenCode chat per group. Worker chats
+investigate and edit in isolated session worktrees but do not deploy; the
+coordinator reviews and integrates the resulting patches before commit-scoped
+verification. `campaign status` exposes every active worker and lease.
+
 New failures exposed by a campaign-bound verification become explicit child
 groups. A required human or external decision leaves the campaign `blocked`
 with a question and exact next action; there is no partially-successful terminal

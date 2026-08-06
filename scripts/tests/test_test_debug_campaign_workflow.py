@@ -24,6 +24,7 @@ def test_fix_tests_is_campaign_orchestrator_and_fix_next_is_resume_wrapper():
     assert "campaign status" in fix_tests
     assert "acceptance criteria" in fix_tests.lower()
     assert "complete-group" in fix_tests
+    assert "campaign dispatch" in fix_tests
     assert "campaign next" in fix_next
     assert "independent workflow" in fix_next.lower()
 

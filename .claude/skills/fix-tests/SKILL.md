@@ -48,6 +48,23 @@ If the test and product disagree, or the apparent fix changes auth, encryption,
 billing, privacy, permissions, sync, API, or another high-risk contract, block
 the group and clarify or create a dedicated product spec. Do not infer behavior.
 
+### Parallel worker dispatch
+
+When the user explicitly requests simultaneous debugging, use the deterministic
+dispatcher instead of manually choosing groups:
+
+```bash
+python3 scripts/tests.py campaign dispatch --campaign <campaign-id> \
+  --session <coordinator-session> --max-workers 3 --json
+```
+
+The dispatcher leases each exact group before launching a visible interactive
+OpenCode chat. It only selects narrow, low-risk groups with non-overlapping
+linked-file boundaries. Worker chats may investigate and edit inside their
+boundary, but they must not deploy or commit independently; the coordinator
+reviews and integrates their changes before verification. Inspect active workers
+with `campaign status`, which includes chat names, leases, groups, and expiry.
+
 ### Step 3: Investigate and persist every attempt
 
 Apply the smallest root-cause fix. After each rejected, failed, blocked, or
@@ -96,6 +113,8 @@ python3 scripts/tests.py campaign block --group <group-id> \
 
 - **Campaign state is canonical** — acceptance, attempts, evidence, blockers, and child groups belong in Directus.
 - **Always lease the durable group** before debugging so parallel workers do not collide.
+- **Visible OpenCode only** — parallel workers use `sessions.py spawn-chat`; never launch Claude or hidden disposable sessions.
+- **Centralize integration** — parallel workers do not deploy independently.
 - **Acceptance before edits** — existing assertions may be derived automatically; ambiguous behavior must be clarified.
 - **Fix console errors in app code** — never suppress them in tests
 - **NEVER run vitest/playwright locally** — always dispatch via `scripts/tests.py run`

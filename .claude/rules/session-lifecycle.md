@@ -53,7 +53,7 @@ python3 scripts/sessions.py stale-docs --tags frontend
 
 ## Spawn Parallel Sessions
 
-Spawn Claude Code sessions in separate Zellij tabs for parallel work:
+Spawn OpenCode chats in separate Zellij sessions for parallel work:
 ```bash
 # Plan mode (default, read-only) — research and planning
 python3 scripts/sessions.py spawn-chat --prompt "Research X" --name "research-X"

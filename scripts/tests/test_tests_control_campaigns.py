@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from subprocess import CompletedProcess
 
 import pytest
 
@@ -246,6 +247,184 @@ def test_campaign_next_lease_links_complete_durable_group(tmp_path, monkeypatch)
     assert lease["campaign_key"] == campaign["campaign_key"]
     assert lease["debug_group_key"] == campaign["selected_group_keys"][0]
     assert lease["entry"]["member_test_keys"] == campaign["selected_test_keys"]
+
+
+def test_specific_campaign_group_lease_is_atomic(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
+    campaign = control.start_debug_campaign(session_id="coordinator")
+    group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+
+    first = control.claim_debug_group(
+        campaign["campaign_key"],
+        group["group_key"],
+        session_id="worker-one",
+        worker_id="chat-one",
+    )
+    second = control.claim_debug_group(
+        campaign["campaign_key"],
+        group["group_key"],
+        session_id="worker-two",
+        worker_id="chat-two",
+    )
+
+    assert first is not None
+    assert first["debug_group_key"] == group["group_key"]
+    assert second is None
+
+
+def test_specific_group_lease_atomically_rejects_active_file_overlap(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts", run_id="run-one"))
+    campaign = control.start_debug_campaign(session_id="coordinator")
+    first_group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+    second_group = control.get_store().create_debug_group({
+        **first_group,
+        "group_key": "second-group",
+        "triage_group_id": "test_infra-second",
+        "member_test_keys": ["vitest::second.test.ts"],
+    })
+
+    first = control.claim_debug_group(
+        campaign["campaign_key"],
+        first_group["group_key"],
+        session_id="worker-one",
+        worker_id="chat-one",
+        linked_files=["frontend/shared.ts"],
+    )
+    second = control.claim_debug_group(
+        campaign["campaign_key"],
+        second_group["group_key"],
+        session_id="worker-two",
+        worker_id="chat-two",
+        linked_files=["frontend/shared.ts"],
+    )
+
+    assert first is not None
+    assert second is None
+
+
+def test_parallel_group_selection_rejects_high_risk_and_file_overlap(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    groups = [
+        {
+            "group_key": "safe-one",
+            "triage_group_id": "test_infra-one",
+            "status": "selected",
+            "member_test_keys": ["vitest::first.test.ts"],
+            "metadata": {"category": "test_infra", "linked_files": ["frontend/first.test.ts"]},
+        },
+        {
+            "group_key": "overlap",
+            "triage_group_id": "unit_regression-overlap",
+            "status": "selected",
+            "member_test_keys": ["pytest_unit::second.py::test_second"],
+            "metadata": {"category": "unit_regression", "linked_files": ["frontend/first.test.ts"]},
+        },
+        {
+            "group_key": "high-risk",
+            "triage_group_id": "chat_sync_encryption-risk",
+            "status": "selected",
+            "member_test_keys": ["playwright::sync.spec.ts"],
+            "metadata": {"category": "chat_sync_encryption", "linked_files": ["frontend/sync.ts"]},
+        },
+        {
+            "group_key": "safe-two",
+            "triage_group_id": "unit_regression-two",
+            "status": "selected",
+            "member_test_keys": ["pytest_unit::third.py::test_third"],
+            "metadata": {"category": "unit_regression", "linked_files": ["backend/third.py"]},
+        },
+    ]
+
+    selection = control.select_parallel_debug_groups(groups, active_group_keys=set(), max_workers=3)
+
+    assert [item["group_key"] for item in selection["selected"]] == ["safe-one", "safe-two"]
+    assert selection["skipped"]["overlap"] == "linked files overlap another selected group"
+    assert selection["skipped"]["high-risk"] == "high-risk category requires dedicated supervision"
+
+    active_overlap = control.select_parallel_debug_groups(
+        [groups[0]],
+        active_group_keys=set(),
+        max_workers=1,
+        active_linked_files={"frontend/first.test.ts"},
+    )
+    assert active_overlap["selected"] == []
+    assert active_overlap["skipped"]["safe-one"] == "linked files overlap another selected group"
+
+
+def test_parallel_dispatch_leases_and_spawns_three_visible_workers(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    now = control.utc_now()
+    campaign_key = "debug-campaign-parallel"
+    groups = []
+    control.get_store().create_debug_campaign({
+        "campaign_key": campaign_key,
+        "title": "Parallel test",
+        "status": "active",
+        "session_id": "coordinator",
+        "source_run_keys": ["run-red"],
+        "selected_test_keys": [],
+        "selected_group_keys": [],
+        "current_group_key": None,
+        "completion_policy": {"group_members_must_pass": True, "combined_final_run_required": False},
+        "blocker": None,
+        "metadata": {"scope_amendments": []},
+        "created_at": now,
+        "updated_at": now,
+        "completed_at": None,
+    })
+    for index in range(1, 4):
+        group = control.get_store().create_debug_group({
+            "group_key": f"group-{index}",
+            "campaign_key": campaign_key,
+            "triage_group_id": f"test_infra-{index}",
+            "parent_group_key": None,
+            "status": "selected",
+            "member_test_keys": [f"vitest::frontend/test-{index}.test.ts"],
+            "observed_failure": "test infrastructure failed",
+            "expected_behavior": "",
+            "acceptance_criteria": [],
+            "root_cause": {},
+            "attempts": [],
+            "red_evidence": {"run_keys": ["run-red"], "result_keys": []},
+            "green_evidence": [],
+            "blocker": None,
+            "verification_command": f"python3 scripts/tests.py run --campaign {campaign_key} --group group-{index}",
+            "selected_at": now,
+            "selected_at_unix": 1_700_000_000,
+            "updated_at": now,
+            "metadata": {
+                "category": "test_infra",
+                "linked_files": [f"frontend/test-{index}.test.ts"],
+            },
+        })
+        groups.append(group)
+    control.get_store().update_debug_campaign(campaign_key, {
+        "selected_group_keys": [group["group_key"] for group in groups],
+        "selected_test_keys": [key for group in groups for key in group["member_test_keys"]],
+    })
+    launches = []
+
+    def capture_run(command, **_kwargs):
+        launches.append(command)
+        return CompletedProcess(command, 0, stdout="Session spawned", stderr="")
+
+    monkeypatch.setattr(control.subprocess, "run", capture_run)
+    monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
+    monkeypatch.setattr(control, "available_zellij_session_slots", lambda: 3)
+
+    result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=3)
+
+    assert len(result["spawned"]) == 3
+    assert len(launches) == 3
+    assert all("spawn-chat" in command and "--mode" in command and "execute" in command for command in launches)
+    assert all("claude" not in " ".join(command).lower() for command in launches)
+    status = control.debug_campaign_status(campaign_key)
+    assert len(status["workers"]) == 3
+    assert {worker["worker_id"] for worker in status["workers"]} == {
+        item["chat_name"] for item in result["spawned"]
+    }
 
 
 def test_campaign_run_options_are_control_plane_only(tmp_path, monkeypatch):

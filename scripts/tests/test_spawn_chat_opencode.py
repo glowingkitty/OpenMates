@@ -132,3 +132,38 @@ def test_spawn_chat_uses_canonical_root_and_direct_prompt(tmp_path: Path, monkey
     assert captured["cwd"] == str(canonical)
     assert captured["prompt"].endswith("Review the report.")
     assert "scripts/.tmp" not in captured["prompt"]
+
+
+def test_spawn_chat_never_references_claude_launcher() -> None:
+    source = (Path(sessions.__file__)).read_text(encoding="utf-8")
+    command = source[source.index("def cmd_spawn_chat"):source.index("# restore", source.index("def cmd_spawn_chat"))]
+
+    assert "spawn_opencode_session" in command
+    assert "spawn_claude_session" not in command
+    assert "Claude session" not in command
+
+
+def test_spawn_chat_reads_prompt_file_before_switching_to_canonical_root(tmp_path: Path, monkeypatch) -> None:
+    worktree = tmp_path / "worktree"
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    prompt_path = tmp_path / "worker-prompt.md"
+    prompt_path.write_text("Investigate the leased group.", encoding="utf-8")
+    captured = {}
+
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", worktree)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", canonical)
+    monkeypatch.setitem(sys.modules, "_zellij_utils", _zellij_utils)
+    monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", lambda **kwargs: captured.update(kwargs) or True)
+
+    sessions.cmd_spawn_chat(SimpleNamespace(
+        prompt=None,
+        prompt_file=str(prompt_path),
+        name="prompt-file-worker",
+        mode="execute",
+        linear_issue=None,
+    ))
+
+    assert captured["cwd"] == str(canonical)
+    assert captured["prompt"].endswith("Investigate the leased group.")
+    assert str(prompt_path) not in captured["prompt"]
