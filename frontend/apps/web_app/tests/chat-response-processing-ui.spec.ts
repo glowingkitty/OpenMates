@@ -134,7 +134,9 @@ test.describe('Assistant response processing rendered contract', () => {
 		const initialBox = await activeChat.boundingBox();
 
 		await emitStage(page, 'task-initiated');
+		await expect(activeChat).toHaveClass(/ai-typing/);
 		await emitStage(page, 'preprocessing');
+		await expect(activeChat).toHaveClass(/ai-typing/);
 		await emitStage(page, 'typing');
 		await expect(activeChat).toHaveClass(/ai-typing/);
 
