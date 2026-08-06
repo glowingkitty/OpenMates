@@ -184,11 +184,14 @@ async def _check_required_services(role: str) -> None:
 
 async def _check_worker_queue() -> None:
     probe_id = uuid.uuid4().hex
+    task_name = "runtime_health.worker_probe"
+    if os.getenv("SERVER_ENVIRONMENT") == "development":
+        task_name = os.getenv("OPENMATES_RUNTIME_HEALTH_PROBE_TASK", task_name)
 
     def dispatch_probe() -> dict:
         from backend.core.api.app.tasks.celery_config import app
 
-        result = app.send_task("runtime_health.worker_probe", args=[probe_id], queue="app_ai")
+        result = app.send_task(task_name, args=[probe_id], queue="app_ai")
         try:
             return result.get(timeout=10, propagate=True)
         finally:

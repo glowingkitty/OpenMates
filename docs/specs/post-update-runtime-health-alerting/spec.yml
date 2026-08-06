@@ -102,7 +102,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: fa35d4ba4fe0308595a115f80ff0cdea0e279654
+  subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
 
 approvals:
   product_contract:
@@ -492,7 +492,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/server.test.ts
+        run_id: local-node-test-68-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
 
   - id: T-PYTEST-001
     type: pytest
@@ -517,7 +522,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_runtime_health_verifier.py
+        run_id: local-pytest-9-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
 
   - id: T-PYTEST-ALERTS-001
     type: vitest
@@ -543,7 +553,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/server.test.ts
+        run_id: local-node-test-runtime-alerts-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
 
   - id: T-DEV-UPDATE-001
     type: manual
@@ -657,7 +672,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: sdk-cli-parity-89-commands
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
 
   - id: T-CONTRACT-AUDIT-001
     type: lint
@@ -681,7 +701,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_runtime_health_contract.py
+        run_id: runtime-health-contract-audit-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
 
   - id: T-PROD-BILLING-001
     type: manual
