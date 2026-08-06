@@ -17,7 +17,7 @@ const {
 	getE2EDebugUrl,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const FIXTURE_PATH = path.resolve(
 	__dirname,
@@ -115,6 +115,7 @@ async function openFixtureChat(page: any): Promise<void> {
 	await loginToTestAccount(page, log, screenshot);
 	await seedFixtureChat(page);
 	await page.goto(getE2EDebugUrl(`/#chat-id=${FIXTURE.chat_id}`), { waitUntil: 'domcontentloaded' });
+	await waitForChatReady(page, log);
 	await expect(page.getByTestId('message-user')).toContainText(FIXTURE.seed.user_content, {
 		timeout: 20000
 	});
