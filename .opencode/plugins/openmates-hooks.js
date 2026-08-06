@@ -297,7 +297,7 @@ function attentionFromPending(state) {
   return state.execution === "idle" ? "optional" : "none";
 }
 
-export function initialPresenceForTest(sessionID, { questionCapability = "unsupported", childRole = "unknown" } = {}) {
+function initialPresenceForTest(sessionID, { questionCapability = "unsupported", childRole = "unknown" } = {}) {
   return {
     session_id: sessionID,
     top_level_session_id: sessionID,
@@ -326,7 +326,7 @@ function withPending(state, field, id, add) {
   return next;
 }
 
-export function reducePresenceEventForTest(current, event, { now = isoNow() } = {}) {
+function reducePresenceEventForTest(current, event, { now = isoNow() } = {}) {
   const sessionID = eventSessionID(event);
   if (!sessionID || sessionID !== current.session_id) return current;
   let state = { ...current, updated_at: now };
@@ -396,7 +396,7 @@ export function reducePresenceEventForTest(current, event, { now = isoNow() } = 
   return state;
 }
 
-export function createPresenceSchedulerForTest({
+function createPresenceSchedulerForTest({
   persist,
   debounceMs = PRESENCE_DEBOUNCE_MS,
   setTimer = setTimeout,
@@ -497,7 +497,7 @@ function presenceRecordIsLive(record) {
   return Number.isFinite(age) && age >= -5_000 && age <= 120_000;
 }
 
-export function readConflictWarningForTest({ path = "", sessionID = "", data = {}, presence = {} } = {}) {
+function readConflictWarningForTest({ path = "", sessionID = "", data = {}, presence = {} } = {}) {
   const relativePath = collisionRelativePath(path, data);
   const lease = data?.edit_leases?.[relativePath];
   if (!lease) return "";
@@ -508,7 +508,7 @@ export function readConflictWarningForTest({ path = "", sessionID = "", data = {
   return `[OpenMates presence conflict] ${relativePath} currently has a live edit by repository session ${lease.session_id}. This read remains allowed; re-read after the lease releases before editing.`;
 }
 
-export function routingDecisionForTest({ session = {} } = {}) {
+function routingDecisionForTest({ session = {} } = {}) {
   const worktreePath = ["active", "merged", "changes_pending"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
   if (worktreePath && isDirectManagedWorktree(worktreePath)) return { decision: "worktree_routed", worktreePath };
   if (session?.mode === "question") return { decision: "read_only", worktreePath: "" };
@@ -558,7 +558,7 @@ async function openCodeSession(client, sessionID) {
   }
 }
 
-export async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession }) {
+async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession }) {
   let currentID = sessionID;
   let inheritedParentRoute = false;
   const visited = new Set();
@@ -721,7 +721,7 @@ function isReadOnlyChildBash(command) {
   });
 }
 
-export function childMutationDecisionForTest(route, tool, command = "") {
+function childMutationDecisionForTest(route, tool, command = "") {
   if (!route?.inheritedParentRoute || (!EDIT_TOOLS.has(tool) && !BASH_TOOLS.has(tool))) {
     return { decision: "allow", message: "no inherited child mutation" };
   }
@@ -756,7 +756,7 @@ function isRecoveryBash(command) {
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
 }
 
-export function routingFailureForTest({ tool = "", sessionID = "", command = "" } = {}) {
+function routingFailureForTest({ tool = "", sessionID = "", command = "" } = {}) {
   if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) return { decision: "allow_read", message: "" };
   if (BASH_TOOLS.has(tool) && isRecoveryBash(command)) return { decision: "allow_recovery", message: "" };
   return { decision: "block", message: routingRecoveryMessage(sessionID) };
@@ -801,7 +801,7 @@ function isSharedSecretRuntimePath(candidate, worktreePath) {
   return [resolve(worktreePath), resolve(PROJECT_ROOT)].some((base) => relative(base, absolute) === ".env");
 }
 
-export function routeLocalToolArgsForTest(tool, args, worktreePath) {
+function routeLocalToolArgsForTest(tool, args, worktreePath) {
   const input = toolInput(args);
   if (!worktreePath) return input;
   if (BASH_TOOLS.has(tool)) {
@@ -1006,7 +1006,7 @@ function rewritePatchHeadersForWorktree(patchText, worktreePath) {
     .join("\n");
 }
 
-export function rewriteEditArgsForTest(args, worktreePath) {
+function rewriteEditArgsForTest(args, worktreePath) {
   const input = toolInput(args);
   if (!worktreePath || !input || typeof input !== "object") return input;
   const rewritten = { ...input };
@@ -1058,7 +1058,7 @@ function sessionHasDockerLock(sessionID, data = sessionsData()) {
   return lock.status === "IN_PROGRESS" && lock.claimed_by === shortID;
 }
 
-export function dockerMutationDecisionForTest({ command = "", sessionID = "", data = null } = {}) {
+function dockerMutationDecisionForTest({ command = "", sessionID = "", data = null } = {}) {
   if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
   if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
   const record = activeSessionRecord(sessionID, data || sessionsData());
@@ -1245,7 +1245,7 @@ ${COMMAND_DOCTOR_MARKER}
 ${suggestions.map((suggestion) => `- ${suggestion}`).join("\n")}`;
 }
 
-export function taskChildClassificationForTest(input, output) {
+function taskChildClassificationForTest(input, output) {
   if (!TASK_TOOLS.has(input?.tool || "")) return null;
   const metadata = output?.metadata || {};
   const parentID = String(metadata.parentSessionId || "");
@@ -1347,7 +1347,7 @@ function worktreeGuardMessage(sessionID, worktreePath = "") {
   );
 }
 
-export function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target = "", sessionID = "", opencodeSessionID = "", sessions = null, worktreePath = "" } = {}) {
+function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target = "", sessionID = "", opencodeSessionID = "", sessions = null, worktreePath = "" } = {}) {
   const normalized = String(mode || "strict").toLowerCase();
   if (["off", "0", "false"].includes(normalized)) return { decision: "allow", message: "root guard disabled" };
   if (!isInsideProjectRoot(target) || isInsideAgentWorktree(cwd, target)) return { decision: "allow", message: "target is not a root checkout source edit" };
@@ -1373,7 +1373,7 @@ function guardRootEdit(files, sessionID, worktreePath = "") {
   }
 }
 
-export function editedFilesForTest(args, cwd = activeCwd()) {
+function editedFilesForTest(args, cwd = activeCwd()) {
   const input = toolInput(args);
   const explicit = input.file_path || input.filePath || input.path;
   if (explicit) return [toAbsPath(explicit, cwd)];
@@ -1387,7 +1387,7 @@ export function editedFilesForTest(args, cwd = activeCwd()) {
   return [...files].sort();
 }
 
-export function editedFilesForBindingForTest(args, binding = {}) {
+function editedFilesForBindingForTest(args, binding = {}) {
   return editedFilesForTest(args, binding.worktreePath || activeCwd());
 }
 
@@ -1625,3 +1625,21 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     },
   };
 };
+
+OpenMatesHooks.test = Object.freeze({
+  childMutationDecisionForTest,
+  createPresenceSchedulerForTest,
+  dockerMutationDecisionForTest,
+  editedFilesForBindingForTest,
+  editedFilesForTest,
+  initialPresenceForTest,
+  readConflictWarningForTest,
+  reducePresenceEventForTest,
+  resolveWorktreeRouteForTest,
+  rewriteEditArgsForTest,
+  rootGuardDecisionForTest,
+  routeLocalToolArgsForTest,
+  routingDecisionForTest,
+  routingFailureForTest,
+  taskChildClassificationForTest,
+});

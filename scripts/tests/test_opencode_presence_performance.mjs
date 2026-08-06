@@ -9,7 +9,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPresenceSchedulerForTest } from "../../.opencode/plugins/openmates-hooks.js";
+import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
+
+const { createPresenceSchedulerForTest } = OpenMatesHooks.test;
 
 test("streaming burst persists at most once per debounce interval", async () => {
   const writes = [];

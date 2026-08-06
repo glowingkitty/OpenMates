@@ -11,12 +11,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import {
+import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
+
+const {
   routeLocalToolArgsForTest,
   routingDecisionForTest,
   routingFailureForTest,
   resolveWorktreeRouteForTest,
-} from "../../.opencode/plugins/openmates-hooks.js";
+} = OpenMatesHooks.test;
 
 const ROOT = "/home/superdev/projects/OpenMates";
 const WORKTREE = `${ROOT}/.openmates-agent-worktrees/agent-abcd`;

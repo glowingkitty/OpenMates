@@ -6,7 +6,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { shouldAutoLoginForTest } from "../../.opencode/plugins/cli-auto-login.js";
+import { CliAutoLogin } from "../../.opencode/plugins/cli-auto-login.js";
+
+const { shouldAutoLoginForTest } = CliAutoLogin.test;
 
 const LOGIN_HINT = "[OpenMates CLI login hint]";
 

@@ -9,7 +9,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { initialPresenceForTest, reducePresenceEventForTest } from "../../.opencode/plugins/openmates-hooks.js";
+import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
+
+const { initialPresenceForTest, reducePresenceEventForTest } = OpenMatesHooks.test;
 
 const reduce = (state, event, options = {}) => reducePresenceEventForTest(state, event, { now: "2026-08-05T00:00:00Z", ...options });
 

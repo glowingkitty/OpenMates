@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import * as pluginModule from "../../.opencode/plugins/openmates-hooks.js";
+import * as cliAutoLoginPluginModule from "../../.opencode/plugins/cli-auto-login.js";
 
 const source = readFileSync(new URL("../../.opencode/plugins/openmates-hooks.js", import.meta.url), "utf8");
 const preEditGuard = readFileSync(new URL("../../.claude/hooks/pre-edit-guard.sh", import.meta.url), "utf8");
@@ -52,9 +53,11 @@ async function runAfterShell(command, text) {
   return output.output;
 }
 
-test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "childMutationDecisionForTest", "createPresenceSchedulerForTest", "dockerMutationDecisionForTest", "editedFilesForBindingForTest", "editedFilesForTest", "initialPresenceForTest", "readConflictWarningForTest", "reducePresenceEventForTest", "resolveWorktreeRouteForTest", "rewriteEditArgsForTest", "rootGuardDecisionForTest", "routeLocalToolArgsForTest", "routingDecisionForTest", "routingFailureForTest", "taskChildClassificationForTest"]);
+test("auto-discovered modules export only valid OpenCode plugin factories", async () => {
+  assert.deepEqual(Object.keys(pluginModule), ["OpenMatesHooks"]);
+  assert.deepEqual(Object.keys(cliAutoLoginPluginModule), ["CliAutoLogin"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
+  assert.equal(typeof await cliAutoLoginPluginModule.CliAutoLogin({}), "object");
 });
 
 test("root-hosted routing forces tool paths and shell workdir", () => {
@@ -143,7 +146,7 @@ test("Docker mutation decision allows the current session's Docker lock", () => 
     sessions: { abcd: { opencode_session_id: "test-session" } },
   };
   assert.deepEqual(
-    pluginModule.dockerMutationDecisionForTest({
+    pluginModule.OpenMatesHooks.test.dockerMutationDecisionForTest({
       command: "docker compose --env-file .env -f backend/core/docker-compose.yml build api",
       sessionID: "test-session",
       data,

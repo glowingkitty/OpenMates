@@ -8,7 +8,9 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { editedFilesForTest, rewriteEditArgsForTest, rootGuardDecisionForTest, routingFailureForTest } from "../../.opencode/plugins/openmates-hooks.js";
+import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
+
+const { editedFilesForTest, rewriteEditArgsForTest, rootGuardDecisionForTest, routingFailureForTest } = OpenMatesHooks.test;
 
 test("root guard warns in transitional mode", () => {
   const decision = rootGuardDecisionForTest({

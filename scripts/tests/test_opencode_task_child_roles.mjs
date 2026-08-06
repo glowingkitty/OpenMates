@@ -9,10 +9,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  childMutationDecisionForTest,
-  taskChildClassificationForTest,
-} from "../../.opencode/plugins/openmates-hooks.js";
+import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
+
+const { childMutationDecisionForTest, taskChildClassificationForTest } = OpenMatesHooks.test;
 
 test("task result metadata classifies diagnostic and review children", () => {
   for (const [subagentType, role] of [

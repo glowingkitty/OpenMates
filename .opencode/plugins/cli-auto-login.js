@@ -33,7 +33,7 @@ function commandRunsOpenMatesCli(command) {
   );
 }
 
-export function shouldAutoLoginForTest(input, output) {
+function shouldAutoLoginForTest(input, output) {
   if (input?.tool !== "bash") return false;
   if (typeof output?.output !== "string") return false;
   if (!output.output.includes(CLI_LOGIN_HINT)) return false;
@@ -56,7 +56,7 @@ async function runCliAutoLogin(worktree) {
   return [stdout, stderr].filter(Boolean).join("\n").trim();
 }
 
-export async function server({ worktree }) {
+export async function CliAutoLogin({ worktree }) {
   return {
     "tool.execute.after": async (input, output) => {
       if (!shouldAutoLoginForTest(input, output)) return;
@@ -72,4 +72,4 @@ export async function server({ worktree }) {
   };
 }
 
-export default server;
+CliAutoLogin.test = Object.freeze({ shouldAutoLoginForTest });

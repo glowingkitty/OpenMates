@@ -9,7 +9,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { childMutationDecisionForTest, readConflictWarningForTest } from "../../.opencode/plugins/openmates-hooks.js";
+import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
+
+const { childMutationDecisionForTest, readConflictWarningForTest } = OpenMatesHooks.test;
 
 const data = {
   sessions: {
