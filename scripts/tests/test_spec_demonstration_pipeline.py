@@ -171,6 +171,8 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
         text=True,
     )
     assert float(json.loads(probe.stdout)["format"]["duration"]) >= 1.0
+    metadata = module.video_metadata(output)
+    assert (metadata["width"], metadata["height"]) == (1920, 1080)
     privacy = module.scan_video_privacy(output)
     assert privacy["status"] == "passed"
     assert privacy["decoded_frame_count"] >= 30

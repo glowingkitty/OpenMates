@@ -32,6 +32,8 @@ from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+TERMINAL_VIDEO_SIZE = "1920x1080"
+TERMINAL_FONT_SIZE = 16
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 OCR_CLI = REPO_ROOT / "scripts/spec_demo_ocr.mjs"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
@@ -249,7 +251,7 @@ def render_terminal_video(
     captions = _ffmpeg_filter_path(captions_path)
     font = _ffmpeg_filter_path(TERMINAL_FONT)
     video_filter = (
-        f"drawtext=fontfile='{font}':textfile='{terminal}':fontcolor=white:fontsize=18:"
+        f"drawtext=fontfile='{font}':textfile='{terminal}':fontcolor=white:fontsize={TERMINAL_FONT_SIZE}:"
         "x=40:y=40:line_spacing=8:fix_bounds=true,"
         f"subtitles='{captions}':force_style='FontName=DejaVu Sans,FontSize=20,"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,MarginV=36'"
@@ -261,7 +263,7 @@ def render_terminal_video(
             "-f",
             "lavfi",
             "-i",
-            "color=c=#111827:s=1280x720:r=30",
+            f"color=c=#111827:s={TERMINAL_VIDEO_SIZE}:r=30",
             "-t",
             str(duration_seconds),
             "-vf",
