@@ -190,6 +190,14 @@ def capture_pty(
     transcript = f"$ {shlex.join(argv)}\n" + "".join(
         str(event.get("text", "")) for event in events if event.get("stream") == "output"
     )
+    if not transcript.endswith("\n"):
+        transcript += "\n"
+    transcript += (
+        f"[exit_status={exit_status}]\n"
+        f"[run_id={run_id}]\n"
+        f"[target_environment={target_environment}]\n"
+        f"[test_account_provenance={test_account_provenance}]\n"
+    )
     event_text = "".join(json.dumps(event, sort_keys=True) + "\n" for event in events)
     transcript_path = output_dir / "transcript.txt"
     events_path = output_dir / "events.jsonl"
@@ -240,7 +248,7 @@ def render_terminal_video(
     captions = _ffmpeg_filter_path(captions_path)
     font = _ffmpeg_filter_path(TERMINAL_FONT)
     video_filter = (
-        f"drawtext=fontfile='{font}':textfile='{terminal}':fontcolor=white:fontsize=24:"
+        f"drawtext=fontfile='{font}':textfile='{terminal}':fontcolor=white:fontsize=18:"
         "x=40:y=40:line_spacing=8:fix_bounds=true,"
         f"subtitles='{captions}':force_style='FontName=DejaVu Sans,FontSize=20,"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,MarginV=36'"

@@ -97,7 +97,12 @@ def test_pty_capture_records_exact_argv_output_timing_and_exit_status(tmp_path: 
 
     assert result["argv"] == [sys.executable, "-c", "print('exact terminal output')"]
     assert result["exit_status"] == 0
-    assert "exact terminal output" in (tmp_path / "transcript.txt").read_text(encoding="utf-8")
+    transcript = (tmp_path / "transcript.txt").read_text(encoding="utf-8")
+    assert "exact terminal output" in transcript
+    assert "[exit_status=0]" in transcript
+    assert "[run_id=cli-run-1]" in transcript
+    assert "[target_environment=local synthetic fixture]" in transcript
+    assert "[test_account_provenance=no account used]" in transcript
     assert result["transcript_hash"].startswith("sha256:")
     assert result["event_hash"].startswith("sha256:")
     assert result["artifact_hash"] == result["event_hash"]
