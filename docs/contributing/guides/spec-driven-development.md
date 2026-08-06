@@ -118,7 +118,7 @@ For full specs:
 15. For eligible Tier 2 specs, and for user-visible Tier 1 plans, run the
     implementation demonstration gate after all applicable normal green gates.
     Write exact captions from the verified behavior, render real Playwright or
-    PTY evidence, run complete-frame local privacy scanning, and perform a
+    PTY evidence, scan all text entering the rendered artifact, and perform a
     demonstration review from captions plus bounded frames. Never place the full
     video in agent/model context. Default to frames every three seconds plus
     action, scene, state-change, and caption boundaries; extract individual exact
@@ -162,8 +162,8 @@ segments must match a real sanitized transcript hash and show a reconstruction
 label.
 
 The active OpenCode agent receives a frame-only review bundle, never the full
-video. Complete-frame privacy scanning runs locally before selected frames enter
-agent context. Review failures are classified as implementation, test coverage,
+video. Deterministic text privacy scanning runs before selected frames enter agent
+context. Review failures are classified as implementation, test coverage,
 recording, narration, composition, or environment defects and return only to the
 responsible stage. Discord publication is a separately retryable delivery state.
 

@@ -204,7 +204,7 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
     if evidence.get("status") != "passed":
         failures.append("demonstration: missing required passing evidence")
     if evidence.get("privacy_status") != "passed":
-        failures.append("demonstration: complete-frame privacy review has not passed")
+        failures.append("demonstration: privacy review has not passed")
     if evidence.get("review_status") != "passed":
         failures.append("demonstration: frame-and-caption review has not passed")
 

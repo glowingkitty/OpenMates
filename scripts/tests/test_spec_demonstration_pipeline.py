@@ -173,9 +173,6 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     assert float(json.loads(probe.stdout)["format"]["duration"]) >= 1.0
     metadata = module.video_metadata(output)
     assert (metadata["width"], metadata["height"]) == (1920, 1080)
-    privacy = module.scan_video_privacy(output)
-    assert privacy["status"] == "passed"
-    assert privacy["decoded_frame_count"] >= 30
     end_frame = module.extract_frame(
         output,
         timestamp_seconds=module.video_metadata(output)["duration_seconds"],
@@ -191,33 +188,6 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
         output_path=tmp_path / "between-frame.png",
     )
     assert between_frame["timestamp_seconds"] == pytest.approx(0.533, abs=0.002)
-
-
-def test_complete_frame_scan_detects_secret_visible_for_one_frame() -> None:
-    module = load_module()
-    frames = [b"same", b"safe", b"one-frame-secret", b"safe"]
-
-    result = module.scan_distinct_frames(
-        frames,
-        ocr=lambda frame: "token sk-proj-synthetic123456789" if frame == b"one-frame-secret" else "safe",
-        scan_text=lambda text: ["openai_api_key"] if "sk-proj-" in text else [],
-    )
-
-    assert result["decoded_frame_count"] == 4
-    assert result["distinct_frame_count"] == 3
-    assert result["status"] == "failed"
-    assert result["findings"] == [{"frame_index": 2, "types": ["openai_api_key"]}]
-
-
-def test_complete_frame_scan_fails_closed_when_ocr_errors() -> None:
-    module = load_module()
-
-    with pytest.raises(module.DemonstrationError, match="OCR failed"):
-        module.scan_distinct_frames(
-            [b"frame"],
-            ocr=lambda _frame: (_ for _ in ()).throw(RuntimeError("broken OCR")),
-            scan_text=lambda _text: [],
-        )
 
 
 def test_text_scan_detects_known_environment_secret(monkeypatch: pytest.MonkeyPatch) -> None:

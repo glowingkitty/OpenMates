@@ -145,7 +145,7 @@ demonstration:
     - AC-8
   - id: NARR-4
     purpose: Show privacy scanning and bounded mismatch repair.
-    expected_proof: Complete-frame OCR passes before review and a seeded mismatch routes to the responsible stage with retry
+    expected_proof: Deterministic text privacy scanning passes before review and a seeded mismatch routes to the responsible stage with retry
       accounting.
     scenario_ids:
     - S-6
@@ -230,7 +230,7 @@ decisions:
     path to inspect uncertain moments.
   decided_at: '2026-08-06T01:12:50Z'
 - id: D-8
-  status: active
+  status: superseded
   decision: Use local FFmpeg and ffprobe for caption composition and frame extraction, plus a stdlib pseudo-terminal recorder
     for exact CLI events; use local Tesseract OCR for complete-frame text privacy scanning.
   reason: FFmpeg and ffprobe are already installed, pseudo-terminal capture needs no new runtime service, and local OCR keeps
@@ -252,8 +252,13 @@ decisions:
 - id: D-11
   status: active
   decision: Expose CLI proof production, frame review, and dev-smoke publication through sessions.py; preserve exact CLI input and output unless the canonical scanner replaces detected sensitive values with conspicuous typed placeholders.
-  reason: The user requires operationally useful one-to-one CLI recordings while allowing clearly visible anonymization for credentials and personal data before Discord delivery.
+  reason: The user requires operationally useful one-to-one CLI recordings while allowing clearly visible anonymization for scanner-detected credentials and personal data before Discord delivery.
   decided_at: '2026-08-06T04:20:00Z'
+- id: D-12
+  status: active
+  decision: Remove OCR and decoded-frame privacy scanning; scan command arguments, transcripts, captions, metadata, filenames, and publication text with the canonical scanner instead.
+  reason: The user determined that the added calculation and latency are disproportionate to the sensitive-data exposure risk for reviewed implementation demonstrations.
+  decided_at: '2026-08-06T09:20:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -373,8 +378,7 @@ scenarios:
   when:
   - The publication step runs.
   then:
-  - It scans the video metadata, captions, transcript, filenames, message text, and OCR from every decoded frame or an equivalently
-    complete frame stream before upload.
+  - It scans the command arguments, video metadata, captions, transcript, filenames, and message text before upload.
   - It posts the video as an attachment when within configured limits or uses an approved non-public artifact link when direct
     attachment is unavailable.
   - The message identifies the spec or plan, subject commit, covered scenarios, review result, and canonical evidence location
@@ -483,7 +487,7 @@ acceptance_criteria:
   - T-DEMO-REVIEW
 - id: AC-10
   scenario: S-8
-  text: Video, caption, transcript, metadata, complete-frame OCR, and Discord message inputs pass deterministic secret and
+  text: Command, caption, transcript, metadata, filename, and Discord message inputs pass deterministic secret and
     private-data checks before publication.
   required: true
   status: pending
@@ -555,9 +559,6 @@ assumptions:
   - source: local tool discovery on 2026-08-06
     summary: FFmpeg and ffprobe 6.1.1 are installed with libass, fontconfig, and common MP4/WebM codecs; DejaVu Sans Mono
       is available for terminal rendering.
-  - source: Ubuntu package metadata on 2026-08-06
-    summary: Tesseract OCR 5.3.4 is available for arm64 installation; the implementation preflight must fail visibly until
-      the binary is installed.
 - id: A-4
   text: An explicitly approved multimodal reviewer can inspect only the bounded sanitized frame-and-caption bundle under documented
     authorization, retention, and no-training requirements without receiving raw private logs or full unredacted recordings.
@@ -660,10 +661,10 @@ contracts:
   - Retry failed delivery for at most 24 hours, then delete the undelivered video and record expired_deleted while retaining
     sanitized text evidence and hashes.
   privacy_security:
-  - Never capture or publish login, signup, verification codes, passkeys, credentials, account emails, unrelated chats, share
-    URL keys, API keys, webhook URLs, private infrastructure identifiers, or agent reasoning.
-  - Scan caption text, transcripts, filenames, container metadata, Discord text, and OCR from every decoded frame or an equivalently
-    complete frame stream before review and again before publication.
+  - Do not intentionally capture or publish login, signup, verification codes, passkeys, credentials, account emails, unrelated
+    chats, share URL keys, API keys, webhook URLs, private infrastructure identifiers, or agent reasoning.
+  - Scan command arguments, caption text, transcripts, filenames, container metadata, and Discord text before review and again
+    before publication.
   - Use synthetic or approved test-account data and placeholders in demonstrations.
   - Keep raw recordings and transcripts out of git; specs store only sanitized metadata, hashes, run IDs, and artifact references.
   - Never send a raw or final full video to a multimodal provider or place it in agent context; only a sanitized bounded frame-and-caption
@@ -769,7 +770,7 @@ tests:
   - caption renderer preserves exact text and timing in the output media
   - raw and derived artifacts remain distinct and hash-addressed
   - secret and private-data fixtures fail before review or publication
-  - complete-frame scan fixture detects a one-frame secret that periodic review sampling would miss
+  - deterministic scans reject sensitive command, transcript, caption, metadata, filename, and publication text
   red_phase:
     required: true
     expected: fail
@@ -980,9 +981,7 @@ verifications:
     run_id: privacy-cli-8e6e802-playwright-e0d3738
     subject_commit: 8e6e802b6cd38bacf52fe34246cabef946574722
     timestamp: '2026-08-06T04:08:00Z'
-    reason: Canonical text scanning and complete-frame OCR found no sensitive content in either reviewed demonstration.
-    cli_decoded_frames: 60
-    playwright_decoded_frames: 84
+    reason: Canonical text scanning found no sensitive content in either reviewed demonstration.
     findings: []
     status: passed
 - id: V-DISCORD-DELIVERY
@@ -1021,8 +1020,8 @@ implementation_plan:
   architecture: 'Add scripts/spec_demo.py as one repository-local orchestration CLI around a versioned JSON manifest in test-results/spec-demos/<spec>/<run-id>/.
     Use ffmpeg/ffprobe subprocesses for media metadata, caption composition, terminal rendering, compression, and frame extraction;
     use a Python stdlib PTY recorder for exact argv/output/timing/exit events; invoke the canonical TypeScript secret scanner
-    for all extracted text; and use local Tesseract over every distinct decoded frame before creating the bounded frame bundle
-    read by the active OpenCode agent. The agent records structured claim verdicts through the CLI. Discord publication reuses
+    for command arguments and all retained or published text before creating the bounded frame bundle read by the active OpenCode
+    agent. The agent records structured claim verdicts through the CLI. Discord publication reuses
     a small shared webhook helper extracted from run_tests.py. Raw test artifacts remain immutable, generated videos are deleted
     after confirmed delivery or 24 hours, and sanitized text evidence remains.
 
@@ -1046,9 +1045,8 @@ implementation_plan:
     to 17.1 seconds and links it to `NARR-1`, `AC-5`, and the matching evidence interval.
   - FFmpeg renders captions over the browser video or renders terminal state events on a fixed DejaVu Sans Mono canvas, then
     ffprobe records duration, dimensions, codecs, and final SHA-256.
-  - The privacy pass scans all text with the canonical secret scanner, decodes every video frame locally, skips only byte-identical
-    frames, OCRs every distinct frame with Tesseract, scans OCR text, and records frame counts without retaining OCR images
-    after the pass.
+  - The privacy pass scans command arguments, transcripts, captions, metadata, filenames, and publication text with the canonical
+    secret scanner before review and publication.
   - The review-bundle builder extracts default three-second frames plus scene, action, caption-boundary, and before-after
     frames. The active agent reads only those images and may request a bounded exact timestamp such as 14.8 seconds.
   - The agent records supported, contradicted, not_visible, ambiguous, or wrong_time for each claim and one defect class for
@@ -1069,8 +1067,7 @@ implementation_plan:
   - Browser source recordings remain governed by the existing Playwright artifact and test-recording retention rather than
     being duplicated into the spec-demo directory.
   privacy_security_impact:
-  - Complete-frame OCR is local and fail-closed; a missing Tesseract binary, undecodable frame, frame-count mismatch, or scanner
-    error blocks review and publication.
+  - Canonical text scanning is local and fail-closed; a scanner error or finding blocks review and publication.
   - The canonical secret-scanner patterns are reused through a small Node bridge; findings expose type and location only,
     never matched values.
   - Environment values, webhook URLs, raw Discord response bodies, login/setup flows, and unsanitized terminal events never
@@ -1087,11 +1084,11 @@ implementation_plan:
   observability:
   - Every spec_demo command prints one redacted JSON result with manifest path, stage, status, run ID, subject commit, and
     next action.
-  - Manifest attempts record stage duration, source and output hashes, frame counts, OCR counts, retry count, defect class,
+  - Manifest attempts record stage duration, source and output hashes, frame counts, retry count, defect class,
     and deletion timestamps without text bodies or private values.
   - Publication records `not_configured`, `pending`, `delivered`, `failed_retryable`, or `expired_deleted`; only delivered
     includes sanitized Discord message and attachment IDs.
-  - The doctor command reports missing ffmpeg, ffprobe, Tesseract, font, Node secret-scanner build, and webhook configuration
+  - The doctor command reports missing ffmpeg, ffprobe, font, Node secret-scanner build, and webhook configuration
     without printing paths containing credentials or secret values.
   affected_files:
   - path: docs/contributing/guides/spec-driven-development.md
@@ -1167,15 +1164,14 @@ implementation_plan:
   - Implement privacy scanning, review bundles, classification, and bounded retries.
   - Implement Discord publication and retry state independently of completion.
   - Synchronize agent skill mirrors and run deterministic audits.
-  - Run real Playwright and CLI demonstration artifact reviews, complete-frame privacy review, and optional configured Discord
+  - Run real Playwright and CLI demonstration artifact reviews, deterministic text privacy review, and optional configured Discord
     delivery.
   - No product REST/API, SDK, web UI, user-confirmation, or Apple phase is required for this repo-local first slice.
   required_assumption_checks:
   - A-1 is proven by the existing Playwright config and recording publisher and rechecked by a manifest fixture with run and
     commit provenance.
   - A-2 is proven by existing multipart Discord code and rechecked after extraction into scripts/discord_webhook.py.
-  - A-3 runs `python3 scripts/spec_demo.py doctor`; implementation installs or documents Tesseract before any non-synthetic
-    video review.
+  - A-3 runs `python3 scripts/spec_demo.py doctor` before any non-synthetic video review.
   - A-4 is enforced by review-request fixtures that reject video bytes, encoded video, and full-video attachments while permitting
     bounded local frame paths.
   - A-5 keeps product/API/SDK/Apple files outside task ownership and verification scope.
@@ -1193,7 +1189,7 @@ implementation_plan:
   - Product-contract approval is already recorded.
   - The user explicitly approved frame-only review, retained transcripts, deletion after confirmed Discord delivery, and deletion
     after 24 hours of failed delivery.
-  - FFmpeg, stdlib PTY capture, local Tesseract, and reuse of existing Discord and secret-scanner patterns are minimal implementation
+  - FFmpeg, stdlib PTY capture, and reuse of existing Discord and secret-scanner patterns are minimal implementation
     choices and introduce no additional material approval gate.
   open_questions:
   - After this workflow is implemented and tested, discuss user-facing OpenMates Plans persistence, playback, and status integration.
@@ -1338,7 +1334,7 @@ tasks:
     shared_files: []
   independently_deployable: false
 - id: TASK-5
-  title: Implement PTY capture FFmpeg rendering and complete-frame privacy scan
+  title: Implement PTY capture FFmpeg rendering and deterministic text privacy scan
   status: done
   phase: working_tasks
   covers:
@@ -1676,6 +1672,7 @@ risks:
 - Video rendering and multimodal review can add material completion latency and compute cost; bounded retries and eligibility
   rules limit the impact.
 - Recordings can expose credentials or private account content that text-only test evidence does not; canonical scanning must replace detected values with conspicuous typed placeholders before review and publication while preserving all unaffected CLI input and output exactly.
+- Visual-only sensitive content in browser recordings can evade deterministic text scanning because decoded-frame OCR was removed by explicit user decision to reduce calculation and latency; use controlled dev accounts and avoid sensitive screens during capture.
 - Fixed-interval frames can miss brief errors or state changes; action, scene, and caption-boundary sampling plus bounded
   exact-timestamp follow-up requests are required in addition to periodic frames.
 - An AI reviewer may misclassify a video-production defect as an implementation defect; structured categories and evidence-invalidation
