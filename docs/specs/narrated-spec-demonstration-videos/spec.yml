@@ -264,6 +264,11 @@ decisions:
   decision: CLI demonstrations use a readable 1280x720 terminal tutorial composition with large text, visible command typing, captured output timing, only command/output in the terminal, and narration that explains the feature and visible evidence.
   reason: User review found the static 1920x1080 snapshot too small, too brief, and insufficiently instructional to validate obvious visual mismatches.
   decided_at: '2026-08-06T10:00:00Z'
+- id: D-14
+  status: active
+  decision: Provide a reusable create-demo-video skill and a sessions.py produce-playwright action that accepts only passing deployed Playwright case recordings.
+  reason: The user wants repeatable narrated examples for both CLI interactions and product feature specs without re-deriving the evidence, review, and Discord workflow.
+  decided_at: '2026-08-06T10:30:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -285,13 +290,19 @@ attempts:
   recorded_at: '2026-08-06T02:10:20Z'
   reason: The expanded 94-test workflow suite, schema validation, Python compilation, media doctor, and OpenCode/tooling audits
     all passed.
+- id: ATTEMPT-4
+  task_id: TASK-14
+  approach: Add the reusable create-demo-video skill, accept only a passing Playwright case recording, and publish the reviewed signup-passkey tutorial to Discord dev-smoke.
+  outcome: succeeded
+  recorded_at: '2026-08-06T11:49:05Z'
+  reason: Skill parity, tooling parity, workflow audit, lint, and 68 focused tests passed; the stay-logged-in-enabled signup case from GitHub Actions run 31094417221 passed, its 31.04-second tutorial review passed, and Discord confirmed delivery.
 handoff:
-  current_task_id: TASK-13
-  next_action: No further implementation action; retain the sanitized evidence ledger.
-  command: python3 scripts/spec_verify.py docs/specs/narrated-spec-demonstration-videos/spec.yml
-  expected_outcome: Final conformance remains green for the verified implementation subject.
+  current_task_id: TASK-14
+  next_action: No further implementation action; reuse create-demo-video for future CLI or passing Playwright tutorials.
+  command: python3 scripts/sync_agent_parity.py --check
+  expected_outcome: Skill parity remains current and the retained signup tutorial evidence remains reviewable.
   blocker: null
-  last_verified_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+  last_verified_commit: 1b6bedc
 scenarios:
 - id: S-1
   title: Full spec declares what its final demonstration must prove
@@ -1666,6 +1677,39 @@ tasks:
     - frontend/packages/secret-scanner/src/cli.ts
     - scripts/tests/test_sessions_proof_video.py
     - scripts/tests/test_spec_demonstration_pipeline.py
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - test-results/proof-videos
+    shared_files:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+  independently_deployable: true
+- id: TASK-14
+  title: Add reusable demo-video skill and publish narrated signup Playwright proof
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-3, S-5, S-6, S-8]
+    acceptance_criteria: [AC-3, AC-5, AC-6, AC-7, AC-10, AC-11, AC-12, AC-13]
+  expected_files:
+  - .claude/skills/create-demo-video/SKILL.md
+  - .agents/skills/create-demo-video/SKILL.md
+  - scripts/sessions.py
+  - scripts/spec_demo.py
+  - scripts/tests/test_sessions_proof_video.py
+  - docs/specs/narrated-spec-demonstration-videos/spec.yml
+  - test-results/proof-videos
+  verification_ids: [T-DEMO-PIPELINE, T-DEMO-REVIEW, T-DEMO-DISCORD, T-OPENCODE-WORKFLOW, V-PLAYWRIGHT-DEMO, V-PRIVACY-REVIEW, V-DISCORD-DELIVERY]
+  dependencies: [TASK-13]
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - .claude/skills/create-demo-video/SKILL.md
+    - .agents/skills/create-demo-video/SKILL.md
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
     - docs/specs/narrated-spec-demonstration-videos/spec.yml
     - test-results/proof-videos
     shared_files:
