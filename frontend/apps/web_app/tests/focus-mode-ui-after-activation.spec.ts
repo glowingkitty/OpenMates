@@ -149,6 +149,18 @@ async function waitForAssistantIdle(
 	logCheckpoint('Assistant stream idle and editor is visible.');
 }
 
+async function openFocusModeContextMenu(
+	page: any,
+	takeStepScreenshot: (page: any, label: string) => Promise<void>,
+	stepLabel: string
+): Promise<void> {
+	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated).first();
+	await expect(activatedEmbed).toBeVisible({ timeout: 5000 });
+	await activatedEmbed.click();
+	await expect(page.getByTestId('focus-mode-context-menu')).toBeVisible({ timeout: 5000 });
+	await takeStepScreenshot(page, stepLabel);
+}
+
 function setupPageListeners(page: any): void {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -429,10 +441,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	// ======================================================================
 	await test.step('Details link opens focus mode settings page', async () => {
 		logCheckpoint('Opening activated embed context menu for Details...');
-		const activatedEmbedNow = page.locator(SELECTORS.focusModeBarActivated);
-		await activatedEmbedNow.first().click({ button: 'right' });
-		await page.waitForTimeout(500);
-		await takeStepScreenshot(page, 'ui-details-context-menu');
+		await openFocusModeContextMenu(page, takeStepScreenshot, 'ui-details-context-menu');
 
 		const detailsButton = page.locator(SELECTORS.contextMenuDetails);
 		await expect(detailsButton).toBeVisible({ timeout: 5000 });
@@ -491,14 +500,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	// ======================================================================
 	await test.step('Stop button deactivates focus mode', async () => {
 		logCheckpoint('Opening activated embed context menu for Stop...');
-		const activatedEmbedNow = page.locator(SELECTORS.focusModeBarActivated);
-		await activatedEmbedNow.first().click({ button: 'right' });
-		await page.waitForTimeout(500);
-		await takeStepScreenshot(page, 'ui-stop-context-menu');
-
-		const contextMenu = page.locator(SELECTORS.focusModeContextMenu);
-		const isContextMenuVisible = await contextMenu.isVisible({ timeout: 3000 }).catch(() => false);
-		logCheckpoint(`Context menu visible: ${isContextMenuVisible}`);
+		await openFocusModeContextMenu(page, takeStepScreenshot, 'ui-stop-context-menu');
 
 		const stopButton = page.locator(SELECTORS.contextMenuStop);
 		await expect(stopButton).toBeVisible({ timeout: 5000 });

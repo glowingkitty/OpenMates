@@ -142,14 +142,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-06T14:52:08Z"
     summary: Mock replay emitted focus_mode_activated immediately instead of preserving the production countdown, so the rejection window never existed.
+  - id: ATTEMPT-6
+    task_id: TASK-3
+    approach: Run focus-mode-ui-after-activation.spec.ts against deployed commit 4cf06c1 and inspect both retry artifacts.
+    outcome: rejected
+    recorded_at: "2026-08-06T15:25:06Z"
+    summary: Activation and encrypted persistence passed, but the spec used an unsupported right-click plus fixed sleep to open the activated focus card menu.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Deploy deferred focus activation for mock replay, rebuild the AI worker, then rerun the rejection Playwright spec.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: preserve focus rejection countdown in mock replay" --message "Symptom/Cause/Fix"'
-  expected_outcome: The mock activation card remains in counting state until rejection or the standard five-second auto-confirm task.
+  next_action: Deploy the deterministic focus context-menu interaction helper, then rerun the activation Playwright spec.
+  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "test: stabilize focus context menu interaction" --message "Use the supported click path and wait for the menu test ID."'
+  expected_outcome: Details and Stop actions consistently open from the activated focus card on both Playwright retries.
   blocker: null
-  last_verified_commit: d5188e1
+  last_verified_commit: 4cf06c1
 
 scenarios:
   - id: S-1
