@@ -42,6 +42,12 @@ Each task must include:
 - File ownership and shared-file ownership
 - Whether it is independently deployable
 
+For required demonstrations, put capture, exact captions, local privacy scan,
+demonstration review, repair routing, and Discord publication after applicable
+normal green gates. Keep Discord delivery independently retryable, and add a
+final evidence task that retains sanitized transcripts while applying the
+approved video cleanup policy.
+
 For shared product surfaces, task dependencies must enforce this order: CLI
 implementation/testing against the dev server first, npm SDK and pip SDK
 parity/testing locally against the dev server second, GitHub Actions CI/daily-test

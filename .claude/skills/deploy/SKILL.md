@@ -44,7 +44,8 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
    visible blocked-deploy item; resolve the conflict and rerun deploy.
 
 3. **Run spec conformance when applicable:**
-   - If this work has a full spec under `docs/specs/<slug>/spec.yml`, run `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before deploy.
+   - If this work has a full spec under `docs/specs/<slug>/spec.yml`, run `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before the final deploy.
+   - A scoped verification deploy may precede final conformance when live Playwright evidence is required. After that run, complete exact captions, local privacy scanning, frame-only demonstration review, and Discord publication attempt before final completion.
    - If this work used an inline spec, include the scenarios, acceptance criteria, and test evidence in the deploy message.
    - If no spec exists for source changes, confirm the change is trivial/mechanical or include an explicit skip reason.
 

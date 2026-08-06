@@ -163,17 +163,97 @@ def _evidence_commit_covers_implementation(evidence_commit: Any, current_commit:
     """Accept evidence from the implementation commit or one of its ancestors."""
     if not isinstance(evidence_commit, str) or not evidence_commit.strip():
         return False
-    candidate = evidence_commit.rsplit("@", 1)[-1].strip()
-    if candidate == current_commit:
+    candidate = _normalise_commit(evidence_commit)
+    normalized_current = _normalise_commit(current_commit)
+    if candidate == normalized_current:
         return True
     result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", candidate, current_commit],
+        ["git", "merge-base", "--is-ancestor", candidate, normalized_current],
         cwd=REPO_ROOT,
         check=False,
         capture_output=True,
         text=True,
     )
     return result.returncode == 0
+
+
+def _normalise_commit(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    return value.rsplit("@", 1)[-1].strip()
+
+
+def _manifest_evidence_hash(manifest: dict[str, Any]) -> str:
+    immutable = {key: value for key, value in manifest.items() if key != "publication"}
+    encoded = json.dumps(immutable, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
+def _demonstration_failures(data: dict[str, Any]) -> list[str]:
+    demonstration = data.get("demonstration")
+    if not isinstance(demonstration, dict):
+        return []
+    eligibility = demonstration.get("eligibility")
+    if not isinstance(eligibility, dict) or eligibility.get("status") != "required":
+        return []
+    evidence = demonstration.get("evidence")
+    if not isinstance(evidence, dict):
+        return ["demonstration: missing required passing evidence"]
+
+    failures: list[str] = []
+    if evidence.get("status") != "passed":
+        failures.append("demonstration: missing required passing evidence")
+    if evidence.get("privacy_status") != "passed":
+        failures.append("demonstration: complete-frame privacy review has not passed")
+    if evidence.get("review_status") != "passed":
+        failures.append("demonstration: frame-and-caption review has not passed")
+
+    review_attempts = evidence.get("review_attempts")
+    if evidence.get("review_status") == "passed" and (not isinstance(review_attempts, int) or review_attempts < 1):
+        failures.append("demonstration: passing review evidence requires at least one review attempt")
+    if isinstance(review_attempts, int) and review_attempts >= 4 and evidence.get("review_status") != "passed":
+        handoff = data.get("handoff") if isinstance(data.get("handoff"), dict) else {}
+        if not _requires_user_input(handoff.get("blocker"), handoff.get("current_task_id")):
+            failures.append("demonstration: fourth unresolved review result requires a structured user blocker")
+
+    if evidence.get("status") == "passed":
+        for field in ("subject_commit", "manifest_path", "manifest_hash", "review_run_id", "timestamp"):
+            if not isinstance(evidence.get(field), str) or not evidence[field].strip():
+                failures.append(f"demonstration: passing evidence missing {field}")
+        current_commit = data.get("implementation_state", {}).get("subject_commit")
+        if _normalise_commit(current_commit) and _normalise_commit(evidence.get("subject_commit")) != _normalise_commit(current_commit):
+            failures.append(f"demonstration: evidence is stale for subject_commit {current_commit}")
+        manifest_value = evidence.get("manifest_path")
+        manifest_path = Path(manifest_value) if isinstance(manifest_value, str) else Path()
+        if manifest_value and not manifest_path.is_absolute():
+            manifest_path = REPO_ROOT / manifest_path
+        if not manifest_value or not manifest_path.is_file():
+            failures.append("demonstration: evidence manifest does not exist")
+        else:
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                failures.append("demonstration: evidence manifest is not valid JSON")
+            else:
+                if evidence.get("manifest_hash") != _manifest_evidence_hash(manifest):
+                    failures.append("demonstration: manifest hash does not match the recorded artifact")
+                privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
+                review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+                expected = {
+                    "subject_commit": manifest.get("subject_commit"),
+                    "privacy_status": privacy.get("status"),
+                    "review_status": review.get("status"),
+                    "review_run_id": review.get("run_id"),
+                    "review_attempts": review.get("attempt_count"),
+                }
+                for field, value in expected.items():
+                    if field == "subject_commit":
+                        matches = _normalise_commit(evidence.get(field)) == _normalise_commit(value)
+                    else:
+                        matches = evidence.get(field) == value
+                    if not matches:
+                        failures.append(f"demonstration: {field} does not match the evidence manifest")
+    return failures
 
 
 def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[str]:
@@ -252,6 +332,9 @@ def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[s
                     automated=verification.get("kind") in {"automated_test", "deterministic_check"},
                 )
             )
+
+    if require_green:
+        failures.extend(_demonstration_failures(data))
 
     return failures
 

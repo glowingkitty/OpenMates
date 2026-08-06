@@ -47,6 +47,13 @@ web fetches cannot produce the needed evidence. If verification was not run, say
 why. Do not include raw private logs, credentials, session titles, prompt text, or
 reasoning traces.
 
+Eligible full specs and user-visible Tier 1 plans finish with a captioned
+implementation demonstration after applicable green gates. Give the active agent
+the canonical captions and bounded image frames, never the full video. Use a
+default three-second interval plus event boundaries, request exact-timestamp
+frames only when needed, and keep Discord publication status separate from the
+review-based completion gate.
+
 Common commands:
 
 - `python3 scripts/sync_agent_parity.py --check`

@@ -12,9 +12,11 @@
     "test:integration": "cd backend && python -m pytest tests/test_integration_encryption.py -v -m integration"
   },
   "devDependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
     "@types/markdown-it": "^14.1.2",
     "prettier": "^3.8.4",
     "prettier-plugin-svelte": "^3.4.1",
+    "tesseract.js": "7.0.0",
     "turbo": "2.9.18"
   },
   "packageManager": "pnpm@10.23.0",

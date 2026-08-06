@@ -79,6 +79,10 @@ Pass only when:
 - Privacy/security criteria have concrete code or test evidence.
 - Changed source files have related tests or an explicit skip reason.
 - Open questions are resolved or listed as accepted residual risk.
+- Required implementation demonstrations have current-commit privacy and
+  frame-only review evidence. The review bundle contains captions and selected
+  images but never the full video. `publication_pending` is reported separately
+  and does not invalidate a passed review.
 
 Failed required checks must not be treated as a summary-only issue. The report
 must identify the affected acceptance criteria and confirm that follow-up tasks

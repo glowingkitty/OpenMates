@@ -115,6 +115,19 @@ For full specs:
 14. Run green-phase tests in REST/API → CLI → SDK → web → reviewed UI visual-smoke evidence → user confirmation → Apple order,
     record evidence in `spec.yml`, and run `python3 scripts/spec_verify.py
     docs/specs/<slug>/spec.yml`.
+15. For eligible Tier 2 specs, and for user-visible Tier 1 plans, run the
+    implementation demonstration gate after all applicable normal green gates.
+    Write exact captions from the verified behavior, render real Playwright or
+    PTY evidence, run complete-frame local privacy scanning, and perform a
+    demonstration review from captions plus bounded frames. Never place the full
+    video in agent/model context. Default to frames every three seconds plus
+    action, scene, state-change, and caption boundaries; extract individual exact
+    timestamps when the reviewer needs more evidence.
+16. A required demonstration review must pass for the current subject commit
+    before completion. One initial review plus three classified repair retries
+    are allowed. Discord publication is attempted after review and records
+    delivered or `publication_pending`; delivery failure does not invalidate
+    implementation or review evidence.
 
 An active implementation spec is non-interruptible. Continue from its current
 handoff until verification completes; task size, context pressure, test failure,
@@ -131,6 +144,28 @@ passing status merely because it was true for an earlier revision.
 
 Implementation must not begin before the user approves the full spec unless the
 user explicitly instructs OpenCode to skip the spec gate.
+
+## Implementation Demonstration Gate
+
+New or materially resumed Tier 2 specs declare `demonstration.eligibility`.
+Required demonstrations include a `narration_outline` before implementation;
+each bullet names its purpose, expected visual or terminal proof, scenarios, and
+acceptance criteria. A concretely justified `surface: non_visual` record may use
+`status: not_applicable`. Browser, CLI, and native behavior cannot use that
+classification.
+
+The exact narration text is generated only after applicable tests, deployed
+Playwright, visual-smoke, user-confirmation, and Apple gates are complete. The
+caption text is canonical in v1; audio is optional follow-up work. Raw evidence
+and edited demonstration media remain distinct, and reconstructed terminal
+segments must match a real sanitized transcript hash and show a reconstruction
+label.
+
+The active OpenCode agent receives a frame-only review bundle, never the full
+video. Complete-frame privacy scanning runs locally before selected frames enter
+agent context. Review failures are classified as implementation, test coverage,
+recording, narration, composition, or environment defects and return only to the
+responsible stage. Discord publication is a separately retryable delivery state.
 
 ## Apple Impact And Parity
 

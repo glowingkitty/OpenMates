@@ -178,3 +178,33 @@ def test_opencode_spec_workflow_audit_requires_modern_edit_lease_contract(tmp_pa
     assert any("edit-lease" in failure for failure in failures)
     assert any("OPENMATES_ROOT_GUARD" in failure for failure in failures)
     assert any("Docker Compose mutations require" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
+    audit = load_audit_module()
+
+    assert {
+        "narration outline",
+        "frame-only review",
+        "Discord publication",
+    }.issubset(audit.PLAN_PROMPT_TERMS)
+
+
+def test_opencode_spec_workflow_audit_requires_demonstration_skill_terms():
+    audit = load_audit_module()
+    expected = {
+        ".claude/skills/specify/SKILL.md": {"narration outline", "demonstration eligibility"},
+        ".claude/skills/plan-from-spec/SKILL.md": {"capture source", "full video"},
+        ".claude/skills/tasks-from-spec/SKILL.md": {"demonstration review", "Discord publication"},
+        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending"},
+    }
+
+    for path, terms in expected.items():
+        assert terms.issubset(audit.SKILL_TERMS[path])
+
+
+def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms():
+    audit = load_audit_module()
+
+    assert "demonstration review" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
+    assert "full video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]

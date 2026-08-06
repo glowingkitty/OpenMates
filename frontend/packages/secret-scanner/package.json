@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --tsconfig tsconfig.build.json",
     "dev": "tsup src/index.ts --format esm --dts --watch",
+    "scan-json": "node --experimental-strip-types src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types tests/scanner.test.ts tests/registry.test.ts tests/redact-restore.test.ts"
   },

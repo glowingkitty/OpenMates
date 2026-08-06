@@ -39,6 +39,9 @@ PLAN_PROMPT_TERMS = {
     "schema_version",
     "subject_commit",
     "handoff",
+    "narration outline",
+    "frame-only review",
+    "Discord publication",
 }
 PLAN_EDIT_PERMISSION_ITEMS = (
     ("*", "deny"),
@@ -53,6 +56,8 @@ SKILL_TERMS = {
         "vague criteria",
         "schema_version",
         "handoff",
+        "narration outline",
+        "demonstration eligibility",
     },
     ".claude/skills/plan-from-spec/SKILL.md": {
         "required assumptions",
@@ -60,6 +65,8 @@ SKILL_TERMS = {
         "verification_ids",
         "approvals.implementation_plan",
         "handoff",
+        "capture source",
+        "full video",
     },
     ".claude/skills/tasks-from-spec/SKILL.md": {
         "failed required checks",
@@ -67,6 +74,8 @@ SKILL_TERMS = {
         "verification_ids",
         "ownership",
         "handoff",
+        "demonstration review",
+        "Discord publication",
     },
     ".claude/skills/verify-spec/SKILL.md": {
         "Continue On Failure",
@@ -75,17 +84,19 @@ SKILL_TERMS = {
         "failed required checks",
         "subject commit",
         "material",
+        "frame-only",
+        "publication_pending",
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "demonstration review"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",

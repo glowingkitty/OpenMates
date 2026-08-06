@@ -30,6 +30,25 @@ def load_run_tests_module():
     return module
 
 
+def test_scheduled_publication_maintenance_scans_root_and_session_worktrees(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    (tmp_path / "test-results/spec-demos").mkdir(parents=True)
+    (tmp_path / ".openmates-agent-worktrees/agent-one/test-results/spec-demos").mkdir(parents=True)
+    seen = []
+    monkeypatch.setattr(run_tests, "CONTROL_PLANE_ROOT", tmp_path)
+    monkeypatch.setattr(
+        run_tests,
+        "_sweep_spec_demo_publications",
+        lambda root, **_kwargs: seen.append(root)
+        or {"scanned": 1, "retried": 1, "delivered": 1, "expired_deleted": 0},
+    )
+
+    result = run_tests._maintain_spec_demo_publications()
+
+    assert len(seen) == 2
+    assert result == {"scanned": 2, "retried": 2, "delivered": 2, "expired_deleted": 0}
+
+
 def test_discord_failure_embeds_group_files_by_suite_and_product_area():
     run_tests = load_run_tests_module()
     suites = {

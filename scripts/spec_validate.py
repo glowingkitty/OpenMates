@@ -59,11 +59,24 @@ VALID_TASK_PHASES = {"drafting", "checking_assumptions", "awaiting_approval", "w
 VALID_APPROVAL_STATUSES = {"pending", "approved", "not_required", "waived", "blocked"}
 VALID_DECISION_STATUSES = {"active", "superseded"}
 VALID_ATTEMPT_OUTCOMES = {"planned", "failed_as_expected", "rejected", "blocked", "succeeded"}
+VALID_DEMONSTRATION_ELIGIBILITY = {"required", "not_applicable"}
+VALID_DEMONSTRATION_SURFACES = {"visual", "cli", "native", "mixed", "non_visual"}
+VALID_DEMONSTRATION_STATUSES = {"pending", "passed", "failed", "blocked"}
+VALID_DEMONSTRATION_REVIEW_STATUSES = {"pending", "passed", "failed", "blocked"}
+VALID_DEMONSTRATION_PRIVACY_STATUSES = {"pending", "passed", "failed", "blocked"}
+VALID_DEMONSTRATION_PUBLICATION_STATUSES = {
+    "pending",
+    "not_configured",
+    "delivered",
+    "publication_pending",
+    "expired_deleted",
+}
 SCENARIO_ID = re.compile(r"^S-\d+$")
 AC_ID = re.compile(r"^AC-\d+$")
 TEST_ID = re.compile(r"^T-[A-Z0-9-]+$")
 VERIFICATION_ID = re.compile(r"^V-[A-Z0-9-]+$")
 ASSUMPTION_ID = re.compile(r"^A-\d+$")
+NARRATION_ID = re.compile(r"^NARR-\d+$")
 TASK_ID = re.compile(r"^TASK-\d+[A-Z]?$|^T-\d+[A-Z]?$", re.IGNORECASE)
 BROAD_AC_PATTERNS = (
     re.compile(r"^\s*all tests (pass|run successfully)\s*\.?\s*$", re.IGNORECASE),
@@ -330,6 +343,106 @@ def _validate_verifications(data: dict[str, Any], ac_ids: set[str], schema_versi
     return seen, covered
 
 
+def _validate_demonstration(
+    data: dict[str, Any],
+    *,
+    scenario_ids: set[str],
+    ac_ids: set[str],
+    verification_ids: set[str],
+) -> None:
+    value = data.get("demonstration")
+    if value is None:
+        return
+    demonstration = _as_mapping(value, "demonstration")
+    eligibility = _as_mapping(demonstration.get("eligibility"), "demonstration.eligibility")
+    status = _require_string(eligibility, "demonstration.eligibility.status")
+    if status not in VALID_DEMONSTRATION_ELIGIBILITY:
+        raise SpecError(
+            "demonstration.eligibility.status must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_ELIGIBILITY))
+        )
+    surface = _require_string(eligibility, "demonstration.eligibility.surface")
+    if surface not in VALID_DEMONSTRATION_SURFACES:
+        raise SpecError(
+            "demonstration.eligibility.surface must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_SURFACES))
+        )
+    _require_string(eligibility, "demonstration.eligibility.reason")
+    _require_string(eligibility, "demonstration.eligibility.classified_at")
+
+    if status == "not_applicable":
+        if surface != "non_visual":
+            raise SpecError("demonstration not_applicable requires surface: non_visual")
+        refs = _string_list(
+            eligibility.get("verification_ids"),
+            "demonstration.eligibility.verification_ids",
+        )
+        known_ids = verification_ids
+        for ref in refs:
+            if ref not in known_ids:
+                raise SpecError(f"demonstration.eligibility references unknown verification/test {ref}")
+        return
+
+    seen_narration_ids: set[str] = set()
+    for index, narration in enumerate(
+        _as_list(demonstration.get("narration_outline"), "demonstration.narration_outline"),
+        start=1,
+    ):
+        narration = _as_mapping(narration, f"demonstration.narration_outline[{index}]")
+        narration_id = _require_string(narration, f"demonstration.narration_outline[{index}].id")
+        if not NARRATION_ID.match(narration_id):
+            raise SpecError(f"narration id {narration_id!r} must match NARR-<number>")
+        if narration_id in seen_narration_ids:
+            raise SpecError(f"duplicate narration id {narration_id}")
+        seen_narration_ids.add(narration_id)
+        _require_string(narration, f"demonstration.narration_outline[{index}].purpose")
+        _require_string(narration, f"demonstration.narration_outline[{index}].expected_proof")
+        for scenario_id in _string_list(
+            narration.get("scenario_ids"),
+            f"demonstration.narration_outline[{index}].scenario_ids",
+        ):
+            if scenario_id not in scenario_ids:
+                raise SpecError(f"{narration_id} references unknown scenario {scenario_id}")
+        for criterion_id in _string_list(
+            narration.get("acceptance_criteria"),
+            f"demonstration.narration_outline[{index}].acceptance_criteria",
+        ):
+            if criterion_id not in ac_ids:
+                raise SpecError(f"{narration_id} references unknown acceptance criterion {criterion_id}")
+
+    evidence = _as_mapping(demonstration.get("evidence"), "demonstration.evidence")
+    evidence_status = _require_string(evidence, "demonstration.evidence.status")
+    if evidence_status not in VALID_DEMONSTRATION_STATUSES:
+        raise SpecError(
+            "demonstration.evidence.status must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_STATUSES))
+        )
+    privacy_status = _require_string(evidence, "demonstration.evidence.privacy_status")
+    if privacy_status not in VALID_DEMONSTRATION_PRIVACY_STATUSES:
+        raise SpecError(
+            "demonstration.evidence.privacy_status must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_PRIVACY_STATUSES))
+        )
+    review_status = _require_string(evidence, "demonstration.evidence.review_status")
+    if review_status not in VALID_DEMONSTRATION_REVIEW_STATUSES:
+        raise SpecError(
+            "demonstration.evidence.review_status must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_REVIEW_STATUSES))
+        )
+    publication_status = _require_string(evidence, "demonstration.evidence.publication_status")
+    if publication_status not in VALID_DEMONSTRATION_PUBLICATION_STATUSES:
+        raise SpecError(
+            "demonstration.evidence.publication_status must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_PUBLICATION_STATUSES))
+        )
+    review_attempts = evidence.get("review_attempts")
+    if isinstance(review_attempts, bool) or not isinstance(review_attempts, int) or review_attempts < 0 or review_attempts > 4:
+        raise SpecError("demonstration.evidence.review_attempts must be an integer from 0 to 4")
+    for field in ("subject_commit", "manifest_path", "manifest_hash", "review_run_id", "timestamp"):
+        if field not in evidence or not isinstance(evidence[field], str):
+            raise SpecError(f"demonstration.evidence.{field} must be a string")
+
+
 def _validate_task_refs(refs: dict[str, Any], field: str, scenario_ids: set[str], ac_ids: set[str]) -> None:
     for scenario_id in _optional_string_list(refs.get("scenarios"), f"{field}.scenarios"):
         if scenario_id not in scenario_ids:
@@ -463,6 +576,12 @@ def validate_spec(path: Path) -> dict[str, Any]:
     covered_ac_ids, test_ids = _validate_tests(data, ac_ids, schema_version)
     _validate_assumptions(data, schema_version)
     verification_ids, verification_covered_ac_ids = _validate_verifications(data, ac_ids, schema_version)
+    _validate_demonstration(
+        data,
+        scenario_ids=scenario_ids,
+        ac_ids=ac_ids,
+        verification_ids=test_ids | verification_ids,
+    )
     all_verification_refs = test_ids | verification_ids
     covered_ac_ids |= verification_covered_ac_ids
     for criterion_id, criterion in ac_by_id.items():

@@ -117,6 +117,11 @@ Every full spec must include:
 - Implementation plan and tasks placeholders or initial entries
 - `implementation_state`, `approvals`, `decisions`, `attempts`, and `handoff`
 - Risks, open questions, and privacy/security requirements
+- A demonstration eligibility record for every new or materially resumed Tier 2
+  spec. Required demonstrations define a narration outline with purpose, expected
+  proof, scenario IDs, and acceptance criteria before implementation. Only
+  concretely non-visual work may use `not_applicable`; browser, CLI, and native
+  behavior cannot.
 
 Scenarios must use concrete examples. Avoid abstract placeholders except for
 private values such as `<USER_EMAIL>` or `<CHAT_ID>`.

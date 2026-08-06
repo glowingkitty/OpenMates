@@ -12,6 +12,8 @@ Architecture: docs/contributing/guides/spec-driven-development.md
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,6 +50,12 @@ def load_spec(path: Path) -> dict[str, Any]:
     return data
 
 
+def manifest_evidence_hash(manifest: dict[str, Any]) -> str:
+    immutable = {key: value for key, value in manifest.items() if key != "publication"}
+    encoded = json.dumps(immutable, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
 def evidence_payload(args: argparse.Namespace) -> dict[str, str]:
     return {
         "status": args.status,
@@ -81,6 +89,45 @@ def record_test_phase(data: dict[str, Any], test_id: str, phase: str, payload: d
     raise RuntimeError(f"Test id not found: {test_id}")
 
 
+def record_demonstration(data: dict[str, Any], payload: dict[str, str], args: argparse.Namespace) -> None:
+    demonstration = data.get("demonstration")
+    if not isinstance(demonstration, dict):
+        raise RuntimeError("Spec does not define a demonstration contract")
+    evidence = demonstration.setdefault("evidence", {})
+    if not isinstance(evidence, dict):
+        raise RuntimeError("demonstration.evidence must be a mapping")
+    manifest_path = Path(args.manifest_path)
+    if not manifest_path.is_absolute():
+        manifest_path = REPO_ROOT / manifest_path
+    if not manifest_path.is_file():
+        raise RuntimeError(f"Demonstration manifest does not exist: {manifest_path}")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read demonstration manifest: {exc}") from exc
+    privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+    if payload["status"] == "passed" and (privacy.get("status") != "passed" or review.get("status") != "passed"):
+        raise RuntimeError("Passing demonstration evidence requires passed manifest privacy and review states")
+    manifest_commit = manifest.get("subject_commit")
+    if manifest_commit != payload["subject_commit"]:
+        raise RuntimeError("Demonstration manifest subject commit does not match recorded evidence")
+    manifest_hash = manifest_evidence_hash(manifest)
+    evidence.update(
+        {
+            **payload,
+            "manifest_path": display_path(manifest_path),
+            "manifest_hash": manifest_hash,
+            "privacy_status": privacy.get("status", "pending"),
+            "review_status": review.get("status", "pending"),
+            "review_run_id": review.get("run_id", ""),
+            "review_attempts": review.get("attempt_count", 0),
+            "publication_status": publication.get("status", "pending"),
+        }
+    )
+
+
 def write_spec(path: Path, data: dict[str, Any]) -> None:
     path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=False, width=120), encoding="utf-8")
 
@@ -96,12 +143,14 @@ def record(args: argparse.Namespace) -> None:
     spec_path = args.spec if args.spec.is_absolute() else REPO_ROOT / args.spec
     data = load_spec(spec_path)
     payload = evidence_payload(args)
-    if args.verification_id:
+    if args.demonstration:
+        record_demonstration(data, payload, args)
+    elif args.verification_id:
         record_verification(data, args.verification_id, payload)
     elif args.test_id:
         record_test_phase(data, args.test_id, args.phase, payload)
     else:
-        raise RuntimeError("Provide --verification-id or --test-id")
+        raise RuntimeError("Provide --demonstration, --verification-id, or --test-id")
     write_spec(spec_path, data)
     print(f"Recorded {payload['status']} evidence in {display_path(spec_path)}")
 
@@ -113,12 +162,14 @@ def main(argv: list[str] | None = None) -> int:
     record_parser.add_argument("spec", type=Path)
     record_parser.add_argument("--verification-id", default="")
     record_parser.add_argument("--test-id", default="")
+    record_parser.add_argument("--demonstration", action="store_true")
     record_parser.add_argument("--phase", choices=("red", "green"), default="green")
     record_parser.add_argument("--status", required=True)
     record_parser.add_argument("--run-id", required=True)
     record_parser.add_argument("--command", required=True)
     record_parser.add_argument("--subject-commit", default="")
     record_parser.add_argument("--timestamp", default="")
+    record_parser.add_argument("--manifest-path", default="")
     args = parser.parse_args(argv)
     try:
         if args.command_name == "record":

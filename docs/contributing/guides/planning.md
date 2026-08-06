@@ -326,8 +326,10 @@ Complements the planning template above with the end-to-end lifecycle.
 4. **Plan** — Follow the template above or run `plan-from-spec`. Check `sessions.py status` for file conflicts.
 5. **Test contract** — Define tests and expected evidence before implementation. Red evidence may pass unexpectedly or be inapplicable, but the result and reason must be recorded.
 6. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.
-7. **Verify** — Work through Acceptance Criteria checklist. Run `verify-spec` for full-spec work.
-8. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed.
-9. **Confirm** — Task Summary to user → wait for confirmation → delete issue if any → `end` session.
+7. **Verify** — Work through Acceptance Criteria checklist. Run applicable pre-deploy checks for full-spec work.
+8. **Deploy for verification** — Deploy when live Playwright or dev-server evidence is required. Rebuild Docker if backend changed.
+9. **Demonstrate** — Eligible Tier 2 specs and user-visible Tier 1 plans turn real green evidence into exact captions and a frame-reviewed video. Define the narration outline and expected proof during planning, but write exact captions only after implementation is green.
+10. **Publish** — Attempt sanitized Discord publication after demonstration review; delivery failure remains separately retryable.
+11. **Confirm** — Run final `verify-spec`, provide the task summary, handle required user confirmation, and end the session.
 
 If a test fails and you're stuck after 2 attempts: STOP and report.

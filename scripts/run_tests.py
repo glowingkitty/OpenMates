@@ -66,8 +66,12 @@ from zoneinfo import ZoneInfo
 
 try:
     from scripts import sessions as session_control
+    from scripts.discord_webhook import build_multipart_body as _build_multipart_body
+    from scripts.spec_demo import sweep_publications as _sweep_spec_demo_publications
 except ModuleNotFoundError:
     import sessions as session_control
+    from discord_webhook import build_multipart_body as _build_multipart_body
+    from spec_demo import sweep_publications as _sweep_spec_demo_publications
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -1265,62 +1269,6 @@ def _prune_discord_state(state: dict, retention_days: int = DISCORD_STATE_RETENT
             keep[k] = entry
     state["tests"] = keep
     return state
-
-
-def _build_multipart_body(
-    payload_json: dict,
-    files: list[tuple[str, bytes, str]],
-) -> tuple[bytes, str]:
-    """Build a multipart/form-data body for a Discord webhook with attachments.
-
-    Discord requires the JSON payload under the field name `payload_json`
-    and each attached file under `files[N]` with a `filename`. Returns
-    `(body_bytes, content_type)` ready to feed into urllib.request.
-
-    Stdlib-only because run_tests.py intentionally avoids extra deps so it
-    can run on a vanilla Python install on the dev server cron.
-
-    Args:
-        payload_json: The JSON-serialisable Discord webhook payload.
-        files: List of `(field_name, content_bytes, filename)` tuples. Use
-               `field_name = "files[N]"` to follow Discord's convention.
-    """
-    # A boundary is any token that doesn't appear in the body. uuid-like is fine.
-    boundary = f"----openmates-{int(time.time())}-{os.getpid()}"
-    crlf = b"\r\n"
-    parts: list[bytes] = []
-
-    # payload_json field
-    parts.append(f"--{boundary}".encode())
-    parts.append(b'Content-Disposition: form-data; name="payload_json"')
-    parts.append(b"Content-Type: application/json")
-    parts.append(b"")
-    parts.append(json.dumps(payload_json).encode("utf-8"))
-
-    # File fields
-    for field_name, content_bytes, filename in files:
-        parts.append(f"--{boundary}".encode())
-        parts.append(
-            f'Content-Disposition: form-data; name="{field_name}"; '
-            f'filename="{filename}"'.encode()
-        )
-        # Sniff content-type from extension (PNG for *.png, default octet-stream).
-        ct = "image/png" if filename.lower().endswith(".png") else (
-            "image/webp" if filename.lower().endswith(".webp") else (
-                "image/jpeg" if filename.lower().endswith((".jpg", ".jpeg"))
-                else "application/octet-stream"
-            )
-        )
-        parts.append(f"Content-Type: {ct}".encode())
-        parts.append(b"")
-        parts.append(content_bytes)
-
-    parts.append(f"--{boundary}--".encode())
-    parts.append(b"")
-
-    body = crlf.join(parts)
-    content_type = f"multipart/form-data; boundary={boundary}"
-    return body, content_type
 
 
 # ---------------------------------------------------------------------------
@@ -6891,6 +6839,34 @@ def _run_with_dev_stack_lease(args, callback):
     finally:
         session_control.release_test_resource_lease(lease_id)
 
+
+def _maintain_spec_demo_publications(now: datetime | None = None) -> dict[str, int]:
+    """Retry or expire pending demo publications from root and session worktrees."""
+    totals = {"scanned": 0, "retried": 0, "delivered": 0, "expired_deleted": 0}
+    roots = [CONTROL_PLANE_ROOT / "test-results/spec-demos"]
+    worktree_root = CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
+    if worktree_root.is_dir():
+        roots.extend(path / "test-results/spec-demos" for path in worktree_root.iterdir() if path.is_dir())
+    for root in roots:
+        try:
+            result = _sweep_spec_demo_publications(
+                root,
+                now=now or datetime.now(timezone.utc),
+                webhook_url=os.environ.get("DISCORD_WEBHOOK_SPEC_DEMOS", ""),
+                approved_artifact_link=os.environ.get("SPEC_DEMO_APPROVED_ARTIFACT_LINK", ""),
+                approved_artifact_hosts={
+                    host.strip().lower()
+                    for host in os.environ.get("SPEC_DEMO_ARTIFACT_HOSTS", "").split(",")
+                    if host.strip()
+                },
+            )
+        except Exception as exc:
+            _log(f"Spec demonstration publication maintenance failed for {root}: {exc}", "WARNING")
+            continue
+        for key in totals:
+            totals[key] += result[key]
+    return totals
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="OpenMates unified test orchestrator",
@@ -7001,6 +6977,11 @@ def main() -> int:
     for k, v in dot_env.items():
         if k not in os.environ:
             os.environ[k] = v
+
+    if args.hourly_dev or args.daily:
+        maintenance = _maintain_spec_demo_publications()
+        if maintenance["retried"] or maintenance["expired_deleted"]:
+            _log(f"Spec demonstration publication maintenance: {maintenance}")
 
     # --dry-run-notify: short-circuit before any spec dispatch.
     if args.dry_run_notify:
