@@ -102,7 +102,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+  subject_commit: 1616ef4e682efc5dd8c650bbea7b8c53a4118a76
 
 approvals:
   product_contract:
@@ -161,14 +161,30 @@ attempts:
     approach: Define the product contract and dev-first verification ladder before implementation.
     outcome: succeeded
     recorded_at: "2026-08-06T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-6
+    approach: Run the packaged verifier against rebuilt dev API, worker, scheduler, cache, Vault, and Directus containers.
+    outcome: succeeded
+    recorded_at: "2026-08-06T12:01:00Z"
+  - id: ATTEMPT-3
+    task_id: TASK-6
+    approach: Run official-cloud billing no-spend verification in the dev API container.
+    outcome: blocked
+    reason: The dev API container has no openmatescloud package or overlay mount and resolves explicitly to self_host.
+    recorded_at: "2026-08-06T12:01:00Z"
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write the missing backend, CLI, and deterministic audit tests before feature implementation.
-  command: python3 -m pytest backend/tests/test_runtime_health_verifier.py
-  expected_outcome: Red phase fails because the verifier, host alerting module, and audit do not exist yet.
-  blocker: null
-  last_verified_commit: fa35d4ba4fe0308595a115f80ff0cdea0e279654
+  current_task_id: TASK-6
+  next_action: Mount the official-cloud overlay into dev and provide approved dev notification destinations, then run the billing, notification, and current-source CLI gates.
+  command: python3 scripts/verify_post_update_runtime_health.py --target dev --scenario billing-no-spend
+  expected_outcome: The official-cloud read-only billing inventory passes without creating or mutating payment resources.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: true
+    reason: The dev container lacks the private official-cloud overlay, approved notification destinations are not available to this session, and the installed CLI is older than the deployed source.
+    question: Should the dev official-cloud overlay and notification test destinations be provisioned now so the remaining live gates can run?
+    next_action: Rebuild dev in official_cloud mode, publish or install the current CLI artifact, and run T-DEV-BILLING-001, T-DEV-NOTIFY-001, and T-DEV-CLI-001.
+  last_verified_commit: 1616ef4e682efc5dd8c650bbea7b8c53a4118a76
 
 scenarios:
   - id: S-1
@@ -980,7 +996,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Write red runtime-health contracts and deterministic audit
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
@@ -1011,7 +1027,7 @@ tasks:
 
   - id: TASK-2
     title: Enforce fail-closed runtime deployment mode
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4]
@@ -1048,7 +1064,7 @@ tasks:
 
   - id: TASK-3
     title: Implement packaged no-spend runtime verifier
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-4, S-5]
@@ -1078,7 +1094,7 @@ tasks:
 
   - id: TASK-4
     title: Implement host incident state and safe notification adapters
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2, S-5, S-6]
@@ -1105,7 +1121,7 @@ tasks:
 
   - id: TASK-5
     title: Integrate checklist and watchdog into server CLI lifecycle
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-5, S-6]
@@ -1134,7 +1150,7 @@ tasks:
 
   - id: TASK-6
     title: Prove all dev runtime and notification paths
-    status: pending
+    status: blocked
     phase: running_checks
     covers:
       scenarios: [S-1, S-2, S-3, S-5, S-6, S-7]
@@ -1159,7 +1175,8 @@ tasks:
         - scripts/verify_post_update_notifications.py
       shared_files:
         - docs/specs/post-update-runtime-health-alerting/spec.yml
-    blockers: []
+    blockers:
+      - Dev official-cloud overlay and approved notification destinations are unavailable; installed CLI 0.14.6 predates the new commands.
     follow_up_tasks: [TASK-7]
     independently_deployable: false
 
