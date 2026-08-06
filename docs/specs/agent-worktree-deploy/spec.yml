@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-worktree-deploy
 title: Agent Worktree Deploy Isolation and Reconciliation
-status: implementing
+status: verified
 goal: 'Replace the shared-checkout deployment workflow with automatic ephemeral session worktrees that isolate agent edits,
   integrate through the existing dev branch only for the shortest practical window, verify deploys against the relevant commit,
   and reconcile workspaces without overwriting newer dev commits or allowing forgotten worktrees to accumulate.
@@ -121,7 +121,7 @@ clarification:
     '
   approved_by_user: true
 implementation_state:
-  subject_commit: de5377177d7c0ce825c592111533514700ddeea3
+  subject_commit: a3af5937bf939784fe744971bcd69e07f506ed79
 approvals:
   product_contract:
     status: approved
@@ -247,9 +247,9 @@ attempts:
     concurrent blocked deploys that were intentionally not modified.
 handoff:
   current_task_id: TASK-19
-  next_action: Validate and verify the resumed lifecycle spec, then deploy the scoped implementation to dev.
-  command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
-  expected_outcome: The resumed lifecycle contract validates with current green checkpoint, integration, and hook evidence.
+  next_action: Restart OpenCode to load the deployed hook and monitor the installed hourly reconciliation timer.
+  command: systemctl --user status worktree-reconciliation.timer --no-pager
+  expected_outcome: The timer is active and future mutating OpenCode chats use the deployed checkpoint lifecycle after restart.
   blocker: null
   last_verified_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3
 scenarios:
@@ -880,11 +880,11 @@ tests:
   red_phase:
     required: true
     expected: fail
-    evidence: {status: missing_test, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py", run_id: local-worktree-checkpoint-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
+    evidence: {status: missing_test, reason: "The checkpoint contract test file did not exist at the pre-implementation subject commit.", command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py", run_id: local-worktree-checkpoint-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
   green_phase:
     required: true
     expected: pass
-    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py scripts/tests/test_sessions_auto_integration.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_integration_concurrency.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: local-lifecycle-green-20260806-1911, subject_commit: de5377177d7c0ce825c592111533514700ddeea3, timestamp: '2026-08-06T19:11:54Z'}
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py scripts/tests/test_sessions_auto_integration.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_integration_concurrency.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: local-lifecycle-green-20260806-1915, subject_commit: a3af5937bf939784fe744971bcd69e07f506ed79, timestamp: '2026-08-06T19:15:32Z'}
 - id: T-PYTEST-AUTO-INTEGRATION
   type: pytest
   file: scripts/tests/test_sessions_auto_integration.py
@@ -898,11 +898,11 @@ tests:
   red_phase:
     required: true
     expected: fail
-    evidence: {status: missing_test, command: "python3 -m pytest scripts/tests/test_sessions_auto_integration.py", run_id: local-auto-integration-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
+    evidence: {status: missing_test, reason: "The automatic integration contract test file did not exist at the pre-implementation subject commit.", command: "python3 -m pytest scripts/tests/test_sessions_auto_integration.py", run_id: local-auto-integration-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
   green_phase:
     required: true
     expected: pass
-    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py scripts/tests/test_sessions_auto_integration.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_integration_concurrency.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: local-lifecycle-green-20260806-1911, subject_commit: de5377177d7c0ce825c592111533514700ddeea3, timestamp: '2026-08-06T19:11:54Z'}
+    evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_sessions_worktree_checkpoints.py scripts/tests/test_sessions_auto_integration.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_integration_concurrency.py scripts/tests/test_sessions_worktree_deploy.py scripts/tests/test_sessions_worktree_deploy_queue.py scripts/tests/test_sessions_worktree_reconciliation.py scripts/tests/test_sessions_native_worktree_reconciliation.py", run_id: local-lifecycle-green-20260806-1915, subject_commit: a3af5937bf939784fe744971bcd69e07f506ed79, timestamp: '2026-08-06T19:15:32Z'}
 - id: T-NODE-READONLY-ROUTING
   type: unit
   file: scripts/tests/test_opencode_presence_collisions.mjs
@@ -915,11 +915,11 @@ tests:
   red_phase:
     required: true
     expected: fail
-    evidence: {status: missing_test, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: local-readonly-routing-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
+    evidence: {status: missing_test, reason: "The transcript-derived routing and hostile near-match assertions were absent at the pre-implementation subject commit.", command: "node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: local-readonly-routing-red-20260806, subject_commit: 00e70ab68f8f089f2a6894569d7884f31a7703d3, timestamp: '2026-08-06T17:24:00Z'}
   green_phase:
     required: true
     expected: pass
-    evidence: {status: passed, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_task_child_roles.mjs", run_id: local-readonly-routing-green-20260806-1911, subject_commit: de5377177d7c0ce825c592111533514700ddeea3, timestamp: '2026-08-06T19:11:54Z'}
+    evidence: {status: passed, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_native_worktree_binding.mjs scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_task_child_roles.mjs", run_id: local-readonly-routing-green-20260806-1915, subject_commit: a3af5937bf939784fe744971bcd69e07f506ed79, timestamp: '2026-08-06T19:15:32Z'}
 assumptions:
 - id: A-1
   text: Existing `sessions.py` metadata can be extended without replacing `.claude/sessions.json` as the shared state file.
@@ -981,14 +981,18 @@ verifications:
   - AC-10
   - AC-11
   - AC-12
+  - AC-13
+  - AC-14
+  - AC-15
+  - AC-16
   required_for_done: true
   command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
   evidence:
     status: passed
     command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
-    run_id: local-final-spec-validate-20260804
-    subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
-    timestamp: '2026-08-04T11:40:00Z'
+    run_id: local-final-spec-validate-20260806-1915
+    subject_commit: a3af5937bf939784fe744971bcd69e07f506ed79
+    timestamp: '2026-08-06T19:15:32Z'
 - id: V-SPEC-VERIFY
   kind: deterministic_check
   phase: final
@@ -1006,14 +1010,18 @@ verifications:
   - AC-10
   - AC-11
   - AC-12
+  - AC-13
+  - AC-14
+  - AC-15
+  - AC-16
   required_for_done: true
   command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
   evidence:
     status: passed
     command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
-    run_id: local-final-spec-verify-20260804
-    subject_commit: edc4273913ca487b3acb54414e8cf9fb3d24dd75
-    timestamp: '2026-08-04T11:40:00Z'
+    run_id: local-final-spec-verify-20260806-1915
+    subject_commit: a3af5937bf939784fe744971bcd69e07f506ed79
+    timestamp: '2026-08-06T19:15:32Z'
 implementation_plan:
   spec_path: docs/specs/agent-worktree-deploy/spec.yml
   architecture: 'Keep `scripts/sessions.py` as the single lifecycle controller and extend it with report-only reconciliation,
@@ -1603,8 +1611,8 @@ tasks:
     shared_files: [.claude/sessions.json, .openmates-agent-worktrees]
 - id: TASK-19
   title: Document, audit, and verify the resumed lifecycle contract
-  status: in_progress
-  phase: running_checks
+  status: done
+  phase: complete
   covers:
     scenarios: [S-11, S-12, S-13, S-14]
     acceptance_criteria: [AC-13, AC-14, AC-15, AC-16]
