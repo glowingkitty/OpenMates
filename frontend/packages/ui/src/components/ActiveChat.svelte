@@ -6711,12 +6711,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Force reactivity by creating new Map
         thinkingContentByTask = new Map(thinkingContentByTask);
         
-        // Let the cloned thinking map propagate before the imperative message update.
-        tick().then(() => {
-            if (chatHistoryRef) {
-                chatHistoryRef.updateMessages(currentMessages);
-            }
-        });
+        // Update UI if chatHistoryRef exists
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages(currentMessages);
+        }
     }
     
     /**
