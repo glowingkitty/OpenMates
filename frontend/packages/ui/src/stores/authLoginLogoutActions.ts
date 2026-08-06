@@ -139,6 +139,9 @@ export function resetLocalLogoutState(): void {
   if (typeof window !== "undefined" && window.location.hash) {
     window.location.hash = "";
   }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("forceCloseSettings"));
+  }
 
   authStore.set({
     ...authInitialState,

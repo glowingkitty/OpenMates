@@ -11131,6 +11131,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 chatHistoryRef?.updateMessages([]);
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
                 showWelcome = true;
+                guestAllExamplesVisible = false;
+                guestSkipLandingIntro = false;
+                guestLandingIntroPhase = 'expanded';
+                guestLandingIntroResetToken += 1;
                 isAtBottom = false;
                 
                 // Clear the persistent store
