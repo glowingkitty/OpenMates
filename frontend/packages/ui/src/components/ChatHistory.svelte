@@ -610,6 +610,15 @@
   }
 
   /**
+   * Helper to read thinking entries from the map with a stable signature.
+   * This keeps the repeated template lookups consistent without unsupported {@const} placement.
+   */
+  function getThinkingEntry(messageId: string | undefined) {
+    if (!messageId) return undefined;
+    return thinkingContentByTask.get(messageId);
+  }
+
+  /**
    * Derived state: Create a lookup map of user_message_id → app settings/memories REQUEST.
    * System messages with type 'app_settings_memories_request' contain the request metadata
    * (requested_keys, categories) and should be displayed as part of the user's message, not separately.
@@ -2911,8 +2920,8 @@
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
                         hasEmbedErrors={msg._embedErrors ? msg._embedErrors.size > 0 : false}
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
-                        thinkingContent={msg.role === 'assistant' ? (thinkingContentByTask.get(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
-                        isThinkingStreaming={msg.role === 'assistant' ? (thinkingContentByTask.get(msg.id)?.isStreaming || false) : false}
+                        thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
+                        isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
                         piiMappings={cumulativePIIMappingsArray}
                         {piiRevealed}
                         messageId={msg.id}
