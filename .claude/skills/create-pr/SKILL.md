@@ -19,7 +19,7 @@ argument-hint: "[title]"
 !`gh release list --limit 3 2>/dev/null || echo "gh not available"`
 
 ## Release Intelligence Snapshot
-!`today=$(date -u +%F); yesterday=$(date -u -d '24 hours ago' +%F); python3 scripts/release_intelligence.py daily --since "24 hours ago" --date "$today" --write --output "docs/releases/daily/${today}.yml" >/tmp/create-pr-release-intelligence.out 2>/tmp/create-pr-release-intelligence.err && echo "Refreshed docs/releases/daily/${today}.yml" || { echo "Daily release intelligence refresh failed"; cat /tmp/create-pr-release-intelligence.err; }; latest_pr_date=$(gh pr list --base main --head dev --state all --limit 1 --json createdAt --jq '.[0].createdAt // empty' 2>/dev/null | cut -dT -f1); if [ -n "$latest_pr_date" ]; then echo "Daily changelogs since last dev→main PR (${latest_pr_date}):"; ls docs/releases/daily/*.yml 2>/dev/null | while read -r file; do day=$(basename "$file" .yml); [ "$day" ">" "$latest_pr_date" ] && echo "$file"; done; else echo "No previous dev→main PR date found; use available daily changelogs plus origin/main..origin/dev."; ls docs/releases/daily/*.yml 2>/dev/null | tail -14; fi`
+!`today=$(date -u +%F); python3 scripts/release_intelligence.py daily --since "24 hours ago" --date "$today" --write --output "docs/releases/daily/${today}.yml" >/tmp/create-pr-release-intelligence.out 2>/tmp/create-pr-release-intelligence.err && echo "Refreshed docs/releases/daily/${today}.md and companion YAML" || { echo "Daily release intelligence refresh failed"; cat /tmp/create-pr-release-intelligence.err; }; latest_pr_date=$(gh pr list --base main --head dev --state all --limit 1 --json createdAt --jq '.[0].createdAt // empty' 2>/dev/null | cut -dT -f1); if [ -n "$latest_pr_date" ]; then echo "Daily summaries since last dev→main PR (${latest_pr_date}):"; ls docs/releases/daily/*.md 2>/dev/null | while read -r file; do day=$(basename "$file" .md); [ "$day" ">" "$latest_pr_date" ] && echo "$file"; done; else echo "No previous dev→main PR date found; use available daily summaries plus origin/main..origin/dev."; ls docs/releases/daily/*.md 2>/dev/null | tail -14; fi`
 
 ## Feature Readiness Snapshot
 !`latest_pr_date=$(gh pr list --base main --head dev --state all --limit 1 --json createdAt --jq '.[0].createdAt // empty' 2>/dev/null | cut -dT -f1); if [ -n "$latest_pr_date" ]; then next_daily_date=$(date -u -d "${latest_pr_date} +1 day" +%F); python3 scripts/release_intelligence.py pr-readiness --from-ref origin/main --to-ref origin/dev --daily-start-date "$next_daily_date" --format markdown --stdout; else python3 scripts/release_intelligence.py pr-readiness --from-ref origin/main --to-ref origin/dev --format markdown --stdout; fi`
@@ -78,17 +78,17 @@ python3 scripts/release_intelligence.py daily \
   --output "docs/releases/daily/${today}.yml"
 ```
 
-Then identify the most recent prior `dev` → `main` PR and read every `docs/releases/daily/YYYY-MM-DD.yml` after that PR date. Use those daily changelogs as the primary source for the PR description because they already separate released-ready, dev-only, internal, and disabled-feature work.
+Then identify the most recent prior `dev` → `main` PR and read every compact `docs/releases/daily/YYYY-MM-DD.md` after that PR date. Use these Gemini interpretations as the primary source for the PR description. Consult the companion YAML only for deterministic feature readiness or details absent from Markdown.
 
 ```bash
 latest_pr_date=$(gh pr list --base main --head dev --state all --limit 1 --json createdAt --jq '.[0].createdAt // empty' | cut -dT -f1)
-ls docs/releases/daily/*.yml | while read -r file; do
-  day=$(basename "$file" .yml)
+ls docs/releases/daily/*.md | while read -r file; do
+  day=$(basename "$file" .md)
   [ -z "$latest_pr_date" ] || [ "$day" ">" "$latest_pr_date" ] && echo "$file"
 done
 ```
 
-Use `llm_summary`, `sections`, `marketing_candidates`, and `unreleased_progress` from those files to build the PR body. Keep unreleased/disabled-feature work out of public release/newsletter language, but include it in the PR when it is part of the code diff.
+Use the Markdown overview, grouped changes, and newsletter guidance to build the PR body. Keep unreleased/disabled-feature work out of public release/newsletter language, but include it in the PR when it is part of the code diff. Use companion YAML fields such as `sections`, `marketing_candidates`, and `unreleased_progress` only when deeper structured evidence is required.
 
 ### Step 3 — Feature Readiness Gate (CRITICAL)
 

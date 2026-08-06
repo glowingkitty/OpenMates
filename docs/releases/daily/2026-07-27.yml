@@ -1,0 +1,2966 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-27'
+generated_at: '2026-08-06T13:18:07+00:00'
+range:
+  since: '2026-07-27T00:00:00+00:00'
+  until: '2026-07-28T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 59
+  section_counts:
+    features: 3
+    bug_fixes: 23
+    improvements: 0
+    docs: 1
+    tests: 32
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 24
+  dev_only_items: 59
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Kimi K3 model'
+    section: features
+    commits:
+    - 9786a5f52
+    authored_at: '2026-07-27T23:22:16+00:00'
+    changed_paths:
+    - backend/providers/moonshot.yml
+    - backend/tests/test_kimi_k2_7_code_script.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: persist task queue continuation events'
+    section: features
+    commits:
+    - dcc2a4bdc
+    authored_at: '2026-07-27T18:33:59+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add task queue auto-continuation'
+    section: features
+    commits:
+    - dfe30cbc0
+    authored_at: '2026-07-27T14:11:01+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    - backend/tests/test_user_task_execution_contexts.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: show all guest example chats'
+    section: bug_fixes
+    commits:
+    - 3bc4a92c2
+    authored_at: '2026-07-27T23:29:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide Learning Mode settings from logged-out users'
+    section: bug_fixes
+    commits:
+    - '525817453'
+    authored_at: '2026-07-27T23:23:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: update logged-out intro signup slide'
+    section: bug_fixes
+    commits:
+    - 31568ca3c
+    authored_at: '2026-07-27T23:11:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow sends with ready IndexedDB handle'
+    section: bug_fixes
+    commits:
+    - 88d914a66
+    authored_at: '2026-07-27T22:49:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh task context before queue retries'
+    section: bug_fixes
+    commits:
+    - dbe97cbe4
+    authored_at: '2026-07-27T19:12:22+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: serialize task activity as user history'
+    section: bug_fixes
+    commits:
+    - bf2289520
+    authored_at: '2026-07-27T18:46:01+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent duplicate bank transfer reference credits'
+    section: bug_fixes
+    commits:
+    - 3393a6604
+    authored_at: '2026-07-27T18:13:28+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_duplicate_reference_email_task.py
+    - backend/core/api/templates/email/bank-transfer-duplicate-reference.mjml
+    - backend/scripts/send_bank_transfer_duplicate_reference_email_test.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_bank_transfer_duplicate_reference_email.py
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete missing translations'
+    section: bug_fixes
+    commits:
+    - af9f16f79
+    authored_at: '2026-07-27T17:38:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/sessions.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore example chat intro and summaries'
+    section: bug_fixes
+    commits:
+    - 62097fbe3
+    authored_at: '2026-07-27T17:19:02+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_share_chat_window_loading.py
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load local draft after chat hash changes'
+    section: bug_fixes
+    commits:
+    - 3a063c783
+    authored_at: '2026-07-27T15:37:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: de-dupe staged task creates'
+    section: bug_fixes
+    commits:
+    - ac6171195
+    authored_at: '2026-07-27T15:33:54+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sync chat hash into active store'
+    section: bug_fixes
+    commits:
+    - 508c96e32
+    authored_at: '2026-07-27T15:18:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep task queue creation order deterministic'
+    section: bug_fixes
+    commits:
+    - b307216b6
+    authored_at: '2026-07-27T15:12:34+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/tasks/skills/create_skill.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/tests/test_task_app_skill_embeds.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:tasks, embed:tasks:create, platform:tasks, skill:tasks:create'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve daily inspiration readability'
+    section: bug_fixes
+    commits:
+    - 7f296ae31
+    authored_at: '2026-07-27T14:26:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover deep-linked encrypted drafts'
+    section: bug_fixes
+    commits:
+    - 4e4534805
+    authored_at: '2026-07-27T14:15:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep compressed chat tail prompt visible'
+    section: bug_fixes
+    commits:
+    - cc08b649b
+    authored_at: '2026-07-27T14:06:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/tests/test_chat_compressor.py
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore landing carousel signup paths'
+    section: bug_fixes
+    commits:
+    - e22a52280
+    authored_at: '2026-07-27T13:35:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep security auth password-first after late capability load'
+    section: bug_fixes
+    commits:
+    - 4edd4504e
+    authored_at: '2026-07-27T13:25:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: update landing carousel exit and signup CTA'
+    section: bug_fixes
+    commits:
+    - ff50851e3
+    authored_at: '2026-07-27T13:15:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize landing intro example layout'
+    section: bug_fixes
+    commits:
+    - 7764f2c40
+    authored_at: '2026-07-27T12:02:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep guest examples stable after intro'
+    section: bug_fixes
+    commits:
+    - 13b3cc447
+    authored_at: '2026-07-27T11:28:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: constrain search embed overflow'
+    section: bug_fixes
+    commits:
+    - 075690bf5
+    authored_at: '2026-07-27T04:01:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/styles/chat.css
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:search_repos, embed:home:search, embed:news:search, embed:videos:search,
+      embed:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render pending audio embed placeholders'
+    section: bug_fixes
+    commits:
+    - 410f942d9
+    authored_at: '2026-07-27T03:48:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/stores/__tests__/pendingUploadStore.test.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record task queue smoke evidence'
+    section: docs
+    commits:
+    - 817a3939d
+    authored_at: '2026-07-27T15:45:04+00:00'
+    changed_paths:
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: stabilize unauthenticated chat navigation helper'
+    section: tests
+    commits:
+    - ccc694796
+    authored_at: '2026-07-27T23:49:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expose send session-state diagnostics'
+    section: tests
+    commits:
+    - 4c0e0632e
+    authored_at: '2026-07-27T23:02:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bound e2e draft send diagnostics'
+    section: tests
+    commits:
+    - 173562b15
+    authored_at: '2026-07-27T22:36:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: await e2e draft send helper'
+    section: tests
+    commits:
+    - a1508b8bd
+    authored_at: '2026-07-27T22:09:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: send cross-client draft via e2e helper'
+    section: tests
+    commits:
+    - 24cc17f3a
+    authored_at: '2026-07-27T21:55:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dispatch cross-client draft send event'
+    section: tests
+    commits:
+    - 508fa5c53
+    authored_at: '2026-07-27T20:44:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope cross-client draft send button'
+    section: tests
+    commits:
+    - ba5cc1f7a
+    authored_at: '2026-07-27T20:32:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix cross-client send draft opener'
+    section: tests
+    commits:
+    - a864dfced
+    authored_at: '2026-07-27T20:20:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: send raw draft delete from e2e helper'
+    section: tests
+    commits:
+    - 0a5eef560
+    authored_at: '2026-07-27T20:03:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: raw clear local draft in e2e helper'
+    section: tests
+    commits:
+    - 5110bcfd9
+    authored_at: '2026-07-27T19:45:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize task queue smoke evidence'
+    section: tests
+    commits:
+    - b678ef082
+    authored_at: '2026-07-27T19:32:23+00:00'
+    changed_paths:
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: directly clear local draft in e2e helper'
+    section: tests
+    commits:
+    - 3a88f2e70
+    authored_at: '2026-07-27T19:31:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: do not await e2e draft clear receipt'
+    section: tests
+    commits:
+    - 931ae3127
+    authored_at: '2026-07-27T19:18:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clear draft via e2e replacement helper'
+    section: tests
+    commits:
+    - b98fe1dbf
+    authored_at: '2026-07-27T19:04:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bound draft replacement helper flush'
+    section: tests
+    commits:
+    - fedf9b797
+    authored_at: '2026-07-27T18:47:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reveal cross-client restored draft composer'
+    section: tests
+    commits:
+    - c66c89c18
+    authored_at: '2026-07-27T18:32:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: activate cross-client local drafts directly'
+    section: tests
+    commits:
+    - afbcc4d07
+    authored_at: '2026-07-27T18:19:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: await local chat e2e loader'
+    section: tests
+    commits:
+    - 923d93994
+    authored_at: '2026-07-27T17:56:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: allow chat id with settings hash'
+    section: tests
+    commits:
+    - 10ec9be6b
+    authored_at: '2026-07-27T15:40:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: support input-side new chat CTA'
+    section: tests
+    commits:
+    - f5cd7e8cd
+    authored_at: '2026-07-27T15:19:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: log cross-client draft open diagnostics'
+    section: tests
+    commits:
+    - 724077b95
+    authored_at: '2026-07-27T15:01:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify example chat tail by message id'
+    section: tests
+    commits:
+    - 683bd89c1
+    authored_at: '2026-07-27T14:57:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align example chat visible-tail assertions'
+    section: tests
+    commits:
+    - 6035f83f8
+    authored_at: '2026-07-27T14:39:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expose active backup-code login selectors'
+    section: tests
+    commits:
+    - 27456409f
+    authored_at: '2026-07-27T14:16:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: target backup-code login form selectors'
+    section: tests
+    commits:
+    - 51380b94d
+    authored_at: '2026-07-27T14:03:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/packages/ui/src/components/EnterBackupCode.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept logged-out passkey deletion state'
+    section: tests
+    commits:
+    - 464f60e6d
+    authored_at: '2026-07-27T13:23:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: correct unified detail readiness selectors'
+    section: tests
+    commits:
+    - 78093431e
+    authored_at: '2026-07-27T12:50:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for plan input in unified detail spec'
+    section: tests
+    commits:
+    - f7099da13
+    authored_at: '2026-07-27T12:35:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use plans page marker in unified detail spec'
+    section: tests
+    commits:
+    - 93db8a8ef
+    authored_at: '2026-07-27T12:20:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize unified detail card clicks'
+    section: tests
+    commits:
+    - b0a0f40c5
+    authored_at: '2026-07-27T12:03:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid duplicate chat send fallback'
+    section: tests
+    commits:
+    - bed25c27b
+    authored_at: '2026-07-27T11:28:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: tolerate exhausted Brave quota'
+    section: tests
+    commits:
+    - 82cc48d30
+    authored_at: '2026-07-27T04:17:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: stabilize unauthenticated chat navigation helper'
+    commits:
+    - ccc694796
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show all guest example chats'
+    commits:
+    - 3bc4a92c2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hide Learning Mode settings from logged-out users'
+    commits:
+    - '525817453'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Kimi K3 model'
+    commits:
+    - 9786a5f52
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: update logged-out intro signup slide'
+    commits:
+    - 31568ca3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: expose send session-state diagnostics'
+    commits:
+    - 4c0e0632e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow sends with ready IndexedDB handle'
+    commits:
+    - 88d914a66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: bound e2e draft send diagnostics'
+    commits:
+    - 173562b15
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: await e2e draft send helper'
+    commits:
+    - a1508b8bd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: send cross-client draft via e2e helper'
+    commits:
+    - 24cc17f3a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: dispatch cross-client draft send event'
+    commits:
+    - 508fa5c53
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: scope cross-client draft send button'
+    commits:
+    - ba5cc1f7a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fix cross-client send draft opener'
+    commits:
+    - a864dfced
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: send raw draft delete from e2e helper'
+    commits:
+    - 0a5eef560
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: raw clear local draft in e2e helper'
+    commits:
+    - 5110bcfd9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize task queue smoke evidence'
+    commits:
+    - b678ef082
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: directly clear local draft in e2e helper'
+    commits:
+    - 3a88f2e70
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: do not await e2e draft clear receipt'
+    commits:
+    - 931ae3127
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh task context before queue retries'
+    commits:
+    - dbe97cbe4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: clear draft via e2e replacement helper'
+    commits:
+    - b98fe1dbf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: bound draft replacement helper flush'
+    commits:
+    - fedf9b797
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: serialize task activity as user history'
+    commits:
+    - bf2289520
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: persist task queue continuation events'
+    commits:
+    - dcc2a4bdc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: reveal cross-client restored draft composer'
+    commits:
+    - c66c89c18
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: activate cross-client local drafts directly'
+    commits:
+    - afbcc4d07
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent duplicate bank transfer reference credits'
+    commits:
+    - 3393a6604
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: await local chat e2e loader'
+    commits:
+    - 923d93994
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: complete missing translations'
+    commits:
+    - af9f16f79
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore example chat intro and summaries'
+    commits:
+    - 62097fbe3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record task queue smoke evidence'
+    commits:
+    - 817a3939d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: allow chat id with settings hash'
+    commits:
+    - 10ec9be6b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load local draft after chat hash changes'
+    commits:
+    - 3a063c783
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: de-dupe staged task creates'
+    commits:
+    - ac6171195
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: support input-side new chat CTA'
+    commits:
+    - f5cd7e8cd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sync chat hash into active store'
+    commits:
+    - 508c96e32
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep task queue creation order deterministic'
+    commits:
+    - b307216b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+  - title: 'test: log cross-client draft open diagnostics'
+    commits:
+    - 724077b95
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: verify example chat tail by message id'
+    commits:
+    - 683bd89c1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align example chat visible-tail assertions'
+    commits:
+    - 6035f83f8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: improve daily inspiration readability'
+    commits:
+    - 7f296ae31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: expose active backup-code login selectors'
+    commits:
+    - 27456409f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover deep-linked encrypted drafts'
+    commits:
+    - 4e4534805
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add task queue auto-continuation'
+    commits:
+    - dfe30cbc0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: keep compressed chat tail prompt visible'
+    commits:
+    - cc08b649b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: target backup-code login form selectors'
+    commits:
+    - 51380b94d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore landing carousel signup paths'
+    commits:
+    - e22a52280
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep security auth password-first after late capability load'
+    commits:
+    - 4edd4504e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: accept logged-out passkey deletion state'
+    commits:
+    - 464f60e6d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: update landing carousel exit and signup CTA'
+    commits:
+    - ff50851e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: correct unified detail readiness selectors'
+    commits:
+    - 78093431e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for plan input in unified detail spec'
+    commits:
+    - f7099da13
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use plans page marker in unified detail spec'
+    commits:
+    - 93db8a8ef
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize unified detail card clicks'
+    commits:
+    - b0a0f40c5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize landing intro example layout'
+    commits:
+    - 7764f2c40
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: avoid duplicate chat send fallback'
+    commits:
+    - bed25c27b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep guest examples stable after intro'
+    commits:
+    - 13b3cc447
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: tolerate exhausted Brave quota'
+    commits:
+    - 82cc48d30
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: constrain search embed overflow'
+    commits:
+    - 075690bf5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: render pending audio embed placeholders'
+    commits:
+    - 410f942d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: show all guest example chats'
+    commits:
+    - 3bc4a92c2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide Learning Mode settings from logged-out users'
+    commits:
+    - '525817453'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add Kimi K3 model'
+    commits:
+    - 9786a5f52
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: update logged-out intro signup slide'
+    commits:
+    - 31568ca3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh task context before queue retries'
+    commits:
+    - dbe97cbe4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: serialize task activity as user history'
+    commits:
+    - bf2289520
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: persist task queue continuation events'
+    commits:
+    - dcc2a4bdc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: prevent duplicate bank transfer reference credits'
+    commits:
+    - 3393a6604
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore example chat intro and summaries'
+    commits:
+    - 62097fbe3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: load local draft after chat hash changes'
+    commits:
+    - 3a063c783
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: de-dupe staged task creates'
+    commits:
+    - ac6171195
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: sync chat hash into active store'
+    commits:
+    - 508c96e32
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep task queue creation order deterministic'
+    commits:
+    - b307216b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: embed:tasks:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:tasks:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:tasks
+      source: backend/apps/tasks/app.yml
+    newsletter_ready: false
+  - title: 'fix: improve daily inspiration readability'
+    commits:
+    - 7f296ae31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover deep-linked encrypted drafts'
+    commits:
+    - 4e4534805
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add task queue auto-continuation'
+    commits:
+    - dfe30cbc0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep compressed chat tail prompt visible'
+    commits:
+    - cc08b649b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore landing carousel signup paths'
+    commits:
+    - e22a52280
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep security auth password-first after late capability load'
+    commits:
+    - 4edd4504e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: update landing carousel exit and signup CTA'
+    commits:
+    - ff50851e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize landing intro example layout'
+    commits:
+    - 7764f2c40
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep guest examples stable after intro'
+    commits:
+    - 13b3cc447
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: constrain search embed overflow'
+    commits:
+    - 075690bf5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: render pending audio embed placeholders'
+    commits:
+    - 410f942d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ccc694796f880869f7462e701ed2a6be00234188
+    short_sha: ccc694796
+    authored_at: '2026-07-27T23:49:33+00:00'
+    subject: 'test: stabilize unauthenticated chat navigation helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 3bc4a92c2d847d17f55bdedff9893c6150cec84f
+    short_sha: 3bc4a92c2
+    authored_at: '2026-07-27T23:29:40+00:00'
+    subject: 'fix: show all guest example chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    related_feature_ids: []
+  - sha: 525817453590d58870e3df7b467ad1deedf48962
+    short_sha: '525817453'
+    authored_at: '2026-07-27T23:23:45+00:00'
+    subject: 'fix: hide Learning Mode settings from logged-out users'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    related_feature_ids: []
+  - sha: 9786a5f524a44302d12414ab2450560949bdc622
+    short_sha: 9786a5f52
+    authored_at: '2026-07-27T23:22:16+00:00'
+    subject: 'feat: add Kimi K3 model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/providers/moonshot.yml
+    - backend/tests/test_kimi_k2_7_code_script.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    related_feature_ids: []
+  - sha: 31568ca3cb114aeeba46645774c5379cbaf8edb5
+    short_sha: 31568ca3c
+    authored_at: '2026-07-27T23:11:38+00:00'
+    subject: 'fix: update logged-out intro signup slide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    related_feature_ids: []
+  - sha: 4c0e0632eb251dd614296d4d171da44fe21f695b
+    short_sha: 4c0e0632e
+    authored_at: '2026-07-27T23:02:26+00:00'
+    subject: 'test: expose send session-state diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 88d914a66c93b79442827ed4fc4322bbdbe50295
+    short_sha: 88d914a66
+    authored_at: '2026-07-27T22:49:49+00:00'
+    subject: 'fix: allow sends with ready IndexedDB handle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 173562b1503a330aa01fe791b2ea4aaddd28cdc0
+    short_sha: 173562b15
+    authored_at: '2026-07-27T22:36:32+00:00'
+    subject: 'test: bound e2e draft send diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: a1508b8bd94f2cf924b543c61f6dc953bd50e285
+    short_sha: a1508b8bd
+    authored_at: '2026-07-27T22:09:00+00:00'
+    subject: 'test: await e2e draft send helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 24cc17f3aa64f3fa3277f63cfd629261511c3652
+    short_sha: 24cc17f3a
+    authored_at: '2026-07-27T21:55:23+00:00'
+    subject: 'test: send cross-client draft via e2e helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 508fa5c53964a56e74e0723e899b0c1ef0a03b5b
+    short_sha: 508fa5c53
+    authored_at: '2026-07-27T20:44:08+00:00'
+    subject: 'test: dispatch cross-client draft send event'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: ba5cc1f7acadb2ad8af14c25d737f72857612a3a
+    short_sha: ba5cc1f7a
+    authored_at: '2026-07-27T20:32:31+00:00'
+    subject: 'test: scope cross-client draft send button'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: a864dfced4a49372a191b0cd389f597d266b573e
+    short_sha: a864dfced
+    authored_at: '2026-07-27T20:20:26+00:00'
+    subject: 'test: fix cross-client send draft opener'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 0a5eef5600486c47ce1da95e7c4171473474680e
+    short_sha: 0a5eef560
+    authored_at: '2026-07-27T20:03:53+00:00'
+    subject: 'test: send raw draft delete from e2e helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 5110bcfd92ad9ea897fd123647a9f2e9326059fe
+    short_sha: 5110bcfd9
+    authored_at: '2026-07-27T19:45:46+00:00'
+    subject: 'test: raw clear local draft in e2e helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: b678ef08262bb1862157c17b4ecbaccfe1c81238
+    short_sha: b678ef082
+    authored_at: '2026-07-27T19:32:23+00:00'
+    subject: 'test: stabilize task queue smoke evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: 3a88f2e702a4de245f140069e73f05a8b4aa4f63
+    short_sha: 3a88f2e70
+    authored_at: '2026-07-27T19:31:59+00:00'
+    subject: 'test: directly clear local draft in e2e helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 931ae3127badb79a6bf01f0f579bd10310a33ced
+    short_sha: 931ae3127
+    authored_at: '2026-07-27T19:18:44+00:00'
+    subject: 'test: do not await e2e draft clear receipt'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: dbe97cbe479431297c1b040eeee0453812e25ce6
+    short_sha: dbe97cbe4
+    authored_at: '2026-07-27T19:12:22+00:00'
+    subject: 'fix: refresh task context before queue retries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    related_feature_ids:
+    - app:ai
+  - sha: b98fe1dbf8eaf3364befd369cd7d3f30ac301d75
+    short_sha: b98fe1dbf
+    authored_at: '2026-07-27T19:04:39+00:00'
+    subject: 'test: clear draft via e2e replacement helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: fedf9b797e9fa320044386c0da918afc9b980a1d
+    short_sha: fedf9b797
+    authored_at: '2026-07-27T18:47:24+00:00'
+    subject: 'test: bound draft replacement helper flush'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: bf2289520328ea9366ba248eb6ef4ffa552273fd
+    short_sha: bf2289520
+    authored_at: '2026-07-27T18:46:01+00:00'
+    subject: 'fix: serialize task activity as user history'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    related_feature_ids:
+    - app:ai
+  - sha: dcc2a4bdc32a4606d0e73d0f3a28ab7d2510c87d
+    short_sha: dcc2a4bdc
+    authored_at: '2026-07-27T18:33:59+00:00'
+    subject: 'feat: persist task queue continuation events'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids:
+    - app:ai
+    - platform:tasks
+  - sha: c66c89c18b5f39a09ce897f138b9917a78bbb6d6
+    short_sha: c66c89c18
+    authored_at: '2026-07-27T18:32:07+00:00'
+    subject: 'test: reveal cross-client restored draft composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: afbcc4d07665848d5927033c00142fc3032896fb
+    short_sha: afbcc4d07
+    authored_at: '2026-07-27T18:19:46+00:00'
+    subject: 'test: activate cross-client local drafts directly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3393a6604caef91b3ce099bef8afe060ee52eecc
+    short_sha: 3393a6604
+    authored_at: '2026-07-27T18:13:28+00:00'
+    subject: 'fix: prevent duplicate bank transfer reference credits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_duplicate_reference_email_task.py
+    - backend/core/api/templates/email/bank-transfer-duplicate-reference.mjml
+    - backend/scripts/send_bank_transfer_duplicate_reference_email_test.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_bank_transfer_duplicate_reference_email.py
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    related_feature_ids: []
+  - sha: 923d939943853a711a8ca3241f3559c30e2121ca
+    short_sha: 923d93994
+    authored_at: '2026-07-27T17:56:15+00:00'
+    subject: 'test: await local chat e2e loader'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: af9f16f79aad0d2175915079bd494353e4340c84
+    short_sha: af9f16f79
+    authored_at: '2026-07-27T17:38:37+00:00'
+    subject: 'fix: complete missing translations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/sessions.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    related_feature_ids: []
+  - sha: 62097fbe32d5d248c1ff95f7cbae40af7351c43a
+    short_sha: 62097fbe3
+    authored_at: '2026-07-27T17:19:02+00:00'
+    subject: 'fix: restore example chat intro and summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_share_chat_window_loading.py
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    related_feature_ids: []
+  - sha: 817a3939d3159f1b03217be771a1ed1c42b1c061
+    short_sha: 817a3939d
+    authored_at: '2026-07-27T15:45:04+00:00'
+    subject: 'docs: record task queue smoke evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    related_feature_ids: []
+  - sha: 10ec9be6b9c19f35e94150e9fe7c2785d57e7a3d
+    short_sha: 10ec9be6b
+    authored_at: '2026-07-27T15:40:10+00:00'
+    subject: 'test: allow chat id with settings hash'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 3a063c78399853dec1a2fffb9b831468e29af78b
+    short_sha: 3a063c783
+    authored_at: '2026-07-27T15:37:41+00:00'
+    subject: 'fix: load local draft after chat hash changes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: ac61711950e5adc191f7475fafa768225c6ffb65
+    short_sha: ac6171195
+    authored_at: '2026-07-27T15:33:54+00:00'
+    subject: 'fix: de-dupe staged task creates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids:
+    - app:ai
+  - sha: f5cd7e8cde0aa4db0f8cbff0fb1b523d28a6892e
+    short_sha: f5cd7e8cd
+    authored_at: '2026-07-27T15:19:53+00:00'
+    subject: 'test: support input-side new chat CTA'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 508c96e32088f4f7d69ca721f1730b7561622782
+    short_sha: 508c96e32
+    authored_at: '2026-07-27T15:18:51+00:00'
+    subject: 'fix: sync chat hash into active store'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: b307216b64ad9273a044db3f9e457acef32456b6
+    short_sha: b307216b6
+    authored_at: '2026-07-27T15:12:34+00:00'
+    subject: 'fix: keep task queue creation order deterministic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/tasks/skills/create_skill.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/tests/test_task_app_skill_embeds.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids:
+    - app:ai
+    - app:tasks
+    - embed:tasks:create
+    - platform:tasks
+    - skill:tasks:create
+  - sha: 724077b95aaffe57cb0b94fee59561d9f6bb301b
+    short_sha: 724077b95
+    authored_at: '2026-07-27T15:01:58+00:00'
+    subject: 'test: log cross-client draft open diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 683bd89c113c2b9c26ebb39a1317209ffc975c12
+    short_sha: 683bd89c1
+    authored_at: '2026-07-27T14:57:17+00:00'
+    subject: 'test: verify example chat tail by message id'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 6035f83f8f1152ce646cc499c5b5c9be6a39e4c2
+    short_sha: 6035f83f8
+    authored_at: '2026-07-27T14:39:56+00:00'
+    subject: 'test: align example chat visible-tail assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 7f296ae3140547e6f7c49af276f725e0cf980645
+    short_sha: 7f296ae31
+    authored_at: '2026-07-27T14:26:27+00:00'
+    subject: 'fix: improve daily inspiration readability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 27456409fd1a899dd93ae1d384c8c77f74fc6e5d
+    short_sha: 27456409f
+    authored_at: '2026-07-27T14:16:41+00:00'
+    subject: 'test: expose active backup-code login selectors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    related_feature_ids: []
+  - sha: 4e4534805da48842fb043fa263d146875187a811
+    short_sha: 4e4534805
+    authored_at: '2026-07-27T14:15:00+00:00'
+    subject: 'fix: recover deep-linked encrypted drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: dfe30cbc03bec702da0f8aa36f2d102b55e9da26
+    short_sha: dfe30cbc0
+    authored_at: '2026-07-27T14:11:01+00:00'
+    subject: 'feat: add task queue auto-continuation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    - backend/tests/test_user_task_execution_contexts.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - docs/specs/task-queue-auto-continuation/spec.yml
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids:
+    - app:ai
+    - platform:tasks
+  - sha: cc08b649bf9fd81e387e442fd2679d81836eb8b0
+    short_sha: cc08b649b
+    authored_at: '2026-07-27T14:06:49+00:00'
+    subject: 'fix: keep compressed chat tail prompt visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/tests/test_chat_compressor.py
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 51380b94dd439bfb71610aa22f8a0a58f6cfad20
+    short_sha: 51380b94d
+    authored_at: '2026-07-27T14:03:13+00:00'
+    subject: 'test: target backup-code login form selectors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/packages/ui/src/components/EnterBackupCode.svelte
+    related_feature_ids: []
+  - sha: e22a52280651ba88a65849b28b7039793c3308eb
+    short_sha: e22a52280
+    authored_at: '2026-07-27T13:35:31+00:00'
+    subject: 'fix: restore landing carousel signup paths'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 4edd4504ec4c2fdac77dcbeae6810a001bb5efbd
+    short_sha: 4edd4504e
+    authored_at: '2026-07-27T13:25:39+00:00'
+    subject: 'fix: keep security auth password-first after late capability load'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    related_feature_ids: []
+  - sha: 464f60e6d928e3fc6eab15e84f2380103fd7dc66
+    short_sha: 464f60e6d
+    authored_at: '2026-07-27T13:23:13+00:00'
+    subject: 'test: accept logged-out passkey deletion state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: ff50851e3294d7abe385b5fd1602780b627c0654
+    short_sha: ff50851e3
+    authored_at: '2026-07-27T13:15:49+00:00'
+    subject: 'fix: update landing carousel exit and signup CTA'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    related_feature_ids: []
+  - sha: 78093431ef58c2180371f190a53777afbfa9a38e
+    short_sha: 78093431e
+    authored_at: '2026-07-27T12:50:59+00:00'
+    subject: 'test: correct unified detail readiness selectors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    related_feature_ids: []
+  - sha: f7099da138661507b58c7bcf9e60bd7677fe18e6
+    short_sha: f7099da13
+    authored_at: '2026-07-27T12:35:34+00:00'
+    subject: 'test: wait for plan input in unified detail spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    related_feature_ids: []
+  - sha: 93db8a8ef1301ea962aa9922fdc51aa0abe6584b
+    short_sha: 93db8a8ef
+    authored_at: '2026-07-27T12:20:37+00:00'
+    subject: 'test: use plans page marker in unified detail spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    related_feature_ids: []
+  - sha: b0a0f40c5c44bdf73a70e60ba9a205e983cac07c
+    short_sha: b0a0f40c5
+    authored_at: '2026-07-27T12:03:28+00:00'
+    subject: 'test: stabilize unified detail card clicks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    related_feature_ids: []
+  - sha: 7764f2c40b10eca54e03202087b485b604f2e7de
+    short_sha: 7764f2c40
+    authored_at: '2026-07-27T12:02:16+00:00'
+    subject: 'fix: stabilize landing intro example layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: bed25c27b847d378b534b49c5612ad5dd1fc5ca9
+    short_sha: bed25c27b
+    authored_at: '2026-07-27T11:28:42+00:00'
+    subject: 'test: avoid duplicate chat send fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 13b3cc44720e680cf795f8586f93af970676b484
+    short_sha: 13b3cc447
+    authored_at: '2026-07-27T11:28:08+00:00'
+    subject: 'fix: keep guest examples stable after intro'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 82cc48d30346deefe13671e80583955ba25330b7
+    short_sha: 82cc48d30
+    authored_at: '2026-07-27T04:17:40+00:00'
+    subject: 'test: tolerate exhausted Brave quota'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    related_feature_ids: []
+  - sha: 075690bf5509e3a8bc8210c4f94dc633333792fd
+    short_sha: 075690bf5
+    authored_at: '2026-07-27T04:01:57+00:00'
+    subject: 'fix: constrain search embed overflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/styles/chat.css
+    related_feature_ids:
+    - embed:code:search_repos
+    - embed:home:search
+    - embed:news:search
+    - embed:videos:search
+    - embed:web:search
+  - sha: 410f942d9778fa4c6be704f3603ba7bac24d0078
+    short_sha: 410f942d9
+    authored_at: '2026-07-27T03:48:37+00:00'
+    subject: 'fix: render pending audio embed placeholders'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/stores/__tests__/pendingUploadStore.test.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the unauthenticated guest experience and advancing the underlying task queue system.
+    Key updates include improvements to landing page stability, draft recovery mechanisms, and the integration of new AI model
+    capabilities.
+  released_changes: []
+  bug_fixes:
+  - text: The guest experience was refined with fixes for example chat visibility, landing carousel signup paths, and intro
+      layout stability.
+    evidence:
+      commits:
+      - 3bc4a92c2
+      - 31568ca3c
+      - 62097fbe3
+      - e22a52280
+      - ff50851e3
+      - 7764f2c40
+      - 13b3cc447
+    release_status: dev_only
+  - text: UI improvements were made to daily inspiration banners, search embed overflow constraints, and audio placeholder
+      rendering.
+    evidence:
+      commits:
+      - 7f296ae31
+      - 075690bf5
+      - 410f942d9
+      - cc08b649b
+    release_status: dev_only
+  - text: Draft recovery was improved to handle deep-linked encrypted drafts and local draft loading after chat hash changes.
+    evidence:
+      commits:
+      - 3a063c783
+      - 508c96e32
+      - 4e4534805
+    release_status: dev_only
+  - text: Security and payment logic was updated to prevent duplicate bank transfer credits and hide sensitive settings from
+      logged-out users.
+    evidence:
+      commits:
+      - 3393a6604
+      - 4edd4504e
+      - '525817453'
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development continued on the task queue system, adding auto-continuation, event persistence, and improved determinism
+      for task creation.
+    evidence:
+      commits:
+      - dfe30cbc0
+      - dcc2a4bdc
+      - b307216b6
+      - ac6171195
+      - bf2289520
+      - dbe97cbe4
+    release_status: dev_only
+  - text: Support for the Kimi K3 model was added to the moonshot provider.
+    evidence:
+      commits:
+      - 9786a5f52
+    release_status: dev_only
+  internal_progress:
+  - text: The E2E test suite saw significant stabilization, particularly for cross-client draft syncing, backup-code login
+      flows, and unified detail pages.
+    evidence:
+      commits:
+      - 24cc17f3a
+      - 51380b94d
+      - 78093431e
+      - ccc694796
+      - 82cc48d30
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Kimi K3 model integration.
+      evidence:
+        commits:
+        - 9786a5f52
+      reason: Commit is not reachable from main.
+    - text: Task queue auto-continuation.
+      evidence:
+        commits:
+        - dfe30cbc0
+        - dcc2a4bdc
+      reason: Commit is not reachable from main and relates to disabled platform:tasks.
+    rationale: All changes from this period are currently in development (dev_only) and have not yet reached the main branch
+      for public release.
+  social_video_recommendations:
+  - idea: A walkthrough of the refined guest experience, showing how new users can explore example chats and inspirations
+      before signing up.
+    priority: medium
+    reason: The guest experience received multiple stability and visual fixes that improve the first-time user journey.
+    evidence:
+      commits:
+      - 3bc4a92c2
+      - 31568ca3c
+      - 7764f2c40
+  quality_notes:
+  - Extensive testing was added for draft synchronization and authentication flows to ensure reliability across different
+    user states.
+  validation_warnings: []

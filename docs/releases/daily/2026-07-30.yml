@@ -1,0 +1,3197 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-30'
+generated_at: '2026-08-06T13:18:07+00:00'
+range:
+  since: '2026-07-30T00:00:00+00:00'
+  until: '2026-07-31T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 56
+  section_counts:
+    features: 3
+    bug_fixes: 38
+    improvements: 0
+    docs: 3
+    tests: 12
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 27
+  dev_only_items: 56
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Berlin Mitte maps example chat'
+    section: features
+    commits:
+    - af09f32bd
+    authored_at: '2026-07-30T18:05:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-mitte-work-friendly-restaurants.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_mitte_work_friendly_restaurants.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enrich maps search with geoapify osm data'
+    section: features
+    commits:
+    - 96c4dc90c
+    authored_at: '2026-07-30T16:43:57+00:00'
+    changed_paths:
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/search_skill.py
+    - backend/providers/geoapify.yml
+    - backend/shared/providers/geoapify/__init__.py
+    - backend/shared/providers/geoapify/places.py
+    - backend/tests/test_geoapify_places_provider.py
+    - backend/tests/test_maps_geoapify_enrichment.py
+    - docs/specs/maps-geoapify-osm-enrichment/spec.yml
+    - docs/user-guide/apps/maps.md
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/maps_geoapify_live_smoke.py
+    - scripts/sdk_cli_parity_live_smoke.py
+    - shared/docs/privacy_policy.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:maps, embed:maps:search, skill:maps:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add workflow task projections'
+    section: features
+    commits:
+    - caf1f4982
+    authored_at: '2026-07-30T00:13:03+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_task_projection_service.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/tests/test_workflow_scheduler_contract.py
+    - backend/tests/test_workflow_task_projections.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: store full example chat usage entries'
+    section: bug_fixes
+    commits:
+    - 9c4806365
+    authored_at: '2026-07-30T22:04:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-mitte-work-friendly-restaurants.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-morning-bike-forecast.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/test_example_chat_usage_coverage.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow notebook run routes through caddy'
+    section: bug_fixes
+    commits:
+    - 2027bd1b6
+    authored_at: '2026-07-30T21:50:19+00:00'
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - scripts/tests/test_verify_caddyfile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make invoice repair writes recoverable'
+    section: bug_fixes
+    commits:
+    - 8dbdd833a
+    authored_at: '2026-07-30T21:30:03+00:00'
+    changed_paths:
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden invoice date repair safety'
+    section: bug_fixes
+    commits:
+    - 3381f58f5
+    authored_at: '2026-07-30T21:17:07+00:00'
+    changed_paths:
+    - backend/core/api/app/services/invoiceninja/invoiceninja.py
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show example chat usage costs'
+    section: bug_fixes
+    commits:
+    - d39224a31
+    authored_at: '2026-07-30T21:12:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/test_example_chat_usage_coverage.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Stripe invoice backfill dates'
+    section: bug_fixes
+    commits:
+    - 7afd493b9
+    authored_at: '2026-07-30T20:54:00+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_billing_admin_notifications.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose example chat share settings'
+    section: bug_fixes
+    commits:
+    - df37aec36
+    authored_at: '2026-07-30T20:33:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair maps location fullscreen layout'
+    section: bug_fixes
+    commits:
+    - b685c92a2
+    authored_at: '2026-07-30T20:24:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapLocationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsLocationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:maps:location
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:maps:location, embed:maps:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: package billing worker runtime artifacts'
+    section: bug_fixes
+    commits:
+    - 54fab12a1
+    authored_at: '2026-07-30T19:57:22+00:00'
+    changed_paths:
+    - backend/core/api/Dockerfile
+    - backend/tests/test_billing_worker_compose.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve app skill embed grouping'
+    section: bug_fixes
+    commits:
+    - ea26e20c8
+    authored_at: '2026-07-30T19:55:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid duplicate map layer renders'
+    section: bug_fixes
+    commits:
+    - 6ff65d9a4
+    authored_at: '2026-07-30T18:59:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip app prefetch for example chats'
+    section: bug_fixes
+    commits:
+    - 392b89cb0
+    authored_at: '2026-07-30T18:53:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recommend map views for geo results'
+    section: bug_fixes
+    commits:
+    - 2d5fe3716
+    authored_at: '2026-07-30T18:23:08+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: alert on billing processing failures'
+    section: bug_fixes
+    commits:
+    - e5d623fa3
+    authored_at: '2026-07-30T18:20:05+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/services/invoiceninja/invoiceninja.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/templates/email/billing-processing-error.mjml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_billing_admin_notifications.py
+    - backend/tests/test_billing_worker_compose.py
+    - backend/tests/test_invoice_ninja_bank_integrations.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: seed example embed refs before parsing'
+    section: bug_fixes
+    commits:
+    - a0decf3cc
+    authored_at: '2026-07-30T17:55:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: respect manual light mode for map tiles'
+    section: bug_fixes
+    commits:
+    - 39dc9c179
+    authored_at: '2026-07-30T17:47:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelFlightDetailsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - frontend/packages/ui/src/utils/themeDetection.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:travel:flight_details
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:travel:flight_details'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep app skill previews compact'
+    section: bug_fixes
+    commits:
+    - ceeaea918
+    authored_at: '2026-07-30T17:33:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/embedRefIndex.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pass workflow safety dependencies'
+    section: bug_fixes
+    commits:
+    - c4e2487dc
+    authored_at: '2026-07-30T15:48:58+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve static example embed ids'
+    section: bug_fixes
+    commits:
+    - 267ef40b3
+    authored_at: '2026-07-30T15:15:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept REST chat content hydration in startup contract'
+    section: bug_fixes
+    commits:
+    - 8a513ec08
+    authored_at: '2026-07-30T14:58:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: surface login lookup backend errors'
+    section: bug_fixes
+    commits:
+    - 46c855215
+    authored_at: '2026-07-30T14:55:07+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_auth_endpoints.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show deutschlandticket search preview'
+    section: bug_fixes
+    commits:
+    - 56feb9599
+    authored_at: '2026-07-30T14:53:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear stale mocked backend preflight leases'
+    section: bug_fixes
+    commits:
+    - f1749bb82
+    authored_at: '2026-07-30T14:37:19+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve manual chat metadata titles'
+    section: bug_fixes
+    commits:
+    - c76050d82
+    authored_at: '2026-07-30T14:36:40+00:00'
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve manual chat metadata titles'
+    section: bug_fixes
+    commits:
+    - d8618bef5
+    authored_at: '2026-07-30T14:29:50+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate manual workflow runs'
+    section: bug_fixes
+    commits:
+    - fe7d923d7
+    authored_at: '2026-07-30T14:21:36+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_celery_config.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve clean deutschlandticket travel embeds'
+    section: bug_fixes
+    commits:
+    - 61e65eb3f
+    authored_at: '2026-07-30T14:04:28+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - backend/tests/test_travel_search_connections.py
+    - backend/tests/test_travel_skill_constraints.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore stale chat recovery loads'
+    section: bug_fixes
+    commits:
+    - af2e9d87f
+    authored_at: '2026-07-30T13:43:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve fresh encrypted metadata cache'
+    section: bug_fixes
+    commits:
+    - bbb82a865
+    authored_at: '2026-07-30T13:41:30+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_unified_detail_metadata.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate metadata-only chat messages'
+    section: bug_fixes
+    commits:
+    - 9e47bad16
+    authored_at: '2026-07-30T12:59:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept flat travel route tool calls'
+    section: bug_fixes
+    commits:
+    - 3430d55fd
+    authored_at: '2026-07-30T12:59:18+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep owned chat detail header visible'
+    section: bug_fixes
+    commits:
+    - 61936fbd9
+    authored_at: '2026-07-30T12:57:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render travel example route previews'
+    section: bug_fixes
+    commits:
+    - d4f082b8a
+    authored_at: '2026-07-30T11:39:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: let chat header summary wrap'
+    section: bug_fixes
+    commits:
+    - 89f6c3a37
+    authored_at: '2026-07-30T10:33:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove map view code fallback'
+    section: bug_fixes
+    commits:
+    - 9bb3b760f
+    authored_at: '2026-07-30T10:18:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-ai-founder-meetups-map.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_ai_founder_meetups_map.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clamp chat header summary'
+    section: bug_fixes
+    commits:
+    - 7e24c230c
+    authored_at: '2026-07-30T10:06:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore deutschlandticket example chat'
+    section: bug_fixes
+    commits:
+    - f8192ea3e
+    authored_at: '2026-07-30T00:32:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: read flattened event coordinates in map view'
+    section: bug_fixes
+    commits:
+    - 672b544d9
+    authored_at: '2026-07-30T00:09:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record map view verification evidence'
+    section: docs
+    commits:
+    - fe68af8ae
+    authored_at: '2026-07-30T21:29:04+00:00'
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record map view example verification'
+    section: docs
+    commits:
+    - 257ba1c82
+    authored_at: '2026-07-30T19:24:00+00:00'
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record maps geoapify web evidence'
+    section: docs
+    commits:
+    - c52423987
+    authored_at: '2026-07-30T17:22:11+00:00'
+    changed_paths:
+    - docs/specs/maps-geoapify-osm-enrichment/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: target app skill group renderer'
+    section: tests
+    commits:
+    - a79ecadf7
+    authored_at: '2026-07-30T20:34:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert app skill card groups'
+    section: tests
+    commits:
+    - c2d0625ef
+    authored_at: '2026-07-30T20:17:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNoTipTap.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align map view preview spec'
+    section: tests
+    commits:
+    - 30b2dd477
+    authored_at: '2026-07-30T19:51:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify Maps location cards in example fullscreen'
+    section: tests
+    commits:
+    - 3e35b6b11
+    authored_at: '2026-07-30T18:55:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: relax Berlin Mitte maps preview assertion'
+    section: tests
+    commits:
+    - 2cb1379a7
+    authored_at: '2026-07-30T18:41:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover Berlin Mitte maps example'
+    section: tests
+    commits:
+    - '662599824'
+    authored_at: '2026-07-30T18:25:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add deterministic maps search web fixture'
+    section: tests
+    commits:
+    - 514da61db
+    authored_at: '2026-07-30T17:08:58+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/maps_search_web.json
+    - docs/specs/maps-geoapify-osm-enrichment/spec.yml
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align deutschlandticket route assertion'
+    section: tests
+    commits:
+    - c57db21bb
+    authored_at: '2026-07-30T16:37:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: seed accepted workflow run regression'
+    section: tests
+    commits:
+    - 30e5ffdcc
+    authored_at: '2026-07-30T16:07:02+00:00'
+    changed_paths:
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: catch map view code fallback'
+    section: tests
+    commits:
+    - 51fc15609
+    authored_at: '2026-07-30T09:56:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align map view example filter assertion'
+    section: tests
+    commits:
+    - 43259a74c
+    authored_at: '2026-07-30T00:31:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix map view coordinate unit assertion'
+    section: tests
+    commits:
+    - bf3c39737
+    authored_at: '2026-07-30T00:13:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: store full example chat usage entries'
+    commits:
+    - 9c4806365
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow notebook run routes through caddy'
+    commits:
+    - 2027bd1b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make invoice repair writes recoverable'
+    commits:
+    - 8dbdd833a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record map view verification evidence'
+    commits:
+    - fe68af8ae
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden invoice date repair safety'
+    commits:
+    - 3381f58f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show example chat usage costs'
+    commits:
+    - d39224a31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve Stripe invoice backfill dates'
+    commits:
+    - 7afd493b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: target app skill group renderer'
+    commits:
+    - a79ecadf7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: expose example chat share settings'
+    commits:
+    - df37aec36
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: repair maps location fullscreen layout'
+    commits:
+    - b685c92a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:location
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'test: assert app skill card groups'
+    commits:
+    - c2d0625ef
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: package billing worker runtime artifacts'
+    commits:
+    - 54fab12a1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve app skill embed grouping'
+    commits:
+    - ea26e20c8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align map view preview spec'
+    commits:
+    - 30b2dd477
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record map view example verification'
+    commits:
+    - 257ba1c82
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: avoid duplicate map layer renders'
+    commits:
+    - 6ff65d9a4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify Maps location cards in example fullscreen'
+    commits:
+    - 3e35b6b11
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: skip app prefetch for example chats'
+    commits:
+    - 392b89cb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: relax Berlin Mitte maps preview assertion'
+    commits:
+    - 2cb1379a7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover Berlin Mitte maps example'
+    commits:
+    - '662599824'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recommend map views for geo results'
+    commits:
+    - 2d5fe3716
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: alert on billing processing failures'
+    commits:
+    - e5d623fa3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Berlin Mitte maps example chat'
+    commits:
+    - af09f32bd
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: seed example embed refs before parsing'
+    commits:
+    - a0decf3cc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: respect manual light mode for map tiles'
+    commits:
+    - 39dc9c179
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:travel:flight_details
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: keep app skill previews compact'
+    commits:
+    - ceeaea918
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record maps geoapify web evidence'
+    commits:
+    - c52423987
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add deterministic maps search web fixture'
+    commits:
+    - 514da61db
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: enrich maps search with geoapify osm data'
+    commits:
+    - 96c4dc90c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'test: align deutschlandticket route assertion'
+    commits:
+    - c57db21bb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: seed accepted workflow run regression'
+    commits:
+    - 30e5ffdcc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: pass workflow safety dependencies'
+    commits:
+    - c4e2487dc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: resolve static example embed ids'
+    commits:
+    - 267ef40b3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: accept REST chat content hydration in startup contract'
+    commits:
+    - 8a513ec08
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: surface login lookup backend errors'
+    commits:
+    - 46c855215
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: show deutschlandticket search preview'
+    commits:
+    - 56feb9599
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clear stale mocked backend preflight leases'
+    commits:
+    - f1749bb82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve manual chat metadata titles'
+    commits:
+    - c76050d82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve manual chat metadata titles'
+    commits:
+    - d8618bef5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate manual workflow runs'
+    commits:
+    - fe7d923d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve clean deutschlandticket travel embeds'
+    commits:
+    - 61e65eb3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: ignore stale chat recovery loads'
+    commits:
+    - af2e9d87f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve fresh encrypted metadata cache'
+    commits:
+    - bbb82a865
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hydrate metadata-only chat messages'
+    commits:
+    - 9e47bad16
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: accept flat travel route tool calls'
+    commits:
+    - 3430d55fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: keep owned chat detail header visible'
+    commits:
+    - 61936fbd9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: render travel example route previews'
+    commits:
+    - d4f082b8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: let chat header summary wrap'
+    commits:
+    - 89f6c3a37
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: remove map view code fallback'
+    commits:
+    - 9bb3b760f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clamp chat header summary'
+    commits:
+    - 7e24c230c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: catch map view code fallback'
+    commits:
+    - 51fc15609
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore deutschlandticket example chat'
+    commits:
+    - f8192ea3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align map view example filter assertion'
+    commits:
+    - 43259a74c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fix map view coordinate unit assertion'
+    commits:
+    - bf3c39737
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add workflow task projections'
+    commits:
+    - caf1f4982
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: read flattened event coordinates in map view'
+    commits:
+    - 672b544d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: enrich maps search with geoapify osm data'
+    commits:
+    - 96c4dc90c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'fix: preserve manual chat metadata titles'
+    commits:
+    - d8618bef5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve clean deutschlandticket travel embeds'
+    commits:
+    - 61e65eb3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: preserve fresh encrypted metadata cache'
+    commits:
+    - bbb82a865
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: store full example chat usage entries'
+    commits:
+    - 9c4806365
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show example chat usage costs'
+    commits:
+    - d39224a31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: expose example chat share settings'
+    commits:
+    - df37aec36
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: repair maps location fullscreen layout'
+    commits:
+    - b685c92a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:location
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve app skill embed grouping'
+    commits:
+    - ea26e20c8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid duplicate map layer renders'
+    commits:
+    - 6ff65d9a4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: skip app prefetch for example chats'
+    commits:
+    - 392b89cb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recommend map views for geo results'
+    commits:
+    - 2d5fe3716
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: alert on billing processing failures'
+    commits:
+    - e5d623fa3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: respect manual light mode for map tiles'
+    commits:
+    - 39dc9c179
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:travel:flight_details
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep app skill previews compact'
+    commits:
+    - ceeaea918
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: enrich maps search with geoapify osm data'
+    commits:
+    - 96c4dc90c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: skill:maps:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    newsletter_ready: false
+  - title: 'fix: accept REST chat content hydration in startup contract'
+    commits:
+    - 8a513ec08
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: surface login lookup backend errors'
+    commits:
+    - 46c855215
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve manual chat metadata titles'
+    commits:
+    - c76050d82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve manual chat metadata titles'
+    commits:
+    - d8618bef5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate manual workflow runs'
+    commits:
+    - fe7d923d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve clean deutschlandticket travel embeds'
+    commits:
+    - 61e65eb3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: ignore stale chat recovery loads'
+    commits:
+    - af2e9d87f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hydrate metadata-only chat messages'
+    commits:
+    - 9e47bad16
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: accept flat travel route tool calls'
+    commits:
+    - 3430d55fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep owned chat detail header visible'
+    commits:
+    - 61936fbd9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render travel example route previews'
+    commits:
+    - d4f082b8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: let chat header summary wrap'
+    commits:
+    - 89f6c3a37
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clamp chat header summary'
+    commits:
+    - 7e24c230c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add workflow task projections'
+    commits:
+    - caf1f4982
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: read flattened event coordinates in map view'
+    commits:
+    - 672b544d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 9c480636564b4b5664990b6e0f94a03db7df4ebf
+    short_sha: 9c4806365
+    authored_at: '2026-07-30T22:04:00+00:00'
+    subject: 'fix: store full example chat usage entries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-mitte-work-friendly-restaurants.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-morning-bike-forecast.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/test_example_chat_usage_coverage.py
+    related_feature_ids: []
+  - sha: 2027bd1b68466eeb7f4e12324d942587cb1611e7
+    short_sha: 2027bd1b6
+    authored_at: '2026-07-30T21:50:19+00:00'
+    subject: 'fix: allow notebook run routes through caddy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - scripts/tests/test_verify_caddyfile.py
+    related_feature_ids: []
+  - sha: 8dbdd833a450f8cd911decb5a1e6bd353dc5859f
+    short_sha: 8dbdd833a
+    authored_at: '2026-07-30T21:30:03+00:00'
+    subject: 'fix: make invoice repair writes recoverable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    related_feature_ids: []
+  - sha: fe68af8ae4c1342503279ee911860a1608a64a7b
+    short_sha: fe68af8ae
+    authored_at: '2026-07-30T21:29:04+00:00'
+    subject: 'docs: record map view verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    related_feature_ids: []
+  - sha: 3381f58f5a7bc01aab875b6a5d425135017653c7
+    short_sha: 3381f58f5
+    authored_at: '2026-07-30T21:17:07+00:00'
+    subject: 'fix: harden invoice date repair safety'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/invoiceninja/invoiceninja.py
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    related_feature_ids: []
+  - sha: d39224a31abf2bbf5d526619ba10cd1286a051d4
+    short_sha: d39224a31
+    authored_at: '2026-07-30T21:12:56+00:00'
+    subject: 'fix: show example chat usage costs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/test_example_chat_usage_coverage.py
+    related_feature_ids: []
+  - sha: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+    short_sha: 7afd493b9
+    authored_at: '2026-07-30T20:54:00+00:00'
+    subject: 'fix: preserve Stripe invoice backfill dates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_billing_admin_notifications.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    related_feature_ids: []
+  - sha: a79ecadf752d22fbe33c505522f28e9dcaac4fa4
+    short_sha: a79ecadf7
+    authored_at: '2026-07-30T20:34:01+00:00'
+    subject: 'test: target app skill group renderer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: df37aec36013195d9e0bbd86b53e0dd29149d4dd
+    short_sha: df37aec36
+    authored_at: '2026-07-30T20:33:01+00:00'
+    subject: 'fix: expose example chat share settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    related_feature_ids: []
+  - sha: b685c92a2bc290111607ab456361ebb2c1539e9a
+    short_sha: b685c92a2
+    authored_at: '2026-07-30T20:24:54+00:00'
+    subject: 'fix: repair maps location fullscreen layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapLocationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsLocationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    related_feature_ids:
+    - embed:maps:location
+    - embed:maps:search
+  - sha: c2d0625ef8308e8606e5875554fddcd21ea49bd4
+    short_sha: c2d0625ef
+    authored_at: '2026-07-30T20:17:43+00:00'
+    subject: 'test: assert app skill card groups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNoTipTap.svelte
+    related_feature_ids: []
+  - sha: 54fab12a1dd879670e88e0b5df5c7b74e1476ce2
+    short_sha: 54fab12a1
+    authored_at: '2026-07-30T19:57:22+00:00'
+    subject: 'fix: package billing worker runtime artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/Dockerfile
+    - backend/tests/test_billing_worker_compose.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    related_feature_ids: []
+  - sha: ea26e20c86044b4b4c36a5895675fe5ec4caf90c
+    short_sha: ea26e20c8
+    authored_at: '2026-07-30T19:55:59+00:00'
+    subject: 'fix: preserve app skill embed grouping'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: 30b2dd47749e3be123b929913ee05c74ceaa4b72
+    short_sha: 30b2dd477
+    authored_at: '2026-07-30T19:51:50+00:00'
+    subject: 'test: align map view preview spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    related_feature_ids: []
+  - sha: 257ba1c829c4eff9c978d228d4afdd6ca923ebcc
+    short_sha: 257ba1c82
+    authored_at: '2026-07-30T19:24:00+00:00'
+    subject: 'docs: record map view example verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    related_feature_ids: []
+  - sha: 6ff65d9a47725dcd2c305dad36b0554e4ca7212a
+    short_sha: 6ff65d9a4
+    authored_at: '2026-07-30T18:59:19+00:00'
+    subject: 'fix: avoid duplicate map layer renders'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: 3e35b6b11b589f4d50c8c40484539e892c311ec9
+    short_sha: 3e35b6b11
+    authored_at: '2026-07-30T18:55:38+00:00'
+    subject: 'test: verify Maps location cards in example fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    related_feature_ids: []
+  - sha: 392b89cb0716558b3217a4f76d975d00dde72d9b
+    short_sha: 392b89cb0
+    authored_at: '2026-07-30T18:53:23+00:00'
+    subject: 'fix: skip app prefetch for example chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 2cb1379a7cc9163c48d5c5907344e68d9870889c
+    short_sha: 2cb1379a7
+    authored_at: '2026-07-30T18:41:01+00:00'
+    subject: 'test: relax Berlin Mitte maps preview assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    related_feature_ids: []
+  - sha: 662599824b6948bdec57f74708a76e160da8425b
+    short_sha: '662599824'
+    authored_at: '2026-07-30T18:25:17+00:00'
+    subject: 'test: cover Berlin Mitte maps example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    related_feature_ids: []
+  - sha: 2d5fe3716db44bc8324747759bf4f3f208d21605
+    short_sha: 2d5fe3716
+    authored_at: '2026-07-30T18:23:08+00:00'
+    subject: 'fix: recommend map views for geo results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    related_feature_ids:
+    - app:ai
+  - sha: e5d623fa3b2975425ccfc950dfab4aa1475f53b4
+    short_sha: e5d623fa3
+    authored_at: '2026-07-30T18:20:05+00:00'
+    subject: 'fix: alert on billing processing failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/services/invoiceninja/invoiceninja.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/templates/email/billing-processing-error.mjml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_billing_admin_notifications.py
+    - backend/tests/test_billing_worker_compose.py
+    - backend/tests/test_invoice_ninja_bank_integrations.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    related_feature_ids: []
+  - sha: af09f32bd9910a28ff6665acd5855d65112e598a
+    short_sha: af09f32bd
+    authored_at: '2026-07-30T18:05:45+00:00'
+    subject: 'feat: add Berlin Mitte maps example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-mitte-work-friendly-restaurants.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_mitte_work_friendly_restaurants.yml
+    related_feature_ids: []
+  - sha: a0decf3cca95009c81d004e4ff824de419efc620
+    short_sha: a0decf3cc
+    authored_at: '2026-07-30T17:55:00+00:00'
+    subject: 'fix: seed example embed refs before parsing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    related_feature_ids: []
+  - sha: 39dc9c1793a89b53913167c0abc796e24336390e
+    short_sha: 39dc9c179
+    authored_at: '2026-07-30T17:47:50+00:00'
+    subject: 'fix: respect manual light mode for map tiles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelFlightDetailsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - frontend/packages/ui/src/utils/themeDetection.ts
+    related_feature_ids:
+    - embed:travel:flight_details
+  - sha: ceeaea918344f25366a1add05295583c706ad07a
+    short_sha: ceeaea918
+    authored_at: '2026-07-30T17:33:48+00:00'
+    subject: 'fix: keep app skill previews compact'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/embedRefIndex.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: c524239873485f602ff225ea1f65e56bcc8f1850
+    short_sha: c52423987
+    authored_at: '2026-07-30T17:22:11+00:00'
+    subject: 'docs: record maps geoapify web evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/maps-geoapify-osm-enrichment/spec.yml
+    related_feature_ids: []
+  - sha: 514da61dbea740076c55c291824dd87ddd1f5d17
+    short_sha: 514da61db
+    authored_at: '2026-07-30T17:08:58+00:00'
+    subject: 'test: add deterministic maps search web fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/maps_search_web.json
+    - docs/specs/maps-geoapify-osm-enrichment/spec.yml
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 96c4dc90cd6cf5c289a7edddad5e010dd3d8f972
+    short_sha: 96c4dc90c
+    authored_at: '2026-07-30T16:43:57+00:00'
+    subject: 'feat: enrich maps search with geoapify osm data'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/search_skill.py
+    - backend/providers/geoapify.yml
+    - backend/shared/providers/geoapify/__init__.py
+    - backend/shared/providers/geoapify/places.py
+    - backend/tests/test_geoapify_places_provider.py
+    - backend/tests/test_maps_geoapify_enrichment.py
+    - docs/specs/maps-geoapify-osm-enrichment/spec.yml
+    - docs/user-guide/apps/maps.md
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/maps_geoapify_live_smoke.py
+    - scripts/sdk_cli_parity_live_smoke.py
+    - shared/docs/privacy_policy.yml
+    related_feature_ids:
+    - app:maps
+    - embed:maps:search
+    - skill:maps:search
+  - sha: c57db21bb4d415963f98dd55708f5fd92fd7e8a3
+    short_sha: c57db21bb
+    authored_at: '2026-07-30T16:37:22+00:00'
+    subject: 'test: align deutschlandticket route assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 30e5ffdcc5ffcaa9842698f41cba160eb67d523d
+    short_sha: 30e5ffdcc
+    authored_at: '2026-07-30T16:07:02+00:00'
+    subject: 'test: seed accepted workflow run regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    related_feature_ids: []
+  - sha: c4e2487dcc871b23a47d651b455265b39dbf241b
+    short_sha: c4e2487dc
+    authored_at: '2026-07-30T15:48:58+00:00'
+    subject: 'fix: pass workflow safety dependencies'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 267ef40b3fe4dbcb84c4107e246cccf80e404369
+    short_sha: 267ef40b3
+    authored_at: '2026-07-30T15:15:59+00:00'
+    subject: 'fix: resolve static example embed ids'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    related_feature_ids: []
+  - sha: 8a513ec0879615576d9ae911462a84b6f0589fe3
+    short_sha: 8a513ec08
+    authored_at: '2026-07-30T14:58:28+00:00'
+    subject: 'fix: accept REST chat content hydration in startup contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 46c855215c3c978731af7def57a9fec778775d56
+    short_sha: 46c855215
+    authored_at: '2026-07-30T14:55:07+00:00'
+    subject: 'fix: surface login lookup backend errors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_auth_endpoints.py
+    related_feature_ids: []
+  - sha: 56feb9599eea03b10b428925b0315f982c5172d3
+    short_sha: 56feb9599
+    authored_at: '2026-07-30T14:53:03+00:00'
+    subject: 'fix: show deutschlandticket search preview'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids: []
+  - sha: f1749bb82d3ccdea94632bdcc5d5255629407802
+    short_sha: f1749bb82
+    authored_at: '2026-07-30T14:37:19+00:00'
+    subject: 'fix: clear stale mocked backend preflight leases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: c76050d82aa9fa8a2dc12919b36413cd03d4706f
+    short_sha: c76050d82
+    authored_at: '2026-07-30T14:36:40+00:00'
+    subject: 'fix: preserve manual chat metadata titles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: d8618bef57e65de767eb6356b44cca3b71e50dcf
+    short_sha: d8618bef5
+    authored_at: '2026-07-30T14:29:50+00:00'
+    subject: 'fix: preserve manual chat metadata titles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    related_feature_ids: []
+  - sha: fe7d923d72570d2aed834e421dc097281d10b5af
+    short_sha: fe7d923d7
+    authored_at: '2026-07-30T14:21:36+00:00'
+    subject: 'fix: isolate manual workflow runs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_celery_config.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 61e65eb3f5e3b976e1b40cca8ec1045142069a69
+    short_sha: 61e65eb3f
+    authored_at: '2026-07-30T14:04:28+00:00'
+    subject: 'fix: preserve clean deutschlandticket travel embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - backend/tests/test_travel_search_connections.py
+    - backend/tests/test_travel_skill_constraints.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids:
+    - app:ai
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: af2e9d87f09d8dd3958b701742e7e5d3529d8d81
+    short_sha: af2e9d87f
+    authored_at: '2026-07-30T13:43:30+00:00'
+    subject: 'fix: ignore stale chat recovery loads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: bbb82a8650e6ae2d159f35201260bf6b07aafb5a
+    short_sha: bbb82a865
+    authored_at: '2026-07-30T13:41:30+00:00'
+    subject: 'fix: preserve fresh encrypted metadata cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_unified_detail_metadata.py
+    related_feature_ids: []
+  - sha: 9e47bad168105b8003a02a378482320c491923c4
+    short_sha: 9e47bad16
+    authored_at: '2026-07-30T12:59:54+00:00'
+    subject: 'fix: hydrate metadata-only chat messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3430d55fd0d06b5145cfcf9abff73c63eb660cd4
+    short_sha: 3430d55fd
+    authored_at: '2026-07-30T12:59:18+00:00'
+    subject: 'fix: accept flat travel route tool calls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    related_feature_ids:
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: 61936fbd9690a7db5e74ecaf2dc022d0f9210c21
+    short_sha: 61936fbd9
+    authored_at: '2026-07-30T12:57:44+00:00'
+    subject: 'fix: keep owned chat detail header visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: d4f082b8aa03ee08b9715ff86640bf9448e2f78a
+    short_sha: d4f082b8a
+    authored_at: '2026-07-30T11:39:03+00:00'
+    subject: 'fix: render travel example route previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    related_feature_ids:
+    - embed:travel:search_connections
+  - sha: 89f6c3a379a28a0a40150616dbe869b9ffb145e3
+    short_sha: 89f6c3a37
+    authored_at: '2026-07-30T10:33:57+00:00'
+    subject: 'fix: let chat header summary wrap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    related_feature_ids: []
+  - sha: 9bb3b760fef80ffc6a292c5771be9b38abd39f39
+    short_sha: 9bb3b760f
+    authored_at: '2026-07-30T10:18:05+00:00'
+    subject: 'fix: remove map view code fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-ai-founder-meetups-map.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_ai_founder_meetups_map.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids: []
+  - sha: 7e24c230cd9bd1611bb44c410b1f6197ed2401dd
+    short_sha: 7e24c230c
+    authored_at: '2026-07-30T10:06:23+00:00'
+    subject: 'fix: clamp chat header summary'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    related_feature_ids: []
+  - sha: 51fc15609db16ac77d1c5326848ed1380974bdb0
+    short_sha: 51fc15609
+    authored_at: '2026-07-30T09:56:57+00:00'
+    subject: 'test: catch map view code fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    related_feature_ids: []
+  - sha: f8192ea3ebd35e46aa4d9ed37794ff51196dc20e
+    short_sha: f8192ea3e
+    authored_at: '2026-07-30T00:32:26+00:00'
+    subject: 'fix: restore deutschlandticket example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    related_feature_ids: []
+  - sha: 43259a74c5adfb1ee5299575820d5442899e6ff4
+    short_sha: 43259a74c
+    authored_at: '2026-07-30T00:31:26+00:00'
+    subject: 'test: align map view example filter assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    related_feature_ids: []
+  - sha: bf3c39737c09467d5be627085a707bbd3700f26c
+    short_sha: bf3c39737
+    authored_at: '2026-07-30T00:13:19+00:00'
+    subject: 'test: fix map view coordinate unit assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: caf1f498274ead2b5c5ac8369968cb5ae4fca3d2
+    short_sha: caf1f4982
+    authored_at: '2026-07-30T00:13:03+00:00'
+    subject: 'feat: add workflow task projections'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_task_projection_service.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/tests/test_workflow_scheduler_contract.py
+    - backend/tests/test_workflow_task_projections.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    related_feature_ids:
+    - platform:tasks
+    - platform:workflows
+  - sha: 672b544d937e1e4cc236277e7627ac0a928df788
+    short_sha: 672b544d9
+    authored_at: '2026-07-30T00:09:42+00:00'
+    subject: 'fix: read flattened event coordinates in map view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on significant enhancements to the Maps application, including OpenStreetMap data enrichment
+    and layout refinements. Substantial work was also performed on billing system reliability, chat UI edge cases, and unreleased
+    workflow infrastructure.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Maps search was enriched with Geoapify OpenStreetMap data to provide more detailed location information.
+    evidence:
+      commits:
+      - 96c4dc90c
+    release_status: dev_only
+  - text: The Maps interface received several refinements, including fullscreen layout repairs, theme-aware tile rendering
+      for light mode, and optimized layer rendering.
+    evidence:
+      commits:
+      - b685c92a2
+      - 39dc9c179
+      - 6ff65d9a4
+      - 672b544d9
+    release_status: dev_only
+  - text: Billing infrastructure was hardened with recoverable invoice repair scripts, date preservation during Stripe backfills,
+      and new administrative alerts for processing failures.
+    evidence:
+      commits:
+      - 8dbdd833a
+      - 3381f58f5
+      - 7afd493b9
+      - e5d623fa3
+    release_status: dev_only
+  - text: Chat management now preserves manually edited titles within chat metadata.
+    evidence:
+      commits:
+      - c76050d82
+      - d8618bef5
+    release_status: dev_only
+  - text: The chat UI was updated to improve header summary wrapping and clamping, ensuring better visibility of owned chat
+      details.
+    evidence:
+      commits:
+      - 89f6c3a37
+      - 7e24c230c
+      - 61936fbd9
+    release_status: dev_only
+  - text: Example chats now support full usage entry tracking, cost visibility, and share setting exposure.
+    evidence:
+      commits:
+      - 9c4806365
+      - d39224a31
+      - df37aec36
+    release_status: dev_only
+  - text: Development continued on the unreleased Workflows and Tasks platforms, adding task projections and safety dependency
+      handling.
+    evidence:
+      commits:
+      - caf1f4982
+      - c4e2487dc
+    release_status: dev_only
+  internal_progress:
+  - text: Caddy configuration now allows notebook run routes through the development and production servers.
+    evidence:
+      commits:
+      - 2027bd1b6
+    release_status: dev_only
+  - text: The test suite now clears stale mocked backend preflight leases to ensure deterministic runs.
+    evidence:
+      commits:
+      - f1749bb82
+    release_status: dev_only
+  - text: A deterministic web fixture was added for maps search testing.
+    evidence:
+      commits:
+      - 514da61db
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Maps search enrichment with Geoapify OSM data.
+      evidence:
+        commits:
+        - 96c4dc90c
+      reason: This feature is currently in the development branch and has not been merged to main.
+    - text: Workflow task projections.
+      evidence:
+        commits:
+        - caf1f4982
+      reason: Workflows and Tasks are currently disabled features and the commit is not in main.
+    rationale: All changes from this period are currently restricted to the development branch and are not yet available in
+      the main release. Additionally, several updates involve features that are explicitly disabled in the current configuration.
+  social_video_recommendations:
+  - idea: Demonstrate the enriched Maps search results and the new fullscreen location layout.
+    priority: medium
+    reason: The integration of Geoapify OSM data provides a more detailed search experience that is highly visual.
+    evidence:
+      commits:
+      - 96c4dc90c
+      - b685c92a2
+  quality_notes:
+  - Billing safety was prioritized with recoverable invoice repair writes and automated failure alerts.
+  - UI stability was improved by addressing chat header wrapping and clamping issues in various viewports.
+  validation_warnings: []

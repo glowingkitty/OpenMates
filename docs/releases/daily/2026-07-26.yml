@@ -1,0 +1,3033 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-26'
+generated_at: '2026-08-06T13:17:18+00:00'
+range:
+  since: '2026-07-26T00:00:00+00:00'
+  until: '2026-07-27T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 48
+  section_counts:
+    features: 4
+    bug_fixes: 36
+    improvements: 1
+    docs: 4
+    tests: 3
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 33
+  dev_only_items: 48
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add project item unlinking'
+    section: features
+    commits:
+    - 337717f85
+    authored_at: '2026-07-26T17:52:56+00:00'
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/deploy/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/tests/test_learning_mode_prompts_and_embeds.py
+    - backend/tests/test_projects.py
+    - docs/architecture/ai/mates.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_tests_vercel_deploy_lock.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add goal chat plan attachment'
+    section: features
+    commits:
+    - 7f6cd43f7
+    authored_at: '2026-07-26T17:24:23+00:00'
+    changed_paths:
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/audit_sdk_cli_parity.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: align SDK parity surfaces'
+    section: features
+    commits:
+    - 96eff5145
+    authored_at: '2026-07-26T00:48:16+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/audit_sdk_cleartext_parity.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: tint embed group indicators by app'
+    section: features
+    commits:
+    - 015ea713c
+    authored_at: '2026-07-26T00:42:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: stabilize landing intro layout reserve'
+    section: bug_fixes
+    commits:
+    - 863acf3c7
+    authored_at: '2026-07-26T20:21:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep audio recording composer expanded'
+    section: bug_fixes
+    commits:
+    - c6825ec5e
+    authored_at: '2026-07-26T19:30:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reset guest intro on new chat'
+    section: bug_fixes
+    commits:
+    - 8e85f17b4
+    authored_at: '2026-07-26T19:19:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: purge local data on forced logout'
+    section: bug_fixes
+    commits:
+    - 2a52ae116
+    authored_at: '2026-07-26T19:04:09+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/tests/test_settings_account_delete_force_logout.py
+    - docs/specs/forced-logout-local-data-purge/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render generated video example fullscreen'
+    section: bug_fixes
+    commits:
+    - 76bab54b0
+    authored_at: '2026-07-26T18:58:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/store-examples/video-generate-1-poster.webp
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/private-workspace-demo-video.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:videos:generate'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match composer icon placeholder color'
+    section: bug_fixes
+    commits:
+    - 72952599e
+    authored_at: '2026-07-26T18:11:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate public chat settings links'
+    section: bug_fixes
+    commits:
+    - 4feab3495
+    authored_at: '2026-07-26T17:19:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align chat settings files and audio downloads'
+    section: bug_fixes
+    commits:
+    - 0a2846bf4
+    authored_at: '2026-07-26T17:18:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:audio:recording'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject incomplete AI chat history'
+    section: bug_fixes
+    commits:
+    - 8b31fe9fe
+    authored_at: '2026-07-26T17:16:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate chat settings deep links'
+    section: bug_fixes
+    commits:
+    - ed532fc8d
+    authored_at: '2026-07-26T17:08:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce OpenCode worktree edits'
+    section: bug_fixes
+    commits:
+    - 75103a3f6
+    authored_at: '2026-07-26T16:33:30+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep OpenCode worktrees inside project'
+    section: bug_fixes
+    commits:
+    - c17f24fee
+    authored_at: '2026-07-26T16:25:38+00:00'
+    changed_paths:
+    - .gitignore
+    - .opencode/plugins/openmates-hooks.js
+    - opencode.json
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent mic overlap with stop control'
+    section: bug_fixes
+    commits:
+    - 60383887c
+    authored_at: '2026-07-26T16:23:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reset stale deploy lock commit state'
+    section: bug_fixes
+    commits:
+    - 94d188ac0
+    authored_at: '2026-07-26T15:56:00+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden agent worktree deploy workflow'
+    section: bug_fixes
+    commits:
+    - 5ac449a81
+    authored_at: '2026-07-26T15:51:07+00:00'
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/pre-edit-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/claude-hook-bridge.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard scoped deploy workflows'
+    section: bug_fixes
+    commits:
+    - deed35e73
+    authored_at: '2026-07-26T15:27:17+00:00'
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/hooks/bash-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/hooks/bash-guard.sh
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/audit_example_chat_quality.py
+    - scripts/audit_playwright_determinism.py
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/compare_search_providers.py
+    - scripts/prod-ssh.sh
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_commit_scoped_deploy_verification.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_root_guard.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_workflow_improvement_tools.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover stream state after disconnects'
+    section: bug_fixes
+    commits:
+    - e6b46c2e3
+    authored_at: '2026-07-26T15:26:21+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/providers/anthropic.yml
+    - backend/providers/brave.yml
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: auto-credit Revolut bank transfers'
+    section: bug_fixes
+    commits:
+    - 600ba1dda
+    authored_at: '2026-07-26T15:24:07+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/shared/providers/revolut_business/client.py
+    - backend/tests/test_bank_transfer.py
+    - docs/specs/finance-check-accounts-v1/spec.yml
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans, skill:finance:check_accounts'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce SDK cleartext boundaries'
+    section: bug_fixes
+    commits:
+    - 0de657e2e
+    authored_at: '2026-07-26T15:23:29+00:00'
+    changed_paths:
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - scripts/audit_sdk_cleartext_boundary.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/verify_sdk_plans_live_smoke.mjs
+    - scripts/verify_sdk_projects_live_smoke.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align chat settings usage details'
+    section: bug_fixes
+    commits:
+    - 49c8f3f65
+    authored_at: '2026-07-26T15:21:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/stores/chatSettingsStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align input parity surfaces'
+    section: bug_fixes
+    commits:
+    - 480faffb6
+    authored_at: '2026-07-26T15:18:41+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize issue report contact text'
+    section: bug_fixes
+    commits:
+    - b5cf5cf90
+    authored_at: '2026-07-26T13:33:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+    - backend/core/api/app/utils/issue_report_text.py
+    - backend/tests/test_issue_report_contact_email.py
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide embed indicators when all items fit'
+    section: bug_fixes
+    commits:
+    - 3cfceb5be
+    authored_at: '2026-07-26T13:19:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor audio transcript correction toggle'
+    section: bug_fixes
+    commits:
+    - de6d7bdcf
+    authored_at: '2026-07-26T13:18:40+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_audio_recording_embed_filter.py
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/__tests__/audioTranscriptSelection.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/audioTranscriptSelection.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:audio:recording'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: collapse inactive composer drafts'
+    section: bug_fixes
+    commits:
+    - 7889123c0
+    authored_at: '2026-07-26T12:56:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/draft_summary.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Apple recording localization keys'
+    section: bug_fixes
+    commits:
+    - 53aa0cee0
+    authored_at: '2026-07-26T12:50:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align Apple recording action controls'
+    section: bug_fixes
+    commits:
+    - 38969fb3c
+    authored_at: '2026-07-26T12:35:32+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/draft_summary.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: focus composer on recording shortcut'
+    section: bug_fixes
+    commits:
+    - 0b190770e
+    authored_at: '2026-07-26T12:24:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize compact composer height'
+    section: bug_fixes
+    commits:
+    - 713341d3b
+    authored_at: '2026-07-26T12:16:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: validate staged deploy files before commit'
+    section: bug_fixes
+    commits:
+    - c91cb052f
+    authored_at: '2026-07-26T11:57:12+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard staged deploy index races'
+    section: bug_fixes
+    commits:
+    - 79c567e24
+    authored_at: '2026-07-26T11:02:50+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize chat error issue reports'
+    section: bug_fixes
+    commits:
+    - 6f8ed1830
+    authored_at: '2026-07-26T10:07:50+00:00'
+    changed_paths:
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/audit_sdk_cleartext_boundary.py
+    - scripts/audit_sdk_docs_coverage.py
+    - scripts/audit_sdk_test_coverage.py
+    - scripts/generate_sdk_reference.py
+    - scripts/sdk_reference_common.py
+    - scripts/sessions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align guest composer controls'
+    section: bug_fixes
+    commits:
+    - 3cfa039c1
+    authored_at: '2026-07-26T09:57:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore issue timeline log ingestion'
+    section: bug_fixes
+    commits:
+    - a6c7c8cee
+    authored_at: '2026-07-26T02:30:50+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/tests/test_admin_debug_log_query.py
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove decrypted SDK task list aliases'
+    section: bug_fixes
+    commits:
+    - 5d6af5b18
+    authored_at: '2026-07-26T02:22:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct message input placeholder'
+    section: bug_fixes
+    commits:
+    - cc7775497
+    authored_at: '2026-07-26T01:36:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'refactor: remove stale OpenMates docs skill'
+    section: improvements
+    commits:
+    - 9884c310b
+    authored_at: '2026-07-26T15:24:44+00:00'
+    changed_paths:
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/skills/search_docs_skill.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - docs/specs/workflow-app-skill-expansion/spec.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-app-skills-embeds-docs.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/openmates_app.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_app_skills_embeds_docs.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:openmates, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: refresh compliance specs'
+    section: docs
+    commits:
+    - d6dceb45a
+    authored_at: '2026-07-26T15:27:41+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/specs/ascii-smuggling-universal-guards/spec.yml
+    - docs/specs/chat-settings-redesign/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record SDK cleartext evidence'
+    section: docs
+    commits:
+    - 298f47a1e
+    authored_at: '2026-07-26T14:22:54+00:00'
+    changed_paths:
+    - docs/specs/sdk-cleartext-encryption-boundary/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: close SDK cleartext spec evidence'
+    section: docs
+    commits:
+    - 951c2ecb9
+    authored_at: '2026-07-26T11:52:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: generate SDK reference coverage'
+    section: docs
+    commits:
+    - c47cd4487
+    authored_at: '2026-07-26T10:53:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: stabilize audio recording blur step'
+    section: tests
+    commits:
+    - ae7ca86fa
+    authored_at: '2026-07-26T19:49:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover recording shortcut focus'
+    section: tests
+    commits:
+    - ff2f3e3f6
+    authored_at: '2026-07-26T13:35:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover recording shortcut focus'
+    section: tests
+    commits:
+    - 96fbc1e70
+    authored_at: '2026-07-26T12:02:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: stabilize landing intro layout reserve'
+    commits:
+    - 863acf3c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize audio recording blur step'
+    commits:
+    - ae7ca86fa
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep audio recording composer expanded'
+    commits:
+    - c6825ec5e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reset guest intro on new chat'
+    commits:
+    - 8e85f17b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: purge local data on forced logout'
+    commits:
+    - 2a52ae116
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: render generated video example fullscreen'
+    commits:
+    - 76bab54b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'fix: match composer icon placeholder color'
+    commits:
+    - 72952599e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add project item unlinking'
+    commits:
+    - 337717f85
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: add goal chat plan attachment'
+    commits:
+    - 7f6cd43f7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hydrate public chat settings links'
+    commits:
+    - 4feab3495
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align chat settings files and audio downloads'
+    commits:
+    - 0a2846bf4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: reject incomplete AI chat history'
+    commits:
+    - 8b31fe9fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hydrate chat settings deep links'
+    commits:
+    - ed532fc8d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: enforce OpenCode worktree edits'
+    commits:
+    - 75103a3f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep OpenCode worktrees inside project'
+    commits:
+    - c17f24fee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent mic overlap with stop control'
+    commits:
+    - 60383887c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reset stale deploy lock commit state'
+    commits:
+    - 94d188ac0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden agent worktree deploy workflow'
+    commits:
+    - 5ac449a81
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: refresh compliance specs'
+    commits:
+    - d6dceb45a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: guard scoped deploy workflows'
+    commits:
+    - deed35e73
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover stream state after disconnects'
+    commits:
+    - e6b46c2e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'refactor: remove stale OpenMates docs skill'
+    commits:
+    - 9884c310b
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: auto-credit Revolut bank transfers'
+    commits:
+    - 600ba1dda
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  - title: 'fix: enforce SDK cleartext boundaries'
+    commits:
+    - 0de657e2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align chat settings usage details'
+    commits:
+    - 49c8f3f65
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align input parity surfaces'
+    commits:
+    - 480faffb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: record SDK cleartext evidence'
+    commits:
+    - 298f47a1e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover recording shortcut focus'
+    commits:
+    - ff2f3e3f6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: normalize issue report contact text'
+    commits:
+    - b5cf5cf90
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hide embed indicators when all items fit'
+    commits:
+    - 3cfceb5be
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: honor audio transcript correction toggle'
+    commits:
+    - de6d7bdcf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: collapse inactive composer drafts'
+    commits:
+    - 7889123c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore Apple recording localization keys'
+    commits:
+    - 53aa0cee0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align Apple recording action controls'
+    commits:
+    - 38969fb3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: focus composer on recording shortcut'
+    commits:
+    - 0b190770e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize compact composer height'
+    commits:
+    - 713341d3b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover recording shortcut focus'
+    commits:
+    - 96fbc1e70
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: validate staged deploy files before commit'
+    commits:
+    - c91cb052f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: close SDK cleartext spec evidence'
+    commits:
+    - 951c2ecb9
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: guard staged deploy index races'
+    commits:
+    - 79c567e24
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: generate SDK reference coverage'
+    commits:
+    - c47cd4487
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: normalize chat error issue reports'
+    commits:
+    - 6f8ed1830
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align guest composer controls'
+    commits:
+    - 3cfa039c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore issue timeline log ingestion'
+    commits:
+    - a6c7c8cee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: remove decrypted SDK task list aliases'
+    commits:
+    - 5d6af5b18
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: correct message input placeholder'
+    commits:
+    - cc7775497
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: align SDK parity surfaces'
+    commits:
+    - 96eff5145
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: tint embed group indicators by app'
+    commits:
+    - 015ea713c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: recover stream state after disconnects'
+    commits:
+    - e6b46c2e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'refactor: remove stale OpenMates docs skill'
+    commits:
+    - 9884c310b
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: stabilize landing intro layout reserve'
+    commits:
+    - 863acf3c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep audio recording composer expanded'
+    commits:
+    - c6825ec5e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reset guest intro on new chat'
+    commits:
+    - 8e85f17b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: purge local data on forced logout'
+    commits:
+    - 2a52ae116
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render generated video example fullscreen'
+    commits:
+    - 76bab54b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: false
+  - title: 'fix: match composer icon placeholder color'
+    commits:
+    - 72952599e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add project item unlinking'
+    commits:
+    - 337717f85
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add goal chat plan attachment'
+    commits:
+    - 7f6cd43f7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hydrate public chat settings links'
+    commits:
+    - 4feab3495
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align chat settings files and audio downloads'
+    commits:
+    - 0a2846bf4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: reject incomplete AI chat history'
+    commits:
+    - 8b31fe9fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hydrate chat settings deep links'
+    commits:
+    - ed532fc8d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent mic overlap with stop control'
+    commits:
+    - 60383887c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover stream state after disconnects'
+    commits:
+    - e6b46c2e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'refactor: remove stale OpenMates docs skill'
+    commits:
+    - 9884c310b
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: auto-credit Revolut bank transfers'
+    commits:
+    - 600ba1dda
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    newsletter_ready: false
+  - title: 'fix: enforce SDK cleartext boundaries'
+    commits:
+    - 0de657e2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align chat settings usage details'
+    commits:
+    - 49c8f3f65
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align input parity surfaces'
+    commits:
+    - 480faffb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: normalize issue report contact text'
+    commits:
+    - b5cf5cf90
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide embed indicators when all items fit'
+    commits:
+    - 3cfceb5be
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: honor audio transcript correction toggle'
+    commits:
+    - de6d7bdcf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: collapse inactive composer drafts'
+    commits:
+    - 7889123c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align Apple recording action controls'
+    commits:
+    - 38969fb3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: focus composer on recording shortcut'
+    commits:
+    - 0b190770e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize compact composer height'
+    commits:
+    - 713341d3b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: normalize chat error issue reports'
+    commits:
+    - 6f8ed1830
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align guest composer controls'
+    commits:
+    - 3cfa039c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore issue timeline log ingestion'
+    commits:
+    - a6c7c8cee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remove decrypted SDK task list aliases'
+    commits:
+    - 5d6af5b18
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: correct message input placeholder'
+    commits:
+    - cc7775497
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: align SDK parity surfaces'
+    commits:
+    - 96eff5145
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: tint embed group indicators by app'
+    commits:
+    - 015ea713c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 863acf3c72e5a44c32fc93f585f217976d9a0461
+    short_sha: 863acf3c7
+    authored_at: '2026-07-26T20:21:17+00:00'
+    subject: 'fix: stabilize landing intro layout reserve'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: ae7ca86fa5755cd8bb77d8b967830db24e3c600c
+    short_sha: ae7ca86fa
+    authored_at: '2026-07-26T19:49:11+00:00'
+    subject: 'test: stabilize audio recording blur step'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: c6825ec5e3039446f18826929139e842e8f9a1b5
+    short_sha: c6825ec5e
+    authored_at: '2026-07-26T19:30:12+00:00'
+    subject: 'fix: keep audio recording composer expanded'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 8e85f17b4e8c592a6a6b18d31df4830c3b76f149
+    short_sha: 8e85f17b4
+    authored_at: '2026-07-26T19:19:58+00:00'
+    subject: 'fix: reset guest intro on new chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 2a52ae1166c637fa05b7dbe17d4deb1ceea465a9
+    short_sha: 2a52ae116
+    authored_at: '2026-07-26T19:04:09+00:00'
+    subject: 'fix: purge local data on forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/tests/test_settings_account_delete_force_logout.py
+    - docs/specs/forced-logout-local-data-purge/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids: []
+  - sha: 76bab54b0c00235f4d857f3ff93f77642757fdc0
+    short_sha: 76bab54b0
+    authored_at: '2026-07-26T18:58:57+00:00'
+    subject: 'fix: render generated video example fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/store-examples/video-generate-1-poster.webp
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/private-workspace-demo-video.ts
+    related_feature_ids:
+    - embed:videos:generate
+  - sha: 72952599e31155607cd4ba53aca2f297da198921
+    short_sha: 72952599e
+    authored_at: '2026-07-26T18:11:01+00:00'
+    subject: 'fix: match composer icon placeholder color'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 337717f85008502b7a584267cce4d1064418a81e
+    short_sha: 337717f85
+    authored_at: '2026-07-26T17:52:56+00:00'
+    subject: 'feat: add project item unlinking'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/deploy/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/tests/test_learning_mode_prompts_and_embeds.py
+    - backend/tests/test_projects.py
+    - docs/architecture/ai/mates.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_tests_vercel_deploy_lock.py
+    related_feature_ids:
+    - app:ai
+    - platform:projects
+  - sha: 7f6cd43f73afd5fbc0d7458bf65d668c6514e25a
+    short_sha: 7f6cd43f7
+    authored_at: '2026-07-26T17:24:23+00:00'
+    subject: 'feat: add goal chat plan attachment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/audit_sdk_cli_parity.py
+    related_feature_ids: []
+  - sha: 4feab3495fe1d4e792ef8762ec6df628bf82dd8f
+    short_sha: 4feab3495
+    authored_at: '2026-07-26T17:19:42+00:00'
+    subject: 'fix: hydrate public chat settings links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 0a2846bf4988f0e202db0788c9de06fcc4a01f19
+    short_sha: 0a2846bf4
+    authored_at: '2026-07-26T17:18:48+00:00'
+    subject: 'fix: align chat settings files and audio downloads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids:
+    - embed:audio:recording
+  - sha: 8b31fe9feb5ad0ccb791985ed104cb66681f1b63
+    short_sha: 8b31fe9fe
+    authored_at: '2026-07-26T17:16:26+00:00'
+    subject: 'fix: reject incomplete AI chat history'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    related_feature_ids: []
+  - sha: ed532fc8d94eb8b5025bf6ac5da9b8352be45127
+    short_sha: ed532fc8d
+    authored_at: '2026-07-26T17:08:11+00:00'
+    subject: 'fix: hydrate chat settings deep links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 75103a3f61e1ee2cd211451348b16e53f5f5c3fb
+    short_sha: 75103a3f6
+    authored_at: '2026-07-26T16:33:30+00:00'
+    subject: 'fix: enforce OpenCode worktree edits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    related_feature_ids: []
+  - sha: c17f24feedeef217db0557d1dec2806952812470
+    short_sha: c17f24fee
+    authored_at: '2026-07-26T16:25:38+00:00'
+    subject: 'fix: keep OpenCode worktrees inside project'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .gitignore
+    - .opencode/plugins/openmates-hooks.js
+    - opencode.json
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 60383887c2dc75798c30af592aef045a24bafecb
+    short_sha: 60383887c
+    authored_at: '2026-07-26T16:23:13+00:00'
+    subject: 'fix: prevent mic overlap with stop control'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 94d188ac0bf1ee6bb050d6a7fa60ea090992cde9
+    short_sha: 94d188ac0
+    authored_at: '2026-07-26T15:56:00+00:00'
+    subject: 'fix: reset stale deploy lock commit state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    related_feature_ids: []
+  - sha: 5ac449a818e25f3b5f09b2a7e603848a7a411a87
+    short_sha: 5ac449a81
+    authored_at: '2026-07-26T15:51:07+00:00'
+    subject: 'fix: harden agent worktree deploy workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/pre-edit-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/claude-hook-bridge.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    related_feature_ids: []
+  - sha: d6dceb45a127e403a158be22b7daf98fb7067183
+    short_sha: d6dceb45a
+    authored_at: '2026-07-26T15:27:41+00:00'
+    subject: 'docs: refresh compliance specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/specs/ascii-smuggling-universal-guards/spec.yml
+    - docs/specs/chat-settings-redesign/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: deed35e73e68e78e7c57933f545479313af1999f
+    short_sha: deed35e73
+    authored_at: '2026-07-26T15:27:17+00:00'
+    subject: 'fix: guard scoped deploy workflows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/hooks/bash-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/hooks/bash-guard.sh
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/audit_example_chat_quality.py
+    - scripts/audit_playwright_determinism.py
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/compare_search_providers.py
+    - scripts/prod-ssh.sh
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_commit_scoped_deploy_verification.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_root_guard.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_workflow_improvement_tools.py
+    related_feature_ids: []
+  - sha: e6b46c2e3290681b40d8e7923537f6b17f2b8b21
+    short_sha: e6b46c2e3
+    authored_at: '2026-07-26T15:26:21+00:00'
+    subject: 'fix: recover stream state after disconnects'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/providers/anthropic.yml
+    - backend/providers/brave.yml
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 9884c310b585f82cd62faea7973b2885edf8f47a
+    short_sha: 9884c310b
+    authored_at: '2026-07-26T15:24:44+00:00'
+    subject: 'refactor: remove stale OpenMates docs skill'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/skills/search_docs_skill.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - docs/specs/workflow-app-skill-expansion/spec.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-app-skills-embeds-docs.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/openmates_app.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_app_skills_embeds_docs.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    related_feature_ids:
+    - app:openmates
+    - platform:workflows
+  - sha: 600ba1dda0739e199cd480a832098900c1f690bd
+    short_sha: 600ba1dda
+    authored_at: '2026-07-26T15:24:07+00:00'
+    subject: 'fix: auto-credit Revolut bank transfers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/shared/providers/revolut_business/client.py
+    - backend/tests/test_bank_transfer.py
+    - docs/specs/finance-check-accounts-v1/spec.yml
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    related_feature_ids:
+    - platform:plans
+    - skill:finance:check_accounts
+  - sha: 0de657e2e1ace54607f3f189e0d55339ee5a84f0
+    short_sha: 0de657e2e
+    authored_at: '2026-07-26T15:23:29+00:00'
+    subject: 'fix: enforce SDK cleartext boundaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - scripts/audit_sdk_cleartext_boundary.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/verify_sdk_plans_live_smoke.mjs
+    - scripts/verify_sdk_projects_live_smoke.mjs
+    related_feature_ids: []
+  - sha: 49c8f3f6586261ddb64b9734f9b1298e924a7917
+    short_sha: 49c8f3f65
+    authored_at: '2026-07-26T15:21:40+00:00'
+    subject: 'fix: align chat settings usage details'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/stores/chatSettingsStore.ts
+    related_feature_ids: []
+  - sha: 480faffb6f04748e5addd814fd6499062a04a2a2
+    short_sha: 480faffb6
+    authored_at: '2026-07-26T15:18:41+00:00'
+    subject: 'fix: align input parity surfaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+    short_sha: 298f47a1e
+    authored_at: '2026-07-26T14:22:54+00:00'
+    subject: 'docs: record SDK cleartext evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/sdk-cleartext-encryption-boundary/spec.yml
+    related_feature_ids: []
+  - sha: ff2f3e3f6de7f42862b8379c9dcb15efa6d94b59
+    short_sha: ff2f3e3f6
+    authored_at: '2026-07-26T13:35:23+00:00'
+    subject: 'test: cover recording shortcut focus'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: b5cf5cf90e83c47d1a1068e93443c2bf3153479c
+    short_sha: b5cf5cf90
+    authored_at: '2026-07-26T13:33:40+00:00'
+    subject: 'fix: normalize issue report contact text'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+    - backend/core/api/app/utils/issue_report_text.py
+    - backend/tests/test_issue_report_contact_email.py
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    related_feature_ids: []
+  - sha: 3cfceb5be057ba86b149aaa7ce65b1b6bfe70064
+    short_sha: 3cfceb5be
+    authored_at: '2026-07-26T13:19:09+00:00'
+    subject: 'fix: hide embed indicators when all items fit'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: de6d7bdcf892da4d6aec92a3067bd72c0941bb6c
+    short_sha: de6d7bdcf
+    authored_at: '2026-07-26T13:18:40+00:00'
+    subject: 'fix: honor audio transcript correction toggle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_audio_recording_embed_filter.py
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/__tests__/audioTranscriptSelection.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/audioTranscriptSelection.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids:
+    - embed:audio:recording
+  - sha: 7889123c0d51229fa3e586c35d8d6bca301fd5de
+    short_sha: 7889123c0
+    authored_at: '2026-07-26T12:56:27+00:00'
+    subject: 'fix: collapse inactive composer drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/draft_summary.yml
+    related_feature_ids: []
+  - sha: 53aa0cee01ab9444d5bdedb431951a0e382f4fd5
+    short_sha: 53aa0cee0
+    authored_at: '2026-07-26T12:50:51+00:00'
+    subject: 'fix: restore Apple recording localization keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    related_feature_ids: []
+  - sha: 38969fb3cca8dd293a40a0ad223330783e2264f7
+    short_sha: 38969fb3c
+    authored_at: '2026-07-26T12:35:32+00:00'
+    subject: 'fix: align Apple recording action controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/draft_summary.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0b190770ecb3b041130473dcae36a90d91fd30c8
+    short_sha: 0b190770e
+    authored_at: '2026-07-26T12:24:31+00:00'
+    subject: 'fix: focus composer on recording shortcut'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 713341d3bef565e021a8a7f0e2d4344721965ce2
+    short_sha: 713341d3b
+    authored_at: '2026-07-26T12:16:31+00:00'
+    subject: 'fix: stabilize compact composer height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 96fbc1e70e2b4e66fa8140366d8cf0ef06bc9c6d
+    short_sha: 96fbc1e70
+    authored_at: '2026-07-26T12:02:01+00:00'
+    subject: 'test: cover recording shortcut focus'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: c91cb052fa8fd1bb3406e5f1ea22310e0a7a7477
+    short_sha: c91cb052f
+    authored_at: '2026-07-26T11:57:12+00:00'
+    subject: 'fix: validate staged deploy files before commit'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    related_feature_ids: []
+  - sha: 951c2ecb9c31f8dbfc8c8181e23c33646139d672
+    short_sha: 951c2ecb9
+    authored_at: '2026-07-26T11:52:17+00:00'
+    subject: 'docs: close SDK cleartext spec evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 79c567e24a2e5ef661f122f81179d7a9a32946ea
+    short_sha: 79c567e24
+    authored_at: '2026-07-26T11:02:50+00:00'
+    subject: 'fix: guard staged deploy index races'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    related_feature_ids: []
+  - sha: c47cd4487b5318e06398b25e0b888c44490fbad5
+    short_sha: c47cd4487
+    authored_at: '2026-07-26T10:53:20+00:00'
+    subject: 'docs: generate SDK reference coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 6f8ed18305fdab01c6e60ac8a0f8bb95f21c4e9d
+    short_sha: 6f8ed1830
+    authored_at: '2026-07-26T10:07:50+00:00'
+    subject: 'fix: normalize chat error issue reports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/audit_sdk_cleartext_boundary.py
+    - scripts/audit_sdk_docs_coverage.py
+    - scripts/audit_sdk_test_coverage.py
+    - scripts/generate_sdk_reference.py
+    - scripts/sdk_reference_common.py
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 3cfa039c12512dd31f42647f512867a090218cf0
+    short_sha: 3cfa039c1
+    authored_at: '2026-07-26T09:57:45+00:00'
+    subject: 'fix: align guest composer controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    related_feature_ids: []
+  - sha: a6c7c8cee522881ecd1cddee17e15622a3a7d7b6
+    short_sha: a6c7c8cee
+    authored_at: '2026-07-26T02:30:50+00:00'
+    subject: 'fix: restore issue timeline log ingestion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/tests/test_admin_debug_log_query.py
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 5d6af5b18edb22aa16dd9e5d00fe82ede46ec69d
+    short_sha: 5d6af5b18
+    authored_at: '2026-07-26T02:22:03+00:00'
+    subject: 'fix: remove decrypted SDK task list aliases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: cc7775497c462ee8faa3acbb2f000fe7aa417826
+    short_sha: cc7775497
+    authored_at: '2026-07-26T01:36:32+00:00'
+    subject: 'fix: correct message input placeholder'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    related_feature_ids: []
+  - sha: 96eff5145f8b426051fadee9d3b45b5b2b0b6fd8
+    short_sha: 96eff5145
+    authored_at: '2026-07-26T00:48:16+00:00'
+    subject: 'feat: align SDK parity surfaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/audit_sdk_cleartext_parity.py
+    related_feature_ids: []
+  - sha: 015ea713c2777e5b5423ddff002beebaa2d29ab5
+    short_sha: 015ea713c
+    authored_at: '2026-07-26T00:42:02+00:00'
+    subject: 'feat: tint embed group indicators by app'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused heavily on refining the message composer and audio recording experience, alongside significant
+    hardening of internal deployment workflows and SDK parity.
+  released_changes:
+  - text: The message composer received several updates, including keeping the audio recording expanded during use, preventing
+      control overlaps, and honoring transcript correction toggles.
+    evidence:
+      commits:
+      - c6825ec5e
+      - 60383887c
+      - de6d7bdcf
+      - 0b190770e
+    release_status: dev_only
+  - text: Composer UI refinements include matching icon placeholder colors, collapsing inactive drafts, and correcting input
+      placeholders.
+    evidence:
+      commits:
+      - 72952599e
+      - 7889123c0
+      - cc7775497
+    release_status: dev_only
+  - text: Chat settings and embeds were improved with fullscreen video previews, deep link hydration, and better alignment
+      of file download and usage details.
+    evidence:
+      commits:
+      - 76bab54b0
+      - 4feab3495
+      - 0a2846bf4
+      - ed532fc8d
+      - 49c8f3f65
+    release_status: dev_only
+  - text: The developer experience was enhanced by aligning SDK parity surfaces, enforcing cleartext boundaries, and adding
+      plan attachment capabilities to goal chats.
+    evidence:
+      commits:
+      - 7f6cd43f7
+      - 96eff5145
+      - 0de657e2e
+      - 5d6af5b18
+    release_status: dev_only
+  bug_fixes:
+  - text: OpenMates now purges local data upon a forced logout to ensure account security.
+    evidence:
+      commits:
+      - 2a52ae116
+    release_status: dev_only
+  - text: Issue reporting was improved by normalizing contact text, chat error reports, and restoring timeline log ingestion.
+    evidence:
+      commits:
+      - b5cf5cf90
+      - 6f8ed1830
+      - a6c7c8cee
+    release_status: dev_only
+  - text: The landing page and guest onboarding experience were stabilized with layout fixes and reset logic for new chats.
+    evidence:
+      commits:
+      - 863acf3c7
+      - 8e85f17b4
+      - 713341d3b
+      - 3cfa039c1
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added the ability to unlink items from projects, though the projects platform remains disabled.
+    evidence:
+      commits:
+      - 337717f85
+    release_status: dev_only
+  - text: Work continued on automated Revolut bank transfer crediting for the currently disabled plans platform.
+    evidence:
+      commits:
+      - 600ba1dda
+    release_status: dev_only
+  - text: Updates were made to align recording controls and compliance specs for the unreleased iOS and macOS platforms.
+    evidence:
+      commits:
+      - 38969fb3c
+      - 480faffb6
+      - d6dceb45a
+    release_status: dev_only
+  - text: Internal refactoring removed stale documentation skills from the unreleased workflows platform.
+    evidence:
+      commits:
+      - 9884c310b
+    release_status: dev_only
+  internal_progress:
+  - text: The agent worktree and OpenCode deployment workflows were hardened with new guards against index races and unauthorized
+      edits.
+    evidence:
+      commits:
+      - 75103a3f6
+      - c17f24fee
+      - 5ac449a81
+      - deed35e73
+    release_status: dev_only
+  - text: CI stability was improved by adding validation for staged deploy files and resetting stale lock states.
+    evidence:
+      commits:
+      - 94d188ac0
+      - c91cb052f
+      - 79c567e24
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Project item unlinking features.
+      evidence:
+        commits:
+        - 337717f85
+      reason: The projects platform is currently disabled.
+    - text: Automated Revolut bank transfer crediting.
+      evidence:
+        commits:
+        - 600ba1dda
+      reason: The plans platform is currently disabled.
+    - text: Apple-specific recording controls and compliance updates.
+      evidence:
+        commits:
+        - 38969fb3c
+        - 480faffb6
+        - d6dceb45a
+      reason: iOS and macOS platforms are currently disabled.
+    - text: Workflow capability refactoring.
+      evidence:
+        commits:
+        - 9884c310b
+      reason: The workflows platform is currently disabled.
+    rationale: All changes from this period are currently in dev_only status and not yet reachable from the main branch.
+  social_video_recommendations:
+  - idea: A demonstration of the refined audio recording experience in the composer, highlighting the new shortcut focus and
+      transcript controls.
+    priority: medium
+    reason: The composer updates represent a tangible improvement to the primary user interaction loop.
+    evidence:
+      commits:
+      - c6825ec5e
+      - 60383887c
+      - de6d7bdcf
+      - 0b190770e
+  quality_notes:
+  - Extensive focus on UI edge cases in the message composer, particularly around audio recording and draft management.
+  - Significant effort to maintain parity between the Python SDK and the CLI tool.
+  validation_warnings: []

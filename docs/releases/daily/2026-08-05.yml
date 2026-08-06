@@ -1,0 +1,5448 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-05'
+generated_at: '2026-08-06T13:19:07+00:00'
+range:
+  since: '2026-08-05T00:00:00+00:00'
+  until: '2026-08-06T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 128
+  section_counts:
+    features: 3
+    bug_fixes: 62
+    improvements: 0
+    docs: 10
+    tests: 41
+    infrastructure: 3
+    internal: 3
+    other: 6
+  newsletter_ready_items: 0
+  user_facing_items: 41
+  dev_only_items: 128
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: coordinate Docker restarts with test leases'
+    section: features
+    commits:
+    - 0d9b83f04
+    authored_at: '2026-08-05T10:17:54+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/testing.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/standards/backend.md
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add real-time agent presence coordination'
+    section: features
+    commits:
+    - 2c3512629
+    authored_at: '2026-08-05T01:08:16+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/specs/agent-presence-coordination/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/opencode_presence_store.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_presence_events.mjs
+    - scripts/tests/test_opencode_presence_failure_containment.py
+    - scripts/tests/test_opencode_presence_performance.mjs
+    - scripts/tests/test_opencode_presence_privacy.py
+    - scripts/tests/test_opencode_spec_autocontinue.mjs
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_presence_store.py
+    - scripts/verify_opencode_presence_live.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: personalize guest example chats by interests'
+    section: features
+    commits:
+    - 9b3843785
+    authored_at: '2026-08-05T01:01:10+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    - frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: scale mobile inspiration previews'
+    section: bug_fixes
+    commits:
+    - a56797e33
+    authored_at: '2026-08-05T19:04:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: shrink mobile inspiration embed previews'
+    section: bug_fixes
+    commits:
+    - 7772ac81c
+    authored_at: '2026-08-05T18:49:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow read-only child diagnostics'
+    section: bug_fixes
+    commits:
+    - c2effd8a7
+    authored_at: '2026-08-05T18:15:37+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix streaming tail commit
+    section: bug_fixes
+    commits:
+    - 6fd74ffec
+    authored_at: '2026-08-05T17:41:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make guest inspiration restore atomic'
+    section: bug_fixes
+    commits:
+    - ade91973d
+    authored_at: '2026-08-05T17:07:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore coordinated test dispatch'
+    section: bug_fixes
+    commits:
+    - dbe66758f
+    authored_at: '2026-08-05T16:53:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - scripts/sessions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore guest inspirations on forced logout'
+    section: bug_fixes
+    commits:
+    - 55693253d
+    authored_at: '2026-08-05T16:21:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route stale-code reports through current control plane'
+    section: bug_fixes
+    commits:
+    - 0d6550588
+    authored_at: '2026-08-05T16:04:05+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: share runtime resources with agent worktrees'
+    section: bug_fixes
+    commits:
+    - 4598b4aad
+    authored_at: '2026-08-05T15:58:05+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix streaming message render convergence
+    section: bug_fixes
+    commits:
+    - a4669d44e
+    authored_at: '2026-08-05T15:43:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route production SSH through root control plane'
+    section: bug_fixes
+    commits:
+    - f8e556147
+    authored_at: '2026-08-05T15:33:53+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve previews at stream completion'
+    section: bug_fixes
+    commits:
+    - 8d2ea1031
+    authored_at: '2026-08-05T15:22:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve streaming state attribute'
+    section: bug_fixes
+    commits:
+    - 892f4c43e
+    authored_at: '2026-08-05T15:03:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore routed production SSH access'
+    section: bug_fixes
+    commits:
+    - 5f656b148
+    authored_at: '2026-08-05T14:59:18+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/prod-ssh.sh
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover inspirations after login'
+    section: bug_fixes
+    commits:
+    - d5d8fba03
+    authored_at: '2026-08-05T14:47:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow safe forensic child diagnostics'
+    section: bug_fixes
+    commits:
+    - d79e41c03
+    authored_at: '2026-08-05T14:31:56+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: fix streaming state deploy regression
+    section: bug_fixes
+    commits:
+    - 1faef6005
+    authored_at: '2026-08-05T14:08:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: fix anonymous navigation interactions
+    section: bug_fixes
+    commits:
+    - ded398825
+    authored_at: '2026-08-05T14:02:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: dispatch integrated test subject'
+    section: bug_fixes
+    commits:
+    - f1e2ba56a
+    authored_at: '2026-08-05T13:45:22+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate deployed session commits'
+    section: bug_fixes
+    commits:
+    - 7842f0c08
+    authored_at: '2026-08-05T13:33:43+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: converge streamed message rendering'
+    section: bug_fixes
+    commits:
+    - bc3dd79a9
+    authored_at: '2026-08-05T13:15:26+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.preview.ts
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/streamingNodeIdentity.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageCompiler.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderMetrics.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: suppress duplicate embed ref notifications'
+    section: bug_fixes
+    commits:
+    - e09b8897b
+    authored_at: '2026-08-05T12:43:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+    - frontend/packages/ui/src/services/embedRefIndex.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: fix anonymous navigation group
+    section: bug_fixes
+    commits:
+    - a91afa5b6
+    authored_at: '2026-08-05T12:35:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix welcome carousel pin refresh
+    section: bug_fixes
+    commits:
+    - b816b6573
+    authored_at: '2026-08-05T12:19:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish embed refs after finalized storage'
+    section: bug_fixes
+    commits:
+    - 9cfcb2cf2
+    authored_at: '2026-08-05T12:04:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh anonymous chat messages on reload'
+    section: bug_fixes
+    commits:
+    - 2508220d9
+    authored_at: '2026-08-05T11:58:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pass spawned chat prompts directly'
+    section: bug_fixes
+    commits:
+    - cf47af425
+    authored_at: '2026-08-05T11:30:46+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow standalone chat spawning'
+    section: bug_fixes
+    commits:
+    - 9d8fb4405
+    authored_at: '2026-08-05T11:26:45+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_spawn_chat_opencode.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: count all nightly unit results'
+    section: bug_fixes
+    commits:
+    - 41e36c28e
+    authored_at: '2026-08-05T11:23:46+00:00'
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remap compatible fallback embed subsets'
+    section: bug_fixes
+    commits:
+    - 71f823d2f
+    authored_at: '2026-08-05T11:22:48+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: launch separate chats with OpenCode'
+    section: bug_fixes
+    commits:
+    - 6bc4796b6
+    authored_at: '2026-08-05T11:19:32+00:00'
+    changed_paths:
+    - .agents/skills/spawn-chat/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - AGENTS.md
+    - scripts/_zellij_utils.py
+    - scripts/sessions.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: fix chat navigation phase1 null resume
+    section: bug_fixes
+    commits:
+    - 23e1ef244
+    authored_at: '2026-08-05T11:16:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize failed-test campaigns'
+    section: bug_fixes
+    commits:
+    - 0599b4524
+    authored_at: '2026-08-05T10:59:50+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent nightly pytest undercount'
+    section: bug_fixes
+    commits:
+    - 119a61010
+    authored_at: '2026-08-05T10:38:10+00:00'
+    changed_paths:
+    - .github/workflows/pytest-unit.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse root webhook from agent worktrees'
+    section: bug_fixes
+    commits:
+    - 35556ace2
+    authored_at: '2026-08-05T10:15:35+00:00'
+    changed_paths:
+    - scripts/stale_code_daily.py
+    - scripts/tests/test_stale_code_daily.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: install stale-code cron from canonical checkout'
+    section: bug_fixes
+    commits:
+    - 9de3411a7
+    authored_at: '2026-08-05T10:05:04+00:00'
+    changed_paths:
+    - scripts/stale-code-cron-setup.sh
+    - scripts/stale_code_daily.py
+    - scripts/tests/test_stale_code_daily.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load Vercel config from shared checkout'
+    section: bug_fixes
+    commits:
+    - 1a1975870
+    authored_at: '2026-08-05T09:54:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stop false degraded service reports'
+    section: bug_fixes
+    commits:
+    - a5028d6ca
+    authored_at: '2026-08-05T09:47:58+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_analytics_service.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/tasks/leaderboard_tasks.py
+    - backend/tests/test_task_smoke.py
+    - backend/tests/test_web_analytics_restore.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: report long-running daily test status'
+    section: bug_fixes
+    commits:
+    - ce708ab17
+    authored_at: '2026-08-05T09:46:17+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remap live mock embed references'
+    section: bug_fixes
+    commits:
+    - '481111760'
+    authored_at: '2026-08-05T09:32:16+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve top-level and read-only child routing'
+    section: bug_fixes
+    commits:
+    - f72aaf881
+    authored_at: '2026-08-05T09:20:11+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore guest landing reverse navigation'
+    section: bug_fixes
+    commits:
+    - 190d7728d
+    authored_at: '2026-08-05T08:47:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore current CLI interest taxonomy'
+    section: bug_fixes
+    commits:
+    - 9527355c4
+    authored_at: '2026-08-05T08:44:30+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject mixed guest inspiration sets'
+    section: bug_fixes
+    commits:
+    - 9eba53d53
+    authored_at: '2026-08-05T08:41:24+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve interests with welcome history guard'
+    section: bug_fixes
+    commits:
+    - de0c632ae
+    authored_at: '2026-08-05T03:41:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: disable welcome history interaction locally'
+    section: bug_fixes
+    commits:
+    - 185f6f4c1
+    authored_at: '2026-08-05T03:09:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: separate guest interest prompt and rail'
+    section: bug_fixes
+    commits:
+    - fbc90d719
+    authored_at: '2026-08-05T02:45:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: release welcome history overlay'
+    section: bug_fixes
+    commits:
+    - de4b7e933
+    authored_at: '2026-08-05T02:43:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore guest interest personalization'
+    section: bug_fixes
+    commits:
+    - 53950deab
+    authored_at: '2026-08-05T02:31:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Continue draft interaction'
+    section: bug_fixes
+    commits:
+    - 719f109eb
+    authored_at: '2026-08-05T02:18:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: contain tablet landing story animations'
+    section: bug_fixes
+    commits:
+    - 091c17eaa
+    authored_at: '2026-08-05T02:00:12+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingPrivacySafetyDemo.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore last-opened draft discovery'
+    section: bug_fixes
+    commits:
+    - 03f3be518
+    authored_at: '2026-08-05T01:28:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore worktree coordination safeguards'
+    section: bug_fixes
+    commits:
+    - bd2f2fafe
+    authored_at: '2026-08-05T01:17:48+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject malformed persisted inspirations'
+    section: bug_fixes
+    commits:
+    - 5d31b367b
+    authored_at: '2026-08-05T01:05:44+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/daily_inspirations_api.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: invalidate stale daily default cache'
+    section: bug_fixes
+    commits:
+    - a73f68667
+    authored_at: '2026-08-05T00:57:11+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden automatic worktree cleanup'
+    section: bug_fixes
+    commits:
+    - 85cc0d8cd
+    authored_at: '2026-08-05T00:55:01+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_reconciliation.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject guest cards from daily defaults'
+    section: bug_fixes
+    commits:
+    - e24de345c
+    authored_at: '2026-08-05T00:54:19+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent keyboard focus during audio recording'
+    section: bug_fixes
+    commits:
+    - 8d1d8748b
+    authored_at: '2026-08-05T00:51:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore authenticated daily inspirations'
+    section: bug_fixes
+    commits:
+    - b635411d2
+    authored_at: '2026-08-05T00:33:07+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/specs/authenticated-daily-inspiration-restoration/spec.yml
+    - docs/user-guide/daily-inspiration.md
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore committed drift during worktree finalization'
+    section: bug_fixes
+    commits:
+    - 351a57fb7
+    authored_at: '2026-08-05T00:26:20+00:00'
+    changed_paths:
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    - scripts/sessions.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finalize incrementally deployed worktrees'
+    section: bug_fixes
+    commits:
+    - f711ec242
+    authored_at: '2026-08-05T00:23:19+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: close routed worktree isolation gaps'
+    section: bug_fixes
+    commits:
+    - 4d8befa45
+    authored_at: '2026-08-05T00:00:18+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_integration_worktree.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: Record streaming convergence evidence
+    section: docs
+    commits:
+    - 4694a1b2a
+    authored_at: '2026-08-05T20:16:34+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: specify streaming render convergence'
+    section: docs
+    commits:
+    - 836f097b3
+    authored_at: '2026-08-05T12:07:53+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record stale-code reporting evidence'
+    section: docs
+    commits:
+    - adef1a856
+    authored_at: '2026-08-05T10:26:24+00:00'
+    changed_paths:
+    - docs/specs/deterministic-stale-code-reporting/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: verify agent presence coordination'
+    section: docs
+    commits:
+    - 45c708cf0
+    authored_at: '2026-08-05T08:45:26+00:00'
+    changed_paths:
+    - docs/specs/agent-presence-coordination/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record guest interest verification'
+    section: docs
+    commits:
+    - d4e6f0dc4
+    authored_at: '2026-08-05T04:20:17+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing containment verification'
+    section: docs
+    commits:
+    - bb3e300cf
+    authored_at: '2026-08-05T03:11:40+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record agent presence verification'
+    section: docs
+    commits:
+    - 2ba690d45
+    authored_at: '2026-08-05T01:14:45+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/agent-presence-coordination/spec.yml
+    - scripts/sessions.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing story verification'
+    section: docs
+    commits:
+    - 410bb2a4d
+    authored_at: '2026-08-05T00:47:06+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: complete routed worktree specification'
+    section: docs
+    commits:
+    - acd6bb551
+    authored_at: '2026-08-05T00:15:59+00:00'
+    changed_paths:
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record routed worktree verification'
+    section: docs
+    commits:
+    - 916fe8fa1
+    authored_at: '2026-08-05T00:13:49+00:00'
+    changed_paths:
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: Reproduce bare inline embed refs
+    section: tests
+    commits:
+    - c786a3828
+    authored_at: '2026-08-05T20:38:09+00:00'
+    changed_paths:
+    - backend/tests/test_embed_link_fixes.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Review mobile app skill group
+    section: tests
+    commits:
+    - 4c7b2f2ec
+    authored_at: '2026-08-05T20:04:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Capture mobile app skill convergence
+    section: tests
+    commits:
+    - 3adf04386
+    authored_at: '2026-08-05T19:53:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Test append-only streaming contracts
+    section: tests
+    commits:
+    - cb25da77b
+    authored_at: '2026-08-05T17:12:45+00:00'
+    changed_paths:
+    - backend/tests/test_stream_paragraph_contract.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require guest carousel after forced logout'
+    section: tests
+    commits:
+    - 5d97dbdf4
+    authored_at: '2026-08-05T16:25:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reject every authenticated guest card'
+    section: tests
+    commits:
+    - bb546f1d0
+    authored_at: '2026-08-05T15:00:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope streamed loading state'
+    section: tests
+    commits:
+    - b1de428d4
+    authored_at: '2026-08-05T14:45:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: await streamed result rows'
+    section: tests
+    commits:
+    - a06ff5c1d
+    authored_at: '2026-08-05T14:26:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve message streaming state'
+    section: tests
+    commits:
+    - 6ddbd0200
+    authored_at: '2026-08-05T13:59:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope streaming network assertion'
+    section: tests
+    commits:
+    - 829b5bdd5
+    authored_at: '2026-08-05T13:57:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: remove invalid final streaming assertion'
+    section: tests
+    commits:
+    - a52674bf7
+    authored_at: '2026-08-05T13:44:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clarify final event view state'
+    section: tests
+    commits:
+    - f7a55b204
+    authored_at: '2026-08-05T13:43:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate streaming compiler metadata'
+    section: tests
+    commits:
+    - a68843ba8
+    authored_at: '2026-08-05T13:28:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify event streaming transition'
+    section: tests
+    commits:
+    - 68ad3498d
+    authored_at: '2026-08-05T13:12:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expose message streaming state'
+    section: tests
+    commits:
+    - 86c55ab41
+    authored_at: '2026-08-05T12:58:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: define streaming render convergence'
+    section: tests
+    commits:
+    - 40c3cff20
+    authored_at: '2026-08-05T12:21:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/__tests__/streamingNodeViewIdentity.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderLifecycle.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
+    - frontend/packages/ui/src/utils/__tests__/contentCache.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize signup 2FA reconnect preview spec
+    section: tests
+    commits:
+    - 41ceb288a
+    authored_at: '2026-08-05T11:13:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-2fa-reconnect-preview.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: harden managed signup checkout'
+    section: tests
+    commits:
+    - 68df109f2
+    authored_at: '2026-08-05T11:11:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for final event view'
+    section: tests
+    commits:
+    - 3d0973318
+    authored_at: '2026-08-05T10:38:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate event ref regression'
+    section: tests
+    commits:
+    - 506db1c93
+    authored_at: '2026-08-05T10:30:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: focus event embed regression'
+    section: tests
+    commits:
+    - 9ed477e51
+    authored_at: '2026-08-05T10:23:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize event result fullscreen'
+    section: tests
+    commits:
+    - 33831fb3d
+    authored_at: '2026-08-05T10:09:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: consolidate streaming report issue regression'
+    section: tests
+    commits:
+    - aa7b004a8
+    authored_at: '2026-08-05T08:34:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert guaranteed localized interest tags'
+    section: tests
+    commits:
+    - 9856ebe6e
+    authored_at: '2026-08-05T04:39:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: open interests before locale assertions'
+    section: tests
+    commits:
+    - e956fcd9f
+    authored_at: '2026-08-05T04:30:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: navigate backward from terminal interest slide'
+    section: tests
+    commits:
+    - fa30cd96d
+    authored_at: '2026-08-05T04:07:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate guest interest Playwright coverage'
+    section: tests
+    commits:
+    - dc9c38912
+    authored_at: '2026-08-05T03:55:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert canonical initial interest tag'
+    section: tests
+    commits:
+    - 3b421f27e
+    authored_at: '2026-08-05T03:06:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enforce landing bounds across viewports'
+    section: tests
+    commits:
+    - 21b1e1820
+    authored_at: '2026-08-05T02:13:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize guest interest entry flow'
+    section: tests
+    commits:
+    - 1360ae0db
+    authored_at: '2026-08-05T02:10:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align guest interests with landing flow'
+    section: tests
+    commits:
+    - 50e639f7a
+    authored_at: '2026-08-05T01:39:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: measure every tablet privacy scene'
+    section: tests
+    commits:
+    - 508e45ca8
+    authored_at: '2026-08-05T01:37:50+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate recording editor focus contract'
+    section: tests
+    commits:
+    - 5e4985098
+    authored_at: '2026-08-05T01:21:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: target tablet story geometry'
+    section: tests
+    commits:
+    - 9b5c8e892
+    authored_at: '2026-08-05T01:19:12+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize recording focus recovery assertion'
+    section: tests
+    commits:
+    - 660b306a1
+    authored_at: '2026-08-05T01:10:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use stable new chat transition'
+    section: tests
+    commits:
+    - f0800c922
+    authored_at: '2026-08-05T01:09:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fail fast on missing draft resume'
+    section: tests
+    commits:
+    - ffde39150
+    authored_at: '2026-08-05T00:58:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover tablet landing story containment'
+    section: tests
+    commits:
+    - ddebb0b1a
+    authored_at: '2026-08-05T00:56:06+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: prioritize draft discovery assertion'
+    section: tests
+    commits:
+    - f1702a2f4
+    authored_at: '2026-08-05T00:52:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for finished event embed before fullscreen'
+    section: tests
+    commits:
+    - ad46f8e13
+    authored_at: '2026-08-05T00:48:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use recorded events replay for stability'
+    section: tests
+    commits:
+    - 68b6e5fec
+    authored_at: '2026-08-05T00:30:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'ci: require signup and billing release tests'
+    section: infrastructure
+    commits:
+    - c526ef12a
+    authored_at: '2026-08-05T10:52:11+00:00'
+    changed_paths:
+    - .github/workflows/release-core-journeys.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/specs/release-core-journeys-gate/spec.yml
+    - frontend/apps/web_app/tests/dev-smoke/README.md
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: add safe stale-code reporting'
+    section: infrastructure
+    commits:
+    - 6a26fd01a
+    authored_at: '2026-08-05T10:03:03+00:00'
+    changed_paths:
+    - .agents/skills/remove-stale-code/SKILL.md
+    - .claude/skills/remove-stale-code/SKILL.md
+    - .env.example
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/deterministic-stale-code-reporting/spec.yml
+    - scripts/_dead_code_removal_helper.py
+    - scripts/find_dead_code.py
+    - scripts/nightly-dead-code-removal.sh
+    - scripts/prompts/dead-code-removal.md
+    - scripts/stale-code-cron-setup.sh
+    - scripts/stale_code_daily.py
+    - scripts/tests/test_find_dead_code.py
+    - scripts/tests/test_stale_code_daily.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: route OpenCode subagents by workload'
+    section: infrastructure
+    commits:
+    - d9a58033d
+    authored_at: '2026-08-05T01:03:23+00:00'
+    changed_paths:
+    - .opencode/agents/apple-native-debugger.md
+    - .opencode/agents/apple-parity-auditor.md
+    - .opencode/agents/apple-performance-detective.md
+    - .opencode/agents/chat-sync-detective.md
+    - .opencode/agents/code-reviewer.md
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/embed-rendering-investigator.md
+    - .opencode/agents/encryption-flow-tracer.md
+    - .opencode/agents/issue-forensics.md
+    - .opencode/agents/legal-compliance-auditor.md
+    - .opencode/agents/main-processor-guru.md
+    - .opencode/agents/seo-auditor.md
+    - .opencode/agents/settings-ui-consistency-checker.md
+    - .opencode/agents/skill-integration-doctor.md
+    - .opencode/agents/test-failure-triager.md
+    - AGENTS.md
+    - docs/architecture/agent-tooling-parity.md
+    - opencode.json
+    - scripts/sync_agent_parity.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Verify large embed preview spacing
+    section: internal
+    commits:
+    - abf817deb
+    authored_at: '2026-08-05T20:58:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Verify app skill groups after reload
+    section: internal
+    commits:
+    - 6d4a27b62
+    authored_at: '2026-08-05T19:42:20+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve app skill groups at completion
+    section: internal
+    commits:
+    - 9aa522632
+    authored_at: '2026-08-05T19:01:14+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: Render bare inline embed refs
+    section: other
+    commits:
+    - 399f36331
+    authored_at: '2026-08-05T20:41:52+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Flush complete streaming blocks
+    section: other
+    commits:
+    - e4ac674ba
+    authored_at: '2026-08-05T18:31:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve streamed result views
+    section: other
+    commits:
+    - c3df0d470
+    authored_at: '2026-08-05T18:11:43+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Implement committed streaming blocks
+    section: other
+    commits:
+    - 4613bbad1
+    authored_at: '2026-08-05T17:37:17+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/stream_utils.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve embeds on metadata refresh
+    section: other
+    commits:
+    - f2e556f1f
+    authored_at: '2026-08-05T16:00:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: stabilize anonymous welcome navigation
+    section: other
+    commits:
+    - 1ed3c95fd
+    authored_at: '2026-08-05T13:09:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: Verify large embed preview spacing
+    commits:
+    - abf817deb
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Render bare inline embed refs
+    commits:
+    - 399f36331
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Reproduce bare inline embed refs
+    commits:
+    - c786a3828
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Record streaming convergence evidence
+    commits:
+    - 4694a1b2a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Review mobile app skill group
+    commits:
+    - 4c7b2f2ec
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Capture mobile app skill convergence
+    commits:
+    - 3adf04386
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Verify app skill groups after reload
+    commits:
+    - 6d4a27b62
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: scale mobile inspiration previews'
+    commits:
+    - a56797e33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Preserve app skill groups at completion
+    commits:
+    - 9aa522632
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: shrink mobile inspiration embed previews'
+    commits:
+    - 7772ac81c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Flush complete streaming blocks
+    commits:
+    - e4ac674ba
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow read-only child diagnostics'
+    commits:
+    - c2effd8a7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve streamed result views
+    commits:
+    - c3df0d470
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix streaming tail commit
+    commits:
+    - 6fd74ffec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Implement committed streaming blocks
+    commits:
+    - 4613bbad1
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Test append-only streaming contracts
+    commits:
+    - cb25da77b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make guest inspiration restore atomic'
+    commits:
+    - ade91973d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore coordinated test dispatch'
+    commits:
+    - dbe66758f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: require guest carousel after forced logout'
+    commits:
+    - 5d97dbdf4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore guest inspirations on forced logout'
+    commits:
+    - 55693253d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route stale-code reports through current control plane'
+    commits:
+    - 0d6550588
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve embeds on metadata refresh
+    commits:
+    - f2e556f1f
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: share runtime resources with agent worktrees'
+    commits:
+    - 4598b4aad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix streaming message render convergence
+    commits:
+    - a4669d44e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route production SSH through root control plane'
+    commits:
+    - f8e556147
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve previews at stream completion'
+    commits:
+    - 8d2ea1031
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve streaming state attribute'
+    commits:
+    - 892f4c43e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reject every authenticated guest card'
+    commits:
+    - bb546f1d0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore routed production SSH access'
+    commits:
+    - 5f656b148
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover inspirations after login'
+    commits:
+    - d5d8fba03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: scope streamed loading state'
+    commits:
+    - b1de428d4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow safe forensic child diagnostics'
+    commits:
+    - d79e41c03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: await streamed result rows'
+    commits:
+    - a06ff5c1d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: fix streaming state deploy regression
+    commits:
+    - 1faef6005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: fix anonymous navigation interactions
+    commits:
+    - ded398825
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: preserve message streaming state'
+    commits:
+    - 6ddbd0200
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: scope streaming network assertion'
+    commits:
+    - 829b5bdd5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: dispatch integrated test subject'
+    commits:
+    - f1e2ba56a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: remove invalid final streaming assertion'
+    commits:
+    - a52674bf7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clarify final event view state'
+    commits:
+    - f7a55b204
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: gate deployed session commits'
+    commits:
+    - 7842f0c08
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate streaming compiler metadata'
+    commits:
+    - a68843ba8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: converge streamed message rendering'
+    commits:
+    - bc3dd79a9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify event streaming transition'
+    commits:
+    - 68ad3498d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: stabilize anonymous welcome navigation
+    commits:
+    - 1ed3c95fd
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: expose message streaming state'
+    commits:
+    - 86c55ab41
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: suppress duplicate embed ref notifications'
+    commits:
+    - e09b8897b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: fix anonymous navigation group
+    commits:
+    - a91afa5b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: define streaming render convergence'
+    commits:
+    - 40c3cff20
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix welcome carousel pin refresh
+    commits:
+    - b816b6573
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: specify streaming render convergence'
+    commits:
+    - 836f097b3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: publish embed refs after finalized storage'
+    commits:
+    - 9cfcb2cf2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh anonymous chat messages on reload'
+    commits:
+    - 2508220d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: pass spawned chat prompts directly'
+    commits:
+    - cf47af425
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow standalone chat spawning'
+    commits:
+    - 9d8fb4405
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: count all nightly unit results'
+    commits:
+    - 41e36c28e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remap compatible fallback embed subsets'
+    commits:
+    - 71f823d2f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: launch separate chats with OpenCode'
+    commits:
+    - 6bc4796b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: fix chat navigation phase1 null resume
+    commits:
+    - 23e1ef244
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Stabilize signup 2FA reconnect preview spec
+    commits:
+    - 41ceb288a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: harden managed signup checkout'
+    commits:
+    - 68df109f2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize failed-test campaigns'
+    commits:
+    - 0599b4524
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: require signup and billing release tests'
+    commits:
+    - c526ef12a
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for final event view'
+    commits:
+    - 3d0973318
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent nightly pytest undercount'
+    commits:
+    - 119a61010
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate event ref regression'
+    commits:
+    - 506db1c93
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record stale-code reporting evidence'
+    commits:
+    - adef1a856
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: focus event embed regression'
+    commits:
+    - 9ed477e51
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: coordinate Docker restarts with test leases'
+    commits:
+    - 0d9b83f04
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reuse root webhook from agent worktrees'
+    commits:
+    - 35556ace2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize event result fullscreen'
+    commits:
+    - 33831fb3d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: install stale-code cron from canonical checkout'
+    commits:
+    - 9de3411a7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: add safe stale-code reporting'
+    commits:
+    - 6a26fd01a
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load Vercel config from shared checkout'
+    commits:
+    - 1a1975870
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stop false degraded service reports'
+    commits:
+    - a5028d6ca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: report long-running daily test status'
+    commits:
+    - ce708ab17
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remap live mock embed references'
+    commits:
+    - '481111760'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve top-level and read-only child routing'
+    commits:
+    - f72aaf881
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore guest landing reverse navigation'
+    commits:
+    - 190d7728d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: verify agent presence coordination'
+    commits:
+    - 45c708cf0
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore current CLI interest taxonomy'
+    commits:
+    - 9527355c4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reject mixed guest inspiration sets'
+    commits:
+    - 9eba53d53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: consolidate streaming report issue regression'
+    commits:
+    - aa7b004a8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert guaranteed localized interest tags'
+    commits:
+    - 9856ebe6e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: open interests before locale assertions'
+    commits:
+    - e956fcd9f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record guest interest verification'
+    commits:
+    - d4e6f0dc4
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: navigate backward from terminal interest slide'
+    commits:
+    - fa30cd96d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate guest interest Playwright coverage'
+    commits:
+    - dc9c38912
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve interests with welcome history guard'
+    commits:
+    - de0c632ae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record landing containment verification'
+    commits:
+    - bb3e300cf
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: disable welcome history interaction locally'
+    commits:
+    - 185f6f4c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: assert canonical initial interest tag'
+    commits:
+    - 3b421f27e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: separate guest interest prompt and rail'
+    commits:
+    - fbc90d719
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: release welcome history overlay'
+    commits:
+    - de4b7e933
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore guest interest personalization'
+    commits:
+    - 53950deab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore Continue draft interaction'
+    commits:
+    - 719f109eb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: enforce landing bounds across viewports'
+    commits:
+    - 21b1e1820
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize guest interest entry flow'
+    commits:
+    - 1360ae0db
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: contain tablet landing story animations'
+    commits:
+    - 091c17eaa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align guest interests with landing flow'
+    commits:
+    - 50e639f7a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: measure every tablet privacy scene'
+    commits:
+    - 508e45ca8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore last-opened draft discovery'
+    commits:
+    - 03f3be518
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: isolate recording editor focus contract'
+    commits:
+    - 5e4985098
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: target tablet story geometry'
+    commits:
+    - 9b5c8e892
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore worktree coordination safeguards'
+    commits:
+    - bd2f2fafe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record agent presence verification'
+    commits:
+    - 2ba690d45
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize recording focus recovery assertion'
+    commits:
+    - 660b306a1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use stable new chat transition'
+    commits:
+    - f0800c922
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add real-time agent presence coordination'
+    commits:
+    - 2c3512629
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reject malformed persisted inspirations'
+    commits:
+    - 5d31b367b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'chore: route OpenCode subagents by workload'
+    commits:
+    - d9a58033d
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: personalize guest example chats by interests'
+    commits:
+    - 9b3843785
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: fail fast on missing draft resume'
+    commits:
+    - ffde39150
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: invalidate stale daily default cache'
+    commits:
+    - a73f68667
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover tablet landing story containment'
+    commits:
+    - ddebb0b1a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden automatic worktree cleanup'
+    commits:
+    - 85cc0d8cd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reject guest cards from daily defaults'
+    commits:
+    - e24de345c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: prioritize draft discovery assertion'
+    commits:
+    - f1702a2f4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent keyboard focus during audio recording'
+    commits:
+    - 8d1d8748b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: wait for finished event embed before fullscreen'
+    commits:
+    - ad46f8e13
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record landing story verification'
+    commits:
+    - 410bb2a4d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore authenticated daily inspirations'
+    commits:
+    - b635411d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: use recorded events replay for stability'
+    commits:
+    - 68b6e5fec
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: ignore committed drift during worktree finalization'
+    commits:
+    - 351a57fb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: finalize incrementally deployed worktrees'
+    commits:
+    - f711ec242
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: complete routed worktree specification'
+    commits:
+    - acd6bb551
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record routed worktree verification'
+    commits:
+    - 916fe8fa1
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: close routed worktree isolation gaps'
+    commits:
+    - 4d8befa45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: Render bare inline embed refs
+    commits:
+    - 399f36331
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: scale mobile inspiration previews'
+    commits:
+    - a56797e33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: shrink mobile inspiration embed previews'
+    commits:
+    - 7772ac81c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Flush complete streaming blocks
+    commits:
+    - e4ac674ba
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Implement committed streaming blocks
+    commits:
+    - 4613bbad1
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: make guest inspiration restore atomic'
+    commits:
+    - ade91973d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore coordinated test dispatch'
+    commits:
+    - dbe66758f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore guest inspirations on forced logout'
+    commits:
+    - 55693253d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Preserve embeds on metadata refresh
+    commits:
+    - f2e556f1f
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix streaming message render convergence
+    commits:
+    - a4669d44e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve previews at stream completion'
+    commits:
+    - 8d2ea1031
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve streaming state attribute'
+    commits:
+    - 892f4c43e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover inspirations after login'
+    commits:
+    - d5d8fba03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: fix streaming state deploy regression
+    commits:
+    - 1faef6005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: fix anonymous navigation interactions
+    commits:
+    - ded398825
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: converge streamed message rendering'
+    commits:
+    - bc3dd79a9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: stabilize anonymous welcome navigation
+    commits:
+    - 1ed3c95fd
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: fix anonymous navigation group
+    commits:
+    - a91afa5b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix welcome carousel pin refresh
+    commits:
+    - b816b6573
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh anonymous chat messages on reload'
+    commits:
+    - 2508220d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remap compatible fallback embed subsets'
+    commits:
+    - 71f823d2f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: fix chat navigation phase1 null resume
+    commits:
+    - 23e1ef244
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: load Vercel config from shared checkout'
+    commits:
+    - 1a1975870
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remap live mock embed references'
+    commits:
+    - '481111760'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore guest landing reverse navigation'
+    commits:
+    - 190d7728d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore current CLI interest taxonomy'
+    commits:
+    - 9527355c4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reject mixed guest inspiration sets'
+    commits:
+    - 9eba53d53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve interests with welcome history guard'
+    commits:
+    - de0c632ae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: disable welcome history interaction locally'
+    commits:
+    - 185f6f4c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: separate guest interest prompt and rail'
+    commits:
+    - fbc90d719
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: release welcome history overlay'
+    commits:
+    - de4b7e933
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore guest interest personalization'
+    commits:
+    - 53950deab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore Continue draft interaction'
+    commits:
+    - 719f109eb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: contain tablet landing story animations'
+    commits:
+    - 091c17eaa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore last-opened draft discovery'
+    commits:
+    - 03f3be518
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reject malformed persisted inspirations'
+    commits:
+    - 5d31b367b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: personalize guest example chats by interests'
+    commits:
+    - 9b3843785
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: invalidate stale daily default cache'
+    commits:
+    - a73f68667
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reject guest cards from daily defaults'
+    commits:
+    - e24de345c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: prevent keyboard focus during audio recording'
+    commits:
+    - 8d1d8748b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore authenticated daily inspirations'
+    commits:
+    - b635411d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: abf817debb93432f2223d0931535d064539922aa
+    short_sha: abf817deb
+    authored_at: '2026-08-05T20:58:26+00:00'
+    subject: Verify large embed preview spacing
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    related_feature_ids: []
+  - sha: 399f363311764b168f58fd401a7b35359a28a1b2
+    short_sha: 399f36331
+    authored_at: '2026-08-05T20:41:52+00:00'
+    subject: Render bare inline embed refs
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    related_feature_ids:
+    - app:ai
+  - sha: c786a3828fff0033aea8c16b934ec54fa13509b1
+    short_sha: c786a3828
+    authored_at: '2026-08-05T20:38:09+00:00'
+    subject: Reproduce bare inline embed refs
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_embed_link_fixes.py
+    related_feature_ids: []
+  - sha: 4694a1b2acf29f2f4db541eee75aad3e07d213e1
+    short_sha: 4694a1b2a
+    authored_at: '2026-08-05T20:16:34+00:00'
+    subject: Record streaming convergence evidence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    related_feature_ids: []
+  - sha: 4c7b2f2ecc28f091ddf628e22bd80a28d90d6781
+    short_sha: 4c7b2f2ec
+    authored_at: '2026-08-05T20:04:23+00:00'
+    subject: Review mobile app skill group
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 3adf043862f7ff2299199ea0bf9583719e705898
+    short_sha: 3adf04386
+    authored_at: '2026-08-05T19:53:24+00:00'
+    subject: Capture mobile app skill convergence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 6d4a27b628abb708620e35f76d23b66f468f304b
+    short_sha: 6d4a27b62
+    authored_at: '2026-08-05T19:42:20+00:00'
+    subject: Verify app skill groups after reload
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: a56797e33ccfe6da0c463f16bd820a7a96ca09f5
+    short_sha: a56797e33
+    authored_at: '2026-08-05T19:04:04+00:00'
+    subject: 'fix: scale mobile inspiration previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 9aa52263287713cabe88f88fcb27d84383e3232e
+    short_sha: 9aa522632
+    authored_at: '2026-08-05T19:01:14+00:00'
+    subject: Preserve app skill groups at completion
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 7772ac81c5f6e7d0846289cd759a0679324aeb4b
+    short_sha: 7772ac81c
+    authored_at: '2026-08-05T18:49:20+00:00'
+    subject: 'fix: shrink mobile inspiration embed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: e4ac674bae5af248c444c398f037220ef48f7e07
+    short_sha: e4ac674ba
+    authored_at: '2026-08-05T18:31:54+00:00'
+    subject: Flush complete streaming blocks
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    related_feature_ids: []
+  - sha: c2effd8a7219fe8348aac6c564607dd679a6eb39
+    short_sha: c2effd8a7
+    authored_at: '2026-08-05T18:15:37+00:00'
+    subject: 'fix: allow read-only child diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: c3df0d470e498b955c025b0a99953b280d0d85d1
+    short_sha: c3df0d470
+    authored_at: '2026-08-05T18:11:43+00:00'
+    subject: Preserve streamed result views
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids: []
+  - sha: 6fd74ffec8bde935f437da8d467da2cdb93324bc
+    short_sha: 6fd74ffec
+    authored_at: '2026-08-05T17:41:49+00:00'
+    subject: Fix streaming tail commit
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids: []
+  - sha: 4613bbad1fcc7277e69a71a83c4b7fdc8bef7e5a
+    short_sha: 4613bbad1
+    authored_at: '2026-08-05T17:37:17+00:00'
+    subject: Implement committed streaming blocks
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/stream_utils.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids:
+    - app:ai
+  - sha: cb25da77b1cc48b7793aa8cb76a91056a979d3cf
+    short_sha: cb25da77b
+    authored_at: '2026-08-05T17:12:45+00:00'
+    subject: Test append-only streaming contracts
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_stream_paragraph_contract.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids: []
+  - sha: ade91973dd1a0245b98b32b173580cb3d8424613
+    short_sha: ade91973d
+    authored_at: '2026-08-05T17:07:49+00:00'
+    subject: 'fix: make guest inspiration restore atomic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: dbe66758fc08e50d698019a5db03c8e813064c41
+    short_sha: dbe66758f
+    authored_at: '2026-08-05T16:53:34+00:00'
+    subject: 'fix: restore coordinated test dispatch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 5d97dbdf4748f8da5c4792958798659daded6a40
+    short_sha: 5d97dbdf4
+    authored_at: '2026-08-05T16:25:41+00:00'
+    subject: 'test: require guest carousel after forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 55693253ddb0e44e0dc5e0ca54f703e3a883da79
+    short_sha: 55693253d
+    authored_at: '2026-08-05T16:21:03+00:00'
+    subject: 'fix: restore guest inspirations on forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    related_feature_ids: []
+  - sha: 0d65505887186a5cd1087260873650f124831281
+    short_sha: 0d6550588
+    authored_at: '2026-08-05T16:04:05+00:00'
+    subject: 'fix: route stale-code reports through current control plane'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    related_feature_ids: []
+  - sha: f2e556f1f3c8a5854a46cb5ea372b2530025e62c
+    short_sha: f2e556f1f
+    authored_at: '2026-08-05T16:00:41+00:00'
+    subject: Preserve embeds on metadata refresh
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 4598b4aadcb40f33a766060e56e5ee675148d331
+    short_sha: 4598b4aad
+    authored_at: '2026-08-05T15:58:05+00:00'
+    subject: 'fix: share runtime resources with agent worktrees'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    related_feature_ids: []
+  - sha: a4669d44e1c718345ada34ec4c6d3ba9258ef316
+    short_sha: a4669d44e
+    authored_at: '2026-08-05T15:43:32+00:00'
+    subject: Fix streaming message render convergence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: f8e556147ffbe798135851772cf80d133016e290
+    short_sha: f8e556147
+    authored_at: '2026-08-05T15:33:53+00:00'
+    subject: 'fix: route production SSH through root control plane'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    related_feature_ids: []
+  - sha: 8d2ea1031b30726376ac139d1d5712423eac7c32
+    short_sha: 8d2ea1031
+    authored_at: '2026-08-05T15:22:36+00:00'
+    subject: 'fix: preserve previews at stream completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 892f4c43efb8009ba70e5ed4b821d35a0f031225
+    short_sha: 892f4c43e
+    authored_at: '2026-08-05T15:03:09+00:00'
+    subject: 'fix: preserve streaming state attribute'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: bb546f1d0aa65db49fd7aa60af12454daf81ae7f
+    short_sha: bb546f1d0
+    authored_at: '2026-08-05T15:00:42+00:00'
+    subject: 'test: reject every authenticated guest card'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5f656b14857d9f672df2bce43c40e1542372277c
+    short_sha: 5f656b148
+    authored_at: '2026-08-05T14:59:18+00:00'
+    subject: 'fix: restore routed production SSH access'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/prod-ssh.sh
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: d5d8fba037204cd252a796bb37d8e9f05400b2cd
+    short_sha: d5d8fba03
+    authored_at: '2026-08-05T14:47:18+00:00'
+    subject: 'fix: recover inspirations after login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: b1de428d447b19b38d3f5df10aff7c17d8c057b2
+    short_sha: b1de428d4
+    authored_at: '2026-08-05T14:45:15+00:00'
+    subject: 'test: scope streamed loading state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: d79e41c035dffc10c4b6a149723dcd9301453643
+    short_sha: d79e41c03
+    authored_at: '2026-08-05T14:31:56+00:00'
+    subject: 'fix: allow safe forensic child diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: a06ff5c1d39edda7279de2dad42d3cbcfa724122
+    short_sha: a06ff5c1d
+    authored_at: '2026-08-05T14:26:35+00:00'
+    subject: 'test: await streamed result rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 1faef60056998281e397f8873b9a824c91fce3fd
+    short_sha: 1faef6005
+    authored_at: '2026-08-05T14:08:19+00:00'
+    subject: fix streaming state deploy regression
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: ded3988255eae873fc8f741166d723fa8083a206
+    short_sha: ded398825
+    authored_at: '2026-08-05T14:02:55+00:00'
+    subject: fix anonymous navigation interactions
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    related_feature_ids: []
+  - sha: 6ddbd02003dc617dc9588b57af525b1328ed7d50
+    short_sha: 6ddbd0200
+    authored_at: '2026-08-05T13:59:58+00:00'
+    subject: 'test: preserve message streaming state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 829b5bdd556a879dc0da0d48c811628ba41363e8
+    short_sha: 829b5bdd5
+    authored_at: '2026-08-05T13:57:38+00:00'
+    subject: 'test: scope streaming network assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: f1e2ba56a51883e7719d18e9661174b5de215ee5
+    short_sha: f1e2ba56a
+    authored_at: '2026-08-05T13:45:22+00:00'
+    subject: 'fix: dispatch integrated test subject'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: a52674bf74fdab6ff63a1db2325d33b435b03c4e
+    short_sha: a52674bf7
+    authored_at: '2026-08-05T13:44:37+00:00'
+    subject: 'test: remove invalid final streaming assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: f7a55b20489736895c229731f34c81684f1965e4
+    short_sha: f7a55b204
+    authored_at: '2026-08-05T13:43:03+00:00'
+    subject: 'test: clarify final event view state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 7842f0c0843a2a70a767f9ccf1f00da65d30dc42
+    short_sha: 7842f0c08
+    authored_at: '2026-08-05T13:33:43+00:00'
+    subject: 'fix: gate deployed session commits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: a68843ba859c41a1af6d16dbf11b3416472ee26c
+    short_sha: a68843ba8
+    authored_at: '2026-08-05T13:28:39+00:00'
+    subject: 'test: isolate streaming compiler metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    related_feature_ids: []
+  - sha: bc3dd79a910813ad8f9ef055799185deb6a73878
+    short_sha: bc3dd79a9
+    authored_at: '2026-08-05T13:15:26+00:00'
+    subject: 'fix: converge streamed message rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.preview.ts
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/streamingNodeIdentity.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageCompiler.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderMetrics.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    related_feature_ids: []
+  - sha: 68ad3498db13ccc7159b1a056b138c5ef45c9e5b
+    short_sha: 68ad3498d
+    authored_at: '2026-08-05T13:12:20+00:00'
+    subject: 'test: verify event streaming transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 1ed3c95fdfb157f2c9e8c01eda1e19789048ba56
+    short_sha: 1ed3c95fd
+    authored_at: '2026-08-05T13:09:10+00:00'
+    subject: stabilize anonymous welcome navigation
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 86c55ab41c284bcb4ae52d54f76ee014b89337a8
+    short_sha: 86c55ab41
+    authored_at: '2026-08-05T12:58:14+00:00'
+    subject: 'test: expose message streaming state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: e09b8897b131269426870d407230af7ef2943479
+    short_sha: e09b8897b
+    authored_at: '2026-08-05T12:43:04+00:00'
+    subject: 'fix: suppress duplicate embed ref notifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+    - frontend/packages/ui/src/services/embedRefIndex.ts
+    related_feature_ids: []
+  - sha: a91afa5b6b3f76d98a758a70bb96325674651cce
+    short_sha: a91afa5b6
+    authored_at: '2026-08-05T12:35:17+00:00'
+    subject: fix anonymous navigation group
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    related_feature_ids: []
+  - sha: 40c3cff20d909d25e4ce63fe080a6792955f8332
+    short_sha: 40c3cff20
+    authored_at: '2026-08-05T12:21:22+00:00'
+    subject: 'test: define streaming render convergence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/__tests__/streamingNodeViewIdentity.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderLifecycle.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
+    - frontend/packages/ui/src/utils/__tests__/contentCache.test.ts
+    related_feature_ids: []
+  - sha: b816b65731250ba0cfda2ec74aa62e8144399316
+    short_sha: b816b6573
+    authored_at: '2026-08-05T12:19:10+00:00'
+    subject: Fix welcome carousel pin refresh
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 836f097b38956c7063df3952d3d35136b89fb3fa
+    short_sha: 836f097b3
+    authored_at: '2026-08-05T12:07:53+00:00'
+    subject: 'docs: specify streaming render convergence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    related_feature_ids: []
+  - sha: 9cfcb2cf2409395477b550f840a474cab26ccd47
+    short_sha: 9cfcb2cf2
+    authored_at: '2026-08-05T12:04:41+00:00'
+    subject: 'fix: publish embed refs after finalized storage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 2508220d930319fa9d54e41351115e2f96a5f733
+    short_sha: 2508220d9
+    authored_at: '2026-08-05T11:58:45+00:00'
+    subject: 'fix: refresh anonymous chat messages on reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: cf47af42582726425e814cab74c4d734137a44c5
+    short_sha: cf47af425
+    authored_at: '2026-08-05T11:30:46+00:00'
+    subject: 'fix: pass spawned chat prompts directly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    related_feature_ids: []
+  - sha: 9d8fb44050c218c9a00733a6a01057e44cb070e0
+    short_sha: 9d8fb4405
+    authored_at: '2026-08-05T11:26:45+00:00'
+    subject: 'fix: allow standalone chat spawning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_spawn_chat_opencode.py
+    related_feature_ids: []
+  - sha: 41e36c28e52c74c837f951e9d70b3c74aebfa657
+    short_sha: 41e36c28e
+    authored_at: '2026-08-05T11:23:46+00:00'
+    subject: 'fix: count all nightly unit results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    related_feature_ids: []
+  - sha: 71f823d2fa89f5b0f7a805552330ed0537d2d613
+    short_sha: 71f823d2f
+    authored_at: '2026-08-05T11:22:48+00:00'
+    subject: 'fix: remap compatible fallback embed subsets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids:
+    - app:ai
+  - sha: 6bc4796b6d3512db829124ca8464fe4c75e82009
+    short_sha: 6bc4796b6
+    authored_at: '2026-08-05T11:19:32+00:00'
+    subject: 'fix: launch separate chats with OpenCode'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/spawn-chat/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - AGENTS.md
+    - scripts/_zellij_utils.py
+    - scripts/sessions.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    related_feature_ids: []
+  - sha: 23e1ef2440475320ff0549d84971195cde789d89
+    short_sha: 23e1ef244
+    authored_at: '2026-08-05T11:16:59+00:00'
+    subject: fix chat navigation phase1 null resume
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 41ceb288ab63a633c295c43878f5b49be4ae5ce4
+    short_sha: 41ceb288a
+    authored_at: '2026-08-05T11:13:35+00:00'
+    subject: Stabilize signup 2FA reconnect preview spec
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-2fa-reconnect-preview.spec.ts
+    related_feature_ids: []
+  - sha: 68df109f2cbd1f722b4cdb27942f7a5203e5341c
+    short_sha: 68df109f2
+    authored_at: '2026-08-05T11:11:06+00:00'
+    subject: 'test: harden managed signup checkout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 0599b45242092bcc93d592e3d9d3cd2a915f2886
+    short_sha: 0599b4524
+    authored_at: '2026-08-05T10:59:50+00:00'
+    subject: 'fix: stabilize failed-test campaigns'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: c526ef12abbcf4636bff30fccca24aeabc27ec79
+    short_sha: c526ef12a
+    authored_at: '2026-08-05T10:52:11+00:00'
+    subject: 'ci: require signup and billing release tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/release-core-journeys.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/specs/release-core-journeys-gate/spec.yml
+    - frontend/apps/web_app/tests/dev-smoke/README.md
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 3d097331807fb25061af8299d7c1aa631bd50846
+    short_sha: 3d0973318
+    authored_at: '2026-08-05T10:38:55+00:00'
+    subject: 'test: wait for final event view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 119a610100d349b66fb02afe2e8acb22ef431a4b
+    short_sha: 119a61010
+    authored_at: '2026-08-05T10:38:10+00:00'
+    subject: 'fix: prevent nightly pytest undercount'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/pytest-unit.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    related_feature_ids: []
+  - sha: 506db1c93ececa0024a5cf96b13f69be7c474208
+    short_sha: 506db1c93
+    authored_at: '2026-08-05T10:30:26+00:00'
+    subject: 'test: isolate event ref regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: adef1a856a9ab0517bb6fa64ba0760358b86a15e
+    short_sha: adef1a856
+    authored_at: '2026-08-05T10:26:24+00:00'
+    subject: 'docs: record stale-code reporting evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/deterministic-stale-code-reporting/spec.yml
+    related_feature_ids: []
+  - sha: 9ed477e515e926c6f0384df12ec8a6f8ecc285f3
+    short_sha: 9ed477e51
+    authored_at: '2026-08-05T10:23:29+00:00'
+    subject: 'test: focus event embed regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 0d9b83f047ccc4d4ea44c658214665fdd915679c
+    short_sha: 0d9b83f04
+    authored_at: '2026-08-05T10:17:54+00:00'
+    subject: 'feat: coordinate Docker restarts with test leases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/testing.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/standards/backend.md
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: 35556ace20dafe5f74af99515aba58244e353398
+    short_sha: 35556ace2
+    authored_at: '2026-08-05T10:15:35+00:00'
+    subject: 'fix: reuse root webhook from agent worktrees'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/stale_code_daily.py
+    - scripts/tests/test_stale_code_daily.py
+    related_feature_ids: []
+  - sha: 33831fb3d7b42e3e84403b277fa7e06c4299b496
+    short_sha: 33831fb3d
+    authored_at: '2026-08-05T10:09:33+00:00'
+    subject: 'test: stabilize event result fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 9de3411a7173f2fc4b68e1a9e2a47c6d7e0306b2
+    short_sha: 9de3411a7
+    authored_at: '2026-08-05T10:05:04+00:00'
+    subject: 'fix: install stale-code cron from canonical checkout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/stale-code-cron-setup.sh
+    - scripts/stale_code_daily.py
+    - scripts/tests/test_stale_code_daily.py
+    related_feature_ids: []
+  - sha: 6a26fd01aa36f814364032086d891f5c177d7cb9
+    short_sha: 6a26fd01a
+    authored_at: '2026-08-05T10:03:03+00:00'
+    subject: 'chore: add safe stale-code reporting'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/remove-stale-code/SKILL.md
+    - .claude/skills/remove-stale-code/SKILL.md
+    - .env.example
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/deterministic-stale-code-reporting/spec.yml
+    - scripts/_dead_code_removal_helper.py
+    - scripts/find_dead_code.py
+    - scripts/nightly-dead-code-removal.sh
+    - scripts/prompts/dead-code-removal.md
+    - scripts/stale-code-cron-setup.sh
+    - scripts/stale_code_daily.py
+    - scripts/tests/test_find_dead_code.py
+    - scripts/tests/test_stale_code_daily.py
+    related_feature_ids: []
+  - sha: 1a19758709cae563c70e0a416dfbc8224439ed0c
+    short_sha: 1a1975870
+    authored_at: '2026-08-05T09:54:52+00:00'
+    subject: 'fix: load Vercel config from shared checkout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: a5028d6ca9effd84b7ab0b6181160d34be99bed0
+    short_sha: a5028d6ca
+    authored_at: '2026-08-05T09:47:58+00:00'
+    subject: 'fix: stop false degraded service reports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_analytics_service.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/tasks/leaderboard_tasks.py
+    - backend/tests/test_task_smoke.py
+    - backend/tests/test_web_analytics_restore.py
+    related_feature_ids: []
+  - sha: ce708ab17674377e813d1b5242c7c228a810837f
+    short_sha: ce708ab17
+    authored_at: '2026-08-05T09:46:17+00:00'
+    subject: 'fix: report long-running daily test status'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    related_feature_ids: []
+  - sha: 481111760e5db15d3ecb58f0fee9b5b691f05d71
+    short_sha: '481111760'
+    authored_at: '2026-08-05T09:32:16+00:00'
+    subject: 'fix: remap live mock embed references'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: f72aaf88129f7f157dce8074ea67468ee93b3aa8
+    short_sha: f72aaf881
+    authored_at: '2026-08-05T09:20:11+00:00'
+    subject: 'fix: preserve top-level and read-only child routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: 190d7728d9f2ab2b2abe846259f0e4bd5928e228
+    short_sha: 190d7728d
+    authored_at: '2026-08-05T08:47:52+00:00'
+    subject: 'fix: restore guest landing reverse navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 45c708cf0e7f9b99147d3b683a9d61016f661158
+    short_sha: 45c708cf0
+    authored_at: '2026-08-05T08:45:26+00:00'
+    subject: 'docs: verify agent presence coordination'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/agent-presence-coordination/spec.yml
+    related_feature_ids: []
+  - sha: 9527355c43f95614124dc72257a7cef826203f13
+    short_sha: 9527355c4
+    authored_at: '2026-08-05T08:44:30+00:00'
+    subject: 'fix: restore current CLI interest taxonomy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: 9eba53d53e7bf4910c5daa5af015c592d9822703
+    short_sha: 9eba53d53
+    authored_at: '2026-08-05T08:41:24+00:00'
+    subject: 'fix: reject mixed guest inspiration sets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: aa7b004a8c1c6f925615756c252f832615b714b3
+    short_sha: aa7b004a8
+    authored_at: '2026-08-05T08:34:46+00:00'
+    subject: 'test: consolidate streaming report issue regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 9856ebe6ea76bf1631bf97f7450c6d2bfc1c95e5
+    short_sha: 9856ebe6e
+    authored_at: '2026-08-05T04:39:37+00:00'
+    subject: 'test: assert guaranteed localized interest tags'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    related_feature_ids: []
+  - sha: e956fcd9f51a3de7c56efc4a882b38cb8d23af11
+    short_sha: e956fcd9f
+    authored_at: '2026-08-05T04:30:11+00:00'
+    subject: 'test: open interests before locale assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    related_feature_ids: []
+  - sha: d4e6f0dc4d157980486759c6e61ccb0981e9d02e
+    short_sha: d4e6f0dc4
+    authored_at: '2026-08-05T04:20:17+00:00'
+    subject: 'docs: record guest interest verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    related_feature_ids: []
+  - sha: fa30cd96d23a71b55869e3939f72db0d34ec7a76
+    short_sha: fa30cd96d
+    authored_at: '2026-08-05T04:07:42+00:00'
+    subject: 'test: navigate backward from terminal interest slide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: dc9c3891237813780d24aad8059d6caec295c534
+    short_sha: dc9c38912
+    authored_at: '2026-08-05T03:55:27+00:00'
+    subject: 'test: isolate guest interest Playwright coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: de0c632aea8282af21e6a8c03a24823e451f172e
+    short_sha: de0c632ae
+    authored_at: '2026-08-05T03:41:35+00:00'
+    subject: 'fix: preserve interests with welcome history guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: bb3e300cf4eb9ebe8a965044874806675420eaec
+    short_sha: bb3e300cf
+    authored_at: '2026-08-05T03:11:40+00:00'
+    subject: 'docs: record landing containment verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 185f6f4c1ee53558ac158e5275edb2075d637049
+    short_sha: 185f6f4c1
+    authored_at: '2026-08-05T03:09:41+00:00'
+    subject: 'fix: disable welcome history interaction locally'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 3b421f27e07d97845aa688f8d0470f2dd12cf6d8
+    short_sha: 3b421f27e
+    authored_at: '2026-08-05T03:06:45+00:00'
+    subject: 'test: assert canonical initial interest tag'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: fbc90d719516d53e7343ff4994cf7ee231f02928
+    short_sha: fbc90d719
+    authored_at: '2026-08-05T02:45:41+00:00'
+    subject: 'fix: separate guest interest prompt and rail'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: de4b7e9331a2a94bd4b719f280d4c6dfe50ebe90
+    short_sha: de4b7e933
+    authored_at: '2026-08-05T02:43:17+00:00'
+    subject: 'fix: release welcome history overlay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 53950deab1aab9f846b4053f31d2a37ec8e20611
+    short_sha: 53950deab
+    authored_at: '2026-08-05T02:31:34+00:00'
+    subject: 'fix: restore guest interest personalization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 719f109eb0089aae5c3542081d6415c001087a83
+    short_sha: 719f109eb
+    authored_at: '2026-08-05T02:18:08+00:00'
+    subject: 'fix: restore Continue draft interaction'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 21b1e18203f7c300576ae7332b4926e0377855b2
+    short_sha: 21b1e1820
+    authored_at: '2026-08-05T02:13:34+00:00'
+    subject: 'test: enforce landing bounds across viewports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    related_feature_ids: []
+  - sha: 1360ae0db9b94e674864885bc63382b130343d24
+    short_sha: 1360ae0db
+    authored_at: '2026-08-05T02:10:33+00:00'
+    subject: 'test: stabilize guest interest entry flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 091c17eaab67cc3ebb52de814c7fa42a4743e186
+    short_sha: 091c17eaa
+    authored_at: '2026-08-05T02:00:12+00:00'
+    subject: 'fix: contain tablet landing story animations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingPrivacySafetyDemo.svelte
+    related_feature_ids: []
+  - sha: 50e639f7ad3344f5e9768b2e4017447f2e0dd6f5
+    short_sha: 50e639f7a
+    authored_at: '2026-08-05T01:39:39+00:00'
+    subject: 'test: align guest interests with landing flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 508e45ca8867265f511249c672110d78493e3d2f
+    short_sha: 508e45ca8
+    authored_at: '2026-08-05T01:37:50+00:00'
+    subject: 'test: measure every tablet privacy scene'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    related_feature_ids: []
+  - sha: 03f3be518516acfb818a61181f2c9409a6e79e9e
+    short_sha: 03f3be518
+    authored_at: '2026-08-05T01:28:41+00:00'
+    subject: 'fix: restore last-opened draft discovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 5e498509828e21cf31fbf591516ab6aead1fcc30
+    short_sha: 5e4985098
+    authored_at: '2026-08-05T01:21:13+00:00'
+    subject: 'test: isolate recording editor focus contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: 9b5c8e8924924220f3fae851c65c9bb1b0811364
+    short_sha: 9b5c8e892
+    authored_at: '2026-08-05T01:19:12+00:00'
+    subject: 'test: target tablet story geometry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    related_feature_ids: []
+  - sha: bd2f2fafe72ce572f93c7510b8e06b55c9edf485
+    short_sha: bd2f2fafe
+    authored_at: '2026-08-05T01:17:48+00:00'
+    subject: 'fix: restore worktree coordination safeguards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 2ba690d45cc939328c907a8fce4b7270d0c5eac8
+    short_sha: 2ba690d45
+    authored_at: '2026-08-05T01:14:45+00:00'
+    subject: 'docs: record agent presence verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/agent-presence-coordination/spec.yml
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 660b306a13e9f85a4486723a98c3b126c8a7c1d7
+    short_sha: 660b306a1
+    authored_at: '2026-08-05T01:10:15+00:00'
+    subject: 'test: stabilize recording focus recovery assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: f0800c92211ec35c12905feb3ccb1a071e140832
+    short_sha: f0800c922
+    authored_at: '2026-08-05T01:09:20+00:00'
+    subject: 'test: use stable new chat transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 2c3512629a5b421f1cc14d4106618a761728856c
+    short_sha: 2c3512629
+    authored_at: '2026-08-05T01:08:16+00:00'
+    subject: 'feat: add real-time agent presence coordination'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - docs/specs/agent-presence-coordination/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/opencode_presence_store.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_presence_events.mjs
+    - scripts/tests/test_opencode_presence_failure_containment.py
+    - scripts/tests/test_opencode_presence_performance.mjs
+    - scripts/tests/test_opencode_presence_privacy.py
+    - scripts/tests/test_opencode_spec_autocontinue.mjs
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_presence_store.py
+    - scripts/verify_opencode_presence_live.py
+    related_feature_ids: []
+  - sha: 5d31b367bac6d9e7fc46f5f96f8eefa5ea3fc6e6
+    short_sha: 5d31b367b
+    authored_at: '2026-08-05T01:05:44+00:00'
+    subject: 'fix: reject malformed persisted inspirations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/daily_inspirations_api.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids:
+    - app:ai
+  - sha: d9a58033d49d33742626d5d775ecce6fad1d6dd4
+    short_sha: d9a58033d
+    authored_at: '2026-08-05T01:03:23+00:00'
+    subject: 'chore: route OpenCode subagents by workload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/agents/apple-native-debugger.md
+    - .opencode/agents/apple-parity-auditor.md
+    - .opencode/agents/apple-performance-detective.md
+    - .opencode/agents/chat-sync-detective.md
+    - .opencode/agents/code-reviewer.md
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/embed-rendering-investigator.md
+    - .opencode/agents/encryption-flow-tracer.md
+    - .opencode/agents/issue-forensics.md
+    - .opencode/agents/legal-compliance-auditor.md
+    - .opencode/agents/main-processor-guru.md
+    - .opencode/agents/seo-auditor.md
+    - .opencode/agents/settings-ui-consistency-checker.md
+    - .opencode/agents/skill-integration-doctor.md
+    - .opencode/agents/test-failure-triager.md
+    - AGENTS.md
+    - docs/architecture/agent-tooling-parity.md
+    - opencode.json
+    - scripts/sync_agent_parity.py
+    related_feature_ids: []
+  - sha: 9b3843785898d437f075c2abdd6040445aa8fb09
+    short_sha: 9b3843785
+    authored_at: '2026-08-05T01:01:10+00:00'
+    subject: 'feat: personalize guest example chats by interests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    - frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+    related_feature_ids: []
+  - sha: ffde39150c5f34d3a40ab005dd33023a43623cc1
+    short_sha: ffde39150
+    authored_at: '2026-08-05T00:58:25+00:00'
+    subject: 'test: fail fast on missing draft resume'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: a73f68667776da6651e3b317ca261f5ec2732d0c
+    short_sha: a73f68667
+    authored_at: '2026-08-05T00:57:11+00:00'
+    subject: 'fix: invalidate stale daily default cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    related_feature_ids: []
+  - sha: ddebb0b1ad0b5d6668adbc4b6d6db1cf09716749
+    short_sha: ddebb0b1a
+    authored_at: '2026-08-05T00:56:06+00:00'
+    subject: 'test: cover tablet landing story containment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    related_feature_ids: []
+  - sha: 85cc0d8cd8cb1703242c5a88c4fba93a9e594681
+    short_sha: 85cc0d8cd
+    authored_at: '2026-08-05T00:55:01+00:00'
+    subject: 'fix: harden automatic worktree cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_reconciliation.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    related_feature_ids: []
+  - sha: e24de345c52355938d7b32ec46ba811ceba08ee2
+    short_sha: e24de345c
+    authored_at: '2026-08-05T00:54:19+00:00'
+    subject: 'fix: reject guest cards from daily defaults'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    related_feature_ids:
+    - app:ai
+  - sha: f1702a2f49d3a0618616e6caecebc42edbbcfbee
+    short_sha: f1702a2f4
+    authored_at: '2026-08-05T00:52:00+00:00'
+    subject: 'test: prioritize draft discovery assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 8d1d8748b13b64bf262fe08511bf77bcde390d0b
+    short_sha: 8d1d8748b
+    authored_at: '2026-08-05T00:51:04+00:00'
+    subject: 'fix: prevent keyboard focus during audio recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    related_feature_ids: []
+  - sha: ad46f8e13132da6b6ca04cbfc75861153d28b8e7
+    short_sha: ad46f8e13
+    authored_at: '2026-08-05T00:48:57+00:00'
+    subject: 'test: wait for finished event embed before fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 410bb2a4da7b464bc19b20242950cefefeacecf8
+    short_sha: 410bb2a4d
+    authored_at: '2026-08-05T00:47:06+00:00'
+    subject: 'docs: record landing story verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: b635411d2f805a75e6d025d58bfbeb51c44980c8
+    short_sha: b635411d2
+    authored_at: '2026-08-05T00:33:07+00:00'
+    subject: 'fix: restore authenticated daily inspirations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/specs/authenticated-daily-inspiration-restoration/spec.yml
+    - docs/user-guide/daily-inspiration.md
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 68b6e5fecd3555cf168fc286edde0cd20862dba8
+    short_sha: 68b6e5fec
+    authored_at: '2026-08-05T00:30:00+00:00'
+    subject: 'test: use recorded events replay for stability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 351a57fb7be706a0c2a4bc4c86f4ec1c5d87b1c4
+    short_sha: 351a57fb7
+    authored_at: '2026-08-05T00:26:20+00:00'
+    subject: 'fix: ignore committed drift during worktree finalization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: f711ec24288fe92e90e2dedc114d7c8a54649c3c
+    short_sha: f711ec242
+    authored_at: '2026-08-05T00:23:19+00:00'
+    subject: 'fix: finalize incrementally deployed worktrees'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    related_feature_ids: []
+  - sha: acd6bb551d64467e6c5231c7cf1a067e38d071db
+    short_sha: acd6bb551
+    authored_at: '2026-08-05T00:15:59+00:00'
+    subject: 'docs: complete routed worktree specification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    related_feature_ids: []
+  - sha: 916fe8fa1e5332e7ed596ad48e85380a4221d9fc
+    short_sha: 916fe8fa1
+    authored_at: '2026-08-05T00:13:49+00:00'
+    subject: 'docs: record routed worktree verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    related_feature_ids: []
+  - sha: 4d8befa45efaf783f7d56f06738f36ad7eb175ee
+    short_sha: 4d8befa45
+    authored_at: '2026-08-05T00:00:18+00:00'
+    subject: 'fix: close routed worktree isolation gaps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/opencode-native-worktree-binding/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_integration_worktree.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on enhancing the guest onboarding experience and optimizing real-time message streaming performance.
+    Significant internal work was also completed on agent presence coordination and automated code maintenance infrastructure.
+  released_changes: []
+  bug_fixes:
+  - text: Mobile UI scaling for inspiration previews and embed previews was adjusted for better fit on smaller screens.
+    evidence:
+      commits:
+      - a56797e33
+      - 7772ac81c
+    release_status: dev_only
+  - text: Several navigation issues for anonymous users were resolved, including welcome carousel pin refreshes and message
+      persistence during reloads.
+    evidence:
+      commits:
+      - b816b6573
+      - 2508220d9
+      - ded398825
+      - a91afa5b6
+    release_status: dev_only
+  - text: Keyboard focus is now prevented from interrupting active audio recordings.
+    evidence:
+      commits:
+      - 8d1d8748b
+    release_status: dev_only
+  - text: Draft discovery and 'Continue' interactions were restored to ensure users can resume previous sessions reliably.
+    evidence:
+      commits:
+      - 03f3be518
+      - 719f109eb
+    release_status: dev_only
+  unreleased_progress:
+  - text: Personalization logic for guest example chats based on user interests is in development.
+    evidence:
+      commits:
+      - 9b3843785
+      - d4e6f0dc4
+    release_status: dev_only
+  - text: Streaming message 'render convergence' is being implemented to ensure UI stability and performance during real-time
+      updates.
+    evidence:
+      commits:
+      - bc3dd79a9
+      - a4669d44e
+      - 4613bbad1
+      - e4ac674ba
+      - 836f097b3
+    release_status: dev_only
+  - text: Improvements to daily inspiration restoration for both authenticated and guest users are underway.
+    evidence:
+      commits:
+      - b635411d2
+      - ade91973d
+      - 5d31b367b
+      - a73f68667
+    release_status: dev_only
+  - text: Enhanced handling for bare inline embed references and metadata refreshes within chat streams is being tested.
+    evidence:
+      commits:
+      - 399f36331
+      - f2e556f1f
+    release_status: dev_only
+  internal_progress:
+  - text: Real-time agent presence coordination was introduced to manage concurrent sessions.
+    evidence:
+      commits:
+      - 2c3512629
+      - 45c708cf0
+      - 2ba690d45
+    release_status: dev_only
+  - text: Automated stale-code reporting and removal workflows were added to the internal maintenance suite.
+    evidence:
+      commits:
+      - 6a26fd01a
+      - 0d6550588
+      - 35556ace2
+      - 9de3411a7
+      - adef1a856
+    release_status: dev_only
+  - text: Worktree isolation and finalization logic for agent sessions was hardened to prevent resource drift.
+    evidence:
+      commits:
+      - f711ec242
+      - 4d8befa45
+      - 351a57fb7
+      - 4598b4aad
+      - f72aaf881
+      - bd2f2fafe
+    release_status: dev_only
+  - text: CI/CD infrastructure now requires signup and billing release tests, and Docker restarts are coordinated with test
+      leases.
+    evidence:
+      commits:
+      - c526ef12a
+      - 0d9b83f04
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Guest personalization and streaming rendering updates.
+      evidence:
+        commits:
+        - 9b3843785
+        - bc3dd79a9
+        - b635411d2
+      reason: All user-facing features and improvements from this period are currently in development branches and have not
+        been merged to the main release branch.
+    rationale: There are no items currently in the main release branch with a status of ready for public communication.
+  social_video_recommendations:
+  - idea: A short demonstration of how guest example chats now adapt to selected interests during onboarding.
+    priority: medium
+    reason: This provides a clear visual story of personalization for new users.
+    evidence:
+      commits:
+      - 9b3843785
+  - idea: A technical deep-dive or side-by-side comparison showing the improved stability of message rendering during high-speed
+      streaming.
+    priority: low
+    reason: While technical, it demonstrates a commitment to a high-quality, fluid user interface.
+    evidence:
+      commits:
+      - bc3dd79a9
+      - a4669d44e
+  quality_notes:
+  - Extensive test coverage was added for streaming message rendering convergence and guest interest selection flows.
+  - Infrastructure updates focused on stabilizing the release gate for core user journeys like signup and billing.
+  validation_warnings: []

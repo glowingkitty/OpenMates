@@ -1,0 +1,3784 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-28'
+generated_at: '2026-08-06T13:18:08+00:00'
+range:
+  since: '2026-07-28T00:00:00+00:00'
+  until: '2026-07-29T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 74
+  section_counts:
+    features: 0
+    bug_fixes: 45
+    improvements: 0
+    docs: 1
+    tests: 28
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 36
+  dev_only_items: 74
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: replay decoded live mock responses safely'
+    section: bug_fixes
+    commits:
+    - d9858a69a
+    authored_at: '2026-07-28T23:37:59+00:00'
+    changed_paths:
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include key-addressable shared chat embeds'
+    section: bug_fixes
+    commits:
+    - 4011fe49d
+    authored_at: '2026-07-28T23:29:12+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/directus/schemas/embeds.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/migrate_embed_indexes.py
+    - backend/tests/test_embed_hashed_id_contract.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept rotated metadata keys before validation'
+    section: bug_fixes
+    commits:
+    - 1106146ab
+    authored_at: '2026-07-28T23:01:48+00:00'
+    changed_paths:
+    - docs/specs/encrypted-metadata-key-acceptance-race/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show shared chat badge without title'
+    section: bug_fixes
+    commits:
+    - 4fdbe26fc
+    authored_at: '2026-07-28T22:53:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tolerate live mock llm fingerprint drift'
+    section: bug_fixes
+    commits:
+    - ba6acf05f
+    authored_at: '2026-07-28T22:38:49+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/docker-compose.yml
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize models3d live mock replay'
+    section: bug_fixes
+    commits:
+    - c443141ef
+    authored_at: '2026-07-28T22:04:21+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/69274bcaf8c5e1ae.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/ab0a53b11b8edb9a.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/b00681da14e7f8bb.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/cd6aada8172b8635.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/efebb7e0d6bf14e4.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/wikipedia/b35c0da5992ca885.json
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/docker-compose.yml
+    - backend/shared/providers/models3d_catalogs.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - backend/tests/test_models3d_search_providers.py
+    - frontend/apps/web_app/tests/models3d-search.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize model override provider for billing'
+    section: bug_fixes
+    commits:
+    - b40498916
+    authored_at: '2026-07-28T21:46:50+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize raw Playwright import artifacts'
+    section: bug_fixes
+    commits:
+    - '520209738'
+    authored_at: '2026-07-28T21:41:31+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden app skill REST security'
+    section: bug_fixes
+    commits:
+    - 2e5b7e378
+    authored_at: '2026-07-28T21:16:21+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/services/rest_skill_execution_policy.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - backend/tests/test_deterministic_quality_audits.py
+    - frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh app-skill embed data before fullscreen'
+    section: bug_fixes
+    commits:
+    - b75dba298
+    authored_at: '2026-07-28T21:04:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve in-flight image uploads during draft restore'
+    section: bug_fixes
+    commits:
+    - 2a821221e
+    authored_at: '2026-07-28T20:32:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: insert image embeds before upload resize'
+    section: bug_fixes
+    commits:
+    - 1c09d232b
+    authored_at: '2026-07-28T19:12:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent recovery lease conflicts from surfacing as errors'
+    section: bug_fixes
+    commits:
+    - dae44632c
+    authored_at: '2026-07-28T19:08:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: detect raw image upload refs'
+    section: bug_fixes
+    commits:
+    - 0b5f85e81
+    authored_at: '2026-07-28T18:53:29+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep attachment drafts sendable'
+    section: bug_fixes
+    commits:
+    - b9cd4b9e0
+    authored_at: '2026-07-28T18:37:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: focus message editor on mousedown'
+    section: bug_fixes
+    commits:
+    - 06cf746a0
+    authored_at: '2026-07-28T18:21:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve image upload guard flag'
+    section: bug_fixes
+    commits:
+    - ea4c64ec4
+    authored_at: '2026-07-28T18:10:32+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/app_settings_memories_confirmed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_app_settings_memories_continuation.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_preprocessor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve cached stream provider pass through'
+    section: bug_fixes
+    commits:
+    - fcaaf0331
+    authored_at: '2026-07-28T18:08:30+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve cached stream provider await contract'
+    section: bug_fixes
+    commits:
+    - 7e471a1ef
+    authored_at: '2026-07-28T17:47:55+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete Revolut sandbox bank transfer settlement'
+    section: bug_fixes
+    commits:
+    - 4862abb5b
+    authored_at: '2026-07-28T17:22:57+00:00'
+    changed_paths:
+    - .dockerignore
+    - .gitignore
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/vault/setup/setup_vault.py
+    - backend/core/vault/setup/vault_setup/policies.py
+    - backend/shared/providers/revolut_business/client.py
+    - backend/shared/providers/revolut_business/oauth.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_revolut_connected_accounts.py
+    - backend/tests/test_vault_token_handoff.py
+    - docs/apis/revolut-business.md
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+    - scripts/revolut_business_setup.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: skill:finance:check_accounts'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reroute image chat google overrides'
+    section: bug_fixes
+    commits:
+    - 2da8cbb57
+    authored_at: '2026-07-28T17:17:32+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist recovery fallback assistant responses'
+    section: bug_fixes
+    commits:
+    - 3288b8b0d
+    authored_at: '2026-07-28T16:45:28+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize cancelled new chat draft restore'
+    section: bug_fixes
+    commits:
+    - 984d60a78
+    authored_at: '2026-07-28T16:24:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear anonymous composer after file delete'
+    section: bug_fixes
+    commits:
+    - 274a2502c
+    authored_at: '2026-07-28T16:16:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/editorHelpers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/editorHelpers.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide send for empty anonymous file draft'
+    section: bug_fixes
+    commits:
+    - f67c837cd
+    authored_at: '2026-07-28T16:10:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore cancelled new chat draft text'
+    section: bug_fixes
+    commits:
+    - 2a033d695
+    authored_at: '2026-07-28T15:59:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize anonymous chat drafts'
+    section: bug_fixes
+    commits:
+    - 7735dcc09
+    authored_at: '2026-07-28T15:52:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep AI response version local until confirmed'
+    section: bug_fixes
+    commits:
+    - bcc20dcda
+    authored_at: '2026-07-28T15:50:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep failed email lookup on email step'
+    section: bug_fixes
+    commits:
+    - 910a89dbe
+    authored_at: '2026-07-28T15:28:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tighten guest all examples layout'
+    section: bug_fixes
+    commits:
+    - 93842924a
+    authored_at: '2026-07-28T15:23:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist anonymous assistant before completion'
+    section: bug_fixes
+    commits:
+    - 84476fff6
+    authored_at: '2026-07-28T15:09:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fade guest prompt on input focus'
+    section: bug_fixes
+    commits:
+    - 4853adaf7
+    authored_at: '2026-07-28T14:55:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: contain Brave quota burn in E2E flows'
+    section: bug_fixes
+    commits:
+    - d40700160
+    authored_at: '2026-07-28T14:55:13+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/web/skills/search_fixture.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/docker-compose.yml
+    - backend/shared/providers/brave/brave_search.py
+    - backend/shared/python_utils/e2e_user_detection.py
+    - backend/tests/test_brave_search_provider.py
+    - backend/tests/test_e2e_user_detection.py
+    - backend/tests/test_web_search_fixture.py
+    - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    - frontend/apps/web_app/tests/copy-message-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web, embed:web:search, skill:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist inspiration chats before follow-up sends'
+    section: bug_fixes
+    commits:
+    - 268b48a2d
+    authored_at: '2026-07-28T14:51:39+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_inspiration_chat_handler.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep embed drafts visible'
+    section: bug_fixes
+    commits:
+    - 00f7b9888
+    authored_at: '2026-07-28T14:51:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: send saved chat history before recovery preflight'
+    section: bug_fixes
+    commits:
+    - decf5bba2
+    authored_at: '2026-07-28T14:37:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep stop button clickable during generation'
+    section: bug_fixes
+    commits:
+    - d1caa3068
+    authored_at: '2026-07-28T14:25:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cap new chat carousel cards'
+    section: bug_fixes
+    commits:
+    - 7793f1169
+    authored_at: '2026-07-28T14:09:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover composer send state after DOM input drift'
+    section: bug_fixes
+    commits:
+    - 01f4ca9d3
+    authored_at: '2026-07-28T13:56:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show anonymous file previews inline'
+    section: bug_fixes
+    commits:
+    - '493106950'
+    authored_at: '2026-07-28T13:53:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/PdfRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:code, embed:docs:doc, embed:images:image, embed:mail:email, embed:mail:search,
+      embed:pdf:pdf'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: unblock deferred image sends'
+    section: bug_fixes
+    commits:
+    - 2e4b3fe9d
+    authored_at: '2026-07-28T13:52:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep startup phase 2 metadata only'
+    section: bug_fixes
+    commits:
+    - 5ee626776
+    authored_at: '2026-07-28T13:47:06+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_cross_client_draft_sync.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cache recovery assistant history'
+    section: bug_fixes
+    commits:
+    - c941cdf33
+    authored_at: '2026-07-28T13:35:06+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sync post-processing chat summaries before broadcast'
+    section: bug_fixes
+    commits:
+    - 78af3c551
+    authored_at: '2026-07-28T13:33:32+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_unified_detail_metadata.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve cli login preflight failure'
+    section: bug_fixes
+    commits:
+    - d7715048e
+    authored_at: '2026-07-28T13:11:27+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/tests/test_playwright_workflow_timeout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record encrypted metadata race verification'
+    section: docs
+    commits:
+    - 53bdcb216
+    authored_at: '2026-07-28T23:26:33+00:00'
+    changed_paths:
+    - docs/specs/encrypted-metadata-key-acceptance-race/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: accept models3d result count copy'
+    section: tests
+    commits:
+    - 8db8fc508
+    authored_at: '2026-07-28T22:59:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/models3d-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: skip gpt model override in live provider mode'
+    section: tests
+    commits:
+    - dfa52a9eb
+    authored_at: '2026-07-28T22:10:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for login email continue readiness'
+    section: tests
+    commits:
+    - 52e783f28
+    authored_at: '2026-07-28T21:38:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize model override mention typing'
+    section: tests
+    commits:
+    - 5102393e5
+    authored_at: '2026-07-28T21:05:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for image preview ready state'
+    section: tests
+    commits:
+    - 7cdf76417
+    authored_at: '2026-07-28T19:49:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve image upload in image model spec'
+    section: tests
+    commits:
+    - ff13e9e38
+    authored_at: '2026-07-28T19:26:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reuse stabilized multi-session send helper'
+    section: tests
+    commits:
+    - 322cf718d
+    authored_at: '2026-07-28T18:41:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Playwright message send fallback'
+    section: tests
+    commits:
+    - af4af30e0
+    authored_at: '2026-07-28T18:38:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept open daily inspiration chat CTA'
+    section: tests
+    commits:
+    - b41a4173d
+    authored_at: '2026-07-28T17:09:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize chat send receive specs'
+    section: tests
+    commits:
+    - 642f3a887
+    authored_at: '2026-07-28T16:46:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for daily inspiration chat CTA'
+    section: tests
+    commits:
+    - 5eaca8841
+    authored_at: '2026-07-28T16:00:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve mock markers in multi-session spec'
+    section: tests
+    commits:
+    - 9dceacb67
+    authored_at: '2026-07-28T15:52:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize stop new chat draft composer entry'
+    section: tests
+    commits:
+    - ed2b32a86
+    authored_at: '2026-07-28T15:39:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use mock fixtures in multi-session encryption spec'
+    section: tests
+    commits:
+    - eb539ad15
+    authored_at: '2026-07-28T15:35:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use robust send helper for message sync sends'
+    section: tests
+    commits:
+    - 65e860dff
+    authored_at: '2026-07-28T15:25:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize stop new chat draft text entry'
+    section: tests
+    commits:
+    - e6218aacb
+    authored_at: '2026-07-28T15:21:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: blur guest prompt focus assertion directly'
+    section: tests
+    commits:
+    - cd2ae7a86
+    authored_at: '2026-07-28T15:17:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use robust send helper in message sync'
+    section: tests
+    commits:
+    - bb9bb9c58
+    authored_at: '2026-07-28T14:48:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover guest all examples layout'
+    section: tests
+    commits:
+    - 1acf349f2
+    authored_at: '2026-07-28T14:44:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover guest prompt focus visibility'
+    section: tests
+    commits:
+    - 6ac08c813
+    authored_at: '2026-07-28T14:29:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reuse robust send helper in connection resilience'
+    section: tests
+    commits:
+    - 39082f682
+    authored_at: '2026-07-28T14:28:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: remove message sync model text anchor'
+    section: tests
+    commits:
+    - 951dd93be
+    authored_at: '2026-07-28T14:03:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize assistant response wait'
+    section: tests
+    commits:
+    - 2db0f2f01
+    authored_at: '2026-07-28T13:45:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize multi-tab composer send'
+    section: tests
+    commits:
+    - 81762e98c
+    authored_at: '2026-07-28T13:32:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update chat message handler mock'
+    section: tests
+    commits:
+    - c07295b35
+    authored_at: '2026-07-28T13:28:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for backup code settings 2fa prompt'
+    section: tests
+    commits:
+    - 6b4ef15d2
+    authored_at: '2026-07-28T13:10:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reveal draft preview before editor assertion'
+    section: tests
+    commits:
+    - 9e3e52615
+    authored_at: '2026-07-28T00:12:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept compact new chat CTA in unauth nav spec'
+    section: tests
+    commits:
+    - 850da25db
+    authored_at: '2026-07-28T00:09:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: replay decoded live mock responses safely'
+    commits:
+    - d9858a69a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: include key-addressable shared chat embeds'
+    commits:
+    - 4011fe49d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record encrypted metadata race verification'
+    commits:
+    - 53bdcb216
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: accept rotated metadata keys before validation'
+    commits:
+    - 1106146ab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: accept models3d result count copy'
+    commits:
+    - 8db8fc508
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show shared chat badge without title'
+    commits:
+    - 4fdbe26fc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: tolerate live mock llm fingerprint drift'
+    commits:
+    - ba6acf05f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: skip gpt model override in live provider mode'
+    commits:
+    - dfa52a9eb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize models3d live mock replay'
+    commits:
+    - c443141ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: normalize model override provider for billing'
+    commits:
+    - b40498916
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: normalize raw Playwright import artifacts'
+    commits:
+    - '520209738'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for login email continue readiness'
+    commits:
+    - 52e783f28
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden app skill REST security'
+    commits:
+    - 2e5b7e378
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'test: stabilize model override mention typing'
+    commits:
+    - 5102393e5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh app-skill embed data before fullscreen'
+    commits:
+    - b75dba298
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve in-flight image uploads during draft restore'
+    commits:
+    - 2a821221e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: wait for image preview ready state'
+    commits:
+    - 7cdf76417
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: preserve image upload in image model spec'
+    commits:
+    - ff13e9e38
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: insert image embeds before upload resize'
+    commits:
+    - 1c09d232b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prevent recovery lease conflicts from surfacing as errors'
+    commits:
+    - dae44632c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: detect raw image upload refs'
+    commits:
+    - 0b5f85e81
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: reuse stabilized multi-session send helper'
+    commits:
+    - 322cf718d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize Playwright message send fallback'
+    commits:
+    - af4af30e0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep attachment drafts sendable'
+    commits:
+    - b9cd4b9e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: focus message editor on mousedown'
+    commits:
+    - 06cf746a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve image upload guard flag'
+    commits:
+    - ea4c64ec4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: resolve cached stream provider pass through'
+    commits:
+    - fcaaf0331
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve cached stream provider await contract'
+    commits:
+    - 7e471a1ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: complete Revolut sandbox bank transfer settlement'
+    commits:
+    - 4862abb5b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  - title: 'fix: reroute image chat google overrides'
+    commits:
+    - 2da8cbb57
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: accept open daily inspiration chat CTA'
+    commits:
+    - b41a4173d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize chat send receive specs'
+    commits:
+    - 642f3a887
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist recovery fallback assistant responses'
+    commits:
+    - 3288b8b0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: stabilize cancelled new chat draft restore'
+    commits:
+    - 984d60a78
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: clear anonymous composer after file delete'
+    commits:
+    - 274a2502c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hide send for empty anonymous file draft'
+    commits:
+    - f67c837cd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: wait for daily inspiration chat CTA'
+    commits:
+    - 5eaca8841
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore cancelled new chat draft text'
+    commits:
+    - 2a033d695
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize anonymous chat drafts'
+    commits:
+    - 7735dcc09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: preserve mock markers in multi-session spec'
+    commits:
+    - 9dceacb67
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep AI response version local until confirmed'
+    commits:
+    - bcc20dcda
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize stop new chat draft composer entry'
+    commits:
+    - ed2b32a86
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use mock fixtures in multi-session encryption spec'
+    commits:
+    - eb539ad15
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep failed email lookup on email step'
+    commits:
+    - 910a89dbe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: use robust send helper for message sync sends'
+    commits:
+    - 65e860dff
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: tighten guest all examples layout'
+    commits:
+    - 93842924a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize stop new chat draft text entry'
+    commits:
+    - e6218aacb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: blur guest prompt focus assertion directly'
+    commits:
+    - cd2ae7a86
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist anonymous assistant before completion'
+    commits:
+    - 84476fff6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: fade guest prompt on input focus'
+    commits:
+    - 4853adaf7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: contain Brave quota burn in E2E flows'
+    commits:
+    - d40700160
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: persist inspiration chats before follow-up sends'
+    commits:
+    - 268b48a2d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep embed drafts visible'
+    commits:
+    - 00f7b9888
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: use robust send helper in message sync'
+    commits:
+    - bb9bb9c58
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover guest all examples layout'
+    commits:
+    - 1acf349f2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: send saved chat history before recovery preflight'
+    commits:
+    - decf5bba2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover guest prompt focus visibility'
+    commits:
+    - 6ac08c813
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reuse robust send helper in connection resilience'
+    commits:
+    - 39082f682
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep stop button clickable during generation'
+    commits:
+    - d1caa3068
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: cap new chat carousel cards'
+    commits:
+    - 7793f1169
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: remove message sync model text anchor'
+    commits:
+    - 951dd93be
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover composer send state after DOM input drift'
+    commits:
+    - 01f4ca9d3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: show anonymous file previews inline'
+    commits:
+    - '493106950'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+  - title: 'fix: unblock deferred image sends'
+    commits:
+    - 2e4b3fe9d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep startup phase 2 metadata only'
+    commits:
+    - 5ee626776
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize assistant response wait'
+    commits:
+    - 2db0f2f01
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: cache recovery assistant history'
+    commits:
+    - c941cdf33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: sync post-processing chat summaries before broadcast'
+    commits:
+    - 78af3c551
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize multi-tab composer send'
+    commits:
+    - 81762e98c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: update chat message handler mock'
+    commits:
+    - c07295b35
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve cli login preflight failure'
+    commits:
+    - d7715048e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for backup code settings 2fa prompt'
+    commits:
+    - 6b4ef15d2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reveal draft preview before editor assertion'
+    commits:
+    - 9e3e52615
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: accept compact new chat CTA in unauth nav spec'
+    commits:
+    - 850da25db
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: sync post-processing chat summaries before broadcast'
+    commits:
+    - 78af3c551
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: show shared chat badge without title'
+    commits:
+    - 4fdbe26fc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: tolerate live mock llm fingerprint drift'
+    commits:
+    - ba6acf05f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize models3d live mock replay'
+    commits:
+    - c443141ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: normalize model override provider for billing'
+    commits:
+    - b40498916
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: harden app skill REST security'
+    commits:
+    - 2e5b7e378
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: refresh app-skill embed data before fullscreen'
+    commits:
+    - b75dba298
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve in-flight image uploads during draft restore'
+    commits:
+    - 2a821221e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: insert image embeds before upload resize'
+    commits:
+    - 1c09d232b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: detect raw image upload refs'
+    commits:
+    - 0b5f85e81
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep attachment drafts sendable'
+    commits:
+    - b9cd4b9e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: focus message editor on mousedown'
+    commits:
+    - 06cf746a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve image upload guard flag'
+    commits:
+    - ea4c64ec4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: resolve cached stream provider pass through'
+    commits:
+    - fcaaf0331
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve cached stream provider await contract'
+    commits:
+    - 7e471a1ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: complete Revolut sandbox bank transfer settlement'
+    commits:
+    - 4862abb5b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    newsletter_ready: false
+  - title: 'fix: reroute image chat google overrides'
+    commits:
+    - 2da8cbb57
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: persist recovery fallback assistant responses'
+    commits:
+    - 3288b8b0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize cancelled new chat draft restore'
+    commits:
+    - 984d60a78
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clear anonymous composer after file delete'
+    commits:
+    - 274a2502c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide send for empty anonymous file draft'
+    commits:
+    - f67c837cd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore cancelled new chat draft text'
+    commits:
+    - 2a033d695
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize anonymous chat drafts'
+    commits:
+    - 7735dcc09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep failed email lookup on email step'
+    commits:
+    - 910a89dbe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: tighten guest all examples layout'
+    commits:
+    - 93842924a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: fade guest prompt on input focus'
+    commits:
+    - 4853adaf7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: contain Brave quota burn in E2E flows'
+    commits:
+    - d40700160
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: persist inspiration chats before follow-up sends'
+    commits:
+    - 268b48a2d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep embed drafts visible'
+    commits:
+    - 00f7b9888
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep stop button clickable during generation'
+    commits:
+    - d1caa3068
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: cap new chat carousel cards'
+    commits:
+    - 7793f1169
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover composer send state after DOM input drift'
+    commits:
+    - 01f4ca9d3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show anonymous file previews inline'
+    commits:
+    - '493106950'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:mail:email
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    newsletter_ready: false
+  - title: 'fix: unblock deferred image sends'
+    commits:
+    - 2e4b3fe9d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep startup phase 2 metadata only'
+    commits:
+    - 5ee626776
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: cache recovery assistant history'
+    commits:
+    - c941cdf33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: sync post-processing chat summaries before broadcast'
+    commits:
+    - 78af3c551
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: d9858a69a87ef77da514eb84c1d2fea691e9bd1e
+    short_sha: d9858a69a
+    authored_at: '2026-07-28T23:37:59+00:00'
+    subject: 'fix: replay decoded live mock responses safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    related_feature_ids: []
+  - sha: 4011fe49dc2fbd9521099540dd769004a90bc21e
+    short_sha: 4011fe49d
+    authored_at: '2026-07-28T23:29:12+00:00'
+    subject: 'fix: include key-addressable shared chat embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/directus/schemas/embeds.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/migrate_embed_indexes.py
+    - backend/tests/test_embed_hashed_id_contract.py
+    related_feature_ids: []
+  - sha: 53bdcb2161e369a9a27d55d27813985ba5d4965f
+    short_sha: 53bdcb216
+    authored_at: '2026-07-28T23:26:33+00:00'
+    subject: 'docs: record encrypted metadata race verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/encrypted-metadata-key-acceptance-race/spec.yml
+    related_feature_ids: []
+  - sha: 1106146ab2c5ea27576d4a938c325f79adafb524
+    short_sha: 1106146ab
+    authored_at: '2026-07-28T23:01:48+00:00'
+    subject: 'fix: accept rotated metadata keys before validation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/encrypted-metadata-key-acceptance-race/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: 8db8fc508698f47f56c08acadc5f51aa64c45aea
+    short_sha: 8db8fc508
+    authored_at: '2026-07-28T22:59:26+00:00'
+    subject: 'test: accept models3d result count copy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/models3d-search.spec.ts
+    related_feature_ids: []
+  - sha: 4fdbe26fcbb33d88f1df198ea825b179b5f6f7bf
+    short_sha: 4fdbe26fc
+    authored_at: '2026-07-28T22:53:44+00:00'
+    subject: 'fix: show shared chat badge without title'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: ba6acf05f53a1d3d0ff3e69b4904753f6bffab48
+    short_sha: ba6acf05f
+    authored_at: '2026-07-28T22:38:49+00:00'
+    subject: 'fix: tolerate live mock llm fingerprint drift'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/docker-compose.yml
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids:
+    - app:ai
+  - sha: dfa52a9eb3842c43a523678cbc83f87d07076de1
+    short_sha: dfa52a9eb
+    authored_at: '2026-07-28T22:10:33+00:00'
+    subject: 'test: skip gpt model override in live provider mode'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    related_feature_ids: []
+  - sha: c443141efb0d176a3db60bd229f8a1a9158abe0b
+    short_sha: c443141ef
+    authored_at: '2026-07-28T22:04:21+00:00'
+    subject: 'fix: stabilize models3d live mock replay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/69274bcaf8c5e1ae.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/ab0a53b11b8edb9a.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/b00681da14e7f8bb.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/cd6aada8172b8635.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/efebb7e0d6bf14e4.json
+    - backend/apps/ai/testing/api_cache/models3d_search_web/wikipedia/b35c0da5992ca885.json
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/docker-compose.yml
+    - backend/shared/providers/models3d_catalogs.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - backend/tests/test_models3d_search_providers.py
+    - frontend/apps/web_app/tests/models3d-search.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids:
+    - app:ai
+  - sha: b4049891679af53c59f9fbc6c9abcccdc272bb54
+    short_sha: b40498916
+    authored_at: '2026-07-28T21:46:50+00:00'
+    subject: 'fix: normalize model override provider for billing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    related_feature_ids:
+    - app:ai
+  - sha: 520209738d749ef5498f10dd7a931eb18168148a
+    short_sha: '520209738'
+    authored_at: '2026-07-28T21:41:31+00:00'
+    subject: 'fix: normalize raw Playwright import artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 52e783f28370a6e1cd06a58b54bb3653491857ac
+    short_sha: 52e783f28
+    authored_at: '2026-07-28T21:38:20+00:00'
+    subject: 'test: wait for login email continue readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 2e5b7e37883ec17c029ebddc8c247201d8ede674
+    short_sha: 2e5b7e378
+    authored_at: '2026-07-28T21:16:21+00:00'
+    subject: 'fix: harden app skill REST security'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/services/rest_skill_execution_policy.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - backend/tests/test_deterministic_quality_audits.py
+    - frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte
+    related_feature_ids:
+    - app:code
+  - sha: 5102393e5766b3515bae8c2f3fa105d641b0ea51
+    short_sha: 5102393e5
+    authored_at: '2026-07-28T21:05:26+00:00'
+    subject: 'test: stabilize model override mention typing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    related_feature_ids: []
+  - sha: b75dba298538d1fc70da1690140c9d2d516ccd5b
+    short_sha: b75dba298
+    authored_at: '2026-07-28T21:04:41+00:00'
+    subject: 'fix: refresh app-skill embed data before fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: 2a821221e78742b310eee708955a9d057835892d
+    short_sha: 2a821221e
+    authored_at: '2026-07-28T20:32:54+00:00'
+    subject: 'fix: preserve in-flight image uploads during draft restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 7cdf76417d01ab3816848d1916df4675751b1ef1
+    short_sha: 7cdf76417
+    authored_at: '2026-07-28T19:49:42+00:00'
+    subject: 'test: wait for image preview ready state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: ff13e9e384a9f72d734ae01cd3b176f98423c024
+    short_sha: ff13e9e38
+    authored_at: '2026-07-28T19:26:16+00:00'
+    subject: 'test: preserve image upload in image model spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: 1c09d232b0d8846b72ed95e5a3c98bd9a8ae3118
+    short_sha: 1c09d232b
+    authored_at: '2026-07-28T19:12:38+00:00'
+    subject: 'fix: insert image embeds before upload resize'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    related_feature_ids: []
+  - sha: dae44632c2e2d4da0486abb664f871f519441762
+    short_sha: dae44632c
+    authored_at: '2026-07-28T19:08:34+00:00'
+    subject: 'fix: prevent recovery lease conflicts from surfacing as errors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 0b5f85e817387ec738ad247ea98bbb8670760840
+    short_sha: 0b5f85e81
+    authored_at: '2026-07-28T18:53:29+00:00'
+    subject: 'fix: detect raw image upload refs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    related_feature_ids:
+    - app:ai
+  - sha: 322cf718d4bade5b083fb2a12ef892b4c9877fcc
+    short_sha: 322cf718d
+    authored_at: '2026-07-28T18:41:38+00:00'
+    subject: 'test: reuse stabilized multi-session send helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    related_feature_ids: []
+  - sha: af4af30e010c27e9ce05820958a8489d800ae549
+    short_sha: af4af30e0
+    authored_at: '2026-07-28T18:38:18+00:00'
+    subject: 'test: stabilize Playwright message send fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: b9cd4b9e07608cdba66b0d20696bafecd9562c36
+    short_sha: b9cd4b9e0
+    authored_at: '2026-07-28T18:37:09+00:00'
+    subject: 'fix: keep attachment drafts sendable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 06cf746a0d01adbee98d2b210176eb6036773b0f
+    short_sha: 06cf746a0
+    authored_at: '2026-07-28T18:21:34+00:00'
+    subject: 'fix: focus message editor on mousedown'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: ea4c64ec446c420ed5994bdb013641e4e05095ac
+    short_sha: ea4c64ec4
+    authored_at: '2026-07-28T18:10:32+00:00'
+    subject: 'fix: preserve image upload guard flag'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/app_settings_memories_confirmed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_app_settings_memories_continuation.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_preprocessor.py
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: fcaaf03316cfd9b02f116920b93cf87934940945
+    short_sha: fcaaf0331
+    authored_at: '2026-07-28T18:08:30+00:00'
+    subject: 'fix: resolve cached stream provider pass through'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids:
+    - app:ai
+  - sha: 7e471a1ef56d9d69a5bcd2666bc6b7b12084c3a2
+    short_sha: 7e471a1ef
+    authored_at: '2026-07-28T17:47:55+00:00'
+    subject: 'fix: preserve cached stream provider await contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids:
+    - app:ai
+  - sha: 4862abb5bcdeebee1f887d43128f3bed632fa31b
+    short_sha: 4862abb5b
+    authored_at: '2026-07-28T17:22:57+00:00'
+    subject: 'fix: complete Revolut sandbox bank transfer settlement'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .dockerignore
+    - .gitignore
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/vault/setup/setup_vault.py
+    - backend/core/vault/setup/vault_setup/policies.py
+    - backend/shared/providers/revolut_business/client.py
+    - backend/shared/providers/revolut_business/oauth.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_revolut_connected_accounts.py
+    - backend/tests/test_vault_token_handoff.py
+    - docs/apis/revolut-business.md
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+    - scripts/revolut_business_setup.py
+    related_feature_ids:
+    - skill:finance:check_accounts
+  - sha: 2da8cbb5744932b220555156d21e8dc0c790e1f4
+    short_sha: 2da8cbb57
+    authored_at: '2026-07-28T17:17:32+00:00'
+    subject: 'fix: reroute image chat google overrides'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    related_feature_ids:
+    - app:ai
+  - sha: b41a4173dd683621f37f4e9866763ab970c8cd3f
+    short_sha: b41a4173d
+    authored_at: '2026-07-28T17:09:54+00:00'
+    subject: 'test: accept open daily inspiration chat CTA'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 642f3a8870c002776c348512a960604cab6e4815
+    short_sha: 642f3a887
+    authored_at: '2026-07-28T16:46:47+00:00'
+    subject: 'test: stabilize chat send receive specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: 3288b8b0d3eafbed2a8701656d0c15a974dda33d
+    short_sha: 3288b8b0d
+    authored_at: '2026-07-28T16:45:28+00:00'
+    subject: 'fix: persist recovery fallback assistant responses'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids:
+    - app:ai
+  - sha: 984d60a78f5e328b596e3eff3d0776823176b8a6
+    short_sha: 984d60a78
+    authored_at: '2026-07-28T16:24:02+00:00'
+    subject: 'fix: stabilize cancelled new chat draft restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 274a2502c383a7d8e5cada8e7fc6b13170a6a77d
+    short_sha: 274a2502c
+    authored_at: '2026-07-28T16:16:21+00:00'
+    subject: 'fix: clear anonymous composer after file delete'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/editorHelpers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/editorHelpers.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    related_feature_ids: []
+  - sha: f67c837cdabfd9014e32f53ef4957094a39d4f97
+    short_sha: f67c837cd
+    authored_at: '2026-07-28T16:10:15+00:00'
+    subject: 'fix: hide send for empty anonymous file draft'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 5eaca8841cafad381afcb975a837b620f882f930
+    short_sha: 5eaca8841
+    authored_at: '2026-07-28T16:00:51+00:00'
+    subject: 'test: wait for daily inspiration chat CTA'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2a033d6954070989d4caafcd22d199370ec96215
+    short_sha: 2a033d695
+    authored_at: '2026-07-28T15:59:59+00:00'
+    subject: 'fix: restore cancelled new chat draft text'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 7735dcc0908dd022c12a7a0cdd148672a38db533
+    short_sha: 7735dcc09
+    authored_at: '2026-07-28T15:52:21+00:00'
+    subject: 'fix: stabilize anonymous chat drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 9dceacb679b30286327ed1b03fd36df63c757c4c
+    short_sha: 9dceacb67
+    authored_at: '2026-07-28T15:52:03+00:00'
+    subject: 'test: preserve mock markers in multi-session spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    related_feature_ids: []
+  - sha: bcc20dcda58ad70653ff3600eabae96231ff6f6c
+    short_sha: bcc20dcda
+    authored_at: '2026-07-28T15:50:47+00:00'
+    subject: 'fix: keep AI response version local until confirmed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: ed2b32a86fed8633ae6bcacd60861f52bf3e40e6
+    short_sha: ed2b32a86
+    authored_at: '2026-07-28T15:39:29+00:00'
+    subject: 'test: stabilize stop new chat draft composer entry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    related_feature_ids: []
+  - sha: eb539ad15c3a2315f7eb4f5f7e9e3147093d9be1
+    short_sha: eb539ad15
+    authored_at: '2026-07-28T15:35:11+00:00'
+    subject: 'test: use mock fixtures in multi-session encryption spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 910a89dbea763d2699853f9801300f346ebe76f0
+    short_sha: 910a89dbe
+    authored_at: '2026-07-28T15:28:55+00:00'
+    subject: 'fix: keep failed email lookup on email step'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    related_feature_ids: []
+  - sha: 65e860dff16b7e5887d923c99400eb0cb07fcc49
+    short_sha: 65e860dff
+    authored_at: '2026-07-28T15:25:10+00:00'
+    subject: 'test: use robust send helper for message sync sends'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    related_feature_ids: []
+  - sha: 93842924abc382bf7ca3e62cd8f3c8361e54c60d
+    short_sha: 93842924a
+    authored_at: '2026-07-28T15:23:15+00:00'
+    subject: 'fix: tighten guest all examples layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: e6218aacb26378a4b6f66dd7c79b28fa7f5aee0f
+    short_sha: e6218aacb
+    authored_at: '2026-07-28T15:21:55+00:00'
+    subject: 'test: stabilize stop new chat draft text entry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    related_feature_ids: []
+  - sha: cd2ae7a865a0eb24bf71c775b54ca2fcdc9ecaa8
+    short_sha: cd2ae7a86
+    authored_at: '2026-07-28T15:17:15+00:00'
+    subject: 'test: blur guest prompt focus assertion directly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 84476fff6623356235f1b90e7cc4d8805fc16456
+    short_sha: 84476fff6
+    authored_at: '2026-07-28T15:09:04+00:00'
+    subject: 'fix: persist anonymous assistant before completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 4853adaf72f01144fc190e5781e3b7a110bddf95
+    short_sha: 4853adaf7
+    authored_at: '2026-07-28T14:55:44+00:00'
+    subject: 'fix: fade guest prompt on input focus'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: d40700160c37a1ec53493e2b26097a28d291d853
+    short_sha: d40700160
+    authored_at: '2026-07-28T14:55:13+00:00'
+    subject: 'fix: contain Brave quota burn in E2E flows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/web/skills/search_fixture.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/docker-compose.yml
+    - backend/shared/providers/brave/brave_search.py
+    - backend/shared/python_utils/e2e_user_detection.py
+    - backend/tests/test_brave_search_provider.py
+    - backend/tests/test_e2e_user_detection.py
+    - backend/tests/test_web_search_fixture.py
+    - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    - frontend/apps/web_app/tests/copy-message-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    related_feature_ids:
+    - app:ai
+    - app:web
+    - embed:web:search
+    - skill:web:search
+  - sha: 268b48a2d022bee9644c009f9ae903e1ea8c2908
+    short_sha: 268b48a2d
+    authored_at: '2026-07-28T14:51:39+00:00'
+    subject: 'fix: persist inspiration chats before follow-up sends'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_inspiration_chat_handler.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 00f7b9888f7d6aa2f9c11c7bf606ca3c5dc36a10
+    short_sha: 00f7b9888
+    authored_at: '2026-07-28T14:51:00+00:00'
+    subject: 'fix: keep embed drafts visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: bb9bb9c58753b7ba63c9ab30c215e0aec51b4187
+    short_sha: bb9bb9c58
+    authored_at: '2026-07-28T14:48:29+00:00'
+    subject: 'test: use robust send helper in message sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    related_feature_ids: []
+  - sha: 1acf349f21a13bc1ee2056815c3c5472b42206a7
+    short_sha: 1acf349f2
+    authored_at: '2026-07-28T14:44:07+00:00'
+    subject: 'test: cover guest all examples layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: decf5bba235b972bd7623549a72c74ef2db19cf7
+    short_sha: decf5bba2
+    authored_at: '2026-07-28T14:37:55+00:00'
+    subject: 'fix: send saved chat history before recovery preflight'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 6ac08c813a717adf7a00d7d2902dd515e9efebae
+    short_sha: 6ac08c813
+    authored_at: '2026-07-28T14:29:37+00:00'
+    subject: 'test: cover guest prompt focus visibility'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 39082f6822d6690817a13f0cd4056f5928bf0508
+    short_sha: 39082f682
+    authored_at: '2026-07-28T14:28:34+00:00'
+    subject: 'test: reuse robust send helper in connection resilience'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    related_feature_ids: []
+  - sha: d1caa30688a776aa95e0adb8c7b0e5eedb4fd33b
+    short_sha: d1caa3068
+    authored_at: '2026-07-28T14:25:35+00:00'
+    subject: 'fix: keep stop button clickable during generation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 7793f1169b2fd93a2745aa4a307af23d7eda8af1
+    short_sha: 7793f1169
+    authored_at: '2026-07-28T14:09:04+00:00'
+    subject: 'fix: cap new chat carousel cards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 951dd93be3551cbbb714a042da590c5f695403dd
+    short_sha: 951dd93be
+    authored_at: '2026-07-28T14:03:34+00:00'
+    subject: 'test: remove message sync model text anchor'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    related_feature_ids: []
+  - sha: 01f4ca9d33366aedff1a505cf81479156b19e6f3
+    short_sha: 01f4ca9d3
+    authored_at: '2026-07-28T13:56:30+00:00'
+    subject: 'fix: recover composer send state after DOM input drift'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 49310695013c05db78ae327b4d75f92a91e8a9c9
+    short_sha: '493106950'
+    authored_at: '2026-07-28T13:53:19+00:00'
+    subject: 'fix: show anonymous file previews inline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/PdfRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids:
+    - embed:code:code
+    - embed:docs:doc
+    - embed:images:image
+    - embed:mail:email
+    - embed:mail:search
+    - embed:pdf:pdf
+  - sha: 2e4b3fe9d174e962d650167e1af981971032c967
+    short_sha: 2e4b3fe9d
+    authored_at: '2026-07-28T13:52:34+00:00'
+    subject: 'fix: unblock deferred image sends'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 5ee6267766f37c366360ce265ea95e0fe32fc388
+    short_sha: 5ee626776
+    authored_at: '2026-07-28T13:47:06+00:00'
+    subject: 'fix: keep startup phase 2 metadata only'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_cross_client_draft_sync.py
+    related_feature_ids: []
+  - sha: 2db0f2f01e0b9f0699f1a478f03a9067906c22f9
+    short_sha: 2db0f2f01
+    authored_at: '2026-07-28T13:45:47+00:00'
+    subject: 'test: stabilize assistant response wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: c941cdf332d0d62b59179e0dea9b746ac48a119b
+    short_sha: c941cdf33
+    authored_at: '2026-07-28T13:35:06+00:00'
+    subject: 'fix: cache recovery assistant history'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids:
+    - app:ai
+  - sha: 78af3c5515aa16acc49e59f714e8da99cbbe09f6
+    short_sha: 78af3c551
+    authored_at: '2026-07-28T13:33:32+00:00'
+    subject: 'fix: sync post-processing chat summaries before broadcast'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_unified_detail_metadata.py
+    related_feature_ids: []
+  - sha: 81762e98c0d78ab4b729c7f2cc81b4c42f49d0d1
+    short_sha: 81762e98c
+    authored_at: '2026-07-28T13:32:28+00:00'
+    subject: 'test: stabilize multi-tab composer send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: c07295b354fce5fec0ac753748ae0d5ca56292eb
+    short_sha: c07295b35
+    authored_at: '2026-07-28T13:28:08+00:00'
+    subject: 'test: update chat message handler mock'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    related_feature_ids: []
+  - sha: d7715048e8f32909420dac2f631501a1f88b33e3
+    short_sha: d7715048e
+    authored_at: '2026-07-28T13:11:27+00:00'
+    subject: 'fix: preserve cli login preflight failure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/tests/test_playwright_workflow_timeout.py
+    related_feature_ids: []
+  - sha: 6b4ef15d202480d47add6475bec65eb4f029a29a
+    short_sha: 6b4ef15d2
+    authored_at: '2026-07-28T13:10:22+00:00'
+    subject: 'test: wait for backup code settings 2fa prompt'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    related_feature_ids: []
+  - sha: 9e3e52615e5f681fd58c38b66215eef0b91a77db
+    short_sha: 9e3e52615
+    authored_at: '2026-07-28T00:12:10+00:00'
+    subject: 'test: reveal draft preview before editor assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 850da25db00aefdd27bb0db26633ce614394dab0
+    short_sha: 850da25db
+    authored_at: '2026-07-28T00:09:00+00:00'
+    subject: 'test: accept compact new chat CTA in unauth nav spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on enhancing the reliability of the chat composer and refining the guest user experience. Key
+    updates include significant hardening of app skill security, stabilization of AI provider integrations, and numerous fixes
+    for draft restoration and file handling in anonymous sessions.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Significant refinements to the chat composer, including fixes for in-flight image uploads during draft restoration,
+      improved focus behavior, and ensuring the stop button remains responsive during generation.
+    evidence:
+      commits:
+      - 2a821221e
+      - 1c09d232b
+      - b9cd4b9e0
+      - 06cf746a0
+      - 984d60a78
+      - 2a033d695
+      - 7735dcc09
+      - 00f7b9888
+      - d1caa3068
+      - 01f4ca9d3
+      - 2e4b3fe9d
+    release_status: dev_only
+  - text: Enhanced the anonymous and guest experience by adding inline file previews, tightening the example chat layout,
+      and improving the transition of the guest prompt on input focus.
+    evidence:
+      commits:
+      - 910a89dbe
+      - 93842924a
+      - 4853adaf7
+      - '493106950'
+      - 274a2502c
+      - f67c837cd
+    release_status: dev_only
+  - text: Hardened security for app skill REST calls and normalized billing attribution for AI model overrides. Work also
+      progressed on Revolut sandbox bank transfer settlements.
+    evidence:
+      commits:
+      - 2e5b7e378
+      - b40498916
+      - ea4c64ec4
+      - 4862abb5b
+      - 0b5f85e81
+      - 2da8cbb57
+    release_status: dev_only
+  - text: Improved chat synchronization and recovery, ensuring assistant responses and inspiration chats are persisted correctly
+      before follow-up actions or broadcasts.
+    evidence:
+      commits:
+      - 3288b8b0d
+      - 5ee626776
+      - c941cdf33
+      - 78af3c551
+      - b75dba298
+      - 4fdbe26fc
+    release_status: dev_only
+  internal_progress:
+  - text: Improved the reliability of LLM provider mocks by handling fingerprint drift and ensuring proper await contracts
+      during stream replays.
+    evidence:
+      commits:
+      - d9858a69a
+      - ba6acf05f
+      - c443141ef
+      - fcaaf0331
+      - 7e471a1ef
+    release_status: dev_only
+  - text: Extensive stabilization of the Playwright E2E test suite, including better handling of image previews, login flows,
+      and multi-session encryption scenarios.
+    evidence:
+      commits:
+      - d40700160
+      - '520209738'
+      - d7715048e
+      - 8db8fc508
+      - dfa52a9eb
+      - 52e783f28
+      - 5102393e5
+      - 7cdf76417
+      - ff13e9e38
+      - 322cf718d
+      - af4af30e0
+      - b41a4173d
+      - 642f3a887
+      - 5eaca8841
+      - 9dceacb67
+      - ed2b32a86
+      - eb539ad15
+      - 65e860dff
+      - e6218aacb
+      - cd2ae7a86
+      - bb9bb9c58
+      - 1acf349f2
+      - 6ac08c813
+      - 39082f682
+      - 951dd93be
+      - 2db0f2f01
+      - 81762e98c
+      - c07295b35
+      - 6b4ef15d2
+      - 9e3e52615
+      - 850da25db
+    release_status: dev_only
+  - text: Refined internal metadata handling for shared chat embeds and resolved potential race conditions during encrypted
+      key rotation.
+    evidence:
+      commits:
+      - 4011fe49d
+      - 1106146ab
+      - dae44632c
+      - bcc20dcda
+      - 84476fff6
+      - decf5bba2
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Development branch updates for chat composer and security hardening.
+      evidence:
+        commits:
+        - '493106950'
+        - 4853adaf7
+        - 2e5b7e378
+        - 4862abb5b
+      reason: All changes from this period are currently limited to development branches and have not yet been merged into
+        the main release.
+    rationale: No changes were merged into the main branch or marked as ready for public communication during this period.
+  social_video_recommendations:
+  - idea: Demonstrate the new inline file previews for anonymous users, showing how PDFs, images, and code snippets now appear
+      directly in the chat flow.
+    priority: medium
+    reason: Provides a clear visual improvement to the guest experience.
+    evidence:
+      commits:
+      - '493106950'
+  - idea: Showcase the subtle UI polish of the guest prompt fading out as the user focuses on the message input.
+    priority: low
+    reason: Highlights attention to detail in the user interface.
+    evidence:
+      commits:
+      - 4853adaf7
+  quality_notes:
+  - High volume of bug fixes (45) and test updates (28) indicates a strong focus on regression testing and UI polish.
+  - Composer reliability was a primary focus, addressing edge cases in draft syncing and image upload states.
+  validation_warnings: []

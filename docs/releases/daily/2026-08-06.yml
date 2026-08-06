@@ -1,0 +1,4951 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-06'
+generated_at: '2026-08-06T13:06:33+00:00'
+range:
+  since: 24 hours ago
+  until: null
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 112
+  section_counts:
+    features: 6
+    bug_fixes: 54
+    improvements: 3
+    docs: 7
+    tests: 31
+    infrastructure: 1
+    internal: 4
+    other: 6
+  newsletter_ready_items: 0
+  user_facing_items: 31
+  dev_only_items: 112
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: verify runtime health notification channels'
+    section: features
+    commits:
+    - 2680a4b50
+    authored_at: '2026-08-06T13:02:44+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - scripts/verify_post_update_notifications.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add reusable demo video skill'
+    section: features
+    commits:
+    - 1b6bedc49
+    authored_at: '2026-08-06T11:48:38+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add managed runtime health verification'
+    section: features
+    commits:
+    - 0078e7e0d
+    authored_at: '2026-08-06T11:43:42+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/__init__.py
+    - backend/apps/ai/tasks/runtime_health_probe_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/preview/Dockerfile
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    - backend/tests/test_runtime_health_verifier.py
+    - backend/upload/Dockerfile
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_runtime_health_contract.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add session CLI proof videos'
+    section: features
+    commits:
+    - 04c160c3f
+    authored_at: '2026-08-06T08:50:23+00:00'
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - frontend/packages/secret-scanner/src/cli.ts
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: dispatch parallel OpenCode test debugging'
+    section: features
+    commits:
+    - dc68f4e27
+    authored_at: '2026-08-06T08:46:27+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/architecture/test-orchestration.md
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add reviewed implementation demonstrations'
+    section: features
+    commits:
+    - 230653fe9
+    authored_at: '2026-08-06T02:45:14+00:00'
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/testing.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/secret-scanner/src/cli.ts
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/discord_webhook.py
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/spec_demo_ocr.mjs
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_review.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: reset logout landing and settings UI'
+    section: bug_fixes
+    commits:
+    - 70b41fb64
+    authored_at: '2026-08-06T12:35:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve cache-busted CLI test imports'
+    section: bug_fixes
+    commits:
+    - 95e7a1dc6
+    authored_at: '2026-08-06T12:29:36+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/loader.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve inline citation examples'
+    section: bug_fixes
+    commits:
+    - 17bf9500e
+    authored_at: '2026-08-06T12:28:24+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_link_fixes.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden generated embed citation links'
+    section: bug_fixes
+    commits:
+    - 73e3ffb4a
+    authored_at: '2026-08-06T12:19:12+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_embed_link_fixes.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate runtime worker probe I/O'
+    section: bug_fixes
+    commits:
+    - e5a907ea3
+    authored_at: '2026-08-06T11:54:39+00:00'
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use canonical API health endpoint'
+    section: bug_fixes
+    commits:
+    - 5694b1d72
+    authored_at: '2026-08-06T11:52:55+00:00'
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove duplicate runtime compose keys'
+    section: bug_fixes
+    commits:
+    - 08eafe60d
+    authored_at: '2026-08-06T11:47:33+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: silence inspiration cleanup read race'
+    section: bug_fixes
+    commits:
+    - 0faef57a5
+    authored_at: '2026-08-06T10:32:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/dailyInspirationDB.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reset tab title on new chat'
+    section: bug_fixes
+    commits:
+    - e4ddec7e0
+    authored_at: '2026-08-06T10:19:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve cancelled workflow requeues'
+    section: bug_fixes
+    commits:
+    - 7ad43c91d
+    authored_at: '2026-08-06T10:16:09+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align tutorial captions with CLI response'
+    section: bug_fixes
+    commits:
+    - d24e5bfbb
+    authored_at: '2026-08-06T10:05:35+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render CLI proofs as timed tutorials'
+    section: bug_fixes
+    commits:
+    - 28c30ce74
+    authored_at: '2026-08-06T10:03:00+00:00'
+    changed_paths:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load Discord helper from script context'
+    section: bug_fixes
+    commits:
+    - 6a232c21a
+    authored_at: '2026-08-06T09:50:39+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce conflict-safe test workers'
+    section: bug_fixes
+    commits:
+    - a210520b1
+    authored_at: '2026-08-06T09:46:15+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: attach OpenCode test workers'
+    section: bug_fixes
+    commits:
+    - 1b88ec50a
+    authored_at: '2026-08-06T09:45:55+00:00'
+    changed_paths:
+    - .agents/skills/fix-tests/SKILL.md
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - scripts/_zellij_utils.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: drain duplicate workflow triggers'
+    section: bug_fixes
+    commits:
+    - b9d6b1d9d
+    authored_at: '2026-08-06T09:42:41+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore OpenCode plugin startup'
+    section: bug_fixes
+    commits:
+    - 269ea6267
+    authored_at: '2026-08-06T09:37:01+00:00'
+    changed_paths:
+    - .opencode/plugins/cli-auto-login.js
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_cli_auto_login_plugin.mjs
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_presence_events.mjs
+    - scripts/tests/test_opencode_presence_performance.mjs
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize degraded service checks'
+    section: bug_fixes
+    commits:
+    - 30e7115fb
+    authored_at: '2026-08-06T09:12:11+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/api_methods.py
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_directus_token_refresh.py
+    - backend/tests/test_task_smoke.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep CLI proof transcripts visible'
+    section: bug_fixes
+    commits:
+    - 4fb49b8f5
+    authored_at: '2026-08-06T09:02:55+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover legacy parallel test leases'
+    section: bug_fixes
+    commits:
+    - 047f77bde
+    authored_at: '2026-08-06T08:49:26+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - scripts/tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: measure decoded review frame timestamps'
+    section: bug_fixes
+    commits:
+    - 8e6e802b6
+    authored_at: '2026-08-06T04:10:49+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: report actual review frame timestamps'
+    section: bug_fixes
+    commits:
+    - 7cf67ad30
+    authored_at: '2026-08-06T04:04:26+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show CLI demonstration provenance'
+    section: bug_fixes
+    commits:
+    - b8e9bfc65
+    authored_at: '2026-08-06T03:53:02+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: extract review frames at video end'
+    section: bug_fixes
+    commits:
+    - 4b211f8eb
+    authored_at: '2026-08-06T03:35:37+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore commit hashes in phone scanning'
+    section: bug_fixes
+    commits:
+    - e0d3738d7
+    authored_at: '2026-08-06T03:23:40+00:00'
+    changed_paths:
+    - frontend/packages/secret-scanner/src/patterns.ts
+    - frontend/packages/secret-scanner/tests/scanner.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore media durations in phone scanning'
+    section: bug_fixes
+    commits:
+    - 2b2965917
+    authored_at: '2026-08-06T03:12:33+00:00'
+    changed_paths:
+    - frontend/packages/secret-scanner/src/patterns.ts
+    - frontend/packages/secret-scanner/tests/scanner.test.ts
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject duplicate OpenCode config keys'
+    section: bug_fixes
+    commits:
+    - fa35d4ba4
+    authored_at: '2026-08-06T02:16:34+00:00'
+    changed_paths:
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reconcile OpenCode runtime config'
+    section: bug_fixes
+    commits:
+    - 60324a0f3
+    authored_at: '2026-08-06T02:13:05+00:00'
+    changed_paths:
+    - opencode.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: react to progressive thinking state'
+    section: bug_fixes
+    commits:
+    - 438ebc479
+    authored_at: '2026-08-06T02:11:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden OpenCode workflow orchestration'
+    section: bug_fixes
+    commits:
+    - 4d8a3b745
+    authored_at: '2026-08-06T01:57:03+00:00'
+    changed_paths:
+    - .agents/skills/start/SKILL.md
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/issue-forensics.md
+    - .claude/skills/start/SKILL.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/issue-forensics.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/issue-forensics.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/testing.md
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/opencode_presence_store.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_presence_store.py
+    - scripts/tests/test_sessions_root_guard.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve progressive thinking updates'
+    section: bug_fixes
+    commits:
+    - a65ec0fe8
+    authored_at: '2026-08-06T01:52:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: start rainbow on task initiation'
+    section: bug_fixes
+    commits:
+    - e11d5346b
+    authored_at: '2026-08-06T01:19:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: disable health memory fields'
+    section: bug_fixes
+    commits:
+    - 2976f1ab1
+    authored_at: '2026-08-06T00:47:12+00:00'
+    changed_paths:
+    - backend/apps/health/README.md
+    - backend/apps/health/app.yml
+    - backend/tests/test_app_metadata_no_stage.py
+    - docs/user-guide/apps/health.md
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:health'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: scale mobile inspiration previews'
+    section: bug_fixes
+    commits:
+    - a56797e33
+    authored_at: '2026-08-05T19:04:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: shrink mobile inspiration embed previews'
+    section: bug_fixes
+    commits:
+    - 7772ac81c
+    authored_at: '2026-08-05T18:49:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow read-only child diagnostics'
+    section: bug_fixes
+    commits:
+    - c2effd8a7
+    authored_at: '2026-08-05T18:15:37+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix streaming tail commit
+    section: bug_fixes
+    commits:
+    - 6fd74ffec
+    authored_at: '2026-08-05T17:41:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make guest inspiration restore atomic'
+    section: bug_fixes
+    commits:
+    - ade91973d
+    authored_at: '2026-08-05T17:07:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore coordinated test dispatch'
+    section: bug_fixes
+    commits:
+    - dbe66758f
+    authored_at: '2026-08-05T16:53:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - scripts/sessions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore guest inspirations on forced logout'
+    section: bug_fixes
+    commits:
+    - 55693253d
+    authored_at: '2026-08-05T16:21:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route stale-code reports through current control plane'
+    section: bug_fixes
+    commits:
+    - 0d6550588
+    authored_at: '2026-08-05T16:04:05+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: share runtime resources with agent worktrees'
+    section: bug_fixes
+    commits:
+    - 4598b4aad
+    authored_at: '2026-08-05T15:58:05+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix streaming message render convergence
+    section: bug_fixes
+    commits:
+    - a4669d44e
+    authored_at: '2026-08-05T15:43:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route production SSH through root control plane'
+    section: bug_fixes
+    commits:
+    - f8e556147
+    authored_at: '2026-08-05T15:33:53+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve previews at stream completion'
+    section: bug_fixes
+    commits:
+    - 8d2ea1031
+    authored_at: '2026-08-05T15:22:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve streaming state attribute'
+    section: bug_fixes
+    commits:
+    - 892f4c43e
+    authored_at: '2026-08-05T15:03:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore routed production SSH access'
+    section: bug_fixes
+    commits:
+    - 5f656b148
+    authored_at: '2026-08-05T14:59:18+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/prod-ssh.sh
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover inspirations after login'
+    section: bug_fixes
+    commits:
+    - d5d8fba03
+    authored_at: '2026-08-05T14:47:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow safe forensic child diagnostics'
+    section: bug_fixes
+    commits:
+    - d79e41c03
+    authored_at: '2026-08-05T14:31:56+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: fix streaming state deploy regression
+    section: bug_fixes
+    commits:
+    - 1faef6005
+    authored_at: '2026-08-05T14:08:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: fix anonymous navigation interactions
+    section: bug_fixes
+    commits:
+    - ded398825
+    authored_at: '2026-08-05T14:02:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: dispatch integrated test subject'
+    section: bug_fixes
+    commits:
+    - f1e2ba56a
+    authored_at: '2026-08-05T13:45:22+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate deployed session commits'
+    section: bug_fixes
+    commits:
+    - 7842f0c08
+    authored_at: '2026-08-05T13:33:43+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: converge streamed message rendering'
+    section: bug_fixes
+    commits:
+    - bc3dd79a9
+    authored_at: '2026-08-05T13:15:26+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.preview.ts
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/streamingNodeIdentity.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageCompiler.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderMetrics.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: remove proof video OCR scanning'
+    section: improvements
+    commits:
+    - 427ed9466
+    authored_at: '2026-08-06T09:46:40+00:00'
+    changed_paths:
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/spec_demo.py
+    - scripts/spec_demo_ocr.mjs
+    - scripts/spec_verify.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'refactor: load demonstration plan contract from SDD guide'
+    section: improvements
+    commits:
+    - 964fbb858
+    authored_at: '2026-08-06T02:53:50+00:00'
+    changed_paths:
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_opencode_documented_plan_terms.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'refactor: restore thinking lookup helper'
+    section: improvements
+    commits:
+    - ddfe85935
+    authored_at: '2026-08-06T02:23:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record runtime health dev evidence'
+    section: docs
+    commits:
+    - 9893f00b8
+    authored_at: '2026-08-06T12:03:31+00:00'
+    changed_paths:
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record signup tutorial delivery'
+    section: docs
+    commits:
+    - 0635bddb3
+    authored_at: '2026-08-06T11:51:06+00:00'
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record delivered CLI tutorial proof'
+    section: docs
+    commits:
+    - 2bef9b8cc
+    authored_at: '2026-08-06T10:12:44+00:00'
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: bind measured frame evidence'
+    section: docs
+    commits:
+    - 1d61e5b0b
+    authored_at: '2026-08-06T04:15:19+00:00'
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: refresh truthful demonstration evidence'
+    section: docs
+    commits:
+    - c85bfd173
+    authored_at: '2026-08-06T04:08:03+00:00'
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: complete demonstration evidence ledger'
+    section: docs
+    commits:
+    - 9750512a6
+    authored_at: '2026-08-06T03:59:35+00:00'
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Record streaming convergence evidence
+    section: docs
+    commits:
+    - 4694a1b2a
+    authored_at: '2026-08-05T20:16:34+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: cover passkey deletion logout UI'
+    section: tests
+    commits:
+    - 58b37f72a
+    authored_at: '2026-08-06T12:11:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add dev runtime health verification'
+    section: tests
+    commits:
+    - 1616ef4e6
+    authored_at: '2026-08-06T12:00:25+00:00'
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    - scripts/verify_post_update_runtime_health.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover team billing fail-closed guard'
+    section: tests
+    commits:
+    - 0e50038d9
+    authored_at: '2026-08-06T11:30:52+00:00'
+    changed_paths:
+    - backend/tests/test_teams_routes.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align cloud overlay route guard'
+    section: tests
+    commits:
+    - e0ea22749
+    authored_at: '2026-08-06T11:24:44+00:00'
+    changed_paths:
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: patch cloud billing status predicate'
+    section: tests
+    commits:
+    - 1638bae09
+    authored_at: '2026-08-06T11:19:30+00:00'
+    changed_paths:
+    - backend/tests/test_server_status_response.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Exercise embed normalization in mock replay
+    section: tests
+    commits:
+    - a95ee7caa
+    authored_at: '2026-08-06T10:54:21+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/grouped_cites_image_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provide logout window location'
+    section: tests
+    commits:
+    - 22edfc074
+    authored_at: '2026-08-06T10:46:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: complete logout forwarder mock'
+    section: tests
+    commits:
+    - f5424e1b8
+    authored_at: '2026-08-06T10:42:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: finish Vitest environment fixes'
+    section: tests
+    commits:
+    - c5dea8f7c
+    authored_at: '2026-08-06T10:38:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: mock logout i18n contract'
+    section: tests
+    commits:
+    - 9d15dc269
+    authored_at: '2026-08-06T10:17:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate logout i18n setup'
+    section: tests
+    commits:
+    - 7da90ce22
+    authored_at: '2026-08-06T10:11:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provide logout document stub'
+    section: tests
+    commits:
+    - 2bb2a3c84
+    authored_at: '2026-08-06T09:59:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retry rate-limited browser login'
+    section: tests
+    commits:
+    - 9d8a8d5d2
+    authored_at: '2026-08-06T08:53:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Reproduce grouped cite and image preview regressions
+    section: tests
+    commits:
+    - 850c7c87c
+    authored_at: '2026-08-06T08:51:37+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/grouped_cites_image_preview.json
+    - backend/tests/test_embed_link_fixes.py
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate team billing route dependencies'
+    section: tests
+    commits:
+    - 82d065b3b
+    authored_at: '2026-08-06T08:41:43+00:00'
+    changed_paths:
+    - backend/tests/test_teams_routes.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize processing lifecycle fixture'
+    section: tests
+    commits:
+    - cb9465116
+    authored_at: '2026-08-06T01:36:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require rainbow on task initiation'
+    section: tests
+    commits:
+    - e3ff0410f
+    authored_at: '2026-08-06T01:05:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Reproduce bare inline embed refs
+    section: tests
+    commits:
+    - c786a3828
+    authored_at: '2026-08-05T20:38:09+00:00'
+    changed_paths:
+    - backend/tests/test_embed_link_fixes.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Review mobile app skill group
+    section: tests
+    commits:
+    - 4c7b2f2ec
+    authored_at: '2026-08-05T20:04:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Capture mobile app skill convergence
+    section: tests
+    commits:
+    - 3adf04386
+    authored_at: '2026-08-05T19:53:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Test append-only streaming contracts
+    section: tests
+    commits:
+    - cb25da77b
+    authored_at: '2026-08-05T17:12:45+00:00'
+    changed_paths:
+    - backend/tests/test_stream_paragraph_contract.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require guest carousel after forced logout'
+    section: tests
+    commits:
+    - 5d97dbdf4
+    authored_at: '2026-08-05T16:25:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reject every authenticated guest card'
+    section: tests
+    commits:
+    - bb546f1d0
+    authored_at: '2026-08-05T15:00:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope streamed loading state'
+    section: tests
+    commits:
+    - b1de428d4
+    authored_at: '2026-08-05T14:45:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: await streamed result rows'
+    section: tests
+    commits:
+    - a06ff5c1d
+    authored_at: '2026-08-05T14:26:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve message streaming state'
+    section: tests
+    commits:
+    - 6ddbd0200
+    authored_at: '2026-08-05T13:59:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope streaming network assertion'
+    section: tests
+    commits:
+    - 829b5bdd5
+    authored_at: '2026-08-05T13:57:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: remove invalid final streaming assertion'
+    section: tests
+    commits:
+    - a52674bf7
+    authored_at: '2026-08-05T13:44:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clarify final event view state'
+    section: tests
+    commits:
+    - f7a55b204
+    authored_at: '2026-08-05T13:43:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate streaming compiler metadata'
+    section: tests
+    commits:
+    - a68843ba8
+    authored_at: '2026-08-05T13:28:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify event streaming transition'
+    section: tests
+    commits:
+    - 68ad3498d
+    authored_at: '2026-08-05T13:12:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: gate unreleased product workspaces'
+    section: infrastructure
+    commits:
+    - 41464e83a
+    authored_at: '2026-08-06T12:38:48+00:00'
+    changed_paths:
+    - backend/config/backend_config.dev.yml
+    - backend/config/backend_config.yml
+    - backend/tests/test_feature_availability_service.py
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Normalize grouped cites and image previews
+    section: internal
+    commits:
+    - d015a898b
+    authored_at: '2026-08-06T09:06:06+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Verify large embed preview spacing
+    section: internal
+    commits:
+    - abf817deb
+    authored_at: '2026-08-05T20:58:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Verify app skill groups after reload
+    section: internal
+    commits:
+    - 6d4a27b62
+    authored_at: '2026-08-05T19:42:20+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve app skill groups at completion
+    section: internal
+    commits:
+    - 9aa522632
+    authored_at: '2026-08-05T19:01:14+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: Render bare inline embed refs
+    section: other
+    commits:
+    - 399f36331
+    authored_at: '2026-08-05T20:41:52+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Flush complete streaming blocks
+    section: other
+    commits:
+    - e4ac674ba
+    authored_at: '2026-08-05T18:31:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve streamed result views
+    section: other
+    commits:
+    - c3df0d470
+    authored_at: '2026-08-05T18:11:43+00:00'
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Implement committed streaming blocks
+    section: other
+    commits:
+    - 4613bbad1
+    authored_at: '2026-08-05T17:37:17+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/stream_utils.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve embeds on metadata refresh
+    section: other
+    commits:
+    - f2e556f1f
+    authored_at: '2026-08-05T16:00:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: stabilize anonymous welcome navigation
+    section: other
+    commits:
+    - 1ed3c95fd
+    authored_at: '2026-08-05T13:09:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'feat: verify runtime health notification channels'
+    commits:
+    - 2680a4b50
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'chore: gate unreleased product workspaces'
+    commits:
+    - 41464e83a
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reset logout landing and settings UI'
+    commits:
+    - 70b41fb64
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: resolve cache-busted CLI test imports'
+    commits:
+    - 95e7a1dc6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve inline citation examples'
+    commits:
+    - 17bf9500e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: harden generated embed citation links'
+    commits:
+    - 73e3ffb4a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: cover passkey deletion logout UI'
+    commits:
+    - 58b37f72a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record runtime health dev evidence'
+    commits:
+    - 9893f00b8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add dev runtime health verification'
+    commits:
+    - 1616ef4e6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate runtime worker probe I/O'
+    commits:
+    - e5a907ea3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use canonical API health endpoint'
+    commits:
+    - 5694b1d72
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record signup tutorial delivery'
+    commits:
+    - 0635bddb3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add reusable demo video skill'
+    commits:
+    - 1b6bedc49
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remove duplicate runtime compose keys'
+    commits:
+    - 08eafe60d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add managed runtime health verification'
+    commits:
+    - 0078e7e0d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: cover team billing fail-closed guard'
+    commits:
+    - 0e50038d9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: align cloud overlay route guard'
+    commits:
+    - e0ea22749
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: patch cloud billing status predicate'
+    commits:
+    - 1638bae09
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Exercise embed normalization in mock replay
+    commits:
+    - a95ee7caa
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: provide logout window location'
+    commits:
+    - 22edfc074
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: complete logout forwarder mock'
+    commits:
+    - f5424e1b8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: finish Vitest environment fixes'
+    commits:
+    - c5dea8f7c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: silence inspiration cleanup read race'
+    commits:
+    - 0faef57a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reset tab title on new chat'
+    commits:
+    - e4ddec7e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: mock logout i18n contract'
+    commits:
+    - 9d15dc269
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve cancelled workflow requeues'
+    commits:
+    - 7ad43c91d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: record delivered CLI tutorial proof'
+    commits:
+    - 2bef9b8cc
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate logout i18n setup'
+    commits:
+    - 7da90ce22
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align tutorial captions with CLI response'
+    commits:
+    - d24e5bfbb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render CLI proofs as timed tutorials'
+    commits:
+    - 28c30ce74
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: provide logout document stub'
+    commits:
+    - 2bb2a3c84
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load Discord helper from script context'
+    commits:
+    - 6a232c21a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: remove proof video OCR scanning'
+    commits:
+    - 427ed9466
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enforce conflict-safe test workers'
+    commits:
+    - a210520b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: attach OpenCode test workers'
+    commits:
+    - 1b88ec50a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: drain duplicate workflow triggers'
+    commits:
+    - b9d6b1d9d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore OpenCode plugin startup'
+    commits:
+    - 269ea6267
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize degraded service checks'
+    commits:
+    - 30e7115fb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Normalize grouped cites and image previews
+    commits:
+    - d015a898b
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep CLI proof transcripts visible'
+    commits:
+    - 4fb49b8f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retry rate-limited browser login'
+    commits:
+    - 9d8a8d5d2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Reproduce grouped cite and image preview regressions
+    commits:
+    - 850c7c87c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add session CLI proof videos'
+    commits:
+    - 04c160c3f
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover legacy parallel test leases'
+    commits:
+    - 047f77bde
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: dispatch parallel OpenCode test debugging'
+    commits:
+    - dc68f4e27
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate team billing route dependencies'
+    commits:
+    - 82d065b3b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: bind measured frame evidence'
+    commits:
+    - 1d61e5b0b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: measure decoded review frame timestamps'
+    commits:
+    - 8e6e802b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: refresh truthful demonstration evidence'
+    commits:
+    - c85bfd173
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: report actual review frame timestamps'
+    commits:
+    - 7cf67ad30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: complete demonstration evidence ledger'
+    commits:
+    - 9750512a6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show CLI demonstration provenance'
+    commits:
+    - b8e9bfc65
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: extract review frames at video end'
+    commits:
+    - 4b211f8eb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: ignore commit hashes in phone scanning'
+    commits:
+    - e0d3738d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: ignore media durations in phone scanning'
+    commits:
+    - 2b2965917
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'refactor: load demonstration plan contract from SDD guide'
+    commits:
+    - 964fbb858
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add reviewed implementation demonstrations'
+    commits:
+    - 230653fe9
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'refactor: restore thinking lookup helper'
+    commits:
+    - ddfe85935
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reject duplicate OpenCode config keys'
+    commits:
+    - fa35d4ba4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reconcile OpenCode runtime config'
+    commits:
+    - 60324a0f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: react to progressive thinking state'
+    commits:
+    - 438ebc479
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: harden OpenCode workflow orchestration'
+    commits:
+    - 4d8a3b745
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve progressive thinking updates'
+    commits:
+    - a65ec0fe8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize processing lifecycle fixture'
+    commits:
+    - cb9465116
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: start rainbow on task initiation'
+    commits:
+    - e11d5346b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: require rainbow on task initiation'
+    commits:
+    - e3ff0410f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: disable health memory fields'
+    commits:
+    - 2976f1ab1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+  - title: Verify large embed preview spacing
+    commits:
+    - abf817deb
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Render bare inline embed refs
+    commits:
+    - 399f36331
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Reproduce bare inline embed refs
+    commits:
+    - c786a3828
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Record streaming convergence evidence
+    commits:
+    - 4694a1b2a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Review mobile app skill group
+    commits:
+    - 4c7b2f2ec
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Capture mobile app skill convergence
+    commits:
+    - 3adf04386
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Verify app skill groups after reload
+    commits:
+    - 6d4a27b62
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: scale mobile inspiration previews'
+    commits:
+    - a56797e33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Preserve app skill groups at completion
+    commits:
+    - 9aa522632
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: shrink mobile inspiration embed previews'
+    commits:
+    - 7772ac81c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Flush complete streaming blocks
+    commits:
+    - e4ac674ba
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow read-only child diagnostics'
+    commits:
+    - c2effd8a7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve streamed result views
+    commits:
+    - c3df0d470
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix streaming tail commit
+    commits:
+    - 6fd74ffec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Implement committed streaming blocks
+    commits:
+    - 4613bbad1
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Test append-only streaming contracts
+    commits:
+    - cb25da77b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make guest inspiration restore atomic'
+    commits:
+    - ade91973d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore coordinated test dispatch'
+    commits:
+    - dbe66758f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: require guest carousel after forced logout'
+    commits:
+    - 5d97dbdf4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore guest inspirations on forced logout'
+    commits:
+    - 55693253d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route stale-code reports through current control plane'
+    commits:
+    - 0d6550588
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve embeds on metadata refresh
+    commits:
+    - f2e556f1f
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: share runtime resources with agent worktrees'
+    commits:
+    - 4598b4aad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix streaming message render convergence
+    commits:
+    - a4669d44e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route production SSH through root control plane'
+    commits:
+    - f8e556147
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve previews at stream completion'
+    commits:
+    - 8d2ea1031
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve streaming state attribute'
+    commits:
+    - 892f4c43e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reject every authenticated guest card'
+    commits:
+    - bb546f1d0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore routed production SSH access'
+    commits:
+    - 5f656b148
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover inspirations after login'
+    commits:
+    - d5d8fba03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: scope streamed loading state'
+    commits:
+    - b1de428d4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow safe forensic child diagnostics'
+    commits:
+    - d79e41c03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: await streamed result rows'
+    commits:
+    - a06ff5c1d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: fix streaming state deploy regression
+    commits:
+    - 1faef6005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: fix anonymous navigation interactions
+    commits:
+    - ded398825
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: preserve message streaming state'
+    commits:
+    - 6ddbd0200
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: scope streaming network assertion'
+    commits:
+    - 829b5bdd5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: dispatch integrated test subject'
+    commits:
+    - f1e2ba56a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: remove invalid final streaming assertion'
+    commits:
+    - a52674bf7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clarify final event view state'
+    commits:
+    - f7a55b204
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: gate deployed session commits'
+    commits:
+    - 7842f0c08
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate streaming compiler metadata'
+    commits:
+    - a68843ba8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: converge streamed message rendering'
+    commits:
+    - bc3dd79a9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify event streaming transition'
+    commits:
+    - 68ad3498d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: stabilize anonymous welcome navigation
+    commits:
+    - 1ed3c95fd
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'chore: gate unreleased product workspaces'
+    commits:
+    - 41464e83a
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: disable health memory fields'
+    commits:
+    - 2976f1ab1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: verify runtime health notification channels'
+    commits:
+    - 2680a4b50
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reset logout landing and settings UI'
+    commits:
+    - 70b41fb64
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: resolve cache-busted CLI test imports'
+    commits:
+    - 95e7a1dc6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve inline citation examples'
+    commits:
+    - 17bf9500e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: harden generated embed citation links'
+    commits:
+    - 73e3ffb4a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add managed runtime health verification'
+    commits:
+    - 0078e7e0d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: reset tab title on new chat'
+    commits:
+    - e4ddec7e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve cancelled workflow requeues'
+    commits:
+    - 7ad43c91d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: attach OpenCode test workers'
+    commits:
+    - 1b88ec50a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'refactor: restore thinking lookup helper'
+    commits:
+    - ddfe85935
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: react to progressive thinking state'
+    commits:
+    - 438ebc479
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve progressive thinking updates'
+    commits:
+    - a65ec0fe8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: start rainbow on task initiation'
+    commits:
+    - e11d5346b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: disable health memory fields'
+    commits:
+    - 2976f1ab1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    newsletter_ready: false
+  - title: Render bare inline embed refs
+    commits:
+    - 399f36331
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: scale mobile inspiration previews'
+    commits:
+    - a56797e33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: shrink mobile inspiration embed previews'
+    commits:
+    - 7772ac81c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Flush complete streaming blocks
+    commits:
+    - e4ac674ba
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Implement committed streaming blocks
+    commits:
+    - 4613bbad1
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: make guest inspiration restore atomic'
+    commits:
+    - ade91973d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore coordinated test dispatch'
+    commits:
+    - dbe66758f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore guest inspirations on forced logout'
+    commits:
+    - 55693253d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Preserve embeds on metadata refresh
+    commits:
+    - f2e556f1f
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix streaming message render convergence
+    commits:
+    - a4669d44e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve previews at stream completion'
+    commits:
+    - 8d2ea1031
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve streaming state attribute'
+    commits:
+    - 892f4c43e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover inspirations after login'
+    commits:
+    - d5d8fba03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: fix streaming state deploy regression
+    commits:
+    - 1faef6005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: fix anonymous navigation interactions
+    commits:
+    - ded398825
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: converge streamed message rendering'
+    commits:
+    - bc3dd79a9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: stabilize anonymous welcome navigation
+    commits:
+    - 1ed3c95fd
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2680a4b5076754026fec21706bb3da019e388fc1
+    short_sha: 2680a4b50
+    authored_at: '2026-08-06T13:02:44+00:00'
+    subject: 'feat: verify runtime health notification channels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - scripts/verify_post_update_notifications.py
+    related_feature_ids: []
+  - sha: 41464e83a7e1c37d558d10161ed481bf30885645
+    short_sha: 41464e83a
+    authored_at: '2026-08-06T12:38:48+00:00'
+    subject: 'chore: gate unreleased product workspaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.dev.yml
+    - backend/config/backend_config.yml
+    - backend/tests/test_feature_availability_service.py
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    related_feature_ids: []
+  - sha: 70b41fb64cdd5cf38726c0d626857cfed40897bf
+    short_sha: 70b41fb64
+    authored_at: '2026-08-06T12:35:02+00:00'
+    subject: 'fix: reset logout landing and settings UI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    related_feature_ids: []
+  - sha: 95e7a1dc66ecc07f17b525a7ee8a442c166dee54
+    short_sha: 95e7a1dc6
+    authored_at: '2026-08-06T12:29:36+00:00'
+    subject: 'fix: resolve cache-busted CLI test imports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/loader.mjs
+    related_feature_ids: []
+  - sha: 17bf9500e837f53d1112b13936a559d4e085507c
+    short_sha: 17bf9500e
+    authored_at: '2026-08-06T12:28:24+00:00'
+    subject: 'fix: preserve inline citation examples'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_link_fixes.py
+    related_feature_ids:
+    - app:ai
+  - sha: 73e3ffb4adc73467cae32c922f44da5f64c10b28
+    short_sha: 73e3ffb4a
+    authored_at: '2026-08-06T12:19:12+00:00'
+    subject: 'fix: harden generated embed citation links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_embed_link_fixes.py
+    related_feature_ids:
+    - app:ai
+  - sha: 58b37f72a15dd677b71d73bdaa9c6fb24d01e9f3
+    short_sha: 58b37f72a
+    authored_at: '2026-08-06T12:11:55+00:00'
+    subject: 'test: cover passkey deletion logout UI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: 9893f00b868611f47d18329212587e296c80bb17
+    short_sha: 9893f00b8
+    authored_at: '2026-08-06T12:03:31+00:00'
+    subject: 'docs: record runtime health dev evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    related_feature_ids: []
+  - sha: 1616ef4e682efc5dd8c650bbea7b8c53a4118a76
+    short_sha: 1616ef4e6
+    authored_at: '2026-08-06T12:00:25+00:00'
+    subject: 'test: add dev runtime health verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    - scripts/verify_post_update_runtime_health.py
+    related_feature_ids: []
+  - sha: e5a907ea3fce468196e87e7121ba3cf2d9023336
+    short_sha: e5a907ea3
+    authored_at: '2026-08-06T11:54:39+00:00'
+    subject: 'fix: isolate runtime worker probe I/O'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    related_feature_ids: []
+  - sha: 5694b1d727559ac088a6f2f534a2acfb12966f04
+    short_sha: 5694b1d72
+    authored_at: '2026-08-06T11:52:55+00:00'
+    subject: 'fix: use canonical API health endpoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    related_feature_ids: []
+  - sha: 0635bddb39ccebe75bd5a31eb9b0fd409d6dff25
+    short_sha: 0635bddb3
+    authored_at: '2026-08-06T11:51:06+00:00'
+    subject: 'docs: record signup tutorial delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    related_feature_ids: []
+  - sha: 1b6bedc497b410bf147c30f2c81d5c4c65cd812d
+    short_sha: 1b6bedc49
+    authored_at: '2026-08-06T11:48:38+00:00'
+    subject: 'feat: add reusable demo video skill'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: 08eafe60d478782ee4dc12ff424568fadb659c6b
+    short_sha: 08eafe60d
+    authored_at: '2026-08-06T11:47:33+00:00'
+    subject: 'fix: remove duplicate runtime compose keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    related_feature_ids: []
+  - sha: 0078e7e0d452e681131186671af08d3e899c8b0e
+    short_sha: 0078e7e0d
+    authored_at: '2026-08-06T11:43:42+00:00'
+    subject: 'feat: add managed runtime health verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/__init__.py
+    - backend/apps/ai/tasks/runtime_health_probe_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/preview/Dockerfile
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    - backend/tests/test_runtime_health_verifier.py
+    - backend/upload/Dockerfile
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_runtime_health_contract.py
+    related_feature_ids:
+    - app:ai
+  - sha: 0e50038d93fe4a8c870457dc578a0295347b8a12
+    short_sha: 0e50038d9
+    authored_at: '2026-08-06T11:30:52+00:00'
+    subject: 'test: cover team billing fail-closed guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_teams_routes.py
+    related_feature_ids:
+    - platform:teams
+  - sha: e0ea22749c111f0cf3909d78995402eb921edbab
+    short_sha: e0ea22749
+    authored_at: '2026-08-06T11:24:44+00:00'
+    subject: 'test: align cloud overlay route guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    related_feature_ids: []
+  - sha: 1638bae09f81138acbed6e8ae1ec4925e6860531
+    short_sha: 1638bae09
+    authored_at: '2026-08-06T11:19:30+00:00'
+    subject: 'test: patch cloud billing status predicate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_server_status_response.py
+    related_feature_ids: []
+  - sha: a95ee7caab144372be6710e1a5e3f00353de2ac6
+    short_sha: a95ee7caa
+    authored_at: '2026-08-06T10:54:21+00:00'
+    subject: Exercise embed normalization in mock replay
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/grouped_cites_image_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    related_feature_ids:
+    - app:ai
+  - sha: 22edfc0741dc6ddb03ef1585d16c5bd8dcdc40bd
+    short_sha: 22edfc074
+    authored_at: '2026-08-06T10:46:00+00:00'
+    subject: 'test: provide logout window location'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: f5424e1b8b67152d382a56e0d7cdb9e97d06aaae
+    short_sha: f5424e1b8
+    authored_at: '2026-08-06T10:42:39+00:00'
+    subject: 'test: complete logout forwarder mock'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: c5dea8f7c025abb7d8a9e777aaa934841710de4f
+    short_sha: c5dea8f7c
+    authored_at: '2026-08-06T10:38:58+00:00'
+    subject: 'test: finish Vitest environment fixes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: 0faef57a5161817dfe6ffae648833a49a204b5c8
+    short_sha: 0faef57a5
+    authored_at: '2026-08-06T10:32:36+00:00'
+    subject: 'fix: silence inspiration cleanup read race'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/dailyInspirationDB.ts
+    related_feature_ids: []
+  - sha: e4ddec7e08430b4038fef1a96911c0b376b7128b
+    short_sha: e4ddec7e0
+    authored_at: '2026-08-06T10:19:03+00:00'
+    subject: 'fix: reset tab title on new chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9d15dc269618b47c82578966c83fcc8287f7de63
+    short_sha: 9d15dc269
+    authored_at: '2026-08-06T10:17:30+00:00'
+    subject: 'test: mock logout i18n contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: 7ad43c91d35f9abe244f442600ef06206b0da68e
+    short_sha: 7ad43c91d
+    authored_at: '2026-08-06T10:16:09+00:00'
+    subject: 'fix: preserve cancelled workflow requeues'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 2bef9b8cc639dae6ab3dae5d6e801d08aa922fe3
+    short_sha: 2bef9b8cc
+    authored_at: '2026-08-06T10:12:44+00:00'
+    subject: 'docs: record delivered CLI tutorial proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    related_feature_ids: []
+  - sha: 7da90ce22d0b911c4df32c3b633959f13edf510a
+    short_sha: 7da90ce22
+    authored_at: '2026-08-06T10:11:34+00:00'
+    subject: 'test: isolate logout i18n setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    short_sha: d24e5bfbb
+    authored_at: '2026-08-06T10:05:35+00:00'
+    subject: 'fix: align tutorial captions with CLI response'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 28c30ce74159468e10064d20100b961860623aed
+    short_sha: 28c30ce74
+    authored_at: '2026-08-06T10:03:00+00:00'
+    subject: 'fix: render CLI proofs as timed tutorials'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 2bb2a3c84968c4f3c26de5db1786c42661aa4ba0
+    short_sha: 2bb2a3c84
+    authored_at: '2026-08-06T09:59:37+00:00'
+    subject: 'test: provide logout document stub'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: 6a232c21a224ee40e1e9e1e862496071f42db4eb
+    short_sha: 6a232c21a
+    authored_at: '2026-08-06T09:50:39+00:00'
+    subject: 'fix: load Discord helper from script context'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    related_feature_ids: []
+  - sha: 427ed94666ce457f4c43a278f2ea9193c16d8ccc
+    short_sha: 427ed9466
+    authored_at: '2026-08-06T09:46:40+00:00'
+    subject: 'perf: remove proof video OCR scanning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/spec_demo.py
+    - scripts/spec_demo_ocr.mjs
+    - scripts/spec_verify.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: a210520b189e78c4c2943c91cb561e1355ec6351
+    short_sha: a210520b1
+    authored_at: '2026-08-06T09:46:15+00:00'
+    subject: 'fix: enforce conflict-safe test workers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: 1b88ec50a7b5677e221b8f92f8a9abcb1b2eb944
+    short_sha: 1b88ec50a
+    authored_at: '2026-08-06T09:45:55+00:00'
+    subject: 'fix: attach OpenCode test workers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/fix-tests/SKILL.md
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - scripts/_zellij_utils.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    related_feature_ids: []
+  - sha: b9d6b1d9d65156b70c6ca9ebab27b766fe2999bc
+    short_sha: b9d6b1d9d
+    authored_at: '2026-08-06T09:42:41+00:00'
+    subject: 'fix: drain duplicate workflow triggers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    related_feature_ids: []
+  - sha: 269ea6267e18807d952b57aad2da036a17308868
+    short_sha: 269ea6267
+    authored_at: '2026-08-06T09:37:01+00:00'
+    subject: 'fix: restore OpenCode plugin startup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/cli-auto-login.js
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_cli_auto_login_plugin.mjs
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_presence_events.mjs
+    - scripts/tests/test_opencode_presence_performance.mjs
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    related_feature_ids: []
+  - sha: 30e7115fb678aad3a7f793bc6963f74448ff32b0
+    short_sha: 30e7115fb
+    authored_at: '2026-08-06T09:12:11+00:00'
+    subject: 'fix: stabilize degraded service checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/api_methods.py
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_directus_token_refresh.py
+    - backend/tests/test_task_smoke.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: d015a898bba87a9ee5c5a0401e2726af5f56ddde
+    short_sha: d015a898b
+    authored_at: '2026-08-06T09:06:06+00:00'
+    subject: Normalize grouped cites and image previews
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids:
+    - app:ai
+  - sha: 4fb49b8f54c9555a6851b0e14a3246a681822641
+    short_sha: 4fb49b8f5
+    authored_at: '2026-08-06T09:02:55+00:00'
+    subject: 'fix: keep CLI proof transcripts visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 9d8a8d5d20365a2d8af56f21999348c8df5bbfc0
+    short_sha: 9d8a8d5d2
+    authored_at: '2026-08-06T08:53:58+00:00'
+    subject: 'test: retry rate-limited browser login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 850c7c87c1973d8e97b86d9b1c83f989e1a2a4de
+    short_sha: 850c7c87c
+    authored_at: '2026-08-06T08:51:37+00:00'
+    subject: Reproduce grouped cite and image preview regressions
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/grouped_cites_image_preview.json
+    - backend/tests/test_embed_link_fixes.py
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 04c160c3f740c0b3d7dbbcd53d8cdc26b1278dbc
+    short_sha: 04c160c3f
+    authored_at: '2026-08-06T08:50:23+00:00'
+    subject: 'feat: add session CLI proof videos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - frontend/packages/secret-scanner/src/cli.ts
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 047f77bde0cf60a2a0c20c8c9a038145b1dd21fe
+    short_sha: 047f77bde
+    authored_at: '2026-08-06T08:49:26+00:00'
+    subject: 'fix: recover legacy parallel test leases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - scripts/tests.py
+    related_feature_ids: []
+  - sha: dc68f4e2711a00ed897aa63632c41c3498d9e519
+    short_sha: dc68f4e27
+    authored_at: '2026-08-06T08:46:27+00:00'
+    subject: 'feat: dispatch parallel OpenCode test debugging'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/architecture/test-orchestration.md
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: 82d065b3bd3a3157aec4e3e246e7eaee44572a48
+    short_sha: 82d065b3b
+    authored_at: '2026-08-06T08:41:43+00:00'
+    subject: 'test: isolate team billing route dependencies'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_teams_routes.py
+    related_feature_ids:
+    - platform:teams
+  - sha: 1d61e5b0bfeb6270d82522c0eb65a7a81776d958
+    short_sha: 1d61e5b0b
+    authored_at: '2026-08-06T04:15:19+00:00'
+    subject: 'docs: bind measured frame evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    related_feature_ids: []
+  - sha: 8e6e802b6cd38bacf52fe34246cabef946574722
+    short_sha: 8e6e802b6
+    authored_at: '2026-08-06T04:10:49+00:00'
+    subject: 'fix: measure decoded review frame timestamps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: c85bfd173e46ed38d307a971da183657c67b75ad
+    short_sha: c85bfd173
+    authored_at: '2026-08-06T04:08:03+00:00'
+    subject: 'docs: refresh truthful demonstration evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    related_feature_ids: []
+  - sha: 7cf67ad305648ba52851c01a020adf6da27dde95
+    short_sha: 7cf67ad30
+    authored_at: '2026-08-06T04:04:26+00:00'
+    subject: 'fix: report actual review frame timestamps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 9750512a65716e44375b8d2140f8f7834aafbddf
+    short_sha: 9750512a6
+    authored_at: '2026-08-06T03:59:35+00:00'
+    subject: 'docs: complete demonstration evidence ledger'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    related_feature_ids: []
+  - sha: b8e9bfc65bdc4bf7436221248926d442a7179bdf
+    short_sha: b8e9bfc65
+    authored_at: '2026-08-06T03:53:02+00:00'
+    subject: 'fix: show CLI demonstration provenance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 4b211f8eb07e0096ef8fcc8a4d12be3dd6ccb5a5
+    short_sha: 4b211f8eb
+    authored_at: '2026-08-06T03:35:37+00:00'
+    subject: 'fix: extract review frames at video end'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: e0d3738d737b8c06d207424c9d71406d1b2b38f0
+    short_sha: e0d3738d7
+    authored_at: '2026-08-06T03:23:40+00:00'
+    subject: 'fix: ignore commit hashes in phone scanning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/secret-scanner/src/patterns.ts
+    - frontend/packages/secret-scanner/tests/scanner.test.ts
+    related_feature_ids: []
+  - sha: 2b2965917058f9213b926f55ee58c98fa73db9a5
+    short_sha: 2b2965917
+    authored_at: '2026-08-06T03:12:33+00:00'
+    subject: 'fix: ignore media durations in phone scanning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/secret-scanner/src/patterns.ts
+    - frontend/packages/secret-scanner/tests/scanner.test.ts
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+    related_feature_ids: []
+  - sha: 964fbb85806e03e5e87b1c05a0554a9323ad3344
+    short_sha: 964fbb858
+    authored_at: '2026-08-06T02:53:50+00:00'
+    subject: 'refactor: load demonstration plan contract from SDD guide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_opencode_documented_plan_terms.py
+    related_feature_ids: []
+  - sha: 230653fe9881700a0d44e5c5cafd4859b7182ce2
+    short_sha: 230653fe9
+    authored_at: '2026-08-06T02:45:14+00:00'
+    subject: 'feat: add reviewed implementation demonstrations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/testing.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/secret-scanner/src/cli.ts
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/discord_webhook.py
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/spec_demo_ocr.mjs
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_review.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    related_feature_ids: []
+  - sha: ddfe85935975ebe3c9fd7df35ff2fc315ec7a013
+    short_sha: ddfe85935
+    authored_at: '2026-08-06T02:23:22+00:00'
+    subject: 'refactor: restore thinking lookup helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: fa35d4ba4fe0308595a115f80ff0cdea0e279654
+    short_sha: fa35d4ba4
+    authored_at: '2026-08-06T02:16:34+00:00'
+    subject: 'fix: reject duplicate OpenCode config keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    related_feature_ids: []
+  - sha: 60324a0f36398ff7eca49cb25e13723d9b3af384
+    short_sha: 60324a0f3
+    authored_at: '2026-08-06T02:13:05+00:00'
+    subject: 'fix: reconcile OpenCode runtime config'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - opencode.json
+    related_feature_ids: []
+  - sha: 438ebc479f8784ce796f232aead6d12bd42a9de4
+    short_sha: 438ebc479
+    authored_at: '2026-08-06T02:11:32+00:00'
+    subject: 'fix: react to progressive thinking state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 4d8a3b745d4b71f3492e1612419974eafd562d99
+    short_sha: 4d8a3b745
+    authored_at: '2026-08-06T01:57:03+00:00'
+    subject: 'fix: harden OpenCode workflow orchestration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/start/SKILL.md
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/issue-forensics.md
+    - .claude/skills/start/SKILL.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/issue-forensics.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/issue-forensics.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/testing.md
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/opencode_presence_store.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_presence_store.py
+    - scripts/tests/test_sessions_root_guard.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: a65ec0fe8cdb27d4e7c0edfa55850ee5a23de4d7
+    short_sha: a65ec0fe8
+    authored_at: '2026-08-06T01:52:31+00:00'
+    subject: 'fix: preserve progressive thinking updates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: cb946511643ded872fb5395d2974e3808e0911b6
+    short_sha: cb9465116
+    authored_at: '2026-08-06T01:36:52+00:00'
+    subject: 'test: stabilize processing lifecycle fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    related_feature_ids: []
+  - sha: e11d5346b2c24fd9eb8e357c22026f457027fbce
+    short_sha: e11d5346b
+    authored_at: '2026-08-06T01:19:17+00:00'
+    subject: 'fix: start rainbow on task initiation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: e3ff0410f411ac646ecade491b9d7e9e3f8559de
+    short_sha: e3ff0410f
+    authored_at: '2026-08-06T01:05:30+00:00'
+    subject: 'test: require rainbow on task initiation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    related_feature_ids: []
+  - sha: 2976f1ab1667d335c379f9945d3e9eb36ef1b404
+    short_sha: 2976f1ab1
+    authored_at: '2026-08-06T00:47:12+00:00'
+    subject: 'fix: disable health memory fields'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/health/README.md
+    - backend/apps/health/app.yml
+    - backend/tests/test_app_metadata_no_stage.py
+    - docs/user-guide/apps/health.md
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    related_feature_ids:
+    - app:health
+  - sha: abf817debb93432f2223d0931535d064539922aa
+    short_sha: abf817deb
+    authored_at: '2026-08-05T20:58:26+00:00'
+    subject: Verify large embed preview spacing
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    related_feature_ids: []
+  - sha: 399f363311764b168f58fd401a7b35359a28a1b2
+    short_sha: 399f36331
+    authored_at: '2026-08-05T20:41:52+00:00'
+    subject: Render bare inline embed refs
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    related_feature_ids:
+    - app:ai
+  - sha: c786a3828fff0033aea8c16b934ec54fa13509b1
+    short_sha: c786a3828
+    authored_at: '2026-08-05T20:38:09+00:00'
+    subject: Reproduce bare inline embed refs
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_embed_link_fixes.py
+    related_feature_ids: []
+  - sha: 4694a1b2acf29f2f4db541eee75aad3e07d213e1
+    short_sha: 4694a1b2a
+    authored_at: '2026-08-05T20:16:34+00:00'
+    subject: Record streaming convergence evidence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    related_feature_ids: []
+  - sha: 4c7b2f2ecc28f091ddf628e22bd80a28d90d6781
+    short_sha: 4c7b2f2ec
+    authored_at: '2026-08-05T20:04:23+00:00'
+    subject: Review mobile app skill group
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 3adf043862f7ff2299199ea0bf9583719e705898
+    short_sha: 3adf04386
+    authored_at: '2026-08-05T19:53:24+00:00'
+    subject: Capture mobile app skill convergence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 6d4a27b628abb708620e35f76d23b66f468f304b
+    short_sha: 6d4a27b62
+    authored_at: '2026-08-05T19:42:20+00:00'
+    subject: Verify app skill groups after reload
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: a56797e33ccfe6da0c463f16bd820a7a96ca09f5
+    short_sha: a56797e33
+    authored_at: '2026-08-05T19:04:04+00:00'
+    subject: 'fix: scale mobile inspiration previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 9aa52263287713cabe88f88fcb27d84383e3232e
+    short_sha: 9aa522632
+    authored_at: '2026-08-05T19:01:14+00:00'
+    subject: Preserve app skill groups at completion
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 7772ac81c5f6e7d0846289cd759a0679324aeb4b
+    short_sha: 7772ac81c
+    authored_at: '2026-08-05T18:49:20+00:00'
+    subject: 'fix: shrink mobile inspiration embed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: e4ac674bae5af248c444c398f037220ef48f7e07
+    short_sha: e4ac674ba
+    authored_at: '2026-08-05T18:31:54+00:00'
+    subject: Flush complete streaming blocks
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    related_feature_ids: []
+  - sha: c2effd8a7219fe8348aac6c564607dd679a6eb39
+    short_sha: c2effd8a7
+    authored_at: '2026-08-05T18:15:37+00:00'
+    subject: 'fix: allow read-only child diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: c3df0d470e498b955c025b0a99953b280d0d85d1
+    short_sha: c3df0d470
+    authored_at: '2026-08-05T18:11:43+00:00'
+    subject: Preserve streamed result views
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids: []
+  - sha: 6fd74ffec8bde935f437da8d467da2cdb93324bc
+    short_sha: 6fd74ffec
+    authored_at: '2026-08-05T17:41:49+00:00'
+    subject: Fix streaming tail commit
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids: []
+  - sha: 4613bbad1fcc7277e69a71a83c4b7fdc8bef7e5a
+    short_sha: 4613bbad1
+    authored_at: '2026-08-05T17:37:17+00:00'
+    subject: Implement committed streaming blocks
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/stream_utils.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids:
+    - app:ai
+  - sha: cb25da77b1cc48b7793aa8cb76a91056a979d3cf
+    short_sha: cb25da77b
+    authored_at: '2026-08-05T17:12:45+00:00'
+    subject: Test append-only streaming contracts
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_stream_paragraph_contract.py
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    related_feature_ids: []
+  - sha: ade91973dd1a0245b98b32b173580cb3d8424613
+    short_sha: ade91973d
+    authored_at: '2026-08-05T17:07:49+00:00'
+    subject: 'fix: make guest inspiration restore atomic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: dbe66758fc08e50d698019a5db03c8e813064c41
+    short_sha: dbe66758f
+    authored_at: '2026-08-05T16:53:34+00:00'
+    subject: 'fix: restore coordinated test dispatch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 5d97dbdf4748f8da5c4792958798659daded6a40
+    short_sha: 5d97dbdf4
+    authored_at: '2026-08-05T16:25:41+00:00'
+    subject: 'test: require guest carousel after forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 55693253ddb0e44e0dc5e0ca54f703e3a883da79
+    short_sha: 55693253d
+    authored_at: '2026-08-05T16:21:03+00:00'
+    subject: 'fix: restore guest inspirations on forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    related_feature_ids: []
+  - sha: 0d65505887186a5cd1087260873650f124831281
+    short_sha: 0d6550588
+    authored_at: '2026-08-05T16:04:05+00:00'
+    subject: 'fix: route stale-code reports through current control plane'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    related_feature_ids: []
+  - sha: f2e556f1f3c8a5854a46cb5ea372b2530025e62c
+    short_sha: f2e556f1f
+    authored_at: '2026-08-05T16:00:41+00:00'
+    subject: Preserve embeds on metadata refresh
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 4598b4aadcb40f33a766060e56e5ee675148d331
+    short_sha: 4598b4aad
+    authored_at: '2026-08-05T15:58:05+00:00'
+    subject: 'fix: share runtime resources with agent worktrees'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    related_feature_ids: []
+  - sha: a4669d44e1c718345ada34ec4c6d3ba9258ef316
+    short_sha: a4669d44e
+    authored_at: '2026-08-05T15:43:32+00:00'
+    subject: Fix streaming message render convergence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: f8e556147ffbe798135851772cf80d133016e290
+    short_sha: f8e556147
+    authored_at: '2026-08-05T15:33:53+00:00'
+    subject: 'fix: route production SSH through root control plane'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    related_feature_ids: []
+  - sha: 8d2ea1031b30726376ac139d1d5712423eac7c32
+    short_sha: 8d2ea1031
+    authored_at: '2026-08-05T15:22:36+00:00'
+    subject: 'fix: preserve previews at stream completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 892f4c43efb8009ba70e5ed4b821d35a0f031225
+    short_sha: 892f4c43e
+    authored_at: '2026-08-05T15:03:09+00:00'
+    subject: 'fix: preserve streaming state attribute'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: bb546f1d0aa65db49fd7aa60af12454daf81ae7f
+    short_sha: bb546f1d0
+    authored_at: '2026-08-05T15:00:42+00:00'
+    subject: 'test: reject every authenticated guest card'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5f656b14857d9f672df2bce43c40e1542372277c
+    short_sha: 5f656b148
+    authored_at: '2026-08-05T14:59:18+00:00'
+    subject: 'fix: restore routed production SSH access'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/prod-ssh.sh
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: d5d8fba037204cd252a796bb37d8e9f05400b2cd
+    short_sha: d5d8fba03
+    authored_at: '2026-08-05T14:47:18+00:00'
+    subject: 'fix: recover inspirations after login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: b1de428d447b19b38d3f5df10aff7c17d8c057b2
+    short_sha: b1de428d4
+    authored_at: '2026-08-05T14:45:15+00:00'
+    subject: 'test: scope streamed loading state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: d79e41c035dffc10c4b6a149723dcd9301453643
+    short_sha: d79e41c03
+    authored_at: '2026-08-05T14:31:56+00:00'
+    subject: 'fix: allow safe forensic child diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    related_feature_ids: []
+  - sha: a06ff5c1d39edda7279de2dad42d3cbcfa724122
+    short_sha: a06ff5c1d
+    authored_at: '2026-08-05T14:26:35+00:00'
+    subject: 'test: await streamed result rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 1faef60056998281e397f8873b9a824c91fce3fd
+    short_sha: 1faef6005
+    authored_at: '2026-08-05T14:08:19+00:00'
+    subject: fix streaming state deploy regression
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: ded3988255eae873fc8f741166d723fa8083a206
+    short_sha: ded398825
+    authored_at: '2026-08-05T14:02:55+00:00'
+    subject: fix anonymous navigation interactions
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    related_feature_ids: []
+  - sha: 6ddbd02003dc617dc9588b57af525b1328ed7d50
+    short_sha: 6ddbd0200
+    authored_at: '2026-08-05T13:59:58+00:00'
+    subject: 'test: preserve message streaming state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 829b5bdd556a879dc0da0d48c811628ba41363e8
+    short_sha: 829b5bdd5
+    authored_at: '2026-08-05T13:57:38+00:00'
+    subject: 'test: scope streaming network assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: f1e2ba56a51883e7719d18e9661174b5de215ee5
+    short_sha: f1e2ba56a
+    authored_at: '2026-08-05T13:45:22+00:00'
+    subject: 'fix: dispatch integrated test subject'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: a52674bf74fdab6ff63a1db2325d33b435b03c4e
+    short_sha: a52674bf7
+    authored_at: '2026-08-05T13:44:37+00:00'
+    subject: 'test: remove invalid final streaming assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: f7a55b20489736895c229731f34c81684f1965e4
+    short_sha: f7a55b204
+    authored_at: '2026-08-05T13:43:03+00:00'
+    subject: 'test: clarify final event view state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 7842f0c0843a2a70a767f9ccf1f00da65d30dc42
+    short_sha: 7842f0c08
+    authored_at: '2026-08-05T13:33:43+00:00'
+    subject: 'fix: gate deployed session commits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: a68843ba859c41a1af6d16dbf11b3416472ee26c
+    short_sha: a68843ba8
+    authored_at: '2026-08-05T13:28:39+00:00'
+    subject: 'test: isolate streaming compiler metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    related_feature_ids: []
+  - sha: bc3dd79a910813ad8f9ef055799185deb6a73878
+    short_sha: bc3dd79a9
+    authored_at: '2026-08-05T13:15:26+00:00'
+    subject: 'fix: converge streamed message rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.preview.ts
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/streamingNodeIdentity.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageCompiler.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderMetrics.ts
+    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    related_feature_ids: []
+  - sha: 68ad3498db13ccc7159b1a056b138c5ef45c9e5b
+    short_sha: 68ad3498d
+    authored_at: '2026-08-05T13:12:20+00:00'
+    subject: 'test: verify event streaming transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 1ed3c95fdfb157f2c9e8c01eda1e19789048ba56
+    short_sha: 1ed3c95fd
+    authored_at: '2026-08-05T13:09:10+00:00'
+    subject: stabilize anonymous welcome navigation
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on the reliability of real-time AI message streaming and the stability of user sessions. Significant
+    effort was directed toward ensuring UI convergence during streaming and refining the guest experience during authentication
+    transitions.
+  released_changes: []
+  bug_fixes:
+  - text: OpenMates resolved several issues with streaming message convergence, ensuring that embeds, previews, and message
+      attributes remain stable as content is generated.
+    evidence:
+      commits:
+      - bc3dd79a9
+      - a4669d44e
+      - 8d2ea1031
+      - 892f4c43e
+      - f2e556f1f
+    release_status: dev_only
+  - text: AI citation handling was hardened to preserve inline examples and ensure generated embed links are correctly formatted.
+    evidence:
+      commits:
+      - 73e3ffb4a
+      - 17bf9500e
+      - 399f36331
+    release_status: dev_only
+  - text: The logout process was refined to reset the UI correctly and ensure guest inspirations are restored atomically after
+      a session ends.
+    evidence:
+      commits:
+      - 70b41fb64
+      - ade91973d
+      - 55693253d
+      - d5d8fba03
+    release_status: dev_only
+  - text: Navigation for anonymous users was stabilized, including fixes for welcome interactions and tab title resets on
+      new chats.
+    evidence:
+      commits:
+      - ded398825
+      - 1ed3c95fd
+      - e4ddec7e0
+    release_status: dev_only
+  unreleased_progress:
+  - text: Managed runtime health verification and notification channels are being developed to monitor server status post-update.
+    evidence:
+      commits:
+      - 0078e7e0d
+      - 2680a4b50
+    release_status: dev_only
+  - text: Support for progressive thinking states in the chat interface is in progress to improve the feedback loop during
+      AI generation.
+    evidence:
+      commits:
+      - 438ebc479
+      - a65ec0fe8
+      - ddfe85935
+    release_status: dev_only
+  - text: New infrastructure was added to gate unreleased product workspaces more strictly.
+    evidence:
+      commits:
+      - 41464e83a
+    release_status: dev_only
+  - text: The health application metadata was updated to disable specific memory fields.
+    evidence:
+      commits:
+      - 2976f1ab1
+    release_status: dev_only
+  - text: Internal work continued on workflows and team billing routes, which remain disabled in production.
+    evidence:
+      commits:
+      - 7ad43c91d
+      - 30e7115fb
+      - 0e50038d9
+    release_status: dev_only_disabled_features
+  internal_progress:
+  - text: OpenCode orchestration was improved with parallel test debugging, more reliable plugin startup, and better worker
+      attachment.
+    evidence:
+      commits:
+      - dc68f4e27
+      - 4d8a3b745
+      - 269ea6267
+      - 1b88ec50a
+    release_status: dev_only
+  - text: New internal skills were added to generate narrated implementation demonstrations and CLI proof videos.
+    evidence:
+      commits:
+      - 1b6bedc49
+      - 04c160c3f
+      - 230653fe9
+    release_status: dev_only
+  - text: The secret scanner was updated to ignore false positives like commit hashes and media durations.
+    evidence:
+      commits:
+      - e0d3738d7
+      - 2b2965917
+    release_status: dev_only_secret_scanner
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: All changes from 2026-08-06.
+      evidence:
+        commits:
+        - bc3dd79a9
+        - 70b41fb64
+        - 0078e7e0d
+      reason: All current updates are in development branches and have not been merged to main for public release.
+    rationale: There are no items marked as ready for public communication or released to the main branch in this period.
+  social_video_recommendations:
+  - idea: Visualizing AI Reasoning
+    priority: Medium
+    reason: The progressive thinking state and streaming convergence work provide a smooth visual story of how the AI processes
+      and renders complex responses.
+    evidence:
+      commits:
+      - 438ebc479
+      - bc3dd79a9
+  quality_notes:
+  - Extensive testing (31 commits) accompanied the streaming and session management fixes.
+  - Documentation was updated to record evidence for runtime health and streaming convergence specs.
+  validation_warnings: []

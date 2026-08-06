@@ -1148,6 +1148,67 @@ def write_artifact(path: Path, data: dict[str, Any]) -> None:
     path.write_text(dump_yaml(data), encoding="utf-8")
 
 
+def render_release_summary_markdown(artifact: dict[str, Any]) -> str:
+    cadence = str(artifact.get("cadence") or "release").capitalize()
+    period = str(artifact.get("date") or "")
+    if artifact.get("week_start") and artifact.get("week_end"):
+        period = f"{artifact['week_start']} to {artifact['week_end']}"
+    llm_summary = artifact.get("llm_summary") or {}
+    summary = artifact.get("summary") or {}
+    count = summary.get("total_commits", summary.get("total_items", 0))
+    lines = [
+        f"# {cadence} Release Summary: {period}",
+        "",
+        f"Generated from `{count}` structured change items. The companion YAML remains the source for deterministic tooling.",
+        "",
+        "## Overview",
+        "",
+        str(llm_summary.get("overview") or llm_summary.get("reason") or "No LLM summary was generated."),
+        "",
+    ]
+
+    sections = (
+        ("Released Changes", "released_changes"),
+        ("Bug Fixes", "bug_fixes"),
+        ("Unreleased Progress", "unreleased_progress"),
+        ("Internal Progress", "internal_progress"),
+    )
+    for title, key in sections:
+        lines.extend([f"## {title}", "", *_summary_bullets(llm_summary.get(key) or [], limit=12), ""])
+
+    newsletter = llm_summary.get("newsletter_recommendation") or {}
+    lines.extend(
+        [
+            "## Newsletter Guidance",
+            "",
+            "### Include",
+            "",
+            *_summary_bullets(newsletter.get("include") or [], limit=12),
+            "",
+            "### Exclude",
+            "",
+            *_summary_bullets(newsletter.get("exclude") or [], limit=12),
+            "",
+        ]
+    )
+    rationale = str(newsletter.get("rationale") or "").strip()
+    if rationale:
+        lines.extend(["### Rationale", "", rationale, ""])
+
+    quality_notes = [str(item) for item in llm_summary.get("quality_notes") or [] if str(item).strip()]
+    warnings = [str(item) for item in llm_summary.get("validation_warnings") or [] if str(item).strip()]
+    lines.extend(["## Quality Notes", "", *([f"- {item}" for item in quality_notes] or ["- None"]), ""])
+    if warnings:
+        lines.extend(["## Validation Warnings", "", *[f"- {item}" for item in warnings], ""])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_summary_companion(path: Path, artifact: dict[str, Any]) -> Path:
+    summary_path = path.with_suffix(".md")
+    summary_path.write_text(render_release_summary_markdown(artifact), encoding="utf-8")
+    return summary_path
+
+
 def parse_date(value: str) -> date:
     return date.fromisoformat(value)
 
@@ -1793,7 +1854,9 @@ def daily_command(args: argparse.Namespace) -> int:
     if args.write:
         output_path = Path(args.output).resolve() if args.output else default_output_path(report_date)
         write_artifact(output_path, artifact)
+        summary_path = write_summary_companion(output_path, artifact)
         print(f"[release-intelligence] wrote {output_path.relative_to(REPO_ROOT) if output_path.is_relative_to(REPO_ROOT) else output_path}", file=sys.stderr)
+        print(f"[release-intelligence] wrote {summary_path.relative_to(REPO_ROOT) if summary_path.is_relative_to(REPO_ROOT) else summary_path}", file=sys.stderr)
     return 0
 
 
@@ -1820,7 +1883,9 @@ def weekly_command(args: argparse.Namespace) -> int:
     if args.write:
         output_path = Path(args.output).resolve() if args.output else default_weekly_output_path(week_start)
         write_artifact(output_path, artifact)
+        summary_path = write_summary_companion(output_path, artifact)
         print(f"[release-intelligence] wrote {output_path.relative_to(REPO_ROOT) if output_path.is_relative_to(REPO_ROOT) else output_path}", file=sys.stderr)
+        print(f"[release-intelligence] wrote {summary_path.relative_to(REPO_ROOT) if summary_path.is_relative_to(REPO_ROOT) else summary_path}", file=sys.stderr)
     if args.discord or args.discord_dry_run:
         post_weekly_discord_summary(artifact, dry_run=args.discord_dry_run)
     return 0

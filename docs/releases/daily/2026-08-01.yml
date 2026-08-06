@@ -1,0 +1,1872 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-01'
+generated_at: '2026-08-06T13:19:01+00:00'
+range:
+  since: '2026-08-01T00:00:00+00:00'
+  until: '2026-08-02T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 25
+  section_counts:
+    features: 4
+    bug_fixes: 13
+    improvements: 0
+    docs: 4
+    tests: 3
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 17
+  dev_only_items: 25
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: improve travel transfer quality'
+    section: features
+    commits:
+    - 7e04e543e
+    authored_at: '2026-08-01T23:10:38+00:00'
+    changed_paths:
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/providers/transitous_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    - backend/tests/test_travel_skill_constraints.py
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/smoke_travel_transfer_quality.py
+    - scripts/smoke_travel_transfer_quality_npm.mjs
+    - scripts/smoke_travel_transfer_quality_pip.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: align workspace home controls'
+    section: features
+    commits:
+    - 57634802e
+    authored_at: '2026-08-01T09:49:25+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects, platform:tasks, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add tasks and plans workspaces'
+    section: features
+    commits:
+    - 9f9dcd5b7
+    authored_at: '2026-08-01T09:38:22+00:00'
+    changed_paths:
+    - docs/specs/tasks-plans-workspace/spec.yml
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+    - frontend/packages/ui/src/components/plans/PlanCard.svelte
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - scripts/verify_plans_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add calendar tab to results view'
+    section: features
+    commits:
+    - 836b23396
+    authored_at: '2026-08-01T09:14:49+00:00'
+    changed_paths:
+    - backend/tests/test_code_block_detection.py
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/EmbedsMapViewRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: render flattened travel transfer quality'
+    section: bug_fixes
+    commits:
+    - d71ced874
+    authored_at: '2026-08-01T23:51:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make task done toggle touch safe'
+    section: bug_fixes
+    commits:
+    - 5ec7675b6
+    authored_at: '2026-08-01T12:08:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep workspace composer above banner'
+    section: bug_fixes
+    commits:
+    - 328d7c36b
+    authored_at: '2026-08-01T11:33:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: separate workspace banner and greeting'
+    section: bug_fixes
+    commits:
+    - 470a59cc7
+    authored_at: '2026-08-01T11:12:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tighten workspace banner height'
+    section: bug_fixes
+    commits:
+    - '764628700'
+    authored_at: '2026-08-01T10:56:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep workspace banners from blocking tasks'
+    section: bug_fixes
+    commits:
+    - ff598466c
+    authored_at: '2026-08-01T10:36:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep task and plan boards scrollable'
+    section: bug_fixes
+    commits:
+    - 719ffcdb7
+    authored_at: '2026-08-01T10:00:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep chat settings header white without theme vars'
+    section: bug_fixes
+    commits:
+    - b91c447bb
+    authored_at: '2026-08-01T09:53:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use defined white token for chat settings header'
+    section: bug_fixes
+    commits:
+    - 63e8f02c2
+    authored_at: '2026-08-01T09:40:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show notebook run output inline'
+    section: bug_fixes
+    commits:
+    - '954442139'
+    authored_at: '2026-08-01T09:07:19+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, embed:code:notebook'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove chat header hardcoded white fallback'
+    section: bug_fixes
+    commits:
+    - b911eb410
+    authored_at: '2026-08-01T09:02:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: label event map filters as time'
+    section: bug_fixes
+    commits:
+    - 8ca51db77
+    authored_at: '2026-08-01T08:36:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use chat settings inner mobile width'
+    section: bug_fixes
+    commits:
+    - 55fb21bab
+    authored_at: '2026-08-01T08:30:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: complete tasks plans workspace spec'
+    section: docs
+    commits:
+    - aa5ad4bf8
+    authored_at: '2026-08-01T19:44:35+00:00'
+    changed_paths:
+    - docs/specs/tasks-plans-workspace/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record tasks plans workspace evidence'
+    section: docs
+    commits:
+    - 0fe147594
+    authored_at: '2026-08-01T12:45:47+00:00'
+    changed_paths:
+    - docs/specs/tasks-plans-workspace/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record chat settings parity evidence'
+    section: docs
+    commits:
+    - cc63562ac
+    authored_at: '2026-08-01T10:25:10+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record workflows input evidence'
+    section: docs
+    commits:
+    - d313020a1
+    authored_at: '2026-08-01T10:05:26+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - 'matches feature availability gates: app:workflows, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: update travel train E2E fare expectations'
+    section: tests
+    commits:
+    - 41eb04164
+    authored_at: '2026-08-01T23:28:41+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/travel_train_web.json
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix results view calendar assertion'
+    section: tests
+    commits:
+    - debb7012f
+    authored_at: '2026-08-01T09:30:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover notebook inline run output'
+    section: tests
+    commits:
+    - 5c08c67e7
+    authored_at: '2026-08-01T08:47:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: enforce OpenCode session coordination'
+    section: infrastructure
+    commits:
+    - 73bb9a9a7
+    authored_at: '2026-08-01T21:43:12+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_root_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: render flattened travel transfer quality'
+    commits:
+    - d71ced874
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'test: update travel train E2E fare expectations'
+    commits:
+    - 41eb04164
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: improve travel transfer quality'
+    commits:
+    - 7e04e543e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'chore: enforce OpenCode session coordination'
+    commits:
+    - 73bb9a9a7
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: complete tasks plans workspace spec'
+    commits:
+    - aa5ad4bf8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record tasks plans workspace evidence'
+    commits:
+    - 0fe147594
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make task done toggle touch safe'
+    commits:
+    - 5ec7675b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: keep workspace composer above banner'
+    commits:
+    - 328d7c36b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: separate workspace banner and greeting'
+    commits:
+    - 470a59cc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: tighten workspace banner height'
+    commits:
+    - '764628700'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: keep workspace banners from blocking tasks'
+    commits:
+    - ff598466c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: record chat settings parity evidence'
+    commits:
+    - cc63562ac
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record workflows input evidence'
+    commits:
+    - d313020a1
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: keep task and plan boards scrollable'
+    commits:
+    - 719ffcdb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: keep chat settings header white without theme vars'
+    commits:
+    - b91c447bb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: align workspace home controls'
+    commits:
+    - 57634802e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: use defined white token for chat settings header'
+    commits:
+    - 63e8f02c2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add tasks and plans workspaces'
+    commits:
+    - 9f9dcd5b7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: fix results view calendar assertion'
+    commits:
+    - debb7012f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add calendar tab to results view'
+    commits:
+    - 836b23396
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: show notebook run output inline'
+    commits:
+    - '954442139'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix: remove chat header hardcoded white fallback'
+    commits:
+    - b911eb410
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover notebook inline run output'
+    commits:
+    - 5c08c67e7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: label event map filters as time'
+    commits:
+    - 8ca51db77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use chat settings inner mobile width'
+    commits:
+    - 55fb21bab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: improve travel transfer quality'
+    commits:
+    - 7e04e543e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: render flattened travel transfer quality'
+    commits:
+    - d71ced874
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'feat: improve travel transfer quality'
+    commits:
+    - 7e04e543e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: make task done toggle touch safe'
+    commits:
+    - 5ec7675b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep workspace composer above banner'
+    commits:
+    - 328d7c36b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: separate workspace banner and greeting'
+    commits:
+    - 470a59cc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: tighten workspace banner height'
+    commits:
+    - '764628700'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep workspace banners from blocking tasks'
+    commits:
+    - ff598466c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep task and plan boards scrollable'
+    commits:
+    - 719ffcdb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep chat settings header white without theme vars'
+    commits:
+    - b91c447bb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: align workspace home controls'
+    commits:
+    - 57634802e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: use defined white token for chat settings header'
+    commits:
+    - 63e8f02c2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add tasks and plans workspaces'
+    commits:
+    - 9f9dcd5b7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add calendar tab to results view'
+    commits:
+    - 836b23396
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show notebook run output inline'
+    commits:
+    - '954442139'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: remove chat header hardcoded white fallback'
+    commits:
+    - b911eb410
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: label event map filters as time'
+    commits:
+    - 8ca51db77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use chat settings inner mobile width'
+    commits:
+    - 55fb21bab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: d71ced874560dd403758b177e1957299974daa77
+    short_sha: d71ced874
+    authored_at: '2026-08-01T23:51:19+00:00'
+    subject: 'fix: render flattened travel transfer quality'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    related_feature_ids:
+    - embed:travel:search_connections
+  - sha: 41eb04164cc36f08b767775b79204043eddca4f9
+    short_sha: 41eb04164
+    authored_at: '2026-08-01T23:28:41+00:00'
+    subject: 'test: update travel train E2E fare expectations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/travel_train_web.json
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 7e04e543e01eefcf0c6e7cc0961968e54d377b03
+    short_sha: 7e04e543e
+    authored_at: '2026-08-01T23:10:38+00:00'
+    subject: 'feat: improve travel transfer quality'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/providers/transitous_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    - backend/tests/test_travel_skill_constraints.py
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/smoke_travel_transfer_quality.py
+    - scripts/smoke_travel_transfer_quality_npm.mjs
+    - scripts/smoke_travel_transfer_quality_pip.py
+    related_feature_ids:
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+    short_sha: 73bb9a9a7
+    authored_at: '2026-08-01T21:43:12+00:00'
+    subject: 'chore: enforce OpenCode session coordination'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/contributing/guides/concurrent-sessions.md
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_root_guard.py
+    related_feature_ids: []
+  - sha: aa5ad4bf892e45453ae49776e43e521e8131438e
+    short_sha: aa5ad4bf8
+    authored_at: '2026-08-01T19:44:35+00:00'
+    subject: 'docs: complete tasks plans workspace spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-plans-workspace/spec.yml
+    related_feature_ids: []
+  - sha: 0fe1475943974c1c05af83e6be5cc24f862023c7
+    short_sha: 0fe147594
+    authored_at: '2026-08-01T12:45:47+00:00'
+    subject: 'docs: record tasks plans workspace evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-plans-workspace/spec.yml
+    related_feature_ids: []
+  - sha: 5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2
+    short_sha: 5ec7675b6
+    authored_at: '2026-08-01T12:08:03+00:00'
+    subject: 'fix: make task done toggle touch safe'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 328d7c36bf24fbc3b51b9c08b5b897b1b8e53f0b
+    short_sha: 328d7c36b
+    authored_at: '2026-08-01T11:33:14+00:00'
+    subject: 'fix: keep workspace composer above banner'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 470a59cc71b1b9b5c5d8ac79fdceedd50227b1a7
+    short_sha: 470a59cc7
+    authored_at: '2026-08-01T11:12:39+00:00'
+    subject: 'fix: separate workspace banner and greeting'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 76462870017da16dc5bfb82c3f5db5e0806b52d4
+    short_sha: '764628700'
+    authored_at: '2026-08-01T10:56:49+00:00'
+    subject: 'fix: tighten workspace banner height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: ff598466cc35ab009a0174868dd32676e19057e2
+    short_sha: ff598466c
+    authored_at: '2026-08-01T10:36:52+00:00'
+    subject: 'fix: keep workspace banners from blocking tasks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: cc63562acca50967f511a722fb35bc85219e28a0
+    short_sha: cc63562ac
+    authored_at: '2026-08-01T10:25:10+00:00'
+    subject: 'docs: record chat settings parity evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    related_feature_ids: []
+  - sha: d313020a1ed74bc11f3f3e9bb8006ba44edd5f0e
+    short_sha: d313020a1
+    authored_at: '2026-08-01T10:05:26+00:00'
+    subject: 'docs: record workflows input evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    related_feature_ids:
+    - app:workflows
+    - platform:workflows
+  - sha: 719ffcdb77e33264d0c532d6cfebffea6f6b6070
+    short_sha: 719ffcdb7
+    authored_at: '2026-08-01T10:00:51+00:00'
+    subject: 'fix: keep task and plan boards scrollable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: b91c447bbc9072ef4f2473ee598b2a19a24a2f43
+    short_sha: b91c447bb
+    authored_at: '2026-08-01T09:53:18+00:00'
+    subject: 'fix: keep chat settings header white without theme vars'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    related_feature_ids: []
+  - sha: 57634802ebafe863782d0a395ccd37743d57405c
+    short_sha: 57634802e
+    authored_at: '2026-08-01T09:49:25+00:00'
+    subject: 'feat: align workspace home controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids:
+    - platform:projects
+    - platform:tasks
+    - platform:workflows
+  - sha: 63e8f02c294d3065506d77ee30ce5c14133faaa7
+    short_sha: 63e8f02c2
+    authored_at: '2026-08-01T09:40:18+00:00'
+    subject: 'fix: use defined white token for chat settings header'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    related_feature_ids: []
+  - sha: 9f9dcd5b769edbb3e468f7d99dcf2a63a53699fb
+    short_sha: 9f9dcd5b7
+    authored_at: '2026-08-01T09:38:22+00:00'
+    subject: 'feat: add tasks and plans workspaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-plans-workspace/spec.yml
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+    - frontend/packages/ui/src/components/plans/PlanCard.svelte
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - scripts/verify_plans_cli_smoke.py
+    related_feature_ids:
+    - platform:plans
+    - platform:tasks
+  - sha: debb7012f17193ce3206e47ff573914672034f53
+    short_sha: debb7012f
+    authored_at: '2026-08-01T09:30:40+00:00'
+    subject: 'test: fix results view calendar assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    related_feature_ids: []
+  - sha: 836b233962cff06172196f81f710f7deaa316461
+    short_sha: 836b23396
+    authored_at: '2026-08-01T09:14:49+00:00'
+    subject: 'feat: add calendar tab to results view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_code_block_detection.py
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/EmbedsMapViewRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids: []
+  - sha: 954442139e80f632f8d24d825a8f270e200b7d79
+    short_sha: '954442139'
+    authored_at: '2026-08-01T09:07:19+00:00'
+    subject: 'fix: show notebook run output inline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    related_feature_ids:
+    - app:ai
+    - embed:code:notebook
+  - sha: b911eb410e758bfed4f5aa2ce905a5ad6fc75c16
+    short_sha: b911eb410
+    authored_at: '2026-08-01T09:02:01+00:00'
+    subject: 'fix: remove chat header hardcoded white fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    related_feature_ids: []
+  - sha: 5c08c67e716741ec13219b4eee6c29c8e998d7f3
+    short_sha: 5c08c67e7
+    authored_at: '2026-08-01T08:47:52+00:00'
+    subject: 'test: cover notebook inline run output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8ca51db77f812115620a3673b4e9a2177455b595
+    short_sha: 8ca51db77
+    authored_at: '2026-08-01T08:36:47+00:00'
+    subject: 'fix: label event map filters as time'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: 55fb21bab5db2fb2949141d7055b3360c7b5dc9d
+    short_sha: 55fb21bab
+    authored_at: '2026-08-01T08:30:09+00:00'
+    subject: 'fix: use chat settings inner mobile width'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on significant internal development for travel search quality and the foundation of new productivity
+    workspaces. While no changes reached the main branch, the project advanced the UI for tasks and plans, refined chat settings,
+    and improved the rendering of travel connection data.
+  released_changes: []
+  bug_fixes:
+  - text: Refined the chat settings UI, including mobile width adjustments and standardized header color tokens.
+    evidence:
+      commits:
+      - b91c447bb
+      - 63e8f02c2
+      - b911eb410
+      - 55fb21bab
+    release_status: dev_only
+  - text: Updated event map filters to be correctly labeled as time-based.
+    evidence:
+      commits:
+      - 8ca51db77
+    release_status: dev_only
+  - text: Fixed an issue where notebook run outputs were not displaying inline.
+    evidence:
+      commits:
+      - '954442139'
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates improved travel transfer quality logic and flattened the rendering of connection data in the travel search
+      embed.
+    evidence:
+      commits:
+      - 7e04e543e
+      - d71ced874
+    release_status: dev_only
+  - text: Development continued on the Tasks and Plans workspaces, including new board views, touch-safe toggles, and layout
+      fixes for banners and scrolling.
+    evidence:
+      commits:
+      - 9f9dcd5b7
+      - 57634802e
+      - 5ec7675b6
+      - 328d7c36b
+      - 470a59cc7
+      - '764628700'
+      - ff598466c
+      - 719ffcdb7
+    release_status: dev_only
+  - text: A new calendar tab was added to the results view to enhance how time-based data is visualized.
+    evidence:
+      commits:
+      - 836b23396
+    release_status: dev_only
+  internal_progress:
+  - text: Enforced OpenCode session coordination and lifecycle rules to manage concurrent development sessions.
+    evidence:
+      commits:
+      - 73bb9a9a7
+    release_status: dev_only
+  - text: Updated technical specifications and evidence records for the chat settings redesign, workflows, and the tasks/plans
+      workspaces.
+    evidence:
+      commits:
+      - aa5ad4bf8
+      - 0fe147594
+      - cc63562ac
+      - d313020a1
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Travel transfer quality improvements.
+      evidence:
+        commits:
+        - 7e04e543e
+        - d71ced874
+      reason: This feature is currently in development and not yet released to the main branch.
+    - text: New Tasks and Plans workspaces.
+      evidence:
+        commits:
+        - 9f9dcd5b7
+        - 57634802e
+        - 5ec7675b6
+        - 328d7c36b
+        - 470a59cc7
+        - '764628700'
+        - ff598466c
+        - 719ffcdb7
+      reason: Tasks and Plans are currently disabled features in development.
+    - text: Calendar tab for results view.
+      evidence:
+        commits:
+        - 836b23396
+      reason: This feature is currently in development and not yet released to the main branch.
+    rationale: No user-facing changes were released to the main branch during this period. All significant feature work remains
+      in development or is associated with disabled feature flags.
+  social_video_recommendations:
+  - idea: A demonstration of the improved travel connection details, highlighting how the project now renders transfer quality.
+    priority: medium
+    reason: Travel search is a core utility with a clear visual component for social demos.
+    evidence:
+      commits:
+      - 7e04e543e
+      - d71ced874
+  - idea: A preview of the upcoming Tasks and Plans workspaces showing the new board layouts and home controls.
+    priority: low
+    reason: These features are still disabled and in early development, but show significant progress on the productivity
+      suite.
+    evidence:
+      commits:
+      - 9f9dcd5b7
+      - 57634802e
+  quality_notes:
+  - Extensive UI polish was applied to the unreleased Tasks and Plans workspaces, addressing touch safety, scrolling, and
+    layout layering.
+  - Travel search logic was updated to better handle transfer quality and fare expectations in tests.
+  validation_warnings: []

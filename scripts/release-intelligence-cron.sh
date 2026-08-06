@@ -20,10 +20,12 @@ MODE="${1:-daily}"
 cd "$PROJECT_ROOT"
 
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
+  set +u
   set -a
   # shellcheck disable=SC1091
   . "$PROJECT_ROOT/.env"
   set +a
+  set -u
 fi
 
 mkdir -p "$PROJECT_ROOT/docs/releases/daily" "$PROJECT_ROOT/docs/releases/weekly" "$PROJECT_ROOT/docs/releases/monthly" "$PROJECT_ROOT/logs"

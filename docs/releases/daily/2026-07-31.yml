@@ -1,0 +1,3408 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-31'
+generated_at: '2026-08-06T13:18:08+00:00'
+range:
+  since: '2026-07-31T00:00:00+00:00'
+  until: '2026-08-01T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 62
+  section_counts:
+    features: 3
+    bug_fixes: 33
+    improvements: 1
+    docs: 5
+    tests: 17
+    infrastructure: 1
+    internal: 1
+    other: 1
+  newsletter_ready_items: 0
+  user_facing_items: 27
+  dev_only_items: 62
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: align projects workspace home with workflows'
+    section: features
+    commits:
+    - b3c958d5f
+    authored_at: '2026-07-31T16:57:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.ts
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Open-Meteo notebook example chat'
+    section: features
+    commits:
+    - cfa2acdc4
+    authored_at: '2026-07-31T11:39:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/open-meteo-weather-notebook.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/open_meteo_weather_notebook.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add code notebook embeds'
+    section: features
+    commits:
+    - fe3b93a3a
+    authored_at: '2026-07-31T10:48:29+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/core/api/app/routes/code_notebook_execution.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/notebook_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/notebook_run_outputs.yml
+    - backend/shared/python_schemas/notebook_run_outputs.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_code_notebook_artifacts.py
+    - backend/tests/test_code_notebook_execution.py
+    - backend/tests/test_notebook_run_outputs.py
+    - docs/specs/code-notebook-embed/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/code/notebookContent.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/notebookRunOutputs.ts
+    - frontend/packages/ui/src/services/handlersNotebookRunOutputs.ts
+    - frontend/packages/ui/src/services/notebookRunService.ts
+    - frontend/packages/ui/src/services/sendersNotebookRunOutputs.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, embed:code:notebook'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: keep workflow home toolbar clickable on mobile'
+    section: bug_fixes
+    commits:
+    - b1133769d
+    authored_at: '2026-07-31T20:32:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve manual summaries after stale post-processing'
+    section: bug_fixes
+    commits:
+    - 73030ccb8
+    authored_at: '2026-07-31T18:41:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide broken chat settings header icon'
+    section: bug_fixes
+    commits:
+    - e1cd7107f
+    authored_at: '2026-07-31T18:36:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep chat settings header text white'
+    section: bug_fixes
+    commits:
+    - 29d6db214
+    authored_at: '2026-07-31T18:23:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore unversioned generated metadata overwrites'
+    section: bug_fixes
+    commits:
+    - b9312637a
+    authored_at: '2026-07-31T17:58:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: contain mobile map view filters'
+    section: bug_fixes
+    commits:
+    - 48502c397
+    authored_at: '2026-07-31T17:47:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tighten chat settings mobile parity'
+    section: bug_fixes
+    commits:
+    - 26d631dc7
+    authored_at: '2026-07-31T17:36:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/settings/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: default cloud overlay off in dev compose'
+    section: bug_fixes
+    commits:
+    - 545d2a1da
+    authored_at: '2026-07-31T17:34:54+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep guest input placeholder stable'
+    section: bug_fixes
+    commits:
+    - 54059099a
+    authored_at: '2026-07-31T17:29:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve cached metadata on phase sync ties'
+    section: bug_fixes
+    commits:
+    - dc0b6b5e7
+    authored_at: '2026-07-31T17:14:41+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restrict example notebook run bypass'
+    section: bug_fixes
+    commits:
+    - 995723bf1
+    authored_at: '2026-07-31T17:07:44+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_notebook_execution.py
+    - backend/tests/test_code_notebook_execution.py
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: delay mobile actionable compacting'
+    section: bug_fixes
+    commits:
+    - ce29f7100
+    authored_at: '2026-07-31T16:59:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: suppress completed failed-test groups'
+    section: bug_fixes
+    commits:
+    - a80fc5b63
+    authored_at: '2026-07-31T16:31:17+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preflight accounts for only-failed tests'
+    section: bug_fixes
+    commits:
+    - 31bd62c1d
+    authored_at: '2026-07-31T16:25:19+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow example notebook runs'
+    section: bug_fixes
+    commits:
+    - af6bd4b27
+    authored_at: '2026-07-31T16:17:24+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_notebook_execution.py
+    - backend/tests/test_code_notebook_execution.py
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:notebook'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix map view category filter menu behavior
+    section: bug_fixes
+    commits:
+    - 893103a5c
+    authored_at: '2026-07-31T16:08:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sequence landing actionable slide'
+    section: bug_fixes
+    commits:
+    - a70cfbbe0
+    authored_at: '2026-07-31T16:04:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align chat settings row surfaces'
+    section: bug_fixes
+    commits:
+    - ea32f79bb
+    authored_at: '2026-07-31T15:42:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: create notebook placeholders from notebook fences'
+    section: bug_fixes
+    commits:
+    - 94b9ab788
+    authored_at: '2026-07-31T15:17:38+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prepare source installs with locale JSON'
+    section: bug_fixes
+    commits:
+    - a909e1d24
+    authored_at: '2026-07-31T15:13:41+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/sourceInstallTranslations.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - pnpm-lock.yaml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist promoted notebook references'
+    section: bug_fixes
+    commits:
+    - ef2e57aa7
+    authored_at: '2026-07-31T15:10:49+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: rewrite promoted notebook references'
+    section: bug_fixes
+    commits:
+    - ee73c48fd
+    authored_at: '2026-07-31T15:05:40+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: steer notebook artifacts to percent cells'
+    section: bug_fixes
+    commits:
+    - d0c26bd8e
+    authored_at: '2026-07-31T14:57:41+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: extract notebook json before prose'
+    section: bug_fixes
+    commits:
+    - 6d0df0369
+    authored_at: '2026-07-31T14:53:36+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_notebook_artifacts.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize notebook fence payloads'
+    section: bug_fixes
+    commits:
+    - 92cb81218
+    authored_at: '2026-07-31T14:43:23+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_notebook_artifacts.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: interpolate workflow history labels'
+    section: bug_fixes
+    commits:
+    - c156ee8b7
+    authored_at: '2026-07-31T14:42:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden notebook preview rendering'
+    section: bug_fixes
+    commits:
+    - 1ba8eb267
+    authored_at: '2026-07-31T14:19:48+00:00'
+    changed_paths:
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_code_notebook_artifacts.py
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:notebook'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep notebook example SEO JSON-LD valid'
+    section: bug_fixes
+    commits:
+    - ce743f9e3
+    authored_at: '2026-07-31T11:55:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden bank transfer accounting backfill'
+    section: bug_fixes
+    commits:
+    - 9db268c16
+    authored_at: '2026-07-31T11:39:16+00:00'
+    changed_paths:
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: unblock notebook CLI chat generation'
+    section: bug_fixes
+    commits:
+    - 52b883f09
+    authored_at: '2026-07-31T11:28:37+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ack CLI chat sends directly'
+    section: bug_fixes
+    commits:
+    - 1bb6c6936
+    authored_at: '2026-07-31T11:05:11+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: force dev live mocks on'
+    section: bug_fixes
+    commits:
+    - cbd585ca7
+    authored_at: '2026-07-31T10:37:26+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep dev backend live mocks enabled'
+    section: bug_fixes
+    commits:
+    - 7fbda3353
+    authored_at: '2026-07-31T10:34:50+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: Improve map view filters and load performance
+    section: improvements
+    commits:
+    - '388008336'
+    authored_at: '2026-07-31T15:49:34+00:00'
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record income smoke blocker'
+    section: docs
+    commits:
+    - 37e09dbb6
+    authored_at: '2026-07-31T17:31:44+00:00'
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record cloud overlay boot evidence'
+    section: docs
+    commits:
+    - a986e2f10
+    authored_at: '2026-07-31T16:46:42+00:00'
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record self-host smoke evidence'
+    section: docs
+    commits:
+    - 9a25db61c
+    authored_at: '2026-07-31T15:53:53+00:00'
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record workflows v1 verification evidence'
+    section: docs
+    commits:
+    - 30a041f81
+    authored_at: '2026-07-31T15:37:27+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record notebook verification gates'
+    section: docs
+    commits:
+    - 3d94f9ea0
+    authored_at: '2026-07-31T13:26:44+00:00'
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: wait for workflow landing row hydration'
+    section: tests
+    commits:
+    - '293917134'
+    authored_at: '2026-07-31T20:42:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize project mention query input'
+    section: tests
+    commits:
+    - b54b4d833
+    authored_at: '2026-07-31T20:00:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use stable new chat context for project mentions'
+    section: tests
+    commits:
+    - 16d12d88a
+    authored_at: '2026-07-31T19:42:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: trigger project mention with keyboard events'
+    section: tests
+    commits:
+    - ba1e09515
+    authored_at: '2026-07-31T19:31:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid pii in project mention query'
+    section: tests
+    commits:
+    - ebeded53d
+    authored_at: '2026-07-31T19:20:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize project mention typing'
+    section: tests
+    commits:
+    - 5e28369b6
+    authored_at: '2026-07-31T19:09:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for auth panel before closing'
+    section: tests
+    commits:
+    - b49fa4c6f
+    authored_at: '2026-07-31T18:56:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reset signup state before project mention check'
+    section: tests
+    commits:
+    - 444611c05
+    authored_at: '2026-07-31T18:43:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: close login panel in project source spec'
+    section: tests
+    commits:
+    - 5c3cac2a3
+    authored_at: '2026-07-31T18:30:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use authenticated chat nav in project source spec'
+    section: tests
+    commits:
+    - 7435bf76f
+    authored_at: '2026-07-31T18:17:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve e2e route in project source spec'
+    section: tests
+    commits:
+    - ee8cc4691
+    authored_at: '2026-07-31T18:01:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize projects workspace specs'
+    section: tests
+    commits:
+    - f442d02e2
+    authored_at: '2026-07-31T17:20:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: target usage overview rows'
+    section: tests
+    commits:
+    - 29ff10db1
+    authored_at: '2026-07-31T16:51:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update notebook example assertions'
+    section: tests
+    commits:
+    - 9eaab5227
+    authored_at: '2026-07-31T16:35:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: relax notebook fullscreen title assertion'
+    section: tests
+    commits:
+    - 4b18d0363
+    authored_at: '2026-07-31T13:04:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add notebook flow spec'
+    section: tests
+    commits:
+    - d77786a20
+    authored_at: '2026-07-31T12:45:58+00:00'
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: embed:code:notebook'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover notebook content catalog'
+    section: tests
+    commits:
+    - eccd21c5b
+    authored_at: '2026-07-31T12:38:08+00:00'
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/__tests__/notebookContent.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: deploy approved dirty worktree'
+    section: infrastructure
+    commits:
+    - aa6abd786
+    authored_at: '2026-07-31T14:15:18+00:00'
+    changed_paths:
+    - .agents/skills/figma-reference/SKILL.md
+    - .claude/agents/code-reviewer.md
+    - .claude/hooks/skill-embed-registry-guard.sh
+    - .claude/settings.json
+    - .claude/skills/figma-reference/SKILL.md
+    - .codex/agents/code-reviewer.toml
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/agents/code-reviewer.md
+    - AGENTS.md
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/core/api/main.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    - backend/tests/test_workflow_input_sessions.py
+    - backend/tests/test_workflows_models.py
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/contributing/guides/figma-to-code.md
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    - docs/specs/chat-settings-redesign/spec.yml
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsLocationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - opencode.json
+    - scripts/README.md
+    - scripts/audit_agent_tooling_parity.py
+    - scripts/audit_figma_visual_evidence.py
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/audit_skill_embed_registry.py
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/code_quality_guard.py
+    - scripts/figma_access_doctor.py
+    - scripts/finance/eks_calculator.py
+    - scripts/finance/eks_pdf.py
+    - scripts/finance/requirements.txt
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_eks_calculator.py
+    - scripts/tests/test_figma_access_doctor.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_skill_embed_registry_worktree_paths.py
+    - scripts/tests/test_workflow_guard_audits.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:maps:location
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: app:ai, embed:code:notebook, embed:maps:location, embed:maps:search, platform:tasks,
+      platform:teams, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Record map view filter verification evidence
+    section: internal
+    commits:
+    - 492f98418
+    authored_at: '2026-07-31T16:29:09+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    - docs/specs/embeds-map-view/spec.yml
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: 'update: regenerate notebook example chat'
+    section: other
+    commits:
+    - 9b566a1db
+    authored_at: '2026-07-31T15:29:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/open-meteo-weather-notebook.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/open_meteo_weather_notebook.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'test: wait for workflow landing row hydration'
+    commits:
+    - '293917134'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: keep workflow home toolbar clickable on mobile'
+    commits:
+    - b1133769d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: stabilize project mention query input'
+    commits:
+    - b54b4d833
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use stable new chat context for project mentions'
+    commits:
+    - 16d12d88a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: trigger project mention with keyboard events'
+    commits:
+    - ba1e09515
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: avoid pii in project mention query'
+    commits:
+    - ebeded53d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize project mention typing'
+    commits:
+    - 5e28369b6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for auth panel before closing'
+    commits:
+    - b49fa4c6f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reset signup state before project mention check'
+    commits:
+    - 444611c05
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve manual summaries after stale post-processing'
+    commits:
+    - 73030ccb8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hide broken chat settings header icon'
+    commits:
+    - e1cd7107f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: close login panel in project source spec'
+    commits:
+    - 5c3cac2a3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep chat settings header text white'
+    commits:
+    - 29d6db214
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: use authenticated chat nav in project source spec'
+    commits:
+    - 7435bf76f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: preserve e2e route in project source spec'
+    commits:
+    - ee8cc4691
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: ignore unversioned generated metadata overwrites'
+    commits:
+    - b9312637a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: contain mobile map view filters'
+    commits:
+    - 48502c397
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: tighten chat settings mobile parity'
+    commits:
+    - 26d631dc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: default cloud overlay off in dev compose'
+    commits:
+    - 545d2a1da
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record income smoke blocker'
+    commits:
+    - 37e09dbb6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep guest input placeholder stable'
+    commits:
+    - 54059099a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize projects workspace specs'
+    commits:
+    - f442d02e2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve cached metadata on phase sync ties'
+    commits:
+    - dc0b6b5e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restrict example notebook run bypass'
+    commits:
+    - 995723bf1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: delay mobile actionable compacting'
+    commits:
+    - ce29f7100
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: align projects workspace home with workflows'
+    commits:
+    - b3c958d5f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: target usage overview rows'
+    commits:
+    - 29ff10db1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record cloud overlay boot evidence'
+    commits:
+    - a986e2f10
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: update notebook example assertions'
+    commits:
+    - 9eaab5227
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: suppress completed failed-test groups'
+    commits:
+    - a80fc5b63
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Record map view filter verification evidence
+    commits:
+    - 492f98418
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preflight accounts for only-failed tests'
+    commits:
+    - 31bd62c1d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow example notebook runs'
+    commits:
+    - af6bd4b27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: Fix map view category filter menu behavior
+    commits:
+    - 893103a5c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: sequence landing actionable slide'
+    commits:
+    - a70cfbbe0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record self-host smoke evidence'
+    commits:
+    - 9a25db61c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Improve map view filters and load performance
+    commits:
+    - '388008336'
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align chat settings row surfaces'
+    commits:
+    - ea32f79bb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record workflows v1 verification evidence'
+    commits:
+    - 30a041f81
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'update: regenerate notebook example chat'
+    commits:
+    - 9b566a1db
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: create notebook placeholders from notebook fences'
+    commits:
+    - 94b9ab788
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: prepare source installs with locale JSON'
+    commits:
+    - a909e1d24
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist promoted notebook references'
+    commits:
+    - ef2e57aa7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: rewrite promoted notebook references'
+    commits:
+    - ee73c48fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: steer notebook artifacts to percent cells'
+    commits:
+    - d0c26bd8e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: extract notebook json before prose'
+    commits:
+    - 6d0df0369
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: normalize notebook fence payloads'
+    commits:
+    - 92cb81218
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: interpolate workflow history labels'
+    commits:
+    - c156ee8b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: harden notebook preview rendering'
+    commits:
+    - 1ba8eb267
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'chore: deploy approved dirty worktree'
+    commits:
+    - aa6abd786
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:maps:location
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: record notebook verification gates'
+    commits:
+    - 3d94f9ea0
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: relax notebook fullscreen title assertion'
+    commits:
+    - 4b18d0363
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add notebook flow spec'
+    commits:
+    - d77786a20
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'test: cover notebook content catalog'
+    commits:
+    - eccd21c5b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep notebook example SEO JSON-LD valid'
+    commits:
+    - ce743f9e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Open-Meteo notebook example chat'
+    commits:
+    - cfa2acdc4
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden bank transfer accounting backfill'
+    commits:
+    - 9db268c16
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: unblock notebook CLI chat generation'
+    commits:
+    - 52b883f09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: ack CLI chat sends directly'
+    commits:
+    - 1bb6c6936
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add code notebook embeds'
+    commits:
+    - fe3b93a3a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix: force dev live mocks on'
+    commits:
+    - cbd585ca7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep dev backend live mocks enabled'
+    commits:
+    - 7fbda3353
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: ignore unversioned generated metadata overwrites'
+    commits:
+    - b9312637a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add code notebook embeds'
+    commits:
+    - fe3b93a3a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: keep workflow home toolbar clickable on mobile'
+    commits:
+    - b1133769d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: hide broken chat settings header icon'
+    commits:
+    - e1cd7107f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep chat settings header text white'
+    commits:
+    - 29d6db214
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: ignore unversioned generated metadata overwrites'
+    commits:
+    - b9312637a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: contain mobile map view filters'
+    commits:
+    - 48502c397
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: tighten chat settings mobile parity'
+    commits:
+    - 26d631dc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep guest input placeholder stable'
+    commits:
+    - 54059099a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve cached metadata on phase sync ties'
+    commits:
+    - dc0b6b5e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restrict example notebook run bypass'
+    commits:
+    - 995723bf1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: delay mobile actionable compacting'
+    commits:
+    - ce29f7100
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: align projects workspace home with workflows'
+    commits:
+    - b3c958d5f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: allow example notebook runs'
+    commits:
+    - af6bd4b27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: Fix map view category filter menu behavior
+    commits:
+    - 893103a5c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sequence landing actionable slide'
+    commits:
+    - a70cfbbe0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Improve map view filters and load performance
+    commits:
+    - '388008336'
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align chat settings row surfaces'
+    commits:
+    - ea32f79bb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: create notebook placeholders from notebook fences'
+    commits:
+    - 94b9ab788
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: prepare source installs with locale JSON'
+    commits:
+    - a909e1d24
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: persist promoted notebook references'
+    commits:
+    - ef2e57aa7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: rewrite promoted notebook references'
+    commits:
+    - ee73c48fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: steer notebook artifacts to percent cells'
+    commits:
+    - d0c26bd8e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: interpolate workflow history labels'
+    commits:
+    - c156ee8b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: harden notebook preview rendering'
+    commits:
+    - 1ba8eb267
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep notebook example SEO JSON-LD valid'
+    commits:
+    - ce743f9e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: unblock notebook CLI chat generation'
+    commits:
+    - 52b883f09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: ack CLI chat sends directly'
+    commits:
+    - 1bb6c6936
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add code notebook embeds'
+    commits:
+    - fe3b93a3a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:notebook
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 293917134a6928821dcfcac1e43ac05ffc7dd0a0
+    short_sha: '293917134'
+    authored_at: '2026-07-31T20:42:57+00:00'
+    subject: 'test: wait for workflow landing row hydration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: b1133769da2bb5140963b90e0856375103f7237e
+    short_sha: b1133769d
+    authored_at: '2026-07-31T20:32:36+00:00'
+    subject: 'fix: keep workflow home toolbar clickable on mobile'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: b54b4d833087d90097da1ed158d49b1c1f1bef03
+    short_sha: b54b4d833
+    authored_at: '2026-07-31T20:00:47+00:00'
+    subject: 'test: stabilize project mention query input'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 16d12d88aecc80135fa7ff04c9ac8ad7e95d88e9
+    short_sha: 16d12d88a
+    authored_at: '2026-07-31T19:42:58+00:00'
+    subject: 'test: use stable new chat context for project mentions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: ba1e0951549f4858e9d76e13007a62fb9a4df81e
+    short_sha: ba1e09515
+    authored_at: '2026-07-31T19:31:36+00:00'
+    subject: 'test: trigger project mention with keyboard events'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: ebeded53d7087f00ce4fc0c8bcb4371ad022bc66
+    short_sha: ebeded53d
+    authored_at: '2026-07-31T19:20:28+00:00'
+    subject: 'test: avoid pii in project mention query'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 5e28369b6a219093c9467c8e8cbd7df1e7708e20
+    short_sha: 5e28369b6
+    authored_at: '2026-07-31T19:09:31+00:00'
+    subject: 'test: stabilize project mention typing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: b49fa4c6f40b46a01cb90012913828cbf09e65a3
+    short_sha: b49fa4c6f
+    authored_at: '2026-07-31T18:56:53+00:00'
+    subject: 'test: wait for auth panel before closing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 444611c05ec45d46ed44204b97c045c17b8338d6
+    short_sha: 444611c05
+    authored_at: '2026-07-31T18:43:06+00:00'
+    subject: 'test: reset signup state before project mention check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 73030ccb80ff91f5a18335174e1d49450c228324
+    short_sha: 73030ccb8
+    authored_at: '2026-07-31T18:41:47+00:00'
+    subject: 'fix: preserve manual summaries after stale post-processing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: e1cd7107fade4382736209d3e5d9ed54d869452f
+    short_sha: e1cd7107f
+    authored_at: '2026-07-31T18:36:13+00:00'
+    subject: 'fix: hide broken chat settings header icon'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    related_feature_ids: []
+  - sha: 5c3cac2a396e56095470ac9389ade9bf6ee6bc46
+    short_sha: 5c3cac2a3
+    authored_at: '2026-07-31T18:30:53+00:00'
+    subject: 'test: close login panel in project source spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 29d6db214ad090e06a9a773a027575542a53a042
+    short_sha: 29d6db214
+    authored_at: '2026-07-31T18:23:47+00:00'
+    subject: 'fix: keep chat settings header text white'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    related_feature_ids: []
+  - sha: 7435bf76fe366e20bead63aa9fd96b2455fa22d4
+    short_sha: 7435bf76f
+    authored_at: '2026-07-31T18:17:53+00:00'
+    subject: 'test: use authenticated chat nav in project source spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: ee8cc46918aa5fd2d66974b3f35bba943c4a2f4f
+    short_sha: ee8cc4691
+    authored_at: '2026-07-31T18:01:33+00:00'
+    subject: 'test: preserve e2e route in project source spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: b9312637a8983172837345f4576b74740fe819f4
+    short_sha: b9312637a
+    authored_at: '2026-07-31T17:58:56+00:00'
+    subject: 'fix: ignore unversioned generated metadata overwrites'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    related_feature_ids: []
+  - sha: 48502c397684d5e0f4941a069545f9505d970d5c
+    short_sha: 48502c397
+    authored_at: '2026-07-31T17:47:22+00:00'
+    subject: 'fix: contain mobile map view filters'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: 26d631dc7fb08828a9612ac278fb55ade3b1281a
+    short_sha: 26d631dc7
+    authored_at: '2026-07-31T17:36:53+00:00'
+    subject: 'fix: tighten chat settings mobile parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/settings/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    related_feature_ids: []
+  - sha: 545d2a1da4f7f147c1a9eccd812fe64310db7ca1
+    short_sha: 545d2a1da
+    authored_at: '2026-07-31T17:34:54+00:00'
+    subject: 'fix: default cloud overlay off in dev compose'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    related_feature_ids: []
+  - sha: 37e09dbb6a5249603eaea421df0453459a945ff6
+    short_sha: 37e09dbb6
+    authored_at: '2026-07-31T17:31:44+00:00'
+    subject: 'docs: record income smoke blocker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    related_feature_ids: []
+  - sha: 54059099aa0d577bdf986f62529196ab66c1f11f
+    short_sha: 54059099a
+    authored_at: '2026-07-31T17:29:27+00:00'
+    subject: 'fix: keep guest input placeholder stable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: f442d02e2cd345b0c12f583158d52019837eb954
+    short_sha: f442d02e2
+    authored_at: '2026-07-31T17:20:14+00:00'
+    subject: 'test: stabilize projects workspace specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: dc0b6b5e79a71c75896c990be9fefe5fb52c4a0b
+    short_sha: dc0b6b5e7
+    authored_at: '2026-07-31T17:14:41+00:00'
+    subject: 'fix: preserve cached metadata on phase sync ties'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 995723bf1a7c90fca35e250f4fcfb7015d493a85
+    short_sha: 995723bf1
+    authored_at: '2026-07-31T17:07:44+00:00'
+    subject: 'fix: restrict example notebook run bypass'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_notebook_execution.py
+    - backend/tests/test_code_notebook_execution.py
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    related_feature_ids: []
+  - sha: ce29f7100c26005eec3eb116f548c41976f519cb
+    short_sha: ce29f7100
+    authored_at: '2026-07-31T16:59:15+00:00'
+    subject: 'fix: delay mobile actionable compacting'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: b3c958d5f33fcad72f9dbf9a38595e42cc1d3a15
+    short_sha: b3c958d5f
+    authored_at: '2026-07-31T16:57:58+00:00'
+    subject: 'feat: align projects workspace home with workflows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.ts
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    related_feature_ids:
+    - platform:projects
+    - platform:workflows
+  - sha: 29ff10db11a646364b89f1b46edcf97b3cd6fcf0
+    short_sha: 29ff10db1
+    authored_at: '2026-07-31T16:51:15+00:00'
+    subject: 'test: target usage overview rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    related_feature_ids: []
+  - sha: a986e2f10b1a837eb9ec394dfb19502b4cc63184
+    short_sha: a986e2f10
+    authored_at: '2026-07-31T16:46:42+00:00'
+    subject: 'docs: record cloud overlay boot evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    related_feature_ids: []
+  - sha: 9eaab522705792274da3f03bc8e87d26e07a16c7
+    short_sha: 9eaab5227
+    authored_at: '2026-07-31T16:35:50+00:00'
+    subject: 'test: update notebook example assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    related_feature_ids: []
+  - sha: a80fc5b6332145e0ee62f2bd496349e83488951f
+    short_sha: a80fc5b63
+    authored_at: '2026-07-31T16:31:17+00:00'
+    subject: 'fix: suppress completed failed-test groups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 492f984180ddfe6802ae822d9f8de79907c307a9
+    short_sha: 492f98418
+    authored_at: '2026-07-31T16:29:09+00:00'
+    subject: Record map view filter verification evidence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    - docs/specs/embeds-map-view/spec.yml
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    related_feature_ids: []
+  - sha: 31bd62c1d39a3ffb7e1846076988a9aa4b368e78
+    short_sha: 31bd62c1d
+    authored_at: '2026-07-31T16:25:19+00:00'
+    subject: 'fix: preflight accounts for only-failed tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: af6bd4b275ff4092b6e5a03457562b2d7c569618
+    short_sha: af6bd4b27
+    authored_at: '2026-07-31T16:17:24+00:00'
+    subject: 'fix: allow example notebook runs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_notebook_execution.py
+    - backend/tests/test_code_notebook_execution.py
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    related_feature_ids:
+    - embed:code:notebook
+  - sha: 893103a5c151dd57d277f453f232eb6a8a0e03a0
+    short_sha: 893103a5c
+    authored_at: '2026-07-31T16:08:58+00:00'
+    subject: Fix map view category filter menu behavior
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: a70cfbbe0aefc49cb24d15fae5f0179b3ff99a0c
+    short_sha: a70cfbbe0
+    authored_at: '2026-07-31T16:04:09+00:00'
+    subject: 'fix: sequence landing actionable slide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    related_feature_ids: []
+  - sha: 9a25db61cd85b1bca0bc8574758ca8a13ebb96ae
+    short_sha: 9a25db61c
+    authored_at: '2026-07-31T15:53:53+00:00'
+    subject: 'docs: record self-host smoke evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    related_feature_ids: []
+  - sha: 3880083362af86857a5816d9e6341d054696be01
+    short_sha: '388008336'
+    authored_at: '2026-07-31T15:49:34+00:00'
+    subject: Improve map view filters and load performance
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: ea32f79bb28e196a0cba2267e79579a04abf3858
+    short_sha: ea32f79bb
+    authored_at: '2026-07-31T15:42:23+00:00'
+    subject: 'fix: align chat settings row surfaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    related_feature_ids: []
+  - sha: 30a041f8176e29ac63bde47bdfb19b005d7db986
+    short_sha: 30a041f81
+    authored_at: '2026-07-31T15:37:27+00:00'
+    subject: 'docs: record workflows v1 verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    related_feature_ids: []
+  - sha: 9b566a1dbfb0b0625b671236288f2de530592590
+    short_sha: 9b566a1db
+    authored_at: '2026-07-31T15:29:36+00:00'
+    subject: 'update: regenerate notebook example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/open-meteo-weather-notebook.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/open_meteo_weather_notebook.yml
+    related_feature_ids: []
+  - sha: 94b9ab788dd0be01387cd557b1c3d26dabb23a35
+    short_sha: 94b9ab788
+    authored_at: '2026-07-31T15:17:38+00:00'
+    subject: 'fix: create notebook placeholders from notebook fences'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    related_feature_ids:
+    - app:ai
+  - sha: a909e1d240e937d6052cab744a003767634f5c4b
+    short_sha: a909e1d24
+    authored_at: '2026-07-31T15:13:41+00:00'
+    subject: 'fix: prepare source installs with locale JSON'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/sourceInstallTranslations.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: ef2e57aa711a38979d6a6a7703689a9a0b0fd57f
+    short_sha: ef2e57aa7
+    authored_at: '2026-07-31T15:10:49+00:00'
+    subject: 'fix: persist promoted notebook references'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    related_feature_ids:
+    - app:ai
+  - sha: ee73c48fd853c1c1bbc652d5fa0ceb01a6985e95
+    short_sha: ee73c48fd
+    authored_at: '2026-07-31T15:05:40+00:00'
+    subject: 'fix: rewrite promoted notebook references'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    related_feature_ids:
+    - app:ai
+  - sha: d0c26bd8ef3750af6e5b111d5c6a05ff6b45f13e
+    short_sha: d0c26bd8e
+    authored_at: '2026-07-31T14:57:41+00:00'
+    subject: 'fix: steer notebook artifacts to percent cells'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    related_feature_ids:
+    - app:ai
+  - sha: 6d0df03690dfec2f11203efd10493ebe66171205
+    short_sha: 6d0df0369
+    authored_at: '2026-07-31T14:53:36+00:00'
+    subject: 'fix: extract notebook json before prose'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_notebook_artifacts.py
+    related_feature_ids: []
+  - sha: 92cb81218fe5e12b13570f802a4a3c33a1a76285
+    short_sha: 92cb81218
+    authored_at: '2026-07-31T14:43:23+00:00'
+    subject: 'fix: normalize notebook fence payloads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_notebook_artifacts.py
+    related_feature_ids: []
+  - sha: c156ee8b7380407b8b3ea892a692b926fe4460d9
+    short_sha: c156ee8b7
+    authored_at: '2026-07-31T14:42:48+00:00'
+    subject: 'fix: interpolate workflow history labels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    related_feature_ids: []
+  - sha: 1ba8eb267717a68b2aecac5ea0d002d8c4fb590b
+    short_sha: 1ba8eb267
+    authored_at: '2026-07-31T14:19:48+00:00'
+    subject: 'fix: harden notebook preview rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_code_notebook_artifacts.py
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    related_feature_ids:
+    - embed:code:notebook
+  - sha: aa6abd786a8288e92a405cabe5e3815c7ef48532
+    short_sha: aa6abd786
+    authored_at: '2026-07-31T14:15:18+00:00'
+    subject: 'chore: deploy approved dirty worktree'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/figma-reference/SKILL.md
+    - .claude/agents/code-reviewer.md
+    - .claude/hooks/skill-embed-registry-guard.sh
+    - .claude/settings.json
+    - .claude/skills/figma-reference/SKILL.md
+    - .codex/agents/code-reviewer.toml
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/agents/code-reviewer.md
+    - AGENTS.md
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/core/api/main.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    - backend/tests/test_workflow_input_sessions.py
+    - backend/tests/test_workflows_models.py
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    - docs/contributing/guides/figma-to-code.md
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    - docs/specs/chat-settings-redesign/spec.yml
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/SettingsItem.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsLocationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - opencode.json
+    - scripts/README.md
+    - scripts/audit_agent_tooling_parity.py
+    - scripts/audit_figma_visual_evidence.py
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/audit_skill_embed_registry.py
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/code_quality_guard.py
+    - scripts/figma_access_doctor.py
+    - scripts/finance/eks_calculator.py
+    - scripts/finance/eks_pdf.py
+    - scripts/finance/requirements.txt
+    - scripts/tests/test_agent_tooling_parity_audit.py
+    - scripts/tests/test_eks_calculator.py
+    - scripts/tests/test_figma_access_doctor.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_skill_embed_registry_worktree_paths.py
+    - scripts/tests/test_workflow_guard_audits.py
+    related_feature_ids:
+    - app:ai
+    - embed:code:notebook
+    - embed:maps:location
+    - embed:maps:search
+    - platform:tasks
+    - platform:teams
+    - platform:workflows
+  - sha: 3d94f9ea0a42d51b47062de45a003682eec2ecf2
+    short_sha: 3d94f9ea0
+    authored_at: '2026-07-31T13:26:44+00:00'
+    subject: 'docs: record notebook verification gates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    related_feature_ids: []
+  - sha: 4b18d0363e64adbac242009a2a760298713c520e
+    short_sha: 4b18d0363
+    authored_at: '2026-07-31T13:04:56+00:00'
+    subject: 'test: relax notebook fullscreen title assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    related_feature_ids: []
+  - sha: d77786a2020e33edc511901d3dce4ad9bbd084b2
+    short_sha: d77786a20
+    authored_at: '2026-07-31T12:45:58+00:00'
+    subject: 'test: add notebook flow spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    related_feature_ids:
+    - embed:code:notebook
+  - sha: eccd21c5bfe38dfd465791c8f6a40716ff9e4bdf
+    short_sha: eccd21c5b
+    authored_at: '2026-07-31T12:38:08+00:00'
+    subject: 'test: cover notebook content catalog'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/__tests__/notebookContent.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    related_feature_ids: []
+  - sha: ce743f9e3007be1f837f27da1d28194044757d70
+    short_sha: ce743f9e3
+    authored_at: '2026-07-31T11:55:39+00:00'
+    subject: 'fix: keep notebook example SEO JSON-LD valid'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    related_feature_ids: []
+  - sha: cfa2acdc441632427b80d46f38ee92a4deac3203
+    short_sha: cfa2acdc4
+    authored_at: '2026-07-31T11:39:46+00:00'
+    subject: 'feat: add Open-Meteo notebook example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/open-meteo-weather-notebook.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/open_meteo_weather_notebook.yml
+    related_feature_ids: []
+  - sha: 9db268c1677dade6900b2ef22a7b66508d63cd58
+    short_sha: 9db268c16
+    authored_at: '2026-07-31T11:39:16+00:00'
+    subject: 'fix: harden bank transfer accounting backfill'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/tests/test_invoice_reconciliation_script.py
+    - docs/specs/billing-processing-incident-2026-07/spec.yml
+    related_feature_ids: []
+  - sha: 52b883f093299afa008c4dfc9dec20dd7d6226d7
+    short_sha: 52b883f09
+    authored_at: '2026-07-31T11:28:37+00:00'
+    subject: 'fix: unblock notebook CLI chat generation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 1bb6c693647188fd1ed14cb123cfeb8ebd83d87b
+    short_sha: 1bb6c6936
+    authored_at: '2026-07-31T11:05:11+00:00'
+    subject: 'fix: ack CLI chat sends directly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    related_feature_ids: []
+  - sha: fe3b93a3a0e2286c5013dcea0eb23d07d6ebce20
+    short_sha: fe3b93a3a
+    authored_at: '2026-07-31T10:48:29+00:00'
+    subject: 'feat: add code notebook embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/core/api/app/routes/code_notebook_execution.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/notebook_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/notebook_run_outputs.yml
+    - backend/shared/python_schemas/notebook_run_outputs.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_code_notebook_artifacts.py
+    - backend/tests/test_code_notebook_execution.py
+    - backend/tests/test_notebook_run_outputs.py
+    - docs/specs/code-notebook-embed/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/code/notebookContent.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/notebookRunOutputs.ts
+    - frontend/packages/ui/src/services/handlersNotebookRunOutputs.ts
+    - frontend/packages/ui/src/services/notebookRunService.ts
+    - frontend/packages/ui/src/services/sendersNotebookRunOutputs.ts
+    related_feature_ids:
+    - app:code
+    - embed:code:notebook
+  - sha: cbd585ca7627c0add655356b2a6b20343e689002
+    short_sha: cbd585ca7
+    authored_at: '2026-07-31T10:37:26+00:00'
+    subject: 'fix: force dev live mocks on'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    related_feature_ids: []
+  - sha: 7fbda3353f6f7312f74f20abc5a1b642cc30e244
+    short_sha: 7fbda3353
+    authored_at: '2026-07-31T10:34:50+00:00'
+    subject: 'fix: keep dev backend live mocks enabled'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on the initial development of Code Notebook embeds and extensive UI refinements for mobile chat
+    settings and map views. Significant work was also completed to stabilize workspace testing and align project management
+    interfaces.
+  released_changes: []
+  bug_fixes:
+  - text: The chat settings interface received several mobile parity fixes, including corrected header icon visibility, white
+      text color consistency, and aligned row surfaces.
+    evidence:
+      commits:
+      - e1cd7107f
+      - 29d6db214
+      - 26d631dc7
+      - ea32f79bb
+    release_status: dev_only
+  - text: Map view components were updated to contain filters properly on mobile devices and fix category filter menu behavior.
+    evidence:
+      commits:
+      - 48502c397
+      - 893103a5c
+    release_status: dev_only
+  - text: AI and synchronization logic was hardened to prevent unversioned metadata overwrites, preserve manual summaries
+      during post-processing, and maintain cached metadata during sync ties.
+    evidence:
+      commits:
+      - b9312637a
+      - 73030ccb8
+      - dc0b6b5e7
+    release_status: dev_only
+  - text: UI stability was improved for guest input placeholders and the sequencing of actionable slides on the landing page.
+    evidence:
+      commits:
+      - 54059099a
+      - ce29f7100
+      - a70cfbbe0
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development began on Code Notebook embeds, featuring support for execution outputs, notebook fence placeholders,
+      and CLI chat generation.
+    evidence:
+      commits:
+      - fe3b93a3a
+      - af6bd4b27
+      - 94b9ab788
+      - 1ba8eb267
+      - 52b883f09
+      - cfa2acdc4
+    release_status: dev_only
+  - text: The projects and workflows workspaces are being aligned, including home screen UI updates and mobile accessibility
+      fixes for toolbars.
+    evidence:
+      commits:
+      - b3c958d5f
+      - b1133769d
+      - c156ee8b7
+      - '293917134'
+    release_status: dev_only
+  - text: Map view performance was improved alongside refined filter logic.
+    evidence:
+      commits:
+      - '388008336'
+    release_status: dev_only
+  - text: The OpenMates CLI was updated to better handle source installations with locale JSON and direct message acknowledgments.
+    evidence:
+      commits:
+      - a909e1d24
+      - 1bb6c6936
+    release_status: dev_only
+  internal_progress:
+  - text: Significant effort was directed toward stabilizing end-to-end tests for project mentions, remote sources, and workspace
+      navigation.
+    evidence:
+      commits:
+      - b54b4d833
+      - 16d12d88a
+      - ba1e09515
+      - ebeded53d
+      - 5e28369b6
+      - b49fa4c6f
+      - 444611c05
+      - 5c3cac2a3
+      - 7435bf76f
+      - ee8cc4691
+      - f442d02e2
+    release_status: dev_only
+  - text: Documentation was updated to record verification evidence for workflows, code notebooks, and the cloud billing overlay.
+    evidence:
+      commits:
+      - 37e09dbb6
+      - a986e2f10
+      - 9a25db61c
+      - 30a041f81
+      - 3d94f9ea0
+    release_status: dev_only
+  - text: Development infrastructure was refined by improving test runner preflights for failed tests and ensuring live mocks
+      remain enabled in dev environments.
+    evidence:
+      commits:
+      - a80fc5b63
+      - 31bd62c1d
+      - cbd585ca7
+      - 7fbda3353
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Code notebook embeds
+      evidence:
+        commits:
+        - fe3b93a3a
+      reason: Feature is currently dev_only and not merged to main.
+    - text: Projects workspace alignment
+      evidence:
+        commits:
+        - b3c958d5f
+      reason: Feature is gated behind a disabled platform flag and is dev_only.
+    rationale: No items are eligible for the newsletter as all commits from this period are in development branches (dev_only)
+      and have not been merged to the main branch.
+  social_video_recommendations:
+  - idea: Demonstrate the new Code Notebook embeds executing Python and rendering outputs directly within a chat.
+    priority: medium
+    reason: This is a highly visual feature that expands the utility of the platform for technical users, though it remains
+      in development.
+    evidence:
+      commits:
+      - fe3b93a3a
+      - af6bd4b27
+      - 1ba8eb267
+  quality_notes:
+  - A high ratio of bug fixes (33) and tests (17) relative to new features (3) indicates a strong focus on product stability
+    and mobile parity.
+  - Extensive test coverage was added for new notebook components and project mention workflows.
+  validation_warnings: []

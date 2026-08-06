@@ -1,0 +1,2668 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-02'
+generated_at: '2026-08-06T13:19:02+00:00'
+range:
+  since: '2026-08-02T00:00:00+00:00'
+  until: '2026-08-03T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 43
+  section_counts:
+    features: 2
+    bug_fixes: 20
+    improvements: 0
+    docs: 6
+    tests: 15
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 19
+  dev_only_items: 43
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add live project source browsing'
+    section: features
+    commits:
+    - 328c22cb3
+    authored_at: '2026-08-02T22:09:52+00:00'
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - docs/user-guide/cli/remote-access.md
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/src/webviewHtml.ts
+    - frontend/apps/vscode_extension/tests/webview.test.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteAccessCrypto.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/audit_cli_remote_access_docs.py
+    - scripts/audit_cli_remote_access_privacy.py
+    - scripts/project_remote_access_live.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add encrypted project remote access bridge'
+    section: features
+    commits:
+    - 107e1d9c0
+    authored_at: '2026-08-02T21:09:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/project_remote_access_service.py
+    - backend/tests/test_project_remote_access_bridge.py
+    - docs/specs/cli-remote-access-live-bridge/spec.yml
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/remoteAccessCrypto.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
+    - scripts/project_remote_access_live.mjs
+    - scripts/verify_project_remote_access_api.py
+    - scripts/verify_project_remote_access_cli.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: search remote sources without ripgrep'
+    section: bug_fixes
+    commits:
+    - 9ddb69e2e
+    authored_at: '2026-08-02T23:15:15+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep landing app rail continuous'
+    section: bug_fixes
+    commits:
+    - 4f270444a
+    authored_at: '2026-08-02T22:48:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: smooth landing intro app switches'
+    section: bug_fixes
+    commits:
+    - acf0b5cb8
+    authored_at: '2026-08-02T22:36:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prune stale blocked deploy records'
+    section: bug_fixes
+    commits:
+    - 2ad09742c
+    authored_at: '2026-08-02T20:13:39+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden session worktree lifecycle'
+    section: bug_fixes
+    commits:
+    - f2a01e74f
+    authored_at: '2026-08-02T20:09:15+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve worktree session errors'
+    section: bug_fixes
+    commits:
+    - d26209a53
+    authored_at: '2026-08-02T19:29:29+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fit mobile landing actionable message'
+    section: bug_fixes
+    commits:
+    - 2871afd34
+    authored_at: '2026-08-02T15:54:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: slow landing intro primary rail'
+    section: bug_fixes
+    commits:
+    - 79cf9acf8
+    authored_at: '2026-08-02T15:28:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep mobile landing demo inside banner'
+    section: bug_fixes
+    commits:
+    - 9f488e7ac
+    authored_at: '2026-08-02T15:17:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align mobile landing actionable slide'
+    section: bug_fixes
+    commits:
+    - e5cefe805
+    authored_at: '2026-08-02T14:56:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cover scheduled map embeds in result views'
+    section: bug_fixes
+    commits:
+    - '372228003'
+    authored_at: '2026-08-02T14:54:26+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, embed:fitness:search_classes, embed:fitness:search_locations, embed:health:search_appointments,
+      embed:travel:search_stays'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cover scheduled map embeds in result views'
+    section: bug_fixes
+    commits:
+    - 573aeb887
+    authored_at: '2026-08-02T14:40:13+00:00'
+    changed_paths:
+    - .agents/skills/figma-reference/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/rules/frontend.md
+    - .claude/rules/testing.md
+    - .claude/skills/figma-reference/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/hooks/skill-embed-registry-guard.sh
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/figma-to-code.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - frontend/apps/web_app/scripts/visual-smoke.mjs
+    - scripts/audit_figma_visual_evidence.py
+    - scripts/code_quality_guard.py
+    - scripts/sessions.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_sessions_visual_smoke_gate.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_spec_workflow_validation.py
+    - scripts/tests/test_workflow_guard_audits.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep landing intro rail moving'
+    section: bug_fixes
+    commits:
+    - 86b064130
+    authored_at: '2026-08-02T14:27:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show known web search result counts'
+    section: bug_fixes
+    commits:
+    - e38eee80f
+    authored_at: '2026-08-02T13:35:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize issue reports and map view refs'
+    section: bug_fixes
+    commits:
+    - 05786cf45
+    authored_at: '2026-08-02T13:24:50+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsButton.svelte
+    - frontend/packages/ui/src/services/debugUtils.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve travel transfer station coordinates'
+    section: bug_fixes
+    commits:
+    - 7e87b59fc
+    authored_at: '2026-08-02T13:14:39+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sync landing intro app rail highlights'
+    section: bug_fixes
+    commits:
+    - d2e3fb95c
+    authored_at: '2026-08-02T12:59:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid invalid travel amenity requests'
+    section: bug_fixes
+    commits:
+    - 25741dd50
+    authored_at: '2026-08-02T12:43:23+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize travel transfer enrichment'
+    section: bug_fixes
+    commits:
+    - e9228402e
+    authored_at: '2026-08-02T12:40:38+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve embed preview result counts'
+    section: bug_fixes
+    commits:
+    - 14579129c
+    authored_at: '2026-08-02T12:34:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record remote access verification'
+    section: docs
+    commits:
+    - ec62f195a
+    authored_at: '2026-08-02T23:30:48+00:00'
+    changed_paths:
+    - docs/specs/cli-remote-access-live-bridge/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: authorize deployed Playwright verification'
+    section: docs
+    commits:
+    - 0bbaa0c25
+    authored_at: '2026-08-02T16:47:56+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: update landing intro rail contract'
+    section: docs
+    commits:
+    - 60c702c3a
+    authored_at: '2026-08-02T14:28:47+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record travel coordinate fallback evidence'
+    section: docs
+    commits:
+    - 3dc790552
+    authored_at: '2026-08-02T13:19:29+00:00'
+    changed_paths:
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record travel transfer hotfix evidence'
+    section: docs
+    commits:
+    - c0ea06cd3
+    authored_at: '2026-08-02T12:49:43+00:00'
+    changed_paths:
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record travel transfer quality evidence'
+    section: docs
+    commits:
+    - 81e7c970d
+    authored_at: '2026-08-02T00:08:16+00:00'
+    changed_paths:
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: align continuous rail position tolerance'
+    section: tests
+    commits:
+    - 56f0d02c2
+    authored_at: '2026-08-02T23:02:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align remote source fixture label'
+    section: tests
+    commits:
+    - 3e0f6ee33
+    authored_at: '2026-08-02T22:53:42+00:00'
+    changed_paths:
+    - scripts/project_remote_access_live.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use assigned account for remote source CLI'
+    section: tests
+    commits:
+    - d7398c4b2
+    authored_at: '2026-08-02T22:32:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover landing rail switch continuity'
+    section: tests
+    commits:
+    - ab7cd334a
+    authored_at: '2026-08-02T22:09:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record events search live-mock cassettes'
+    section: tests
+    commits:
+    - 99b943132
+    authored_at: '2026-08-02T16:16:02+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/04489286c58797e1.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/14064155087f7c9e.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/11613b903c5643b9.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/1cdcc3cea4b03f79.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/260f02982001318b.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/38385e1dfac3985d.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/7cf358ebce8dc4a6.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/9193183b7eb00256.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/a036eba16fd1de00.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/ab02ef165db391d7.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/c33d845784dbe7c3.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/f8ad88533c33c736.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/3d10d9abfaa8e3ba.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/6374a3e6d213cbc7.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/aba78ae0c67a7e4e.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/af1994a1d53bc790.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/08d75df5870c326f.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/096a366174b844cb.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/4cd0c3da7a5f5a8d.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/6fc865032c6ddcff.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/70e9ed18d8010dc6.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/7417e56b45f114f2.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b0b3249ed562089.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b976dce94c1cbd7.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/a16cac59fdc7bbab.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/dc0168f2a23cd8c2.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/ef2dc340e8a3b624.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/4e3535b630ab10cd.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/513f2cba5f088964.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/ra_graphql/d530e4ed86327212.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/3a0a7da4eb3bd0c7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/81da59d8adeb8be3.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/a34c823ddf9bdde8.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/ba06a08a530f6d16.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/11613b903c5643b9.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/1cdcc3cea4b03f79.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/260f02982001318b.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/38385e1dfac3985d.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/7cf358ebce8dc4a6.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/9193183b7eb00256.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/a036eba16fd1de00.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/ab02ef165db391d7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/c33d845784dbe7c3.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/f8ad88533c33c736.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/1e5ea324ef317653.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/259f46c19324dad7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/2f86b9ba1bf3b330.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/402efc6fc6f3f2a1.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/46977808487b033a.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/6a30cd850c17d20b.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/89cdf7911c622a3c.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/a6c6dfa8584c360d.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/08d75df5870c326f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/096a366174b844cb.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/4cd0c3da7a5f5a8d.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/6fc865032c6ddcff.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/70e9ed18d8010dc6.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/7417e56b45f114f2.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b0b3249ed562089.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b976dce94c1cbd7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/a16cac59fdc7bbab.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/dc0168f2a23cd8c2.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/ef2dc340e8a3b624.json
+    - backend/apps/ai/testing/api_cache/events_search_web/meetup/e293d2fa1c66d56c.json
+    - backend/apps/ai/testing/api_cache/events_search_web/meetup/f874d85b8c726606.json
+    - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/9dc90e2b3484b9c0.json
+    - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/fd0fc0e641a37d8d.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: relax mobile landing rail tolerance'
+    section: tests
+    commits:
+    - 425d0e052
+    authored_at: '2026-08-02T16:12:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: open zero-result web search before final text'
+    section: tests
+    commits:
+    - 4baa149f6
+    authored_at: '2026-08-02T15:47:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align landing intro rail sampling wait'
+    section: tests
+    commits:
+    - 4195b5cfc
+    authored_at: '2026-08-02T15:46:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: open events search embed during streaming'
+    section: tests
+    commits:
+    - ac106ace3
+    authored_at: '2026-08-02T15:17:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: sample landing intro requests earlier'
+    section: tests
+    commits:
+    - f9a326a0a
+    authored_at: '2026-08-02T15:11:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: target visible events search embed fullscreen'
+    section: tests
+    commits:
+    - b0df44eb0
+    authored_at: '2026-08-02T14:59:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize landing intro request sampling'
+    section: tests
+    commits:
+    - 67a3ba34b
+    authored_at: '2026-08-02T14:51:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dismiss notifications before embed fullscreen'
+    section: tests
+    commits:
+    - 85b532f7f
+    authored_at: '2026-08-02T14:21:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover web search parent counts'
+    section: tests
+    commits:
+    - 4830a728a
+    authored_at: '2026-08-02T13:16:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize example chat embed assertion'
+    section: tests
+    commits:
+    - d525fd505
+    authored_at: '2026-08-02T12:53:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'docs: record remote access verification'
+    commits:
+    - ec62f195a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: search remote sources without ripgrep'
+    commits:
+    - 9ddb69e2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: align continuous rail position tolerance'
+    commits:
+    - 56f0d02c2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align remote source fixture label'
+    commits:
+    - 3e0f6ee33
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: keep landing app rail continuous'
+    commits:
+    - 4f270444a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: smooth landing intro app switches'
+    commits:
+    - acf0b5cb8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: use assigned account for remote source CLI'
+    commits:
+    - d7398c4b2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: cover landing rail switch continuity'
+    commits:
+    - ab7cd334a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add live project source browsing'
+    commits:
+    - 328c22cb3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: add encrypted project remote access bridge'
+    commits:
+    - 107e1d9c0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: prune stale blocked deploy records'
+    commits:
+    - 2ad09742c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden session worktree lifecycle'
+    commits:
+    - f2a01e74f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: improve worktree session errors'
+    commits:
+    - d26209a53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: authorize deployed Playwright verification'
+    commits:
+    - 0bbaa0c25
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record events search live-mock cassettes'
+    commits:
+    - 99b943132
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: relax mobile landing rail tolerance'
+    commits:
+    - 425d0e052
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: fit mobile landing actionable message'
+    commits:
+    - 2871afd34
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: open zero-result web search before final text'
+    commits:
+    - 4baa149f6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align landing intro rail sampling wait'
+    commits:
+    - 4195b5cfc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: slow landing intro primary rail'
+    commits:
+    - 79cf9acf8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: open events search embed during streaming'
+    commits:
+    - ac106ace3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep mobile landing demo inside banner'
+    commits:
+    - 9f488e7ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: sample landing intro requests earlier'
+    commits:
+    - f9a326a0a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: target visible events search embed fullscreen'
+    commits:
+    - b0df44eb0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align mobile landing actionable slide'
+    commits:
+    - e5cefe805
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: cover scheduled map embeds in result views'
+    commits:
+    - '372228003'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'test: stabilize landing intro request sampling'
+    commits:
+    - 67a3ba34b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: cover scheduled map embeds in result views'
+    commits:
+    - 573aeb887
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: update landing intro rail contract'
+    commits:
+    - 60c702c3a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep landing intro rail moving'
+    commits:
+    - 86b064130
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: dismiss notifications before embed fullscreen'
+    commits:
+    - 85b532f7f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show known web search result counts'
+    commits:
+    - e38eee80f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: stabilize issue reports and map view refs'
+    commits:
+    - 05786cf45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: record travel coordinate fallback evidence'
+    commits:
+    - 3dc790552
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover web search parent counts'
+    commits:
+    - 4830a728a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: resolve travel transfer station coordinates'
+    commits:
+    - 7e87b59fc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: sync landing intro app rail highlights'
+    commits:
+    - d2e3fb95c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize example chat embed assertion'
+    commits:
+    - d525fd505
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record travel transfer hotfix evidence'
+    commits:
+    - c0ea06cd3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: avoid invalid travel amenity requests'
+    commits:
+    - 25741dd50
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: stabilize travel transfer enrichment'
+    commits:
+    - e9228402e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: preserve embed preview result counts'
+    commits:
+    - 14579129c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'docs: record travel transfer quality evidence'
+    commits:
+    - 81e7c970d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: search remote sources without ripgrep'
+    commits:
+    - 9ddb69e2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep landing app rail continuous'
+    commits:
+    - 4f270444a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: smooth landing intro app switches'
+    commits:
+    - acf0b5cb8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add live project source browsing'
+    commits:
+    - 328c22cb3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add encrypted project remote access bridge'
+    commits:
+    - 107e1d9c0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: fit mobile landing actionable message'
+    commits:
+    - 2871afd34
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: slow landing intro primary rail'
+    commits:
+    - 79cf9acf8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep mobile landing demo inside banner'
+    commits:
+    - 9f488e7ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align mobile landing actionable slide'
+    commits:
+    - e5cefe805
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: cover scheduled map embeds in result views'
+    commits:
+    - '372228003'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:fitness:search_classes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:fitness:search_locations
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:fitness
+      source: backend/apps/fitness/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: embed:travel:search_stays
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: cover scheduled map embeds in result views'
+    commits:
+    - 573aeb887
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep landing intro rail moving'
+    commits:
+    - 86b064130
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show known web search result counts'
+    commits:
+    - e38eee80f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize issue reports and map view refs'
+    commits:
+    - 05786cf45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: resolve travel transfer station coordinates'
+    commits:
+    - 7e87b59fc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: sync landing intro app rail highlights'
+    commits:
+    - d2e3fb95c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid invalid travel amenity requests'
+    commits:
+    - 25741dd50
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize travel transfer enrichment'
+    commits:
+    - e9228402e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve embed preview result counts'
+    commits:
+    - 14579129c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ec62f195a8dbd012222328d15ed80d954e992e37
+    short_sha: ec62f195a
+    authored_at: '2026-08-02T23:30:48+00:00'
+    subject: 'docs: record remote access verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-remote-access-live-bridge/spec.yml
+    related_feature_ids: []
+  - sha: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+    short_sha: 9ddb69e2e
+    authored_at: '2026-08-02T23:15:15+00:00'
+    subject: 'fix: search remote sources without ripgrep'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: 56f0d02c29e873c220906a2b78e7c68757e684e1
+    short_sha: 56f0d02c2
+    authored_at: '2026-08-02T23:02:54+00:00'
+    subject: 'test: align continuous rail position tolerance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 3e0f6ee33b8dd6366301142f8ad56cf28298eff8
+    short_sha: 3e0f6ee33
+    authored_at: '2026-08-02T22:53:42+00:00'
+    subject: 'test: align remote source fixture label'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/project_remote_access_live.mjs
+    related_feature_ids:
+    - platform:projects
+  - sha: 4f270444ad8ec94f6a20ed06f91a5bae87e06d12
+    short_sha: 4f270444a
+    authored_at: '2026-08-02T22:48:18+00:00'
+    subject: 'fix: keep landing app rail continuous'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: acf0b5cb84d70a35ce98805f7938ae5d87f64388
+    short_sha: acf0b5cb8
+    authored_at: '2026-08-02T22:36:36+00:00'
+    subject: 'fix: smooth landing intro app switches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: d7398c4b28c362132d857a1f2c3c99680c972c9d
+    short_sha: d7398c4b2
+    authored_at: '2026-08-02T22:32:59+00:00'
+    subject: 'test: use assigned account for remote source CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: ab7cd334a7331b1292d622408f1feb45e3bbd356
+    short_sha: ab7cd334a
+    authored_at: '2026-08-02T22:09:55+00:00'
+    subject: 'test: cover landing rail switch continuity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 328c22cb3e88ebcf8ff0aa859683e2f985791284
+    short_sha: 328c22cb3
+    authored_at: '2026-08-02T22:09:52+00:00'
+    subject: 'feat: add live project source browsing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - docs/user-guide/cli/remote-access.md
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/src/webviewHtml.ts
+    - frontend/apps/vscode_extension/tests/webview.test.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteAccessCrypto.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/audit_cli_remote_access_docs.py
+    - scripts/audit_cli_remote_access_privacy.py
+    - scripts/project_remote_access_live.mjs
+    related_feature_ids:
+    - platform:projects
+  - sha: 107e1d9c05bd8688b2973b3a641090ac6d5bb570
+    short_sha: 107e1d9c0
+    authored_at: '2026-08-02T21:09:30+00:00'
+    subject: 'feat: add encrypted project remote access bridge'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/project_remote_access_service.py
+    - backend/tests/test_project_remote_access_bridge.py
+    - docs/specs/cli-remote-access-live-bridge/spec.yml
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/remoteAccessCrypto.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
+    - scripts/project_remote_access_live.mjs
+    - scripts/verify_project_remote_access_api.py
+    - scripts/verify_project_remote_access_cli.py
+    related_feature_ids:
+    - platform:projects
+  - sha: 2ad09742c662b7fbb63ed2f7ab68b05bf2436370
+    short_sha: 2ad09742c
+    authored_at: '2026-08-02T20:13:39+00:00'
+    subject: 'fix: prune stale blocked deploy records'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    related_feature_ids: []
+  - sha: f2a01e74f42fefb5fba1393aeec8158ded7507d3
+    short_sha: f2a01e74f
+    authored_at: '2026-08-02T20:09:15+00:00'
+    subject: 'fix: harden session worktree lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_edit_leases.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    related_feature_ids: []
+  - sha: d26209a535552c21d6d9d07b007beaecb49ccdf4
+    short_sha: d26209a53
+    authored_at: '2026-08-02T19:29:29+00:00'
+    subject: 'fix: improve worktree session errors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 0bbaa0c25989d7ee1ce90b6d57bef5a6291f7ab4
+    short_sha: 0bbaa0c25
+    authored_at: '2026-08-02T16:47:56+00:00'
+    subject: 'docs: authorize deployed Playwright verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    related_feature_ids: []
+  - sha: 99b943132252e7e50b8c48b2c83ebbc3fa75b294
+    short_sha: 99b943132
+    authored_at: '2026-08-02T16:16:02+00:00'
+    subject: 'test: record events search live-mock cassettes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/04489286c58797e1.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/14064155087f7c9e.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/11613b903c5643b9.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/1cdcc3cea4b03f79.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/260f02982001318b.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/38385e1dfac3985d.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/7cf358ebce8dc4a6.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/9193183b7eb00256.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/a036eba16fd1de00.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/ab02ef165db391d7.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/c33d845784dbe7c3.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/f8ad88533c33c736.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/3d10d9abfaa8e3ba.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/6374a3e6d213cbc7.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/aba78ae0c67a7e4e.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/af1994a1d53bc790.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/08d75df5870c326f.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/096a366174b844cb.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/4cd0c3da7a5f5a8d.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/6fc865032c6ddcff.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/70e9ed18d8010dc6.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/7417e56b45f114f2.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b0b3249ed562089.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b976dce94c1cbd7.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/a16cac59fdc7bbab.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/dc0168f2a23cd8c2.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/luma/ef2dc340e8a3b624.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/4e3535b630ab10cd.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/513f2cba5f088964.json
+    - backend/apps/ai/testing/api_cache/events_search_cli/ra_graphql/d530e4ed86327212.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/3a0a7da4eb3bd0c7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/81da59d8adeb8be3.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/a34c823ddf9bdde8.json
+    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/ba06a08a530f6d16.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/11613b903c5643b9.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/1cdcc3cea4b03f79.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/260f02982001318b.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/38385e1dfac3985d.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/7cf358ebce8dc4a6.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/9193183b7eb00256.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/a036eba16fd1de00.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/ab02ef165db391d7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/c33d845784dbe7c3.json
+    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/f8ad88533c33c736.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/1e5ea324ef317653.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/259f46c19324dad7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/2f86b9ba1bf3b330.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/402efc6fc6f3f2a1.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/46977808487b033a.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/6a30cd850c17d20b.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/89cdf7911c622a3c.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/a6c6dfa8584c360d.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/08d75df5870c326f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/096a366174b844cb.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/4cd0c3da7a5f5a8d.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/6fc865032c6ddcff.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/70e9ed18d8010dc6.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/7417e56b45f114f2.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b0b3249ed562089.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b976dce94c1cbd7.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/a16cac59fdc7bbab.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/dc0168f2a23cd8c2.json
+    - backend/apps/ai/testing/api_cache/events_search_web/luma/ef2dc340e8a3b624.json
+    - backend/apps/ai/testing/api_cache/events_search_web/meetup/e293d2fa1c66d56c.json
+    - backend/apps/ai/testing/api_cache/events_search_web/meetup/f874d85b8c726606.json
+    - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/9dc90e2b3484b9c0.json
+    - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/fd0fc0e641a37d8d.json
+    related_feature_ids:
+    - app:ai
+  - sha: 425d0e05257eb3be55ea06beb91c2fbcb0874494
+    short_sha: 425d0e052
+    authored_at: '2026-08-02T16:12:24+00:00'
+    subject: 'test: relax mobile landing rail tolerance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 2871afd347d857a8d1b67dd490a2b9fa5e84eb57
+    short_sha: 2871afd34
+    authored_at: '2026-08-02T15:54:51+00:00'
+    subject: 'fix: fit mobile landing actionable message'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    related_feature_ids: []
+  - sha: 4baa149f6b043b9385d7f35fe09fb9bb1380abe8
+    short_sha: 4baa149f6
+    authored_at: '2026-08-02T15:47:32+00:00'
+    subject: 'test: open zero-result web search before final text'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    related_feature_ids: []
+  - sha: 4195b5cfc1b9b5367cf4917cc9336c4857a6394d
+    short_sha: 4195b5cfc
+    authored_at: '2026-08-02T15:46:44+00:00'
+    subject: 'test: align landing intro rail sampling wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 79cf9acf8cb09d2da093d6a2f9203a5b149a5cc5
+    short_sha: 79cf9acf8
+    authored_at: '2026-08-02T15:28:06+00:00'
+    subject: 'fix: slow landing intro primary rail'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: ac106ace3eb125e7b65556eefe2c26423367acbf
+    short_sha: ac106ace3
+    authored_at: '2026-08-02T15:17:32+00:00'
+    subject: 'test: open events search embed during streaming'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 9f488e7acde35b24199de193ef18ef191e0c7d3c
+    short_sha: 9f488e7ac
+    authored_at: '2026-08-02T15:17:04+00:00'
+    subject: 'fix: keep mobile landing demo inside banner'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: f9a326a0ac50f33e0bcbadd1f08dee9e1fe82461
+    short_sha: f9a326a0a
+    authored_at: '2026-08-02T15:11:46+00:00'
+    subject: 'test: sample landing intro requests earlier'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: b0df44eb053ddf567b44ad3e44be431e04a9e961
+    short_sha: b0df44eb0
+    authored_at: '2026-08-02T14:59:01+00:00'
+    subject: 'test: target visible events search embed fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: e5cefe805c3b7a7ff9bce3e51e18332f682f3cb7
+    short_sha: e5cefe805
+    authored_at: '2026-08-02T14:56:29+00:00'
+    subject: 'fix: align mobile landing actionable slide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    related_feature_ids: []
+  - sha: 372228003c65118a9ae7727d6ce9b571ddbf93f0
+    short_sha: '372228003'
+    authored_at: '2026-08-02T14:54:26+00:00'
+    subject: 'fix: cover scheduled map embeds in result views'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    related_feature_ids:
+    - app:ai
+    - embed:fitness:search_classes
+    - embed:fitness:search_locations
+    - embed:health:search_appointments
+    - embed:travel:search_stays
+  - sha: 67a3ba34b7efd3f95bbe42482af62d62f04d25b9
+    short_sha: 67a3ba34b
+    authored_at: '2026-08-02T14:51:25+00:00'
+    subject: 'test: stabilize landing intro request sampling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 573aeb887fe1b33681fff98b7c4a46e8ae9280ec
+    short_sha: 573aeb887
+    authored_at: '2026-08-02T14:40:13+00:00'
+    subject: 'fix: cover scheduled map embeds in result views'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/figma-reference/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - .claude/rules/frontend.md
+    - .claude/rules/testing.md
+    - .claude/skills/figma-reference/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - .codex/hooks/skill-embed-registry-guard.sh
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/figma-to-code.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - frontend/apps/web_app/scripts/visual-smoke.mjs
+    - scripts/audit_figma_visual_evidence.py
+    - scripts/code_quality_guard.py
+    - scripts/sessions.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_sessions_visual_smoke_gate.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_spec_workflow_validation.py
+    - scripts/tests/test_workflow_guard_audits.py
+    related_feature_ids: []
+  - sha: 60c702c3ab8818f01413bdb638b6443c27e48620
+    short_sha: 60c702c3a
+    authored_at: '2026-08-02T14:28:47+00:00'
+    subject: 'docs: update landing intro rail contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 86b064130c9a8e58f28ce4bad78b6dabc8aaf1f3
+    short_sha: 86b064130
+    authored_at: '2026-08-02T14:27:35+00:00'
+    subject: 'fix: keep landing intro rail moving'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 85b532f7f482821aa04324c22878fd39286d6722
+    short_sha: 85b532f7f
+    authored_at: '2026-08-02T14:21:45+00:00'
+    subject: 'test: dismiss notifications before embed fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    related_feature_ids: []
+  - sha: e38eee80fa143e0211cb1e9f022afa6fd0dab4ad
+    short_sha: e38eee80f
+    authored_at: '2026-08-02T13:35:44+00:00'
+    subject: 'fix: show known web search result counts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    related_feature_ids:
+    - embed:web:search
+  - sha: 05786cf45b98865ceecce30b6d2c7403506b0d0c
+    short_sha: 05786cf45
+    authored_at: '2026-08-02T13:24:50+00:00'
+    subject: 'fix: stabilize issue reports and map view refs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsButton.svelte
+    - frontend/packages/ui/src/services/debugUtils.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 3dc790552352cfe415cde60662e04ef502af21db
+    short_sha: 3dc790552
+    authored_at: '2026-08-02T13:19:29+00:00'
+    subject: 'docs: record travel coordinate fallback evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    related_feature_ids: []
+  - sha: 4830a728ac043708e2ec5614d35e6520fd9ce591
+    short_sha: 4830a728a
+    authored_at: '2026-08-02T13:16:17+00:00'
+    subject: 'test: cover web search parent counts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 7e87b59fc40db7ec2dcb078e97e8cd1b62711952
+    short_sha: 7e87b59fc
+    authored_at: '2026-08-02T13:14:39+00:00'
+    subject: 'fix: resolve travel transfer station coordinates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    related_feature_ids:
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: d2e3fb95cd2b2fec4f391c6d55e0408ad4127677
+    short_sha: d2e3fb95c
+    authored_at: '2026-08-02T12:59:41+00:00'
+    subject: 'fix: sync landing intro app rail highlights'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: d525fd505c8151261bd3bd9aad635202c6d0c3af
+    short_sha: d525fd505
+    authored_at: '2026-08-02T12:53:37+00:00'
+    subject: 'test: stabilize example chat embed assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: c0ea06cd3b70fbb8b03071b3506bb3c2875c5ac6
+    short_sha: c0ea06cd3
+    authored_at: '2026-08-02T12:49:43+00:00'
+    subject: 'docs: record travel transfer hotfix evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    related_feature_ids: []
+  - sha: 25741dd50f1bb018e615a695fd8608b504ba0499
+    short_sha: 25741dd50
+    authored_at: '2026-08-02T12:43:23+00:00'
+    subject: 'fix: avoid invalid travel amenity requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    related_feature_ids:
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: e9228402efa97bb42d037f602f6b52a565f41173
+    short_sha: e9228402e
+    authored_at: '2026-08-02T12:40:38+00:00'
+    subject: 'fix: stabilize travel transfer enrichment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    related_feature_ids:
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: 14579129c1b43f210af2a4d4d88860de8b0b7eba
+    short_sha: 14579129c
+    authored_at: '2026-08-02T12:34:53+00:00'
+    subject: 'fix: preserve embed preview result counts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids:
+    - embed:code:code
+  - sha: 81e7c970d576e3831141e0bac1c428b108b6c787
+    short_sha: 81e7c970d
+    authored_at: '2026-08-02T00:08:16+00:00'
+    subject: 'docs: record travel transfer quality evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/travel-connection-transfer-quality/spec.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the landing page onboarding experience and stabilizing travel search connections.
+    Significant development also occurred on an encrypted bridge for remote project access via CLI and VS Code, though these
+    features remain unreleased.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The landing page onboarding refresh received multiple updates to improve the continuity of the inspiration rail
+      and the alignment of mobile actionable demos.
+    evidence:
+      commits:
+      - 4f270444a
+      - acf0b5cb8
+      - 2871afd34
+      - 79cf9acf8
+      - 9f488e7ac
+      - e5cefe805
+      - 86b064130
+      - d2e3fb95c
+    release_status: dev_only
+  - text: Travel search connections were stabilized by resolving station coordinate issues and preventing invalid amenity
+      requests.
+    evidence:
+      commits:
+      - 7e87b59fc
+      - 25741dd50
+      - e9228402e
+    release_status: dev_only
+  - text: An encrypted project remote access bridge was added, enabling live source browsing via the CLI and VS Code extension.
+    evidence:
+      commits:
+      - 328c22cb3
+      - 107e1d9c0
+      - 9ddb69e2e
+    release_status: dev_only
+  - text: Embed and map views were refined to preserve result counts and stabilize references in search result views.
+    evidence:
+      commits:
+      - '372228003'
+      - e38eee80f
+      - 05786cf45
+      - 14579129c
+    release_status: dev_only
+  internal_progress:
+  - text: The session worktree lifecycle was hardened with improved error handling and stale record pruning.
+    evidence:
+      commits:
+      - 2ad09742c
+      - f2a01e74f
+      - d26209a53
+    release_status: dev_only
+  - text: Agent workflow documentation and UI change verification guards were updated to support higher quality automated
+      contributions.
+    evidence:
+      commits:
+      - 0bbaa0c25
+      - 573aeb887
+    release_status: dev_only
+  - text: Test coverage was expanded across events search, web search, and landing page animation stability.
+    evidence:
+      commits:
+      - 99b943132
+      - 56f0d02c2
+      - ab7cd334a
+      - 425d0e052
+      - 4baa149f6
+      - 4195b5cfc
+      - ac106ace3
+      - f9a326a0a
+      - b0df44eb0
+      - 67a3ba34b
+      - 85b532f7f
+      - 4830a728a
+      - d525fd505
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Landing Page Onboarding Refresh
+      evidence:
+        commits:
+        - 4f270444a
+        - acf0b5cb8
+        - 2871afd34
+        - 79cf9acf8
+        - 9f488e7ac
+        - e5cefe805
+        - 86b064130
+        - d2e3fb95c
+      reason: The landing page refresh is currently in development and not yet released to the main branch.
+    - text: Travel Search Stabilization
+      evidence:
+        commits:
+        - 7e87b59fc
+        - 25741dd50
+        - e9228402e
+      reason: Travel search refinements are currently unreleased.
+    - text: Project Remote Access Bridge
+      evidence:
+        commits:
+        - 328c22cb3
+        - 107e1d9c0
+        - 9ddb69e2e
+      reason: Project remote access features are gated behind a disabled platform feature flag.
+    rationale: No items from this period are marked as released to the main branch or ready for public communication. All
+      user-facing improvements are currently in development or gated by feature flags.
+  social_video_recommendations:
+  - idea: A preview of the refreshed landing page onboarding experience, highlighting the smooth transitions and actionable
+      demos.
+    priority: medium
+    reason: The visual nature of the landing page refresh provides a concrete product story to show.
+    evidence:
+      commits:
+      - 4f270444a
+      - acf0b5cb8
+      - 2871afd34
+  - idea: Demonstrating the encrypted project remote access bridge connecting a local CLI to the OpenMates web interface.
+    priority: low
+    reason: This is a high-value technical feature for developers, though currently unreleased.
+    evidence:
+      commits:
+      - 328c22cb3
+      - 107e1d9c0
+  quality_notes:
+  - Travel search connection quality was improved by resolving station coordinate fallbacks and amenity request errors.
+  - Landing page animations and transitions were smoothed to ensure a continuous visual experience during onboarding.
+  validation_warnings: []

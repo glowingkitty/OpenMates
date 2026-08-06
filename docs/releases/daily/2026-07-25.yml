@@ -1,0 +1,2496 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-25'
+generated_at: '2026-08-06T13:17:18+00:00'
+range:
+  since: '2026-07-25T00:00:00+00:00'
+  until: '2026-07-26T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 41
+  section_counts:
+    features: 4
+    bug_fixes: 17
+    improvements: 1
+    docs: 0
+    tests: 19
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 21
+  dev_only_items: 41
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add embed group scroll indicators'
+    section: features
+    commits:
+    - de9d189cd
+    authored_at: '2026-07-25T22:45:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enforce cleartext SDK export boundary'
+    section: features
+    commits:
+    - 6a693f8a2
+    authored_at: '2026-07-25T22:01:56+00:00'
+    changed_paths:
+    - backend/core/api/app/services/account_export_service.py
+    - backend/tests/test_account_export_jobs.py
+    - docs/specs/sdk-cleartext-encryption-boundary/spec.yml
+    - frontend/packages/openmates-cli/src/accountExportArchive.ts
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/account-export.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-cleartext-boundary.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_account_import.py
+    - packages/openmates-python/tests/test_cleartext_boundary.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/audit_client_encrypted_storage_boundary.py
+    - scripts/audit_sdk_cleartext_boundary.py
+    - scripts/audit_sdk_cleartext_parity.py
+    - scripts/verify_account_cleartext_export.py
+    - scripts/verify_account_cleartext_import.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Claude 5 model support'
+    section: features
+    commits:
+    - 3ac124ad0
+    authored_at: '2026-07-25T21:59:12+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/directus/schemas/users.yml
+    - backend/providers/anthropic.yml
+    - backend/tests/test_model_selection.py
+    - backend/tests/test_workspace_ask_pipeline.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/user-guide/cli/settings.md
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add plan SDK key wrappers'
+    section: features
+    commits:
+    - 12f5df1ee
+    authored_at: '2026-07-25T19:26:34+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: fade landing intro slide content'
+    section: bug_fixes
+    commits:
+    - fd4b052fe
+    authored_at: '2026-07-25T22:37:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct workspace apps catalog'
+    section: bug_fixes
+    commits:
+    - 0ca896672
+    authored_at: '2026-07-25T20:59:39+00:00'
+    changed_paths:
+    - backend/apps/ideabucket/app.yml
+    - backend/apps/plans/app.yml
+    - backend/apps/plans/skills/create_skill.py
+    - backend/apps/plans/skills/search_skill.py
+    - backend/apps/projects/app.yml
+    - backend/apps/projects/skills/create_skill.py
+    - backend/apps/projects/skills/search_skill.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/i18n/sources/app_skills/plans.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/projects.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    - frontend/packages/ui/src/types/apps.ts
+    - scripts/audit_skill_embed_registry.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: skill:plans:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:plans:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:projects:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: skill:projects:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ideabucket, app:plans, app:projects, skill:plans:create, skill:plans:search,
+      skill:projects:create, skill:projects:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: let landing intro content fade out'
+    section: bug_fixes
+    commits:
+    - 164aededd
+    authored_at: '2026-07-25T18:49:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: smooth landing intro collapse'
+    section: bug_fixes
+    commits:
+    - 18974c97c
+    authored_at: '2026-07-25T18:35:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: place mobile gift cta beside profile'
+    section: bug_fixes
+    commits:
+    - c56690b4a
+    authored_at: '2026-07-25T18:19:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent mobile chat header overlap'
+    section: bug_fixes
+    commits:
+    - e2ad3c607
+    authored_at: '2026-07-25T15:07:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair owner interactive question ordering'
+    section: bug_fixes
+    commits:
+    - e2b3ff655
+    authored_at: '2026-07-25T14:55:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/utils/__tests__/sharedInteractiveQuestionOrdering.test.ts
+    - frontend/packages/ui/src/utils/sharedInteractiveQuestionOrdering.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair shared interactive question ordering'
+    section: bug_fixes
+    commits:
+    - c942992b9
+    authored_at: '2026-07-25T13:49:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/utils/__tests__/sharedInteractiveQuestionOrdering.test.ts
+    - frontend/packages/ui/src/utils/sharedInteractiveQuestionOrdering.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist chat share metadata from settings'
+    section: bug_fixes
+    commits:
+    - 8c4ef348b
+    authored_at: '2026-07-25T12:34:54+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_share_short_links.py
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: mark chat short links shared'
+    section: bug_fixes
+    commits:
+    - aee2266b2
+    authored_at: '2026-07-25T12:15:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: rotate Brave keys after rate limit exhaustion'
+    section: bug_fixes
+    commits:
+    - c103bf7a3
+    authored_at: '2026-07-25T07:58:12+00:00'
+    changed_paths:
+    - backend/shared/providers/brave/brave_search.py
+    - backend/tests/test_brave_search_provider.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep Brave video search fallback results'
+    section: bug_fixes
+    commits:
+    - 5b7f47b95
+    authored_at: '2026-07-25T07:21:53+00:00'
+    changed_paths:
+    - backend/apps/videos/skills/search_skill.py
+    - backend/tests/test_videos_search_candidate_limit.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:videos, embed:videos:search, skill:videos:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: acknowledge persisted embed diff writes'
+    section: bug_fixes
+    commits:
+    - 7104c0d7e
+    authored_at: '2026-07-25T06:53:41+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep guest intro card in inspiration examples'
+    section: bug_fixes
+    commits:
+    - 402fcc067
+    authored_at: '2026-07-25T04:50:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: compact mobile guest inspiration banner'
+    section: bug_fixes
+    commits:
+    - bb9c583f4
+    authored_at: '2026-07-25T03:35:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tighten mobile guest inspiration header'
+    section: bug_fixes
+    commits:
+    - 21f78f8e5
+    authored_at: '2026-07-25T03:10:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: force chat header text white'
+    section: bug_fixes
+    commits:
+    - 9a7c50e2c
+    authored_at: '2026-07-25T02:54:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'refactor: keep project remote access CLI-only'
+    section: improvements
+    commits:
+    - 317bb2ff7
+    authored_at: '2026-07-25T10:45:02+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_projects.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs: []
+  tests:
+  - title: 'test: enforce SDK parity signatures'
+    section: tests
+    commits:
+    - 6fd7d1964
+    authored_at: '2026-07-25T22:50:50+00:00'
+    changed_paths:
+    - docs/specs/sdk-cleartext-encryption-boundary/spec.yml
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/audit_sdk_cleartext_parity.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: focus mobile header regression coverage'
+    section: tests
+    commits:
+    - b7f8054e1
+    authored_at: '2026-07-25T15:27:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept real two-message shared chats'
+    section: tests
+    commits:
+    - b01bd651b
+    authored_at: '2026-07-25T12:44:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: relax train segment provider fields'
+    section: tests
+    commits:
+    - 1d4c209a2
+    authored_at: '2026-07-25T10:37:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept train provider variants'
+    section: tests
+    commits:
+    - 44f89f93a
+    authored_at: '2026-07-25T10:28:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin train connection provider'
+    section: tests
+    commits:
+    - d7eb2febc
+    authored_at: '2026-07-25T10:19:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for chat readiness in maps spec'
+    section: tests
+    commits:
+    - 60be1734c
+    authored_at: '2026-07-25T10:11:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for chat readiness in career focus spec'
+    section: tests
+    commits:
+    - ed3ad0f73
+    authored_at: '2026-07-25T09:09:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-career-insights.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize news search e2e fixture'
+    section: tests
+    commits:
+    - c6ffedc89
+    authored_at: '2026-07-25T08:54:48+00:00'
+    changed_paths:
+    - backend/apps/news/skills/search_fixture.py
+    - backend/apps/news/skills/search_skill.py
+    - backend/tests/test_news_search_fixture.py
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:news, embed:news:search, skill:news:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize images search e2e fixture'
+    section: tests
+    commits:
+    - dc8334463
+    authored_at: '2026-07-25T08:38:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize images search e2e fixture'
+    section: tests
+    commits:
+    - 1199319cd
+    authored_at: '2026-07-25T08:30:47+00:00'
+    changed_paths:
+    - backend/apps/images/skills/search_skill.py
+    - backend/tests/test_images_search_fixture.py
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:images, embed:images:search, skill:images:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize videos search e2e fixture'
+    section: tests
+    commits:
+    - '907200700'
+    authored_at: '2026-07-25T08:18:13+00:00'
+    changed_paths:
+    - backend/apps/videos/skills/search_skill.py
+    - backend/tests/test_videos_search_candidate_limit.py
+    - frontend/apps/web_app/tests/skill-videos-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:videos, embed:videos:search, skill:videos:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: make videos search e2e route deterministic'
+    section: tests
+    commits:
+    - 05838002b
+    authored_at: '2026-07-25T07:39:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-videos-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept finance fullscreen embed root'
+    section: tests
+    commits:
+    - 8ef712f41
+    authored_at: '2026-07-25T06:16:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align unauthenticated guest examples spec'
+    section: tests
+    commits:
+    - 92229ec3e
+    authored_at: '2026-07-25T05:08:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate batch sync notification side effects'
+    section: tests
+    commits:
+    - 464eb92f6
+    authored_at: '2026-07-25T04:06:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stub custom events for batch sync unit'
+    section: tests
+    commits:
+    - a48dc9fe6
+    authored_at: '2026-07-25T04:02:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate batch sync cache upsert fixture'
+    section: tests
+    commits:
+    - 7bbf1dbe8
+    authored_at: '2026-07-25T03:58:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover batch sync encrypted message guard'
+    section: tests
+    commits:
+    - c10fd78de
+    authored_at: '2026-07-25T03:54:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: enforce SDK parity signatures'
+    commits:
+    - 6fd7d1964
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add embed group scroll indicators'
+    commits:
+    - de9d189cd
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: fade landing intro slide content'
+    commits:
+    - fd4b052fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: enforce cleartext SDK export boundary'
+    commits:
+    - 6a693f8a2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Claude 5 model support'
+    commits:
+    - 3ac124ad0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: correct workspace apps catalog'
+    commits:
+    - 0ca896672
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: skill:plans:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:plans:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:projects:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: skill:projects:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+  - title: 'feat: add plan SDK key wrappers'
+    commits:
+    - 12f5df1ee
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: let landing intro content fade out'
+    commits:
+    - 164aededd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: smooth landing intro collapse'
+    commits:
+    - 18974c97c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: place mobile gift cta beside profile'
+    commits:
+    - c56690b4a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: focus mobile header regression coverage'
+    commits:
+    - b7f8054e1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent mobile chat header overlap'
+    commits:
+    - e2ad3c607
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: repair owner interactive question ordering'
+    commits:
+    - e2b3ff655
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: repair shared interactive question ordering'
+    commits:
+    - c942992b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: accept real two-message shared chats'
+    commits:
+    - b01bd651b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist chat share metadata from settings'
+    commits:
+    - 8c4ef348b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: mark chat short links shared'
+    commits:
+    - aee2266b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'refactor: keep project remote access CLI-only'
+    commits:
+    - 317bb2ff7
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: relax train segment provider fields'
+    commits:
+    - 1d4c209a2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: accept train provider variants'
+    commits:
+    - 44f89f93a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: pin train connection provider'
+    commits:
+    - d7eb2febc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for chat readiness in maps spec'
+    commits:
+    - 60be1734c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for chat readiness in career focus spec'
+    commits:
+    - ed3ad0f73
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize news search e2e fixture'
+    commits:
+    - c6ffedc89
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - title: 'test: stabilize images search e2e fixture'
+    commits:
+    - dc8334463
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize images search e2e fixture'
+    commits:
+    - 1199319cd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'test: stabilize videos search e2e fixture'
+    commits:
+    - '907200700'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'fix: rotate Brave keys after rate limit exhaustion'
+    commits:
+    - c103bf7a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: make videos search e2e route deterministic'
+    commits:
+    - 05838002b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep Brave video search fallback results'
+    commits:
+    - 5b7f47b95
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'fix: acknowledge persisted embed diff writes'
+    commits:
+    - 7104c0d7e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: accept finance fullscreen embed root'
+    commits:
+    - 8ef712f41
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align unauthenticated guest examples spec'
+    commits:
+    - 92229ec3e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep guest intro card in inspiration examples'
+    commits:
+    - 402fcc067
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: isolate batch sync notification side effects'
+    commits:
+    - 464eb92f6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stub custom events for batch sync unit'
+    commits:
+    - a48dc9fe6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate batch sync cache upsert fixture'
+    commits:
+    - 7bbf1dbe8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover batch sync encrypted message guard'
+    commits:
+    - c10fd78de
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: compact mobile guest inspiration banner'
+    commits:
+    - bb9c583f4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: tighten mobile guest inspiration header'
+    commits:
+    - 21f78f8e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: force chat header text white'
+    commits:
+    - 9a7c50e2c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: correct workspace apps catalog'
+    commits:
+    - 0ca896672
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: skill:plans:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:plans:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:projects:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: skill:projects:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+  - title: 'test: focus mobile header regression coverage'
+    commits:
+    - b7f8054e1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent mobile chat header overlap'
+    commits:
+    - e2ad3c607
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add embed group scroll indicators'
+    commits:
+    - de9d189cd
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: fade landing intro slide content'
+    commits:
+    - fd4b052fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: enforce cleartext SDK export boundary'
+    commits:
+    - 6a693f8a2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add Claude 5 model support'
+    commits:
+    - 3ac124ad0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: correct workspace apps catalog'
+    commits:
+    - 0ca896672
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: skill:plans:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:plans:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:plans
+      source: backend/apps/plans/app.yml
+    - id: skill:projects:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: skill:projects:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    newsletter_ready: false
+  - title: 'feat: add plan SDK key wrappers'
+    commits:
+    - 12f5df1ee
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: let landing intro content fade out'
+    commits:
+    - 164aededd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: smooth landing intro collapse'
+    commits:
+    - 18974c97c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: place mobile gift cta beside profile'
+    commits:
+    - c56690b4a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent mobile chat header overlap'
+    commits:
+    - e2ad3c607
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: repair owner interactive question ordering'
+    commits:
+    - e2b3ff655
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: repair shared interactive question ordering'
+    commits:
+    - c942992b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: persist chat share metadata from settings'
+    commits:
+    - 8c4ef348b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: mark chat short links shared'
+    commits:
+    - aee2266b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'refactor: keep project remote access CLI-only'
+    commits:
+    - 317bb2ff7
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep Brave video search fallback results'
+    commits:
+    - 5b7f47b95
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:videos:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: false
+  - title: 'fix: acknowledge persisted embed diff writes'
+    commits:
+    - 7104c0d7e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep guest intro card in inspiration examples'
+    commits:
+    - 402fcc067
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: compact mobile guest inspiration banner'
+    commits:
+    - bb9c583f4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: tighten mobile guest inspiration header'
+    commits:
+    - 21f78f8e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: force chat header text white'
+    commits:
+    - 9a7c50e2c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 6fd7d1964facba18461d3ca20c278a3e81d52d72
+    short_sha: 6fd7d1964
+    authored_at: '2026-07-25T22:50:50+00:00'
+    subject: 'test: enforce SDK parity signatures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/sdk-cleartext-encryption-boundary/spec.yml
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/audit_sdk_cleartext_parity.py
+    related_feature_ids: []
+  - sha: de9d189cde4b1002e5197cccba295b805654ae49
+    short_sha: de9d189cd
+    authored_at: '2026-07-25T22:45:41+00:00'
+    subject: 'feat: add embed group scroll indicators'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: fd4b052fe0b951b8414a75e8ad601b83eb33d524
+    short_sha: fd4b052fe
+    authored_at: '2026-07-25T22:37:17+00:00'
+    subject: 'fix: fade landing intro slide content'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 6a693f8a28f13437b8cd3bf2f4f8513ee3e650db
+    short_sha: 6a693f8a2
+    authored_at: '2026-07-25T22:01:56+00:00'
+    subject: 'feat: enforce cleartext SDK export boundary'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/account_export_service.py
+    - backend/tests/test_account_export_jobs.py
+    - docs/specs/sdk-cleartext-encryption-boundary/spec.yml
+    - frontend/packages/openmates-cli/src/accountExportArchive.ts
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/account-export.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-cleartext-boundary.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_account_import.py
+    - packages/openmates-python/tests/test_cleartext_boundary.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/audit_client_encrypted_storage_boundary.py
+    - scripts/audit_sdk_cleartext_boundary.py
+    - scripts/audit_sdk_cleartext_parity.py
+    - scripts/verify_account_cleartext_export.py
+    - scripts/verify_account_cleartext_import.py
+    related_feature_ids: []
+  - sha: 3ac124ad02705cddc9256bff0f0545e9170f2b91
+    short_sha: 3ac124ad0
+    authored_at: '2026-07-25T21:59:12+00:00'
+    subject: 'feat: add Claude 5 model support'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/directus/schemas/users.yml
+    - backend/providers/anthropic.yml
+    - backend/tests/test_model_selection.py
+    - backend/tests/test_workspace_ask_pipeline.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/user-guide/cli/settings.md
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 0ca89667292b48fe32edd183973e049b2cc57ba7
+    short_sha: 0ca896672
+    authored_at: '2026-07-25T20:59:39+00:00'
+    subject: 'fix: correct workspace apps catalog'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ideabucket/app.yml
+    - backend/apps/plans/app.yml
+    - backend/apps/plans/skills/create_skill.py
+    - backend/apps/plans/skills/search_skill.py
+    - backend/apps/projects/app.yml
+    - backend/apps/projects/skills/create_skill.py
+    - backend/apps/projects/skills/search_skill.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/i18n/sources/app_skills/plans.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/projects.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    - frontend/packages/ui/src/types/apps.ts
+    - scripts/audit_skill_embed_registry.py
+    related_feature_ids:
+    - app:ideabucket
+    - app:plans
+    - app:projects
+    - skill:plans:create
+    - skill:plans:search
+    - skill:projects:create
+    - skill:projects:search
+  - sha: 12f5df1eeb82d9762244518f29ed4c0fbe9f8235
+    short_sha: 12f5df1ee
+    authored_at: '2026-07-25T19:26:34+00:00'
+    subject: 'feat: add plan SDK key wrappers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    related_feature_ids:
+    - platform:plans
+  - sha: 164aededd6d99ae198be6a710f34f564cec77ebf
+    short_sha: 164aededd
+    authored_at: '2026-07-25T18:49:50+00:00'
+    subject: 'fix: let landing intro content fade out'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 18974c97cfeac22735e76d0ded4944c60c7018ab
+    short_sha: 18974c97c
+    authored_at: '2026-07-25T18:35:16+00:00'
+    subject: 'fix: smooth landing intro collapse'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: c56690b4a897c5204745ec1f1ff707cf25c2a230
+    short_sha: c56690b4a
+    authored_at: '2026-07-25T18:19:43+00:00'
+    subject: 'fix: place mobile gift cta beside profile'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: b7f8054e18767d45801aca7658edc738363881a2
+    short_sha: b7f8054e1
+    authored_at: '2026-07-25T15:27:05+00:00'
+    subject: 'test: focus mobile header regression coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    related_feature_ids: []
+  - sha: e2ad3c6071b46445e445081f0481a50c5b048082
+    short_sha: e2ad3c607
+    authored_at: '2026-07-25T15:07:00+00:00'
+    subject: 'fix: prevent mobile chat header overlap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    related_feature_ids: []
+  - sha: e2b3ff655f1aeb80983410ee0ef8589abc57611e
+    short_sha: e2b3ff655
+    authored_at: '2026-07-25T14:55:43+00:00'
+    subject: 'fix: repair owner interactive question ordering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/utils/__tests__/sharedInteractiveQuestionOrdering.test.ts
+    - frontend/packages/ui/src/utils/sharedInteractiveQuestionOrdering.ts
+    related_feature_ids: []
+  - sha: c942992b97413c70bbdc4521d177062ba05e7215
+    short_sha: c942992b9
+    authored_at: '2026-07-25T13:49:12+00:00'
+    subject: 'fix: repair shared interactive question ordering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/utils/__tests__/sharedInteractiveQuestionOrdering.test.ts
+    - frontend/packages/ui/src/utils/sharedInteractiveQuestionOrdering.ts
+    related_feature_ids: []
+  - sha: b01bd651b0153051944a4812de82a85aa6d13576
+    short_sha: b01bd651b
+    authored_at: '2026-07-25T12:44:10+00:00'
+    subject: 'test: accept real two-message shared chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8c4ef348bc0e3950b6847c8d57bdadc26adc11ed
+    short_sha: 8c4ef348b
+    authored_at: '2026-07-25T12:34:54+00:00'
+    subject: 'fix: persist chat share metadata from settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_share_short_links.py
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    related_feature_ids: []
+  - sha: aee2266b22038bbfbc2057ec78b2ceabe44dbdeb
+    short_sha: aee2266b2
+    authored_at: '2026-07-25T12:15:12+00:00'
+    subject: 'fix: mark chat short links shared'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: 317bb2ff701da9d3f7c51197d6e16647581cc7d5
+    short_sha: 317bb2ff7
+    authored_at: '2026-07-25T10:45:02+00:00'
+    subject: 'refactor: keep project remote access CLI-only'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_projects.py
+    related_feature_ids: []
+  - sha: 1d4c209a2df911e0d6de65d06ba3aeb2917b9ae4
+    short_sha: 1d4c209a2
+    authored_at: '2026-07-25T10:37:29+00:00'
+    subject: 'test: relax train segment provider fields'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: 44f89f93ac6753821f443bad409fc1e17227522a
+    short_sha: 44f89f93a
+    authored_at: '2026-07-25T10:28:16+00:00'
+    subject: 'test: accept train provider variants'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: d7eb2febc48c9ec6dd6a1a5c981a125b6ac13f53
+    short_sha: d7eb2febc
+    authored_at: '2026-07-25T10:19:00+00:00'
+    subject: 'test: pin train connection provider'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: 60be1734cc987202c2129eb23565315057952f5f
+    short_sha: 60be1734c
+    authored_at: '2026-07-25T10:11:13+00:00'
+    subject: 'test: wait for chat readiness in maps spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-maps-search.spec.ts
+    related_feature_ids: []
+  - sha: ed3ad0f73538bd732e6fdc649e729eb2a98bdd48
+    short_sha: ed3ad0f73
+    authored_at: '2026-07-25T09:09:11+00:00'
+    subject: 'test: wait for chat readiness in career focus spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-career-insights.spec.ts
+    related_feature_ids: []
+  - sha: c6ffedc890d1dc776c309d05e11aaa4433250a43
+    short_sha: c6ffedc89
+    authored_at: '2026-07-25T08:54:48+00:00'
+    subject: 'test: stabilize news search e2e fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/news/skills/search_fixture.py
+    - backend/apps/news/skills/search_skill.py
+    - backend/tests/test_news_search_fixture.py
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    related_feature_ids:
+    - app:news
+    - embed:news:search
+    - skill:news:search
+  - sha: dc8334463df75230c7f292ce6378023a371561f2
+    short_sha: dc8334463
+    authored_at: '2026-07-25T08:38:22+00:00'
+    subject: 'test: stabilize images search e2e fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    related_feature_ids: []
+  - sha: 1199319cd1dd217598938531bf71ef6ed5920ae8
+    short_sha: 1199319cd
+    authored_at: '2026-07-25T08:30:47+00:00'
+    subject: 'test: stabilize images search e2e fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/images/skills/search_skill.py
+    - backend/tests/test_images_search_fixture.py
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    related_feature_ids:
+    - app:images
+    - embed:images:search
+    - skill:images:search
+  - sha: 907200700e2b0d2c61c0b68b87f86d34b21f725d
+    short_sha: '907200700'
+    authored_at: '2026-07-25T08:18:13+00:00'
+    subject: 'test: stabilize videos search e2e fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/videos/skills/search_skill.py
+    - backend/tests/test_videos_search_candidate_limit.py
+    - frontend/apps/web_app/tests/skill-videos-search.spec.ts
+    related_feature_ids:
+    - app:videos
+    - embed:videos:search
+    - skill:videos:search
+  - sha: c103bf7a3fc17c3c95ee2ab938ac2c5a3bdd78c1
+    short_sha: c103bf7a3
+    authored_at: '2026-07-25T07:58:12+00:00'
+    subject: 'fix: rotate Brave keys after rate limit exhaustion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/brave/brave_search.py
+    - backend/tests/test_brave_search_provider.py
+    related_feature_ids: []
+  - sha: 05838002bfddb355115139094afa6b5e954987f3
+    short_sha: 05838002b
+    authored_at: '2026-07-25T07:39:10+00:00'
+    subject: 'test: make videos search e2e route deterministic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-videos-search.spec.ts
+    related_feature_ids: []
+  - sha: 5b7f47b954c56ab4891de36dc9df748d06d208ea
+    short_sha: 5b7f47b95
+    authored_at: '2026-07-25T07:21:53+00:00'
+    subject: 'fix: keep Brave video search fallback results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/videos/skills/search_skill.py
+    - backend/tests/test_videos_search_candidate_limit.py
+    related_feature_ids:
+    - app:videos
+    - embed:videos:search
+    - skill:videos:search
+  - sha: 7104c0d7ee707dfce5938346d0af0f0337f943a2
+    short_sha: 7104c0d7e
+    authored_at: '2026-07-25T06:53:41+00:00'
+    subject: 'fix: acknowledge persisted embed diff writes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: 8ef712f41d56e6b28189e37e8e059ddd6ee84371
+    short_sha: 8ef712f41
+    authored_at: '2026-07-25T06:16:16+00:00'
+    subject: 'test: accept finance fullscreen embed root'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    related_feature_ids: []
+  - sha: 92229ec3e6f0ea0acba5faf41f6cb2f28d86b0e5
+    short_sha: 92229ec3e
+    authored_at: '2026-07-25T05:08:49+00:00'
+    subject: 'test: align unauthenticated guest examples spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 402fcc0671dee3cf9ac9ed9017044be2dc617887
+    short_sha: 402fcc067
+    authored_at: '2026-07-25T04:50:28+00:00'
+    subject: 'fix: keep guest intro card in inspiration examples'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 464eb92f6c9493f51a31107856a00b29138fb0ec
+    short_sha: 464eb92f6
+    authored_at: '2026-07-25T04:06:04+00:00'
+    subject: 'test: isolate batch sync notification side effects'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    related_feature_ids: []
+  - sha: a48dc9fe69aa42bd5e34ec1946d2e953cfac9d22
+    short_sha: a48dc9fe6
+    authored_at: '2026-07-25T04:02:57+00:00'
+    subject: 'test: stub custom events for batch sync unit'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    related_feature_ids: []
+  - sha: 7bbf1dbe8b7a67c3a70eedb218486138e19363c6
+    short_sha: 7bbf1dbe8
+    authored_at: '2026-07-25T03:58:53+00:00'
+    subject: 'test: isolate batch sync cache upsert fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    related_feature_ids: []
+  - sha: c10fd78de710abe6e401e623268b9c6744e69cf0
+    short_sha: c10fd78de
+    authored_at: '2026-07-25T03:54:47+00:00'
+    subject: 'test: cover batch sync encrypted message guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    related_feature_ids: []
+  - sha: bb9c583f451d6b5d001f280a870e86084b7c5152
+    short_sha: bb9c583f4
+    authored_at: '2026-07-25T03:35:29+00:00'
+    subject: 'fix: compact mobile guest inspiration banner'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 21f78f8e59a42da2af221eb6df9da9c63015f2c4
+    short_sha: 21f78f8e5
+    authored_at: '2026-07-25T03:10:46+00:00'
+    subject: 'fix: tighten mobile guest inspiration header'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 9a7c50e2cc9945b68cd2fb5df44f2dff9bddf2bc
+    short_sha: 9a7c50e2c
+    authored_at: '2026-07-25T02:54:43+00:00'
+    subject: 'fix: force chat header text white'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates expanded AI capabilities with Claude 5 support and introduced stricter security boundaries for the SDK.
+    Significant effort was also directed toward refining the mobile user experience and stabilizing search skill tests.
+  released_changes: []
+  bug_fixes:
+  - text: Refined the landing page intro and inspiration banner with smoother transitions, improved fade effects, and compact
+      mobile layouts.
+    evidence:
+      commits:
+      - fd4b052fe
+      - 164aededd
+      - 18974c97c
+      - 402fcc067
+      - bb9c583f4
+    release_status: dev_only
+  - text: Resolved mobile UI issues, including chat header overlaps, text color visibility, and gift CTA placement.
+    evidence:
+      commits:
+      - c56690b4a
+      - e2ad3c607
+      - 9a7c50e2c
+    release_status: dev_only
+  - text: Corrected the ordering logic for interactive questions in both owner and shared chat views.
+    evidence:
+      commits:
+      - e2b3ff655
+      - c942992b9
+    release_status: dev_only
+  - text: Fixed metadata persistence and sharing status for chat short links.
+    evidence:
+      commits:
+      - 8c4ef348b
+      - aee2266b2
+    release_status: dev_only
+  unreleased_progress:
+  - text: Support for the Claude 5 model was added to the AI processing and model selection pipeline.
+    evidence:
+      commits:
+      - 3ac124ad0
+    release_status: dev_only
+  - text: The SDK now enforces a cleartext encryption boundary for account exports with corresponding parity audits.
+    evidence:
+      commits:
+      - 6a693f8a2
+      - 6fd7d1964
+    release_status: dev_only
+  - text: Scroll indicators were added to grouped embed previews to improve navigation.
+    evidence:
+      commits:
+      - de9d189cd
+    release_status: dev_only
+  - text: Development continued on unreleased features including Plans, Projects, and Workflows, focusing on SDK wrappers
+      and catalog metadata.
+    evidence:
+      commits:
+      - 12f5df1ee
+      - 317bb2ff7
+      - 0ca896672
+      - 21f78f8e5
+    release_status: dev_only
+  internal_progress:
+  - text: Extensive stabilization of end-to-end tests for news, image, video, maps, and career search skills.
+    evidence:
+      commits:
+      - c6ffedc89
+      - dc8334463
+      - 1199319cd
+      - '907200700'
+      - 05838002b
+      - 60be1734c
+      - ed3ad0f73
+    release_status: dev_only
+  - text: Improved Brave search reliability with automated key rotation and fallback result handling for video searches.
+    evidence:
+      commits:
+      - c103bf7a3
+      - 5b7f47b95
+    release_status: dev_only
+  - text: Enhanced unit test isolation and coverage for the chat synchronization service.
+    evidence:
+      commits:
+      - 464eb92f6
+      - a48dc9fe6
+      - 7bbf1dbe8
+      - c10fd78de
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Claude 5 model support.
+      evidence:
+        commits:
+        - 3ac124ad0
+      reason: Feature is currently in dev_only status and not reachable from main.
+    - text: SDK cleartext encryption boundary.
+      evidence:
+        commits:
+        - 6a693f8a2
+      reason: Technical SDK update is currently in dev_only status.
+    - text: Landing page and inspiration banner refresh.
+      evidence:
+        commits:
+        - fd4b052fe
+        - 18974c97c
+        - bb9c583f4
+      reason: UI refinements are currently in dev_only status.
+    rationale: All updates from this period are currently in development (dev_only) and have not yet reached the main branch
+      for public release.
+  social_video_recommendations:
+  - idea: Demonstrate the new Claude 5 model support within the OpenMates AI processing pipeline.
+    priority: high
+    reason: New model support is a major feature update for AI-driven platforms.
+    evidence:
+      commits:
+      - 3ac124ad0
+  - idea: Showcase the smoother, more compact landing page and inspiration banner transitions on mobile.
+    priority: medium
+    reason: Visual UI improvements are well-suited for short-form video content.
+    evidence:
+      commits:
+      - 18974c97c
+      - bb9c583f4
+  quality_notes:
+  - High volume of test stabilization (19 commits) indicates a focus on search skill and sync reliability.
+  - Introduction of SDK cleartext boundaries suggests a hardening of the account export security model.
+  validation_warnings: []

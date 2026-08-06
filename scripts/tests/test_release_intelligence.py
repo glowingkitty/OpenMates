@@ -39,6 +39,7 @@ llm_system_prompt = _release_intelligence.llm_system_prompt
 normalize_summary = _release_intelligence.normalize_summary
 newsletter_include_commits_from_source = _release_intelligence.newsletter_include_commits_from_source
 render_pr_readiness_markdown = _release_intelligence.render_pr_readiness_markdown
+render_release_summary_markdown = _release_intelligence.render_release_summary_markdown
 
 
 def test_daily_artifact_groups_changes_and_gates_newsletter_readiness() -> None:
@@ -561,9 +562,43 @@ def test_weekly_discord_payload_includes_include_and_exclude_items() -> None:
     assert "Apple Watch" in description
 
 
+def test_release_summary_markdown_prioritizes_llm_interpretation() -> None:
+    artifact = {
+        "cadence": "daily",
+        "date": "2026-08-05",
+        "summary": {"total_commits": 12},
+        "llm_summary": {
+            "overview": "OpenMates improved chat reliability.",
+            "released_changes": [],
+            "bug_fixes": [{"text": "Chat reconnects now recover cleanly.", "evidence": {"commits": ["abc1234"]}}],
+            "unreleased_progress": [],
+            "internal_progress": [],
+            "newsletter_recommendation": {
+                "include": [{"text": "Mention reconnect reliability.", "evidence": {"commits": ["abc1234"]}}],
+                "exclude": [],
+                "rationale": "The fix is released and user-facing.",
+            },
+            "quality_notes": ["No validation gaps."],
+            "validation_warnings": [],
+        },
+    }
+
+    rendered = render_release_summary_markdown(artifact)
+
+    assert rendered.startswith("# Daily Release Summary: 2026-08-05")
+    assert "OpenMates improved chat reliability." in rendered
+    assert "Chat reconnects now recover cleanly. (abc1234)" in rendered
+    assert "## Newsletter Guidance" in rendered
+    assert "The fix is released and user-facing." in rendered
+    assert "changed_paths" not in rendered
+
+
 def test_release_intelligence_cron_wrapper_documents_all_modes() -> None:
     wrapper = (ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8")
 
+    env_source = wrapper.index('. "$PROJECT_ROOT/.env"')
+    assert wrapper.rfind("set +u", 0, env_source) != -1
+    assert wrapper.find("set -u", env_source) != -1
     assert "run_daily" in wrapper
     assert "run_weekly" in wrapper
     assert "--discord" in wrapper
