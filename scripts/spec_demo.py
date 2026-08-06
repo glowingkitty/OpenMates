@@ -827,7 +827,12 @@ def produce_playwright_demonstration(
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
     captions_path = run_dir / "captions.srt"
-    write_single_caption(captions_path, text=caption_text, duration_seconds=source_metadata["duration_seconds"])
+    caption_segments = write_tutorial_captions(
+        captions_path,
+        text=caption_text,
+        duration_seconds=source_metadata["duration_seconds"],
+        narration_id=narration_id,
+    )
     video_path = run_dir / "demo.mp4"
     render_captioned_video(source_video, captions_path, video_path)
     return prepare_review_artifacts(
@@ -840,6 +845,7 @@ def produce_playwright_demonstration(
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
         source={"kind": "playwright", **selected},
+        caption_segments=caption_segments,
     )
 
 

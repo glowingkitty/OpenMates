@@ -1,4 +1,4 @@
-"""Tests for session-level CLI proof-video orchestration.
+"""Tests for session-level CLI and Playwright proof-video orchestration.
 
 Purpose: verify exact capture delegates to the demonstration pipeline safely.
 Security: webhook fixtures are synthetic and must never be printed.
@@ -27,6 +27,7 @@ def fake_spec_demo(**functions: object) -> ModuleType:
     module = ModuleType("spec_demo")
     module.DemonstrationError = SyntheticDemonstrationError
     module.produce_cli_demonstration = functions.get("produce", lambda **_kwargs: {})
+    module.produce_playwright_demonstration = functions.get("produce_playwright", lambda **_kwargs: {})
     module.record_review = functions.get("review", lambda *_args: {})
     module.publish_reviewed_video = functions.get("publish", lambda *_args, **_kwargs: {})
     return module
@@ -64,6 +65,58 @@ def test_proof_video_produce_always_enables_typed_anonymization(
 
     assert observed["argv"] == ["openmates", "plans", "create"]
     assert observed["anonymize_sensitive"] is True
+
+
+def test_proof_video_playwright_requires_and_forwards_passing_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    def produce_playwright(**kwargs: object) -> dict[str, object]:
+        observed.update(kwargs)
+        return {"privacy": {"status": "passed"}}
+
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"video")
+    monkeypatch.setitem(
+        sys.modules,
+        "spec_demo",
+        fake_spec_demo(produce_playwright=produce_playwright),
+    )
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {"abcd": {}}})
+    args = argparse.Namespace(
+        session="abcd",
+        proof_action="produce-playwright",
+        run_dir=tmp_path / "proof",
+        source_video=video,
+        proof_id="signup-proof",
+        subject_commit="abc1234",
+        run_id="gha-123-case-1",
+        target_environment="https://app.dev.openmates.org",
+        test_account_provenance="reserved test account with synthetic signup identity",
+        narration_id="NARR-1",
+        caption="The signup tutorial explains the action and visible result.",
+        expected_proof="The passing signup flow is visible.",
+        acceptance_criterion=["AC-1"],
+        spec_name="signup-flow-passkey.spec.ts",
+        deployment_reference="dpl-example",
+        source_status="passed",
+    )
+
+    sessions.cmd_proof_video(args)
+
+    assert observed["source_video"] == video
+    assert observed["source"] == {
+        "status": "passed",
+        "command_or_spec": "signup-flow-passkey.spec.ts",
+        "target": "https://app.dev.openmates.org",
+        "deployment_reference": "dpl-example",
+        "run_id": "gha-123-case-1",
+        "subject_commit": "abc1234",
+        "artifact_path": str(video),
+        "test_account_provenance": "reserved test account with synthetic signup identity",
+    }
 
 
 def test_proof_video_publish_loads_dev_smoke_webhook_without_printing_it(

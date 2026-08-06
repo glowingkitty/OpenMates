@@ -5278,10 +5278,11 @@ def cmd_visual_smoke(args: argparse.Namespace) -> None:
 
 
 def cmd_proof_video(args: argparse.Namespace) -> None:
-    """Produce, review, or publish exact CLI proof videos for one session."""
+    """Produce, review, or publish narrated CLI and Playwright proof videos."""
     from spec_demo import (
         DemonstrationError,
         produce_cli_demonstration,
+        produce_playwright_demonstration,
         publish_reviewed_video,
         record_review,
     )
@@ -5310,6 +5311,35 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             expected_proof=args.expected_proof,
             acceptance_criteria=args.acceptance_criterion,
             anonymize_sensitive=True,
+        )
+        print(json.dumps({"status": "review_ready", "run_dir": str(run_dir), "privacy": result["privacy"]}, sort_keys=True))
+        return
+    if args.proof_action == "produce-playwright":
+        if args.source_status != "passed":
+            raise DemonstrationError("proof-video produce-playwright requires a passing Playwright test result")
+        run_dir = args.run_dir or (
+            PROJECT_ROOT / "test-results" / "proof-videos" / args.session / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        )
+        source = {
+            "status": args.source_status,
+            "command_or_spec": args.spec_name,
+            "target": args.target_environment,
+            "deployment_reference": args.deployment_reference,
+            "run_id": args.run_id,
+            "subject_commit": args.subject_commit,
+            "artifact_path": str(args.source_video),
+            "test_account_provenance": args.test_account_provenance,
+        }
+        result = produce_playwright_demonstration(
+            run_dir=run_dir,
+            source_video=args.source_video,
+            source=source,
+            spec_id=args.proof_id,
+            subject_commit=args.subject_commit,
+            narration_id=args.narration_id,
+            caption_text=args.caption,
+            expected_proof=args.expected_proof,
+            acceptance_criteria=args.acceptance_criterion,
         )
         print(json.dumps({"status": "review_ready", "run_dir": str(run_dir), "privacy": result["privacy"]}, sort_keys=True))
         return
@@ -9417,22 +9447,31 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 def cmd_spawn_chat(args: argparse.Namespace) -> None:
-    """Spawn a new OpenCode chat in a separate Zellij session.
+    """Spawn a new Claude Code session in a separate Zellij tab.
 
-    Creates an interactive OpenCode chat visible in the OpenCode UI
+    Creates an interactive Claude session visible in the Zellij web UI
     (localhost:8082) and attachable via `zellij attach <name>`.
 
     Default is plan mode (read-only). Use --mode execute for full edit access.
     """
-    # Resolve prompt text before launching from the canonical repository root.
+    # Resolve prompt text
     if args.prompt_file:
         prompt_path = Path(args.prompt_file)
         if not prompt_path.is_file():
             print(f"Error: prompt file not found: {args.prompt_file}", file=sys.stderr)
             sys.exit(1)
-        prompt = prompt_path.read_text(encoding="utf-8")
+        prompt = (
+            f"Read {args.prompt_file} in full and follow all the instructions precisely."
+        )
     elif args.prompt:
-        prompt = args.prompt
+        # Write inline prompt to temp file so claude reads it (avoids arg length issues)
+        tmp_dir = PROJECT_ROOT / "scripts" / ".tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
+        prompt_file = tmp_dir / f"spawn-prompt-{session_name}.txt"
+        prompt_file.write_text(args.prompt, encoding="utf-8")
+        rel_path = prompt_file.relative_to(PROJECT_ROOT)
+        prompt = f"Read {rel_path} in full and follow all the instructions precisely."
     else:
         print("Error: --prompt or --prompt-file is required.", file=sys.stderr)
         sys.exit(1)
@@ -9454,7 +9493,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "IMPORTANT: This is an EXECUTE session. "
             "You have full access to read, edit, and create files. "
             "Investigate the issue and implement the fix directly. "
-            "Follow the task instructions for deployment and verification.\n\n"
+            "Use sessions.py deploy to commit and push when done.\n\n"
         )
 
     # Handle Linear issue linking
@@ -9474,7 +9513,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                 # Post pickup comment
                 post_comment(
                     issue_data["id"],
-                    f"**OpenCode session started:** `{session_name}`\n\n"
+                    f"**Claude session started:** `{session_name}`\n\n"
                     f"**Mode:** {permission_mode}\n"
                     f"**Attach:** `zellij attach {session_name}`\n"
                     f"**Web UI:** http://localhost:8082"
@@ -9494,6 +9533,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                     f'  id: "{issue_data["identifier"]}", state: "In Review",\n'
                     f"  and post a final comment with resume commands:\n"
                     f"  zellij attach {session_name}\n"
+                    f"  claude --resume <your-session-id>\n"
                 )
             else:
                 print(f"Warning: Could not fetch Linear issue {linear_issue_id}", file=sys.stderr)
@@ -9503,23 +9543,23 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     prompt = mode_prefix + prompt + linear_suffix
 
     try:
-        from _zellij_utils import spawn_opencode_session
+        from _zellij_utils import spawn_claude_session
     except ImportError:
         # Add scripts dir to path for import
         scripts_dir = str(PROJECT_ROOT / "scripts")
         if scripts_dir not in sys.path:
             sys.path.insert(0, scripts_dir)
-        from _zellij_utils import spawn_opencode_session
+        from _zellij_utils import spawn_claude_session
 
-    success = spawn_opencode_session(
+    success = spawn_claude_session(
         session_name=session_name,
         prompt=prompt,
-        cwd=str(CONTROL_PLANE_ROOT),
+        cwd=str(PROJECT_ROOT),
         permission_mode=permission_mode,
     )
 
     if success:
-        mode_label = "execute (full access)" if permission_mode == "execute" else "plan (research only)"
+        mode_label = "execute (full access, skip-permissions)" if permission_mode == "execute" else "plan (research only, skip-permissions)"
         print(f"Session spawned: {session_name}")
         print(f"Mode: {mode_label}")
         print(f"Attach: zellij attach {session_name}")
@@ -10039,6 +10079,25 @@ def main() -> None:
     p_proof_produce.add_argument("--expected-proof", required=True)
     p_proof_produce.add_argument("--acceptance-criterion", action="append", required=True)
     p_proof_produce.add_argument("argv", nargs=argparse.REMAINDER)
+    p_proof_playwright = proof_actions.add_parser(
+        "produce-playwright",
+        help="Narrate a passing deployed Playwright test recording",
+    )
+    p_proof_playwright.add_argument("--session", "-s", required=True, help="Session ID")
+    p_proof_playwright.add_argument("--run-dir", type=Path)
+    p_proof_playwright.add_argument("--source-video", type=Path, required=True)
+    p_proof_playwright.add_argument("--proof-id", default="playwright-proof")
+    p_proof_playwright.add_argument("--subject-commit", required=True)
+    p_proof_playwright.add_argument("--run-id", required=True)
+    p_proof_playwright.add_argument("--spec-name", required=True)
+    p_proof_playwright.add_argument("--source-status", choices=["passed", "failed", "timed_out", "skipped"], required=True)
+    p_proof_playwright.add_argument("--target-environment", required=True)
+    p_proof_playwright.add_argument("--deployment-reference", required=True)
+    p_proof_playwright.add_argument("--test-account-provenance", required=True)
+    p_proof_playwright.add_argument("--narration-id", default="NARR-1")
+    p_proof_playwright.add_argument("--caption", required=True)
+    p_proof_playwright.add_argument("--expected-proof", required=True)
+    p_proof_playwright.add_argument("--acceptance-criterion", action="append", required=True)
     p_proof_review = proof_actions.add_parser("review", help="Record frame-only claim verdicts")
     p_proof_review.add_argument("--session", "-s", required=True, help="Session ID")
     p_proof_review.add_argument("--run-dir", type=Path, required=True)
@@ -10561,15 +10620,15 @@ def main() -> None:
     # spawn-chat
     p_spawn = sub.add_parser(
         "spawn-chat",
-        help="Spawn an interactive OpenCode chat in a separate Zellij session",
+        help="Spawn a Claude Code session in a separate Zellij tab",
     )
     p_spawn.add_argument(
         "--prompt",
-        help="Prompt text to send directly to OpenCode",
+        help="Prompt text to send to Claude (written to temp file internally)",
     )
     p_spawn.add_argument(
         "--prompt-file",
-        help="Path to a prompt file whose contents are sent to OpenCode",
+        help="Path to a prompt file (Claude reads it directly)",
     )
     p_spawn.add_argument(
         "--name", "-n",
@@ -10579,13 +10638,14 @@ def main() -> None:
         "--mode",
         choices=["plan", "execute"],
         default="plan",
-        help="Permission mode: 'plan' (read-only, default) or 'execute' (full edit access)",
+        help="Permission mode: 'plan' (read-only, default) or "
+        "'execute' (full edit access via --dangerously-skip-permissions)",
     )
     p_spawn.add_argument(
         "--linear-issue", "--linear",
         metavar="ISSUE_ID",
         help="Linear issue to link (e.g., OPE-42). Auto-marks In Progress, "
-        "adds the working label, and injects Linear update instructions.",
+        "adds claude-is-working label, and injects Linear update instructions.",
     )
 
     # restore
