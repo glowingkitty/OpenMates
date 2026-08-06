@@ -99,11 +99,13 @@ def main() -> int:
     results: dict[str, Any] = {}
     for channel in channels:
         results[channel] = test_webhook() if channel == "webhook" else run_cli(channel)
-    passed = all(
-        result.get("status") == "passed"
-        or all(delivery.get("status") == "delivered" for delivery in result.get("deliveries", []))
-        for result in results.values()
-    )
+    passed = True
+    for result in results.values():
+        if result.get("status") == "passed":
+            continue
+        deliveries = result.get("deliveries", [])
+        passed = passed and result.get("configured") is True and bool(deliveries)
+        passed = passed and all(delivery.get("status") == "delivered" for delivery in deliveries)
     print(json.dumps({"status": "passed" if passed else "failed", "channels": results}))
     return 0 if passed else 1
 
