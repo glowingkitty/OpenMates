@@ -1,18 +1,20 @@
 #!/bin/bash
-# server-restart.sh — Full server restart: rebuild Docker + launch Claude tmux workspace
+# server-restart.sh — Full server restart: rebuild Docker + launch OpenCode tmux workspace
 #
 # Usage:
-#   ./scripts/server-restart.sh              # restore last 8 Claude sessions
-#   ./scripts/server-restart.sh --fresh      # start fresh Claude sessions instead
+#   ./scripts/server-restart.sh              # restore last 8 OpenCode sessions
+#   ./scripts/server-restart.sh --fresh      # start fresh OpenCode sessions instead
 #   ./scripts/server-restart.sh --no-docker  # skip Docker rebuild, just launch tmux
 #
-# Creates tmux session "claude" with 2 windows × 4 panes each (side by side),
-# all in ~/projects/OpenMates running claude --dangerously-skip-permissions.
+# Creates tmux session "opencode" with 2 windows × 4 panes each (side by side),
+# all in ~/projects/OpenMates attached to the local OpenCode server.
 
 set -euo pipefail
 
 PROJECT_DIR="$HOME/projects/OpenMates"
-TMUX_SESSION="claude"
+TMUX_SESSION="opencode"
+OPENCODE_SERVER_URL="${OPENCODE_SERVER_URL:-http://127.0.0.1:4096}"
+OPENCODE_MODEL="${OPENCODE_MODEL:-openai/gpt-5.6-sol}"
 DOCKER_ENV="$PROJECT_DIR/.env"
 COMPOSE_BASE="$PROJECT_DIR/backend/core/docker-compose.yml"
 COMPOSE_OVERRIDE="$PROJECT_DIR/backend/core/docker-compose.override.yml"
@@ -30,7 +32,7 @@ for arg in "$@"; do
         --no-docker) SKIP_DOCKER=true ;;
         -h|--help)
             echo "Usage: $0 [--fresh] [--no-docker]"
-            echo "  --fresh      Start fresh Claude sessions (default: restore recent)"
+            echo "  --fresh      Start fresh OpenCode sessions (default: restore recent)"
             echo "  --no-docker  Skip Docker rebuild, only launch tmux"
             exit 0
             ;;
@@ -40,16 +42,24 @@ done
 # --- Collect session IDs for restore ---
 SESSION_IDS=()
 if ! $FRESH; then
-    echo "Finding last $TOTAL_PANES Claude sessions to restore..."
-    # Get most recently modified session-env dirs (each is a session UUID)
-    # Skip the current session (the one running this script)
-    CURRENT_SID="${CLAUDE_SESSION_ID:-}"
-    mapfile -t SESSION_IDS < <(
-        ls -dt "$HOME/.claude/session-env"/*/ 2>/dev/null \
-        | xargs -I{} basename {} \
-        | grep -v "^${CURRENT_SID}$" \
-        | head -n "$TOTAL_PANES"
-    )
+    command -v opencode >/dev/null || { echo "Error: opencode is required." >&2; exit 1; }
+    command -v jq >/dev/null || { echo "Error: jq is required." >&2; exit 1; }
+    echo "Finding last $TOTAL_PANES OpenCode sessions to restore..."
+    CURRENT_SID="${OPENCODE_SESSION_ID:-}"
+    if ! session_json="$(opencode session list -n "$((TOTAL_PANES + 1))" --format json)"; then
+        echo "Error: failed to list OpenCode sessions; refusing to start fresh sessions implicitly." >&2
+        exit 1
+    fi
+    if ! session_id_lines="$(jq -r '.[].id' <<< "$session_json")"; then
+        echo "Error: invalid OpenCode session data; refusing to start fresh sessions implicitly." >&2
+        exit 1
+    fi
+    while IFS= read -r session_id; do
+        if [ -n "$session_id" ] && [ "$session_id" != "$CURRENT_SID" ]; then
+            SESSION_IDS+=("$session_id")
+        fi
+        [ ${#SESSION_IDS[@]} -ge "$TOTAL_PANES" ] && break
+    done <<< "$session_id_lines"
     if [ ${#SESSION_IDS[@]} -eq 0 ]; then
         echo "  No sessions found to restore. Starting fresh."
         FRESH=true
@@ -88,17 +98,20 @@ if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
     tmux kill-session -t "$TMUX_SESSION"
 fi
 
-# --- Build claude command for each pane ---
-build_claude_cmd() {
+# --- Build OpenCode command for each pane ---
+build_opencode_cmd() {
     local pane_index=$1
-    local cmd="cd $PROJECT_DIR && "
+    local -a opencode_args=(opencode run --attach "$OPENCODE_SERVER_URL" --interactive)
+    local quoted_dir command_text
 
     if ! $FRESH && [ $pane_index -lt ${#SESSION_IDS[@]} ]; then
-        cmd+="claude --resume ${SESSION_IDS[$pane_index]} --dangerously-skip-permissions"
+        opencode_args+=(--session "${SESSION_IDS[$pane_index]}" --agent plan "Resume this OpenCode session in read-only plan mode.")
     else
-        cmd+="claude --dangerously-skip-permissions"
+        opencode_args+=(--title "server-restart-$pane_index" --agent build --model "$OPENCODE_MODEL" --auto "Start a fresh OpenMates coding session. Run sessions.py start before mutating work.")
     fi
-    echo "$cmd"
+    printf -v quoted_dir '%q' "$PROJECT_DIR"
+    printf -v command_text '%q ' "${opencode_args[@]}"
+    printf 'cd %s && %s' "$quoted_dir" "$command_text"
 }
 
 # --- Create tmux session with horizontal panes ---
@@ -114,15 +127,15 @@ for win in $(seq 0 $((NUM_WINDOWS - 1))); do
         tmux new-window -t "$TMUX_SESSION" -n "work-$((win + 1))" -c "$PROJECT_DIR"
     fi
 
-    # First pane (index 0) already exists — launch claude in it
-    tmux send-keys -t "$TMUX_SESSION:$win.0" "$(build_claude_cmd $pane_counter)" Enter
+    # First pane (index 0) already exists — launch OpenCode in it
+    tmux send-keys -t "$TMUX_SESSION:$win.0" "$(build_opencode_cmd $pane_counter)" Enter
     pane_counter=$((pane_counter + 1))
 
     # Split horizontally 3 more times to get 4 side-by-side panes
     for _ in $(seq 1 $((PANES_PER_WINDOW - 1))); do
         tmux split-window -h -t "$TMUX_SESSION:$win" -c "$PROJECT_DIR"
-        # After split, the new pane is selected — send claude command to it
-        tmux send-keys -t "$TMUX_SESSION:$win" "$(build_claude_cmd $pane_counter)" Enter
+        # After split, the new pane is selected — send OpenCode command to it
+        tmux send-keys -t "$TMUX_SESSION:$win" "$(build_opencode_cmd $pane_counter)" Enter
         pane_counter=$((pane_counter + 1))
     done
 
@@ -136,7 +149,7 @@ tmux select-pane -t "$TMUX_SESSION:0.0"
 
 echo ""
 echo "tmux session '$TMUX_SESSION' ready!"
-echo "  $NUM_WINDOWS windows x $PANES_PER_WINDOW panes = $TOTAL_PANES Claude instances"
+echo "  $NUM_WINDOWS windows x $PANES_PER_WINDOW panes = $TOTAL_PANES OpenCode instances"
 if ! $FRESH; then
     echo "  Restoring ${#SESSION_IDS[@]} previous sessions"
 fi

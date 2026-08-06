@@ -790,7 +790,7 @@ def cmd_run_meeting(yesterday: str) -> None:
 
     if session_id:
         print(f"OPENCODE_SESSION_ID:{session_id}")
-        print(f"{LOG_PREFIX} Resume command: claude resume --dangerous {session_id}")
+        print(f"{LOG_PREFIX} Resume command: python3 scripts/sessions.py restore {session_id}")
 
     if returncode != 0:
         print(f"{LOG_PREFIX} Meeting session exited with code {returncode}", file=sys.stderr)
@@ -880,7 +880,7 @@ def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) ->
 
 def cmd_spawn_planning() -> None:
     """Spawn planning sessions for today's confirmed priorities."""
-    from _zellij_utils import spawn_claude_session, count_active_sessions, MAX_CONCURRENT_SESSIONS
+    from _zellij_utils import spawn_opencode_session, count_active_sessions, MAX_CONCURRENT_SESSIONS
 
     state = load_meeting_state()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -939,15 +939,9 @@ def cmd_spawn_planning() -> None:
             }
 
         prompt = build_planning_prompt(issue_data, meeting_summary, today)
-        prompt_file = TMP_DIR / f"planning-prompt-{linear_id}.txt"
-        prompt_file.write_text(prompt, encoding="utf-8")
-
-        rel_path = prompt_file.relative_to(PROJECT_ROOT)
-        claude_prompt = f"Read {rel_path} in full and follow all the instructions precisely."
-
-        success = spawn_claude_session(
+        success = spawn_opencode_session(
             session_name=session_name,
-            prompt=claude_prompt,
+            prompt=prompt,
             cwd=str(PROJECT_ROOT),
             permission_mode="plan",
         )

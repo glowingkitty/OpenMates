@@ -3,7 +3,7 @@
 scripts/linear-enricher.py
 
 Nightly task enrichment: fetches all open Linear tasks (Todo/Backlog) that
-haven't been researched recently, and spawns lightweight Claude Code research
+haven't been researched recently, and spawns lightweight OpenCode research
 sessions to analyze each one. Findings are posted as structured comments on
 the Linear issues, and labels are auto-applied based on content analysis.
 
@@ -30,18 +30,17 @@ _SCRIPTS_DIR = str(Path(__file__).parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from _linear_client import (
+from _linear_client import (  # noqa: E402
     get_issue_with_comments,
     list_open_issues,
 )
-from _zellij_utils import (
+from _zellij_utils import (  # noqa: E402
     MAX_CONCURRENT_SESSIONS,
     count_active_sessions,
-    spawn_claude_session,
+    spawn_opencode_session,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
-TMP_DIR = PROJECT_ROOT / "scripts" / ".tmp"
 PROMPT_TEMPLATE_PATH = PROJECT_ROOT / "scripts" / "prompts" / "linear-task-research.md"
 LOG_PREFIX = "[linear-enricher]"
 
@@ -151,22 +150,15 @@ def _build_research_prompt(issue: Dict, session_name: str) -> str:
 
 
 def _spawn_research(issue: Dict) -> bool:
-    """Spawn a read-only Claude research session for a single issue."""
+    """Spawn a read-only OpenCode research session for a single issue."""
     identifier = issue["identifier"]
     session_name = f"enrich-{identifier}"
 
-    # Build and write prompt to temp file
     prompt = _build_research_prompt(issue, session_name)
-    TMP_DIR.mkdir(parents=True, exist_ok=True)
-    prompt_file = TMP_DIR / f"enricher-prompt-{identifier}.txt"
-    prompt_file.write_text(prompt, encoding="utf-8")
 
-    rel_path = prompt_file.relative_to(PROJECT_ROOT)
-    claude_prompt = f"Read {rel_path} in full and follow all the instructions precisely."
-
-    success = spawn_claude_session(
+    success = spawn_opencode_session(
         session_name=session_name,
-        prompt=claude_prompt,
+        prompt=prompt,
         cwd=str(PROJECT_ROOT),
         permission_mode="plan",  # Read-only — research sessions never write files
     )

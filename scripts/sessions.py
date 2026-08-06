@@ -4359,8 +4359,8 @@ def _linear_start_integration(
     # Post pickup comment (include Zellij attach info)
     post_comment(
         linear_issue_id,
-        f"Picked up by Claude session `{sid}`\n\n"
-        f"Resume: `claude --resume {sid}`\n"
+        f"Picked up by OpenCode session `{sid}`\n\n"
+        f"Resume from the OpenCode web UI or attached Zellij session.\n"
         f"Zellij: `zellij attach session-{sid}`\n"
         f"Web UI: http://localhost:8082",
     )
@@ -4676,13 +4676,13 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     # ── Zellij integration ────────────────────────────────────────────────
     # NOTE: We no longer create a Zellij session on start. The CLI already
-    # runs inside a Zellij session (claude1, claude2, etc). Creating extra
+    # runs inside a Zellij session. Creating extra
     # sessions caused unbounded session accumulation and OOM on the server.
     # Poller-spawned sessions still create their own Zellij sessions via
-    # spawn_claude_session().
+    # spawn_opencode_session().
 
     # ===================================================================
-    # Output context for Claude (mode-aware, structured with box sections)
+    # Output context for the active agent (mode-aware, structured with box sections)
     # ===================================================================
 
     # ── Warn if workflow scripts themselves are modified but untracked ─────
@@ -9447,9 +9447,9 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 def cmd_spawn_chat(args: argparse.Namespace) -> None:
-    """Spawn a new Claude Code session in a separate Zellij tab.
+    """Spawn a new OpenCode session in a separate Zellij tab.
 
-    Creates an interactive Claude session visible in the Zellij web UI
+    Creates an interactive OpenCode session visible in the Zellij web UI
     (localhost:8082) and attachable via `zellij attach <name>`.
 
     Default is plan mode (read-only). Use --mode execute for full edit access.
@@ -9460,18 +9460,9 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
         if not prompt_path.is_file():
             print(f"Error: prompt file not found: {args.prompt_file}", file=sys.stderr)
             sys.exit(1)
-        prompt = (
-            f"Read {args.prompt_file} in full and follow all the instructions precisely."
-        )
+        prompt = prompt_path.read_text(encoding="utf-8")
     elif args.prompt:
-        # Write inline prompt to temp file so claude reads it (avoids arg length issues)
-        tmp_dir = PROJECT_ROOT / "scripts" / ".tmp"
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
-        prompt_file = tmp_dir / f"spawn-prompt-{session_name}.txt"
-        prompt_file.write_text(args.prompt, encoding="utf-8")
-        rel_path = prompt_file.relative_to(PROJECT_ROOT)
-        prompt = f"Read {rel_path} in full and follow all the instructions precisely."
+        prompt = args.prompt
     else:
         print("Error: --prompt or --prompt-file is required.", file=sys.stderr)
         sys.exit(1)
@@ -9507,13 +9498,13 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             from _linear_client import get_issue, update_issue_status, add_label, post_comment
             issue_data = get_issue(linear_issue_id)
             if issue_data:
-                # Mark In Progress + add claude-is-working label
+                # Mark In Progress + retain the existing compatibility label.
                 update_issue_status(issue_data["id"], "In Progress")
                 add_label(issue_data["id"], issue_data.get("label_ids", []))
                 # Post pickup comment
                 post_comment(
                     issue_data["id"],
-                    f"**Claude session started:** `{session_name}`\n\n"
+                    f"**OpenCode session started:** `{session_name}`\n\n"
                     f"**Mode:** {permission_mode}\n"
                     f"**Attach:** `zellij attach {session_name}`\n"
                     f"**Web UI:** http://localhost:8082"
@@ -9533,7 +9524,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                     f'  id: "{issue_data["identifier"]}", state: "In Review",\n'
                     f"  and post a final comment with resume commands:\n"
                     f"  zellij attach {session_name}\n"
-                    f"  claude --resume <your-session-id>\n"
+                    f"  opencode run --session <your-session-id>\n"
                 )
             else:
                 print(f"Warning: Could not fetch Linear issue {linear_issue_id}", file=sys.stderr)
@@ -9543,23 +9534,23 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     prompt = mode_prefix + prompt + linear_suffix
 
     try:
-        from _zellij_utils import spawn_claude_session
+        from _zellij_utils import spawn_opencode_session
     except ImportError:
         # Add scripts dir to path for import
         scripts_dir = str(PROJECT_ROOT / "scripts")
         if scripts_dir not in sys.path:
             sys.path.insert(0, scripts_dir)
-        from _zellij_utils import spawn_claude_session
+        from _zellij_utils import spawn_opencode_session
 
-    success = spawn_claude_session(
+    success = spawn_opencode_session(
         session_name=session_name,
         prompt=prompt,
-        cwd=str(PROJECT_ROOT),
+        cwd=str(CONTROL_PLANE_ROOT),
         permission_mode=permission_mode,
     )
 
     if success:
-        mode_label = "execute (full access, skip-permissions)" if permission_mode == "execute" else "plan (research only, skip-permissions)"
+        mode_label = "execute (full access, auto-approved)" if permission_mode == "execute" else "plan (research only)"
         print(f"Session spawned: {session_name}")
         print(f"Mode: {mode_label}")
         print(f"Attach: zellij attach {session_name}")
@@ -9570,125 +9561,49 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
-# restore — Resume interrupted Claude Code sessions in Zellij
+# restore — Resume interrupted OpenCode sessions in Zellij
 # ---------------------------------------------------------------------------
-
-# Path to Claude Code's session storage for the OpenMates project
-_CLAUDE_SESSIONS_DIR = Path.home() / ".claude" / "projects" / "-home-superdev-projects-OpenMates"
 
 
 def _discover_interrupted_sessions(
     max_age_hours: int = 24,
     limit: int = 15,
 ) -> list[dict]:
-    """
-    Scan Claude Code JSONL session files and return sessions that appear
-    interrupted (have recent activity but no completion signal).
-
-    Returns a list of dicts with keys:
-        session_id, last_modified, first_user_msg, last_assistant_msg
-    sorted by last_modified descending.
-    """
-    import json as _json
-    import re as _re
-
-    sessions_dir = _CLAUDE_SESSIONS_DIR
-    if not sessions_dir.is_dir():
+    """List recent OpenCode sessions that can be resumed."""
+    try:
+        result = subprocess.run(
+            ["opencode", "session", "list", "-n", str(limit), "--format", "json"],
+            cwd=str(CONTROL_PLANE_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
         return []
-
+    if result.returncode != 0:
+        return []
+    try:
+        sessions = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
     cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
-    results = []
-
-    # Collect JSONL files sorted by mtime descending
-    jsonl_files = sorted(
-        sessions_dir.glob("*.jsonl"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )[:limit]
-
-    for path in jsonl_files:
-        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
-        if mtime < cutoff:
+    discovered = []
+    for session in sessions if isinstance(sessions, list) else []:
+        if not isinstance(session, dict) or not session.get("id"):
             continue
-
-        session_id = path.stem
-        first_user = None
-        last_assistant = None
-
-        try:
-            with open(path, encoding="utf-8") as fh:
-                for line in fh:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        obj = _json.loads(line)
-                    except _json.JSONDecodeError:
-                        continue
-
-                    msg_type = obj.get("type", "")
-                    msg = obj.get("message", {})
-                    content = msg.get("content", "")
-
-                    # Normalise content list → string
-                    if isinstance(content, list):
-                        texts = [
-                            c.get("text", "")
-                            for c in content
-                            if isinstance(c, dict) and c.get("type") == "text"
-                        ]
-                        content = " ".join(texts)
-                    if not isinstance(content, str):
-                        continue
-
-                    # Strip system-reminder / command tags
-                    content = _re.sub(
-                        r"<system-reminder>.*?</system-reminder>", "", content, flags=_re.DOTALL
-                    )
-                    content = _re.sub(
-                        r"<local-command.*?</local-command-stdout>", "", content, flags=_re.DOTALL
-                    )
-                    content = _re.sub(
-                        r"<command-.*?>.*?</command-.*?>", "", content, flags=_re.DOTALL
-                    )
-                    content = content.strip()
-
-                    if msg_type == "user" and not first_user and len(content) > 10:
-                        first_user = content[:250]
-                    if msg_type == "assistant" and content:
-                        last_assistant = content[:250]
-        except Exception:
+        updated = datetime.fromtimestamp(float(session.get("updated") or 0) / 1000, tz=timezone.utc)
+        if updated < cutoff:
             continue
-
-        # Only include spawned sessions (started via spawn-chat with a prompt file)
-        if not first_user or "Read scripts/.tmp/" not in first_user:
-            continue
-
-        # Detect completion signals in last assistant message
-        completed = False
-        if last_assistant:
-            completion_phrases = [
-                "all implementation is complete",
-                "deployed as",
-                "task summary",
-                "successfully deployed",
-                "session ended",
-            ]
-            lower = last_assistant.lower()
-            completed = any(phrase in lower for phrase in completion_phrases)
-            # "Committed X and pushed to dev" is a deploy confirmation
-            if not completed and "committed" in lower and "pushed" in lower:
-                completed = True
-
-        results.append({
-            "session_id": session_id,
-            "last_modified": mtime.strftime("%Y-%m-%d %H:%M"),
-            "first_user_msg": first_user or "(no user message found)",
-            "last_assistant_msg": last_assistant or "(no output)",
-            "likely_complete": completed,
+        title = str(session.get("title") or "(untitled session)")
+        discovered.append({
+            "session_id": str(session["id"]),
+            "last_modified": updated.strftime("%Y-%m-%d %H:%M"),
+            "first_user_msg": title,
+            "last_assistant_msg": title,
+            "likely_complete": False,
         })
-
-    return results
+    return discovered
 
 
 def cmd_git_stats(args: argparse.Namespace) -> None:
@@ -9703,7 +9618,7 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
 
 
 def cmd_restore(args: argparse.Namespace) -> None:
-    """Restore an interrupted Claude Code session in a new Zellij tab.
+    """Restore an OpenCode session in a new Zellij tab.
 
     Resumes the session with --resume and sends a continuation prompt.
     If --list is passed, discovers and prints recent interrupted sessions.
@@ -9711,7 +9626,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
     scripts_dir = str(PROJECT_ROOT / "scripts")
     if scripts_dir not in sys.path:
         sys.path.insert(0, scripts_dir)
-    from _zellij_utils import resume_claude_session
+    from _zellij_utils import resume_opencode_session
 
     # --list mode: discover and print interrupted sessions
     if getattr(args, "list", False):
@@ -9849,15 +9764,19 @@ def cmd_restore(args: argparse.Namespace) -> None:
         print("Error: session ID is required. Use --list to discover sessions.", file=sys.stderr)
         sys.exit(1)
 
-    # Resolve short IDs (prefix match)
-    if len(session_id) < 36:
-        matches = list(_CLAUDE_SESSIONS_DIR.glob(f"{session_id}*.jsonl"))
+    # Resolve short IDs against recent OpenCode sessions.
+    if not session_id.startswith("ses_") or len(session_id) < 20:
+        matches = [
+            session["session_id"]
+            for session in _discover_interrupted_sessions(max_age_hours=24 * 365, limit=1000)
+            if session["session_id"].startswith(session_id)
+        ]
         if len(matches) == 1:
-            session_id = matches[0].stem
+            session_id = matches[0]
         elif len(matches) > 1:
             print(f"Error: ambiguous prefix '{session_id}' matches {len(matches)} sessions:", file=sys.stderr)
-            for m in matches:
-                print(f"  {m.stem}", file=sys.stderr)
+            for match in matches:
+                print(f"  {match}", file=sys.stderr)
             sys.exit(1)
         else:
             print(f"Error: no session found matching '{session_id}'.", file=sys.stderr)
@@ -9870,16 +9789,17 @@ def cmd_restore(args: argparse.Namespace) -> None:
         "Continue where you left off."
     )
 
-    success = resume_claude_session(
+    success = resume_opencode_session(
         session_name=zellij_name,
-        claude_session_id=session_id,
-        cwd=str(PROJECT_ROOT),
+        opencode_session_id=session_id,
+        cwd=str(CONTROL_PLANE_ROOT),
         prompt=prompt,
+        permission_mode=getattr(args, "mode", "plan"),
     )
 
     if success:
         print(f"Session restored: {zellij_name}")
-        print(f"Claude session: {session_id}")
+        print(f"OpenCode session: {session_id}")
         print(f"Attach: zellij attach {zellij_name}")
         print("Web UI: http://localhost:8082")
     else:
@@ -9894,7 +9814,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Claude Code session lifecycle manager"
+        description="OpenMates agent session lifecycle manager"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -10620,15 +10540,15 @@ def main() -> None:
     # spawn-chat
     p_spawn = sub.add_parser(
         "spawn-chat",
-        help="Spawn a Claude Code session in a separate Zellij tab",
+        help="Spawn an OpenCode session in a separate Zellij tab",
     )
     p_spawn.add_argument(
         "--prompt",
-        help="Prompt text to send to Claude (written to temp file internally)",
+        help="Prompt text to send to OpenCode",
     )
     p_spawn.add_argument(
         "--prompt-file",
-        help="Path to a prompt file (Claude reads it directly)",
+        help="Path to a prompt file",
     )
     p_spawn.add_argument(
         "--name", "-n",
@@ -10639,7 +10559,7 @@ def main() -> None:
         choices=["plan", "execute"],
         default="plan",
         help="Permission mode: 'plan' (read-only, default) or "
-        "'execute' (full edit access via --dangerously-skip-permissions)",
+        "'execute' (full edit access with auto-approved permissions)",
     )
     p_spawn.add_argument(
         "--linear-issue", "--linear",
@@ -10651,12 +10571,12 @@ def main() -> None:
     # restore
     p_restore = sub.add_parser(
         "restore",
-        help="Restore an interrupted Claude Code session in a Zellij tab",
+        help="Restore an OpenCode session in a Zellij tab",
     )
     p_restore.add_argument(
         "session_id",
         nargs="?",
-        help="Claude Code session UUID (or prefix) to resume",
+        help="OpenCode session ID (or prefix) to resume",
     )
     p_restore.add_argument(
         "--list", "-l",
@@ -10666,6 +10586,12 @@ def main() -> None:
     p_restore.add_argument(
         "--name", "-n",
         help="Zellij session name (default: restore-<id-prefix>)",
+    )
+    p_restore.add_argument(
+        "--mode",
+        choices=["plan", "execute"],
+        default="plan",
+        help="Permission mode for the resumed session (default: plan)",
     )
     p_restore.add_argument(
         "--prompt",

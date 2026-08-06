@@ -3,7 +3,7 @@
 scripts/linear-poller.py
 
 Polls Linear for issues with 'claude-plan', 'claude-research', or 'claude-fix'
-labels and spawns Claude Code sessions in Zellij for each one.
+labels and spawns OpenCode sessions in Zellij for each one.
 
 - claude-plan: spawns a plan-mode session (read-only research, posts findings)
 - claude-research: spawns a research session (codebase + web analysis, posts findings as comments)
@@ -52,9 +52,10 @@ from _zellij_utils import (  # noqa: E402
     MAX_CONCURRENT_SESSIONS,
     count_active_sessions,
     enforce_session_limit,
+    find_opencode_session_id,
     kill_session,
     list_sessions_with_state,
-    spawn_claude_session,
+    spawn_opencode_session,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -65,7 +66,7 @@ LOG_PREFIX = "[linear-poller]"
 POLLER_SESSIONS_FILE = TMP_DIR / "poller-sessions.json"
 POLLER_SESSIONS_LOCK = TMP_DIR / "poller-sessions.lock"
 
-# Directory where Claude Code stores session JSONL transcripts
+# Legacy Claude transcript directory retained only to salvage pre-migration sessions.
 CLAUDE_SESSIONS_DIR = Path.home() / ".claude" / "projects" / "-home-superdev-projects-OpenMates"
 
 
@@ -98,38 +99,8 @@ def _write_poller_sessions(data: Dict) -> None:
         print(f"{LOG_PREFIX} Warning: failed to write poller-sessions.json: {e}", file=sys.stderr)
 
 
-def _discover_claude_session_id() -> Optional[str]:
-    """
-    Find the Claude session UUID for a just-spawned session.
-
-    Scans the JSONL directory for files created in the last 15 seconds
-    and returns the UUID of the newest one. Returns None if no match.
-    """
-    if not CLAUDE_SESSIONS_DIR.is_dir():
-        return None
-
-    now = time.time()
-    newest_file = None
-    newest_mtime = 0.0
-
-    for f in CLAUDE_SESSIONS_DIR.iterdir():
-        if not f.suffix == ".jsonl":
-            continue
-        try:
-            mtime = f.stat().st_mtime
-        except OSError:
-            continue
-        if now - mtime < 15 and mtime > newest_mtime:
-            newest_mtime = mtime
-            newest_file = f
-
-    if newest_file:
-        return newest_file.stem  # UUID is the filename without extension
-    return None
-
-
 def _register_poller_session(
-    session_name: str, issue: Dict, mode: str, claude_session_id: Optional[str]
+    session_name: str, issue: Dict, mode: str, opencode_session_id: Optional[str]
 ) -> None:
     """Register a spawned session in the tracking file for cleanup monitoring."""
     data = _read_poller_sessions()
@@ -138,7 +109,7 @@ def _register_poller_session(
         "identifier": issue["identifier"],
         "mode": mode,
         "started": datetime.now(timezone.utc).isoformat(),
-        "claude_session_id": claude_session_id,
+        "opencode_session_id": opencode_session_id,
     }
     _write_poller_sessions(data)
 
@@ -181,7 +152,7 @@ def _build_linear_tracking_instructions(
         f"   claude-is-working label\n"
         f"4. Include resume commands in the final comment:\n"
         f"   zellij attach {session_name}\n"
-        f"   claude --resume <your-session-id>\n"
+        f"   opencode run --session <your-session-id>\n"
         f"\n"
         f"If you hit a tool error, token limit, or cannot proceed:\n"
         f"  Post a comment explaining what happened and set status to Todo.\n"
@@ -248,7 +219,7 @@ def _build_prompt(issue: Dict, mode: str, session_name: str) -> str:
 
 
 def _spawn_for_issue(issue: Dict, mode: str) -> bool:
-    """Spawn a Claude session for a single Linear issue. Returns True on success."""
+    """Spawn an OpenCode session for a single Linear issue. Returns True on success."""
     identifier = issue["identifier"]
     mode_prefix = {"plan": "plan", "research": "research", "execute": "fix"}
     session_name = f"{mode_prefix.get(mode, mode)}-{identifier}"
@@ -265,20 +236,14 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
         full_issue = issue
         full_issue.setdefault("comments", [])
 
-    # Build and write prompt to temp file
     prompt = _build_prompt(full_issue, mode, session_name)
-    TMP_DIR.mkdir(parents=True, exist_ok=True)
-    prompt_file = TMP_DIR / f"poller-prompt-{identifier}.txt"
-    prompt_file.write_text(prompt, encoding="utf-8")
-
-    rel_path = prompt_file.relative_to(PROJECT_ROOT)
-    claude_prompt = f"Read {rel_path} in full and follow all the instructions precisely."
 
     # Research sessions use plan permission mode (read-only)
     permission = "plan" if mode in ("plan", "research") else "execute"
-    success = spawn_claude_session(
+    launch_started_ms = int(time.time() * 1000)
+    success = spawn_opencode_session(
         session_name=session_name,
-        prompt=claude_prompt,
+        prompt=prompt,
         cwd=str(PROJECT_ROOT),
         permission_mode=permission,
     )
@@ -287,16 +252,15 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
         print(f"{LOG_PREFIX} {identifier}: FAILED to spawn session", file=sys.stderr)
         return False
 
-    # Wait briefly for Claude to create its JSONL session file, then capture UUID
-    time.sleep(3)
-    claude_session_id = _discover_claude_session_id()
-    if claude_session_id:
-        print(f"{LOG_PREFIX} {identifier}: captured Claude session {claude_session_id}")
-    else:
-        print(f"{LOG_PREFIX} {identifier}: could not capture Claude session ID", file=sys.stderr)
-
     # Register in tracking file for cleanup monitoring
-    _register_poller_session(session_name, full_issue, mode, claude_session_id)
+    opencode_session_id = find_opencode_session_id(
+        session_name,
+        str(PROJECT_ROOT),
+        created_after_ms=launch_started_ms,
+    )
+    if not opencode_session_id:
+        print(f"{LOG_PREFIX} {identifier}: OpenCode session ID not available yet", file=sys.stderr)
+    _register_poller_session(session_name, full_issue, mode, opencode_session_id)
 
     # Swap labels: remove trigger label, add claude-is-working
     current_labels = full_issue.get("label_ids", [])
@@ -470,7 +434,7 @@ def _is_session_stale(info: Dict) -> bool:
     """
     Check if a tracked session has been running longer than STALE_SESSION_HOURS
     without posting results. Catches sessions that are technically "alive" in
-    Zellij but idle (e.g. Claude finished but left the shell open).
+    Zellij but idle after the agent finished.
     """
     started = info.get("started")
     if not started:
@@ -494,7 +458,7 @@ def _salvage_abandoned_sessions() -> int:
 
     Handles two failure modes:
     1. EXITED sessions — Zellij process died (crash, context limit, OOM)
-    2. Stale ACTIVE sessions — Claude finished but didn't post back (idle shell)
+    2. Stale ACTIVE sessions — the agent finished but didn't post back (idle shell)
 
     For each, extracts findings from the JSONL transcript and posts them
     as a salvaged comment on the Linear issue.
@@ -540,7 +504,11 @@ def _salvage_abandoned_sessions() -> int:
 
         # No results posted — try to find and extract findings from the JSONL
         claude_session_id = info.get("claude_session_id")
-        jsonl_path = _find_jsonl_for_session(claude_session_id, info.get("started"))
+        jsonl_path = (
+            _find_jsonl_for_session(claude_session_id, info.get("started"))
+            if claude_session_id
+            else None
+        )
 
         findings = None
         if jsonl_path:

@@ -48,11 +48,11 @@ claims:
 
 # Linear Auto-Processing Pipeline
 
-> Automatically picks up Linear tasks labeled `claude-fix`, `claude-research`, or `claude-plan`, spawns Claude Code sessions in Zellij, tracks their lifecycle, and cleans up when done. All runs on the dev server only.
+> Automatically picks up Linear tasks labeled `claude-fix`, `claude-research`, or `claude-plan`, spawns OpenCode sessions in Zellij, tracks their lifecycle, and cleans up when done. The legacy label names remain for compatibility. All runs on the dev server only.
 
 ## Why This Exists
 
-Manual task pickup is slow — labeling a Linear task should be enough to kick off work. This pipeline turns Linear labels into running Claude sessions, monitors their progress, and reclaims resources when tasks complete or crash.
+Manual task pickup is slow — labeling a Linear task should be enough to kick off work. This pipeline turns Linear labels into running OpenCode sessions, monitors their progress, and reclaims resources when tasks complete or crash.
 
 ## How It Works
 
@@ -67,17 +67,16 @@ Manual task pickup is slow — labeling a Linear task should be enough to kick o
    |                              |
    | Under limit                  | At limit
    v                              v
-4. Spawns Claude in Zellij    Posts "Queued" comment (once)
-   - Writes prompt file        Retries next cycle
-   - Captures session UUID
+4. Spawns OpenCode in Zellij  Posts "Queued" comment (once)
+   - Passes prompt directly    Retries next cycle
    - Tracks in poller-sessions.json
    - Swaps labels: claude-fix -> claude-is-working
    - Sets status: In Progress
                     |
-5. Claude works (reads prompt, investigates, implements)
+5. OpenCode works (reads prompt, investigates, implements)
    - Posts progress comments to Linear via MCP
                     |
-6. Claude finishes
+6. OpenCode finishes
    - Sets status: In Review (or Todo if blocked)
    - Removes claude-is-working label
                     |
@@ -89,7 +88,7 @@ Manual task pickup is slow — labeling a Linear task should be enough to kick o
 
 ### Labels
 
-| Label | Mode | Claude Permissions | What Happens |
+| Label | Mode | OpenCode Permissions | What Happens |
 |-------|------|-------------------|--------------|
 | `claude-fix` | execute | Full read/write | Investigate + implement fix + deploy |
 | `claude-research` | research | Read-only | Codebase + web research, post findings as comment |
@@ -99,8 +98,8 @@ Priority order: fix > research > plan (if multiple labels exist).
 
 ### Session Limits
 
-- **Hard cap: 6 concurrent Zellij sessions** (server has 30GB RAM, each Claude session uses ~500MB)
-- The limit counts ALL Zellij sessions (manual claude1-4, poller-spawned, etc.)
+- **Hard cap: 6 concurrent Zellij sessions**
+- The limit counts all Zellij sessions, including manual and poller-spawned OpenCode sessions
 - When at capacity, tasks are queued — a single "Queued" comment is posted (deduped, no spam)
 - Queued tasks auto-start as slots free up
 
@@ -129,7 +128,7 @@ GraphQL client for the Linear API. All reads/writes go through `_graphql()`. Key
 
 ### `scripts/_zellij_utils.py`
 Zellij session management. Key functions:
-- `spawn_claude_session()` — creates KDL layout, launches Claude with `--dangerously-skip-permissions`
+- `spawn_opencode_session()` — creates a KDL layout and launches OpenCode with explicit plan or execute mode
 - `count_active_sessions()` — counts all non-EXITED sessions (used for global limit)
 - `enforce_session_limit()` — kills excess sessions
 - `list_sessions_with_state()` — returns `{name: "ACTIVE"|"EXITED"}` for cleanup
