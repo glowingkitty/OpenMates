@@ -262,7 +262,7 @@ async def test_cloud_server_status_includes_safe_free_testing_credits(monkeypatc
             "validate_request_domain",
             lambda _request: ("openmates.org", False, "production"),
         )
-        monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: True)
+        monkeypatch.setattr(server_mode, "is_cloud_billing_enabled", lambda: True)
         monkeypatch.setattr(server_mode, "get_server_edition", lambda: "production")
 
         response = await settings_module.get_server_status(_request({"origin": "https://openmates.org"}))
