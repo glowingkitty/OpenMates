@@ -288,6 +288,7 @@ def build_client(team_service, team_billing_service=None, config: dict | None = 
         return User(id="alice", username="alice", vault_key_id="vault-alice")
 
     app.dependency_overrides[teams._current_user] = fake_current_user
+    app.dependency_overrides[teams.get_payment_service] = lambda: app.state.payment_service
     client_index = next(_TEST_CLIENT_COUNTER)
     return TestClient(app, client=(f"teams-test-{client_index}", 50000 + client_index))
 
