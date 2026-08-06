@@ -81,7 +81,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: de53771
+  subject_commit: 768789f
 
 approvals:
   product_contract:
@@ -183,14 +183,25 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-06T19:26:12Z"
     summary: Initial delegation succeeded, but every parent synthesis continuation was depth zero with active web-research and received start_sub_chats again, creating repeated delegated batches instead of final synthesis.
+  - id: ATTEMPT-12
+    task_id: TASK-2
+    approach: Run the exact broad CLI proof and a narrower single-child proof after the synthesis-loop fix, then inspect task state and broker depth.
+    outcome: blocked
+    recorded_at: "2026-08-06T19:42:22Z"
+    summary: The broad request encountered shared provider throttling; the narrow request never reached a worker, remained PENDING with no recovery job, and the shared app_ai broker queue contained 74 tasks.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the synthesis continuation guard, restart the AI worker, rerun the scoped container regressions, and repeat one bounded real CLI chat.
-  command: 'python3 scripts/sessions.py deploy --session 0a36 --title "fix: stop deep research redelegation loop" --message "Symptom/Cause/Fix"'
-  expected_outcome: "Only the initial active Deep research continuation can start sub-chats; parent synthesis cannot see start_sub_chats and returns one final sealed sourced response."
-  blocker: null
-  last_verified_commit: "3864550"
+  next_action: Resolve the user decision, then either record a bounded CLI waiver or rerun the exact command after the shared app_ai queue drains.
+  command: python3 scripts/spec_verify.py docs/specs/focus-mode-processing-reliability/spec.yml --phase green
+  expected_outcome: "The user accepts the external queue blocker for this verification cycle, or a later exact CLI run returns one final persisted sourced response."
+  blocker:
+    task_id: TASK-2
+    requires_user_input: true
+    reason: The real CLI verification cannot obtain bounded evidence while the shared dev app_ai queue is saturated; the latest narrow task remained PENDING behind 74 queued tasks.
+    question: Should this verification cycle accept the green container regressions plus the recorded external CLI queue blocker, or should TASK-2 remain open for an exact CLI retry after the queue drains?
+    next_action: Record the user's waiver or retry decision in T-CLI-FOCUS and TASK-2.
+  last_verified_commit: 768789f
 
 scenarios:
   - id: S-1
@@ -401,10 +412,16 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: docker exec api python -m pytest backend/tests/test_focus_mode_routing.py backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_main_processor_invalid_tool_calls.py backend/tests/test_stream_consumer_recovery.py -k "sub_chat_parent_continuation or focus_mode or valid_preselected_web_search or explicit_focus_override or chat_compression"
-        run_id: docker-api-focus-routing-green-20260806T1444Z
-        subject_commit: d5188e1
-        timestamp: "2026-08-06T14:44:00Z"
+        command: docker exec api python -m pytest backend/tests/test_focus_mode_routing.py backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_mock_replay.py backend/tests/test_stream_consumer_recovery.py -k "focus_mode or mock_focus_activation or replay_fixture_recovery or sub_chat_parent_continuation" -q
+        run_id: docker-api-focus-routing-green-20260806T1928Z
+        subject_commit: 768789f
+        timestamp: "2026-08-06T19:28:00Z"
+      history:
+        - status: passed
+          command: docker exec api python -m pytest backend/tests/test_focus_mode_routing.py backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_main_processor_invalid_tool_calls.py backend/tests/test_stream_consumer_recovery.py -k "sub_chat_parent_continuation or focus_mode or valid_preselected_web_search or explicit_focus_override or chat_compression"
+          run_id: docker-api-focus-routing-green-20260806T1444Z
+          subject_commit: d5188e1
+          timestamp: "2026-08-06T14:44:00Z"
   - id: T-CLI-FOCUS
     type: manual
     file: frontend/packages/openmates-cli
@@ -423,7 +440,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence:
+        status: blocked
+        reason: The exact broad command encountered shared provider throttling, and the bounded narrow retry remained PENDING behind 74 tasks in the shared app_ai queue without reaching a worker.
+        actor: OpenCode
+        timestamp: "2026-08-06T19:42:22Z"
+        next_action: Obtain the user's bounded waiver or rerun after the shared queue drains.
   - id: T-CLI-RECOVERY
     type: unit
     file: frontend/packages/openmates-cli/tests/ws.test.ts
@@ -447,10 +469,16 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: node --test --experimental-strip-types --test-name-pattern "continuation recovery job" frontend/packages/openmates-cli/tests/ws.test.ts
-        run_id: local-node-cli-focus-green-20260806T1401Z
-        subject_commit: worktree
-        timestamp: "2026-08-06T14:01:00Z"
+        command: docker exec api python -m pytest backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_mock_replay.py backend/tests/test_stream_consumer_recovery.py -k "focus_mode_continuations or mock_focus_activation or replay_fixture_recovery or sub_chat_parent_continuation" -q
+        run_id: docker-api-cli-recovery-green-20260806T1928Z
+        subject_commit: 768789f
+        timestamp: "2026-08-06T19:28:00Z"
+      history:
+        - status: passed
+          command: node --test --experimental-strip-types --test-name-pattern "continuation recovery job" frontend/packages/openmates-cli/tests/ws.test.ts
+          run_id: local-node-cli-focus-green-20260806T1401Z
+          subject_commit: worktree
+          timestamp: "2026-08-06T14:01:00Z"
   - id: T-E2E-REJECTION
     type: playwright
     file: frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
@@ -619,7 +647,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Repair relevant versus active focus routing
-    status: in_progress
+    status: blocked
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -650,7 +678,8 @@ tasks:
         - backend/apps/ai/processing/focus_mode_routing.py
         - docs/architecture/apps/focus-modes-implementation.md
       shared_files: []
-    blockers: []
+    blockers:
+      - Shared dev app_ai queue saturation blocks bounded real CLI verification pending user waiver or later retry.
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-3
