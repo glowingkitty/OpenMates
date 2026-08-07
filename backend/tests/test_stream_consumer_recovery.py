@@ -121,6 +121,33 @@ def test_assistant_response_created_at_anchors_to_triggering_user_turn() -> None
     assert payload["user_message_id"] == request_data.message_id
 
 
+def test_focus_activation_final_marks_pending_continuation() -> None:
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        _ask_request(),
+        "focus activation embed",
+        1,
+        is_final=True,
+        awaiting_focus_mode_continuation=True,
+    )
+
+    assert payload["awaiting_focus_mode_continuation"] is True
+
+
+def test_focus_continuation_frames_are_marked() -> None:
+    request_data = _ask_request()
+    request_data.is_focus_mode_continuation = True
+
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "continued response",
+        1,
+    )
+
+    assert payload["is_focus_mode_continuation"] is True
+
+
 def test_assistant_response_created_at_follows_existing_continuation_messages() -> None:
     request_data = _ask_request([
         AIHistoryMessage(role="user", content="start", created_at=100),

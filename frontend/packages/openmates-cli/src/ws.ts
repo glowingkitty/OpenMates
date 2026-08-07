@@ -805,6 +805,7 @@ export class OpenMatesWsClient {
         }, ms);
       let timeout = startTimeout(timeoutMs);
       let awaitingSubChatsCompletion = false;
+      let awaitingFocusModeContinuation = false;
 
       const resetTimeout = (ms: number) => {
         clearTimeout(timeout);
@@ -1038,6 +1039,11 @@ export class OpenMatesWsClient {
       // Called once AI response is done. Start a short window to wait for
       // post_processing_metadata which may carry follow-up suggestions.
       const scheduleResolve = (content: string) => {
+        if (awaitingFocusModeContinuation) {
+          latestContent = content;
+          resetTimeout(timeoutMs);
+          return;
+        }
         if (awaitingSubChatsCompletion) {
           latestContent = content.trim().startsWith(SUB_CHAT_PARENT_STATUS_MESSAGE)
             ? ""
@@ -1056,6 +1062,20 @@ export class OpenMatesWsClient {
         if (payload.is_sub_chat_continuation !== true) return;
 
         awaitingSubChatsCompletion = false;
+        aiResponseDone = false;
+        postProcessingDone = false;
+        latestContent = "";
+        if (postProcessingTimer) {
+          clearTimeout(postProcessingTimer);
+          postProcessingTimer = null;
+        }
+        resetTimeout(timeoutMs);
+      };
+
+      const beginFocusModeContinuation = () => {
+        if (!awaitingFocusModeContinuation) return;
+
+        awaitingFocusModeContinuation = false;
         aiResponseDone = false;
         postProcessingDone = false;
         latestContent = "";
@@ -1169,12 +1189,16 @@ export class OpenMatesWsClient {
           if (type === "ai_message_update") {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId !== userMessageId && p.chat_id !== chatId) return;
+            if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
             if (typeof p.full_content_so_far === "string") {
               latestContent = p.full_content_so_far;
             }
             if (p.is_final_chunk === true) {
+              if (p.awaiting_focus_mode_continuation === true) {
+                awaitingFocusModeContinuation = true;
+              }
               onStream?.({
                 kind: "done",
                 content: latestContent,
@@ -1198,6 +1222,7 @@ export class OpenMatesWsClient {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
             if (!msgId && p.chat_id !== chatId) return;
+            if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
             const content =

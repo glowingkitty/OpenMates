@@ -2237,6 +2237,7 @@ def _create_redis_payload(
     total_credits: Optional[int] = None,
     category: Optional[str] = None,
     rejection_reason: Optional[str] = None,
+    awaiting_focus_mode_continuation: bool = False,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     created_at = _assistant_response_created_at(request_data, int(time.time()))
@@ -2267,6 +2268,10 @@ def _create_redis_payload(
         payload["chat_key_version"] = request_data.chat_key_version
     if request_data.is_sub_chat_continuation:
         payload["is_sub_chat_continuation"] = True
+    if request_data.is_focus_mode_continuation:
+        payload["is_focus_mode_continuation"] = True
+    if awaiting_focus_mode_continuation:
+        payload["awaiting_focus_mode_continuation"] = True
     
     # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
     # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.
@@ -8287,7 +8292,8 @@ async def _consume_main_processing_stream(
         if cache_service and aggregated_response:
             focus_final_payload = _create_redis_payload(
                 task_id, request_data, aggregated_response, stream_chunk_count + 1,
-                is_final=True
+                is_final=True,
+                awaiting_focus_mode_continuation=True,
             )
             if _recovery_inference_task_id(request_data):
                 await _attach_sealed_recovery_metadata(

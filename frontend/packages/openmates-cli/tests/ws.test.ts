@@ -850,6 +850,104 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("waits across focus activation for delegated research synthesis", async () => {
+    const chatId = "chat-focus-sub-chat";
+    const userMessageId = "user-message-focus-sub-chat";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: userMessageId,
+            message_id: "assistant-focus-activation",
+            task_id: "task-focus-activation",
+            chat_id: chatId,
+            is_final_chunk: true,
+            awaiting_focus_mode_continuation: true,
+            full_content_so_far: "```json\n{\"type\":\"focus_mode_activation\"}\n```",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 5);
+
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "focus_mode_activated",
+          payload: { chat_id: chatId, focus_id: "web-research" },
+        }));
+        socket.send(JSON.stringify({
+          type: "spawn_sub_chats",
+          payload: {
+            chat_id: chatId,
+            task_id: "task-focus-continuation",
+            sub_chats: [{ id: "child-research", prompt: "Research evidence" }],
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "awaiting_sub_chats_completion",
+          payload: { chat_id: chatId, task_id: "task-focus-continuation" },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: "server-focus-continuation-message",
+            message_id: "assistant-focus-continuation",
+            task_id: "task-focus-continuation",
+            chat_id: chatId,
+            is_focus_mode_continuation: true,
+            is_final_chunk: true,
+            full_content_so_far: "Delegated research is running.",
+          },
+        }));
+      }, 30);
+
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: "server-continuation-message",
+            message_id: "assistant-focus-synthesis",
+            task_id: "task-focus-continuation",
+            chat_id: chatId,
+            is_sub_chat_continuation: true,
+            is_final_chunk: true,
+            full_content_so_far: "## Short Answer\n\nDelegated research synthesis.",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 60);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-focus-sub-chat",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+      });
+
+      assert.equal(response.content, "## Short Answer\n\nDelegated research synthesis.");
+      assert.deepEqual(
+        response.subChatEvents.map((event) => event.type),
+        ["spawn_sub_chats", "awaiting_sub_chats_completion"],
+      );
+    } finally {
+      client.close();
+    }
+  });
+
   it("resolves awaiting_user_input for child chat events routed through the active parent", async () => {
     const chatId = "parent-waiting-chat";
     const childChatId = "child-waiting-chat";
