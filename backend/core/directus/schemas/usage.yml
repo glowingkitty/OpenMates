@@ -38,6 +38,45 @@ usage:
       length: 255
       note: "[Indexed, Nullable] Chat ID in cleartext (for chat-based usage). Null for API key or direct API calls. Allows client to match with IndexedDB."
 
+    root_chat_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "[Indexed, Nullable] Immutable root chat used for tree-level billing summaries."
+
+    actual_chat_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "[Indexed, Nullable] Root, child, or grandchild that produced this operation."
+
+    root_turn_id:
+      type: uuid
+      nullable: true
+      note: "[Indexed, Nullable] Immutable root turn for the orchestration tree."
+
+    orchestration_id:
+      type: uuid
+      nullable: true
+      note: "[Indexed, Nullable] Durable sub-chat orchestration identity."
+
+    depth:
+      type: integer
+      nullable: true
+      note: "Nullable root/child/grandchild depth: 0, 1, or 2."
+
+    charge_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "[Indexed, Nullable] Stable exactly-once billing identity."
+
+    operation_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "[Indexed, Nullable] Stable provider or skill operation identity."
+
     message_id:
       type: string
       length: 255

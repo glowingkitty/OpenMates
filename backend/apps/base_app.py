@@ -889,7 +889,7 @@ class BaseApp:
         credits_to_charge: int,
         skill_id: str,
         app_id: str,
-        idempotency_key: Optional[str] = None,
+        idempotency_key: str,
         usage_details: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         if not self.is_valid:
@@ -904,7 +904,7 @@ class BaseApp:
             "credits": credits_to_charge,
             "skill_id": skill_id,
             "app_id": app_id,
-            "idempotency_key": idempotency_key or f"{user_id_hash}-{app_id}-{skill_id}-{os.urandom(8).hex()}",
+            "idempotency_key": idempotency_key,
             "usage_details": usage_details or {}
         }
         

@@ -1,0 +1,61 @@
+# Durable per-provider or per-skill reservations within one sub-chat tree.
+# Stable operation identity makes reservation and settlement retries idempotent.
+# This internal ledger contains billing metadata only and no private chat content.
+sub_chat_orchestration_operations:
+  type: collection
+  note: "Internal sub-chat credit reservations and settlement state"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    operation_id:
+      type: string
+      length: 255
+      required: true
+    charge_id:
+      type: string
+      length: 255
+      required: true
+    orchestration_id:
+      type: uuid
+      required: true
+    root_chat_id:
+      type: uuid
+      required: true
+    actual_chat_id:
+      type: uuid
+      required: true
+    depth:
+      type: integer
+      required: true
+    app_id:
+      type: string
+      length: 100
+      required: true
+    skill_id:
+      type: string
+      length: 100
+      required: true
+    phase:
+      type: string
+      length: 64
+      required: true
+    quoted_credits:
+      type: integer
+      required: true
+    actual_credits:
+      type: integer
+      nullable: true
+    state:
+      type: string
+      length: 24
+      required: true
+    created_at:
+      type: datetime
+      required: true
+    updated_at:
+      type: datetime
+      required: true
+    settled_at:
+      type: datetime
+      nullable: true

@@ -1,7 +1,7 @@
 schema_version: 2
 id: sub-chat-orchestration-billing-integrity
 title: Sub-Chat Orchestration And Billing Integrity
-status: approved
+status: implementing
 
 goal: >
   Make sub-chat trees structurally bounded, durably attributable, financially
@@ -179,12 +179,24 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-07T11:41:27Z"
     summary: The ancestry patch covered one trigger, but screenshot review showed the real sub-chat spec could pass with error UI, active processing, and no visible child response.
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Run incident-backed orchestration, persistence, billing idempotency, and root usage aggregation contracts against current source.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-07T12:06:30Z"
+    summary: Six assertions failed for ignored existing child count, plaintext child title plus fail-open dispatch, dropped idempotency key, missing BillingService charge identity, and absent root aggregation.
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Add internal-only Directus transaction endpoint, metadata-only schemas, required indexes, setup health checks, and a typed Python client.
+    outcome: succeeded
+    recorded_at: "2026-08-07T12:24:00Z"
+    summary: Endpoint auth/privacy contracts passed 4 Node tests; focused orchestration passed 6 pytest tests; recovery and encryption guards passed 21 pytest tests; Python compilation and spec validation passed.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Write deterministic red tests for cascade prevention, atomic child preparation, billing idempotency, and root usage aggregation before product source changes.
-  command: python3 -m pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_stream_consumer_recovery.py backend/tests/test_billing_idempotency.py backend/tests/test_usage_root_chat_aggregation.py
-  expected_outcome: New contract assertions fail against the current implementation for the incident-backed reasons recorded in the spec.
+  current_task_id: TASK-4
+  next_action: Route root and child dispatch through the durable envelope, reject continuations and depth-two spawning, and enforce approved root limits for every execution mode.
+  command: python3 -m pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_stream_consumer_recovery.py backend/tests/test_sub_chat_confirmation_handler.py
+  expected_outcome: Root, child, grandchild, continuation, sequential, and approval paths use one durable root ledger and dispatch only fully prepared batches.
   blocker: null
   last_verified_commit: fbbd12ae046eaa7f207d0471cb08314dcd2cb1a7
 
@@ -483,7 +495,15 @@ tests:
       - parallel and sequential concurrent reservations never exceed 3 automatic or 20 approved descendants
       - root budget reservation prevents dispatch above the approved ceiling
       - terminal child failure cannot trigger replacement spawning
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence: &red_integrity_evidence
+        status: failed_as_expected
+        command: docker run --rm --entrypoint python -v <WORKTREE>/backend:/app/backend:ro -w /app openmates-core-api -m pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_billing_idempotency.py backend/tests/test_usage_root_chat_aggregation.py -q
+        run_id: docker-api-sub-chat-integrity-red-20260807T120630Z
+        subject_commit: bd29881
+        timestamp: "2026-08-07T12:06:30Z"
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-UNIT-PERSISTENCE
     type: pytest
@@ -495,7 +515,10 @@ tests:
       - failed child or ledger creation dispatches zero tasks
       - complete batch success is verified before dispatch and success logging
       - rollback or aborted state remains auditable
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence: *red_integrity_evidence
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-UNIT-BILLING-IDEMPOTENCY
     type: pytest
@@ -507,7 +530,10 @@ tests:
       - retries return the original charge result
       - distinct operation phases retain distinct charge ids
       - personal and team behavior match
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence: *red_integrity_evidence
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-UNIT-USAGE-AGGREGATION
     type: pytest
@@ -519,7 +545,10 @@ tests:
       - details and exports retain actual_chat_id, depth, and charge_id
       - deleted roots produce one summary
       - deterministic backfill preserves totals and unmatched legacy rows remain explicit
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence: *red_integrity_evidence
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-API-WEBSOCKET
     type: pytest
@@ -829,8 +858,8 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Add deterministic red cascade billing and persistence contracts
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-3, S-4, S-5, S-6, S-7]
       acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, AC-8]
@@ -855,8 +884,8 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Add durable orchestration schema and atomic transaction extension
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
@@ -882,7 +911,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Enforce root depth count budget and atomic child dispatch
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]

@@ -219,6 +219,7 @@ class BillingServiceImportBilling:
             user_id_hash=user_hash,
             app_id=self.APP_ID,
             skill_id=self.SKILL_ID,
+            idempotency_key=f"account-import:{hashlib.sha256(import_id.encode()).hexdigest()}:reserve",
             usage_details={"import_id_hash": hashlib.sha256(import_id.encode()).hexdigest()},
         )
         updated_user = await self.billing_service.cache_service.get_user_by_id(user_id)

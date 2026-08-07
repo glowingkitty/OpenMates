@@ -20,6 +20,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -257,8 +258,32 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
     summary: str,
     log_prefix: str,
     secrets_manager: Optional[SecretsManager] = None,
+    terminal_state: str = "completed",
 ) -> None:
-    if not cache_service or not request_data.is_sub_chat or not request_data.parent_id:
+    if not request_data.is_sub_chat or not request_data.parent_id:
+        return
+
+    durable_batch_complete: bool | None = None
+    durable_batch_id: str | None = None
+    if request_data.orchestration_id:
+        directus_service = DirectusService()
+        try:
+            transition = await SubChatOrchestrationService(directus_service).execute(
+                "transition_child",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "child_chat_id": request_data.chat_id,
+                    "state": terminal_state,
+                },
+            )
+            durable_batch_complete = bool(transition.get("batch_complete"))
+            durable_batch_id = transition.get("batch_id")
+        finally:
+            await directus_service.close()
+
+    if not cache_service:
         return
 
     completion_payload = {
@@ -299,14 +324,20 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
             log_prefix=log_prefix,
         )
 
-    completed = pending_context.get("completed")
-    if not isinstance(completed, dict):
-        completed = {}
-    completed[request_data.chat_id] = {
+    completion_entry = {
         "summary": summary,
         "task_id": task_id,
         "completed_at": int(time.time()),
+        "failed": terminal_state == "failed",
+        "cancelled": terminal_state == "cancelled",
     }
+    completion_key = f"sub_chat_completion:{request_data.parent_id}:{request_data.chat_id}"
+    await cache_service.set(completion_key, completion_entry, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+
+    completed = pending_context.get("completed")
+    if not isinstance(completed, dict):
+        completed = {}
+    completed[request_data.chat_id] = completion_entry
     pending_context["completed"] = completed
 
     expected_ids = [str(chat_id) for chat_id in pending_context.get("expected_sub_chat_ids", [])]
@@ -333,6 +364,9 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
                 sub_chat=next_sub_chat,
                 prompt_override=next_prompt,
                 log_prefix=log_prefix,
+                dispatch_token=(pending_context.get("dispatch_tokens") or {}).get(
+                    str(next_sub_chat.get("id"))
+                ),
             )
             if next_task_id:
                 await cache_service.set_active_ai_task(str(next_sub_chat.get("id")), next_task_id)
@@ -358,8 +392,10 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
             return
 
         if stopped:
+            cancelled_chat_ids: list[str] = []
             for chat_id in expected_ids:
                 if chat_id not in completed:
+                    cancelled_chat_ids.append(chat_id)
                     completed[chat_id] = {
                         "summary": "Canceled before this sequential sub-chat started.",
                         "task_id": None,
@@ -367,6 +403,28 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
                         "cancelled": True,
                     }
             pending_context["completed"] = completed
+            if request_data.orchestration_id and cancelled_chat_ids:
+                directus_service = DirectusService()
+                try:
+                    orchestration_service = SubChatOrchestrationService(directus_service)
+                    for chat_id in cancelled_chat_ids:
+                        transition = await orchestration_service.execute(
+                            "transition_child",
+                            {
+                                "protocol_version": 1,
+                                "orchestration_id": request_data.orchestration_id,
+                                "hashed_user_id": request_data.user_id_hash,
+                                "child_chat_id": chat_id,
+                                "state": "cancelled",
+                            },
+                        )
+                        durable_batch_complete = (
+                            durable_batch_complete
+                            or bool(transition.get("batch_complete"))
+                        )
+                        durable_batch_id = transition.get("batch_id") or durable_batch_id
+                finally:
+                    await directus_service.close()
             await _publish_sub_chat_progress(
                 cache_service=cache_service,
                 pending_context=pending_context,
@@ -383,17 +441,31 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
                 log_prefix=log_prefix,
             )
 
-        pending_context["continuation_dispatched"] = True
+        if request_data.orchestration_id and not durable_batch_complete:
+            await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+            return
         await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
         await _dispatch_sub_chat_parent_continuation(
             pending_context=pending_context,
             parent_chat_id=request_data.parent_id,
             log_prefix=log_prefix,
+            durable_batch_id=durable_batch_id,
         )
+        pending_context["continuation_dispatched"] = True
         await cache_service.delete(pending_key)
+        for chat_id in expected_ids:
+            await cache_service.delete(f"sub_chat_completion:{request_data.parent_id}:{chat_id}")
         return
 
     all_completed = all(chat_id in completed for chat_id in expected_ids)
+    if request_data.orchestration_id and durable_batch_complete:
+        completed = {}
+        for chat_id in expected_ids:
+            entry = await cache_service.get(f"sub_chat_completion:{request_data.parent_id}:{chat_id}")
+            if isinstance(entry, dict):
+                completed[chat_id] = entry
+        pending_context["completed"] = completed
+        all_completed = all(chat_id in completed for chat_id in expected_ids)
     if not all_completed:
         await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
         logger.info(
@@ -406,18 +478,25 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
         )
         return
 
-    if pending_context.get("continuation_dispatched"):
+    if not request_data.orchestration_id and pending_context.get("continuation_dispatched"):
         logger.info("%s Parent continuation already dispatched for %s", log_prefix, request_data.parent_id)
         return
 
-    pending_context["continuation_dispatched"] = True
+    if request_data.orchestration_id and not durable_batch_complete:
+        await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+        return
+
     await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
     await _dispatch_sub_chat_parent_continuation(
         pending_context=pending_context,
         parent_chat_id=request_data.parent_id,
         log_prefix=log_prefix,
+        durable_batch_id=durable_batch_id,
     )
+    pending_context["continuation_dispatched"] = True
     await cache_service.delete(pending_key)
+    for chat_id in expected_ids:
+        await cache_service.delete(f"sub_chat_completion:{request_data.parent_id}:{chat_id}")
 
 
 async def _dispatch_sub_chat_parent_continuation(
@@ -425,6 +504,7 @@ async def _dispatch_sub_chat_parent_continuation(
     pending_context: dict[str, Any],
     parent_chat_id: str,
     log_prefix: str,
+    durable_batch_id: str | None = None,
 ) -> None:
     request_payload = pending_context.get("parent_request_data")
     if not isinstance(request_payload, dict):
@@ -432,6 +512,27 @@ async def _dispatch_sub_chat_parent_continuation(
         return
 
     original_request = AskSkillRequest(**request_payload)
+    continuation_task_id = None
+    orchestration_service = None
+    directus_service = None
+    if original_request.orchestration_id:
+        if not durable_batch_id:
+            raise RuntimeError("Durable sub-chat continuation is missing its batch identity")
+        directus_service = DirectusService()
+        orchestration_service = SubChatOrchestrationService(directus_service)
+        claim = await orchestration_service.execute(
+            "claim_parent_continuation",
+            {
+                "protocol_version": 1,
+                "orchestration_id": original_request.orchestration_id,
+                "hashed_user_id": original_request.user_id_hash,
+                "batch_id": durable_batch_id,
+            },
+        )
+        if not claim.get("dispatch_required"):
+            await directus_service.close()
+            return
+        continuation_task_id = claim["continuation_task_id"]
     continuation_history = [
         AIHistoryMessage(**(message.model_dump(mode="json") if hasattr(message, "model_dump") else message))
         for message in original_request.message_history
@@ -465,8 +566,20 @@ async def _dispatch_sub_chat_parent_continuation(
         chat_key_version=original_request.chat_key_version,
         parent_id=original_request.parent_id,
         is_sub_chat=original_request.is_sub_chat,
+        orchestration_id=original_request.orchestration_id,
+        root_chat_id=original_request.root_chat_id,
+        root_turn_id=original_request.root_turn_id,
+        sub_chat_depth=original_request.sub_chat_depth,
+        orchestration_dispatch_token=original_request.orchestration_dispatch_token,
+        orchestration_descendant_limit=original_request.orchestration_descendant_limit,
+        orchestration_credit_limit=original_request.orchestration_credit_limit,
+        orchestration_approved=original_request.orchestration_approved,
         budget_limit=original_request.budget_limit,
         budget_spent=original_request.budget_spent,
+        team_id=original_request.team_id,
+        team_id_hash=original_request.team_id_hash,
+        team_workspace_type=original_request.team_workspace_type,
+        team_object_id_hash=original_request.team_object_id_hash,
         user_preferences=original_request.user_preferences,
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
@@ -475,14 +588,30 @@ async def _dispatch_sub_chat_parent_continuation(
         has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
     )
 
-    task_result = celery_config.app.send_task(
-        name="apps.ai.tasks.skill_ask",
-        kwargs={
-            "request_data_dict": continuation_request.model_dump(mode="json"),
-            "skill_config_dict": pending_context.get("skill_config_dict") or {},
-        },
-        queue="app_ai",
-    )
+    try:
+        task_result = celery_config.app.send_task(
+            name="apps.ai.tasks.skill_ask",
+            kwargs={
+                "request_data_dict": continuation_request.model_dump(mode="json"),
+                "skill_config_dict": pending_context.get("skill_config_dict") or {},
+            },
+            queue="app_ai",
+            task_id=continuation_task_id,
+        )
+        if orchestration_service and continuation_task_id:
+            await orchestration_service.execute(
+                "mark_parent_continuation_dispatched",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": original_request.orchestration_id,
+                    "hashed_user_id": original_request.user_id_hash,
+                    "batch_id": durable_batch_id,
+                    "continuation_task_id": continuation_task_id,
+                },
+            )
+    finally:
+        if directus_service:
+            await directus_service.close()
     logger.info(
         "%s Dispatched sub-chat parent continuation task %s for parent %s",
         log_prefix,
@@ -2265,6 +2394,15 @@ async def _charge_credits(
     Returns basic billing info.
     """
     _apply_benchmark_usage_details(request_data, usage_details)
+    operation_id = f"ai-ask:{task_id}:main"
+    usage_details.update({
+        "root_chat_id": request_data.root_chat_id or request_data.chat_id,
+        "actual_chat_id": request_data.chat_id,
+        "root_turn_id": request_data.root_turn_id,
+        "orchestration_id": request_data.orchestration_id,
+        "depth": request_data.sub_chat_depth,
+        "operation_id": operation_id,
+    })
 
     if credits <= 0 and not usage_details.get("local_self_hosted"):
         return {}
@@ -2282,7 +2420,7 @@ async def _charge_credits(
             "credits": credits,
             "skill_id": "ask",
             "app_id": "ai",
-            "idempotency_key": f"ai-ask:{request_data.message_id}",
+            "idempotency_key": operation_id,
             "usage_details": usage_details,
         }
         charge_path = "/internal/billing/team/charge"
@@ -2293,6 +2431,7 @@ async def _charge_credits(
             "credits": credits,
             "skill_id": "ask",
             "app_id": "ai",
+            "idempotency_key": operation_id,
             "usage_details": usage_details,
             "api_key_hash": request_data.api_key_hash,
             "device_hash": request_data.device_hash,

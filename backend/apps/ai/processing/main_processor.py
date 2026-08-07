@@ -63,6 +63,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
@@ -107,14 +108,18 @@ from backend.apps.ai.processing.focus_mode_routing import (
 )
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
+    MAX_AUTO_SUB_CHAT_CREDITS,
     MAX_DIRECT_SUB_CHATS_PER_PARENT,
     count_direct_sub_chats,
-    create_and_dispatch_sub_chats,
+    create_orchestration_root,
     create_sub_chat_records,
     dispatch_sub_chat_task,
+    ensure_orchestration_envelope,
     expand_sub_chat_requests,
     get_sub_chat_context_policy,
     get_sub_chat_execution_mode,
+    is_sub_chat_continuation,
+    resolve_sub_chat_depth,
     store_pending_sub_chat_confirmation,
     validate_sub_chat_capacity,
 )
@@ -555,6 +560,15 @@ ASYNC_SKILL_INLINE_WAIT_SECONDS = 10.0
 ASYNC_SKILL_INLINE_WAIT_SKILLS = {
     ("social_media", "search"),
     ("social_media", "get-posts"),
+}
+ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
+    ("code", "image_to_html"),
+    ("images", "generate"),
+    ("images", "generate_draft"),
+    ("images", "vectorize"),
+    ("models3d", "generate"),
+    ("music", "generate"),
+    ("videos", "generate"),
 }
 
 
@@ -1340,8 +1354,217 @@ def _apply_benchmark_usage_details(request_data: AskSkillRequest, usage_details:
             usage_details[key] = value
 
 
+def _skill_operation_id(app_id: str, skill_id: str, task_id: str, execution_id: str, index: int) -> str:
+    return f"{app_id}.{skill_id}:{task_id}:{execution_id}:{index}"
+
+
+async def _resolve_skill_billing_config(
+    *,
+    app_id: str,
+    skill_id: str,
+    discovered_apps_metadata: Dict[str, AppYAML],
+    log_prefix: str,
+) -> tuple[Optional[AppSkillDefinition], Optional[Dict[str, Any]]]:
+    app_metadata = discovered_apps_metadata.get(app_id)
+    if not app_metadata:
+        logger.warning("%s App '%s' not found in metadata; billing is unavailable", log_prefix, app_id)
+        return None, None
+
+    skill_def = next((skill for skill in app_metadata.skills or [] if skill.id == skill_id), None)
+    if not skill_def:
+        logger.warning("%s Skill '%s' not found in app '%s'; billing is unavailable", log_prefix, skill_id, app_id)
+        return None, None
+
+    if skill_def.pricing:
+        return skill_def, skill_def.pricing.model_dump(exclude_none=True)
+
+    pricing_config = None
+    if skill_def.full_model_reference and "/" in skill_def.full_model_reference:
+        provider_id, model_suffix = skill_def.full_model_reference.split("/", 1)
+        try:
+            pricing_config = await _make_internal_api_request(
+                "GET", f"internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
+            )
+        except Exception as exc:
+            logger.warning("%s Failed to resolve model pricing for %s: %s", log_prefix, skill_def.full_model_reference, exc)
+
+    if not pricing_config and skill_def.providers:
+        provider_name = skill_def.providers[0].name
+        provider_id = provider_name.lower().replace(" ", "_")
+        if provider_name == "Google" and app_id == "maps":
+            provider_id = "google_maps"
+        elif provider_name in {"Brave", "Brave Search"}:
+            provider_id = "brave"
+        try:
+            provider_pricing = await _make_internal_api_request(
+                "GET", f"internal/config/provider_pricing/{provider_id}"
+            )
+            if isinstance(provider_pricing, dict) and "per_request_credits" in provider_pricing:
+                pricing_config = {"per_unit": {"credits": provider_pricing["per_request_credits"]}}
+            elif isinstance(provider_pricing, dict) and "per_unit" in provider_pricing:
+                pricing_config = {"per_unit": provider_pricing["per_unit"]}
+        except Exception as exc:
+            logger.warning("%s Failed to resolve provider pricing for %s: %s", log_prefix, provider_id, exc)
+
+    return skill_def, pricing_config
+
+
+async def _reserve_skill_credits(
+    *,
+    task_id: str,
+    execution_id: str,
+    request_data: AskSkillRequest,
+    app_id: str,
+    skill_id: str,
+    discovered_apps_metadata: Dict[str, AppYAML],
+    parsed_args: Dict[str, Any],
+    directus_service: DirectusService,
+    log_prefix: str,
+) -> list[str]:
+    if not request_data.orchestration_id or getattr(request_data, "is_anonymous", False):
+        return []
+    _, pricing_config = await _resolve_skill_billing_config(
+        app_id=app_id,
+        skill_id=skill_id,
+        discovered_apps_metadata=discovered_apps_metadata,
+        log_prefix=log_prefix,
+    )
+    units = len(parsed_args.get("requests", [])) if isinstance(parsed_args.get("requests"), list) else 1
+    quoted_credits = (
+        calculate_total_credits(pricing_config=pricing_config, units_processed=units)
+        if pricing_config
+        else MINIMUM_CREDITS_CHARGED
+    )
+    if quoted_credits <= 0:
+        return []
+
+    per_unit = quoted_credits // units
+    remainder = quoted_credits - (per_unit * units)
+    service = SubChatOrchestrationService(directus_service)
+    reserved: list[str] = []
+    try:
+        for index in range(units):
+            quote = per_unit + (remainder if index == units - 1 else 0)
+            if quote <= 0:
+                continue
+            operation_id = _skill_operation_id(app_id, skill_id, task_id, execution_id, index)
+            await service.execute("reserve_operation", {
+                "protocol_version": 1,
+                "operation_id": operation_id,
+                "charge_id": operation_id,
+                "orchestration_id": request_data.orchestration_id,
+                "hashed_user_id": request_data.user_id_hash,
+                "root_chat_id": request_data.root_chat_id,
+                "actual_chat_id": request_data.chat_id,
+                "depth": request_data.sub_chat_depth,
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "phase": "provider_request",
+                "quoted_credits": quote,
+            })
+            reserved.append(operation_id)
+    except Exception:
+        for operation_id in reserved:
+            await service.execute("fail_operation", {
+                "protocol_version": 1,
+                "operation_id": operation_id,
+                "orchestration_id": request_data.orchestration_id,
+                "hashed_user_id": request_data.user_id_hash,
+            })
+        raise
+    return reserved
+
+
+def _quote_ai_iteration_credits(
+    *,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+) -> int:
+    if "/" not in model_id:
+        raise RuntimeError("AI reservation requires a provider-qualified model id")
+    provider_id, model_suffix = model_id.split("/", 1)
+    model_config = config_manager.get_model_pricing(provider_id, model_suffix)
+    if not model_config:
+        raise RuntimeError(f"AI reservation pricing is unavailable for {model_id}")
+    max_output_tokens = (model_config.get("features") or {}).get("max_output_tokens")
+    if not isinstance(max_output_tokens, int) or max_output_tokens <= 0:
+        raise RuntimeError(f"AI reservation output limit is unavailable for {model_id}")
+    serialized_input = json.dumps(
+        {"system": system_prompt, "messages": message_history, "tools": tools or []},
+        default=str,
+        separators=(",", ":"),
+    )
+    estimated_input_tokens = max(1, (len(serialized_input) + 2) // 3)
+    return calculate_total_credits(
+        pricing_config=model_config,
+        input_tokens=estimated_input_tokens,
+        output_tokens=max_output_tokens,
+    )
+
+
+async def _reserve_ai_iteration(
+    *,
+    task_id: str,
+    iteration: int,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    request_data: AskSkillRequest,
+    directus_service: Optional[DirectusService],
+) -> Optional[str]:
+    if not request_data.orchestration_id or getattr(request_data, "is_anonymous", False):
+        return None
+    if not directus_service:
+        raise RuntimeError("Orchestrated AI reservation requires Directus")
+    quote = _quote_ai_iteration_credits(
+        model_id=model_id,
+        system_prompt=system_prompt,
+        message_history=message_history,
+        tools=tools,
+    )
+    if quote <= 0:
+        return None
+    charge_id = f"ai-ask:{task_id}:main"
+    operation_id = f"{charge_id}:iteration:{iteration}:model:{model_id}"
+    await SubChatOrchestrationService(directus_service).execute("reserve_operation", {
+        "protocol_version": 1,
+        "operation_id": operation_id,
+        "charge_id": charge_id,
+        "orchestration_id": request_data.orchestration_id,
+        "hashed_user_id": request_data.user_id_hash,
+        "root_chat_id": request_data.root_chat_id,
+        "actual_chat_id": request_data.chat_id,
+        "depth": request_data.sub_chat_depth,
+        "app_id": "ai",
+        "skill_id": "ask",
+        "phase": f"inference_{iteration}",
+        "quoted_credits": quote,
+    })
+    return operation_id
+
+
+async def _fail_reserved_operation(
+    *,
+    operation_id: Optional[str],
+    request_data: AskSkillRequest,
+    directus_service: Optional[DirectusService],
+) -> None:
+    if not operation_id or not request_data.orchestration_id or not directus_service:
+        return
+    await SubChatOrchestrationService(directus_service).execute("fail_operation", {
+        "protocol_version": 1,
+        "operation_id": operation_id,
+        "orchestration_id": request_data.orchestration_id,
+        "hashed_user_id": request_data.user_id_hash,
+    })
+
+
 async def _charge_skill_credits(
     task_id: str,
+    execution_id: str,
     request_data: AskSkillRequest,
     app_id: str,
     skill_id: str,
@@ -1350,6 +1573,8 @@ async def _charge_skill_credits(
     parsed_args: Dict[str, Any],
     log_prefix: str,
     grouped_results: Optional[List[Dict[str, Any]]] = None,
+    directus_service: Optional[DirectusService] = None,
+    reserved_operation_ids: Optional[List[str]] = None,
 ) -> None:
     """
     Calculate and charge credits for a skill execution.
@@ -1360,6 +1585,7 @@ async def _charge_skill_credits(
             Each group has {"id": ..., "results": [...], "error": "..."}.
             Used to count only successful requests for billing (failed requests are not charged).
     """
+    charged_operation_ids: set[str] = set()
     try:
         if getattr(request_data, "is_anonymous", False):
             logger.info(
@@ -1368,92 +1594,14 @@ async def _charge_skill_credits(
             )
             return
 
-        # Get skill definition from app metadata
-        app_metadata = discovered_apps_metadata.get(app_id)
-        if not app_metadata:
-            logger.warning(f"{log_prefix} App '{app_id}' not found in discovered apps metadata. Skipping skill billing.")
-            return
-        
-        # Find the skill definition
-        skill_def: Optional[AppSkillDefinition] = None
-        for skill in app_metadata.skills or []:
-            if skill.id == skill_id:
-                skill_def = skill
-                break
-        
+        skill_def, pricing_config = await _resolve_skill_billing_config(
+            app_id=app_id,
+            skill_id=skill_id,
+            discovered_apps_metadata=discovered_apps_metadata,
+            log_prefix=log_prefix,
+        )
         if not skill_def:
-            logger.warning(f"{log_prefix} Skill '{skill_id}' not found in app '{app_id}' metadata. Skipping skill billing.")
             return
-        
-        # Get pricing config from skill definition
-        pricing_config = None
-        if skill_def.pricing:
-            # Skill has explicit pricing in app.yml - use it
-            pricing_config = skill_def.pricing.model_dump(exclude_none=True)
-            logger.debug(f"{log_prefix} Using skill-level pricing from app.yml for '{app_id}.{skill_id}'")
-        elif skill_def.full_model_reference:
-            # Skill has a full model reference - try to get model-specific pricing
-            try:
-                # Parse provider and model from full_model_reference (e.g., "google/gemini-3-pro-image-preview")
-                if "/" in skill_def.full_model_reference:
-                    provider_id, model_suffix = skill_def.full_model_reference.split("/", 1)
-                    
-                    endpoint = f"internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
-                    pricing_config = await _make_internal_api_request("GET", endpoint)
-                    if pricing_config:
-                        logger.debug(f"{log_prefix} Using model-specific pricing for '{skill_def.full_model_reference}': {pricing_config}")
-                else:
-                    logger.warning(f"{log_prefix} Invalid full_model_reference format: '{skill_def.full_model_reference}'. Expected 'provider/model'.")
-            except Exception as e:
-                logger.warning(f"{log_prefix} Error fetching model-specific pricing for '{skill_def.full_model_reference}': {e}")
-                
-        if not pricing_config and skill_def.providers and len(skill_def.providers) > 0:
-            # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
-            # Use the first provider (most skills will have one primary provider)
-            provider_name = skill_def.providers[0].name
-            # Normalize provider name to provider_id format (provider YAML IDs use snake_case).
-            provider_id = provider_name.lower().replace(" ", "_")
-            
-            # Map provider names to provider IDs (handles cases like "Google" -> "google_maps" for maps app)
-            # This matches the frontend mapping logic in generate-apps-metadata.js
-            if provider_name == "Google" and app_id == "maps":
-                provider_id = "google_maps"
-            elif provider_name == "Brave" or provider_name == "Brave Search":
-                provider_id = "brave"
-            
-            logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' has no explicit pricing, attempting to fetch provider-level pricing from '{provider_id}' (mapped from '{provider_name}')")
-            
-            try:
-                # Fetch provider pricing via internal API
-                endpoint = f"internal/config/provider_pricing/{provider_id}"
-                provider_pricing = await _make_internal_api_request("GET", endpoint)
-                
-                if provider_pricing and isinstance(provider_pricing, dict):
-                    # Convert provider pricing format to billing format
-                    # Provider pricing may have formats like:
-                    # - per_request_credits: 5 (Brave)
-                    # - per_unit: { credits: X } (already in correct format)
-                    # - etc.
-                    
-                    if "per_request_credits" in provider_pricing:
-                        # Convert per_request_credits to per_unit.credits format
-                        credits_per_request = provider_pricing["per_request_credits"]
-                        pricing_config = {
-                            "per_unit": {
-                                "credits": credits_per_request
-                            }
-                        }
-                        logger.debug(f"{log_prefix} Converted provider pricing: per_request_credits={credits_per_request} -> per_unit.credits={credits_per_request}")
-                    elif "per_unit" in provider_pricing:
-                        # Provider already uses per_unit format
-                        pricing_config = {"per_unit": provider_pricing["per_unit"]}
-                        logger.debug(f"{log_prefix} Using provider pricing per_unit format: {provider_pricing['per_unit']}")
-                    else:
-                        logger.warning(f"{log_prefix} Provider '{provider_id}' has pricing but unsupported format: {list(provider_pricing.keys())}. Falling back to minimum charge.")
-                else:
-                    logger.warning(f"{log_prefix} Could not retrieve valid provider pricing for '{provider_id}'. Response: {provider_pricing}")
-            except Exception as e:
-                logger.warning(f"{log_prefix} Error fetching provider pricing for '{provider_id}': {e}. Falling back to minimum charge.")
         
         # Skip charging if the skill returned no results (e.g. API key failure,
         # provider outage). Users should not be billed for failed requests.
@@ -1565,6 +1713,11 @@ async def _charge_skill_credits(
         # The billing service will validate and only include non-empty values
         usage_details = {
             "chat_id": request_data.chat_id,  # Always available in AskSkillRequest
+            "root_chat_id": request_data.root_chat_id or request_data.chat_id,
+            "actual_chat_id": request_data.chat_id,
+            "root_turn_id": request_data.root_turn_id,
+            "orchestration_id": request_data.orchestration_id,
+            "depth": request_data.sub_chat_depth,
             "message_id": request_data.message_id,  # Always available in AskSkillRequest
             "is_incognito": getattr(request_data, 'is_incognito', False),  # Include incognito flag for billing
             "units_processed": units_processed,
@@ -1597,6 +1750,8 @@ async def _charge_skill_credits(
                 
                 # Each individual request gets units_processed=1 to reflect one request
                 request_usage_details = {**usage_details, "units_processed": 1}
+                operation_id = _skill_operation_id(app_id, skill_id, task_id, execution_id, i)
+                request_usage_details["operation_id"] = operation_id
                 
                 team_id = getattr(request_data, "team_id", None)
                 if team_id:
@@ -1611,7 +1766,7 @@ async def _charge_skill_credits(
                         "credits": request_credits,
                         "skill_id": skill_id,
                         "app_id": app_id,
-                        "idempotency_key": f"{app_id}.{skill_id}:{request_data.message_id}:{i}",
+                        "idempotency_key": operation_id,
                         "usage_details": request_usage_details,
                     }
                     url = f"{INTERNAL_API_BASE_URL}/internal/billing/team/charge"
@@ -1622,12 +1777,14 @@ async def _charge_skill_credits(
                         "credits": request_credits,
                         "skill_id": skill_id,  # Required: ID of the skill that was executed
                         "app_id": app_id,  # Required: ID of the app that contains the skill
+                        "idempotency_key": operation_id,
                         "usage_details": request_usage_details  # Contains chat_id, message_id, and other optional metadata
                     }
                     url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
                 logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {i + 1}/{units_processed}).")
                 response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
                 response.raise_for_status()
+                charged_operation_ids.add(operation_id)
                 logger.debug(f"{log_prefix} Charged request {i + 1}/{units_processed} for '{app_id}.{skill_id}': {response.json()}")
             
             logger.info(f"{log_prefix} Successfully charged {credits_charged} total credits for skill '{app_id}.{skill_id}' across {units_processed} request(s).")
@@ -1638,6 +1795,19 @@ async def _charge_skill_credits(
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits for skill '{app_id}.{skill_id}': {e}", exc_info=True)
         # Don't raise - billing failure shouldn't break skill execution
+    finally:
+        if request_data.orchestration_id and directus_service:
+            service = SubChatOrchestrationService(directus_service)
+            for operation_id in set(reserved_operation_ids or []) - charged_operation_ids:
+                try:
+                    await service.execute("fail_operation", {
+                        "protocol_version": 1,
+                        "operation_id": operation_id,
+                        "orchestration_id": request_data.orchestration_id,
+                        "hashed_user_id": request_data.user_id_hash,
+                    })
+                except Exception:
+                    logger.error("%s Failed to release operation reservation %s", log_prefix, operation_id, exc_info=True)
 
 
 def _convert_timestamps_to_human_readable(value: Any) -> Any:
@@ -1724,17 +1894,14 @@ async def handle_main_processing(
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
 
-    # Determine chat depth (Root=0, Child=1, Grandchild=2)
-    chat_depth = 0
-    if hasattr(request_data, "parent_id") and request_data.parent_id:
-        chat_depth = 1
-        try:
-            parent_chat = await directus_service.chat.get_chat_metadata(request_data.parent_id)
-            if parent_chat and parent_chat.get("parent_id"):
-                chat_depth = 2
-        except Exception as e:
-            logger.warning(f"{log_prefix} Error resolving parent chat depth for {request_data.parent_id}: {e}")
-    logger.info(f"{log_prefix} Resolved chat depth to {chat_depth} (parent_id: {getattr(request_data, 'parent_id', None)})")
+    # Missing or forged child ancestry fails closed at maximum depth.
+    chat_depth = resolve_sub_chat_depth(request_data)
+    logger.info(
+        "%s Resolved server sub-chat depth to %d (orchestration_id=%s)",
+        log_prefix,
+        chat_depth,
+        request_data.orchestration_id,
+    )
     
     # --- Auto-reject any pending app settings/memories request for this chat ---
     # If user sends a new message without responding to the permission dialog,
@@ -2830,6 +2997,12 @@ async def handle_main_processing(
         logger.info(
             f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
         )
+
+    if not request_data.orchestration_id and any(
+        tool.get("function", {}).get("name") == "start_sub_chats"
+        for tool in available_tools_for_llm
+    ):
+        await create_orchestration_root(directus_service, request_data)
     
     if chat_depth > 0:
         available_tools_for_llm.append(ask_user_input_tool)
@@ -3087,6 +3260,22 @@ async def handle_main_processing(
                     "recovery_turn_id": request_data.recovery_turn_id,
                     "recovery_public_key": request_data.recovery_public_key,
                     "chat_key_version": request_data.chat_key_version,
+                    "parent_id": request_data.parent_id,
+                    "is_sub_chat": request_data.is_sub_chat,
+                    "orchestration_id": request_data.orchestration_id,
+                    "root_chat_id": request_data.root_chat_id,
+                    "root_turn_id": request_data.root_turn_id,
+                    "sub_chat_depth": request_data.sub_chat_depth,
+                    "orchestration_dispatch_token": request_data.orchestration_dispatch_token,
+                    "orchestration_descendant_limit": request_data.orchestration_descendant_limit,
+                    "orchestration_credit_limit": request_data.orchestration_credit_limit,
+                    "orchestration_approved": request_data.orchestration_approved,
+                    "budget_limit": request_data.budget_limit,
+                    "budget_spent": request_data.budget_spent,
+                    "team_id": request_data.team_id,
+                    "team_id_hash": request_data.team_id_hash,
+                    "team_workspace_type": request_data.team_workspace_type,
+                    "team_object_id_hash": request_data.team_object_id_hash,
                 }
                 await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
@@ -3276,6 +3465,7 @@ async def handle_main_processing(
         llm_stream = None
         model_fallback_attempts = 0
         last_model_error = None
+        current_ai_operation_id: Optional[str] = None
 
         while current_model_index < len(models_to_try):
             try:
@@ -3288,6 +3478,16 @@ async def handle_main_processing(
                         f"(previous error: {last_model_error})"
                     )
 
+                current_ai_operation_id = await _reserve_ai_iteration(
+                    task_id=task_id,
+                    iteration=iteration,
+                    model_id=current_model_id,
+                    system_prompt=iteration_system_prompt,
+                    message_history=current_message_history,
+                    tools=available_tools_for_llm if not force_no_tools else None,
+                    request_data=request_data,
+                    directus_service=directus_service,
+                )
                 llm_stream = call_main_llm_stream(
                     task_id=task_id,
                     system_prompt=iteration_system_prompt,
@@ -3302,6 +3502,12 @@ async def handle_main_processing(
                 break
 
             except Exception as model_error:
+                await _fail_reserved_operation(
+                    operation_id=current_ai_operation_id,
+                    request_data=request_data,
+                    directus_service=directus_service,
+                )
+                current_ai_operation_id = None
                 last_model_error = str(model_error)
                 logger.error(
                     f"{log_prefix} MODEL_FALLBACK: Model {current_model_id} failed: {model_error}. "
@@ -3874,6 +4080,12 @@ async def handle_main_processing(
         # If all servers failed for the current model during stream consumption,
         # try the next model in the fallback list before giving up.
         if _stream_all_servers_failed:
+            await _fail_reserved_operation(
+                operation_id=current_ai_operation_id,
+                request_data=request_data,
+                directus_service=directus_service,
+            )
+            current_ai_operation_id = None
             current_model_index += 1
             if current_model_index < len(models_to_try):
                 next_model = models_to_try[current_model_index]
@@ -4565,6 +4777,22 @@ async def handle_main_processing(
                                     "recovery_turn_id": request_data.recovery_turn_id,
                                     "recovery_public_key": request_data.recovery_public_key,
                                     "chat_key_version": request_data.chat_key_version,
+                                    "parent_id": request_data.parent_id,
+                                    "is_sub_chat": request_data.is_sub_chat,
+                                    "orchestration_id": request_data.orchestration_id,
+                                    "root_chat_id": request_data.root_chat_id,
+                                    "root_turn_id": request_data.root_turn_id,
+                                    "sub_chat_depth": request_data.sub_chat_depth,
+                                    "orchestration_dispatch_token": request_data.orchestration_dispatch_token,
+                                    "orchestration_descendant_limit": request_data.orchestration_descendant_limit,
+                                    "orchestration_credit_limit": request_data.orchestration_credit_limit,
+                                    "orchestration_approved": request_data.orchestration_approved,
+                                    "budget_limit": request_data.budget_limit,
+                                    "budget_spent": request_data.budget_spent,
+                                    "team_id": request_data.team_id,
+                                    "team_id_hash": request_data.team_id_hash,
+                                    "team_workspace_type": request_data.team_workspace_type,
+                                    "team_object_id_hash": request_data.team_object_id_hash,
                                 }
                                 await cache_service.store_pending_focus_activation(
                                     chat_id=request_data.chat_id,
@@ -4658,6 +4886,20 @@ async def handle_main_processing(
                         continue
 
                     elif skill_id == "start_sub_chats":
+                        if chat_depth >= 2 or is_sub_chat_continuation(request_data):
+                            tool_result_content_str = json.dumps({
+                                "status": "rejected",
+                                "reason": "sub_chat_depth_or_continuation_forbidden",
+                                "message": "Grandchildren and continuation tasks cannot start sub-chats.",
+                            })
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": tool_result_content_str,
+                            })
+                            logger.warning("%s [SUB_CHAT] Rejected depth/continuation spawn request", log_prefix)
+                            continue
                         sub_chats_args = parsed_args.get("sub_chats", [])
                         execution_mode = get_sub_chat_execution_mode(parsed_args)
                         context_policy = get_sub_chat_context_policy(parsed_args)
@@ -4678,10 +4920,9 @@ async def handle_main_processing(
                             )
                             spawned_sub_chats = spawned_sub_chats[:MAX_AUTO_SUB_CHATS_PER_TURN]
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
-                        capacity_result = (
-                            {"allowed": True, "remaining": None, "message": ""}
-                            if execution_mode == "sequential"
-                            else validate_sub_chat_capacity(existing_sub_chat_count, len(spawned_sub_chats))
+                        capacity_result = validate_sub_chat_capacity(
+                            existing_sub_chat_count,
+                            len(spawned_sub_chats),
                         )
 
                         if not capacity_result["allowed"]:
@@ -4707,6 +4948,29 @@ async def handle_main_processing(
                             continue
 
                         if len(spawned_sub_chats) > MAX_AUTO_SUB_CHATS_PER_TURN:
+                            ensure_orchestration_envelope(request_data)
+                            await create_orchestration_root(directus_service, request_data)
+                            if current_ai_operation_id is None:
+                                current_ai_operation_id = await _reserve_ai_iteration(
+                                    task_id=task_id,
+                                    iteration=iteration,
+                                    model_id=current_model_id,
+                                    system_prompt=iteration_system_prompt,
+                                    message_history=current_message_history,
+                                    tools=available_tools_for_llm if not force_no_tools else None,
+                                    request_data=request_data,
+                                    directus_service=directus_service,
+                                )
+                            proposed_credit_limit = max(
+                                MAX_AUTO_SUB_CHAT_CREDITS,
+                                sum(
+                                    int(sc.get("budget_limit") or 0)
+                                    for sc in spawned_sub_chats
+                                    if isinstance(sc.get("budget_limit"), int)
+                                ),
+                            )
+                            request_data.orchestration_descendant_limit = len(spawned_sub_chats)
+                            request_data.orchestration_credit_limit = proposed_credit_limit
                             pending_context = {
                                 "parent_request_data": request_data.model_dump(mode="json"),
                                 "skill_config_dict": skill_config_dict or {},
@@ -4715,6 +4979,7 @@ async def handle_main_processing(
                                 "execution_mode": execution_mode,
                                 "context_policy": context_policy,
                                 "created_at": int(time.time()),
+                                "proposed_credit_limit": proposed_credit_limit,
                             }
                             await store_pending_sub_chat_confirmation(
                                 cache_service=cache_service,
@@ -4737,17 +5002,29 @@ async def handle_main_processing(
                                 "remaining_sub_chats": capacity_result["remaining"],
                                 "execution_mode": execution_mode,
                                 "context_policy": context_policy,
+                                "proposed_credit_limit": proposed_credit_limit,
                             }
                             return
 
                         if execution_mode == "sequential":
                             logger.info(f"{log_prefix} [SUB_CHAT] Creating sequential queue with {len(spawned_sub_chats)} sub-chat(s)")
-                            await create_sub_chat_records(
+                            dispatch_tokens = await create_sub_chat_records(
                                 directus_service=directus_service,
                                 request_data=request_data,
                                 spawned_sub_chats=spawned_sub_chats,
                                 log_prefix=log_prefix,
                             )
+                            if current_ai_operation_id is None:
+                                current_ai_operation_id = await _reserve_ai_iteration(
+                                    task_id=task_id,
+                                    iteration=iteration,
+                                    model_id=current_model_id,
+                                    system_prompt=iteration_system_prompt,
+                                    message_history=current_message_history,
+                                    tools=available_tools_for_llm if not force_no_tools else None,
+                                    request_data=request_data,
+                                    directus_service=directus_service,
+                                )
 
                             active_task_id = None
                             if spawned_sub_chats:
@@ -4756,6 +5033,7 @@ async def handle_main_processing(
                                     skill_config_dict=skill_config_dict or {},
                                     sub_chat=spawned_sub_chats[0],
                                     log_prefix=log_prefix,
+                                    dispatch_token=dispatch_tokens[str(spawned_sub_chats[0]["id"])],
                                 )
                                 if cache_service and active_task_id:
                                     await cache_service.set_active_ai_task(spawned_sub_chats[0]["id"], active_task_id)
@@ -4776,6 +5054,7 @@ async def handle_main_processing(
                                         "next_index": 1 if spawned_sub_chats else 0,
                                         "active_sub_chat_id": spawned_sub_chats[0].get("id") if spawned_sub_chats else None,
                                         "active_task_id": active_task_id,
+                                        "dispatch_tokens": dispatch_tokens,
                                         "created_at": int(time.time()),
                                     },
                                     ttl=60 * 60 * 24,
@@ -4815,13 +5094,33 @@ async def handle_main_processing(
                             return
 
                         logger.info(f"{log_prefix} [SUB_CHAT] Creating {len(spawned_sub_chats)} sub-chat(s)")
-                        await create_and_dispatch_sub_chats(
+                        dispatch_tokens = await create_sub_chat_records(
                             directus_service=directus_service,
                             request_data=request_data,
-                            skill_config_dict=skill_config_dict or {},
                             spawned_sub_chats=spawned_sub_chats,
                             log_prefix=log_prefix,
                         )
+                        if current_ai_operation_id is None:
+                            current_ai_operation_id = await _reserve_ai_iteration(
+                                task_id=task_id,
+                                iteration=iteration,
+                                model_id=current_model_id,
+                                system_prompt=iteration_system_prompt,
+                                message_history=current_message_history,
+                                tools=available_tools_for_llm if not force_no_tools else None,
+                                request_data=request_data,
+                                directus_service=directus_service,
+                            )
+                        for sub_chat in spawned_sub_chats:
+                            child_task_id = await dispatch_sub_chat_task(
+                                request_data=request_data,
+                                skill_config_dict=skill_config_dict or {},
+                                sub_chat=sub_chat,
+                                log_prefix=log_prefix,
+                                dispatch_token=dispatch_tokens[str(sub_chat["id"])],
+                            )
+                            if not child_task_id:
+                                raise RuntimeError(f"Sub-chat child {sub_chat['id']} dispatch failed")
 
                         # Set up the tool response
                         tool_result_content_str = json.dumps({
@@ -5087,6 +5386,7 @@ async def handle_main_processing(
                 
                 # Track if skill was cancelled
                 skill_was_cancelled = False
+                reserved_skill_operation_ids: list[str] = []
                 
                 try:
                     # ARGUMENT NORMALIZATION:
@@ -5237,6 +5537,22 @@ async def handle_main_processing(
                                 }),
                             })
                             continue
+
+                    if (app_id, skill_id) not in ASYNC_SKILLS:
+                        if not directus_service and request_data.orchestration_id:
+                            raise RuntimeError("Orchestrated skill reservation requires Directus")
+                        if directus_service:
+                            reserved_skill_operation_ids = await _reserve_skill_credits(
+                                task_id=task_id,
+                                execution_id=tool_call_id,
+                                request_data=request_data,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                parsed_args=skill_arguments,
+                                directus_service=directus_service,
+                                log_prefix=log_prefix,
+                            )
 
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
@@ -5901,6 +6217,7 @@ async def handle_main_processing(
                 if not is_async_skill:
                     await _charge_skill_credits(
                         task_id=task_id,
+                        execution_id=tool_call_id,
                         request_data=request_data,
                         app_id=app_id,
                         skill_id=skill_id,
@@ -5909,6 +6226,8 @@ async def handle_main_processing(
                         parsed_args=parsed_args,
                         log_prefix=log_prefix,
                         grouped_results=grouped_results,
+                        directus_service=directus_service,
+                        reserved_operation_ids=reserved_skill_operation_ids,
                     )
 
                 if connected_account_journal_entries and not is_async_skill and not is_multimodal_result:

@@ -167,6 +167,22 @@ async def dispatch_async_skill_continuation(
         embed_file_path_index=original_request.embed_file_path_index,
         has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
         is_sub_chat_continuation=original_request.is_sub_chat_continuation,
+        parent_id=original_request.parent_id,
+        is_sub_chat=original_request.is_sub_chat,
+        orchestration_id=original_request.orchestration_id,
+        root_chat_id=original_request.root_chat_id,
+        root_turn_id=original_request.root_turn_id,
+        sub_chat_depth=original_request.sub_chat_depth,
+        orchestration_dispatch_token=original_request.orchestration_dispatch_token,
+        orchestration_descendant_limit=original_request.orchestration_descendant_limit,
+        orchestration_credit_limit=original_request.orchestration_credit_limit,
+        orchestration_approved=original_request.orchestration_approved,
+        budget_limit=original_request.budget_limit,
+        budget_spent=original_request.budget_spent,
+        team_id=original_request.team_id,
+        team_id_hash=original_request.team_id_hash,
+        team_workspace_type=original_request.team_workspace_type,
+        team_object_id_hash=original_request.team_object_id_hash,
     )
 
     app = _get_celery_app()

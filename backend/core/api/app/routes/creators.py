@@ -6,6 +6,7 @@
 import logging
 import time
 import hashlib
+import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -41,6 +42,10 @@ class TipCreatorRequest(BaseModel):
         ...,
         description="Number of credits to tip (must be positive)",
         gt=0
+    )
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        description="Stable client-generated identity used to prevent duplicate tip charges.",
     )
 
 
@@ -124,7 +129,7 @@ async def tip_creator(
     payment_enabled = is_payment_enabled()
     
     if not payment_enabled:
-        logger.info(f"Creator tip request rejected: payment disabled (self-hosted mode)")
+        logger.info("Creator tip request rejected: payment disabled (self-hosted mode)")
         raise HTTPException(
             status_code=404,
             detail="Creator tips are not available in self-hosted mode"
@@ -173,6 +178,7 @@ async def tip_creator(
             user_id_hash=user_id_hash,
             app_id="creators",
             skill_id="tip",
+            idempotency_key=tip_data.idempotency_key or str(uuid.uuid4()),
             usage_details={
                 "tip_to_hashed_owner_id": hashed_owner_id,
                 "content_type": tip_data.content_type
@@ -198,7 +204,7 @@ async def tip_creator(
         if not success:
             # If income entry creation fails, we should ideally refund the credits
             # But for now, we'll just log the error
-            logger.error(f"Failed to create creator income entry for tip. Credits were deducted but income entry not created.")
+            logger.error("Failed to create creator income entry for tip. Credits were deducted but income entry not created.")
             # TODO: Consider refunding credits if income entry creation fails
         
         # Get updated credit balance

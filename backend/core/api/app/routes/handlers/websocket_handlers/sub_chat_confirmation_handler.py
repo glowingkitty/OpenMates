@@ -22,6 +22,7 @@ from backend.apps.ai.sub_chat_orchestration import (
     validate_sub_chat_capacity,
 )
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.cache import CacheService
@@ -32,6 +33,24 @@ logger = logging.getLogger(__name__)
 
 async def _publish_to_parent_stream(cache_service: "CacheService", chat_id: str, payload: dict[str, Any]) -> None:
     await cache_service.publish_event(f"chat_stream::{chat_id}", payload)
+
+
+async def _transition_pending_root(
+    directus_service: "DirectusService",
+    pending_context: dict[str, Any],
+    state: str,
+) -> None:
+    parent = pending_context.get("parent_request_data") or {}
+    if parent.get("orchestration_id") and parent.get("user_id_hash"):
+        await SubChatOrchestrationService(directus_service).execute(
+            "transition_root",
+            {
+                "protocol_version": 1,
+                "orchestration_id": parent["orchestration_id"],
+                "hashed_user_id": parent["user_id_hash"],
+                "state": state,
+            },
+        )
 
 
 async def handle_sub_chat_confirmation(
@@ -45,6 +64,7 @@ async def handle_sub_chat_confirmation(
     user_otel_attrs: dict | None = None,
 ) -> None:
     _otel_span, _otel_token = None, None
+    pending_context: dict[str, Any] | None = None
     try:
         from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("sub_chat_confirmation", user_id, payload, user_otel_attrs)
@@ -56,6 +76,7 @@ async def handle_sub_chat_confirmation(
         task_id = payload.get("task_id")
         action = payload.get("action")
         approve_count = payload.get("approve_count")
+        approve_credit_limit = payload.get("approve_credit_limit")
 
         if not chat_id or not task_id or action not in {"approve", "cancel"}:
             logger.warning("Invalid sub_chat_confirmation payload from user %s: %s", user_id, payload)
@@ -85,6 +106,7 @@ async def handle_sub_chat_confirmation(
             return
 
         if action == "cancel":
+            await _transition_pending_root(directus_service, pending_context, "cancelled")
             await manager.send_personal_message(
                 {"type": "sub_chat_confirmation_resolved", "payload": {"chat_id": chat_id, "task_id": task_id, "status": "cancelled"}},
                 user_id,
@@ -94,20 +116,44 @@ async def handle_sub_chat_confirmation(
 
         all_sub_chats = pending_context.get("sub_chats") or []
         if not isinstance(all_sub_chats, list) or not all_sub_chats:
+            await _transition_pending_root(directus_service, pending_context, "failed")
             return
 
         if not isinstance(approve_count, int) or approve_count <= 0:
             approve_count = len(all_sub_chats)
 
+        proposed_credit_limit = pending_context.get("proposed_credit_limit", 2_000)
+        if not isinstance(proposed_credit_limit, int) or proposed_credit_limit <= 0:
+            logger.error("Pending sub-chat confirmation has an invalid credit ceiling")
+            await _transition_pending_root(directus_service, pending_context, "failed")
+            return
+        if approve_credit_limit is None:
+            approve_credit_limit = proposed_credit_limit
+        if approve_credit_limit != proposed_credit_limit:
+            await _transition_pending_root(directus_service, pending_context, "cancelled")
+            await manager.send_personal_message(
+                {
+                    "type": "sub_chat_confirmation_resolved",
+                    "payload": {
+                        "chat_id": chat_id,
+                        "task_id": task_id,
+                        "status": "invalid_approval",
+                    },
+                },
+                user_id,
+                device_fingerprint_hash,
+            )
+            return
+
         approved_sub_chats = all_sub_chats[:approve_count]
         execution_mode = pending_context.get("execution_mode", "parallel")
         existing_sub_chat_count = await count_direct_sub_chats(directus_service, chat_id)
-        capacity_result = (
-            {"allowed": True, "remaining": None, "message": ""}
-            if execution_mode == "sequential"
-            else validate_sub_chat_capacity(existing_sub_chat_count, len(approved_sub_chats))
+        capacity_result = validate_sub_chat_capacity(
+            existing_sub_chat_count,
+            len(approved_sub_chats),
         )
         if not capacity_result["allowed"]:
+            await _transition_pending_root(directus_service, pending_context, "cancelled")
             await manager.send_personal_message(
                 {
                     "type": "sub_chat_confirmation_resolved",
@@ -128,10 +174,16 @@ async def handle_sub_chat_confirmation(
         from backend.apps.ai.tasks.stream_consumer import _store_sub_chat_pending_context
 
         request_data = AskSkillRequest(**pending_context["parent_request_data"])
+        request_data.orchestration_descendant_limit = len(approved_sub_chats)
+        request_data.orchestration_credit_limit = approve_credit_limit
+        request_data.orchestration_approved = (
+            len(approved_sub_chats) > MAX_AUTO_SUB_CHATS_PER_TURN
+            or approve_credit_limit > 2_000
+        )
         log_prefix = f"[SUB_CHAT_CONFIRM:{chat_id}:{task_id}]"
         active_task_id = None
         if execution_mode == "sequential":
-            await create_sub_chat_records(
+            dispatch_tokens = await create_sub_chat_records(
                 directus_service=directus_service,
                 request_data=request_data,
                 spawned_sub_chats=approved_sub_chats,
@@ -143,6 +195,7 @@ async def handle_sub_chat_confirmation(
                     skill_config_dict=pending_context.get("skill_config_dict") or {},
                     sub_chat=approved_sub_chats[0],
                     log_prefix=log_prefix,
+                    dispatch_token=dispatch_tokens[str(approved_sub_chats[0]["id"])],
                 )
                 if active_task_id:
                     await cache_service.set_active_ai_task(approved_sub_chats[0]["id"], active_task_id)
@@ -165,6 +218,7 @@ async def handle_sub_chat_confirmation(
             "sub_chats": approved_sub_chats,
             "report_trigger": pending_context.get("report_trigger", "all"),
             "execution_mode": execution_mode,
+            "approved_credit_limit": approve_credit_limit,
         }
         await _publish_to_parent_stream(cache_service, chat_id, spawn_payload)
 
@@ -185,6 +239,7 @@ async def handle_sub_chat_confirmation(
                         "next_index": 1 if approved_sub_chats else 0,
                         "active_sub_chat_id": approved_sub_chats[0].get("id") if approved_sub_chats else None,
                         "active_task_id": active_task_id,
+                        "dispatch_tokens": dispatch_tokens,
                         "created_at": pending_context.get("created_at"),
                     },
                     ttl=60 * 60 * 24,
@@ -229,6 +284,7 @@ async def handle_sub_chat_confirmation(
                     "task_id": task_id,
                     "status": "approved",
                     "approved_count": len(approved_sub_chats),
+                    "approved_credit_limit": approve_credit_limit,
                     "max_auto_sub_chats": MAX_AUTO_SUB_CHATS_PER_TURN,
                     "max_direct_sub_chats": MAX_DIRECT_SUB_CHATS_PER_PARENT,
                 },
@@ -236,6 +292,13 @@ async def handle_sub_chat_confirmation(
             user_id,
             device_fingerprint_hash,
         )
+    except Exception:
+        if pending_context:
+            try:
+                await _transition_pending_root(directus_service, pending_context, "failed")
+            except Exception:
+                logger.error("Failed to terminate sub-chat root after confirmation error", exc_info=True)
+        raise
     finally:
         if _otel_span is not None:
             try:

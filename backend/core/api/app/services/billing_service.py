@@ -2,16 +2,22 @@ import logging
 from fastapi import HTTPException
 import time
 import asyncio
+import uuid
 from typing import Dict, Any, Optional
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
+from backend.core.api.app.services.sub_chat_orchestration_service import (
+    SubChatOrchestrationProtocolError,
+    SubChatOrchestrationService,
+)
 from backend.core.api.app.routes.websockets import manager as websocket_manager
 from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e_user_profile
 
 logger = logging.getLogger(__name__)
+MAX_BALANCE_CAS_RETRIES = 3
 
 class BillingService:
     def __init__(
@@ -39,9 +45,11 @@ class BillingService:
         user_id_hash: str,
         app_id: str,
         skill_id: str,
+        idempotency_key: str,
         usage_details: Optional[Dict[str, Any]] = None,
         api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
         device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
+        _cas_retry_count: int = 0,
     ) -> None:
         """
         Deducts credits and records the usage entry.
@@ -52,6 +60,7 @@ class BillingService:
             user_id_hash: Hashed user ID for privacy
             app_id: ID of the app that executed the skill (required, must not be empty)
             skill_id: ID of the skill that was executed (required, must not be empty)
+            idempotency_key: Stable identity for exactly-once charge settlement
             usage_details: Optional dict containing additional usage metadata:
                 - chat_id: Chat ID if skill was triggered in a chat context
                 - message_id: Message ID if skill was triggered from a message
@@ -65,6 +74,8 @@ class BillingService:
         """
         if not isinstance(credits_to_deduct, int) or credits_to_deduct < 0:
             raise HTTPException(status_code=400, detail="Credits to deduct must be a non-negative integer.")
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise HTTPException(status_code=400, detail="idempotency_key is required for credit charges.")
         
         # Validate required fields - app_id and skill_id must be provided and non-empty
         if not app_id or not isinstance(app_id, str) or not app_id.strip():
@@ -74,6 +85,16 @@ class BillingService:
         if not skill_id or not isinstance(skill_id, str) or not skill_id.strip():
             logger.error(f"Invalid skill_id provided for credit charge: {skill_id}. Cannot create usage entry.")
             raise HTTPException(status_code=400, detail="skill_id is required and must not be empty.")
+
+        from backend.core.api.app.utils.server_mode import is_payment_enabled
+        payment_enabled = is_payment_enabled()
+        expected_encrypted_balance: str | None = None
+        requested_credits = credits_to_deduct
+        charge_result: Dict[str, Any] = {
+            "charge_id": idempotency_key,
+            "charged_credits": credits_to_deduct,
+            "idempotent": False,
+        }
 
         try:
             # 1. Get user profile using the cache service
@@ -98,6 +119,57 @@ class BillingService:
                 await self.cache_service.set_user(user_profile, user_id=user_id)
                 user = user_profile
                 logger.info(f"Successfully fetched and cached user {user_id} from Directus")
+
+            if payment_enabled:
+                billing_rows = await self.directus_service.get_items(
+                    "directus_users",
+                    params={
+                        "filter[id][_eq]": user_id,
+                        "fields": "id,vault_key_id,encrypted_credit_balance",
+                        "limit": 1,
+                    },
+                    no_cache=True,
+                    admin_required=True,
+                )
+                if not isinstance(billing_rows, list) or not billing_rows:
+                    raise HTTPException(status_code=404, detail="Billing profile not found.")
+                billing_profile = billing_rows[0]
+                vault_key_id = billing_profile.get("vault_key_id")
+                expected_encrypted_balance = billing_profile.get("encrypted_credit_balance")
+                if not vault_key_id or not expected_encrypted_balance:
+                    raise HTTPException(status_code=409, detail="Billing profile is incomplete.")
+                decrypted_balance = await self.encryption_service.decrypt_with_user_key(
+                    expected_encrypted_balance,
+                    vault_key_id,
+                )
+                if decrypted_balance is None:
+                    raise HTTPException(status_code=500, detail="Billing balance could not be decrypted.")
+                try:
+                    authoritative_credits = int(decrypted_balance)
+                except (TypeError, ValueError) as exc:
+                    raise HTTPException(status_code=500, detail="Billing balance is invalid.") from exc
+                user["credits"] = authoritative_credits
+                user["vault_key_id"] = vault_key_id
+
+                existing_charge = await SubChatOrchestrationService(self.directus_service).execute(
+                    "get_personal_charge",
+                    {
+                        "protocol_version": 1,
+                        "charge_id": idempotency_key,
+                        "hashed_user_id": user_id_hash,
+                        "app_id": app_id.strip(),
+                        "skill_id": skill_id.strip(),
+                        "requested_credits": requested_credits,
+                    },
+                )
+                if existing_charge.get("found"):
+                    committed_balance = await self.encryption_service.decrypt_with_user_key(
+                        existing_charge["encrypted_balance_after"],
+                        vault_key_id,
+                    )
+                    user["credits"] = int(committed_balance)
+                    await self.cache_service.set_user(user, user_id=user_id)
+                    return {**existing_charge, "idempotent": True}
 
             # Resolve vault_key_id: the cached profile may be stale (e.g., after an account
             # recovery reset which re-generates the Vault key). If the key is absent, re-fetch
@@ -137,9 +209,6 @@ class BillingService:
 
             # 2. Check for sufficient balance and calculate new balance
             # Skip balance check if payment is disabled (self-hosted mode)
-            from backend.core.api.app.utils.server_mode import is_payment_enabled
-            payment_enabled = is_payment_enabled()
-
             # Maximum allowed overdraft (negative credit balance). Skills are always charged to
             # ensure users are billed even when a multi-step request (web searches, image
             # generations) consumes slightly more than the remaining balance. When the user
@@ -182,69 +251,110 @@ class BillingService:
                 # Note: credits_to_deduct is still used for usage entry tracking, but not actually deducted
             user['credits'] = new_credits  # Store as integer in the dictionary for caching
 
-            # 2.5 Update server stats
+            # 3. Commit the encrypted balance with the charge identity in one database transaction.
+            if payment_enabled:
+                vault_key_id = user.get("vault_key_id")
+                if not vault_key_id or not expected_encrypted_balance:
+                    raise HTTPException(status_code=409, detail="Billing profile is incomplete.")
+                transaction_timestamp = int(time.time())
+                transaction_chat_id = None
+                transaction_message_id = None
+                if usage_details:
+                    raw_chat_id = usage_details.get("chat_id")
+                    if isinstance(raw_chat_id, str) and raw_chat_id.strip():
+                        transaction_chat_id = (
+                            "incognito" if usage_details.get("is_incognito") else raw_chat_id.strip()
+                        )
+                    raw_message_id = usage_details.get("message_id")
+                    if isinstance(raw_message_id, str) and raw_message_id.strip():
+                        transaction_message_id = raw_message_id.strip()
+                transaction_source = (
+                    "benchmark"
+                    if usage_details and usage_details.get("source") == "benchmark"
+                    else "api_key" if api_key_hash else "chat" if transaction_chat_id else "direct"
+                )
+                transaction_usage_payload = await self.directus_service.usage.create_usage_entry(
+                    user_id_hash=user_id_hash,
+                    app_id=app_id.strip(),
+                    skill_id=skill_id.strip(),
+                    usage_type="skill_execution",
+                    timestamp=transaction_timestamp,
+                    credits_charged=credits_to_deduct,
+                    user_vault_key_id=vault_key_id,
+                    model_used=usage_details.get("model_used") if usage_details else None,
+                    chat_id=transaction_chat_id,
+                    root_chat_id=usage_details.get("root_chat_id") if usage_details else None,
+                    actual_chat_id=(usage_details.get("actual_chat_id") if usage_details else None) or transaction_chat_id,
+                    root_turn_id=usage_details.get("root_turn_id") if usage_details else None,
+                    orchestration_id=usage_details.get("orchestration_id") if usage_details else None,
+                    depth=usage_details.get("depth") if usage_details else None,
+                    charge_id=idempotency_key,
+                    operation_id=usage_details.get("operation_id") if usage_details else None,
+                    message_id=transaction_message_id,
+                    source=transaction_source,
+                    cost_system_prompt_credits=usage_details.get("system_prompt_credits") if usage_details else None,
+                    cost_history_credits=usage_details.get("history_credits") if usage_details else None,
+                    cost_response_credits=usage_details.get("response_credits") if usage_details else None,
+                    actual_input_tokens=usage_details.get("input_tokens") if usage_details else None,
+                    actual_output_tokens=usage_details.get("output_tokens") if usage_details else None,
+                    user_input_tokens=usage_details.get("user_input_tokens") if usage_details else None,
+                    system_prompt_tokens=usage_details.get("system_prompt_tokens") if usage_details else None,
+                    api_key_hash=api_key_hash,
+                    device_hash=device_hash,
+                    server_provider=usage_details.get("server_provider") if usage_details else None,
+                    server_region=usage_details.get("server_region") if usage_details else None,
+                    code_run_filenames=usage_details.get("code_run_filenames") if usage_details else None,
+                    code_run_duration_seconds=usage_details.get("duration_seconds") if usage_details else None,
+                    duration_second=usage_details.get("duration_second") if usage_details else None,
+                    tool_inference_iterations=(
+                        usage_details.get("tool_inference_iterations") if usage_details else None
+                    ),
+                    build_only=True,
+                )
+                if not isinstance(transaction_usage_payload, dict):
+                    raise HTTPException(status_code=500, detail="Usage entry could not be encrypted.")
+                transaction_usage_payload["id"] = str(
+                    uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:billing-charge:{idempotency_key}")
+                )
+                encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
+                    plaintext=str(new_credits),
+                    key_id=vault_key_id,
+                )
+                encrypted_new_credits = encrypted_new_credits_tuple[0]
+                charge_result = await SubChatOrchestrationService(self.directus_service).execute(
+                    "commit_personal_charge",
+                    {
+                        "protocol_version": 1,
+                        "charge_id": idempotency_key,
+                        "user_id": user_id,
+                        "hashed_user_id": user_id_hash,
+                        "app_id": app_id.strip(),
+                        "skill_id": skill_id.strip(),
+                        "requested_credits": requested_credits,
+                        "charged_credits": credits_to_deduct,
+                        "expected_encrypted_balance": expected_encrypted_balance,
+                        "new_encrypted_balance": encrypted_new_credits,
+                        "usage_entry": transaction_usage_payload,
+                    },
+                )
+                if charge_result.get("idempotent"):
+                    committed_balance = await self.encryption_service.decrypt_with_user_key(
+                        charge_result["encrypted_balance_after"],
+                        vault_key_id,
+                    )
+                    user["credits"] = int(committed_balance)
+                    await self.cache_service.set_user(user, user_id=user_id)
+                    return charge_result
+            else:
+                logger.debug(f"Payment disabled (self-hosted mode). Skipping Directus credit balance update for user {user_id}.")
+
+            # Cache, stats, notifications, and top-up happen only after durable commit.
             if self.server_stats_service:
                 await self.server_stats_service.increment_stat("credits_used", credits_to_deduct)
                 await self.server_stats_service.update_liability(-credits_to_deduct)
-
-            # 3. Update user in cache
             await self.cache_service.set_user(user, user_id=user_id)
-
-            # 3.5. Check if low balance auto top-up should trigger (only if payment enabled)
             if payment_enabled:
                 await self._check_and_trigger_low_balance_topup(user_id, user, new_credits)
-
-            # 4. Update Directus with the encrypted string representation of the integer (only if payment enabled)
-            # In self-hosted mode, we still track usage but don't update credit balance in Directus
-            if payment_enabled:
-                vault_key_id = user.get("vault_key_id")
-                if not vault_key_id:
-                    # vault_key_id is still unavailable after the re-fetch above.
-                    # Cache is already updated with the new balance; the DB will self-heal on the
-                    # next login when the profile is rebuilt from Directus. Log as error but do
-                    # NOT raise — the charge must succeed even without DB persistence.
-                    logger.error(
-                        f"Skipping Directus credit balance update for user_id={user_id} "
-                        "because vault_key_id is unavailable. Cache balance is correct and "
-                        "will sync to Directus on next login."
-                    )
-                else:
-                    encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
-                        plaintext=str(new_credits),
-                        key_id=vault_key_id
-                    )
-                    encrypted_new_credits = encrypted_new_credits_tuple[0]  # Extract encrypted string
-                    # Persist to Directus with retry logic
-                    max_retries = 3
-                    retry_delay = 5  # seconds
-                    for attempt in range(max_retries):
-                        update_successful = await self.directus_service.update_user(
-                            user_id, {"encrypted_credit_balance": encrypted_new_credits}
-                        )
-                        if update_successful:
-                            logger.info(f"Successfully updated user {user_id} credits in Directus on attempt {attempt + 1}.")
-                            break
-                        else:
-                            logger.warning(
-                                f"Attempt {attempt + 1} to update user {user_id} credits in Directus failed. "
-                                f"Retrying in {retry_delay} seconds..."
-                            )
-                            if attempt < max_retries - 1:
-                                await asyncio.sleep(retry_delay)
-                    else:
-                        # This block executes if the loop completes without a `break`
-                        logger.critical(
-                            f"CRITICAL: Failed to update user {user_id} credits in Directus after {max_retries} attempts. "
-                            f"The user has been charged in cache, but the database update failed. Manual intervention required."
-                        )
-                        # We do NOT revert the cache. The charge is valid.
-                        # We raise an exception to inform the client of the persistent failure.
-                        raise HTTPException(
-                            status_code=500,
-                            detail="Your transaction was completed, but there was a delay in saving the final balance. Please refresh shortly."
-                        )
-            else:
-                logger.debug(f"Payment disabled (self-hosted mode). Skipping Directus credit balance update for user {user_id}.")
             
             logger.info(f"Successfully charged {credits_to_deduct} credits from user {user_id}. New balance: {new_credits}")
 
@@ -353,7 +463,17 @@ class BillingService:
                     _tool_inference_iterations = _raw_tii
 
             _vault_key_id_for_usage = user.get("vault_key_id")
-            if not _vault_key_id_for_usage:
+            if payment_enabled:
+                await self.directus_service.usage.update_summaries_for_committed_entry(
+                    user_id_hash=user_id_hash,
+                    timestamp=timestamp,
+                    credits_charged=credits_to_deduct,
+                    chat_id=(usage_details.get("root_chat_id") if usage_details else None) or chat_id,
+                    app_id=app_id.strip(),
+                    api_key_hash=api_key_hash,
+                    device_hash=device_hash,
+                )
+            elif not _vault_key_id_for_usage:
                 # Usage entry encryption is not possible without vault_key_id.
                 # Log as error but do not fail the charge — billing always succeeds.
                 logger.error(
@@ -371,6 +491,13 @@ class BillingService:
                     user_vault_key_id=_vault_key_id_for_usage,
                     model_used=usage_details.get("model_used") if usage_details else None,
                     chat_id=chat_id,  # Cleartext - for client-side matching with IndexedDB
+                    root_chat_id=usage_details.get("root_chat_id") if usage_details else None,
+                    actual_chat_id=(usage_details.get("actual_chat_id") if usage_details else None) or chat_id,
+                    root_turn_id=usage_details.get("root_turn_id") if usage_details else None,
+                    orchestration_id=usage_details.get("orchestration_id") if usage_details else None,
+                    depth=usage_details.get("depth") if usage_details else None,
+                    charge_id=idempotency_key,
+                    operation_id=usage_details.get("operation_id") if usage_details else None,
                     message_id=message_id,  # Cleartext - for client-side matching with IndexedDB
                     source=source,  # "chat" or "api_key"
                     cost_system_prompt_credits=usage_details.get("system_prompt_credits") if usage_details else None,
@@ -390,6 +517,23 @@ class BillingService:
                     tool_inference_iterations=_tool_inference_iterations,
                 )
 
+            return charge_result
+
+        except SubChatOrchestrationProtocolError as e:
+            if e.code == "stale_credit_balance" and _cas_retry_count < MAX_BALANCE_CAS_RETRIES:
+                return await self.charge_user_credits(
+                    user_id=user_id,
+                    credits_to_deduct=requested_credits,
+                    user_id_hash=user_id_hash,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    idempotency_key=idempotency_key,
+                    usage_details=usage_details,
+                    api_key_hash=api_key_hash,
+                    device_hash=device_hash,
+                    _cas_retry_count=_cas_retry_count + 1,
+                )
+            raise HTTPException(status_code=e.status_code, detail=e.code) from e
         except HTTPException as e:
             # Re-raise HTTPExceptions to be handled by FastAPI
             raise e

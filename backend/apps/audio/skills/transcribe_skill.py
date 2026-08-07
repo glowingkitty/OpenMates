@@ -957,6 +957,12 @@ class TranscribeSkill(BaseSkill):
                 suggestions=None,
                 logger=logger,
             )
+        billing_identity = hashlib.sha256(
+            "|".join(
+                str(request.get("id") or request.get("s3_key"))
+                for request in validated_requests
+            ).encode("utf-8")
+        ).hexdigest()
 
         # --- Pre-flight credit check ---
         # Minimum cost is 3 credits (1 minute at 3 credits/min) per transcription request.
@@ -1090,6 +1096,7 @@ class TranscribeSkill(BaseSkill):
                         credits_to_charge=credits_to_charge,
                         skill_id=self.skill_id,
                         app_id=self.app_id,
+                        idempotency_key=f"audio-transcribe:{billing_identity}",
                         usage_details=usage_details,
                     )
                 elif success_count > 0:
@@ -1114,6 +1121,7 @@ class TranscribeSkill(BaseSkill):
                         credits_to_charge=credits_to_charge,
                         skill_id=self.skill_id,
                         app_id=self.app_id,
+                        idempotency_key=f"audio-transcribe:{billing_identity}",
                         usage_details=usage_details_no_duration,
                     )
             except Exception as billing_error:

@@ -107,6 +107,30 @@ PROJECT_OWNER_CONTEXT_INDEXES = (
     'project_items_team_project_idx',
     'project_settings_team_project_idx',
 )
+SUB_CHAT_ORCHESTRATION_MIGRATION_PATH = os.getenv(
+    'SUB_CHAT_ORCHESTRATION_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql',
+)
+SUB_CHAT_ORCHESTRATION_INDEXES = (
+    'sub_chat_orchestrations_owner_root_turn_uq',
+    'sub_chat_orchestrations_owner_status_idx',
+    'sub_chat_children_chat_uq',
+    'sub_chat_children_orchestration_token_uq',
+    'sub_chat_children_inference_task_uq',
+    'sub_chat_children_orchestration_state_idx',
+    'sub_chat_batches_orchestration_parent_id_uq',
+    'sub_chat_batches_orchestration_claim_idx',
+    'sub_chat_operations_identity_uq',
+    'sub_chat_operations_orchestration_state_idx',
+    'usage_charge_id_uq',
+    'usage_user_root_created_idx',
+    'usage_orchestration_created_idx',
+    'billing_charge_identities_charge_uq',
+    'billing_charge_identities_user_created_idx',
+    'team_credit_accounts_team_uq',
+    'team_credit_events_event_uq',
+    'team_usage_events_event_uq',
+)
 EMBED_HASH_INDEXES = ('embeds_hashed_embed_id_idx',)
 EMBED_HASH_BACKFILL_BATCH_SIZE = 500
 
@@ -1187,6 +1211,39 @@ def apply_and_verify_project_owner_context():
     print(f"Verified {len(PROJECT_OWNER_CONTEXT_INDEXES)} Project owner-context indexes")
 
 
+def apply_and_verify_sub_chat_orchestration_indexes():
+    """Apply and require durable sub-chat orchestration identity indexes."""
+    if not os.path.isfile(SUB_CHAT_ORCHESTRATION_MIGRATION_PATH):
+        raise RuntimeError(
+            "Required sub-chat orchestration migration is missing: "
+            f"{SUB_CHAT_ORCHESTRATION_MIGRATION_PATH}"
+        )
+    with open(SUB_CHAT_ORCHESTRATION_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(SUB_CHAT_ORCHESTRATION_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(SUB_CHAT_ORCHESTRATION_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Sub-chat orchestration index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(SUB_CHAT_ORCHESTRATION_INDEXES)} sub-chat orchestration indexes")
+
+
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -1212,6 +1269,27 @@ def verify_chat_recovery_endpoint():
     if not isinstance(jobs, list):
         raise RuntimeError('Chat recovery endpoint returned an invalid health response')
     print('Verified chat recovery Directus endpoint')
+
+
+def verify_sub_chat_orchestration_endpoint():
+    """Require the internal orchestration endpoint to pass its metadata-only health check."""
+    if not INTERNAL_API_SHARED_TOKEN:
+        raise RuntimeError('INTERNAL_API_SHARED_TOKEN is required for Directus setup')
+    response = requests.post(
+        f"{CMS_URL}/sub-chat-orchestration-transaction/",
+        headers={"X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN},
+        json={"operation": "health_check", "data": {"protocol_version": 1}},
+        timeout=10,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            "Sub-chat orchestration endpoint health check failed: "
+            f"HTTP {response.status_code}"
+        )
+    data = response.json().get('data', {})
+    if data.get('status') != 'ok' or data.get('protocol_version') != 1:
+        raise RuntimeError('Sub-chat orchestration endpoint returned an invalid health response')
+    print('Verified sub-chat orchestration Directus endpoint')
 
 def setup_schemas():
     """Main function to set up schemas."""
@@ -1300,6 +1378,12 @@ def setup_schemas():
 
         print("\n--- Applying Project owner-context migration ---")
         apply_and_verify_project_owner_context()
+
+        print("\n--- Applying sub-chat orchestration database indexes ---")
+        apply_and_verify_sub_chat_orchestration_indexes()
+
+        print("\n--- Verifying sub-chat orchestration Directus endpoint ---")
+        verify_sub_chat_orchestration_endpoint()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

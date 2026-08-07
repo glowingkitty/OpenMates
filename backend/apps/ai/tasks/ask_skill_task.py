@@ -31,6 +31,7 @@ from backend.core.api.app.services.chat_recovery_cutover import (
     legacy_completion_requires_persistence as completion_requires_persistence,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -564,6 +565,53 @@ async def _mark_recovery_inference_failed(
         await directus_service.close()
 
 
+async def _mark_sub_chat_terminal_failure(
+    request_data: AskSkillRequest,
+    task_id: str,
+    *,
+    cancelled: bool,
+) -> None:
+    """Settle failed child lifecycle and let the parent synthesize partial results."""
+    if not request_data.orchestration_id:
+        return
+    if not request_data.is_sub_chat:
+        directus_service = DirectusService()
+        try:
+            await SubChatOrchestrationService(directus_service).execute(
+                "transition_root",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "state": "cancelled" if cancelled else "failed",
+                },
+            )
+        finally:
+            await directus_service.close()
+        return
+    from backend.apps.ai.tasks.stream_consumer import (
+        _record_sub_chat_completion_and_maybe_continue_parent,
+    )
+
+    cache_service = CacheService()
+    try:
+        await cache_service.client
+        await _record_sub_chat_completion_and_maybe_continue_parent(
+            cache_service=cache_service,
+            request_data=request_data,
+            task_id=task_id,
+            summary=(
+                "Sub-chat was cancelled before completion."
+                if cancelled
+                else "Sub-chat failed before completion."
+            ),
+            log_prefix=f"[Task ID: {task_id}]",
+            terminal_state="cancelled" if cancelled else "failed",
+        )
+    finally:
+        await cache_service.close()
+
+
 async def _finalize_legacy_cutover_admission(
     request_data: AskSkillRequest,
     inference_completed: bool,
@@ -637,6 +685,49 @@ async def _async_process_ai_skill_ask_task(
             encryption_service=encryption_service_instance 
         )
         logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
+
+        if request_data.is_sub_chat:
+            if not all((
+                request_data.orchestration_id,
+                request_data.root_chat_id,
+                request_data.root_turn_id,
+                request_data.orchestration_dispatch_token,
+            )):
+                raise RuntimeError("Sub-chat task is missing its durable orchestration envelope")
+            child_claim = await SubChatOrchestrationService(directus_service_instance).execute(
+                "claim_child",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "child_chat_id": request_data.chat_id,
+                    "dispatch_token": request_data.orchestration_dispatch_token,
+                    "inference_task_id": task_id,
+                    "is_continuation": bool(
+                        request_data.is_sub_chat_continuation
+                        or request_data.is_focus_mode_continuation
+                        or request_data.is_app_settings_memories_continuation
+                        or request_data.is_connected_account_permission_continuation
+                    ),
+                },
+            )
+            if child_claim.get("depth") != request_data.sub_chat_depth:
+                raise RuntimeError("Sub-chat task depth does not match its durable orchestration record")
+            if not child_claim.get("claimed"):
+                logger.info(
+                    "[Task ID: %s] Skipping duplicate child delivery in state=%s",
+                    task_id,
+                    child_claim.get("state"),
+                )
+                return {
+                    "status": "duplicate_sub_chat_task_ignored",
+                    "preprocessing_summary": {},
+                    "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
 
         if request_data.recovery_task_id:
             if request_data.recovery_task_id != task_id:
@@ -2533,6 +2624,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             failure_meta['interrupted_by_soft_time_limit'] = task_result_dict.get('interrupted_by_soft_time_limit', False)
             failure_meta['interrupted_by_revocation'] = task_result_dict.get('interrupted_by_revocation', False)
             self.update_state(state='FAILURE', meta=failure_meta)
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(task_result_dict.get('interrupted_by_revocation')),
+            ))
             return task_result_dict
         
         # If successful or partially successful (due to interruption)
@@ -2583,6 +2679,14 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
         try:
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(was_revoked),
+            ))
+        except Exception as sub_chat_err:
+            logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after soft time limit: {sub_chat_err}")
+        try:
             loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "soft_time_limit"))
         except Exception as recovery_err:
             logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
@@ -2623,6 +2727,14 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
         try:
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(was_revoked),
+            ))
+        except Exception as sub_chat_err:
+            logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after RuntimeError: {sub_chat_err}")
+        try:
             loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "runtime_error"))
         except Exception as recovery_err:
             logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
@@ -2661,6 +2773,14 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
+        try:
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(was_revoked),
+            ))
+        except Exception as sub_chat_err:
+            logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after exception: {sub_chat_err}")
         try:
             loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "unhandled_error"))
         except Exception as recovery_err:

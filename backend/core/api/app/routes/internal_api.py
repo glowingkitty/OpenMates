@@ -527,7 +527,7 @@ class CreditChargePayload(BaseModel):
     credits: int
     skill_id: str
     app_id: str
-    idempotency_key: Optional[str] = None
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
     usage_details: Optional[Dict[str, Any]] = None
     api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
@@ -539,7 +539,7 @@ class TeamCreditChargePayload(BaseModel):
     credits: int
     skill_id: str
     app_id: str
-    idempotency_key: Optional[str] = None
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
     usage_details: Optional[Dict[str, Any]] = None
 
 @router.get("/billing/balance")
@@ -587,12 +587,13 @@ async def charge_credits_route(
         return {"status": "skipped", "reason": "Non-positive credits"}
 
     try:
-        await billing_service.charge_user_credits(
+        charge_result = await billing_service.charge_user_credits(
             user_id=payload.user_id,
             credits_to_deduct=payload.credits,
             user_id_hash=payload.user_id_hash,
             app_id=payload.app_id,
             skill_id=payload.skill_id,
+            idempotency_key=payload.idempotency_key,
             usage_details=payload.usage_details,
             api_key_hash=payload.api_key_hash,  # API key hash for tracking which API key created this usage
             device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
@@ -600,7 +601,9 @@ async def charge_credits_route(
         
         return {
             "status": "success",
-            "charged_credits": payload.credits,
+            "charge_id": charge_result.get("charge_id", payload.idempotency_key),
+            "charged_credits": charge_result.get("charged_credits", payload.credits),
+            "idempotent": bool(charge_result.get("idempotent")),
         }
     except HTTPException as e:
         # Forward HTTP exceptions from the service
@@ -625,7 +628,7 @@ async def charge_team_credits_route(
     if payload.credits <= 0:
         return {"status": "skipped", "reason": "Non-positive credits"}
     usage_details = payload.usage_details or {}
-    event_id = payload.idempotency_key or str(usage_details.get("message_id") or usage_details.get("chat_id") or int(time.time()))
+    event_id = payload.idempotency_key
     try:
         result = await team_billing_service.charge_team_credits(
             team_id=payload.team_id,
@@ -635,6 +638,7 @@ async def charge_team_credits_route(
             workspace_type=str(usage_details.get("workspace_type") or "chat"),
             object_id_hash=usage_details.get("object_id_hash"),
             encrypted_metadata=usage_details.get("encrypted_metadata"),
+            usage_details=usage_details,
         )
         return {"status": "success", "charged_credits": payload.credits, "team_usage_event_id": result["usage_event"].get("id")}
     except TeamInsufficientCreditsError as exc:
@@ -1555,7 +1559,6 @@ class TestRunSummaryEmailPayload(BaseModel):
     opencode_chat_url: Optional[str] = None  # Shareable opencode session URL for failure analysis
     subject_override: Optional[str] = None  # Used only for urgent essential-flow failure emails
     summary_copy: Optional[Dict[str, str]] = None  # Optional labels for non-test summary emails
-    failure_groups: Optional[List[Dict[str, str]]] = None  # Canonical suite/product-area email grouping
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1620,7 +1623,6 @@ async def dispatch_test_summary_email(
                 "opencode_chat_url": payload.opencode_chat_url,
                 "subject_override": payload.subject_override,
                 "summary_copy": payload.summary_copy,
-                "failure_groups": payload.failure_groups,
             },
             queue="email",
         )

@@ -182,6 +182,23 @@ class CacheServiceBase:
             logger.error(f"Cache GET error for key '{key}': {str(e)}")
             return None
 
+    async def get_and_delete(self, key: str) -> Any:
+        """Atomically consume a cache value with Redis GETDEL."""
+        try:
+            client = await self.client
+            if not client:
+                return None
+            value = await client.getdel(key)
+            if value is None:
+                return None
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return value.decode("utf-8") if isinstance(value, bytes) else value
+        except Exception as e:
+            logger.error("Cache GETDEL error for key '%s': %s", key, e)
+            return None
+
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """Set a value in cache with TTL in seconds (default 1 hour or DEFAULT_TTL)"""
         try:

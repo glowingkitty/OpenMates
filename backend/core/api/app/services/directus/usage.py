@@ -52,6 +52,29 @@ def _summary_identifier(value: Any) -> Optional[str]:
     return stripped or None
 
 
+def aggregate_usage_rows_by_root(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Group attributable usage by root while retaining immutable raw row identity."""
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        root_chat_id = _summary_identifier(row.get("root_chat_id"))
+        key = root_chat_id or "unmatched_legacy"
+        entry = dict(row)
+        if root_chat_id:
+            entry["root_chat_id"] = root_chat_id
+            entry["actual_chat_id"] = (
+                _summary_identifier(row.get("actual_chat_id"))
+                or _summary_identifier(row.get("chat_id"))
+            )
+        bucket = grouped.setdefault(key, {
+            "root_chat_id": root_chat_id,
+            "total_credits": 0,
+            "entries": [],
+        })
+        bucket["total_credits"] += _summary_int(row.get("credits"))
+        bucket["entries"].append(entry)
+    return grouped
+
+
 def _coalesce_summary_rows(
     rows: Optional[List[Dict[str, Any]]],
     *,
@@ -227,6 +250,13 @@ class UsageMethods:
         user_vault_key_id: str,
         model_used: Optional[str] = None,
         chat_id: Optional[str] = None,
+        root_chat_id: Optional[str] = None,
+        actual_chat_id: Optional[str] = None,
+        root_turn_id: Optional[str] = None,
+        orchestration_id: Optional[str] = None,
+        depth: Optional[int] = None,
+        charge_id: Optional[str] = None,
+        operation_id: Optional[str] = None,
         message_id: Optional[str] = None,
         source: str = "chat",  # "chat", "api_key", "direct", or "benchmark"
         cost_system_prompt_credits: Optional[int] = None,
@@ -244,7 +274,8 @@ class UsageMethods:
         code_run_duration_seconds: Optional[float] = None,  # Total Code Run billable execution time
         duration_second: Optional[float] = None,  # Generic billable duration in seconds for non-Code-Run skills
         tool_inference_iterations: Optional[int] = None,  # Extra LLM calls from tool use (cleartext int)
-    ) -> Optional[str]:
+        build_only: bool = False,
+    ) -> Any:
         """
         Creates a new usage entry in Directus.
         Stores app_id, skill_id, chat_id, message_id in cleartext for performance and client-side matching.
@@ -446,6 +477,20 @@ class UsageMethods:
             # Add optional cleartext fields (for client-side matching with IndexedDB)
             if normalized_chat_id:
                 payload["chat_id"] = normalized_chat_id
+            if root_chat_id:
+                payload["root_chat_id"] = root_chat_id
+            if actual_chat_id or normalized_chat_id:
+                payload["actual_chat_id"] = actual_chat_id or normalized_chat_id
+            if root_turn_id:
+                payload["root_turn_id"] = root_turn_id
+            if orchestration_id:
+                payload["orchestration_id"] = orchestration_id
+            if depth is not None:
+                payload["depth"] = depth
+            if charge_id:
+                payload["charge_id"] = charge_id
+            if operation_id:
+                payload["operation_id"] = operation_id
             if normalized_message_id:
                 payload["message_id"] = normalized_message_id
             
@@ -487,6 +532,9 @@ class UsageMethods:
             # without needing to decrypt anything.  Only present for AI Ask skill.
             if should_save_tokens and tool_inference_iterations is not None and isinstance(tool_inference_iterations, int):
                 payload["tool_inference_iterations"] = tool_inference_iterations
+
+            if build_only:
+                return payload
 
             success, response_data = await self.sdk.create_item(self.collection, payload)
             
@@ -547,7 +595,44 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error creating usage entry: {e}", exc_info=True)
             return None
-    
+
+    async def update_summaries_for_committed_entry(
+        self,
+        *,
+        user_id_hash: str,
+        timestamp: int,
+        credits_charged: int,
+        chat_id: Optional[str],
+        app_id: str,
+        api_key_hash: Optional[str],
+        device_hash: Optional[str],
+    ) -> None:
+        """Update projections after a raw usage row commits with its balance transaction."""
+        try:
+            await self._update_monthly_summaries(
+                user_id_hash=user_id_hash,
+                timestamp=timestamp,
+                credits_charged=credits_charged,
+                chat_id=chat_id,
+                app_id=app_id,
+                api_key_hash=api_key_hash,
+                device_hash=device_hash,
+            )
+        except Exception as exc:
+            logger.error("Error updating monthly summaries after committed usage: %s", exc, exc_info=True)
+        try:
+            await self._update_daily_summaries(
+                user_id_hash=user_id_hash,
+                timestamp=timestamp,
+                credits_charged=credits_charged,
+                chat_id=chat_id,
+                app_id=app_id,
+                api_key_hash=api_key_hash,
+                device_hash=device_hash,
+            )
+        except Exception as exc:
+            logger.error("Error updating daily summaries after committed usage: %s", exc, exc_info=True)
+
     async def _update_monthly_summaries(
         self,
         user_id_hash: str,
@@ -1515,7 +1600,15 @@ class UsageMethods:
                 }
                 
                 if summary_type == "chat":
-                    filter_dict["chat_id"] = {"_eq": identifier}
+                    filter_dict["_or"] = [
+                        {"root_chat_id": {"_eq": identifier}},
+                        {
+                            "_and": [
+                                {"root_chat_id": {"_null": True}},
+                                {"chat_id": {"_eq": identifier}},
+                            ]
+                        },
+                    ]
                     # Only include entries where source is 'chat' (web app usage)
                     # This excludes API requests that might be associated with this chat
                     filter_dict["source"] = {"_eq": "chat"}
@@ -1578,7 +1671,15 @@ class UsageMethods:
             # Query usage collection for all entries matching this chat
             filter_dict = {
                 "user_id_hash": {"_eq": user_id_hash},
-                "chat_id": {"_eq": chat_id},
+                "_or": [
+                    {"root_chat_id": {"_eq": chat_id}},
+                    {
+                        "_and": [
+                            {"root_chat_id": {"_null": True}},
+                            {"chat_id": {"_eq": chat_id}},
+                        ]
+                    },
+                ],
                 "source": {"_eq": "chat"}
             }
             

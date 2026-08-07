@@ -11,6 +11,10 @@ import time
 from typing import Any, Literal
 
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.sub_chat_orchestration_service import (
+    SubChatOrchestrationProtocolError,
+    SubChatOrchestrationService,
+)
 
 
 TEAM_CREDIT_ACCOUNT_COLLECTION = "team_credit_accounts"
@@ -18,6 +22,7 @@ TEAM_CREDIT_EVENT_COLLECTION = "team_credit_events"
 TEAM_USAGE_EVENT_COLLECTION = "team_usage_events"
 TEAM_BILLING_ROLES = {"owner", "admin"}
 TEAM_CREDIT_USER_ROLES = {"owner", "admin", "member"}
+MAX_TEAM_BALANCE_CAS_RETRIES = 3
 
 TeamCreditAddEvent = Literal["purchase", "personal_transfer_in"]
 
@@ -45,6 +50,7 @@ class TeamBillingService:
         event_type: TeamCreditAddEvent = "purchase",
         encrypted_metadata: str | None = None,
         occurred_at: int | None = None,
+        _cas_retry_count: int = 0,
     ) -> dict[str, Any]:
         await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
         if event_type not in {"purchase", "personal_transfer_in"}:
@@ -52,6 +58,37 @@ class TeamBillingService:
         credits = _require_positive_credits(credits)
         account = await self._require_credit_account(team_id)
         now = int(occurred_at or time.time())
+        if hasattr(self.directus, "_make_api_request"):
+            try:
+                return await SubChatOrchestrationService(self.directus).execute(
+                    "commit_team_credit_add",
+                    {
+                        "protocol_version": 1,
+                        "event_id": event_id,
+                        "hashed_team_id": hash_id(team_id),
+                        "actor_user_hash": hash_id(actor_user_id),
+                        "credits": credits,
+                        "expected_version": _safe_int(account.get("version")),
+                        "encrypted_balance": encrypted_balance or account.get("encrypted_balance") or "",
+                        "event_type": event_type,
+                        "encrypted_metadata": encrypted_metadata,
+                        "occurred_at": now,
+                    },
+                )
+            except SubChatOrchestrationProtocolError as exc:
+                if exc.code == "stale_team_credit_balance" and _cas_retry_count < MAX_TEAM_BALANCE_CAS_RETRIES:
+                    return await self.add_credits(
+                        team_id=team_id,
+                        actor_user_id=actor_user_id,
+                        event_id=event_id,
+                        credits=credits,
+                        encrypted_balance=encrypted_balance,
+                        event_type=event_type,
+                        encrypted_metadata=encrypted_metadata,
+                        occurred_at=occurred_at,
+                        _cas_retry_count=_cas_retry_count + 1,
+                    )
+                raise
         updated_account = await self._update_account(
             account,
             balance_credits=_safe_int(account.get("balance_credits")) + credits,
@@ -80,7 +117,9 @@ class TeamBillingService:
         workspace_type: str,
         object_id_hash: str | None = None,
         encrypted_metadata: str | None = None,
+        usage_details: dict[str, Any] | None = None,
         occurred_at: int | None = None,
+        _cas_retry_count: int = 0,
     ) -> dict[str, Any]:
         await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
         credits = _require_positive_credits(credits)
@@ -88,9 +127,46 @@ class TeamBillingService:
             raise ValueError("workspace_type is required")
         account = await self._require_credit_account(team_id)
         current_balance = _safe_int(account.get("balance_credits"))
+        now = int(occurred_at or time.time())
+        if hasattr(self.directus, "_make_api_request"):
+            try:
+                return await SubChatOrchestrationService(self.directus).execute(
+                    "commit_team_charge",
+                    {
+                        "protocol_version": 1,
+                        "event_id": event_id,
+                        "hashed_team_id": hash_id(team_id),
+                        "actor_user_hash": hash_id(actor_user_id),
+                        "credits": credits,
+                        "expected_version": _safe_int(account.get("version")),
+                        "encrypted_balance": encrypted_balance or account.get("encrypted_balance") or "",
+                        "workspace_type": workspace_type,
+                        "object_id_hash": object_id_hash,
+                        "encrypted_metadata": encrypted_metadata,
+                        "orchestration_id": (usage_details or {}).get("orchestration_id"),
+                        "occurred_at": now,
+                    },
+                )
+            except SubChatOrchestrationProtocolError as exc:
+                if exc.code == "insufficient_team_credits":
+                    raise TeamInsufficientCreditsError("Insufficient team credits") from exc
+                if exc.code == "stale_team_credit_balance" and _cas_retry_count < MAX_TEAM_BALANCE_CAS_RETRIES:
+                    return await self.charge_team_credits(
+                        team_id=team_id,
+                        actor_user_id=actor_user_id,
+                        event_id=event_id,
+                        credits=credits,
+                        encrypted_balance=encrypted_balance,
+                        workspace_type=workspace_type,
+                        object_id_hash=object_id_hash,
+                        encrypted_metadata=encrypted_metadata,
+                        usage_details=usage_details,
+                        occurred_at=occurred_at,
+                        _cas_retry_count=_cas_retry_count + 1,
+                    )
+                raise
         if current_balance < credits:
             raise TeamInsufficientCreditsError("Insufficient team credits")
-        now = int(occurred_at or time.time())
         updated_account = await self._update_account(
             account,
             balance_credits=current_balance - credits,

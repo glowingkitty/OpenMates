@@ -369,6 +369,7 @@ async def _charge_single_user(
             user_id_hash=user_id_hash,
             app_id="system",
             skill_id="storage",
+            idempotency_key=f"storage:{user_id_hash}:{int(time.time()) // (7 * 24 * 60 * 60)}",
             usage_details={
                 "storage_bytes": total_bytes,
                 "billable_gb": billable_gb,
