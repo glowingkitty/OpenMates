@@ -138,6 +138,12 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-03T18:44:41Z"
     note: Active Team/Project work left backend runtime paths dirty, so the corrected preparation command refused to publish a false release attestation.
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Restore official-cloud overlay composition, bound the overlapping pending-embed safety net, isolate email from persistence queues, and rerun managed signup and billing serially on an exact dev commit.
+    outcome: succeeded
+    recorded_at: "2026-08-07T17:16:23Z"
+    note: Commit 68a58479d passed settings-buy-credits-stripe-managed.spec.ts in GitHub run 31200277877 and signup-flow-stripe-managed.spec.ts in run 31201187564. Live overlay attestation reported payment_enabled=true with dedicated task-worker email and core-worker persistence queue ownership.
 
 handoff:
   current_task_id: TASK-4
