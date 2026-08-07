@@ -1049,7 +1049,7 @@ def _not_started_playwright_specs(specs: list[str], reason: str) -> list[dict]:
     ]
 
 
-def _validate_requested_playwright_spec(spec_name: str) -> str:
+def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | None = None) -> str:
     """Return a dispatch-blocking error for missing or uncommitted specs."""
     if not spec_name.endswith(".spec.ts"):
         return f"Playwright specs must end with .spec.ts: {spec_name}"
@@ -1079,6 +1079,17 @@ def _validate_requested_playwright_spec(spec_name: str) -> str:
         timeout=30,
     )
     if tracked.returncode != 0:
+        deployed = None
+        if deployed_git_ref:
+            deployed = subprocess.run(
+                ["git", "cat-file", "-e", f"{deployed_git_ref}:{rel_path}"],
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        if deployed is not None and deployed.returncode == 0:
+            return ""
         return (
             f"Spec file is untracked and cannot run in GitHub Actions until deployed: {rel_path}. "
             "Track it in the active session and deploy with scripts/sessions.py deploy first."
@@ -3910,25 +3921,6 @@ class NotificationService:
         """Build payload for /internal/dispatch-test-summary-email."""
         payload = self._build_openobserve_payload(result)
         payload["recipient_email"] = self.admin_email
-        problem_count = _problem_count(result.summary)
-        problem_label = _problem_summary_label(result.summary)
-        status_label = "All tests passed" if problem_count == 0 else problem_label
-        payload["subject_override"] = f"[OpenMates] {status_label} ({result.environment})"
-        payload["summary_copy"] = {
-            "header_failure": problem_label,
-            "status_failure": problem_label.upper(),
-        }
-        payload["failure_groups"] = [
-            {
-                "title": str(group["title"]),
-                "description": _plain_notification_text(str(group["description"])),
-            }
-            for group in _build_discord_failure_embeds(
-                result.suites,
-                color=0xEF4444,
-                truncate_descriptions=True,
-            )
-        ]
         return payload
 
     def _build_openobserve_payload(self, result: RunResult) -> dict:
@@ -6771,7 +6763,10 @@ class TestOrchestrator:
     def _discover_specs(self) -> list[str]:
         """Find which specs to run."""
         if self.spec:
-            validation_error = _validate_requested_playwright_spec(self.spec)
+            validation_error = _validate_requested_playwright_spec(
+                self.spec,
+                getattr(self, "git_sha", None),
+            )
             if validation_error:
                 raise RuntimeError(validation_error)
             return [self.spec]

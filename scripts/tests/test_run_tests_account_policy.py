@@ -390,6 +390,32 @@ def test_discover_single_spec_blocks_untracked_file(monkeypatch, tmp_path):
         raise AssertionError("untracked spec should block dispatch")
 
 
+def test_deployed_single_spec_can_run_from_session_worktree(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    spec_path = spec_dir / "deployed.spec.ts"
+    spec_path.write_text("import { test } from '@playwright/test';\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return type("Result", (), {"returncode": 0 if command[1] == "cat-file" else 1})()
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    assert run_tests._validate_requested_playwright_spec("deployed.spec.ts", "abc123") == ""
+    assert calls[-1] == [
+        "git",
+        "cat-file",
+        "-e",
+        "abc123:frontend/apps/web_app/tests/deployed.spec.ts",
+    ]
+
+
 def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(monkeypatch):
     run_tests = load_run_tests_module()
     preflight_calls: list[list[int] | None] = []
