@@ -99,7 +99,10 @@ For Linear-only tasks, show the `OPE-XXX` identifier returned by `scripts/linear
 ### Title Cleanup Rules
 - `"Fix: Fix Show More chats: pagination broken"` → `"Fix: Show More chats pagination broken"`
 - `"Feat: Feat: test auto-create"` → `"Feat: test auto-create linear issue"`
-- `"fix it"` → Ask user to clarify
+- `"fix it"` → Ask user to clarify. Every clarifying question must include
+  `Recommendation:` with the evidence-based preferred answer and rationale plus
+  `Examples:` with task-specific options or outcomes; if uncertain, recommend
+  the safest reversible default and state the uncertainty.
 - Questions → Keep as-is but add `Idea` label if no clear action
 
 ### Description Templates

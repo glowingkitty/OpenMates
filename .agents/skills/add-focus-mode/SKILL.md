@@ -26,6 +26,11 @@ clarifying rounds. Do not invent a final app or ID without user confirmation.
 Follow this structure closely. The user expects a deliberate plan-before-build
 flow with two clarification blocks and a draft review gate.
 
+Every clarifying question must include `Recommendation:` with the evidence-based
+preferred answer and rationale plus `Examples:` with task-specific options or
+outcomes. If uncertain, recommend the safest reversible default and state the
+uncertainty.
+
 ### Step 1: Check Existing Focus Modes
 
 First inspect how focus modes already exist and how the target app is

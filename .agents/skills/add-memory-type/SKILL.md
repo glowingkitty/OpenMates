@@ -44,6 +44,11 @@ plan-before-build flow as focus mode authoring: existing-state research,
 clarification, internal research, external research, more clarification, draft,
 feedback, finalization, then implementation.
 
+Every clarifying question must include `Recommendation:` with the evidence-based
+preferred answer and rationale plus `Examples:` with task-specific options or
+outcomes. If uncertain, recommend the safest reversible default and state the
+uncertainty.
+
 ### Step 1: Check Existing Memory Types
 
 First inspect how memory types already exist and how the target app is
