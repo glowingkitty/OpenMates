@@ -5,6 +5,8 @@
 // Spec: docs/specs/streaming-message-render-convergence/spec.yml
 
 import { describe, expect, it, vi } from "vitest";
+import { Editor, Node } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
 
 vi.mock("../../data/modelsMetadata", () => ({ modelsMetadata: [] }));
 vi.mock("../../data/matesMetadata", () => ({ matesMetadata: [] }));
@@ -17,6 +19,15 @@ vi.mock("../../stores/appSkillsStore", () => ({
 }));
 
 import { createAssistantRenderPlan } from "../streamingMessageBlocks";
+import { applyIncrementalUpdate } from "../streamingDocDiff";
+
+const BlockAtom = Node.create({
+  name: "blockAtom",
+  group: "block",
+  atom: true,
+  parseHTML: () => [{ tag: "div[data-block-atom]" }],
+  renderHTML: () => ["div", { "data-block-atom": "" }],
+});
 
 describe("assistant block corrections", () => {
   it("commits only the previous mutable tail on normal completion", () => {
@@ -59,5 +70,34 @@ describe("assistant block corrections", () => {
     expect(divergent.operations.map((operation) => operation.kind) as string[]).not.toContain(
       "replace-document",
     );
+  });
+
+  it("retries a rejected inline-to-block diff as one targeted block replacement", () => {
+    const editor = new Editor({
+      element: document.createElement("div"),
+      extensions: [StarterKit, BlockAtom],
+      content: {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Stable leading paragraph with enough content." }] },
+          { type: "paragraph", content: [{ type: "text", text: "provisional" }] },
+        ],
+      },
+    });
+
+    const result = applyIncrementalUpdate(editor, {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Stable leading paragraph with enough content." }] },
+        { type: "blockAtom" },
+      ],
+    });
+
+    expect(result).toEqual({ applied: true, fallback: true, stepsApplied: 1 });
+    expect(editor.getJSON().content).toEqual([
+      { type: "paragraph", content: [{ type: "text", text: "Stable leading paragraph with enough content." }] },
+      { type: "blockAtom" },
+    ]);
+    editor.destroy();
   });
 });
