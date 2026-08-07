@@ -22,6 +22,8 @@ from backend.core.api.app.services.s3.service import S3UploadService
 logger = logging.getLogger(__name__)
 
 MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
+PENDING_EMBED_SOFT_TIME_LIMIT_SECONDS = 180
+PENDING_EMBED_HARD_TIME_LIMIT_SECONDS = 240
 
 
 def _version_int(value: Any) -> int:
@@ -3245,7 +3247,12 @@ async def _async_process_pending_embeds(task_id: str):
         await cache_service.close()
 
 
-@app.task(name="app.tasks.persistence_tasks.process_pending_embeds", bind=True)
+@app.task(
+    name="app.tasks.persistence_tasks.process_pending_embeds",
+    bind=True,
+    soft_time_limit=PENDING_EMBED_SOFT_TIME_LIMIT_SECONDS,
+    time_limit=PENDING_EMBED_HARD_TIME_LIMIT_SECONDS,
+)
 def process_pending_embeds_task(self):
     """Celery Beat safety net: periodically check and re-deliver pending embeds."""
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
