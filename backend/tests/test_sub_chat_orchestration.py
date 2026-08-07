@@ -21,6 +21,7 @@ from backend.apps.ai.sub_chat_orchestration import (
     validate_sub_chat_capacity,
 )
 from backend.apps.ai.processing.main_processor import (
+    _orchestrated_ai_output_token_limit,
     _quote_ai_iteration_credits,
     _skill_operation_id,
 )
@@ -302,6 +303,44 @@ def test_ai_iteration_quote_uses_input_and_maximum_output_tokens(monkeypatch) ->
     )
 
     assert quote >= 20
+
+
+def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.main_processor.config_manager.get_model_pricing",
+        lambda provider_id, model_id: {
+            "pricing": {
+                "tokens": {
+                    "input": {"per_credit_unit": 10},
+                    "output": {"per_credit_unit": 5},
+                }
+            },
+            "features": {"max_output_tokens": 100_000},
+        },
+    )
+
+    quote = _quote_ai_iteration_credits(
+        model_id="provider/model",
+        system_prompt="system",
+        message_history=[{"role": "user", "content": "hello"}],
+        tools=None,
+        output_token_limit=2_048,
+    )
+
+    assert quote < 1_000
+
+
+def test_orchestration_output_limit_preserves_lower_model_limit(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.main_processor.config_manager.get_model_pricing",
+        lambda provider_id, model_id: {"features": {"max_output_tokens": 1_024}},
+    )
+
+    assert _orchestrated_ai_output_token_limit("provider/model", "orchestration") == 1_024
+
+
+def test_non_orchestrated_calls_keep_provider_default_output_limit() -> None:
+    assert _orchestrated_ai_output_token_limit("provider/model", None) is None
 
 
 def test_pending_confirmation_is_consumed_exactly_once() -> None:

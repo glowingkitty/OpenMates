@@ -135,6 +135,7 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 
 logger = logging.getLogger(__name__)
+ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 2_048
 
 _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "code",
@@ -1489,6 +1490,7 @@ def _quote_ai_iteration_credits(
     system_prompt: str,
     message_history: List[Dict[str, Any]],
     tools: Optional[List[Dict[str, Any]]],
+    output_token_limit: Optional[int] = None,
 ) -> int:
     if "/" not in model_id:
         raise RuntimeError("AI reservation requires a provider-qualified model id")
@@ -1496,7 +1498,15 @@ def _quote_ai_iteration_credits(
     model_config = config_manager.get_model_pricing(provider_id, model_suffix)
     if not model_config:
         raise RuntimeError(f"AI reservation pricing is unavailable for {model_id}")
-    max_output_tokens = (model_config.get("features") or {}).get("max_output_tokens")
+    configured_max_output_tokens = (model_config.get("features") or {}).get("max_output_tokens")
+    if output_token_limit is not None:
+        max_output_tokens = (
+            min(configured_max_output_tokens, output_token_limit)
+            if isinstance(configured_max_output_tokens, int) and configured_max_output_tokens > 0
+            else output_token_limit
+        )
+    else:
+        max_output_tokens = configured_max_output_tokens
     if not isinstance(max_output_tokens, int) or max_output_tokens <= 0:
         raise RuntimeError(f"AI reservation output limit is unavailable for {model_id}")
     serialized_input = json.dumps(
@@ -1512,6 +1522,22 @@ def _quote_ai_iteration_credits(
     )
 
 
+def _orchestrated_ai_output_token_limit(
+    model_id: str,
+    orchestration_id: Optional[str],
+) -> Optional[int]:
+    if not orchestration_id:
+        return None
+    if "/" not in model_id:
+        return ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+    provider_id, model_suffix = model_id.split("/", 1)
+    model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+    configured_limit = (model_config.get("features") or {}).get("max_output_tokens")
+    if isinstance(configured_limit, int) and configured_limit > 0:
+        return min(configured_limit, ORCHESTRATED_AI_MAX_OUTPUT_TOKENS)
+    return ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+
+
 async def _reserve_ai_iteration(
     *,
     task_id: str,
@@ -1520,6 +1546,7 @@ async def _reserve_ai_iteration(
     system_prompt: str,
     message_history: List[Dict[str, Any]],
     tools: Optional[List[Dict[str, Any]]],
+    output_token_limit: Optional[int],
     request_data: AskSkillRequest,
     directus_service: Optional[DirectusService],
 ) -> Optional[str]:
@@ -1532,6 +1559,7 @@ async def _reserve_ai_iteration(
         system_prompt=system_prompt,
         message_history=message_history,
         tools=tools,
+        output_token_limit=output_token_limit,
     )
     if quote <= 0:
         return None
@@ -3479,6 +3507,10 @@ async def handle_main_processing(
             try:
                 current_model_id = models_to_try[current_model_index]
                 model_fallback_attempts += 1
+                current_output_token_limit = _orchestrated_ai_output_token_limit(
+                    current_model_id,
+                    request_data.orchestration_id,
+                )
 
                 if model_fallback_attempts > 1:
                     logger.warning(
@@ -3493,6 +3525,7 @@ async def handle_main_processing(
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
                     tools=available_tools_for_llm if not force_no_tools else None,
+                    output_token_limit=current_output_token_limit,
                     request_data=request_data,
                     directus_service=directus_service,
                 )
@@ -3504,7 +3537,8 @@ async def handle_main_processing(
                     temperature=preprocessing_results.llm_response_temp,
                     secrets_manager=secrets_manager,
                     tools=available_tools_for_llm if not force_no_tools else None,
-                    tool_choice=current_tool_choice
+                    tool_choice=current_tool_choice,
+                    max_tokens=current_output_token_limit,
                 )
                 # Stream created successfully - break out of retry loop
                 break
@@ -4966,6 +5000,10 @@ async def handle_main_processing(
                                     system_prompt=iteration_system_prompt,
                                     message_history=current_message_history,
                                     tools=available_tools_for_llm if not force_no_tools else None,
+                                    output_token_limit=_orchestrated_ai_output_token_limit(
+                                        current_model_id,
+                                        request_data.orchestration_id,
+                                    ),
                                     request_data=request_data,
                                     directus_service=directus_service,
                                 )
@@ -5030,6 +5068,10 @@ async def handle_main_processing(
                                     system_prompt=iteration_system_prompt,
                                     message_history=current_message_history,
                                     tools=available_tools_for_llm if not force_no_tools else None,
+                                    output_token_limit=_orchestrated_ai_output_token_limit(
+                                        current_model_id,
+                                        request_data.orchestration_id,
+                                    ),
                                     request_data=request_data,
                                     directus_service=directus_service,
                                 )
@@ -5116,6 +5158,10 @@ async def handle_main_processing(
                                 system_prompt=iteration_system_prompt,
                                 message_history=current_message_history,
                                 tools=available_tools_for_llm if not force_no_tools else None,
+                                output_token_limit=_orchestrated_ai_output_token_limit(
+                                    current_model_id,
+                                    request_data.orchestration_id,
+                                ),
                                 request_data=request_data,
                                 directus_service=directus_service,
                             )

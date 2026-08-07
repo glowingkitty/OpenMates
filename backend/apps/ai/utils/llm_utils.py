@@ -1348,7 +1348,8 @@ async def call_main_llm_stream(
     temperature: float,
     secrets_manager: Optional[SecretsManager] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
-    tool_choice: Optional[str] = None
+    tool_choice: Optional[str] = None,
+    max_tokens: Optional[int] = None,
 ) -> AsyncIterator[str]:
     log_prefix = f"[{task_id}] LLM Utils (Main Stream - {model_id}):"
     logger.info(f"{log_prefix} Preparing to call. Temp: {temperature}. Tools: {len(tools) if tools else 0}. Choice: {tool_choice}")
@@ -1604,6 +1605,7 @@ async def call_main_llm_stream(
                 "temperature": temperature,
                 "tools": sanitized_tools,
                 "tool_choice": tool_choice,
+                "max_tokens": max_tokens,
                 "stream": True,
             }
             try:
@@ -1714,6 +1716,7 @@ async def call_main_llm_stream(
             "temperature": temperature, 
             "tools": sanitized_tools,  # Use sanitized tools (min/max removed) for all providers
             "tool_choice": tool_choice, 
+            "max_tokens": max_tokens,
             "stream": True
         }
         
