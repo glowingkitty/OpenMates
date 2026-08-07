@@ -86,6 +86,7 @@ const SELECTORS = {
 	focusModeDetailsBullets: '[data-testid="focus-process-bullet"]',
 	focusModeDetailsShowFull: '[data-testid="focus-instructions-toggle"]'
 };
+const MOBILE_VISUAL_VIEWPORT = { width: 390, height: 844 };
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -446,6 +447,22 @@ test('focus mode UI elements work correctly after activation', async ({
 		await assertChatKeyInvariants(page, chatId, 'focus-after-relogin', logCheckpoint);
 		logCheckpoint('Activation embed persisted after re-login without raw error keys.');
 		await takeStepScreenshot(page, 'ui-relogin-persisted-embed');
+	});
+
+	await test.step('Activated focus controls render on mobile', async () => {
+		const originalViewport = page.viewportSize();
+		expect(originalViewport).toBeTruthy();
+		try {
+			await page.setViewportSize(MOBILE_VISUAL_VIEWPORT);
+			await dismissVisibleNotifications(page);
+			await expect(page.locator(SELECTORS.focusModeBarActivated).first()).toBeVisible({
+				timeout: 10000
+			});
+			await expect(page.locator(SELECTORS.focusActiveBanner)).toBeVisible({ timeout: 10000 });
+			await takeStepScreenshot(page, 'ui-mobile-activated-focus');
+		} finally {
+			if (originalViewport) await page.setViewportSize(originalViewport);
+		}
 	});
 
 	// ======================================================================
