@@ -17,6 +17,7 @@ scope:
     - Require AI-initiated focus activation to use the existing rejectable countdown, auto-confirm, client event, encrypted persistence, and continuation flow.
     - Apply Deep research sub-chat-only routing only after `web-research` is legitimately active.
     - Add deterministic backend regression coverage for issue `69YT9` without storing private report data.
+    - Preserve nested sub-chat completion ordering and continuation ancestry for issue `8LQKD`.
     - Diagnose and repair source or test defects in the activation, rejection, and continuation Playwright specs that exercise this contract.
     - Verify explicit focus-mode activation and focused continuation through a real OpenMates CLI chat against the dev server.
     - Update stale focus-mode architecture documentation to match the deferred activation implementation.
@@ -32,6 +33,7 @@ context_discovery:
     - GitHub MCP authentication returned 401 and the gh CLI fallback returned no matching issue for focus-mode activation or web-research routing.
   reported_issues:
     - "Dev issue 69YT9: model emitted a valid web-search call, but a Deep research gate rejected it and forced a tool-free answer."
+    - "Dev issue 8LQKD: nested sub-chats appeared done without summaries and the main chat did not reliably resume synthesis."
   docs:
     - docs/contributing/guides/spec-driven-development.md
     - docs/architecture/apps/focus-modes-implementation.md
@@ -54,6 +56,7 @@ context_discovery:
     - Main processing initially exposed `activate_focus_mode`, then the Deep research gate assigned `active_focus_id` directly and replaced all tools with `start_sub_chats`.
     - Gemini requested the valid preselected `web-search` tool; strict validation rejected it because the gate had removed it, then hallucination recovery disabled all tools.
     - No countdown, auto-confirm, `focus_mode_activated` event, encrypted persistence, or sub-chat creation occurred for issue `69YT9`.
+    - A nested child waiting for its own sub-chats was reported upstream as complete with provisional batch text, and its continuation lost ancestry and budget metadata.
     - Current failure records show recurring activation/rejection/continuation failures; mention-dropdown failure is a separate frontend root cause.
 
 apple_impact:
@@ -81,7 +84,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 7e903d2
+  subject_commit: f4d07b3
 
 approvals:
   product_contract:
@@ -117,6 +120,11 @@ decisions:
     decision: Preserve the original durable inference identity across focus activation, rejection, mock replay, and nested sub-chat continuations.
     reason: Internal continuation Celery tasks use new task IDs, but the final sealed recovery job must complete the original CLI turn.
     decided_at: "2026-08-06T18:43:46Z"
+  - id: D-6
+    status: active
+    decision: Report a sub-chat upstream only after its stream is known not to be awaiting nested children, and preserve its ancestry and budget on continuation.
+    reason: Provisional batch status is not a child report; treating it as completion resumes ancestors before nested evidence exists.
+    decided_at: "2026-08-07T10:31:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -225,6 +233,18 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-07T02:45:24Z"
     summary: Recovery and mock replay tests passed 19/19, and deployed Playwright run 31141994705 passed reload, re-login, encrypted key invariants, details, and stop on its first attempt.
+  - id: ATTEMPT-19
+    task_id: TASK-3
+    approach: Trace issue 8LQKD through nested wait markers, explicit completion markers, continuation dispatch, and frontend sub-chat lifecycle events.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-07T10:23:34Z"
+    summary: Red tests proved nested continuation ancestry and budget metadata were dropped and provisional waiting streams lacked a completion suppression contract.
+  - id: ATTEMPT-20
+    task_id: TASK-3
+    approach: Defer child completion until final stream state, preserve nested metadata, restart the AI worker, and rerun focused unit plus deployed browser gates.
+    outcome: succeeded
+    recorded_at: "2026-08-07T10:47:48Z"
+    summary: Focused container tests passed 16/16; deployed focus activation run 31171058050 and real sub-chat inference run 31171165666 passed at f4d07b3.
 
 handoff:
   current_task_id: TASK-4
@@ -237,7 +257,7 @@ handoff:
     reason: Repository gate order requires user confirmation of deployed web behavior before Apple verification.
     question: Confirm that focus activation, persistence, details, rejection, and stop behavior work and look correct on the deployed dev app.
     next_action: Run Apple verification after confirmation.
-  last_verified_commit: 7e903d2
+  last_verified_commit: f4d07b3
 
 scenarios:
   - id: S-1
@@ -569,12 +589,12 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec focus-mode-ui-after-activation.spec.ts --gate-deploy --expected-commit 7e903d2
-        run_id: "31141994705"
-        subject_commit: 7e903d2
-        timestamp: "2026-08-07T02:45:24Z"
+        command: python3 scripts/tests.py run --spec focus-mode-ui-after-activation.spec.ts --gate-deploy --expected-commit f4d07b3
+        run_id: "31171058050"
+        subject_commit: f4d07b3
+        timestamp: "2026-08-07T10:45:24Z"
         target: app.dev.openmates.org
-        deployment_reference: dpl_Aw3Aj3iEA9XaBKKUXiMfUyfibWSs
+        deployment_reference: dpl_FmZDY1mKz9PAVSuHevGKLanj5nSF
   - id: T-E2E-VIDEO
     type: playwright
     file: frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
@@ -604,6 +624,57 @@ tests:
         timestamp: "2026-08-07T00:07:14Z"
         target: app.dev.openmates.org
         deployment_reference: dev-containing-6dbb70b
+  - id: T-PYTEST-NESTED-SUB-CHATS
+    type: pytest
+    file: backend/tests/test_stream_consumer_recovery.py
+    command: docker run --rm --entrypoint python -v <WORKTREE>/backend:/app/backend:ro -w /app openmates-core-api -m pytest backend/tests/test_stream_consumer_recovery.py backend/tests/test_sub_chat_orchestration.py -q
+    covers: [AC-5, AC-7, AC-8]
+    assertions:
+      - nested waiting streams do not report provisional completion upstream
+      - continuation preserves parent identity and cumulative budget metadata
+      - completion is recorded before a deferred billing error is re-raised
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: docker run --rm --entrypoint python -v <WORKTREE>/backend:/app/backend:ro -w /app openmates-core-api -m pytest backend/tests/test_stream_consumer_recovery.py -q
+        run_id: docker-api-nested-sub-chat-red-20260807T1023Z
+        subject_commit: e5c186d
+        timestamp: "2026-08-07T10:23:34Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker run --rm --entrypoint python -v <WORKTREE>/backend:/app/backend:ro -w /app openmates-core-api -m pytest backend/tests/test_stream_consumer_recovery.py backend/tests/test_sub_chat_orchestration.py -q
+        run_id: docker-api-nested-sub-chat-green-20260807T1031Z
+        subject_commit: f4d07b3
+        timestamp: "2026-08-07T10:31:00Z"
+  - id: T-E2E-NESTED-SUB-CHATS
+    type: playwright
+    file: frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    command: python3 scripts/tests.py run --spec sub-chats-real-inference.spec.ts --gate-deploy --expected-commit f4d07b3
+    target: app.dev.openmates.org
+    covers: [AC-5, AC-7, AC-8]
+    assertions:
+      - real delegated sub-chats complete through the deployed inference path
+      - child reports and parent continuation remain renderable after completion
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {status: not_applicable, reason: Issue 8LQKD supplied the real-flow red evidence and deterministic pytest captured the source contract before implementation.}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec sub-chats-real-inference.spec.ts --gate-deploy --expected-commit f4d07b3
+        run_id: "31171165666"
+        subject_commit: f4d07b3
+        timestamp: "2026-08-07T10:47:48Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_FmZDY1mKz9PAVSuHevGKLanj5nSF
 
 verifications:
   - id: V-UI-VISUAL-SMOKE
@@ -632,7 +703,7 @@ verifications:
     required_for_done: true
     covers: [AC-3, AC-4, AC-6]
     status: pending
-    evidence: {status: pending}
+    evidence: {status: pending, reason: Prior confirmation was rejected by issue 8LQKD; fresh confirmation is required after f4d07b3.}
   - id: V-APPLE
     kind: automated_test
     phase: final
