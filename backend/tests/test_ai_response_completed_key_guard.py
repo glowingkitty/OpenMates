@@ -74,6 +74,22 @@ def reset_cutover_controller(*, epoch: int, authorized: bool = False) -> None:
     FakeCutoverController.events = []
 
 
+def install_durable_persistence_spy(monkeypatch) -> list[tuple]:
+    persisted_calls: list[tuple] = []
+
+    async def fake_persist(*args):
+        FakeCutoverController.events.append("persist")
+        persisted_calls.append(args)
+        return True
+
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "_async_persist_ai_response_to_directus",
+        fake_persist,
+    )
+    return persisted_calls
+
+
 class FakeChatService:
     def __init__(self, authoritative_fingerprint: str) -> None:
         self.authoritative_fingerprint = authoritative_fingerprint
@@ -134,17 +150,7 @@ def test_ai_response_completed_rejects_mismatched_ciphertext_fingerprint(monkeyp
 
 
 async def _run_rejects_mismatched_ciphertext_fingerprint(monkeypatch):
-    queued_tasks: list[tuple[str, list, str | None]] = []
-
-    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="unexpected-task")
-
-    monkeypatch.setattr(
-        ai_response_completed_handler.celery_app,
-        "send_task",
-        fake_send_task,
-    )
+    persisted_calls = install_durable_persistence_spy(monkeypatch)
     monkeypatch.setattr(
         ai_response_completed_handler,
         "ChatRecoveryCutoverController",
@@ -165,7 +171,7 @@ async def _run_rejects_mismatched_ciphertext_fingerprint(monkeypatch):
         payload=make_payload("0f0165e4"),
     )
 
-    assert queued_tasks == []
+    assert persisted_calls == []
     assert FakeCutoverController.authoritative_calls == []
     assert manager.personal_messages == [
         (
@@ -189,17 +195,7 @@ def test_ai_response_completed_accepts_matching_ciphertext_fingerprint(monkeypat
 
 
 async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
-    queued_tasks: list[tuple[str, list, str | None]] = []
-
-    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-123")
-
-    monkeypatch.setattr(
-        ai_response_completed_handler.celery_app,
-        "send_task",
-        fake_send_task,
-    )
+    persisted_calls = install_durable_persistence_spy(monkeypatch)
     monkeypatch.setattr(
         ai_response_completed_handler,
         "ChatRecoveryCutoverController",
@@ -220,10 +216,9 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
         payload=make_payload("1a5b3b7c"),
     )
 
-    assert len(queued_tasks) == 1
+    assert len(persisted_calls) == 1
     assert FakeCutoverController.authoritative_calls == [True]
-    assert queued_tasks[0][0] == "app.tasks.persistence_tasks.persist_ai_response_to_directus"
-    assert queued_tasks[0][2] == "persistence"
+    assert persisted_calls[0][3] == "websocket-direct"
     assert manager.personal_messages == [
         (
             {
@@ -231,7 +226,7 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
                 "payload": {
                     "message_id": "assistant-123",
                     "chat_id": "chat-123",
-                    "task_id": "task-123",
+                    "task_id": "websocket-direct",
                 },
             },
             "user-123",
@@ -240,19 +235,63 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
     ]
 
 
-def test_epoch_one_authorized_legacy_completion_queues_persistence(monkeypatch):
+def test_ai_response_completed_does_not_confirm_failed_persistence(monkeypatch):
+    asyncio.run(_run_does_not_confirm_failed_persistence(monkeypatch))
+
+
+async def _run_does_not_confirm_failed_persistence(monkeypatch):
+    queued_tasks: list[tuple[str, list, str | None]] = []
+
+    async def fail_persistence(*_args):
+        raise RuntimeError("persistence failed")
+
+    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="retry-task-123")
+
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "_async_persist_ai_response_to_directus",
+        fail_persistence,
+    )
+    monkeypatch.setattr(
+        ai_response_completed_handler.celery_app,
+        "send_task",
+        fake_send_task,
+    )
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    reset_cutover_controller(epoch=0)
+    manager = FakeManager()
+
+    await handle_ai_response_completed(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=FakeDirectusService("1a5b3b7c"),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload=make_payload("1a5b3b7c"),
+    )
+
+    response_types = [message[0]["type"] for message in manager.personal_messages]
+    assert "ai_response_storage_confirmed" not in response_types
+    assert response_types == ["ai_response_storage_failed"]
+    assert queued_tasks[0][0] == "app.tasks.persistence_tasks.persist_ai_response_to_directus"
+    assert queued_tasks[0][2] == "persistence"
+
+
+def test_epoch_one_authorized_legacy_completion_persists_durably(monkeypatch):
     asyncio.run(_run_epoch_one_authorized_legacy_completion(monkeypatch))
 
 
 async def _run_epoch_one_authorized_legacy_completion(monkeypatch):
-    queued_tasks: list[tuple[str, list, str | None]] = []
-
-    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
-        FakeCutoverController.events.append("dispatch")
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-123")
-
-    monkeypatch.setattr(ai_response_completed_handler.celery_app, "send_task", fake_send_task)
+    persisted_calls = install_durable_persistence_spy(monkeypatch)
     monkeypatch.setattr(
         ai_response_completed_handler,
         "ChatRecoveryCutoverController",
@@ -273,9 +312,9 @@ async def _run_epoch_one_authorized_legacy_completion(monkeypatch):
         payload=make_payload("1a5b3b7c"),
     )
 
-    assert len(queued_tasks) == 1
+    assert len(persisted_calls) == 1
     assert FakeCutoverController.authorization_calls == ["assistant-123"]
-    assert FakeCutoverController.events == ["authorize", "dispatch"]
+    assert FakeCutoverController.events == ["authorize", "persist"]
     assert FakeCutoverController.authoritative_calls == [True]
 
 
@@ -284,18 +323,12 @@ def test_epoch_one_legacy_completion_uses_user_message_identity(monkeypatch):
 
 
 async def _run_epoch_one_legacy_completion_uses_user_message_identity(monkeypatch):
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    persisted_calls = install_durable_persistence_spy(monkeypatch)
     user_message_id = "user-message-123"
     legacy_task_identity = hashlib.sha256(
         f"user-123:chat-123:{user_message_id}".encode()
     ).hexdigest()
 
-    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
-        FakeCutoverController.events.append("dispatch")
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-123")
-
-    monkeypatch.setattr(ai_response_completed_handler.celery_app, "send_task", fake_send_task)
     monkeypatch.setattr(
         ai_response_completed_handler,
         "ChatRecoveryCutoverController",
@@ -317,9 +350,9 @@ async def _run_epoch_one_legacy_completion_uses_user_message_identity(monkeypatc
         payload=make_payload("1a5b3b7c", user_message_id=user_message_id),
     )
 
-    assert len(queued_tasks) == 1
+    assert len(persisted_calls) == 1
     assert FakeCutoverController.authorization_calls == ["assistant-123", legacy_task_identity]
-    assert FakeCutoverController.events == ["authorize", "authorize", "dispatch"]
+    assert FakeCutoverController.events == ["authorize", "authorize", "persist"]
     assert manager.personal_messages[0][0]["type"] == "ai_response_storage_confirmed"
 
 
@@ -328,19 +361,13 @@ def test_epoch_one_server_trigger_completion_uses_prefixed_user_message_identity
 
 
 async def _run_epoch_one_server_trigger_completion_uses_prefixed_user_message_identity(monkeypatch):
-    queued_tasks: list[tuple[str, list, str | None]] = []
+    persisted_calls = install_durable_persistence_spy(monkeypatch)
     user_message_id = "webhook-message-123"
     user_turn_identity = hashlib.sha256(
         f"user-123:chat-123:{user_message_id}".encode()
     ).hexdigest()
     server_trigger_identity = f"server-trigger:{user_turn_identity}"
 
-    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
-        FakeCutoverController.events.append("dispatch")
-        queued_tasks.append((name, args or [], queue))
-        return SimpleNamespace(id="task-123")
-
-    monkeypatch.setattr(ai_response_completed_handler.celery_app, "send_task", fake_send_task)
     monkeypatch.setattr(
         ai_response_completed_handler,
         "ChatRecoveryCutoverController",
@@ -362,13 +389,13 @@ async def _run_epoch_one_server_trigger_completion_uses_prefixed_user_message_id
         payload=make_payload("1a5b3b7c", user_message_id=user_message_id),
     )
 
-    assert len(queued_tasks) == 1
+    assert len(persisted_calls) == 1
     assert FakeCutoverController.authorization_calls == [
         "assistant-123",
         user_turn_identity,
         server_trigger_identity,
     ]
-    assert FakeCutoverController.events == ["authorize", "authorize", "authorize", "dispatch"]
+    assert FakeCutoverController.events == ["authorize", "authorize", "authorize", "persist"]
     assert manager.personal_messages[0][0]["type"] == "ai_response_storage_confirmed"
 
 
@@ -377,12 +404,7 @@ def test_epoch_one_unauthorized_legacy_completion_is_rejected(monkeypatch):
 
 
 async def _run_epoch_one_unauthorized_legacy_completion(monkeypatch):
-    queued_tasks: list[object] = []
-    monkeypatch.setattr(
-        ai_response_completed_handler.celery_app,
-        "send_task",
-        lambda *args, **kwargs: queued_tasks.append((args, kwargs)),
-    )
+    persisted_calls = install_durable_persistence_spy(monkeypatch)
     monkeypatch.setattr(
         ai_response_completed_handler,
         "ChatRecoveryCutoverController",
@@ -406,7 +428,7 @@ async def _run_epoch_one_unauthorized_legacy_completion(monkeypatch):
         payload=make_payload("1a5b3b7c"),
     )
 
-    assert queued_tasks == []
+    assert persisted_calls == []
     assert FakeCutoverController.authorization_calls == ["assistant-123"]
     assert manager.personal_messages[0][0]["payload"]["code"] == "recovery_persistence_required"
 

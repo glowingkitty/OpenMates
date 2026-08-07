@@ -169,12 +169,13 @@ async def test_missing_ai_response_ciphertext_does_not_acknowledge_legacy_persis
         lambda _directus: SimpleNamespace(execute=acknowledge),
     )
 
-    await persistence_tasks._async_persist_ai_response_to_directus(
-        user_id="user-123",
-        user_id_hash="user-hash",
-        message_data={"message_id": "message-123", "chat_id": "chat-123"},
-        task_id="task-123",
-    )
+    with pytest.raises(ValueError, match="missing encrypted_content"):
+        await persistence_tasks._async_persist_ai_response_to_directus(
+            user_id="user-123",
+            user_id_hash="user-hash",
+            message_data={"message_id": "message-123", "chat_id": "chat-123"},
+            task_id="task-123",
+        )
 
     acknowledge.assert_not_awaited()
 

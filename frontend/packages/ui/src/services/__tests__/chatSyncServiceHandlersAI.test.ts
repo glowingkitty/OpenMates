@@ -10,6 +10,8 @@ import {
   clearProcessedEmbedsTracking,
   flushPendingFinalizedEmbedsForChat,
   handleAIBackgroundResponseCompletedImpl,
+  handleAIResponseStorageConfirmedImpl,
+  handleAIResponseStorageFailedImpl,
   handleAITypingStartedImpl,
   handleEmbedUpdateImpl,
   handlePostProcessingCompletedImpl,
@@ -63,6 +65,10 @@ const mockNotificationStore = vi.hoisted(() => ({
 const mockUnreadMessagesStore = vi.hoisted(() => ({
   incrementUnread: vi.fn(),
 }));
+const mockPendingAIResponses = vi.hoisted(() => ({
+  add: vi.fn(),
+  remove: vi.fn(),
+}));
 
 const mockChatKeyManager = vi.hoisted(() => ({
   getKeySync: vi.fn(),
@@ -106,6 +112,11 @@ const mockChatListCache = vi.hoisted(() => ({
 
 vi.mock("../db", () => ({
   chatDB: mockChatDB,
+}));
+
+vi.mock("../pendingAIResponses", () => ({
+  addPendingAIResponse: mockPendingAIResponses.add,
+  removePendingAIResponse: mockPendingAIResponses.remove,
 }));
 
 vi.mock("../encryption/ChatKeyManager", () => ({
@@ -200,6 +211,44 @@ vi.mock("../../stores/notificationStore", () => ({
 vi.mock("../../stores/unreadMessagesStore", () => ({
   unreadMessagesStore: mockUnreadMessagesStore,
 }));
+
+describe("handleAIResponseStorageFailedImpl", () => {
+  it("unmarks and queues the exact assistant response for retry", () => {
+    const service = {
+      unmarkMessageSyncing: vi.fn(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    handleAIResponseStorageFailedImpl(service, {
+      chat_id: "chat-1",
+      message_id: "assistant-1",
+      task_id: "retry-task-1",
+    });
+
+    expect(service.unmarkMessageSyncing).toHaveBeenCalledWith("assistant-1");
+    expect(mockPendingAIResponses.add).toHaveBeenCalledWith("assistant-1", "chat-1");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "aiResponseStorageFailed" }),
+    );
+  });
+
+  it("removes the retry entry only after durable storage confirmation", async () => {
+    const service = {
+      unmarkMessageSyncing: vi.fn(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+    mockChatDB.getChat.mockResolvedValue(null);
+
+    await handleAIResponseStorageConfirmedImpl(service, {
+      chat_id: "chat-1",
+      message_id: "assistant-1",
+      task_id: "websocket-direct",
+    });
+
+    expect(service.unmarkMessageSyncing).toHaveBeenCalledWith("assistant-1");
+    expect(mockPendingAIResponses.remove).toHaveBeenCalledWith("assistant-1");
+  });
+});
 
 describe("handleAIBackgroundResponseCompletedImpl", () => {
   beforeEach(() => {

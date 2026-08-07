@@ -1223,6 +1223,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as Parameters<typeof aiHandlers.handleEncryptedMetadataStoredImpl>[1],
       ),
     );
+    webSocketService.on("ai_response_storage_failed", (payload) =>
+      aiHandlers.handleAIResponseStorageFailedImpl(
+        this,
+        payload as { chat_id: string; message_id: string; task_id?: string },
+      ),
+    );
     webSocketService.on("encrypted_metadata_stored", (payload) =>
       aiHandlers.handleEncryptedMetadataStoredImpl(
         this,
@@ -1981,8 +1987,9 @@ export class ChatSynchronizationService extends EventTarget {
    * server's messages_v is incremented before version comparison happens.
    */
   public async flushPendingAIResponses(): Promise<void> {
-    const { getPendingAIResponses, removePendingAIResponse } =
-      await import("./pendingAIResponses");
+    const { getPendingAIResponses, removePendingAIResponse } = await import(
+      "./pendingAIResponses"
+    );
 
     const pending = getPendingAIResponses();
     if (pending.length === 0) return;
@@ -2002,9 +2009,8 @@ export class ChatSynchronizationService extends EventTarget {
           continue;
         }
         await this.sendCompletedAIResponse(message);
-        removePendingAIResponse(message_id);
         console.warn(
-          `[ChatSyncService] Successfully flushed pending AI response ${message_id} for chat ${chat_id}`,
+          `[ChatSyncService] Sent pending AI response ${message_id} for chat ${chat_id}; retaining it until storage confirmation`,
         );
       } catch (error) {
         // Leave in queue — will be retried on the next reconnect.

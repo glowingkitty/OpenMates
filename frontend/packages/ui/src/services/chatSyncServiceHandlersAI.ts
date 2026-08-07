@@ -17,6 +17,10 @@ import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import {
+  addPendingAIResponse,
+  removePendingAIResponse,
+} from "./pendingAIResponses";
+import {
   encryptWithChatKey,
   decryptWithChatKey,
   encryptArrayWithChatKey,
@@ -2109,6 +2113,7 @@ export async function handleAIResponseStorageConfirmedImpl(
 
   // Unmark message as syncing
   serviceInstance.unmarkMessageSyncing(payload.message_id);
+  removePendingAIResponse(payload.message_id);
 
   // Reconcile messages_v in IndexedDB to reflect the stored AI response.
   // The server does NOT broadcast a chat_message_added event for AI responses,
@@ -2148,6 +2153,26 @@ export async function handleAIResponseStorageConfirmedImpl(
 
   console.debug(
     `[ChatSyncService:AI] AI response storage confirmed for message ${payload.message_id} in chat ${payload.chat_id}`,
+  );
+}
+
+export function handleAIResponseStorageFailedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; message_id: string; task_id?: string },
+): void {
+  console.error(
+    `[ChatSyncService:AI] Durable storage failed for message ${payload.message_id}; queued server and client retries`,
+  );
+  serviceInstance.unmarkMessageSyncing(payload.message_id);
+  addPendingAIResponse(payload.message_id, payload.chat_id);
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiResponseStorageFailed", {
+      detail: {
+        chatId: payload.chat_id,
+        messageId: payload.message_id,
+        taskId: payload.task_id,
+      },
+    }),
   );
 }
 

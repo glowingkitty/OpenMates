@@ -1680,7 +1680,7 @@ async def _async_persist_ai_response_to_directus(
                 f"Missing encrypted_content for AI response {message_id}. "
                 f"Zero-knowledge architecture requires CLIENT-encrypted content."
             )
-            return
+            raise ValueError("AI response is missing encrypted_content")
 
         # CRITICAL: Ensure no plaintext content is stored (zero-knowledge enforcement)
         if message_data.get("content"):
@@ -1711,7 +1711,7 @@ async def _async_persist_ai_response_to_directus(
                 await _update_chat_versions_if_needed(
                     directus_service, chat_id, versions, task_id
                 )
-            return
+            return True
 
         # CRITICAL FIX: Ensure message_data has 'id' field (not just 'message_id')
         # create_message_in_directus expects either 'id' or 'message_id', but we need 'id' for consistency
@@ -1737,7 +1737,7 @@ async def _async_persist_ai_response_to_directus(
                 f"This indicates a CRITICAL violation: client did not properly encrypt the response. "
                 f"Error: {validation_err}"
             )
-            return
+            raise ValueError("AI response encrypted_content is not valid base64") from validation_err
 
         # Store the encrypted AI response in Directus
         logger.info(
@@ -1815,6 +1815,7 @@ async def _async_persist_ai_response_to_directus(
                 await _update_chat_versions_if_needed(
                     directus_service, chat_id, versions, task_id
                 )
+            return True
         else:
             raise RuntimeError(
                 "Directus did not confirm persistence of the AI response"
@@ -1837,7 +1838,7 @@ async def _async_persist_ai_response_to_directus(
                     )
                 except Exception as update_error:
                     logger.debug(f"Chat version update after duplicate: {update_error}")
-            return
+            return True
         
         logger.error(
             f"Error in _async_persist_ai_response_to_directus for AI response {message_id}, "

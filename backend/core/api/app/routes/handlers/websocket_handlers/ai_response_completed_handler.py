@@ -10,6 +10,9 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.persistence_tasks import (
+    _async_persist_ai_response_to_directus,
+)
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.shared.python_utils.chat_ciphertext_fingerprint import (
@@ -25,6 +28,7 @@ LEGACY_COMPLETION_REJECTION_CODES = {
     "legacy_completion_not_ready",
 }
 SERVER_TRIGGER_TASK_IDENTITY_PREFIX = "server-trigger:"
+DURABLE_PERSISTENCE_TASK_ID = "websocket-direct"
 
 
 def _legacy_completion_task_identities(
@@ -319,16 +323,45 @@ async def handle_ai_response_completed(
 
             # user_id_hash is already provided from the WebSocket context
 
-            # Send task to Celery to persist encrypted AI response to Directus
-            # CRITICAL: Server never encrypts AI responses - client sends pre-encrypted content
-            # Pass versions for multi-device deduplication
-            task_result = celery_app.send_task(
-                name="app.tasks.persistence_tasks.persist_ai_response_to_directus",
-                args=[user_id, user_id_hash, message_data_for_directus, versions],
-                queue="persistence"
-            )
+            # This confirmation is a cross-session durability boundary. Persist the
+            # client-encrypted message before allowing the client to drop its only copy.
+            try:
+                persisted = await _async_persist_ai_response_to_directus(
+                    user_id,
+                    user_id_hash,
+                    message_data_for_directus,
+                    DURABLE_PERSISTENCE_TASK_ID,
+                    versions,
+                )
+                if persisted is not True:
+                    raise RuntimeError("AI response persistence did not report success")
+            except Exception as persistence_error:
+                logger.error(
+                    f"Direct AI response persistence failed for {message_id}; scheduling retry",
+                    exc_info=persistence_error,
+                )
+                task_result = celery_app.send_task(
+                    name="app.tasks.persistence_tasks.persist_ai_response_to_directus",
+                    args=[user_id, user_id_hash, message_data_for_directus, versions],
+                    queue="persistence",
+                )
+                await manager.send_personal_message(
+                    {
+                        "type": "ai_response_storage_failed",
+                        "payload": {
+                            "message_id": message_id,
+                            "chat_id": chat_id,
+                            "task_id": task_result.id,
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
 
-            logger.info(f"Queued AI response persistence task {task_result.id} for message {message_id} in chat {chat_id}")
+            logger.info(
+                f"Durably persisted AI response {message_id} for chat {chat_id}"
+            )
 
             # Send confirmation to client
             await manager.send_personal_message(
@@ -337,7 +370,7 @@ async def handle_ai_response_completed(
                     "payload": {
                         "message_id": message_id,
                         "chat_id": chat_id,
-                        "task_id": task_result.id
+                        "task_id": DURABLE_PERSISTENCE_TASK_ID
                     }
                 },
                 user_id,
