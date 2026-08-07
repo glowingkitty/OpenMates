@@ -84,3 +84,46 @@ test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', asy
 	await deleteActiveChat(page, log, screenshot, 'real-sub-chat-cleanup');
 	log('Real sub-chat inference pipeline completed successfully.');
 });
+
+test('Deep research delegates three angles and renders the final parent synthesis', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(900_000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('deep-research-real-inference');
+	await archiveExistingScreenshots(log);
+	const screenshot = createStepScreenshotter(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+
+	const prompt =
+		'Deeply research how the EU AI Act general-purpose AI obligations affect open-source model providers, cloud hosts, and downstream startups. ' +
+		'Delegate exactly three distinct regulatory, market-incentive, and counterargument/source-quality angles, use current sources, and synthesize what is confirmed, likely, plausible, and uncertain.';
+
+	await sendMessage(page, prompt, log, screenshot, 'deep-research-request');
+
+	const focusBar = page.getByTestId('focus-mode-bar').filter({ hasText: 'Deep research' }).first();
+	await expect(focusBar).toBeVisible({ timeout: 120_000 });
+	await screenshot(page, 'deep-research-activated');
+
+	const carousel = page.getByTestId('sub-chats-carousel');
+	await expect(carousel).toBeVisible({ timeout: 240_000 });
+	const subChatCards = page.getByTestId('sub-chat-card');
+	await expect(subChatCards).toHaveCount(3, { timeout: 240_000 });
+	await screenshot(page, 'deep-research-three-children');
+
+	const finalAssistant = page.getByTestId('message-assistant').last();
+	await expect(finalAssistant).toContainText('Short Answer', { timeout: 600_000 });
+	await expect(finalAssistant).toContainText('Surface Explanation');
+	await expect(finalAssistant).toContainText('What Else May Be Going On');
+	await expect(finalAssistant).toContainText('Evidence');
+	await expect(finalAssistant).toContainText('Counterarguments');
+	await expect(finalAssistant).toContainText('Bottom Line');
+	await expect(finalAssistant).not.toContainText('The AI service encountered an error');
+	await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 60_000 });
+	await screenshot(page, 'deep-research-final-synthesis');
+
+	await deleteActiveChat(page, log, screenshot, 'deep-research-cleanup');
+	log('Deep research completed with three children and a final parent synthesis.');
+});
