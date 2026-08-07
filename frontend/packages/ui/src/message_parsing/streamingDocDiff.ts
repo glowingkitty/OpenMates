@@ -22,6 +22,8 @@ import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ReplaceStep } from "@tiptap/pm/transform";
 
+const MAX_BLOCK_DIFF_CHILDREN = 512;
+
 /**
  * Result of attempting an incremental update.
  * - applied: true if the transaction was dispatched successfully
@@ -107,6 +109,9 @@ export function applyIncrementalUpdate(
     regionsToApply: ChangeRegion[],
     fallback: boolean,
   ): IncrementalUpdateResult {
+    if (regionsToApply.length === 0) {
+      return { applied: false, fallback, stepsApplied: 0 };
+    }
     const tr = state.tr;
     let stepsApplied = 0;
 
@@ -135,8 +140,6 @@ export function applyIncrementalUpdate(
 
   // Inline-to-block transitions can have incompatible open depths. Retry only
   // the changed top-level blocks so stable siblings and their NodeViews survive.
-  // Index alignment is safe only when neither side inserted or removed a block.
-  if (oldDoc.childCount !== newDoc.childCount) return incrementalResult;
   return applyRegions(findScatteredChangeRegions(oldDoc, newDoc), true);
 }
 
@@ -232,86 +235,81 @@ function findScatteredChangeRegions(
   oldDoc: ProseMirrorNode,
   newDoc: ProseMirrorNode,
 ): ChangeRegion[] {
-  const regions: ChangeRegion[] = [];
   const oldChildCount = oldDoc.childCount;
   const newChildCount = newDoc.childCount;
-  const minCount = Math.min(oldChildCount, newChildCount);
+  if (oldChildCount > MAX_BLOCK_DIFF_CHILDREN || newChildCount > MAX_BLOCK_DIFF_CHILDREN) {
+    return [{
+      fromOld: 0,
+      toOld: oldDoc.content.size,
+      fromNew: 0,
+      toNew: newDoc.content.size,
+    }];
+  }
+  const oldPositions = [0];
+  const newPositions = [0];
+  for (let index = 0; index < oldChildCount; index++) {
+    oldPositions.push(oldPositions[index] + oldDoc.child(index).nodeSize);
+  }
+  for (let index = 0; index < newChildCount; index++) {
+    newPositions.push(newPositions[index] + newDoc.child(index).nodeSize);
+  }
 
-  // Track positions as we walk through children
-  // ProseMirror positions: doc starts at 0, first child content starts at 1
-  // Each child node takes nodeSize positions (including open/close tokens)
-  let oldPos = 0; // Position at start of current old child (inside doc)
-  let newPos = 0; // Position at start of current new child (inside doc)
-
-  // Track contiguous changed ranges to merge adjacent changes
-  let rangeStartOld = -1;
-  let rangeStartNew = -1;
-  let rangeEndOld = -1;
-  let rangeEndNew = -1;
-
-  function flushRange() {
-    if (rangeStartOld >= 0) {
-      regions.push({
-        fromOld: rangeStartOld,
-        toOld: rangeEndOld,
-        fromNew: rangeStartNew,
-        toNew: rangeEndNew,
-      });
-      rangeStartOld = -1;
-      rangeStartNew = -1;
-      rangeEndOld = -1;
-      rangeEndNew = -1;
+  // Match the largest stable sibling sequence so insertions and removals do not
+  // shift every following NodeView into the changed range.
+  const lengths = Array.from({ length: oldChildCount + 1 }, () =>
+    Array<number>(newChildCount + 1).fill(0),
+  );
+  for (let oldIndex = oldChildCount - 1; oldIndex >= 0; oldIndex--) {
+    for (let newIndex = newChildCount - 1; newIndex >= 0; newIndex--) {
+      lengths[oldIndex][newIndex] = oldDoc.child(oldIndex).eq(newDoc.child(newIndex))
+        ? lengths[oldIndex + 1][newIndex + 1] + 1
+        : Math.max(lengths[oldIndex + 1][newIndex], lengths[oldIndex][newIndex + 1]);
     }
   }
 
-  for (let i = 0; i < minCount; i++) {
-    const oldChild = oldDoc.child(i);
-    const newChild = newDoc.child(i);
-
-    const oldChildStart = oldPos;
-    const newChildStart = newPos;
-    const oldChildEnd = oldPos + oldChild.nodeSize;
-    const newChildEnd = newPos + newChild.nodeSize;
-
-    if (!oldChild.eq(newChild)) {
-      // This child differs — extend or start a new range
-      if (rangeStartOld < 0) {
-        rangeStartOld = oldChildStart;
-        rangeStartNew = newChildStart;
-      }
-      rangeEndOld = oldChildEnd;
-      rangeEndNew = newChildEnd;
+  const matches: Array<[number, number]> = [];
+  const signatures = new Map<string, number>();
+  const oldSignatures = Array.from({ length: oldChildCount }, (_, index) =>
+    JSON.stringify(oldDoc.child(index).toJSON()),
+  );
+  const newSignatures = Array.from({ length: newChildCount }, (_, index) =>
+    JSON.stringify(newDoc.child(index).toJSON()),
+  );
+  for (const signature of [...oldSignatures, ...newSignatures]) {
+    signatures.set(signature, (signatures.get(signature) ?? 0) + 1);
+  }
+  let oldIndex = 0;
+  let newIndex = 0;
+  while (oldIndex < oldChildCount && newIndex < newChildCount) {
+    if (oldDoc.child(oldIndex).eq(newDoc.child(newIndex))) {
+      matches.push([oldIndex++, newIndex++]);
     } else {
-      // Children are identical — flush any accumulated range
-      flushRange();
+      const skipOldLength = lengths[oldIndex + 1][newIndex];
+      const skipNewLength = lengths[oldIndex][newIndex + 1];
+      if (skipOldLength === skipNewLength) {
+        const oldFrequency = signatures.get(oldSignatures[oldIndex]) ?? 0;
+        const newFrequency = signatures.get(newSignatures[newIndex]) ?? 0;
+        if (oldFrequency < newFrequency) newIndex++;
+        else oldIndex++;
+      } else if (skipOldLength > skipNewLength) oldIndex++;
+      else newIndex++;
     }
-
-    oldPos = oldChildEnd;
-    newPos = newChildEnd;
   }
 
-  // Handle trailing nodes (one doc has more children than the other)
-  if (oldChildCount !== newChildCount) {
-    if (rangeStartOld < 0) {
-      rangeStartOld = oldPos;
-      rangeStartNew = newPos;
+  const regions: ChangeRegion[] = [];
+  oldIndex = 0;
+  newIndex = 0;
+  for (const [matchedOld, matchedNew] of [...matches, [oldChildCount, newChildCount] as [number, number]]) {
+    if (oldIndex !== matchedOld || newIndex !== matchedNew) {
+      regions.push({
+        fromOld: oldPositions[oldIndex],
+        toOld: oldPositions[matchedOld],
+        fromNew: newPositions[newIndex],
+        toNew: newPositions[matchedNew],
+      });
     }
-
-    // Include all remaining nodes from both docs
-    let oldEnd = oldPos;
-    for (let i = minCount; i < oldChildCount; i++) {
-      oldEnd += oldDoc.child(i).nodeSize;
-    }
-    let newEnd = newPos;
-    for (let i = minCount; i < newChildCount; i++) {
-      newEnd += newDoc.child(i).nodeSize;
-    }
-
-    rangeEndOld = oldEnd;
-    rangeEndNew = newEnd;
+    oldIndex = matchedOld + 1;
+    newIndex = matchedNew + 1;
   }
-
-  flushRange();
-
   return regions;
 }
