@@ -6,6 +6,8 @@
  * route through durable sessions.py metadata. Tests keep recovery non-blocking.
  */
 
+// contract-test-file: tooling
+
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -39,13 +41,14 @@ test("active worktree routes regardless of obsolete binding label", () => {
   }
 });
 
-test("merged worktree remains routed for post-deploy continuation", () => {
-  assert.deepEqual(
-    routingDecisionForTest({
-      session: { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "merged" } },
-    }),
-    { decision: "worktree_routed", worktreePath: WORKTREE },
-  );
+test("merged worktree blocks post-deploy mutation routing", () => {
+  const decision = routingDecisionForTest({
+    session: { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "merged", merged_commit: "abc123456789" } },
+  });
+  assert.equal(decision.decision, "merged_worktree");
+  assert.equal(decision.worktreePath, "");
+  assert.match(decision.message, /already merged at abc123456/);
+  assert.match(decision.message, /start a new sessions\.py session/);
 });
 
 test("question sessions remain read-only without a worktree", () => {
@@ -365,6 +368,15 @@ test("unresolved mutation preserves a recovery lane with exact next command", ()
   assert.match(edit.message, /Reason:/);
   assert.match(edit.message, /Next:/);
   assert.match(edit.message, /sessions\.py start/);
+});
+
+test("merged worktree failure uses the stale-worktree recovery message", () => {
+  const failure = routingFailureForTest({
+    tool: "apply_patch",
+    sessionID: "ses_merged",
+    routeMessage: "merged worktree is stale",
+  });
+  assert.deepEqual(failure, { decision: "block", message: "merged worktree is stale" });
 });
 
 test("unresolved sessions can run the bounded OpenCode workflow audit", () => {

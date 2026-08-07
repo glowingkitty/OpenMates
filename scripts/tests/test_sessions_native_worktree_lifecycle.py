@@ -5,6 +5,8 @@ The suite verifies migration-safe routing repair and rejects nested managed
 worktrees without creating real Git worktrees or changing repository state.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -65,14 +67,14 @@ def test_routing_repair_migrates_obsolete_mode_and_touches_session(monkeypatch) 
     assert data["sessions"]["abcd"]["last_active"] == "now"
 
 
-def test_routing_repair_resumes_merged_worktree_after_deploy(monkeypatch) -> None:
+def test_routing_repair_rejects_merged_worktree_after_deploy(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = {
         "sessions": {
             "abcd": {
                 "opencode_session_id": "ses_parent",
                 "binding_mode": "worktree_routed",
-                "worktree": {"path": "/repo/agent-abcd", "status": "merged"},
+                "worktree": {"path": "/repo/agent-abcd", "status": "merged", "merged_commit": "abc123456789"},
             }
         }
     }
@@ -80,11 +82,8 @@ def test_routing_repair_resumes_merged_worktree_after_deploy(monkeypatch) -> Non
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [".env", "logs/nightly-reports"])
 
-    result = sessions.repair_worktree_routing("ses_parent")
-
-    assert result["worktree_path"] == "/repo/agent-abcd"
-    assert result["mode"] == "worktree_routed"
-    assert result["shared_runtime_resources"] == [".env", "logs/nightly-reports"]
+    with pytest.raises(RuntimeError, match="already merged at abc123456"):
+        sessions.repair_worktree_routing("ses_parent")
 
 
 def test_routing_repair_failure_is_actionable(monkeypatch) -> None:

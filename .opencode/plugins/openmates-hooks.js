@@ -509,7 +509,18 @@ function readConflictWarningForTest({ path = "", sessionID = "", data = {}, pres
 }
 
 function routingDecisionForTest({ session = {} } = {}) {
-  const worktreePath = ["active", "merged", "changes_pending"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
+  if (session?.worktree?.status === "merged") {
+    return {
+      decision: "merged_worktree",
+      worktreePath: "",
+      message: actionable(
+        ROUTING_GUARD_MARKER,
+        `repository session worktree is already merged${session.worktree.merged_commit ? ` at ${String(session.worktree.merged_commit).slice(0, 9)}` : ""}`,
+        "start a new sessions.py session/worktree for follow-up edits or subject-commit-bound evidence; safe reads, searches, status, doctor, summary, context, worktree ensure, and worktree repair remain available.",
+      ),
+    };
+  }
+  const worktreePath = ["active", "changes_pending"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
   if (worktreePath && isDirectManagedWorktree(worktreePath)) return { decision: "worktree_routed", worktreePath };
   if (session?.mode === "question") return { decision: "read_only", worktreePath: "" };
   return { decision: "unresolved", worktreePath: "" };
@@ -773,9 +784,10 @@ function isRecoveryBash(command) {
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
 }
 
-function routingFailureForTest({ tool = "", sessionID = "", command = "" } = {}) {
+function routingFailureForTest({ tool = "", sessionID = "", command = "", routeMessage = "" } = {}) {
   if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) return { decision: "allow_read", message: "" };
   if (BASH_TOOLS.has(tool) && (isRecoveryBash(command) || isReadOnlyChildBash(command))) return { decision: "allow_recovery", message: "" };
+  if (routeMessage) return { decision: "block", message: routeMessage };
   return { decision: "block", message: routingRecoveryMessage(sessionID) };
 }
 
@@ -1597,6 +1609,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
           tool,
           sessionID: input.sessionID,
           command: bashCommand(output?.args || input?.args),
+          routeMessage: route.message || "",
         });
         if (failure.decision === "block") throw new Error(failure.message);
       }

@@ -1031,10 +1031,18 @@ def ensure_session_worktree(session_id: str) -> dict:
         if not session:
             raise RuntimeError(f"Session {session_id} not found")
         metadata = session.get("worktree")
-        if isinstance(metadata, dict) and metadata.get("path") and metadata.get("status") in {"active", "merged"}:
+        if isinstance(metadata, dict) and metadata.get("path") and metadata.get("status") == "active":
             metadata["last_active"] = _now_iso()
             session["last_active"] = _now_iso()
             return dict(metadata)
+        if isinstance(metadata, dict) and metadata.get("path") and metadata.get("status") == "merged":
+            merged_commit = str(metadata.get("merged_commit") or "")[:9]
+            raise RuntimeError(
+                f"Session {session_id} worktree is already merged"
+                f"{f' at {merged_commit}' if merged_commit else ''}. "
+                "Start a new session/worktree for follow-up edits or evidence; "
+                "do not keep using the stale detached worktree."
+            )
         return None
 
     current = _mutate_sessions(existing)
@@ -1113,6 +1121,55 @@ def _worktree_untracked_files(metadata: dict) -> set[str]:
 
 def _worktree_has_changes(metadata: dict) -> bool:
     return bool(_worktree_changed_files(metadata))
+
+
+def _worktree_head(path: str | Path) -> str:
+    rc, stdout, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(path))
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect worktree HEAD: {stderr}")
+    return stdout.strip()
+
+
+def _worktree_branch(path: str | Path) -> str:
+    rc, stdout, stderr = _run_cmd(["git", "branch", "--show-current"], cwd=str(path))
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect worktree branch: {stderr}")
+    return stdout.strip()
+
+
+def _session_worktree_warnings(session_id: str, session: dict) -> list[str]:
+    """Return actionable warnings when session metadata and git state diverge."""
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    if not isinstance(metadata, dict) or not metadata.get("path"):
+        return []
+    worktree_path = Path(str(metadata["path"]))
+    if not worktree_path.exists():
+        return [f"session {session_id} worktree path is missing: {worktree_path}"]
+    warnings: list[str] = []
+    try:
+        head = _worktree_head(worktree_path)
+        branch = _worktree_branch(worktree_path)
+    except RuntimeError as exc:
+        return [str(exc)]
+    status = str(metadata.get("status") or "")
+    merged_commit = str(metadata.get("merged_commit") or "")
+    if status == "merged":
+        if merged_commit and head != merged_commit:
+            warnings.append(
+                f"session {session_id} is marked merged at {merged_commit[:9]} but worktree HEAD is {head[:9]}"
+            )
+        if not branch:
+            warnings.append(
+                f"session {session_id} worktree is detached after merge; start a new worktree before follow-up edits or evidence"
+            )
+        pending_files = _worktree_changed_files(metadata)
+        if pending_files:
+            warnings.append(
+                f"session {session_id} merged worktree still has {len(pending_files)} changed file(s); do not bind new evidence to this checkout"
+            )
+    elif status == "active" and not branch:
+        warnings.append(f"session {session_id} active worktree is detached at {head[:9]}")
+    return warnings
 
 
 def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
@@ -5075,7 +5132,14 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session = data["sessions"][session_id]
         worktree = session.get("worktree") or {}
         worktree_path = str(worktree.get("path") or "")
-        if worktree.get("status") not in {"active", "merged", "changes_pending"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
+        if worktree.get("status") == "merged":
+            merged_commit = str(worktree.get("merged_commit") or "")[:9]
+            raise RuntimeError(
+                f"Reason: session {session_id} worktree is already merged"
+                f"{f' at {merged_commit}' if merged_commit else ''}. "
+                "Next: start a new sessions.py session/worktree for follow-up edits or subject-commit-bound evidence."
+            )
+        if worktree.get("status") not in {"active", "changes_pending"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
             raise RuntimeError(
                 f"Reason: session {session_id} has no active worktree to route tools into. "
                 f"Next: run python3 scripts/sessions.py worktree ensure --session {session_id}."
@@ -6207,6 +6271,12 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             print(f"Session: {session_id} (not found)")
         else:
             print(f"Session: {session_id} — {sessions[session_id].get('task', '?')}")
+            worktree_warnings = _session_worktree_warnings(session_id, sessions[session_id])
+            if worktree_warnings:
+                print("Worktree warnings:")
+                for warning in worktree_warnings:
+                    print(f"  - {warning}")
+                print()
     print()
 
     locks = data.get("locks", {})
@@ -6465,8 +6535,6 @@ def cmd_track(args: argparse.Namespace) -> None:
         worktree = sessions[sid].get("worktree")
         if isinstance(worktree, dict):
             worktree["last_active"] = now
-            if worktree.get("status") == "merged":
-                worktree["status"] = "active"
         data["sessions"] = sessions
         _save_sessions(data)
 
@@ -6517,8 +6585,6 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
     worktree = sessions[sid].get("worktree")
     if isinstance(worktree, dict):
         worktree["last_active"] = now
-        if worktree.get("status") == "merged":
-            worktree["status"] = "active"
     _save_sessions(data)
 
 

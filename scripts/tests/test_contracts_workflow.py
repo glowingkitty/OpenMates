@@ -196,3 +196,41 @@ def test_generated_integrity_rejects_registry_drift(tmp_path):
     errors = module.check_generated_integrity(tmp_path, contracts_root=contracts_root)
 
     assert any("registry.yml is stale" in error for error in errors)
+
+
+# contract-test: tooling
+def test_evidence_preflight_rejects_stale_merged_session_worktree(monkeypatch, tmp_path):
+    module = load_module()
+    control_root = tmp_path / "repo"
+    worktree = control_root / ".openmates-agent-worktrees" / "agent-abcd"
+    sessions_dir = control_root / ".claude"
+    sessions_dir.mkdir(parents=True)
+    worktree.mkdir(parents=True)
+    (sessions_dir / "sessions.json").write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "abcd": {
+                        "worktree": {
+                            "path": str(worktree),
+                            "status": "merged",
+                            "merged_commit": "merged123456",
+                        }
+                    }
+                }
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "CONTROL_PLANE_ROOT", control_root)
+    monkeypatch.setattr(module, "_git_head", lambda _root: "stale987654")
+    monkeypatch.setattr(module, "_git_dirty_files", lambda _root: [" M scripts/contracts.py"])
+
+    error = module._merged_session_worktree_error(worktree)
+
+    assert error is not None
+    assert "stale merged session worktree abcd" in error
+    assert "HEAD stale987" in error
+    assert "merged commit merged123" in error
+    assert "1 dirty file" in error

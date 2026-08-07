@@ -652,6 +652,57 @@ def _git_head(repo_root: Path) -> str:
     return result.stdout.strip()
 
 
+def _git_dirty_files(repo_root: Path) -> list[str]:
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ContractError(result.stderr.strip() or "cannot inspect checkout state")
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def _merged_session_worktree_error(repo_root: Path) -> str | None:
+    """Reject evidence writes from stale session worktrees after deploy merge."""
+    root = repo_root.resolve()
+    if root.parent.name not in {".openmates-agent-worktrees", ".agent-worktrees"}:
+        return None
+    if not root.name.startswith("agent-"):
+        return None
+    session_id = root.name.removeprefix("agent-")
+    sessions_path = CONTROL_PLANE_ROOT / ".claude" / "sessions.json"
+    if not sessions_path.exists():
+        return None
+    try:
+        sessions = json.loads(sessions_path.read_text(encoding="utf-8")).get("sessions", {})
+    except json.JSONDecodeError as exc:
+        raise ContractError(f"cannot inspect session worktree state: {exc}") from exc
+    session = sessions.get(session_id)
+    if not isinstance(session, dict):
+        return None
+    metadata = session.get("worktree")
+    if not isinstance(metadata, dict) or metadata.get("status") != "merged":
+        return None
+    merged_commit = str(metadata.get("merged_commit") or "")
+    head = _git_head(root)
+    dirty = _git_dirty_files(root)
+    if merged_commit and head == merged_commit and not dirty:
+        return None
+    details = []
+    if merged_commit and head != merged_commit:
+        details.append(f"HEAD {head[:9]} does not match merged commit {merged_commit[:9]}")
+    if dirty:
+        details.append(f"checkout has {len(dirty)} dirty file(s)")
+    detail_text = "; ".join(details) or "checkout state is not clean"
+    return (
+        f"refusing to apply evidence from stale merged session worktree {session_id}: {detail_text}. "
+        "Start a clean aligned session/worktree and rerun the proof so subject_commit-bound evidence is trustworthy."
+    )
+
+
 def _is_test_file(path: str) -> bool:
     name = Path(path).name
     return (
@@ -1188,6 +1239,9 @@ def main(argv: list[str] | None = None) -> int:
             paths = [_resolve(path) for path in args.paths]
             _write_output(build_test_index(paths, registry, repo_root=REPO_ROOT), args.output, args.json)
         elif args.command == "apply-evidence":
+            merged_worktree_error = _merged_session_worktree_error(REPO_ROOT)
+            if merged_worktree_error:
+                raise ContractError(merged_worktree_error)
             registry = build_registry(_resolve(args.contracts_root))
             test_index_value = _load_yaml(args.test_index)
             evidence_value = _load_yaml(args.evidence)

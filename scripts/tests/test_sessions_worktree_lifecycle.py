@@ -6,6 +6,8 @@ creating real repository worktrees. Git command execution is monkeypatched so
 the lifecycle can be verified safely in a temporary state file.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import argparse
@@ -130,6 +132,39 @@ def test_ensure_session_worktree_reuses_existing_metadata(monkeypatch, tmp_path)
 
     assert metadata["base_commit"] == "abc123def456"
     assert metadata["path"] == str(worktree_path)
+
+
+def test_ensure_session_worktree_rejects_merged_metadata(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree_path = tmp_path / "worktrees" / "agent-abcd"
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "locks": {},
+                "sessions": {
+                    "abcd": {
+                        "task": "work",
+                        "modified_files": [],
+                        "worktree": {
+                            "session_id": "abcd",
+                            "path": str(worktree_path),
+                            "base_commit": "base123",
+                            "status": "merged",
+                            "merged_commit": "abc123456789",
+                        },
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", tmp_path / "worktrees")
+
+    with pytest.raises(RuntimeError, match="already merged at abc123456"):
+        sessions.ensure_session_worktree("abcd")
 
 
 def test_cmd_worktree_reports_missing_session_without_traceback(monkeypatch, capsys):
