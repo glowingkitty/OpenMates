@@ -213,13 +213,16 @@ vi.mock("../../stores/unreadMessagesStore", () => ({
 }));
 
 describe("handleAIResponseStorageFailedImpl", () => {
-  it("unmarks and queues the exact assistant response for retry", () => {
+  it("unmarks, queues, and retries the exact assistant response once", async () => {
     const service = {
       unmarkMessageSyncing: vi.fn(),
       dispatchEvent: vi.fn(),
+      sendCompletedAIResponse: vi.fn(),
     } as unknown as ChatSynchronizationService;
+    const message = { message_id: "assistant-1", chat_id: "chat-1" };
+    mockChatDB.getMessage.mockResolvedValue(message);
 
-    handleAIResponseStorageFailedImpl(service, {
+    await handleAIResponseStorageFailedImpl(service, {
       chat_id: "chat-1",
       message_id: "assistant-1",
       task_id: "retry-task-1",
@@ -230,6 +233,21 @@ describe("handleAIResponseStorageFailedImpl", () => {
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "aiResponseStorageFailed" }),
     );
+    expect(service.sendCompletedAIResponse).toHaveBeenCalledWith(message);
+
+    await handleAIResponseStorageFailedImpl(service, {
+      chat_id: "chat-1",
+      message_id: "assistant-1",
+      task_id: "retry-task-2",
+    });
+    expect(service.sendCompletedAIResponse).toHaveBeenCalledTimes(1);
+
+    mockChatDB.getChat.mockResolvedValue(null);
+    await handleAIResponseStorageConfirmedImpl(service, {
+      chat_id: "chat-1",
+      message_id: "assistant-1",
+      task_id: "websocket-direct",
+    });
   });
 
   it("removes the retry entry only after durable storage confirmation", async () => {

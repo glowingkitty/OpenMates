@@ -36,6 +36,8 @@ import {
   wrapEmbedKeyWithChatKey,
 } from "./encryption/MetadataEncryptor";
 
+const storageFailureImmediateRetryIds = new Set<string>();
+
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
 let toonDecode:
   | ((toonString: string, options?: { strict?: boolean }) => unknown)
@@ -2113,6 +2115,7 @@ export async function handleAIResponseStorageConfirmedImpl(
 
   // Unmark message as syncing
   serviceInstance.unmarkMessageSyncing(payload.message_id);
+  storageFailureImmediateRetryIds.delete(payload.message_id);
   removePendingAIResponse(payload.message_id);
 
   // Reconcile messages_v in IndexedDB to reflect the stored AI response.
@@ -2156,10 +2159,10 @@ export async function handleAIResponseStorageConfirmedImpl(
   );
 }
 
-export function handleAIResponseStorageFailedImpl(
+export async function handleAIResponseStorageFailedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: { chat_id: string; message_id: string; task_id?: string },
-): void {
+): Promise<void> {
   console.error(
     `[ChatSyncService:AI] Durable storage failed for message ${payload.message_id}; queued server and client retries`,
   );
@@ -2174,6 +2177,11 @@ export function handleAIResponseStorageFailedImpl(
       },
     }),
   );
+
+  if (storageFailureImmediateRetryIds.has(payload.message_id)) return;
+  storageFailureImmediateRetryIds.add(payload.message_id);
+  const message = await chatDB.getMessage(payload.message_id);
+  if (message) await serviceInstance.sendCompletedAIResponse(message);
 }
 
 /**
