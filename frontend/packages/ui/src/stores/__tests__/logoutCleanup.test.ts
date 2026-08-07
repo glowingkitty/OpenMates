@@ -21,6 +21,7 @@ import { get } from "svelte/store";
 // Track which cleanup functions were called
 const cleanupCalls: string[] = [];
 let currentActiveChatId: string | null = "private-chat-1";
+let userDatabaseDeleteGate: Promise<void> | null = null;
 
 vi.mock("../../services/chatListCache", () => ({
   chatListCache: {
@@ -47,9 +48,10 @@ vi.mock("../../services/db", () => ({
 
 vi.mock("../../services/userDB", () => ({
   userDB: {
-    deleteDatabase: vi.fn(async () =>
-      cleanupCalls.push("userDB.deleteDatabase"),
-    ),
+    deleteDatabase: vi.fn(async () => {
+      cleanupCalls.push("userDB.deleteDatabase");
+      if (userDatabaseDeleteGate) await userDatabaseDeleteGate;
+    }),
   },
 }));
 
@@ -300,6 +302,7 @@ describe("logout cleanup completeness", () => {
   beforeEach(() => {
     cleanupCalls.length = 0;
     currentActiveChatId = "private-chat-1";
+    userDatabaseDeleteGate = null;
     vi.clearAllMocks();
     authStore.set({ isAuthenticated: true, isInitialized: true });
   });
@@ -328,6 +331,23 @@ describe("logout cleanup completeness", () => {
     expect(cleanupCalls).toContain("clearAllEmailData");
     expect(cleanupCalls).toContain("deleteSessionId");
     expect(cleanupCalls).toContain("disconnectAndClearHandlers");
+  });
+
+  it("starts chat and user database deletion together", async () => {
+    let releaseUserDatabaseDelete = () => {};
+    userDatabaseDeleteGate = new Promise<void>((resolve) => {
+      releaseUserDatabaseDelete = resolve;
+    });
+
+    try {
+      await logout();
+      await Promise.resolve();
+
+      expect(cleanupCalls).toContain("userDB.deleteDatabase");
+      expect(cleanupCalls).toContain("chatDB.deleteDatabase");
+    } finally {
+      releaseUserDatabaseDelete();
+    }
   });
 
   it("sets authStore to not authenticated but still initialized", async () => {

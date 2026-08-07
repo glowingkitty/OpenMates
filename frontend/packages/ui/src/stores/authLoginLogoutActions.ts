@@ -603,25 +603,24 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
           localStorage.setItem("openmates_needs_cleanup", "true");
         }
 
-        // Delete local databases in the background
-        try {
-          await userDB.deleteDatabase();
-        } catch (dbError) {
-          console.error(
-            "[AuthStore] Failed to delete userDB database:",
-            dbError,
-          );
-          if (callbacks?.onError) await callbacks.onError(dbError);
-        }
-        try {
-          await chatDB.deleteDatabase();
-        } catch (dbError) {
-          console.error(
-            "[AuthStore] Failed to delete chatDB database:",
-            dbError,
-          );
-          if (callbacks?.onError) await callbacks.onError(dbError);
-        }
+        // Mark both databases as deleting before a fast re-login can start sync
+        // and advertise stale local chat or embed IDs to the server.
+        await Promise.all([
+          userDB.deleteDatabase().catch(async (dbError) => {
+            console.error(
+              "[AuthStore] Failed to delete userDB database:",
+              dbError,
+            );
+            if (callbacks?.onError) await callbacks.onError(dbError);
+          }),
+          chatDB.deleteDatabase().catch(async (dbError) => {
+            console.error(
+              "[AuthStore] Failed to delete chatDB database:",
+              dbError,
+            );
+            if (callbacks?.onError) await callbacks.onError(dbError);
+          }),
+        ]);
 
         // Clear any pending offline chat deletions from localStorage
         try {
