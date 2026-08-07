@@ -122,6 +122,7 @@ SUB_CHAT_ORCHESTRATION_INDEXES = (
     'sub_chat_batches_orchestration_claim_idx',
     'sub_chat_operations_identity_uq',
     'sub_chat_operations_orchestration_state_idx',
+    'sub_chat_operations_charge_idx',
     'usage_charge_id_uq',
     'usage_user_root_created_idx',
     'usage_orchestration_created_idx',

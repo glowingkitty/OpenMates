@@ -194,12 +194,12 @@ sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'sub_chat_batches_orchestration_claim_idx',
         'sub_chat_operations_identity_uq',
         'sub_chat_operations_orchestration_state_idx',
+        'sub_chat_operations_charge_idx',
         'usage_charge_id_uq',
         'usage_user_root_created_idx',
         'usage_orchestration_created_idx',
         'billing_charge_identities_charge_uq',
         'billing_charge_identities_user_created_idx',
-        'team_credit_accounts_team_uq',
         'team_credit_events_event_uq',
         'team_usage_events_event_uq'
       );")"

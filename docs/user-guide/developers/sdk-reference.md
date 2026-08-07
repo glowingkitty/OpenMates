@@ -70,6 +70,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | npm | pip | npm inputs | pip inputs | Return |
 | --- | --- | --- | --- | --- |
 | `om.billing.bankTransferStatus()` | `om.billing.bank_transfer_status()` | `order_id` | `order_id` | `object` |
+| `om.billing.chatTotal()` | `om.billing.chat_total()` | `chat_id` | `chat_id` | `object` |
 | `om.billing.createBankTransferOrder()` | `om.billing.create_bank_transfer_order()` | `credits, email_encryption_key` | `credits, email_encryption_key` | `object` |
 | `om.billing.createGiftCardBankTransferOrder()` | `om.billing.create_gift_card_bank_transfer_order()` | `credits, email_encryption_key` | `credits, email_encryption_key` | `object` |
 | `om.billing.downloadCreditNote()` | `om.billing.download_credit_note()` | `invoice_id` | `invoice_id` | `object` |
@@ -85,6 +86,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.billing.setLowBalanceAutoTopup()` | `om.billing.set_low_balance_auto_topup()` | `input` | `input` | `object` |
 | `om.billing.usage()` | `om.billing.usage()` | `input` | `input` | `object` |
 | `om.billing.usageDaily()` | `om.billing.usage_daily()` | `none` | `none` | `object` |
+| `om.billing.usageDetails()` | `om.billing.usage_details()` | `type, identifier, year_month` | `type, identifier, year_month` | `object` |
 | `om.billing.usageExport()` | `om.billing.usage_export()` | `months` | `months` | `object` |
 | `om.billing.usageOverview()` | `om.billing.usage_overview()` | `input` | `input` | `object` |
 | `om.billing.usageSummaries()` | `om.billing.usage_summaries()` | `none` | `none` | `object` |

@@ -6953,6 +6953,8 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
   { path: ["billing", "usage"], description: "Show usage history", examples: ["openmates settings billing usage --json"] },
   { path: ["billing", "usage", "overview"], description: "Show fast usage overview rollups", examples: ["openmates settings billing usage overview --granularity weekly --json"] },
+  { path: ["billing", "usage", "details"], description: "Show detailed usage entries", examples: ["openmates settings billing usage details --type chat --identifier <chat-id> --month 2026-08 --json"] },
+  { path: ["billing", "usage", "chat-total"], description: "Show total credits used by a chat", examples: ["openmates settings billing usage chat-total --chat-id <chat-id> --json"] },
   { path: ["billing", "usage", "summaries"], description: "Show usage summaries", examples: ["openmates settings billing usage summaries"] },
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
@@ -8697,6 +8699,24 @@ async function handleSettings(
       weeks: parseOptionalQueryNumber(flags.weeks, "--weeks"),
       months: parseOptionalQueryNumber(flags.months, "--months"),
     }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "details"])) {
+    const params = new URLSearchParams({
+      type: parseRequiredStringFlag(flags.type, "--type"),
+      identifier: parseRequiredStringFlag(flags.identifier, "--identifier"),
+      year_month: parseRequiredStringFlag(flags.month, "--month"),
+    });
+    await printSettingsResult(client.settingsGet(`usage/details?${params.toString()}`), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "chat-total"])) {
+    const params = new URLSearchParams({
+      chat_id: parseRequiredStringFlag(flags["chat-id"], "--chat-id"),
+    });
+    await printSettingsResult(client.settingsGet(`usage/chat-total?${params.toString()}`), flags);
     return;
   }
 

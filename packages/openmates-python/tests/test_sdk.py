@@ -1829,6 +1829,8 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
     client.account.list_interests()
     client.memories.types(app_id="code")
     client.billing.usage_overview(granularity="monthly", months=2)
+    client.billing.usage_details(type="chat", identifier="chat-1", year_month="2026-08")
+    client.billing.chat_total("chat-1")
     client.billing.usage_export()
     client.billing.create_bank_transfer_order(110000)
     client.embeds.show("embed-1")
@@ -1846,6 +1848,8 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/account/topic-preferences"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/memories/types?app_id=code"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/overview?granularity=monthly&months=2"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/details?type=chat&identifier=chat-1&year_month=2026-08"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/chat-total?chat_id=chat-1"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/export"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/billing/bank-transfer-orders"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/embeds/embed-1"},

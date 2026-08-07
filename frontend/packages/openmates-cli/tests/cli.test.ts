@@ -634,7 +634,7 @@ async function withBillingInvoicesMockApi<T>(
   }
 }
 
-async function withUsageOverviewMockApi<T>(
+async function withUsageMockApi<T>(
   run: (params: {
     apiUrl: string;
     requests: Array<{ method: string; url: string }>;
@@ -662,6 +662,16 @@ async function withUsageOverviewMockApi<T>(
           ],
           freshness: { is_stale: false, staleness_seconds: 5 },
         });
+        return;
+      }
+      if (request.method === "GET" && request.url?.startsWith("/v1/settings/usage/details")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, { entries: [{ charge_id: "charge-1" }], count: 1 });
+        return;
+      }
+      if (request.method === "GET" && request.url?.startsWith("/v1/settings/usage/chat-total")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, { chat_id: "chat-1", total_credits: 42 });
         return;
       }
       response.writeHead(404);
@@ -3769,7 +3779,7 @@ describe("settings command surface", () => {
   });
 
   it("fetches fast usage overview rollups with requested granularity", async () => {
-    await withUsageOverviewMockApi(async ({ apiUrl, tempHome, requests }) => {
+    await withUsageMockApi(async ({ apiUrl, tempHome, requests }) => {
       const output = await runCliAsync(
         ["settings", "billing", "usage", "overview", "--granularity", "weekly", "--weeks", "4", "--json", "--api-url", apiUrl],
         { HOME: tempHome, USERPROFILE: tempHome },
@@ -3779,6 +3789,26 @@ describe("settings command surface", () => {
       assert.equal(parsed.totals?.credits, 42);
       assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
         "GET /v1/settings/usage/overview?granularity=weekly&weeks=4",
+      ]);
+    });
+  });
+
+  it("fetches usage details and chat totals", async () => {
+    await withUsageMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const detailsOutput = await runCliAsync(
+        ["settings", "billing", "usage", "details", "--type", "chat", "--identifier", "chat-1", "--month", "2026-08", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const totalOutput = await runCliAsync(
+        ["settings", "billing", "usage", "chat-total", "--chat-id", "chat-1", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal((JSON.parse(detailsOutput) as { count?: number }).count, 1);
+      assert.equal((JSON.parse(totalOutput) as { total_credits?: number }).total_credits, 42);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/settings/usage/details?type=chat&identifier=chat-1&year_month=2026-08",
+        "GET /v1/settings/usage/chat-total?chat_id=chat-1",
       ]);
     });
   });

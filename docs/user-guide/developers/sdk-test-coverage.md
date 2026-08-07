@@ -53,6 +53,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `benchmark` | `om.benchmark.estimate()` | `om.benchmark.estimate()` | direct | direct |
 | `benchmark` | `om.benchmark.run()` | `om.benchmark.run()` | direct | direct |
 | `billing` | `om.billing.bankTransferStatus()` | `om.billing.bank_transfer_status()` | direct | direct |
+| `billing` | `om.billing.chatTotal()` | `om.billing.chat_total()` | direct | direct |
 | `billing` | `om.billing.createBankTransferOrder()` | `om.billing.create_bank_transfer_order()` | direct | direct |
 | `billing` | `om.billing.createGiftCardBankTransferOrder()` | `om.billing.create_gift_card_bank_transfer_order()` | direct | namespace smoke: test_sdk.py |
 | `billing` | `om.billing.downloadCreditNote()` | `om.billing.download_credit_note()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
@@ -68,6 +69,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `billing` | `om.billing.setLowBalanceAutoTopup()` | `om.billing.set_low_balance_auto_topup()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
 | `billing` | `om.billing.usage()` | `om.billing.usage()` | direct | direct |
 | `billing` | `om.billing.usageDaily()` | `om.billing.usage_daily()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |
+| `billing` | `om.billing.usageDetails()` | `om.billing.usage_details()` | direct | direct |
 | `billing` | `om.billing.usageExport()` | `om.billing.usage_export()` | direct | direct |
 | `billing` | `om.billing.usageOverview()` | `om.billing.usage_overview()` | direct | direct |
 | `billing` | `om.billing.usageSummaries()` | `om.billing.usage_summaries()` | namespace smoke: sdk.test.ts, billing.test.ts | namespace smoke: test_sdk.py |

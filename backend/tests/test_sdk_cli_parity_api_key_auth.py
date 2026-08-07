@@ -715,6 +715,45 @@ async def test_sdk_dispatch_billing_usage_overview_reuses_settings_route(monkeyp
     assert result == {"granularity": "weekly", "totals": {"credits": 42}}
 
 
+@pytest.mark.asyncio
+async def test_sdk_dispatch_billing_usage_details_and_chat_total_reuse_settings_routes(monkeypatch):
+    async def fake_get_usage_details(**kwargs):
+        assert kwargs["type"] == "chat"
+        assert kwargs["identifier"] == "chat-1"
+        assert kwargs["year_month"] == "2026-08"
+        assert kwargs["current_user"].id == "user-1"
+        return {"entries": [{"charge_id": "charge-1"}]}
+
+    async def fake_get_chat_total_credits(**kwargs):
+        assert kwargs["chat_id"] == "chat-1"
+        assert kwargs["current_user"].id == "user-1"
+        return {"chat_id": "chat-1", "total_credits": 42}
+
+    fake_settings_routes = SimpleNamespace(
+        get_usage_details=fake_get_usage_details,
+        get_chat_total_credits=fake_get_chat_total_credits,
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.settings", fake_settings_routes)
+
+    details = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"type": "chat", "identifier": "chat-1", "year_month": "2026-08"}),
+        {"user_id": "user-1"},
+        "billing",
+        "usage/details",
+        None,
+    )
+    chat_total = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"chat_id": "chat-1"}),
+        {"user_id": "user-1"},
+        "billing",
+        "usage/chat-total",
+        None,
+    )
+
+    assert details == {"entries": [{"charge_id": "charge-1"}]}
+    assert chat_total == {"chat_id": "chat-1", "total_credits": 42}
+
+
 @pytest.mark.anyio
 async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
     request = _FakeRequest(method="DELETE")

@@ -4846,6 +4846,8 @@ class OpenMatesBilling:
     def overview(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing")
     def usage(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage", **query))
     def usage_overview(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/overview", **query))
+    def usage_details(self, *, type: str, identifier: str, year_month: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/details", type=type, identifier=identifier, year_month=year_month))
+    def chat_total(self, chat_id: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/chat-total", chat_id=chat_id))
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
     def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))

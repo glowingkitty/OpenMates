@@ -368,6 +368,13 @@ def _bounded_int_query(
     return value
 
 
+def _required_query(request: Request, name: str) -> str:
+    value = request.query_params.get(name)
+    if not value:
+        raise HTTPException(status_code=422, detail=f"Missing required query parameter: {name}")
+    return value
+
+
 def _require_sdk_read_scope(api_key_info: dict[str, Any], group: str, scope: str) -> None:
     try:
         ApiKeyAuthorizationService().require_scope(
@@ -1228,6 +1235,28 @@ async def _dispatch_sdk_surface(
                 directus_service,
                 cache_service,
                 encryption_service,
+            )
+        if path == "usage/details" and request.method == "GET":
+            settings_routes = _sdk_route_module("settings")
+
+            return await _sdk_route_handler(settings_routes.get_usage_details)(
+                request=request,
+                type=_required_query(request, "type"),
+                identifier=_required_query(request, "identifier"),
+                year_month=_required_query(request, "year_month"),
+                current_user=user,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+            )
+        if path == "usage/chat-total" and request.method == "GET":
+            settings_routes = _sdk_route_module("settings")
+
+            return await _sdk_route_handler(settings_routes.get_chat_total_credits)(
+                request=request,
+                chat_id=_required_query(request, "chat_id"),
+                current_user=user,
+                directus_service=directus_service,
             )
         if path == "usage/export" and request.method == "GET":
             settings_routes = _sdk_route_module("settings")

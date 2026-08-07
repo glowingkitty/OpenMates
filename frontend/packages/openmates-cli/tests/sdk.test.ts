@@ -1179,6 +1179,8 @@ describe("OpenMates SDK", () => {
       await client.account.listInterests();
       await client.memories.types({ query: { app_id: "code" } });
       await client.billing.usageOverview({ query: { granularity: "monthly", months: 2 } });
+      await client.billing.usageDetails({ type: "chat", identifier: "chat-1", yearMonth: "2026-08" });
+      await client.billing.chatTotal("chat-1");
       await client.billing.usageExport();
       await client.billing.createBankTransferOrder(110000);
       await client.embeds.show("embed-1");
@@ -1195,6 +1197,8 @@ describe("OpenMates SDK", () => {
       { method: "GET", url: "/v1/sdk/account/topic-preferences" },
       { method: "GET", url: "/v1/sdk/memories/types?app_id=code" },
       { method: "GET", url: "/v1/sdk/billing/usage/overview?granularity=monthly&months=2" },
+      { method: "GET", url: "/v1/sdk/billing/usage/details?type=chat&identifier=chat-1&year_month=2026-08" },
+      { method: "GET", url: "/v1/sdk/billing/usage/chat-total?chat_id=chat-1" },
       { method: "GET", url: "/v1/sdk/billing/usage/export" },
       { method: "POST", url: "/v1/sdk/billing/bank-transfer-orders" },
       { method: "GET", url: "/v1/sdk/embeds/embed-1" },

@@ -28,6 +28,12 @@ def test_directus_image_bakes_extension_and_fails_closed() -> None:
     required_indexes = re.findall(
         r"CREATE UNIQUE INDEX IF NOT EXISTS ([a-z0-9_]+)", migration
     )
+    sub_chat_migration = (
+        ROOT / "backend/core/directus/setup/migrate_sub_chat_orchestration_indexes.sql"
+    ).read_text(encoding="utf-8")
+    sub_chat_indexes = re.findall(
+        r"CREATE (?:UNIQUE )?INDEX IF NOT EXISTS ([a-z0-9_]+)", sub_chat_migration
+    )
 
     assert "FROM directus/directus:11.5" in dockerfile
     assert "COPY --chown=node:node extensions /directus/extensions" in dockerfile
@@ -40,6 +46,9 @@ def test_directus_image_bakes_extension_and_fails_closed() -> None:
     assert "pg_indexes" in dockerfile
     assert len(required_indexes) == 11
     assert all(index_name in dockerfile for index_name in required_indexes)
+    assert len(sub_chat_indexes) == 18
+    assert all(index_name in dockerfile for index_name in sub_chat_indexes)
+    assert "team_credit_accounts_team_uq" not in dockerfile
     protocol_schema = yaml.safe_load(
         (ROOT / "backend/core/directus/schemas/chat_recovery_protocol_state.yml").read_text(
             encoding="utf-8"
