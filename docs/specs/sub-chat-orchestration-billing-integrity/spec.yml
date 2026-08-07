@@ -119,7 +119,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: fbbd12ae046eaa7f207d0471cb08314dcd2cb1a7
+  subject_commit: 2f63da365
 
 approvals:
   product_contract:
@@ -198,7 +198,7 @@ handoff:
   command: python3 -m pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_stream_consumer_recovery.py backend/tests/test_sub_chat_confirmation_handler.py
   expected_outcome: Root, child, grandchild, continuation, sequential, and approval paths use one durable root ledger and dispatch only fully prepared batches.
   blocker: null
-  last_verified_commit: fbbd12ae046eaa7f207d0471cb08314dcd2cb1a7
+  last_verified_commit: 2f63da365
 
 scenarios:
   - id: S-1
@@ -637,7 +637,17 @@ tests:
       - descendant chats do not appear as separate Deleted chat summaries
       - deleted-root fixture remains one attributable summary
     red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --gate-deploy --expected-commit 2f63da3
+        run_id: "31206550461"
+        subject_commit: 2f63da365
+        timestamp: "2026-08-07T18:23:44Z"
+        target: https://app.dev.openmates.org
+        deployment_reference: dpl_J5J6mVsngTsuLh56Qm33YnvcFbfJ
   - id: T-RELATED-E2E
     type: playwright
     file: frontend/apps/web_app/tests/sub-chats-flow.spec.ts
@@ -659,19 +669,30 @@ verifications:
     evidence:
       status: passed
       command: docker run --rm --network openmates --env-file .env -v "$(pwd)/backend/scripts/backfill_root_chat_usage.py:/usr/src/app/backfill_root_chat_usage.py:ro" openmates-core-cms-setup python /usr/src/app/backfill_root_chat_usage.py
-      run_id: root-usage-backfill-dry-run-20260807T163805Z
-      subject_commit: c2c4e35
-      timestamp: "2026-08-07T16:38:05Z"
+      run_id: root-usage-backfill-dry-run-20260807T182409Z
+      subject_commit: 2f63da365
+      timestamp: "2026-08-07T18:24:09Z"
       summary: Dry-run scanned 29,699 unattributed rows, planned 14,344 deterministic chat-chain updates, preserved 15,355 unmatched rows, and wrote zero rows.
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-7, AC-9]
-    status: pending
+    status: passed
     target: https://app.dev.openmates.org/#settings/billing&usage
     viewports: [laptop, mobile]
-    evidence: {status: pending}
+    evidence:
+      status: passed
+      command: python3 scripts/sessions.py visual-smoke --session 0a36 --url https://app.dev.openmates.org/#settings/billing&usage --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/run-20260807T181822Z.json
+      run_id: test-results/run-20260807T181822Z.json
+      subject_commit: 2f63da365
+      timestamp: "2026-08-07T18:24:09Z"
+      target: https://app.dev.openmates.org/#settings/billing&usage
+      reviewed_url: https://app.dev.openmates.org/#settings/billing&usage
+      viewports: [laptop, mobile]
+      reason: Authenticated billing hierarchy required direct screenshot review because anonymous visual smoke renders the landing page.
+      actor: OpenCode
+      summary: "Reviewed authenticated laptop and 390x844 mobile billing detail screenshots. Defects: none. Accepted differences: existing security-reminder overlay remained visible without obscuring usage details or controls."
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
