@@ -527,7 +527,7 @@ class TestCompressChatHistory:
             return mock_response
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
 
@@ -571,7 +571,7 @@ class TestCompressChatHistory:
             return fallback_response
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
         monkeypatch.setattr(
@@ -614,7 +614,7 @@ class TestCompressChatHistory:
             return fallback_response
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
         monkeypatch.setattr(
@@ -643,7 +643,7 @@ class TestCompressChatHistory:
             raise ConnectionError("Network failure")
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
 
@@ -659,22 +659,13 @@ class TestCompressChatHistory:
         assert "Network failure" in result.error
 
     @pytest.mark.anyio
-    async def test_no_formattable_messages(self, mock_secrets, monkeypatch):
+    async def test_no_formattable_messages(self, mock_secrets):
         """History exceeds threshold but all messages have non-string content."""
         # Create messages with list content (multimodal) that _build_compression_prompt skips
         history = [
             {"role": "user", "content": [{"type": "image"}], "created_at": 1000 + i}
             for i in range(20)
         ]
-
-        # Need to mock the google import since it happens inside the function
-        async def fake_google_llm(**kwargs):
-            raise AssertionError("Should not be called")
-
-        monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
-            fake_google_llm,
-        )
 
         result = await compress_chat_history(
             message_history=history,
