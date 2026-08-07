@@ -714,7 +714,7 @@ export async function decryptMessageFields(
   // Skip decryption when WebSocket is in error state (auth failures, etc.)
   // This prevents unnecessary decryption attempts when the user is being logged out
   const wsStatus = get(websocketStatus);
-  if (wsStatus.status === "error") {
+  if (wsStatus.status === "error" && !isAnonymousChatId(chatId)) {
     console.debug(
       `[ChatDatabase] Skipping message decryption due to WebSocket error state for chat: ${chatId}`,
     );

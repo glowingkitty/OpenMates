@@ -100,7 +100,10 @@
             <button 
                 class="menu-item delete"
                 data-testid="embed-context-menu-delete"
-                onmousedown={(event) => event.preventDefault()}
+                onmousedown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }}
                 onclick={(event) => handleMenuItemClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>

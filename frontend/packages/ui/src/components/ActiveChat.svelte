@@ -15796,18 +15796,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         container-name: chat-side;
     }
 
-    .chat-wrapper:has(.center-content) {
-        pointer-events: none;
-    }
-
-    .chat-wrapper:has(.center-content) .daily-inspiration-area,
-    .chat-wrapper:has(.center-content) .top-buttons,
-    .chat-wrapper:has(.center-content) .center-content,
-    .chat-wrapper:has(.center-content) .guest-interest-tags-overlay,
-    .chat-wrapper:has(.center-content) .message-input-wrapper {
-        pointer-events: auto;
-    }
-
     /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.
        The visible icon stays centered; the hit area extends horizontally for easy touch/click.
        Overrides global button styles from buttons.css (padding, min-width, height, shadow, etc.) */
