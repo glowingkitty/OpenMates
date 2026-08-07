@@ -35,7 +35,6 @@ SUB_CHAT_SEQUENCE_CONTEXT_VERSION = 1
 def is_sub_chat_continuation(request_data: Any) -> bool:
     return bool(
         getattr(request_data, "is_sub_chat_continuation", False)
-        or getattr(request_data, "is_focus_mode_continuation", False)
         or getattr(request_data, "is_app_settings_memories_continuation", False)
         or getattr(request_data, "is_connected_account_permission_continuation", False)
     )

@@ -142,6 +142,30 @@ def test_continuation_cannot_create_orchestration_envelope() -> None:
         ensure_orchestration_envelope(request_data)
 
 
+def test_focus_activation_continuation_can_reuse_root_orchestration_envelope() -> None:
+    request_data = type("Request", (), {
+        "is_sub_chat": False,
+        "is_sub_chat_continuation": False,
+        "is_focus_mode_continuation": True,
+        "is_app_settings_memories_continuation": False,
+        "is_connected_account_permission_continuation": False,
+        "orchestration_id": "orchestration-id",
+        "root_chat_id": "root-chat-id",
+        "root_turn_id": "root-turn-id",
+        "chat_id": "root-chat-id",
+        "message_id": "focus-continuation-message-id",
+        "user_id_hash": "owner-hash",
+        "sub_chat_depth": 0,
+    })()
+
+    ensure_orchestration_envelope(request_data)
+
+    assert request_data.orchestration_id == "orchestration-id"
+    assert request_data.root_chat_id == "root-chat-id"
+    assert request_data.root_turn_id == "root-turn-id"
+    assert request_data.sub_chat_depth == 0
+
+
 def test_root_orchestration_identity_is_stable_across_reconstructed_retries() -> None:
     def request() -> object:
         return type("Request", (), {
