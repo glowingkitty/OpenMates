@@ -544,3 +544,103 @@ def test_email_summaries_match_grouped_failure_structure_without_causes():
     for cause in ("Expected page", "Timeout", "KeyError", "must not be emailed"):
         assert cause not in text
         assert cause not in html
+
+
+def test_internal_email_payload_uses_canonical_grouped_failures():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="2026-08-07T03:00:01Z",
+        git_sha="e5c186d82",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=120,
+        summary={
+            "total": 2,
+            "passed": 0,
+            "failed": 2,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={
+            "playwright": {
+                "tests": [
+                    {
+                        "file": "signup-flow-stripe-managed.spec.ts",
+                        "status": "failed",
+                        "error": "Expected page: must not be emailed",
+                    },
+                    {
+                        "file": "chat-flow.spec.ts",
+                        "status": "failed",
+                        "error": "Timeout: must not be emailed",
+                    },
+                ]
+            }
+        },
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.test"
+
+    payload = service._build_internal_api_payload(result)
+
+    assert payload["subject_override"] == "[OpenMates] 2 failed (development)"
+    assert payload["summary_copy"] == {
+        "header_failure": "2 failed",
+        "status_failure": "2 FAILED",
+    }
+    assert payload["failure_groups"] == [
+        {
+            "title": "Playwright · 2 failures · 2 files",
+            "description": (
+                "Critical product areas\n"
+                "FAIL Billing & payments: 1 failed file\n"
+                "FAIL Signup & authentication: 1 failed file\n"
+                "FAIL Core chat: 1 failed file\n\n"
+                "Files by product area\n"
+                "Signup & authentication · 1 failure · 1 file\n"
+                "- signup-flow-stripe-managed.spec.ts\n"
+                "Core chat · 1 failure · 1 file\n"
+                "- chat-flow.spec.ts"
+            ),
+        }
+    ]
+    assert "must not be emailed" not in json.dumps(payload["failure_groups"])
+
+
+def test_internal_email_failure_groups_are_bounded():
+    run_tests = load_run_tests_module()
+    failed_tests = [
+        {"file": f"very-long-chat-failure-{index:04d}.spec.ts", "status": "failed"}
+        for index in range(500)
+    ]
+    result = run_tests.RunResult(
+        run_id="2026-08-07T03:00:01Z",
+        git_sha="e5c186d82",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=120,
+        summary={
+            "total": 500,
+            "passed": 0,
+            "failed": 500,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={"playwright": {"tests": failed_tests}},
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.test"
+
+    groups = service._build_internal_api_payload(result)["failure_groups"]
+
+    assert groups
+    assert all(
+        len(group["description"]) <= run_tests.DISCORD_DESCRIPTION_MAX_CHARS
+        for group in groups
+    )

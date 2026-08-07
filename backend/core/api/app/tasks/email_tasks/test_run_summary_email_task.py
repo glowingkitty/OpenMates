@@ -30,6 +30,9 @@ logger.addFilter(sensitive_filter)
 # Maximum error snippet length per failed test to keep email readable
 MAX_ERROR_SNIPPET_LENGTH = 400
 MAX_ALL_TESTS_IN_EMAIL = 500
+MAX_FAILURE_GROUPS_IN_EMAIL = 10
+MAX_FAILURE_GROUP_TITLE_LENGTH = 256
+MAX_FAILURE_GROUP_DESCRIPTION_LENGTH = 4000
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[mKHJABCDsuGfFnRh]")
 MJML_UNSAFE_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0d\x0e-\x1f\x7f]")
 FAILED_TEST_GROUP_ORDER = ("pytest", "*.spec.ts", "Apple Remote", "CLI", "Vitest", "Other")
@@ -75,6 +78,25 @@ def _group_failed_tests_by_type(failed_tests: List[Dict[str, Any]]) -> List[Dict
     ]
 
 
+def _sanitize_failure_groups(failure_groups: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Escape the canonical grouped summary supplied by the daily runner."""
+    from html import escape
+
+    return [
+        {
+            "title": escape(_sanitize_email_text(
+                group.get("title", ""),
+                limit=MAX_FAILURE_GROUP_TITLE_LENGTH,
+            )),
+            "description": escape(_sanitize_email_text(
+                group.get("description", ""),
+                limit=MAX_FAILURE_GROUP_DESCRIPTION_LENGTH,
+            )),
+        }
+        for group in failure_groups[:MAX_FAILURE_GROUPS_IN_EMAIL]
+    ]
+
+
 @app.task(
     name="app.tasks.email_tasks.test_run_summary_email_task.send_test_run_summary",
     base=BaseServiceTask,
@@ -99,6 +121,7 @@ def send_test_run_summary(
     opencode_chat_url: str = None,
     subject_override: str = None,
     summary_copy: Dict[str, str] = None,
+    failure_groups: List[Dict[str, str]] = None,
 ) -> bool:
     """
     Celery task to send a single daily test run summary email to the admin.
@@ -157,6 +180,7 @@ def send_test_run_summary(
                 opencode_chat_url=opencode_chat_url,
                 subject_override=subject_override,
                 summary_copy=summary_copy,
+                failure_groups=failure_groups,
             )
         )
         if result:
@@ -198,6 +222,7 @@ async def _async_send_test_run_summary(
     opencode_chat_url: str = None,
     subject_override: str = None,
     summary_copy: Dict[str, str] = None,
+    failure_groups: List[Dict[str, str]] = None,
 ) -> bool:
     """
     Async implementation for sending the daily test run summary email.
@@ -296,6 +321,8 @@ async def _async_send_test_run_summary(
                 "error": escape(error_raw) if error_raw else None,
             })
         failed_test_groups = _group_failed_tests_by_type(sanitized_failed)
+        sanitized_failure_groups = _sanitize_failure_groups(failure_groups or [])
+        has_problems = bool(sanitized_failure_groups) or failed > 0
 
         # Build all_tests grouped by suite for small runs only. Rendering every
         # passed test from a full nightly run can make MJML conversion fail.
@@ -354,6 +381,8 @@ async def _async_send_test_run_summary(
             "suites": sanitized_suites,
             "failed_tests": sanitized_failed,
             "failed_test_groups": failed_test_groups,
+            "failure_groups": sanitized_failure_groups,
+            "has_problems": has_problems,
             "all_tests_by_suite": sanitized_all_tests_by_suite,
             "has_all_tests": len(sanitized_all_tests_by_suite) > 0,
             "all_tests_omitted_count": all_tests_omitted_count,

@@ -3910,6 +3910,25 @@ class NotificationService:
         """Build payload for /internal/dispatch-test-summary-email."""
         payload = self._build_openobserve_payload(result)
         payload["recipient_email"] = self.admin_email
+        problem_count = _problem_count(result.summary)
+        problem_label = _problem_summary_label(result.summary)
+        status_label = "All tests passed" if problem_count == 0 else problem_label
+        payload["subject_override"] = f"[OpenMates] {status_label} ({result.environment})"
+        payload["summary_copy"] = {
+            "header_failure": problem_label,
+            "status_failure": problem_label.upper(),
+        }
+        payload["failure_groups"] = [
+            {
+                "title": str(group["title"]),
+                "description": _plain_notification_text(str(group["description"])),
+            }
+            for group in _build_discord_failure_embeds(
+                result.suites,
+                color=0xEF4444,
+                truncate_descriptions=True,
+            )
+        ]
         return payload
 
     def _build_openobserve_payload(self, result: RunResult) -> dict:

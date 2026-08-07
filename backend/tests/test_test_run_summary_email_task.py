@@ -5,8 +5,11 @@
 # control bytes must be removed before MJML conversion. Otherwise a single
 # noisy failure can prevent the whole nightly notification from rendering.
 
+from pathlib import Path
+
 from backend.core.api.app.tasks.email_tasks.test_run_summary_email_task import (
     _group_failed_tests_by_type,
+    _sanitize_failure_groups,
     _sanitize_email_text,
 )
 
@@ -38,3 +41,35 @@ def test_group_failed_tests_by_type_keeps_core_suites_separate() -> None:
         ("CLI", 1),
         ("Other", 1),
     ]
+
+
+def test_sanitize_failure_groups_preserves_structure_without_html() -> None:
+    groups = _sanitize_failure_groups([
+        {
+            "title": "Playwright <2>",
+            "description": "FAIL Core chat: 2 files\n- <chat-flow.spec.ts>",
+        }
+    ])
+
+    assert groups == [{
+        "title": "Playwright &lt;2&gt;",
+        "description": "FAIL Core chat: 2 files\n- &lt;chat-flow.spec.ts&gt;",
+    }]
+
+
+def test_sanitize_failure_groups_bounds_internal_callers() -> None:
+    groups = _sanitize_failure_groups([
+        {"title": f"Group {index}", "description": "x" * 5000}
+        for index in range(20)
+    ])
+
+    assert len(groups) == 10
+    assert all(len(group["description"]) <= 4020 for group in groups)
+
+
+def test_template_preserves_grouped_and_legacy_contracts() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    template = (project_root / "backend/core/api/templates/email/test_run_summary.mjml").read_text()
+
+    assert "{% if failure_groups %}" in template
+    assert "{% elif failed_tests %}" in template

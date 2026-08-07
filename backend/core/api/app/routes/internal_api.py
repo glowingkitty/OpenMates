@@ -1555,6 +1555,7 @@ class TestRunSummaryEmailPayload(BaseModel):
     opencode_chat_url: Optional[str] = None  # Shareable opencode session URL for failure analysis
     subject_override: Optional[str] = None  # Used only for urgent essential-flow failure emails
     summary_copy: Optional[Dict[str, str]] = None  # Optional labels for non-test summary emails
+    failure_groups: Optional[List[Dict[str, str]]] = None  # Canonical suite/product-area email grouping
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1619,6 +1620,7 @@ async def dispatch_test_summary_email(
                 "opencode_chat_url": payload.opencode_chat_url,
                 "subject_override": payload.subject_override,
                 "summary_copy": payload.summary_copy,
+                "failure_groups": payload.failure_groups,
             },
             queue="email",
         )
