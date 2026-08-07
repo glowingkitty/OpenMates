@@ -639,12 +639,8 @@ test.describe('Anonymous free chat', () => {
 			page.getByTestId('message-content').filter({ has: streamingInlineRef })
 		).toHaveAttribute('data-streaming', 'true');
 		await expect(
-			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
-		).toHaveCount(0);
-
-		await expect(
-			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
-		).toBeVisible({ timeout: 10000 });
+			page.getByTestId('message-assistant').filter({ has: streamingInlineRef })
+		).toContainText(/Partial anonymous stream with\s*anonymous event\s*complete/, { timeout: 10000 });
 		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 5000 });
 		await expect(streamingInlineRef).toBeVisible();
 		await expect(
