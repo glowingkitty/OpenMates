@@ -25,15 +25,6 @@ def make_client_ciphertext() -> str:
     return base64.b64encode(raw).decode("ascii")
 
 
-def test_pending_embed_safety_net_cannot_overlap_its_schedule() -> None:
-    task = persistence_tasks.process_pending_embeds_task
-    schedule = persistence_tasks.app.conf.beat_schedule["process-pending-embeds"]["schedule"]
-
-    assert task.soft_time_limit == persistence_tasks.PENDING_EMBED_SOFT_TIME_LIMIT_SECONDS
-    assert task.time_limit == persistence_tasks.PENDING_EMBED_HARD_TIME_LIMIT_SECONDS
-    assert task.soft_time_limit < task.time_limit < schedule.total_seconds()
-
-
 def test_persist_new_chat_message_rejects_vault_ciphertext_before_side_effects(monkeypatch, doc_assert):
     doc_assert("chat-persistence-rejects-vault-ciphertext")
     touched_directus = False

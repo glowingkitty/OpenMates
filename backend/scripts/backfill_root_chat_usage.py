@@ -169,14 +169,16 @@ def load_mappings(path: str | None) -> dict[str, Attribution]:
 
 
 def connect_database():
-    import psycopg2
+    import psycopg
+    from psycopg.rows import dict_row
 
-    return psycopg2.connect(
-        host=os.environ["DB_HOST"],
+    return psycopg.connect(
+        host=os.getenv("DB_HOST", "cms-database"),
         port=os.getenv("DB_PORT", "5432"),
-        dbname=os.environ["DB_DATABASE"],
-        user=os.environ["DB_USER"],
-        password=os.environ["DB_PASSWORD"],
+        dbname=os.getenv("DB_DATABASE") or os.environ["DATABASE_NAME"],
+        user=os.getenv("DB_USER") or os.environ["DATABASE_USERNAME"],
+        password=os.getenv("DB_PASSWORD") or os.environ["DATABASE_PASSWORD"],
+        row_factory=dict_row,
     )
 
 
@@ -186,14 +188,12 @@ def fetch_rows(cursor, query: str) -> list[dict[str, Any]]:
 
 
 def run(*, apply: bool, confirm: bool, mapping_path: str | None, limit: int | None) -> dict[str, Any]:
-    from psycopg2.extras import RealDictCursor
-
     if apply and not confirm:
         raise ValueError("--apply requires --confirm")
     if limit is not None and limit <= 0:
         raise ValueError("--limit must be positive")
     mappings = load_mappings(mapping_path)
-    with connect_database() as connection, connection.cursor(cursor_factory=RealDictCursor) as cursor:
+    with connect_database() as connection, connection.cursor() as cursor:
         usage_limit = f" LIMIT {int(limit)}" if limit else ""
         usage_rows = fetch_rows(cursor, """
             SELECT id, user_id_hash, chat_id, actual_chat_id, root_chat_id, root_turn_id,
