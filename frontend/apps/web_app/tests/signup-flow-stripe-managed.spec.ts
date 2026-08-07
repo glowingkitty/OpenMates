@@ -275,7 +275,31 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	logSignupCheckpoint('Payment consent accepted.');
 
 	// GHA runners are in the US → Stripe Managed Payments (Embedded Checkout) is auto-selected.
-	// This test stays on Managed Payments — do NOT click 'switch-to-stripe'.
+	// The payment component can briefly initialize the EU branch before geo/provider
+	// configuration resolves. Wait for managed mode or use the explicit non-EU switch.
+	const switchToNonEuBtn = page.getByTestId('switch-to-non-eu');
+	const switchToEuBtn = page.getByTestId('switch-to-stripe');
+	const checkoutIframe = page.locator('#checkout iframe');
+	const detectManagedProviderState = async () => {
+		if ((await checkoutIframe.count()) > 0) return 'managed';
+		if (await switchToEuBtn.isVisible().catch(() => false)) return 'managed';
+		if (await switchToNonEuBtn.isVisible().catch(() => false)) {
+			return (await switchToNonEuBtn.isEnabled().catch(() => false)) ? 'switch' : 'initializing';
+		}
+		return 'initializing';
+	};
+
+	await expect
+		.poll(detectManagedProviderState, {
+			timeout: 30000,
+			intervals: [250, 500, 1000]
+		})
+		.toMatch(/^(managed|switch)$/);
+
+	if ((await detectManagedProviderState()) === 'switch') {
+		await switchToNonEuBtn.click({ timeout: 10000 });
+		logSignupCheckpoint('Selected Managed Payments through the non-EU card switch.');
+	}
 
 	// Wait for Stripe Embedded Checkout iframe inside #checkout.
 	await page.waitForSelector('#checkout iframe', { state: 'attached', timeout: 30000 });
