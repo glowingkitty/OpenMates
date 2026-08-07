@@ -122,7 +122,6 @@ DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
 DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
-OPENMATESCLOUD_ROOT = CONTROL_PLANE_ROOT.parent / "OpenMatesCloud"
 DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
@@ -6814,12 +6813,12 @@ def _docker_compose_command(*args: str) -> list[str]:
     runtime_env = _read_env_values(ENV_FILE)
     if runtime_env.get("OPENMATES_DEPLOYMENT_MODE") == "official_cloud":
         configured_overlay_path = runtime_env.get("OPENMATES_CLOUD_OVERLAY_PATH")
-        overlay_compose_file = OPENMATESCLOUD_ROOT / "docker-compose.openmatescloud.yml"
+        overlay_root = Path(configured_overlay_path).expanduser().resolve() if configured_overlay_path else None
+        overlay_compose_file = overlay_root / "docker-compose.openmatescloud.yml" if overlay_root else None
         overlay_ready = (
             runtime_env.get("OPENMATES_CLOUD_OVERLAY_ENABLED") == "true"
             and runtime_env.get("OPENMATES_CLOUD_OVERLAY_PACKAGE") == "OpenMatesCloud"
-            and configured_overlay_path is not None
-            and Path(configured_overlay_path).resolve() == OPENMATESCLOUD_ROOT.resolve()
+            and overlay_compose_file is not None
             and overlay_compose_file.is_file()
         )
         if not overlay_ready:

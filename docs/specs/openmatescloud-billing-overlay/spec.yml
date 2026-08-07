@@ -202,15 +202,23 @@ attempts:
     approach: Reproduce the disabled dev billing runtime, then make sessions.py Docker lifecycle commands compose the official-cloud overlay and fail closed when its persisted markers or sibling Compose file are missing.
     outcome: succeeded
     recorded_at: "2026-08-07T13:13:28Z"
-    notes: Focused sessions Docker orchestration tests passed with 13 tests, including official-cloud overlay inclusion and fail-closed coverage; changed-file Python lint also passed.
+    notes: Focused sessions Docker orchestration tests passed, including official-cloud overlay inclusion and fail-closed coverage; changed-file Python lint also passed.
+  - id: ATTEMPT-12
+    task_id: TASK-3
+    approach: Persist the complete CLI-managed official-cloud marker set, recreate API and core workers through the guarded sessions.py lifecycle, run the live overlay boot attestation, then rerun managed signup and billing promotion gates serially.
+    outcome: succeeded
+    recorded_at: "2026-08-07T13:48:56Z"
+    notes: Live boot attestation reported official-cloud payment_enabled=true with overlay markers and billing queues present. Managed signup run 31183404384 and managed billing run 31184037253 passed on exact commit 5ed70b8fd473ed2009ed6d90a1aff244705f3e6b.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Deploy the sessions.py overlay restart invariant, persist official-cloud mode through the supported CLI, restart the affected services, and rerun the read-only dev overlay boot check.
-  command: python3 scripts/api_tests/test_cloud_overlay_boot.py --api-url https://api.dev.openmates.org
-  expected_outcome: Every sessions.py-managed official-cloud restart includes the sibling overlay, and the live dev API reports payments enabled after restart.
-  blocker: null
-  last_verified_commit: working-tree-agent-b396
+  next_action: Restore the gitignored operator helper scripts/revolut_business_setup.py from the private operator store, then rerun the live TASK-3 income/provider smoke gate with --execute.
+  command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete,duplicate-completed-reference --execute
+  expected_outcome: Dev provider smoke proves income/payment accounting still works through the OpenMatesCloud overlay.
+  blocker:
+    reason: Missing local gitignored operator helper scripts/revolut_business_setup.py required for Revolut Sandbox /sandbox/topup simulation.
+    next_action: Restore the helper from the private operator store before rerunning the live --execute smoke.
+  last_verified_commit: 5ed70b8fd473ed2009ed6d90a1aff244705f3e6b+openmatescloud-overlay
 
 scenarios:
   - id: S-1
@@ -472,8 +480,8 @@ tests:
     command: python3 -m pytest scripts/tests/test_sessions_docker_orchestration.py
     covers: [AC-1, AC-2]
     assertions:
-      - sessions.py Docker lifecycle commands include the sibling overlay Compose file in official-cloud mode
-      - official-cloud lifecycle commands fail closed when persisted overlay markers or the Compose file are missing
+      - sessions.py Docker lifecycle commands include the configured overlay Compose file in official-cloud mode
+      - official-cloud lifecycle commands fail closed when persisted overlay markers, the configured path, or the Compose file are missing
       - self-host lifecycle commands remain core-only
     red_phase:
       required: false
@@ -488,10 +496,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_sessions_docker_orchestration.py
-        run_id: local-2026-08-07-sessions-overlay-restart-13-passed
-        subject_commit: working-tree-agent-b396
+        run_id: local-2026-08-07-sessions-overlay-restart-14-passed
+        subject_commit: 5ed70b8fd473ed2009ed6d90a1aff244705f3e6b
         timestamp: "2026-08-07T13:13:28Z"
-        summary: All 13 sessions Docker orchestration tests passed.
+        summary: All 14 sessions Docker orchestration tests passed, including isolation from the machine env, custom CLI overlay path support, and fail-closed validation when the configured Compose file is absent.
   - id: T-OPENMATESCLOUD-PACKAGE
     type: pytest
     file: ../OpenMatesCloud/backend/tests/test_overlay_compose.py
@@ -604,10 +612,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/api_tests/test_cloud_overlay_boot.py --api-url https://api.dev.openmates.org --cli-overlay --redact
-        run_id: local-2026-07-31-164213-cloud-overlay-boot
-        subject_commit: 9eaab522705792274da3f03bc8e87d26e07a16c7+openmatescloud-untracked-overlay
-        timestamp: "2026-07-31T16:42:13Z"
-        summary: Public dev API returned healthy status, server-status reported official-cloud payment_enabled=true, the invalid payment webhook probe stopped at HTTP 400 signature/body validation, and local Docker api/task-worker/task-scheduler overlay markers plus task-worker email/persistence queues were present.
+        run_id: local-2026-08-07-134856-cloud-overlay-boot
+        subject_commit: 5ed70b8fd473ed2009ed6d90a1aff244705f3e6b+openmatescloud-overlay
+        timestamp: "2026-08-07T13:48:56Z"
+        summary: Public dev server-status reported official-cloud payment_enabled=true, the invalid payment webhook probe stopped at HTTP 400 signature/body validation, and local Docker api/task-worker/task-scheduler overlay markers plus task-worker email/persistence queues were present; aggregate health was degraded for a separate service-level reason.
   - id: T-REGRESSION-BILLING
     type: pytest
     file: backend/tests/test_bank_transfer.py
