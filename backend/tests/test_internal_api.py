@@ -4,11 +4,10 @@
 # These tests verify structured payload propagation without sending email or
 # crossing the internal service-token boundary.
 
-import pytest
+import asyncio
 
 
-@pytest.mark.asyncio
-async def test_dispatch_test_summary_email_forwards_canonical_failure_groups(monkeypatch) -> None:
+def test_dispatch_test_summary_email_forwards_canonical_failure_groups(monkeypatch) -> None:
     from backend.core.api.app.routes import internal_api
     from backend.core.api.app.tasks import celery_config
 
@@ -35,7 +34,7 @@ async def test_dispatch_test_summary_email_forwards_canonical_failure_groups(mon
         failure_groups=[{"title": "Playwright", "description": "Core chat"}],
     )
 
-    result = await internal_api.dispatch_test_summary_email(payload, request=None)
+    result = asyncio.run(internal_api.dispatch_test_summary_email(payload, request=None))
 
     assert result == {"status": "dispatched"}
     assert captured["kwargs"]["failure_groups"] == [
