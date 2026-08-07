@@ -81,14 +81,15 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await screenshot(page, 'deep-research-three-children');
 
 	const finalAssistant = page.getByTestId('message-assistant').last();
-	await expect(finalAssistant).toContainText('Short Answer', { timeout: 600_000 });
+	await expect(finalAssistant).toHaveAttribute('data-streaming', 'false', { timeout: 600_000 });
+	await expect(finalAssistant).toContainText('Short Answer');
 	await expect(finalAssistant).toContainText('Surface Explanation');
 	await expect(finalAssistant).toContainText('What Else May Be Going On');
 	await expect(finalAssistant).toContainText('Evidence');
 	await expect(finalAssistant).toContainText('Counterarguments');
 	await expect(finalAssistant).toContainText('Bottom Line');
 	await expect(finalAssistant).not.toContainText('The AI service encountered an error');
-	await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 60_000 });
+	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	await screenshot(page, 'deep-research-final-synthesis');
 
 	await deleteActiveChat(page, log, screenshot, 'deep-research-cleanup');
