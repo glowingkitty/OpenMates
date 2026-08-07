@@ -127,7 +127,6 @@ SUB_CHAT_ORCHESTRATION_INDEXES = (
     'usage_orchestration_created_idx',
     'billing_charge_identities_charge_uq',
     'billing_charge_identities_user_created_idx',
-    'team_credit_accounts_team_uq',
     'team_credit_events_event_uq',
     'team_usage_events_event_uq',
 )

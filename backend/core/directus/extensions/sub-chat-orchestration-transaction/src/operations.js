@@ -191,6 +191,13 @@ async function lockedRoot(trx, orchestrationId, ownerHash) {
   return row;
 }
 
+async function lockedTeamAccount(trx, teamHash) {
+  const accounts = await trx(TEAM_ACCOUNTS).where({ hashed_team_id: teamHash }).forUpdate().limit(2);
+  if (!accounts.length) fail(404, 'team_credit_account_not_found');
+  if (accounts.length > 1) fail(409, 'duplicate_team_credit_accounts');
+  return accounts[0];
+}
+
 async function healthCheck(database, raw) {
   operationBody(raw, 'health_check');
   await database.raw('SELECT 1');
@@ -743,12 +750,11 @@ async function commitTeamCharge(database, raw) {
     if (existing) {
       if (existing.hashed_team_id !== teamHash || existing.actor_user_hash !== actorHash
         || existing.event_type !== 'deduction' || existing.amount !== -credits) fail(409, 'team_charge_identity_mismatch');
-      const account = await trx(TEAM_ACCOUNTS).where({ hashed_team_id: teamHash }).first();
+      const account = await lockedTeamAccount(trx, teamHash);
       const usageEvent = await trx(TEAM_USAGE_EVENTS).where({ event_id: eventId }).first();
       return { account, credit_event: existing, usage_event: usageEvent, idempotent: true };
     }
-    const account = await trx(TEAM_ACCOUNTS).where({ hashed_team_id: teamHash }).forUpdate().first();
-    if (!account) fail(404, 'team_credit_account_not_found');
+    const account = await lockedTeamAccount(trx, teamHash);
     const concurrent = await trx(TEAM_CREDIT_EVENTS).where({ event_id: eventId }).first();
     if (concurrent) {
       if (concurrent.hashed_team_id !== teamHash || concurrent.actor_user_hash !== actorHash
@@ -810,11 +816,10 @@ async function commitTeamCreditAdd(database, raw) {
     if (existing) {
       if (existing.hashed_team_id !== teamHash || existing.actor_user_hash !== actorHash
         || existing.event_type !== eventType || existing.amount !== credits) fail(409, 'team_credit_identity_mismatch');
-      const account = await trx(TEAM_ACCOUNTS).where({ hashed_team_id: teamHash }).first();
+      const account = await lockedTeamAccount(trx, teamHash);
       return { account, credit_event: existing, idempotent: true };
     }
-    const account = await trx(TEAM_ACCOUNTS).where({ hashed_team_id: teamHash }).forUpdate().first();
-    if (!account) fail(404, 'team_credit_account_not_found');
+    const account = await lockedTeamAccount(trx, teamHash);
     const concurrent = await trx(TEAM_CREDIT_EVENTS).where({ event_id: eventId }).first();
     if (concurrent) {
       if (concurrent.hashed_team_id !== teamHash || concurrent.actor_user_hash !== actorHash

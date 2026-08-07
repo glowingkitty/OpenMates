@@ -35,8 +35,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS billing_charge_identities_charge_uq
   ON billing_charge_identities (charge_id);
 CREATE INDEX IF NOT EXISTS billing_charge_identities_user_created_idx
   ON billing_charge_identities (hashed_user_id, created_at);
-CREATE UNIQUE INDEX IF NOT EXISTS team_credit_accounts_team_uq
-  ON team_credit_accounts (hashed_team_id);
 CREATE UNIQUE INDEX IF NOT EXISTS team_credit_events_event_uq
   ON team_credit_events (event_id);
 CREATE UNIQUE INDEX IF NOT EXISTS team_usage_events_event_uq
