@@ -21,7 +21,6 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
-	waitForAssistantMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 
@@ -61,12 +60,11 @@ test.describe('Source quote verification', () => {
 			'false-source-quote'
 		);
 
-		const assistantMessage = await waitForAssistantMessage(page, {
-			which: 'last',
-			contains: 'This sentence should remain after the invalid quote is removed.',
-			timeout: 120_000,
-			logCheckpoint: log
-		});
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'This sentence should remain after the invalid quote is removed.' })
+			.last();
+		await expect(assistantMessage).toBeVisible({ timeout: 120_000 });
 
 		await expect(assistantMessage).toContainText('The source says the Burj Khalifa had a previous name.');
 		await expect(assistantMessage).not.toContainText(FALSE_QUOTE);
@@ -97,12 +95,11 @@ test.describe('Source quote verification', () => {
 			'grouped-cites-image-preview'
 		);
 
-		const assistantMessage = await waitForAssistantMessage(page, {
-			which: 'last',
-			contains: 'The market is expanding',
-			timeout: 120_000,
-			logCheckpoint: log
-		});
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'The market is expanding' })
+			.last();
+		await expect(assistantMessage).toBeVisible({ timeout: 120_000 });
 
 		await expect(assistantMessage).not.toContainText('[cite:');
 		await expect(assistantMessage.getByRole('link', { name: 'CNBC AI Infrastructure' })).toBeVisible();
