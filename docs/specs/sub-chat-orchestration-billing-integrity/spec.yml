@@ -655,8 +655,14 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-7, AC-8]
-    status: pending
-    evidence: {status: pending}
+    status: passed
+    evidence:
+      status: passed
+      command: docker run --rm --network openmates --env-file .env -v "$(pwd)/backend/scripts/backfill_root_chat_usage.py:/usr/src/app/backfill_root_chat_usage.py:ro" openmates-core-cms-setup python /usr/src/app/backfill_root_chat_usage.py
+      run_id: root-usage-backfill-dry-run-20260807T163805Z
+      subject_commit: c2c4e35
+      timestamp: "2026-08-07T16:38:05Z"
+      summary: Dry-run scanned 29,699 unattributed rows, planned 14,344 deterministic chat-chain updates, preserved 15,355 unmatched rows, and wrote zero rows.
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final

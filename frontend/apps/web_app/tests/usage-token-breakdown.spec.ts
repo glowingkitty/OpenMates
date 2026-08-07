@@ -151,6 +151,13 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Clicked chat entry with token breakdown to see detail view');
 		logStep('Usage detail view is visible');
 		await takeScreenshot(page, 'usage-detail-view');
+		const desktopViewport = page.viewportSize();
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect(usageDetailView).toBeVisible();
+		await takeScreenshot(page, 'usage-detail-view-mobile');
+		if (desktopViewport) {
+			await page.setViewportSize(desktopViewport);
+		}
 
 		// Step 4: Extract token values from the receipt-style breakdown
 		// All rows use data-testid on the row and data-testid="entry-value" on the value span
