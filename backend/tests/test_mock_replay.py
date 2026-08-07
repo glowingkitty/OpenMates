@@ -89,40 +89,58 @@ def test_mock_focus_activation_context_uses_deferred_production_contract() -> No
     assert context["embed_id"] == "33333333-3333-4333-8333-333333333333"
 
 
-def test_mock_focus_activation_parent_does_not_seal_recovery_job(monkeypatch) -> None:
+def test_mock_focus_activation_parent_seals_recovery_job(monkeypatch) -> None:
     task_id = "66666666-6666-4666-8666-666666666666"
+    chat_id = "22222222-2222-4222-8222-222222222222"
+    _, public_key = derive_recovery_keypair(
+        "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+        chat_id,
+        7,
+    )
     fixture = {
         "response": '```json\n{"type":"focus_mode_activation","embed_id":"33333333-3333-4333-8333-333333333333"}\n```',
         "initial_delay_ms": 0,
         "preprocessing": {"category": "general_knowledge"},
     }
     request_data = AskSkillRequest(
-        chat_id="22222222-2222-4222-8222-222222222222",
+        chat_id=chat_id,
         message_id="55555555-5555-4555-8555-555555555555",
         user_id="11111111-1111-4111-8111-111111111111",
         user_id_hash="owner-hash",
         message_history=[AIHistoryMessage(role="user", content="research this", created_at=1)],
         recovery_task_id=task_id,
+        recovery_preflight_id="77777777-7777-4777-8777-777777777777",
+        recovery_turn_id="88888888-8888-4888-8888-888888888888",
+        recovery_public_key=public_key,
+        chat_key_version=7,
     )
+    cache_service = _StubCacheService()
+    directus_service = _StubDirectusService()
 
     async def keep_fixture_response(response: str, *_args, **_kwargs) -> str:
         return response
 
-    async def reject_recovery_job(**_kwargs):
-        raise AssertionError("focus activation parent must not create a sealed recovery job")
-
     monkeypatch.setattr(mock_replay, "load_fixture", lambda _fixture_id: fixture)
     monkeypatch.setattr(mock_replay, "_recreate_fixture_embeds", keep_fixture_response)
-    monkeypatch.setattr(mock_replay, "_persist_mock_replay_recovery_job", reject_recovery_job)
 
     asyncio.run(
         replay_fixture(
             fixture_id="focus_activation",
             task_id=task_id,
             request_data=request_data,
-            cache_service=_StubCacheService(),
+            cache_service=cache_service,
+            directus_service=directus_service,
         )
     )
+
+    final_chunks = [
+        payload
+        for _channel, payload in cache_service.events
+        if payload.get("type") == "ai_message_chunk" and payload.get("is_final_chunk")
+    ]
+    assert len(final_chunks) == 1
+    assert final_chunks[0]["recovery_protocol_version"] == 1
+    assert final_chunks[0]["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
 
 
 def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
