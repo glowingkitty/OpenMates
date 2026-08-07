@@ -134,6 +134,17 @@ def test_focus_activation_final_marks_pending_continuation() -> None:
     assert payload["awaiting_focus_mode_continuation"] is True
 
 
+def test_focus_activation_does_not_seal_recovery_before_continuation() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+    activation_block = source.split("if awaiting_focus_mode_confirmation:", maxsplit=1)[1]
+    activation_block = activation_block.split(
+        "return aggregated_response, False, False, [], debug_metadata",
+        maxsplit=1,
+    )[0]
+
+    assert "_attach_sealed_recovery_metadata" not in activation_block
+
+
 def test_focus_continuation_frames_are_marked() -> None:
     request_data = _ask_request()
     request_data.is_focus_mode_continuation = True
@@ -248,50 +259,6 @@ def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypat
     assert final_chunks[0]["recovery_job_id"] == "77777777-7777-4777-8777-777777777777"
     assert final_chunks[0]["recovery_protocol_version"] == 1
     assert final_chunks[0]["category"] == "general_knowledge"
-
-
-def test_focus_final_payload_attaches_sealed_recovery_metadata(monkeypatch) -> None:
-    task_id = "11111111-1111-4111-8111-111111111111"
-    request_data = AskSkillRequest(
-        chat_id="22222222-2222-4222-8222-222222222222",
-        message_id="33333333-3333-4333-8333-333333333333",
-        user_id="44444444-4444-4444-8444-444444444444",
-        user_id_hash="a" * 64,
-        message_history=[AIHistoryMessage(role="user", content="help", created_at=1)],
-        recovery_task_id=task_id,
-        recovery_preflight_id="55555555-5555-4555-8555-555555555555",
-        recovery_turn_id="66666666-6666-4666-8666-666666666666",
-        recovery_public_key="public-key",
-        chat_key_version=1,
-    )
-    payload = stream_consumer._create_redis_payload(
-        task_id,
-        request_data,
-        "focus activation embed",
-        2,
-        is_final=True,
-    )
-
-    async def fake_persist(**kwargs) -> dict:
-        assert kwargs["content"] == "focus activation embed"
-        return {"job_id": "77777777-7777-4777-8777-777777777777"}
-
-    monkeypatch.setattr(stream_consumer, "_persist_sealed_recovery_job", fake_persist)
-
-    asyncio.run(
-        stream_consumer._attach_sealed_recovery_metadata(
-            payload=payload,
-            directus_service=object(),
-            request_data=request_data,
-            task_id=task_id,
-            content="focus activation embed",
-            category="career",
-            model_name="test-model",
-        )
-    )
-
-    assert payload["recovery_job_id"] == "77777777-7777-4777-8777-777777777777"
-    assert payload["recovery_protocol_version"] == 1
 
 
 def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence() -> None:

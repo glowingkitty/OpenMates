@@ -925,6 +925,9 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "rejection_reason": redis_payload.get("rejection_reason"),
                                     "recovery_job_id": redis_payload.get("recovery_job_id"),
                                     "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
+                                    "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
+                                    "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
+                                    "is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False),
                                 }
                                 await manager.send_personal_message(
                                     message={"type": "ai_background_response_completed", "payload": background_completion_payload},

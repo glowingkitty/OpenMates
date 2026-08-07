@@ -171,6 +171,9 @@ def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> Non
     assert background_branch.index("send_available_recovery_jobs") < background_branch.index(
         'message={"type": "ai_background_response_completed", "payload": background_completion_payload}'
     )
+    assert '"awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False)' in background_branch
+    assert '"is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False)' in background_branch
+    assert '"is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False)' in background_branch
 
 
 def test_legacy_cutover_is_authorized_before_final_stream_marker() -> None:

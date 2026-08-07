@@ -858,7 +858,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     server.once("connection", (socket) => {
       setTimeout(() => {
         socket.send(JSON.stringify({
-          type: "ai_message_update",
+          type: "ai_background_response_completed",
           payload: {
             user_message_id: userMessageId,
             message_id: "assistant-focus-activation",
@@ -866,7 +866,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             chat_id: chatId,
             is_final_chunk: true,
             awaiting_focus_mode_continuation: true,
-            full_content_so_far: "```json\n{\"type\":\"focus_mode_activation\"}\n```",
+            full_content: "```json\n{\"type\":\"focus_mode_activation\"}\n```",
           },
         }));
         socket.send(JSON.stringify({
@@ -893,7 +893,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
           payload: { chat_id: chatId, task_id: "task-focus-continuation" },
         }));
         socket.send(JSON.stringify({
-          type: "ai_message_update",
+          type: "ai_background_response_completed",
           payload: {
             user_message_id: "server-focus-continuation-message",
             message_id: "assistant-focus-continuation",
@@ -901,14 +901,14 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             chat_id: chatId,
             is_focus_mode_continuation: true,
             is_final_chunk: true,
-            full_content_so_far: "Delegated research is running.",
+            full_content: "Delegated research is running.",
           },
         }));
       }, 30);
 
       setTimeout(() => {
         socket.send(JSON.stringify({
-          type: "ai_message_update",
+          type: "ai_background_response_completed",
           payload: {
             user_message_id: "server-continuation-message",
             message_id: "assistant-focus-synthesis",
@@ -916,7 +916,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             chat_id: chatId,
             is_sub_chat_continuation: true,
             is_final_chunk: true,
-            full_content_so_far: "## Short Answer\n\nDelegated research synthesis.",
+            full_content: "## Short Answer\n\nDelegated research synthesis.",
           },
         }));
         socket.send(JSON.stringify({

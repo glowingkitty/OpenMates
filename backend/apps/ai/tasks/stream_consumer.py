@@ -2173,29 +2173,6 @@ async def _persist_sealed_recovery_job(
     return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
 
 
-async def _attach_sealed_recovery_metadata(
-    *,
-    payload: dict[str, Any],
-    directus_service: DirectusService,
-    request_data: AskSkillRequest,
-    task_id: str,
-    content: str,
-    category: str | None,
-    model_name: str | None,
-) -> None:
-    recovery_job = await _persist_sealed_recovery_job(
-        directus_service=directus_service,
-        request_data=request_data,
-        task_id=task_id,
-        content=content,
-        category=category,
-        model_name=model_name,
-    )
-    if recovery_job:
-        payload["recovery_job_id"] = recovery_job["job_id"]
-        payload["recovery_protocol_version"] = 1
-
-
 def _assistant_response_created_at(request_data: AskSkillRequest, fallback_timestamp: int) -> int:
     """Return the durable creation timestamp for an assistant response.
 
@@ -8295,16 +8272,6 @@ async def _consume_main_processing_stream(
                 is_final=True,
                 awaiting_focus_mode_continuation=True,
             )
-            if _recovery_inference_task_id(request_data):
-                await _attach_sealed_recovery_metadata(
-                    payload=focus_final_payload,
-                    directus_service=directus_service,
-                    request_data=request_data,
-                    task_id=task_id,
-                    content=aggregated_response,
-                    category=preprocessing_result.category or "general_knowledge",
-                    model_name=stream_model_name,
-                )
             await _publish_to_redis(
                 cache_service, redis_channel_name, focus_final_payload, log_prefix,
                 f"Published focus-mode final marker (seq: {stream_chunk_count + 1}, content: {len(aggregated_response)} chars) to '{redis_channel_name}'"

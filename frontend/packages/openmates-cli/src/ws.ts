@@ -1229,6 +1229,9 @@ export class OpenMatesWsClient {
               typeof p.full_content === "string"
                 ? p.full_content
                 : latestContent;
+            if (p.awaiting_focus_mode_continuation === true) {
+              awaitingFocusModeContinuation = true;
+            }
             onStream?.({ kind: "done", content, category, modelName });
             scheduleResolve(content);
             return;
