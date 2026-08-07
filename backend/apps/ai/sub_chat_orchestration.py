@@ -340,6 +340,7 @@ async def dispatch_sub_chat_task(
             "is_incognito": request_data.is_incognito,
             "is_external": request_data.is_external,
             "mate_id": "george",
+            "active_focus_id": request_data.active_focus_id,
             "user_preferences": request_data.user_preferences or {},
             "budget_limit": sub_chat.get("budget_limit"),
         }

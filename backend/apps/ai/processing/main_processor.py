@@ -136,6 +136,11 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 logger = logging.getLogger(__name__)
 ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 8_192
+DELEGATED_DEEP_RESEARCH_INSTRUCTION = (
+    "\n\nDelegated child rule: You are already executing one research angle for a parent report. "
+    "Do not call start_sub_chats or activate Deep research again. Research the assigned angle "
+    "directly with the available web tools and return a sourced report to the parent."
+)
 
 _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "code",
@@ -2694,6 +2699,8 @@ async def handle_main_processing(
         except Exception as e:
             logger.error(f"{log_prefix} Error processing active_focus_id '{request_data.active_focus_id}': {e}", exc_info=True)
     if active_focus_prompt_text:
+        if request_data.active_focus_id == "web-research" and chat_depth > 0:
+            active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
         prompt_parts.insert(0, f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---")
 
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
@@ -3015,6 +3022,7 @@ async def handle_main_processing(
         enable_subchats=enable_subchats_results,
         chat_depth=chat_depth,
         is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+        active_focus_id=request_data.active_focus_id,
     ):
         available_tools_for_llm.append(start_sub_chats_tool)
         logger.info(f"{log_prefix} Added start_sub_chats tool to main LLM tools.")
@@ -5036,6 +5044,8 @@ async def handle_main_processing(
                             logger.info(
                                 f"{log_prefix} [SUB_CHAT] Stored confirmation request for {len(spawned_sub_chats)} sub-chats"
                             )
+                            if usage is not None:
+                                yield usage
                             yield {
                                 "__sub_chat_confirmation_required__": True,
                                 "chat_id": request_data.chat_id,
@@ -5140,6 +5150,8 @@ async def handle_main_processing(
                                 "completed": 0,
                                 "active_sub_chat_id": spawned_sub_chats[0].get("id") if spawned_sub_chats else None,
                             }
+                            if usage is not None:
+                                yield usage
                             yield {"__awaiting_sub_chats_completion__": True, "chat_id": request_data.chat_id}
                             return
 
@@ -5205,6 +5217,8 @@ async def handle_main_processing(
                         any_wait = any(sc.get("wait_for_completion", True) for sc in spawned_sub_chats)
                         if any_wait:
                             logger.info(f"{log_prefix} [SUB_CHAT] Yielding wait marker and pausing parent execution")
+                            if usage is not None:
+                                yield usage
                             yield {"__awaiting_sub_chats_completion__": True, "chat_id": request_data.chat_id}
                             return
                         continue

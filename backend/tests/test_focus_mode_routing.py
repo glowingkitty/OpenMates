@@ -101,3 +101,12 @@ def test_child_chat_can_still_delegate_one_level_deeper() -> None:
         chat_depth=1,
         is_sub_chat_continuation=False,
     ) is True
+
+
+def test_deep_research_child_executes_its_angle_without_more_delegation() -> None:
+    assert should_expose_subchat_tool(
+        enable_subchats=True,
+        chat_depth=1,
+        is_sub_chat_continuation=False,
+        active_focus_id="web-research",
+    ) is False

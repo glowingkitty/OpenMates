@@ -32,8 +32,14 @@ def should_expose_subchat_tool(
     enable_subchats: bool,
     chat_depth: int,
     is_sub_chat_continuation: bool,
+    active_focus_id: str | None = None,
 ) -> bool:
-    return enable_subchats and chat_depth < 2 and not is_sub_chat_continuation
+    return (
+        enable_subchats
+        and chat_depth < 2
+        and not is_sub_chat_continuation
+        and not (chat_depth > 0 and active_focus_id == DEEP_RESEARCH_FOCUS_ID)
+    )
 
 
 def resolve_subchat_enablement(

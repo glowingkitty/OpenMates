@@ -6,6 +6,7 @@
 # confirmation UI that is shown for large approved batches.
 
 import asyncio
+import inspect
 
 import pytest
 
@@ -76,6 +77,30 @@ def test_capacity_counts_existing_children_against_root_limit() -> None:
 
     assert result["allowed"] is False
     assert result["remaining"] == 1
+
+
+def test_child_dispatch_inherits_active_focus_context() -> None:
+    source = inspect.getsource(sub_chat_orchestration.dispatch_sub_chat_task)
+
+    assert '"active_focus_id": request_data.active_focus_id' in source
+
+
+def test_orchestration_pauses_emit_usage_for_reservation_settlement() -> None:
+    from backend.apps.ai.processing.main_processor import handle_main_processing
+
+    source = inspect.getsource(handle_main_processing)
+    confirmation_marker = source.index('"__sub_chat_confirmation_required__": True')
+    sequential_marker = source.index(
+        'yield {"__awaiting_sub_chats_completion__": True',
+        confirmation_marker,
+    )
+    parallel_marker = source.index(
+        'yield {"__awaiting_sub_chats_completion__": True',
+        sequential_marker + 1,
+    )
+
+    for marker in (confirmation_marker, sequential_marker, parallel_marker):
+        assert "yield usage" in source[marker - 300:marker]
 
 
 class _FailingChatStore:
