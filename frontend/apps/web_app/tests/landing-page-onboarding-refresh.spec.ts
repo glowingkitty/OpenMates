@@ -661,10 +661,11 @@ test.describe('Landing page onboarding refresh', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 
 		await page.goto(getE2EDebugUrl('/?landing-rail-switch-motion'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
 		await waitForLandingIntroExamples(page);
+		const railSwitchMetricsPromise = landingIntroRailSwitchMotionMetrics(page);
+		await page.waitForLoadState('networkidle');
 
-		const metrics = await landingIntroRailSwitchMotionMetrics(page);
+		const metrics = await railSwitchMetricsPromise;
 		expect(metrics.requestAfter, 'request should advance to the next app').not.toBe(metrics.requestBefore);
 		expect(metrics.primaryRailStable, 'app switch should preserve the same top rail node').toBe(true);
 		expect(metrics.primaryDeltaX, 'top rail should keep moving right-to-left through the app switch').toBeLessThan(-1);
