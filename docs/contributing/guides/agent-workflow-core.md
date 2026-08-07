@@ -47,17 +47,32 @@ web fetches cannot produce the needed evidence. If verification was not run, say
 why. Do not include raw private logs, credentials, session titles, prompt text, or
 reasoning traces.
 
-## Workflow Retrospective
+## Agent Workflow Retrospective
 
 For every non-trivial task-closing summary, include a concise retrospective
-covering what went wrong, where avoidable time or tool calls were
-spent, and the resulting workflow changes. Classify recommendations as hooks,
-skills, agent instructions, deterministic audits/tests, or state that no change
-is warranted. Use `None observed` rather than inventing failures, waste, or
-recommendations. Report only observed facts; do not expose hidden reasoning or
-guess durations or include raw private logs or private chat content. Simple
-requests, clarification-only turns, and progress updates do not require the
-retrospective.
+about the agentic process used to fulfill the request, not about the request's
+product results. Report only observed preventable process problems from the main chat,
+research, tool use, delegated agents, and sub-chats, such as failed or redundant
+searches, incorrect skill or agent selection, instruction conflicts, avoidable
+rereads or tool calls, policy or hook friction, abandoned approaches, missed
+verification, or coordination failures. Do not repeat implementation results,
+changed files, discovered product bugs, test outcomes, or remaining product work
+unless an agent-workflow deficiency caused or unnecessarily prolonged them.
+Ordinary task difficulty is not a workflow issue.
+
+For each observed preventable process problem, check the relevant existing hooks,
+skills, agents, agent instructions, and deterministic audits/tests before recommending
+the smallest concrete workflow improvement. Classify each recommendation as a
+hook, skill, agent/subagent definition, agent instruction, or deterministic
+audit/test. Do not recommend new prompt prose when an existing mechanism already
+covers the issue or a deterministic guard would be more reliable. State when
+existing coverage is sufficient and no change is warranted. Use `None observed`
+when no preventable agent-workflow issue occurred. Do not invent
+problems, expose hidden reasoning, guess durations, or include raw private logs
+or private chat content. Simple requests, clarification-only turns, and progress
+updates do not require this section.
+
+## Demonstration
 
 Eligible full specs and user-visible Tier 1 plans finish with a captioned
 implementation demonstration after applicable green gates. Give the active agent

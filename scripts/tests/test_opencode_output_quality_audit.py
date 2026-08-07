@@ -19,14 +19,17 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 AUDIT_PATH = ROOT / "scripts/audit_opencode_output_quality.py"
 RETROSPECTIVE_GUIDANCE = """
-## Workflow Retrospective
+## Agent Workflow Retrospective
 
-For every non-trivial task-closing summary, cover what went wrong, where
-avoidable time or tool calls were spent, and the resulting workflow changes.
-Classify recommendations as hooks, skills, and agent instructions, or as
-deterministic audits/tests, or state that no change is warranted. Use None observed
-rather than inventing failures, waste, or recommendations. Do not expose
-hidden reasoning, guess durations, or include raw private logs or private chat content.
+For every non-trivial task-closing summary, cover the agentic process, not about the request's product results.
+Report only observed preventable process problems.
+Include research, delegated agents, and sub-chats.
+Do not repeat implementation results or test outcomes. Ordinary task difficulty is not a workflow issue.
+Check existing hooks, skills, agents, agent instructions,
+and deterministic audits/tests before recommending the smallest concrete workflow improvement.
+Do not recommend new prompt prose when a deterministic guard is more reliable.
+State when no change is warranted. Use None observed. Do not invent problems, expose hidden reasoning,
+guess durations, or include raw private logs or private chat content.
 Simple requests, clarification-only turns, and progress updates are excluded.
 """.strip()
 
@@ -95,6 +98,7 @@ quota-backed fallback only.
 Batch independent calls in one turn. When a todo update and the next operation
 are independent, avoid a standalone model round-trip.
 {RETROSPECTIVE_GUIDANCE}
+## Deployed Verification
 Playwright `*.spec.ts` verification is deployed-code verification. If local UI,
 embed, or spec changes are needed, perform a scoped `dev` deploy with
 `python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch
@@ -165,7 +169,7 @@ Run python3 scripts/sessions.py deploy and then use
 
 def test_requires_cross_runtime_workflow_retrospective_guidance(tmp_path: Path) -> None:
     audit = load_audit_module()
-    write_core(tmp_path, "Workflow Retrospective with None observed.")
+    write_core(tmp_path, "Agent Workflow Retrospective with None observed.")
     write_runtime_instructions(tmp_path, "Ordinary instructions without the required contract.")
 
     issues = audit.audit_instruction_surface(tmp_path, {"instructions": []})
@@ -179,13 +183,52 @@ def test_retrospective_contract_clauses_must_be_in_the_section() -> None:
 
     for phrase in audit.REQUIRED_RETROSPECTIVE_PHRASES:
         mutated = RETROSPECTIVE_GUIDANCE.replace(phrase, "omitted", 1)
-        if phrase != "Workflow Retrospective":
-            mutated += f"\n\n## Other Guidance\n{phrase}"
+        mutated += f"\n\n## Other Guidance\n{phrase}"
 
         issues = audit._audit_retrospective_guidance("AGENTS.md", mutated)
 
         assert issues, phrase
         assert phrase in issues[0].message
+
+
+def test_rejects_result_oriented_retrospective_contract() -> None:
+    audit = load_audit_module()
+    contradictory_clauses = (
+        "Include implementation results in this section.",
+        "Report changed files in this retrospective.",
+        "Include discovered product bugs in this section.",
+        "Summarize test outcomes in this retrospective.",
+        "Report remaining product work in this section.",
+    )
+
+    for clause in contradictory_clauses:
+        issues = audit._audit_retrospective_guidance("AGENTS.md", RETROSPECTIVE_GUIDANCE + "\n" + clause)
+
+        assert issues, clause
+        assert "contradicts" in issues[0].message
+
+
+def test_accepts_workflow_caused_result_exception() -> None:
+    audit = load_audit_module()
+    guidance = RETROSPECTIVE_GUIDANCE + (
+        "\nSummarize test outcomes when an agent-workflow deficiency caused them."
+    )
+
+    assert audit._audit_retrospective_guidance("AGENTS.md", guidance) == []
+
+
+def test_rejects_cross_runtime_retrospective_drift(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    write_core(tmp_path, RETROSPECTIVE_GUIDANCE)
+    write_runtime_instructions(tmp_path, RETROSPECTIVE_GUIDANCE)
+    (tmp_path / "AGENTS.md").write_text(
+        RETROSPECTIVE_GUIDANCE + "\nThis runtime has extra guidance.",
+        encoding="utf-8",
+    )
+
+    issues = audit.audit_instruction_surface(tmp_path, {"instructions": []})
+
+    assert any(issue.path == "cross-runtime" for issue in issues)
 
 
 def test_aggregate_telemetry_report_redacts_raw_chat_content() -> None:

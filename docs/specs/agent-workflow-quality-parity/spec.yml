@@ -91,7 +91,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: bfe2a09a2cbf0dbd05431c49dd0e59bc35fc9ae7
+  subject_commit: working-tree@e5c186d82aa1a73cd21b850065975cb7e5345a04
 
 approvals:
   product_contract:
@@ -148,7 +148,7 @@ handoff:
   command: python3 scripts/spec_verify.py docs/specs/agent-workflow-quality-parity/spec.yml
   expected_outcome: The verified spec continues to report complete evidence for the deployed subject commit.
   blocker: null
-  last_verified_commit: bfe2a09a2cbf0dbd05431c49dd0e59bc35fc9ae7
+  last_verified_commit: working-tree@e5c186d82aa1a73cd21b850065975cb7e5345a04
 
 scenarios:
   - id: S-1
@@ -220,15 +220,16 @@ scenarios:
       - It calls out that product agentic-coding design is tracked separately.
 
   - id: S-7
-    title: Non-trivial task summaries include workflow retrospectives
+    title: Non-trivial task summaries include agent workflow retrospectives
     given:
       - An agent completes a non-trivial research, debugging, planning, review, spec, or implementation task.
     when:
       - It returns the task-closing summary.
     then:
-      - The summary states what went wrong, where avoidable time or tool calls were spent, and any resulting workflow changes.
+      - The summary reports observed preventable problems in the agentic process across the main chat, research, tool use, delegated agents, and sub-chats.
+      - It excludes implementation results, product bugs, test outcomes, and remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them.
       - It states "None observed" instead of inventing failures, waste, or recommendations.
-      - Recommendations identify hooks, skills, agent instructions, deterministic audits or tests, or state that no change is warranted.
+      - Recommendations check existing workflow coverage first and identify the smallest relevant hook, skill, agent or subagent definition, agent instruction, deterministic audit, or test change, or state that existing coverage is sufficient and no change is warranted.
       - It reports observed facts without hidden reasoning, guessed durations, raw private logs, or private chat content.
       - Simple requests, clarification-only turns, and progress updates do not require the retrospective.
 
@@ -359,10 +360,12 @@ contracts:
     - Output-quality guidance must emphasize evidence, exact files/commands, uncertainty, verification results, and concise final responses.
     - Output-quality audits must be deterministic and runnable without network access.
   workflow_retrospective:
-    - Every non-trivial task-closing summary must cover observed failures, avoidable waste, and resulting workflow recommendations.
+    - Every non-trivial task-closing summary must cover observed preventable failures and avoidable waste in the agentic process, including research, tool use, delegated agents, and sub-chats.
+    - The retrospective must not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them.
     - The requirement applies to research, debugging, planning, review, spec, and implementation work, but not simple requests, clarification-only turns, or progress updates.
     - Agents must use "None observed" where appropriate and must not invent issues, recommendations, hidden reasoning, or guessed durations.
-    - Recommendations must identify hooks, skills, agent instructions, deterministic audits or tests, or state that no workflow change is warranted.
+    - Recommendations must check existing hooks, skills, agents, agent instructions, and deterministic audits or tests before identifying the smallest concrete workflow change, or state that existing coverage is sufficient and no change is warranted.
+    - New prompt prose must not be recommended when an existing mechanism covers the issue or a deterministic guard would be more reliable.
   telemetry_privacy:
     - Aggregate reports may include counts, timestamps rounded or bounded to report periods, token percentiles, agent/model names, and error category counts.
     - Aggregate reports must not include raw prompt text, raw assistant text, reasoning, tool output bodies, session titles, private identifiers, credentials, or source code excerpts from chats.
@@ -418,7 +421,9 @@ tests:
     assertions:
       - output-quality audit rejects a core instruction that omits the task-closing workflow retrospective
       - instruction audit requires retrospective guidance in AGENTS.md and CLAUDE.md for cross-runtime coverage
-      - guidance requires observed failures, avoidable waste, concrete workflow-change categories, and "None observed"
+      - guidance limits the retrospective to observed agentic-process failures and avoidable waste across main-chat, research, tool, delegated-agent, and sub-chat work
+      - guidance excludes ordinary implementation results, product bugs, test outcomes, and remaining product work
+      - guidance requires checking existing workflow mechanisms before recommending the smallest concrete change, and allows "None observed"
       - guidance excludes simple requests, clarification-only turns, and progress updates
       - guidance prohibits invented issues, hidden reasoning, and guessed durations
     red_phase:
@@ -437,10 +442,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_passes_current_repo scripts/tests/test_opencode_spec_workflow_audit.py::test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms
-        run_id: local-2026-08-06-workflow-retrospective-green
-        subject_commit: bfe2a09a2cbf0dbd05431c49dd0e59bc35fc9ae7
-        timestamp: "2026-08-06T18:42:41Z"
-        summary: 16 focused tests passed, including clause-level mutation coverage that requires every retrospective guarantee inside the dedicated Markdown section.
+        run_id: local-2026-08-07-agent-workflow-retrospective-green
+        subject_commit: working-tree@e5c186d82aa1a73cd21b850065975cb7e5345a04
+        timestamp: "2026-08-07T10:08:19Z"
+        summary: 19 focused tests passed, including clause-level mutation coverage, table-driven result-oriented contradiction rejection with the workflow-caused exception, and cross-runtime section equality.
 
   - id: T-TOOLING-PARITY-AUDIT
     type: pytest

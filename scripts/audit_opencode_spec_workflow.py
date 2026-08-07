@@ -87,9 +87,9 @@ SKILL_TERMS = {
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
 INSTRUCTION_TERMS = {
-    "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Workflow Retrospective", "task-closing", "None observed"},
-    "CLAUDE.md": {"Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "Workflow Retrospective", "task-closing", "None observed"},
+    "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "Agent Workflow Retrospective", "task-closing", "None observed"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",

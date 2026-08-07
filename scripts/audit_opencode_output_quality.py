@@ -52,18 +52,26 @@ REQUIRED_CORE_PHRASES = {
     ),
 }
 REQUIRED_RETROSPECTIVE_PHRASES = (
-    "Workflow Retrospective",
     "task-closing",
-    "what went wrong",
-    "avoidable time or tool calls",
-    "resulting workflow changes",
-    "hooks",
+    "agentic process",
+    "observed preventable process problems",
+    "not about the request's product results",
+    "research",
+    "delegated agents",
+    "sub-chats",
+    "Do not repeat implementation results",
+    "test outcomes",
+    "Ordinary task difficulty is not a workflow issue",
+    "existing hooks",
     "skills",
+    "agents",
     "agent instructions",
     "deterministic audits/tests",
+    "smallest concrete workflow improvement",
+    "Do not recommend new prompt prose",
     "no change is warranted",
     "None observed",
-    "rather than inventing",
+    "Do not invent problems",
     "hidden reasoning",
     "guess durations",
     "raw private logs",
@@ -71,6 +79,16 @@ REQUIRED_RETROSPECTIVE_PHRASES = (
     "Simple requests",
     "clarification-only turns",
     "progress updates",
+)
+FORBIDDEN_RETROSPECTIVE_CLAUSE = re.compile(
+    r"^(?:(?:this (?:section|retrospective)|agents?)\s+(?:must|should)\s+)?"
+    r"(?:include|summarize|report|repeat)\b.*\b(?:implementation results|changed files|"
+    r"(?:discovered )?product bugs|test outcomes|remaining (?:product )?work)\b",
+    re.IGNORECASE,
+)
+RETROSPECTIVE_EXCEPTION_TERMS = (
+    "unless an agent-workflow deficiency",
+    "when an agent-workflow deficiency",
 )
 FIRECRAWL_TOOL_PERMISSIONS = {
     "firecrawl_firecrawl_agent",
@@ -134,17 +152,31 @@ def _contains_any(text: str, terms: tuple[str, ...]) -> bool:
     return any(term.lower() in lower for term in terms)
 
 
-def _audit_retrospective_guidance(path: str, text: str) -> list[AuditIssue]:
-    heading = re.search(r"(?im)^#{2,3}\s+Workflow Retrospective\s*$", text)
+def _retrospective_body(text: str) -> str | None:
+    heading = re.search(r"(?im)^#{2,3}\s+Agent Workflow Retrospective\s*$", text)
     if heading is None:
-        return [AuditIssue(path, "workflow retrospective guidance missing: Workflow Retrospective")]
+        return None
     next_heading = re.search(r"(?m)^#{1,3}\s+", text[heading.end() :])
     end = heading.end() + next_heading.start() if next_heading else len(text)
-    normalized = " ".join(text[heading.start() : end].lower().split())
+    body_lines = (line for line in text[heading.end() : end].splitlines() if line.strip() != "---")
+    return " ".join("\n".join(body_lines).split())
+
+
+def _audit_retrospective_guidance(path: str, text: str) -> list[AuditIssue]:
+    body = _retrospective_body(text)
+    if body is None:
+        return [AuditIssue(path, "workflow retrospective guidance missing: Agent Workflow Retrospective")]
+    normalized = body.lower()
     missing = [phrase for phrase in REQUIRED_RETROSPECTIVE_PHRASES if phrase.lower() not in normalized]
-    if not missing:
-        return []
-    return [AuditIssue(path, f"workflow retrospective guidance missing: {missing[0]}")]
+    if missing:
+        return [AuditIssue(path, f"workflow retrospective guidance missing: {missing[0]}")]
+    for clause in re.split(r"(?<=[.!?])\s+", body):
+        lower_clause = clause.lower()
+        if FORBIDDEN_RETROSPECTIVE_CLAUSE.search(clause) and not any(
+            term in lower_clause for term in RETROSPECTIVE_EXCEPTION_TERMS
+        ):
+            return [AuditIssue(path, "workflow retrospective guidance contradicts the agent-process-only contract")]
+    return []
 
 
 def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[AuditIssue]:
@@ -217,6 +249,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         if duplicates := _duplicate_guidance_lines(text):
             issues.append(AuditIssue(instruction, f"duplicated guidance line: {duplicates[0][:120]}"))
 
+    retrospective_bodies: dict[str, str] = {}
     core_path = root / CORE_INSTRUCTION
     if core_path.exists():
         core = core_path.read_text(encoding="utf-8", errors="replace")
@@ -231,12 +264,19 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         if not (_contains_any(core, ("final response", "final responses")) and "evidence" in core.lower()):
             issues.append(AuditIssue(CORE_INSTRUCTION, "core instruction missing final-answer evidence guidance"))
         issues.extend(_audit_retrospective_guidance(CORE_INSTRUCTION, core))
+        if body := _retrospective_body(core):
+            retrospective_bodies[CORE_INSTRUCTION] = body
     for rel_path in RUNTIME_INSTRUCTIONS:
         path = root / rel_path
         if not path.exists():
             issues.append(AuditIssue(rel_path, "cross-runtime instruction file is missing"))
             continue
-        issues.extend(_audit_retrospective_guidance(rel_path, path.read_text(encoding="utf-8", errors="replace")))
+        text = path.read_text(encoding="utf-8", errors="replace")
+        issues.extend(_audit_retrospective_guidance(rel_path, text))
+        if body := _retrospective_body(text):
+            retrospective_bodies[rel_path] = body
+    if len(set(retrospective_bodies.values())) > 1:
+        issues.append(AuditIssue("cross-runtime", "agent workflow retrospective guidance differs across instruction surfaces"))
     return issues
 
 

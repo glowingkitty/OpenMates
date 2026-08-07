@@ -215,7 +215,7 @@ def test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms
 
     for path in ("AGENTS.md", "CLAUDE.md", "docs/contributing/guides/agent-workflow-core.md"):
         assert {
-            "Workflow Retrospective",
+            "Agent Workflow Retrospective",
             "task-closing",
             "None observed",
         }.issubset(audit.INSTRUCTION_TERMS[path])
