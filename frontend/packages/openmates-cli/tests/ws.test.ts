@@ -696,6 +696,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
               user_message_id: "server-side-continuation-message",
               message_id: "assistant-message-sub-chat-parent",
               chat_id: chatId,
+              is_sub_chat_continuation: true,
               full_content: "## Short Answer\n\nThe child findings are synthesized here.",
             },
           }),
