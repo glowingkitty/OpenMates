@@ -164,6 +164,7 @@ services:
       USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
       USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
       PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
+      SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
       - ./directus/setup/migrate_chat_recovery_unique_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql:ro
@@ -171,6 +172,7 @@ services:
       - ./directus/setup/migrate_user_task_indexes.sql:/usr/src/app/migrations/migrate_user_task_indexes.sql:ro
       - ./directus/setup/migrate_usage_overview_indexes.sql:/usr/src/app/migrations/migrate_usage_overview_indexes.sql:ro
       - ./directus/setup/migrate_project_owner_context.sql:/usr/src/app/migrations/migrate_project_owner_context.sql:ro
+      - ./directus/setup/migrate_sub_chat_orchestration_indexes.sql:/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql:ro
     networks:
       - openmates
     depends_on:
@@ -183,8 +185,7 @@ services:
   #########################################################################
   ##### Task Management (Celery)
   #########################################################################
-  # Dedicated email worker so billing and authentication emails cannot be
-  # starved by long-running persistence or workflow-support tasks.
+  # Shared task worker for core API tasks (email, user_init, persistence)
   # App-specific tasks are handled by dedicated app workers (app-ai-worker, app-images-worker, etc.)
   task-worker:
     container_name: task-worker
@@ -207,7 +208,7 @@ services:
       OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
       OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
       MOCK_EXTERNAL_APIS: "true"
-      CELERY_QUEUES: "email" # Used by celery_config to determine which services to initialize
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
@@ -229,7 +230,7 @@ services:
              find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=email \
+             --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
              --concurrency=${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
@@ -257,28 +258,6 @@ services:
         condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
-
-  core-worker:
-    extends:
-      service: task-worker
-    container_name: core-worker
-    environment:
-      CELERY_QUEUES: "user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
-      CELERY_METRICS_PORT: "9109"
-    command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && \
-             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-             chmod -R 777 /app/logs /app/backend/core/api/logs && \
-             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
-             --loglevel=info \
-             --queues=user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
-             --concurrency=${CELERY_AUTOSCALE_MAX} \
-             --max-tasks-per-child=50 \
-             --max-memory-per-child=600000 \
-             --prefetch-multiplier=1"
 
   workflow-worker:
     container_name: workflow-worker

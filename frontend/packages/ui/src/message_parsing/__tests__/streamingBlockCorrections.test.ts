@@ -73,6 +73,7 @@ describe("assistant block corrections", () => {
   });
 
   it("retries a rejected inline-to-block diff as one targeted block replacement", () => {
+    window.setTimeout = setTimeout as typeof window.setTimeout;
     const editor = new Editor({
       element: document.createElement("div"),
       extensions: [StarterKit, BlockAtom],
