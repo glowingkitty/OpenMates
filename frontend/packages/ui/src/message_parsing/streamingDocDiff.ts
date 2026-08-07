@@ -25,7 +25,7 @@ import { ReplaceStep } from "@tiptap/pm/transform";
 /**
  * Result of attempting an incremental update.
  * - applied: true if the transaction was dispatched successfully
- * - fallback: true if we fell back to setContent() (should not happen for common patterns)
+ * - fallback: true if a fine-grained diff was retried at changed block boundaries
  */
 export interface IncrementalUpdateResult {
   applied: boolean;
@@ -103,54 +103,41 @@ export function applyIncrementalUpdate(
     return { applied: false, fallback: false, stepsApplied: 0 };
   }
 
-  // Build and dispatch a transaction with ReplaceSteps for each change region.
-  // Process regions in REVERSE order to preserve position offsets (later regions
-  // are unaffected by earlier replacements).
-  const tr = state.tr;
-  let stepsApplied = 0;
+  function applyRegions(
+    regionsToApply: ChangeRegion[],
+    fallback: boolean,
+  ): IncrementalUpdateResult {
+    const tr = state.tr;
+    let stepsApplied = 0;
 
-  // Sort regions by fromOld in descending order for reverse processing
-  const sortedRegions = [...regions].sort((a, b) => b.fromOld - a.fromOld);
-
-  for (const region of sortedRegions) {
-    try {
-      // Extract the replacement slice from the new document
-      const newSlice = newDoc.slice(region.fromNew, region.toNew);
-
-      // Create and apply the replace step
-      const step = new ReplaceStep(region.fromOld, region.toOld, newSlice);
-      const result = tr.maybeStep(step);
-
-      if (result.failed) {
-        console.warn(
-          "[streamingDocDiff] ReplaceStep failed:",
-          result.failed,
-          "region:",
-          region,
+    for (const region of [...regionsToApply].sort((a, b) => b.fromOld - a.fromOld)) {
+      try {
+        const step = new ReplaceStep(
+          region.fromOld,
+          region.toOld,
+          newDoc.slice(region.fromNew, region.toNew),
         );
-        // If any step fails, abort the whole transaction and return failure
-        // The caller will fall back to setContent()
-        return { applied: false, fallback: false, stepsApplied: 0 };
+        if (tr.maybeStep(step).failed) {
+          return { applied: false, fallback, stepsApplied: 0 };
+        }
+        stepsApplied++;
+      } catch {
+        return { applied: false, fallback, stepsApplied: 0 };
       }
-
-      stepsApplied++;
-    } catch (err) {
-      console.warn(
-        "[streamingDocDiff] Error applying ReplaceStep:",
-        err,
-        "region:",
-        region,
-      );
-      return { applied: false, fallback: false, stepsApplied: 0 };
     }
+
+    if (stepsApplied > 0) view.dispatch(tr);
+    return { applied: true, fallback, stepsApplied };
   }
 
-  // Dispatch the transaction (all steps applied atomically)
-  if (stepsApplied > 0) {
-    view.dispatch(tr);
-  }
+  const incrementalResult = applyRegions(regions, false);
+  if (incrementalResult.applied) return incrementalResult;
 
-  return { applied: true, fallback: false, stepsApplied };
+  // Inline-to-block transitions can have incompatible open depths. Retry only
+  // the changed top-level blocks so stable siblings and their NodeViews survive.
+  // Index alignment is safe only when neither side inserted or removed a block.
+  if (oldDoc.childCount !== newDoc.childCount) return incrementalResult;
+  return applyRegions(findScatteredChangeRegions(oldDoc, newDoc), true);
 }
 
 /**

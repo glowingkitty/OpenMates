@@ -73,6 +73,7 @@ describe("assistant block corrections", () => {
   });
 
   it("retries a rejected inline-to-block diff as one targeted block replacement", () => {
+    const originalSetTimeout = window.setTimeout;
     window.setTimeout = setTimeout as typeof window.setTimeout;
     const editor = new Editor({
       element: document.createElement("div"),
@@ -85,6 +86,7 @@ describe("assistant block corrections", () => {
         ],
       },
     });
+    const stableParagraph = editor.view.dom.firstElementChild;
 
     const result = applyIncrementalUpdate(editor, {
       type: "doc",
@@ -99,6 +101,8 @@ describe("assistant block corrections", () => {
       { type: "paragraph", content: [{ type: "text", text: "Stable leading paragraph with enough content." }] },
       { type: "blockAtom" },
     ]);
+    expect(editor.view.dom.firstElementChild).toBe(stableParagraph);
     editor.destroy();
+    window.setTimeout = originalSetTimeout;
   });
 });
