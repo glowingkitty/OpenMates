@@ -14,7 +14,7 @@ on:
         default: "18"
         type: string
   schedule:
-    - cron: "23 5 * * 1-5"
+    - cron: "23 5 * * *"
   push:
     branches: [dev]
     paths:

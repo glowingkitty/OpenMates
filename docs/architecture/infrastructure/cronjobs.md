@@ -93,7 +93,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | `02:30 Wed+Sat`               | `red-teaming.sh`                       | External attacker simulation (GET only)   |
 | `02:35 Mon-Fri`               | `nightly-pattern-consistency.sh`       | Pattern consistency scan (Haiku, plan only)|
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
-| `03:00 Mon-Fri`               | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
+| `03:00 daily`                 | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
 | `00:20 daily`                 | `release-intelligence-cron.sh daily`   | Generate yesterday's daily release-intelligence changelog |
 | `01:45 daily`                 | `opencode_chat_improvement_review.py`  | Luna research over the previous 24h of OpenCode chats + Discord |
 | `00:45 Mon`                   | `release-intelligence-cron.sh weekly`  | Generate last-7-days weekly rollup + Discord summary |
