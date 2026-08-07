@@ -5,8 +5,8 @@
 // Spec: docs/specs/streaming-message-render-convergence/spec.yml
 
 import { describe, expect, it, vi } from "vitest";
-import { Editor, Node } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import type { Editor } from "@tiptap/core";
+import { Slice } from "@tiptap/pm/model";
 
 vi.mock("../../data/modelsMetadata", () => ({ modelsMetadata: [] }));
 vi.mock("../../data/matesMetadata", () => ({ matesMetadata: [] }));
@@ -20,14 +20,6 @@ vi.mock("../../stores/appSkillsStore", () => ({
 
 import { createAssistantRenderPlan } from "../streamingMessageBlocks";
 import { applyIncrementalUpdate } from "../streamingDocDiff";
-
-const BlockAtom = Node.create({
-  name: "blockAtom",
-  group: "block",
-  atom: true,
-  parseHTML: () => [{ tag: "div[data-block-atom]" }],
-  renderHTML: () => ["div", { "data-block-atom": "" }],
-});
 
 describe("assistant block corrections", () => {
   it("commits only the previous mutable tail on normal completion", () => {
@@ -73,36 +65,90 @@ describe("assistant block corrections", () => {
   });
 
   it("retries a rejected inline-to-block diff as one targeted block replacement", () => {
-    const originalSetTimeout = window.setTimeout;
-    window.setTimeout = setTimeout as typeof window.setTimeout;
-    const editor = new Editor({
-      element: document.createElement("div"),
-      extensions: [StarterKit, BlockAtom],
+    const stableChild = { nodeSize: 5, eq: vi.fn(() => true) };
+    const changedOldChild = { nodeSize: 5, eq: vi.fn(() => false) };
+    const changedNewChild = { nodeSize: 5 };
+    const oldDoc = {
+      childCount: 2,
       content: {
-        type: "doc",
-        content: [
-          { type: "paragraph", content: [{ type: "text", text: "Stable leading paragraph with enough content." }] },
-          { type: "paragraph", content: [{ type: "text", text: "provisional" }] },
-        ],
+        size: 10,
+        findDiffStart: vi.fn(() => 6),
+        findDiffEnd: vi.fn(() => ({ a: 7, b: 7 })),
       },
-    });
-    const stableParagraph = editor.view.dom.firstElementChild;
+      child: vi.fn((index: number) => index === 0 ? stableChild : changedOldChild),
+      eq: vi.fn(() => false),
+    };
+    const newDoc = {
+      childCount: 2,
+      content: { size: 10 },
+      child: vi.fn((index: number) => index === 0 ? stableChild : changedNewChild),
+      slice: vi.fn(() => Slice.empty),
+    };
+    const rejectedTransaction = { maybeStep: vi.fn((_step: unknown) => ({ failed: "incompatible open depths" })) };
+    const fallbackTransaction = { maybeStep: vi.fn((_step: unknown) => ({ failed: null })) };
+    let transactionReadCount = 0;
+    const dispatch = vi.fn();
+    const editor = {
+      isDestroyed: false,
+      state: {
+        doc: oldDoc,
+        schema: { nodeFromJSON: vi.fn(() => newDoc) },
+        get tr() {
+          transactionReadCount += 1;
+          return transactionReadCount === 1 ? rejectedTransaction : fallbackTransaction;
+        },
+      },
+      view: { dispatch },
+    } as unknown as Editor;
 
-    const result = applyIncrementalUpdate(editor, {
-      type: "doc",
-      content: [
-        { type: "paragraph", content: [{ type: "text", text: "Stable leading paragraph with enough content." }] },
-        { type: "blockAtom" },
-      ],
-    });
+    const result = applyIncrementalUpdate(editor, { type: "doc" });
 
     expect(result).toEqual({ applied: true, fallback: true, stepsApplied: 1 });
-    expect(editor.getJSON().content).toEqual([
-      { type: "paragraph", content: [{ type: "text", text: "Stable leading paragraph with enough content." }] },
-      { type: "blockAtom" },
-    ]);
-    expect(editor.view.dom.firstElementChild).toBe(stableParagraph);
-    editor.destroy();
-    window.setTimeout = originalSetTimeout;
+    expect(rejectedTransaction.maybeStep).toHaveBeenCalledTimes(1);
+    expect(transactionReadCount).toBe(2);
+    expect(fallbackTransaction.maybeStep).toHaveBeenCalledTimes(1);
+    expect(fallbackTransaction.maybeStep.mock.calls[0][0]).toMatchObject({ from: 5, to: 10 });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith(fallbackTransaction);
+  });
+
+  it("does not index-align a rejected diff across inserted or removed blocks", () => {
+    const oldDoc = {
+      childCount: 1,
+      content: {
+        size: 5,
+        findDiffStart: vi.fn(() => 1),
+        findDiffEnd: vi.fn(() => ({ a: 2, b: 2 })),
+      },
+      eq: vi.fn(() => false),
+    };
+    const newDoc = {
+      childCount: 2,
+      content: { size: 10 },
+      slice: vi.fn(() => Slice.empty),
+    };
+    const rejectedTransaction = { maybeStep: vi.fn((_step: unknown) => ({ failed: "rejected" })) };
+    let transactionReadCount = 0;
+    const dispatch = vi.fn();
+    const editor = {
+      isDestroyed: false,
+      state: {
+        doc: oldDoc,
+        schema: { nodeFromJSON: vi.fn(() => newDoc) },
+        get tr() {
+          transactionReadCount += 1;
+          return rejectedTransaction;
+        },
+      },
+      view: { dispatch },
+    } as unknown as Editor;
+
+    expect(applyIncrementalUpdate(editor, { type: "doc" })).toEqual({
+      applied: false,
+      fallback: false,
+      stepsApplied: 0,
+    });
+    expect(transactionReadCount).toBe(1);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });
