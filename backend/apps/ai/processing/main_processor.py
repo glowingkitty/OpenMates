@@ -135,7 +135,7 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 
 logger = logging.getLogger(__name__)
-ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 2_048
+ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 8_192
 
 _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "code",

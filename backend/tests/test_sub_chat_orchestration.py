@@ -319,15 +319,21 @@ def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> No
         },
     )
 
-    quote = _quote_ai_iteration_credits(
+    limited_quote = _quote_ai_iteration_credits(
         model_id="provider/model",
         system_prompt="system",
         message_history=[{"role": "user", "content": "hello"}],
         tools=None,
-        output_token_limit=2_048,
+        output_token_limit=8_192,
+    )
+    maximum_quote = _quote_ai_iteration_credits(
+        model_id="provider/model",
+        system_prompt="system",
+        message_history=[{"role": "user", "content": "hello"}],
+        tools=None,
     )
 
-    assert quote < 1_000
+    assert limited_quote < maximum_quote
 
 
 def test_orchestration_output_limit_preserves_lower_model_limit(monkeypatch) -> None:
