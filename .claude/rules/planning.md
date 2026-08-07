@@ -14,6 +14,18 @@ up to 5 clarifying questions, **one question per message**. Wait for the user's
 response before asking the next question. Stop early if context is sufficiently
 clear to proceed confidently.
 
+Every clarifying-question message must contain:
+- `Recommendation:` the evidence-based preferred answer or direction, grounded
+  in discovered context, with a brief reason.
+- `Examples:` 1-3 concrete, task-specific options, flows, or outcomes that make
+  the decision easy to understand.
+- One decision question only. Recommendations and examples provide context and
+  do not count as additional questions.
+
+If evidence is insufficient to strongly prefer an option, recommend the safest
+reversible default and explicitly state the uncertainty. Do not respond with a
+bare question or make the user infer which option is best.
+
 **What to ask about** (adapt naturally to the task):
 - Expected vs actual behavior, reproduction steps
 - Scope boundaries — what's in, what's explicitly out

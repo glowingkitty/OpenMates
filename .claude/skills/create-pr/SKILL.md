@@ -57,7 +57,10 @@ After presenting the changelog summary, ask exactly five clarifying questions be
 
 - Ask one question per assistant message and wait for the user's response before asking the next.
 - Label them `Question 1 of 5` through `Question 5 of 5`.
-- Include a concrete recommendation in each question and short examples when they make the decision clearer.
+- Include a concrete recommendation in each question using `Recommendation:`
+  with the evidence-based preferred answer and rationale, plus `Examples:` with
+  task-specific options or outcomes.
+  If uncertain, recommend the safest reversible default and state the uncertainty.
 - Incorporate answers already provided by the user, but still ask for confirmation when the answer controls release scope or branch history.
 - Cover these five decision areas, adapting the wording to the discovered changes: code inclusion versus public release-note treatment; enabled versus disabled feature readiness; `main`-only commit reconciliation; required validation/risk exceptions; and PR narrative/release emphasis.
 - For branch reconciliation, inspect the `main`-only commits before making a recommendation. Recommend preserving legitimate fixes and merge history. Ask the user about ambiguous commits or behavioral conflicts rather than guessing.

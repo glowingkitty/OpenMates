@@ -13,7 +13,7 @@ You are enforcing the test-first workflow from `.claude/rules/testing.md`. No fi
 
 Parse the argument:
 - If it looks like a Linear issue (`OPE-\d+`), run `python3 scripts/linear.py get OPE-123 --comments` for full context. Then follow the Linear pickup protocol from `.claude/rules/task-management.md` (move to In Progress, post pickup comment).
-- Otherwise treat the argument as a free-text description and ask the user any clarifying questions needed to reach a concrete reproduction path (max 3 questions, one at a time, per `.claude/rules/planning.md`).
+- Otherwise treat the argument as a free-text description and ask the user any clarifying questions needed to reach a concrete reproduction path (max 3 questions, one at a time, per `.claude/rules/planning.md`). Every clarifying question must include `Recommendation:` with the evidence-based preferred answer and rationale plus `Examples:` with task-specific options or outcomes; if uncertain, recommend the safest reversible default and state the uncertainty.
 
 State your understanding in 2-3 sentences and get confirmation before continuing.
 

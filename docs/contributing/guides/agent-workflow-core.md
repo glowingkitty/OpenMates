@@ -21,6 +21,13 @@ Use the smallest correct change. Prefer deterministic audits or focused tests
 when repeated mistakes, flaky behavior, safety risks, or workflow drift are
 found.
 
+Whenever asking a clarifying question, include an explicit `Recommendation:`
+with the evidence-based preferred answer and brief rationale, plus `Examples:`
+with concrete, task-specific options or outcomes. Ask only one decision question
+per message; the recommendation and examples are supporting context, not extra
+questions. If evidence is incomplete, recommend the safest reversible default
+and state the uncertainty.
+
 Before issuing tools, collect operations whose inputs are already known and
 emit independent calls in one turn. Batch unrelated reads, searches, static
 inspections, and disjoint-file patches; keep calls sequential when one result

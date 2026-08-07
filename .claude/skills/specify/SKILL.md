@@ -56,8 +56,12 @@ write only sanitized product behavior.
 Ask up to five clarifying questions before writing a full spec. Ask exactly one
 question per message, then wait for the user's response before deciding whether
 another question is needed. Questions must be based on discovered context and
-focus on decisions that block a useful product contract. Prefer concrete example
-questions:
+focus on decisions that block a useful product contract. Every question must
+include `Recommendation:` with the evidence-based preferred answer and brief
+rationale, plus `Examples:` with 1-3 concrete, task-specific options, flows, or
+outcomes. These are supporting context, not extra questions. If evidence is
+incomplete, recommend the safest reversible default and state the uncertainty.
+Prefer concrete example questions:
 
 - "Can you give one example of the user flow that must work?"
 - "What should happen in the failure or unauthorized case?"

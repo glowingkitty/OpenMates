@@ -32,6 +32,11 @@ State when no change is warranted. Use None observed. Do not invent problems, ex
 guess durations, or include raw private logs or private chat content.
 Simple requests, clarification-only turns, and progress updates are excluded.
 """.strip()
+CLARIFYING_QUESTION_GUIDANCE = """
+Whenever asking a clarifying question, provide `Recommendation:` with the
+evidence-based preferred answer and `Examples:` with task-specific options. If
+uncertain, choose the safest reversible default.
+""".strip()
 
 
 def load_audit_module():
@@ -53,6 +58,23 @@ def write_core(root: Path, text: str) -> Path:
 def write_runtime_instructions(root: Path, text: str) -> None:
     for name in ("AGENTS.md", "CLAUDE.md"):
         (root / name).write_text(text, encoding="utf-8")
+
+
+def write_clarifying_guidance_files(root: Path) -> None:
+    for name in (
+        ".claude/rules/planning.md",
+        ".claude/skills/clarify/SKILL.md",
+        ".claude/skills/specify/SKILL.md",
+        ".claude/skills/create-pr/SKILL.md",
+        ".claude/skills/next-tasks/SKILL.md",
+        ".claude/skills/add-focus-mode/SKILL.md",
+        ".claude/skills/add-memory-type/SKILL.md",
+        ".claude/skills/reproduce-first/SKILL.md",
+        ".claude/skills/new-task/SKILL.md",
+    ):
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(CLARIFYING_QUESTION_GUIDANCE, encoding="utf-8")
 
 
 def test_rejects_eager_long_rule_docs(tmp_path: Path) -> None:
@@ -104,12 +126,14 @@ embed, or spec changes are needed, perform a scoped `dev` deploy with
 `python3 scripts/sessions.py deploy`, wait for Vercel Ready, then dispatch
 `python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <sha>`
 against `https://app.dev.openmates.org`.
+{CLARIFYING_QUESTION_GUIDANCE}
         """.strip(),
     )
     write_runtime_instructions(
         tmp_path,
-        RETROSPECTIVE_GUIDANCE,
+        f"{CLARIFYING_QUESTION_GUIDANCE}\n\n{RETROSPECTIVE_GUIDANCE}",
     )
+    write_clarifying_guidance_files(tmp_path)
     config = {
         "instructions": ["docs/contributing/guides/agent-workflow-core.md"],
         "permission": {tool: "ask" for tool in audit.FIRECRAWL_TOOL_PERMISSIONS},
@@ -118,6 +142,33 @@ against `https://app.dev.openmates.org`.
     issues = audit.audit_instruction_surface(tmp_path, config)
 
     assert issues == []
+
+
+def test_requires_recommendations_and_examples_for_clarifying_questions(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    write_core(tmp_path, CLARIFYING_QUESTION_GUIDANCE)
+    write_runtime_instructions(tmp_path, f"{RETROSPECTIVE_GUIDANCE}\n\nAsk one question.")
+    write_clarifying_guidance_files(tmp_path)
+
+    issues = audit.audit_instruction_surface(tmp_path, {"instructions": []})
+
+    assert any(
+        issue.path == "AGENTS.md" and "clarifying-question guidance" in issue.message
+        for issue in issues
+    )
+
+
+def test_rejects_generic_or_optional_clarifying_question_guidance() -> None:
+    audit = load_audit_module()
+    generic = """
+    Every clarifying question includes Recommendation: with a preferred answer
+    and Examples: when useful. Choose the safest reversible default.
+    """
+
+    issues = audit._audit_clarifying_question_guidance("skill.md", generic)
+
+    assert issues
+    assert "evidence-based" in issues[0].message
 
 
 def test_rejects_duplicated_guidance_and_missing_final_answer_evidence(tmp_path: Path) -> None:

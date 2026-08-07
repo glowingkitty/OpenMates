@@ -50,7 +50,33 @@ REQUIRED_CORE_PHRASES = {
         "--gate-deploy --expected-commit",
         "https://app.dev.openmates.org",
     ),
+    "clarifying-question guidance": (
+        "Whenever asking a clarifying question",
+        "`Recommendation:`",
+        "`Examples:`",
+        "safest reversible default",
+    ),
 }
+CLARIFYING_GUIDANCE_PATHS = {
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".claude/rules/planning.md",
+    ".claude/skills/clarify/SKILL.md",
+    ".claude/skills/specify/SKILL.md",
+    ".claude/skills/create-pr/SKILL.md",
+    ".claude/skills/next-tasks/SKILL.md",
+    ".claude/skills/add-focus-mode/SKILL.md",
+    ".claude/skills/add-memory-type/SKILL.md",
+    ".claude/skills/reproduce-first/SKILL.md",
+    ".claude/skills/new-task/SKILL.md",
+}
+REQUIRED_CLARIFYING_GUIDANCE = (
+    "Recommendation:",
+    "Examples:",
+    "evidence-based",
+    "task-specific",
+    "safest reversible default",
+)
 REQUIRED_RETROSPECTIVE_PHRASES = (
     "task-closing",
     "agentic process",
@@ -179,6 +205,14 @@ def _audit_retrospective_guidance(path: str, text: str) -> list[AuditIssue]:
     return []
 
 
+def _audit_clarifying_question_guidance(path: str, text: str) -> list[AuditIssue]:
+    normalized = " ".join(text.split())
+    missing = [phrase for phrase in REQUIRED_CLARIFYING_GUIDANCE if phrase not in normalized]
+    if not missing:
+        return []
+    return [AuditIssue(path, f"clarifying-question guidance missing: {missing[0]}")]
+
+
 def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[AuditIssue]:
     del root
     issues: list[AuditIssue] = []
@@ -216,6 +250,14 @@ def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[Audi
                         f"{tool} must be set to ask or deny so Firecrawl credits are not spent silently",
                     )
                 )
+    plan = config.get("agent", {}).get("plan")
+    if isinstance(plan, dict):
+        issues.extend(
+            _audit_clarifying_question_guidance(
+                "opencode.json agent.plan.prompt",
+                str(plan.get("prompt", "")),
+            )
+        )
     return issues
 
 
@@ -273,8 +315,20 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         issues.extend(_audit_retrospective_guidance(rel_path, text))
+        issues.extend(_audit_clarifying_question_guidance(rel_path, text))
         if body := _retrospective_body(text):
             retrospective_bodies[rel_path] = body
+    for rel_path in sorted(CLARIFYING_GUIDANCE_PATHS - set(RUNTIME_INSTRUCTIONS)):
+        path = root / rel_path
+        if not path.exists():
+            issues.append(AuditIssue(rel_path, "clarifying-question guidance file is missing"))
+            continue
+        issues.extend(
+            _audit_clarifying_question_guidance(
+                rel_path,
+                path.read_text(encoding="utf-8", errors="replace"),
+            )
+        )
     if len(set(retrospective_bodies.values())) > 1:
         issues.append(AuditIssue("cross-runtime", "agent workflow retrospective guidance differs across instruction surfaces"))
     return issues
