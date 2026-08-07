@@ -41,6 +41,7 @@ const {
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
+const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -417,6 +418,7 @@ test('focus mode UI elements work correctly after activation', async ({
 		await expect(reloadedEmbed.first()).toBeVisible({ timeout: 30000 });
 		await expect(page.getByText('chat.an_error_occured')).not.toBeVisible({ timeout: 1000 });
 		await expect(page.getByText('chat.an_error_occurred')).not.toBeVisible({ timeout: 1000 });
+		await assertChatKeyInvariants(page, chatId, 'focus-after-reload', logCheckpoint);
 		logCheckpoint('Activation embed persisted after reload without raw error keys.');
 		await takeStepScreenshot(page, 'ui-reload-persisted-embed');
 
@@ -441,6 +443,7 @@ test('focus mode UI elements work correctly after activation', async ({
 		expect(persistedFocusId).toContain('career_insights');
 		await expect(page.getByText('chat.an_error_occured')).not.toBeVisible({ timeout: 1000 });
 		await expect(page.getByText('chat.an_error_occurred')).not.toBeVisible({ timeout: 1000 });
+		await assertChatKeyInvariants(page, chatId, 'focus-after-relogin', logCheckpoint);
 		logCheckpoint('Activation embed persisted after re-login without raw error keys.');
 		await takeStepScreenshot(page, 'ui-relogin-persisted-embed');
 	});
