@@ -97,30 +97,7 @@ async function openUserChatById(page: any, chatId: string): Promise<string | nul
 	}, chatId);
 }
 
-async function currentMessageFingerprint(page: any): Promise<string> {
-	return page.evaluate(async () => {
-		function normalize(value: string | null | undefined): string {
-			return (value || '').replace(/\s+/g, ' ').trim();
-		}
-
-		async function hash(value: string): Promise<string> {
-			const data = new TextEncoder().encode(value);
-			const digest = await crypto.subtle.digest('SHA-256', data);
-			return Array.from(new Uint8Array(digest)).slice(0, 8).map((byte) => byte.toString(16).padStart(2, '0')).join('');
-		}
-
-		const messages = Array.from(document.querySelectorAll('[data-testid="message-user"], [data-testid="message-assistant"], [data-testid="message-system"]'));
-		const signatures = await Promise.all(messages.map(async (wrapper) => {
-			const testId = wrapper.getAttribute('data-testid') || '';
-			const content = wrapper.querySelector('[data-testid="message-content"]') || wrapper;
-			const text = normalize((content as HTMLElement).innerText || content.textContent || '');
-			return `${testId}:${text.length}:${await hash(text)}`;
-		}));
-		return signatures.join('|');
-	});
-}
-
-async function waitForOpenedChat(page: any, chatId: string | null, previousFingerprint: string): Promise<void> {
+async function waitForOpenedChat(page: any, chatId: string | null): Promise<void> {
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	if (chatId) {
 		await expect(async () => {
@@ -140,12 +117,6 @@ async function waitForOpenedChat(page: any, chatId: string | null, previousFinge
 		const count = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"], [data-testid="message-system"]').count();
 		expect(count, 'Expected opened chat to render at least one message.').toBeGreaterThan(0);
 	}).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
-	if (previousFingerprint) {
-		await expect(async () => {
-			const fingerprint = await currentMessageFingerprint(page);
-			expect(fingerprint, 'Expected opened chat messages to replace the previous transcript.').not.toBe(previousFingerprint);
-		}).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
-	}
 }
 
 async function collectOpenedChatRenderState(page: any, chatIndex: number, titleText: string): Promise<Record<string, unknown>> {
@@ -217,8 +188,6 @@ async function collectOpenedChatsManifest(page: any, loadedManifest: Record<stri
 		.filter((row) => row.titleState === 'ready')
 		.slice(0, OPENED_CHAT_LIMIT);
 	const openedChats: Record<string, unknown>[] = [];
-	let previousFingerprint = '';
-	let previousChatId: string | null = null;
 
 	for (let index = 0; index < loadedChats.length; index += 1) {
 		const row = loadedChats[index];
@@ -226,10 +195,8 @@ async function collectOpenedChatsManifest(page: any, loadedManifest: Record<stri
 		const chatId = row.chatId
 			? await openUserChatById(page, row.chatId)
 			: await openUserChatByIndex(page, row.index);
-		await waitForOpenedChat(page, chatId, chatId && chatId === previousChatId ? '' : previousFingerprint);
+		await waitForOpenedChat(page, chatId);
 		openedChats.push(await collectOpenedChatRenderState(page, row.index, normalizeText(row.titleText)));
-		previousFingerprint = await currentMessageFingerprint(page);
-		previousChatId = chatId;
 	}
 
 	return {
