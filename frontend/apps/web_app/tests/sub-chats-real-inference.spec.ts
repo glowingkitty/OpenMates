@@ -26,6 +26,36 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+async function sendDeepResearchMessage(
+	page: any,
+	prompt: string,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+	screenshot: (page: any, label: string) => Promise<void>
+): Promise<void> {
+	const messageField = page.getByTestId('message-field').last();
+	const editor = messageField.getByTestId('message-editor');
+	await expect(editor).toBeVisible();
+	await editor.click();
+	await page.keyboard.type('@deep');
+
+	const dropdown = page.getByTestId('mention-dropdown');
+	await expect(dropdown).toBeVisible({ timeout: 10_000 });
+	const focusResult = dropdown.getByTestId('mention-result').filter({ hasText: 'Deep research' }).first();
+	await expect(focusResult).toBeVisible({ timeout: 10_000 });
+	await focusResult.click();
+	await expect(dropdown).not.toBeVisible({ timeout: 5_000 });
+	await page.keyboard.insertText(` ${prompt}`);
+	await screenshot(page, 'deep-research-request-typed');
+
+	const userMessages = page.getByTestId('message-user');
+	const userCount = await userMessages.count();
+	const sendButton = messageField.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 10_000 });
+	await sendButton.click();
+	await expect(userMessages).toHaveCount(userCount + 1, { timeout: 30_000 });
+	log('Sent explicit Deep research focus mention request.');
+}
+
 test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(420_000);
@@ -98,10 +128,10 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await startNewChat(page, log);
 
 	const prompt =
-		'Deeply research how the EU AI Act general-purpose AI obligations affect open-source model providers, cloud hosts, and downstream startups. ' +
+		'Investigate how the EU AI Act general-purpose AI obligations affect open-source model providers, cloud hosts, and downstream startups. ' +
 		'Delegate exactly three distinct regulatory, market-incentive, and counterargument/source-quality angles, use current sources, and synthesize what is confirmed, likely, plausible, and uncertain.';
 
-	await sendMessage(page, prompt, log, screenshot, 'deep-research-request');
+	await sendDeepResearchMessage(page, prompt, log, screenshot);
 
 	const focusBar = page.getByTestId('focus-mode-bar').filter({ hasText: 'Deep research' }).first();
 	await expect(focusBar).toBeVisible({ timeout: 120_000 });
