@@ -95,6 +95,17 @@ SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
 
 
+def _sub_chat_completion_summary(
+    *,
+    explicit_summary: Optional[str],
+    aggregated_response: str,
+    awaiting_sub_chats_completion: bool,
+) -> Optional[str]:
+    if awaiting_sub_chats_completion:
+        return None
+    return explicit_summary if explicit_summary is not None else aggregated_response
+
+
 def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
     return request_data.resolved_recovery_inference_task_id()
 
@@ -452,6 +463,10 @@ async def _dispatch_sub_chat_parent_continuation(
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
         chat_key_version=original_request.chat_key_version,
+        parent_id=original_request.parent_id,
+        is_sub_chat=original_request.is_sub_chat,
+        budget_limit=original_request.budget_limit,
+        budget_spent=original_request.budget_spent,
         user_preferences=original_request.user_preferences,
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
@@ -4534,7 +4549,7 @@ async def _consume_main_processing_stream(
     # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
     # This is used at the end to show a generic fallback message if the response would be empty
     fake_tool_calls_filtered = False
-    sub_chat_completion_recorded = False
+    explicit_sub_chat_completion_summary: Optional[str] = None
     
     # Track if the current multi-chunk code block has language 'toon' and needs content-based
     # validation at closing fence. 'toon' blocks can be either:
@@ -4924,28 +4939,7 @@ async def _consume_main_processing_stream(
                 continue
 
             if isinstance(chunk, dict) and "__sub_chat_completed__" in chunk:
-                summary = chunk.get("summary") or ""
-                payload = {
-                    "type": "sub_chat_completed",
-                    "task_id": task_id,
-                    "chat_id": chunk.get("sub_chat_id"),
-                    "parent_id": chunk.get("parent_id"),
-                    "user_id_uuid": request_data.user_id,
-                    "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
-                    "summary": summary
-                }
-                if cache_service:
-                    await _publish_to_redis(cache_service, f"chat_stream::{chunk.get('parent_id')}", payload, log_prefix, "Published sub_chat_completed event to parent")
-                    await _record_sub_chat_completion_and_maybe_continue_parent(
-                        cache_service=cache_service,
-                        request_data=request_data,
-                        task_id=task_id,
-                        summary=summary,
-                        log_prefix=log_prefix,
-                        secrets_manager=secrets_manager,
-                    )
-                    sub_chat_completion_recorded = True
+                explicit_sub_chat_completion_summary = chunk.get("summary") or ""
                 continue
 
             if isinstance(chunk, dict) and "__awaiting_user_input__" in chunk:
@@ -9049,21 +9043,25 @@ async def _consume_main_processing_stream(
         f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
     )
     
-    # Re-raise billing error after final chunk has been sent and metadata saved
-    # This ensures proper error handling while still clearing the typing indicator
-    if billing_error:
-        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
-        raise billing_error
-
-    if not sub_chat_completion_recorded:
+    completion_summary = _sub_chat_completion_summary(
+        explicit_summary=explicit_sub_chat_completion_summary,
+        aggregated_response=aggregated_response,
+        awaiting_sub_chats_completion=awaiting_sub_chats_completion,
+    )
+    if completion_summary is not None:
         await _record_sub_chat_completion_and_maybe_continue_parent(
             cache_service=cache_service,
             request_data=request_data,
             task_id=task_id,
-            summary=aggregated_response,
+            summary=completion_summary,
             log_prefix=log_prefix,
             secrets_manager=secrets_manager,
         )
+
+    # Re-raise billing errors only after dependent parent orchestration is unblocked.
+    if billing_error:
+        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
+        raise billing_error
     
     # NOTE: Email notifications for offline users are handled in websockets.py
     # when the final marker is received. The WebSocket handler has access to

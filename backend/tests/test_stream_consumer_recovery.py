@@ -10,6 +10,7 @@ aggregation.
 from __future__ import annotations
 
 import asyncio
+import inspect
 from types import SimpleNamespace
 
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
@@ -427,6 +428,10 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -
         recovery_public_key="public-key",
         chat_key_version=1,
         is_focus_mode_continuation=True,
+        parent_id="99999999-9999-4999-8999-999999999999",
+        is_sub_chat=True,
+        budget_limit=250,
+        budget_spent=75,
     )
     captured: dict[str, object] = {}
 
@@ -457,6 +462,32 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -
     assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id
     assert request_payload["recovery_public_key"] == original_request.recovery_public_key
     assert request_payload["chat_key_version"] == original_request.chat_key_version
+    assert request_payload["parent_id"] == original_request.parent_id
+    assert request_payload["is_sub_chat"] is True
+    assert request_payload["budget_limit"] == original_request.budget_limit
+    assert request_payload["budget_spent"] == original_request.budget_spent
+
+
+def test_awaiting_nested_sub_chat_does_not_report_provisional_completion() -> None:
+    assert stream_consumer._sub_chat_completion_summary(
+        explicit_summary="premature report",
+        aggregated_response="provisional batch status",
+        awaiting_sub_chats_completion=True,
+    ) is None
+    assert stream_consumer._sub_chat_completion_summary(
+        explicit_summary="final child report",
+        aggregated_response="fallback response",
+        awaiting_sub_chats_completion=False,
+    ) == "final child report"
+
+
+def test_sub_chat_completion_is_recorded_before_billing_error_is_reraised() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+
+    completion_index = source.rindex("await _record_sub_chat_completion_and_maybe_continue_parent(")
+    billing_reraise_index = source.rindex("if billing_error:")
+
+    assert completion_index < billing_reraise_index
 
 
 def test_sub_chat_continuation_failure_marks_original_inference(monkeypatch) -> None:
