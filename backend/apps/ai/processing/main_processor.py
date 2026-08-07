@@ -572,6 +572,14 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
 }
 
 
+def _is_async_skill_blocked_in_orchestration(
+    request_data: AskSkillRequest,
+    app_id: str,
+    skill_id: str,
+) -> bool:
+    return bool(request_data.orchestration_id and (app_id, skill_id) in ASYNC_SKILLS)
+
+
 def _get_skill_execution_args(
     parsed_args: Dict[str, Any],
     placeholder_embed_data: Optional[Dict[str, Any]],
@@ -5537,6 +5545,27 @@ async def handle_main_processing(
                                 }),
                             })
                             continue
+
+                    if _is_async_skill_blocked_in_orchestration(request_data, app_id, skill_id):
+                        current_message_history.append({
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": json.dumps({
+                                "status": "blocked_in_orchestration",
+                                "reason": "Long-running background skills are unavailable inside bounded sub-chat trees.",
+                                "app_id": app_id,
+                                "skill_id": skill_id,
+                            }),
+                        })
+                        logger.warning(
+                            "%s Rejected async skill %s.%s inside orchestration %s before dispatch",
+                            log_prefix,
+                            app_id,
+                            skill_id,
+                            request_data.orchestration_id,
+                        )
+                        continue
 
                     if (app_id, skill_id) not in ASYNC_SKILLS:
                         if not directus_service and request_data.orchestration_id:

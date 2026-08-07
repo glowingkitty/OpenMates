@@ -336,6 +336,8 @@ class UsageMethods:
             # Normalize chat_id and message_id (strip if provided)
             normalized_chat_id = chat_id.strip() if chat_id and isinstance(chat_id, str) and chat_id.strip() else None
             normalized_message_id = message_id.strip() if message_id and isinstance(message_id, str) and message_id.strip() else None
+            normalized_root_chat_id = root_chat_id.strip() if root_chat_id and isinstance(root_chat_id, str) and root_chat_id.strip() else None
+            summary_chat_id = normalized_root_chat_id or normalized_chat_id
             
             # Validate: If source is "chat", chat_id should be provided
             if source == "chat" and not normalized_chat_id:
@@ -477,8 +479,8 @@ class UsageMethods:
             # Add optional cleartext fields (for client-side matching with IndexedDB)
             if normalized_chat_id:
                 payload["chat_id"] = normalized_chat_id
-            if root_chat_id:
-                payload["root_chat_id"] = root_chat_id
+            if normalized_root_chat_id:
+                payload["root_chat_id"] = normalized_root_chat_id
             if actual_chat_id or normalized_chat_id:
                 payload["actual_chat_id"] = actual_chat_id or normalized_chat_id
             if root_turn_id:
@@ -549,7 +551,7 @@ class UsageMethods:
                         user_id_hash=user_id_hash,
                         timestamp=timestamp,
                         credits_charged=credits_charged,
-                        chat_id=normalized_chat_id,
+                        chat_id=summary_chat_id,
                         app_id=app_id,
                         api_key_hash=api_key_hash,
                         device_hash=device_hash
@@ -565,7 +567,7 @@ class UsageMethods:
                         user_id_hash=user_id_hash,
                         timestamp=timestamp,
                         credits_charged=credits_charged,
-                        chat_id=normalized_chat_id,
+                        chat_id=summary_chat_id,
                         app_id=app_id,
                         api_key_hash=api_key_hash,
                         device_hash=device_hash

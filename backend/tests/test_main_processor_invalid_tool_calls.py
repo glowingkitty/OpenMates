@@ -144,17 +144,21 @@ _install_stub("backend.apps.ai.processing.audio_recording_guard", audio_guard_st
 sub_chat_stub = types.ModuleType("backend.apps.ai.sub_chat_orchestration")
 for symbol in [
     "count_direct_sub_chats",
-    "create_and_dispatch_sub_chats",
+    "create_orchestration_root",
     "create_sub_chat_records",
     "dispatch_sub_chat_task",
+    "ensure_orchestration_envelope",
     "expand_sub_chat_requests",
     "get_sub_chat_context_policy",
     "get_sub_chat_execution_mode",
+    "is_sub_chat_continuation",
+    "resolve_sub_chat_depth",
     "store_pending_sub_chat_confirmation",
     "validate_sub_chat_capacity",
 ]:
     setattr(sub_chat_stub, symbol, object)
 sub_chat_stub.MAX_AUTO_SUB_CHATS_PER_TURN = 3
+sub_chat_stub.MAX_AUTO_SUB_CHAT_CREDITS = 2000
 sub_chat_stub.MAX_DIRECT_SUB_CHATS_PER_PARENT = 3
 _install_stub("backend.apps.ai.sub_chat_orchestration", sub_chat_stub)
 
@@ -182,6 +186,21 @@ _get_skill_execution_args = main_processor._get_skill_execution_args
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
+_is_async_skill_blocked_in_orchestration = main_processor._is_async_skill_blocked_in_orchestration
+
+
+def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
+    request = SimpleNamespace(orchestration_id="orchestration-1")
+
+    assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is True
+    assert _is_async_skill_blocked_in_orchestration(request, "social_media", "search") is True
+    assert _is_async_skill_blocked_in_orchestration(request, "web", "search") is False
+
+
+def test_root_async_skills_remain_available_without_orchestration() -> None:
+    request = SimpleNamespace(orchestration_id=None)
+
+    assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
 
 
 def test_pending_app_settings_memories_context_preserves_model_preferences() -> None:
