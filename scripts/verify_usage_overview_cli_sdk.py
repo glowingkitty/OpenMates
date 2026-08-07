@@ -3,7 +3,7 @@
 
 Purpose: prove the usage overview spec against api.dev with real auth state.
 Security: reads existing test-account credentials, never prints API keys or emails.
-Scope: CLI daily/weekly/monthly latency and canonical JSON shape; optional npm/pip.
+Scope: REST, CLI, npm, and pip overview/detail/chat-total contracts.
 Architecture: docs/specs/usage-overview-rollups/spec.yml.
 Run: python3 scripts/verify_usage_overview_cli_sdk.py --surface cli --api-url https://api.dev.openmates.org
 """
@@ -118,6 +118,27 @@ def _validate_overview(payload: dict[str, Any], *, granularity: str, require_rea
         _require(int(totals.get("entries") or 0) > 0, f"{granularity} overview did not include real usage entries")
 
 
+def _usage_target(api_url: str, *, env: dict[str, str]) -> dict[str, str]:
+    payload = _settings_request(api_url, "usage/summaries?type=chats&months=36", env=env)
+    for summary in payload.get("summaries", []):
+        if isinstance(summary, dict) and summary.get("chat_id") and summary.get("year_month"):
+            return {"chatId": str(summary["chat_id"]), "yearMonth": str(summary["year_month"])}
+    raise VerificationError("No chat usage summary is available for details/chat-total verification")
+
+
+def _validate_usage_details(payload: dict[str, Any]) -> int:
+    entries = payload.get("entries")
+    _require(isinstance(entries, list) and bool(entries), "Usage details did not include real entries")
+    _require(int(payload.get("count") or 0) == len(entries), "Usage details count did not match entries")
+    return len(entries)
+
+
+def _validate_chat_total(payload: dict[str, Any]) -> int:
+    total = payload.get("total_credits")
+    _require(isinstance(total, (int, float)) and total > 0, "Chat total did not include positive real usage")
+    return int(total)
+
+
 def _timed_cli_overview(granularity: str, count: int, *, env: dict[str, str], max_seconds: float, require_real_usage: bool) -> dict[str, Any]:
     started = time.perf_counter()
     payload = _run_cli_json(_overview_command(granularity, count), env=env, timeout=max(int(max_seconds) + 30, 45))
@@ -207,7 +228,9 @@ def _sdk_device_identity(surface: str) -> str:
     return f"{surface}:{platform.system().lower()}:{arch}:usage-overview"
 
 
-def _run_npm_sdk(env: dict[str, str], max_seconds: float) -> dict[str, Any]:
+def _run_npm_sdk(env: dict[str, str], max_seconds: float, target: dict[str, str]) -> dict[str, Any]:
+    chat_id = json.dumps(target["chatId"])
+    year_month = json.dumps(target["yearMonth"])
     script = f"""
       import {{ OpenMates }} from '{NPM_SDK_ENTRY}';
       const client = new OpenMates({{
@@ -215,18 +238,23 @@ def _run_npm_sdk(env: dict[str, str], max_seconds: float) -> dict[str, Any]:
         apiUrl: process.env.OPENMATES_API_URL,
         deviceId: process.env.OPENMATES_SMOKE_DEVICE_ID,
       }});
-      const started = performance.now();
-      const overview = await client.billing.usageOverview({{ query: {{ granularity: 'monthly', months: 2 }} }});
-      console.log(JSON.stringify({{ elapsedSeconds: Number(((performance.now() - started) / 1000).toFixed(3)), overview }}));
+       const started = performance.now();
+       const overview = await client.billing.usageOverview({{ query: {{ granularity: 'monthly', months: 2 }} }});
+       const elapsedSeconds = Number(((performance.now() - started) / 1000).toFixed(3));
+       const details = await client.billing.usageDetails({{ type: 'chat', identifier: {chat_id}, yearMonth: {year_month} }});
+       const chatTotal = await client.billing.chatTotal({chat_id});
+       console.log(JSON.stringify({{ elapsedSeconds, overview, details, chatTotal }}));
     """
     result = _run(["node", "--input-type=module", "-e", script], cwd=ROOT, env=env, timeout=max(int(max_seconds) + 30, 45))
     data = json.loads(result.stdout.strip())
     _require(float(data["elapsedSeconds"]) <= max_seconds, f"npm SDK overview took {data['elapsedSeconds']}s")
     _validate_overview(data["overview"], granularity="monthly", require_real_usage=True)
+    _validate_usage_details(data["details"])
+    _validate_chat_total(data["chatTotal"])
     return data
 
 
-def _run_pip_sdk(env: dict[str, str], max_seconds: float) -> dict[str, Any]:
+def _run_pip_sdk(env: dict[str, str], max_seconds: float, target: dict[str, str]) -> dict[str, Any]:
     script = """
 import json
 import os
@@ -243,12 +271,17 @@ client = OpenMates(
 )
 started = time.perf_counter()
 overview = client.billing.usage_overview(granularity="monthly", months=2)
-print(json.dumps({"elapsedSeconds": round(time.perf_counter() - started, 3), "overview": overview}))
-""" % os.fspath(PYTHON_SDK_PATH)
+elapsed_seconds = round(time.perf_counter() - started, 3)
+details = client.billing.usage_details(type="chat", identifier=%r, year_month=%r)
+chat_total = client.billing.chat_total(%r)
+print(json.dumps({"elapsedSeconds": elapsed_seconds, "overview": overview, "details": details, "chatTotal": chat_total}))
+""" % (os.fspath(PYTHON_SDK_PATH), target["chatId"], target["yearMonth"], target["chatId"])
     result = _run(["python3", "-c", script], cwd=ROOT, env=env, timeout=max(int(max_seconds) + 30, 45))
     data = json.loads(result.stdout.strip())
     _require(float(data["elapsedSeconds"]) <= max_seconds, f"pip SDK overview took {data['elapsedSeconds']}s")
     _validate_overview(data["overview"], granularity="monthly", require_real_usage=True)
+    _validate_usage_details(data["details"])
+    _validate_chat_total(data["chatTotal"])
     return data
 
 
@@ -269,16 +302,40 @@ def _revoke_api_key(key_id: str, api_url: str, *, env: dict[str, str]) -> None:
         print(f"WARNING: failed to revoke API key {key_id}: {exc}", file=sys.stderr)
 
 
-def verify_cli(api_url: str, *, env: dict[str, str], max_overview_seconds: float, max_wait_seconds: float) -> dict[str, Any]:
+def verify_rest(api_url: str, target: dict[str, str], *, env: dict[str, str]) -> dict[str, Any]:
+    details = _settings_request(
+        api_url,
+        f"usage/details?type=chat&identifier={target['chatId']}&year_month={target['yearMonth']}",
+        env=env,
+    )
+    chat_total = _settings_request(api_url, f"usage/chat-total?chat_id={target['chatId']}", env=env)
+    return {
+        "surface": "rest",
+        "detailEntryCount": _validate_usage_details(details),
+        "chatTotalCredits": _validate_chat_total(chat_total),
+    }
+
+
+def verify_cli(api_url: str, target: dict[str, str], *, env: dict[str, str], max_overview_seconds: float, max_wait_seconds: float) -> dict[str, Any]:
     _ensure_real_usage(api_url, env=env, max_overview_seconds=max_overview_seconds, max_wait_seconds=max_wait_seconds)
     results = {
         granularity: _timed_cli_overview(granularity, count, env=env, max_seconds=max_overview_seconds, require_real_usage=True)
         for granularity, count in (("daily", 30), ("weekly", 12), ("monthly", 12))
     }
+    details = _run_cli_json(
+        ["settings", "billing", "usage", "details", "--type", "chat", "--identifier", target["chatId"], "--month", target["yearMonth"], "--api-url", api_url],
+        env=env,
+    )
+    chat_total = _run_cli_json(
+        ["settings", "billing", "usage", "chat-total", "--chat-id", target["chatId"], "--api-url", api_url],
+        env=env,
+    )
     return {
         "surface": "cli",
         "apiUrl": api_url,
         "maxOverviewSeconds": max_overview_seconds,
+        "detailEntryCount": _validate_usage_details(details),
+        "chatTotalCredits": _validate_chat_total(chat_total),
         "results": {
             key: {
                 "elapsedSeconds": value["elapsedSeconds"],
@@ -292,18 +349,18 @@ def verify_cli(api_url: str, *, env: dict[str, str], max_overview_seconds: float
     }
 
 
-def verify_sdk(surface: str, api_url: str, *, env: dict[str, str], max_overview_seconds: float) -> dict[str, Any]:
+def verify_sdk(surface: str, api_url: str, target: dict[str, str], *, env: dict[str, str], max_overview_seconds: float) -> dict[str, Any]:
     key_id, api_key = _create_api_key(api_url, env=env)
     sdk_env = {**env, "OPENMATES_API_URL": api_url, "OPENMATES_SMOKE_API_KEY": api_key, "OPENMATES_SMOKE_DEVICE_ID": _sdk_device_identity(surface)}
     try:
         try:
-            result = _run_npm_sdk(sdk_env, max_overview_seconds) if surface == "npm" else _run_pip_sdk(sdk_env, max_overview_seconds)
+            result = _run_npm_sdk(sdk_env, max_overview_seconds, target) if surface == "npm" else _run_pip_sdk(sdk_env, max_overview_seconds, target)
         except RuntimeError as exc:
             if not _is_device_approval_error(exc):
                 raise
             approved = _approve_pending_key_devices(api_url, key_id, {surface}, env=env)
             _require(bool(approved), f"No pending {surface} SDK device was available to approve")
-            result = _run_npm_sdk(sdk_env, max_overview_seconds) if surface == "npm" else _run_pip_sdk(sdk_env, max_overview_seconds)
+            result = _run_npm_sdk(sdk_env, max_overview_seconds, target) if surface == "npm" else _run_pip_sdk(sdk_env, max_overview_seconds, target)
         overview = result["overview"]
         return {
             "surface": surface,
@@ -312,6 +369,8 @@ def verify_sdk(surface: str, api_url: str, *, env: dict[str, str], max_overview_
             "entries": overview["totals"]["entries"],
             "credits": overview["totals"]["credits"],
             "periodCount": len(overview["periods"]),
+            "detailEntryCount": len(result["details"]["entries"]),
+            "chatTotalCredits": result["chatTotal"]["total_credits"],
             "freshness": overview.get("freshness"),
         }
     finally:
@@ -340,10 +399,12 @@ def main() -> int:
         surfaces = ["cli", "npm", "pip"] if args.surface == "all" else [args.surface]
         results: dict[str, Any] = {}
         _ensure_real_usage(api_url, env=env, max_overview_seconds=args.max_overview_seconds, max_wait_seconds=args.max_usage_wait_seconds)
+        target = _usage_target(api_url, env=env)
+        results["rest"] = verify_rest(api_url, target, env=env)
         if "cli" in surfaces:
-            results["cli"] = verify_cli(api_url, env=env, max_overview_seconds=args.max_overview_seconds, max_wait_seconds=args.max_usage_wait_seconds)
+            results["cli"] = verify_cli(api_url, target, env=env, max_overview_seconds=args.max_overview_seconds, max_wait_seconds=args.max_usage_wait_seconds)
         for sdk_surface in (surface for surface in surfaces if surface in {"npm", "pip"}):
-            results[sdk_surface] = verify_sdk(sdk_surface, api_url, env=env, max_overview_seconds=args.max_overview_seconds)
+            results[sdk_surface] = verify_sdk(sdk_surface, api_url, target, env=env, max_overview_seconds=args.max_overview_seconds)
 
     print(json.dumps({"success": True, "apiUrl": api_url, "results": results}, indent=2, sort_keys=True))
     return 0
