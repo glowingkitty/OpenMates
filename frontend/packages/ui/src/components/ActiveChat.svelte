@@ -14442,7 +14442,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transform: translate(-50%, -50%);
         text-align: center;
         /* Render above ChatHistory (which is also position:absolute and comes after in DOM) */
-        z-index: var(--z-index-raised);
+        z-index: var(--z-index-dropdown);
         pointer-events: auto;
         display: flex;
         flex-direction: column;
@@ -15652,6 +15652,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         /* Flex child instead of position:absolute — this lets iOS Safari's
          * virtual keyboard push the input up naturally via dvh + flex layout,
          * instead of the input being anchored behind the keyboard. */
+        position: relative;
+        z-index: var(--z-index-dropdown);
         flex-shrink: 0;
         width: 100%;
     }
