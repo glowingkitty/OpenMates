@@ -4,7 +4,7 @@ Top up configured Playwright test account credits.
 
 This operator-only script runs inside the API container so it can reuse the app's
 Directus, Redis cache, and Vault encryption services. It accepts account emails
-over stdin as JSON and never prints those emails back to logs.
+or user IDs over stdin as JSON and never prints those identifiers back to logs.
 
 Usage:
     docker exec -i api python /app/backend/scripts/top_up_test_account_credits.py \
@@ -56,20 +56,23 @@ def _read_accounts(raw_value: str) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             raise ValueError("each account entry must be an object")
         email = str(item.get("email") or "").strip()
-        if not email:
+        user_id = str(item.get("user_id") or "").strip()
+        if not email and not user_id:
             continue
         slot = item.get("slot")
-        accounts.append({"slot": slot, "email": email})
+        accounts.append({"slot": slot, "email": email, "user_id": user_id})
     return accounts
 
 
 def _dedupe_accounts(accounts: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    by_email: dict[str, dict[str, Any]] = {}
+    by_identity: dict[str, dict[str, Any]] = {}
     for account in accounts:
-        normalized_email = account["email"].strip().lower()
-        existing = by_email.setdefault(
-            normalized_email,
-            {"email": account["email"], "slots": []},
+        user_id = account.get("user_id", "").strip()
+        normalized_email = account.get("email", "").strip().lower()
+        identity = f"user:{user_id}" if user_id else f"email:{normalized_email}"
+        existing = by_identity.setdefault(
+            identity,
+            {"email": account.get("email", ""), "user_id": user_id, "slots": []},
         )
         slot = account.get("slot")
         if slot is not None and slot not in existing["slots"]:
@@ -80,7 +83,7 @@ def _dedupe_accounts(accounts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         numeric_slots = [int(slot) for slot in normalized_slots if slot.isdigit()]
         return (min(numeric_slots or [999]), min(normalized_slots))
 
-    return sorted(by_email.values(), key=sort_key)
+    return sorted(by_identity.values(), key=sort_key)
 
 
 async def top_up(args: argparse.Namespace) -> int:
@@ -100,13 +103,14 @@ async def top_up(args: argparse.Namespace) -> int:
     try:
         for account in accounts:
             slots = account["slots"]
-            hashed_email = _hash_email_sha256(account["email"])
-            success, user, message = await directus.get_user_by_hashed_email(hashed_email)
-            if not success or not user:
-                failed.append((slots, f"user_lookup_failed:{message}"))
-                continue
-
-            user_id = user.get("id")
+            user_id = account.get("user_id")
+            if not user_id:
+                hashed_email = _hash_email_sha256(account["email"])
+                success, user, message = await directus.get_user_by_hashed_email(hashed_email)
+                if not success or not user:
+                    failed.append((slots, f"user_lookup_failed:{message}"))
+                    continue
+                user_id = user.get("id")
             success, profile, message = await directus.get_user_profile(user_id)
             if not success or not profile:
                 failed.append((slots, f"profile_failed:{message}"))

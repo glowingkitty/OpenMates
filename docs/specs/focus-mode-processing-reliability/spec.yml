@@ -81,7 +81,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 768789f
+  subject_commit: 6dbb70b
 
 approvals:
   product_contract:
@@ -189,19 +189,37 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-06T19:42:22Z"
     summary: The broad request encountered shared provider throttling; the narrow request never reached a worker, remained PENDING with no recovery job, and the shared app_ai broker queue contained 74 tasks.
+  - id: ATTEMPT-13
+    task_id: TASK-2
+    approach: Stop submitting work, attribute the shared queue, and passively observe it to a sustained zero baseline without purge, revocation, or worker changes.
+    outcome: succeeded
+    recorded_at: "2026-08-06T22:45:00Z"
+    summary: The backlog was finite fan-out from repeated verification roots under one test identity; it reached zero and remained there for more than twenty minutes.
+  - id: ATTEMPT-14
+    task_id: TASK-2
+    approach: Submit exactly one explicit Deep research CLI request after the clean queue baseline and inspect its worker and recovery trace without retrying.
+    outcome: blocked
+    recorded_at: "2026-08-06T23:02:45Z"
+    summary: The request reached the worker but failed at preprocessing before focus activation because the local CLI test account had insufficient credits after prior fan-out. The recovery fallback sealed normally; no focus-routing behavior executed.
+  - id: ATTEMPT-15
+    task_id: TASK-3
+    approach: Run the deployed rejection, post-activation, and real-provider focus journeys against funded isolated Playwright accounts and repair only evidence-backed test readiness defects.
+    outcome: succeeded
+    recorded_at: "2026-08-07T00:07:17Z"
+    summary: Rejection passed on 8877a87. Post-activation passed on 6dbb70b after viewport-only menu capture and shared notification dismissal. Real-provider activation and continuation passed on 6dbb70b.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Resolve the user decision, then either record a bounded CLI waiver or rerun the exact command after the shared app_ai queue drains.
+  next_action: Obtain a funded sanctioned CLI test identity or explicit approval for a scoped dev test-credit reset, then run the exact Deep research CLI command once. After user web confirmation, run Apple verification.
   command: python3 scripts/spec_verify.py docs/specs/focus-mode-processing-reliability/spec.yml --phase green
-  expected_outcome: "The user accepts the external queue blocker for this verification cycle, or a later exact CLI run returns one final persisted sourced response."
+  expected_outcome: "The exact CLI run returns one final persisted sourced response from a funded test identity; user confirmation then permits Apple verification."
   blocker:
     task_id: TASK-2
     requires_user_input: true
-    reason: The real CLI verification cannot obtain bounded evidence while the shared dev app_ai queue is saturated; the latest narrow task remained PENDING behind 74 queued tasks.
-    question: Should this verification cycle accept the green container regressions plus the recorded external CLI queue blocker, or should TASK-2 remain open for an exact CLI retry after the queue drains?
-    next_action: Record the user's waiver or retry decision in T-CLI-FOCUS and TASK-2.
-  last_verified_commit: 768789f
+    reason: The queue is healthy, but the local CLI test account is below the minimum credit balance and the real request is rejected before focus preprocessing. Billing state must not be mutated without explicit approval.
+    question: Provide a funded sanctioned CLI test identity or approve a scoped dev-only test-credit reset for the existing CLI test account.
+    next_action: Rerun T-CLI-FOCUS exactly once after a funded identity is available.
+  last_verified_commit: 6dbb70b
 
 scenarios:
   - id: S-1
@@ -285,7 +303,7 @@ acceptance_criteria:
     scenario: S-1
     text: Relevant focus modes never mutate `active_focus_id` or remove ordinary preselected skills before explicit activation.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PYTEST-FOCUS-STATE]
@@ -293,7 +311,7 @@ acceptance_criteria:
     scenario: S-2
     text: A valid preselected web-search call remains allow-listed and executes when Deep research is relevant but inactive.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PYTEST-FOCUS-STATE, T-CLI-FOCUS]
@@ -301,7 +319,7 @@ acceptance_criteria:
     scenario: S-3
     text: AI-initiated focus activation always enters the existing rejectable countdown flow and does not directly set active state.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PYTEST-FOCUS-STATE, T-E2E-REJECTION]
@@ -309,7 +327,7 @@ acceptance_criteria:
     scenario: S-4
     text: Auto-confirmed focus activation publishes the activation event, persists encrypted client state, resumes with the focus prompt, and displays active UI.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-E2E-ACTIVATION, T-E2E-VIDEO]
@@ -317,7 +335,7 @@ acceptance_criteria:
     scenario: S-4
     text: Sub-chat-only Deep research routing applies only when `web-research` is already active on the continuation request.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PYTEST-FOCUS-STATE, T-CLI-FOCUS]
@@ -325,7 +343,7 @@ acceptance_criteria:
     scenario: S-5
     text: Rejecting countdown prevents active-state persistence and resumes ordinary processing.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-E2E-REJECTION]
@@ -333,7 +351,7 @@ acceptance_criteria:
     scenario: S-6
     text: Related focus-mode specs are investigated from reports and screenshots, and only failures within this contract are fixed in this work.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO]
@@ -413,9 +431,9 @@ tests:
       evidence:
         status: passed
         command: docker exec api python -m pytest backend/tests/test_focus_mode_routing.py backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_mock_replay.py backend/tests/test_stream_consumer_recovery.py -k "focus_mode or mock_focus_activation or replay_fixture_recovery or sub_chat_parent_continuation" -q
-        run_id: docker-api-focus-routing-green-20260806T1928Z
-        subject_commit: 768789f
-        timestamp: "2026-08-06T19:28:00Z"
+        run_id: docker-api-focus-routing-green-20260806T2135Z
+        subject_commit: 8877a87
+        timestamp: "2026-08-06T21:35:00Z"
       history:
         - status: passed
           command: docker exec api python -m pytest backend/tests/test_focus_mode_routing.py backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_main_processor_invalid_tool_calls.py backend/tests/test_stream_consumer_recovery.py -k "sub_chat_parent_continuation or focus_mode or valid_preselected_web_search or explicit_focus_override or chat_compression"
@@ -442,10 +460,10 @@ tests:
       expected: pass
       evidence:
         status: blocked
-        reason: The exact broad command encountered shared provider throttling, and the bounded narrow retry remained PENDING behind 74 tasks in the shared app_ai queue without reaching a worker.
+        reason: After the queue reached and held a zero baseline, the exact command reached the worker but the local CLI test account failed the minimum-credit precheck before focus activation.
         actor: OpenCode
-        timestamp: "2026-08-06T19:42:22Z"
-        next_action: Obtain the user's bounded waiver or rerun after the shared queue drains.
+        timestamp: "2026-08-06T23:02:45Z"
+        next_action: Use a funded sanctioned test identity or obtain explicit approval for a scoped dev-only test-credit reset, then run the command once.
   - id: T-CLI-RECOVERY
     type: unit
     file: frontend/packages/openmates-cli/tests/ws.test.ts
@@ -469,10 +487,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: docker exec api python -m pytest backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_mock_replay.py backend/tests/test_stream_consumer_recovery.py -k "focus_mode_continuations or mock_focus_activation or replay_fixture_recovery or sub_chat_parent_continuation" -q
-        run_id: docker-api-cli-recovery-green-20260806T1928Z
-        subject_commit: 768789f
-        timestamp: "2026-08-06T19:28:00Z"
+        command: node --test --experimental-strip-types --test-name-pattern "continuation recovery job" frontend/packages/openmates-cli/tests/ws.test.ts && docker exec api python -m pytest backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_stream_consumer_recovery.py -q
+        run_id: cli-and-docker-recovery-green-20260806T2135Z
+        subject_commit: 8877a87
+        timestamp: "2026-08-06T21:35:00Z"
       history:
         - status: passed
           command: node --test --experimental-strip-types --test-name-pattern "continuation recovery job" frontend/packages/openmates-cli/tests/ws.test.ts
@@ -500,7 +518,12 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec focus-mode-rejection.spec.ts --gate-deploy --expected-commit 8877a871b
+        run_id: "31129779801"
+        subject_commit: 8877a87
+        timestamp: "2026-08-06T23:08:57Z"
   - id: T-E2E-ACTIVATION
     type: playwright
     file: frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
@@ -522,7 +545,12 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec focus-mode-ui-after-activation.spec.ts --gate-deploy --expected-commit 6dbb70b
+        run_id: "31132724022"
+        subject_commit: 6dbb70b
+        timestamp: "2026-08-06T23:57:57Z"
   - id: T-E2E-VIDEO
     type: playwright
     file: frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
@@ -544,7 +572,12 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: pending}
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec focus-mode-video-real-request.spec.ts --gate-deploy --expected-commit 6dbb70b
+        run_id: "31133313880"
+        subject_commit: 6dbb70b
+        timestamp: "2026-08-07T00:07:14Z"
 
 verifications:
   - id: V-UI-VISUAL-SMOKE
@@ -552,10 +585,16 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-3, AC-4, AC-6]
-    status: pending
+    status: passed
     target: https://app.dev.openmates.org/
     viewports: [laptop, mobile]
-    evidence: {status: pending}
+    evidence:
+      status: passed
+      method: playwright
+      run_id: test-results/visual-smoke/2026-08-07T00-07-35-533Z/summary.json
+      subject_commit: 6dbb70b
+      timestamp: "2026-08-07T00:07:47Z"
+      summary: "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: anonymous landing smoke does not render authenticated focus controls; passing focus Playwright artifacts cover those controls."
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
@@ -679,12 +718,12 @@ tasks:
         - docs/architecture/apps/focus-modes-implementation.md
       shared_files: []
     blockers:
-      - Shared dev app_ai queue saturation blocks bounded real CLI verification pending user waiver or later retry.
+      - The local CLI test identity lacks the minimum credits required to reach focus preprocessing; a funded sanctioned identity or explicitly approved dev-only test-credit reset is required.
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-3
     title: Diagnose and repair focus activation E2E failures
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4, S-5, S-6, S-7]
@@ -707,7 +746,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Complete deployed visual user and Apple verification
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios: [S-3, S-4, S-5, S-6]
@@ -720,7 +759,8 @@ tasks:
     ownership:
       files: [docs/specs/focus-mode-processing-reliability/spec.yml]
       shared_files: []
-    blockers: []
+    blockers:
+      - User confirmation is required before Apple verification under the cross-client gate order.
     follow_up_tasks: []
     independently_deployable: false
 
