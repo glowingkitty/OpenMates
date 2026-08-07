@@ -23,7 +23,7 @@ from typing import Sequence
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 COMPOSE_FILE = "backend/core/docker-compose.yml"
-CORE_SERVICES = ("api", "task-worker", "task-scheduler", "app-ai-worker")
+CORE_SERVICES = ("api", "task-worker", "core-worker", "task-scheduler", "app-ai-worker")
 BACKEND_RUNTIME_PATHS = ("backend", "shared", "frontend/packages/ui/src/i18n")
 RELEASE_STATUS_CONTEXT = "Dev Release Candidate / Prepared"
 API_HEALTH_URL = "https://api.dev.openmates.org/health"

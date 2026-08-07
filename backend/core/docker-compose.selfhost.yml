@@ -173,7 +173,6 @@ services:
       USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
       USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
       PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
-      SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
     networks:
       - openmates
     depends_on:
@@ -186,12 +185,25 @@ services:
     mem_limit: "${TASK_WORKER_MEMORY_LIMIT:-3g}"
     environment:
       <<: *openmates-worker-env
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_QUEUES: "email"
       CELERY_AUTOSCALE_MAX: "${TASK_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9101"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  core-worker:
+    <<: *openmates-worker-base
+    container_name: core-worker
+    mem_limit: "${CORE_WORKER_MEMORY_LIMIT:-3g}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_AUTOSCALE_MAX: "${CORE_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9109"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   workflow-worker:
     <<: *openmates-worker-base

@@ -54,7 +54,7 @@ claims:
 ## Why This Exists
 
 - One `api` container hosts all app skills in-process (OPE-342) — every `backend/apps/{name}/` folder is loaded via `importlib` at startup, no per-app containers
-- Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
+- Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `core-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
 - Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, manages host-level Caddyfile drift, and owns post-update/periodic runtime verification.
@@ -86,7 +86,8 @@ Defined in [docker-compose.yml](../../backend/core/docker-compose.yml):
 | Container | Image / Build | Purpose |
 |-----------|--------------|---------|
 | `api` | Custom (FastAPI) | Core REST API, WebSocket server |
-| `task-worker` | Custom (Celery) | Background tasks (email, deletion, cache warming) |
+| `task-worker` | Custom (Celery) | Latency-sensitive authentication and billing email tasks |
+| `core-worker` | Custom (Celery) | Persistence, deletion, cache warming, health, and reminder tasks |
 | `task-scheduler` | Custom (Celery Beat) | Scheduled/periodic task dispatch |
 | `cms` | `directus/directus:11.5` | Directus CMS for data management |
 | `cms-database` | `postgres:13-alpine` | PostgreSQL database |
@@ -109,7 +110,8 @@ Only the Celery worker containers remain — they have real, queue-driven worklo
 | `app-ai-worker` | `app_ai` | LLM streaming pipeline, distinct memory profile |
 | `app-images-worker` | `app_images` | GPU/CPU-heavy image generation |
 | `app-pdf-worker` | `app_pdf` | PDF rendering with `pymupdf`/`reportlab` |
-| `task-worker` | `email`, `persistence`, `user_init`, … | Infrastructure tasks |
+| `task-worker` | `email` | Authentication, billing, and notification email delivery isolated from backlog-prone tasks |
+| `core-worker` | `persistence`, `user_init`, `health_check`, … | Infrastructure and persistence tasks |
 | `workflow-worker` | `workflow` | Manual workflow runs isolated from persistence and scheduled-trigger backlog |
 | `task-scheduler` | (Celery beat) | Periodic task dispatch |
 
@@ -154,7 +156,7 @@ Runs on a separate VM at `preview.openmates.org`. See [docker-compose.preview.ym
 ## Edge Cases
 
 - **Docker network isolation:** app containers communicate via internal network only; not exposed publicly
-- **Vault token management:** `vault-setup` runs once on startup; `api` and `task-worker` wait for it via `depends_on: service_completed_successfully`
+- **Vault token management:** `vault-setup` runs once on startup; `api`, `task-worker`, and `core-worker` wait for it via `depends_on: service_completed_successfully`
 - **Cache as Dragonfly:** drop-in Redis replacement with better memory efficiency; same protocol
 
 <!-- VERIFY: whether all app containers without dedicated workers actually use core task-worker vs synchronous processing -->

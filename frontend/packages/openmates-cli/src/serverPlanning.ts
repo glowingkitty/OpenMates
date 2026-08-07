@@ -174,6 +174,7 @@ export type RuntimeMonitoringServicePlan = {
 
 const CORE_WORKER_SERVICES = [
   "task-worker",
+  "core-worker",
   "task-scheduler",
   "app-ai-worker",
   "app-images-worker",

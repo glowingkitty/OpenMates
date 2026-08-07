@@ -25,7 +25,10 @@ WEBHOOK_ROUTE_REGISTERED_STATUSES = {400, 401, 422}
 OVERLAY_PACKAGE_ENV = "OPENMATES_CLOUD_OVERLAY_PACKAGE"
 OVERLAY_ENABLED_ENV = "OPENMATES_CLOUD_OVERLAY_ENABLED"
 EXPECTED_OVERLAY_PACKAGE = "OpenMatesCloud"
-CORE_BILLING_WORKER_QUEUES = {"email", "persistence"}
+EXPECTED_WORKER_QUEUES = {
+    "task-worker": {"email"},
+    "core-worker": {"persistence"},
+}
 
 
 class CloudOverlayBootError(RuntimeError):
@@ -91,16 +94,19 @@ def _check_cli_overlay_containers() -> list[str]:
         raise CloudOverlayBootError("api container does not have the OpenMatesCloud overlay marker")
     findings.append("api overlay env present")
 
-    for container_name in ("task-worker", "task-scheduler"):
+    for container_name in ("task-worker", "core-worker", "task-scheduler"):
         env = _docker_env(container_name)
         if env.get(OVERLAY_PACKAGE_ENV) != EXPECTED_OVERLAY_PACKAGE:
             raise CloudOverlayBootError(f"{container_name} missing OpenMatesCloud overlay marker")
         findings.append(f"{container_name} overlay env present")
 
-    worker_queues = set(( _docker_env("task-worker").get("CELERY_QUEUES") or "").split(","))
-    if not CORE_BILLING_WORKER_QUEUES.issubset(worker_queues):
-        raise CloudOverlayBootError("task-worker is missing email/persistence billing queues")
-    findings.append("task-worker billing queues present")
+    for container_name, expected_queues in EXPECTED_WORKER_QUEUES.items():
+        worker_queues = set((_docker_env(container_name).get("CELERY_QUEUES") or "").split(","))
+        if not expected_queues.issubset(worker_queues):
+            raise CloudOverlayBootError(
+                f"{container_name} is missing required queues: {sorted(expected_queues)}"
+            )
+        findings.append(f"{container_name} required queues present")
     return findings
 
 

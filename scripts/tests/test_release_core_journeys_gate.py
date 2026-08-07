@@ -231,6 +231,7 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
     assert prepare.CORE_SERVICES == (
         "api",
         "task-worker",
+        "core-worker",
         "task-scheduler",
         "app-ai-worker",
     )

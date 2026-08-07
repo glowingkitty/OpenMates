@@ -46,12 +46,17 @@ scrape_configs:
   # via the worker_process_init signal in celery_config.py.
   # Port assignments (must match CELERY_METRICS_PORT in docker-compose.yml):
   #   task-worker:        9101
+  #   core-worker:        9109
   #   app-ai-worker:      9102
   #   app-images-worker:  9103
   #   app-pdf-worker:     9104
   - job_name: "celery-task-worker"
     static_configs:
       - targets: ["task-worker:9101"]
+
+  - job_name: "celery-core-worker"
+    static_configs:
+      - targets: ["core-worker:9109"]
 
   - job_name: "celery-app-ai-worker"
     static_configs:
