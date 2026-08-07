@@ -36,6 +36,13 @@ from backend.apps.web.skills.search_fixture import (
 
 logger = logging.getLogger(__name__)
 
+# Contract: contracts/features/app-skills/web-search/contract.yml
+MAX_SEARCH_REQUESTS = 5
+MAX_SEARCH_QUERY_LENGTH = 400
+MIN_SEARCH_RESULT_COUNT = 1
+MAX_SEARCH_RESULT_COUNT = 20
+SAFE_PROVIDER_ERROR = "Search provider request failed. Please try again."
+
 # When tabloid filtering is active, request more results from the API to compensate
 # for results that will be filtered out. This ensures users still get their requested count.
 TABLOID_FILTER_OVER_REQUEST_COUNT = 15
@@ -65,11 +72,9 @@ def strip_html_tags(text: str) -> str:
     if not text:
         return text
     
-    # Remove all HTML tags using regex
-    cleaned = re.sub(r'<[^>]*>', '', text)
-    
-    # Decode HTML entities (e.g., &amp; -> &, &lt; -> <, etc.)
-    cleaned = html.unescape(cleaned)
+    # Decode first so provider-encoded tags cannot reappear after stripping.
+    cleaned = html.unescape(text)
+    cleaned = re.sub(r'<[^>]*>', '', cleaned)
     
     # Clean up extra whitespace that might result from removed tags
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
@@ -126,6 +131,7 @@ class SearchResult(BaseModel):
     url: str
     description: str
     age: Optional[str] = None
+    page_age: Optional[str] = None
     meta_url: Optional[Dict[str, Any]] = None
     language: Optional[str] = None
     family_friendly: Optional[bool] = True
@@ -330,6 +336,73 @@ class SearchSkill(BaseSkill):
         except Exception as e:
             logger.error(f"Error loading follow-up suggestions from app.yml: {e}", exc_info=True)
             self.suggestions_follow_up_requests = []
+
+    def _partition_contract_valid_requests(
+        self,
+        requests: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[str], Optional[str]]:
+        """Validate Web Search contract constraints not covered by BaseSkill."""
+        if not isinstance(requests, list):
+            return ([], [], [], "Web search 'requests' must be an array.")
+        if len(requests) > MAX_SEARCH_REQUESTS:
+            return (
+                [],
+                [],
+                [],
+                f"Web search accepts at most {MAX_SEARCH_REQUESTS} requests per invocation.",
+            )
+        if any(not isinstance(req, dict) for req in requests):
+            return ([], [], [], "Every web search request must be an object.")
+
+        validated_requests, invalid_grouped_results, validation_errors, error = self._partition_requests_by_required_fields(
+            requests=requests,
+            required_fields=["query"],
+            field_display_names={"query": "query"},
+            empty_error_message="No search requests provided. 'requests' array must contain at least one request with a 'query' field.",
+            logger=logger,
+        )
+        if error:
+            return ([], [], [], error)
+
+        contract_valid_requests: List[Dict[str, Any]] = []
+        for req in validated_requests:
+            request_id = req.get("id")
+            query = req.get("query")
+            count = req.get("count", DEFAULT_RESULT_COUNT)
+            item_errors: List[str] = []
+
+            if not isinstance(query, str) or not query.strip():
+                item_errors.append("query must be a non-blank string")
+            elif len(query.strip()) > MAX_SEARCH_QUERY_LENGTH:
+                item_errors.append(f"query must be at most {MAX_SEARCH_QUERY_LENGTH} characters")
+
+            if isinstance(count, bool) or not isinstance(count, int):
+                item_errors.append("count must be an integer")
+            elif count < MIN_SEARCH_RESULT_COUNT or count > MAX_SEARCH_RESULT_COUNT:
+                item_errors.append(
+                    f"count must be between {MIN_SEARCH_RESULT_COUNT} and {MAX_SEARCH_RESULT_COUNT}"
+                )
+
+            if item_errors:
+                error_message = f"Request id {request_id} is invalid: {', '.join(item_errors)}"
+                invalid_grouped_results.append({
+                    "id": request_id,
+                    "results": [],
+                    "error": error_message,
+                })
+                validation_errors.append(error_message)
+                continue
+
+            req["query"] = query.strip()
+            req["count"] = count
+            contract_valid_requests.append(req)
+
+        return (contract_valid_requests, invalid_grouped_results, validation_errors, None)
+
+    @staticmethod
+    def _normalize_result_age(result: Dict[str, Any]) -> Optional[str]:
+        age = result.get("age", result.get("page_age"))
+        return age if age else None
     
     async def _process_single_search_request(
         self,
@@ -494,7 +567,12 @@ class SearchSkill(BaseSkill):
             )
             
             if search_result.get("error"):
-                return (request_id, [], f"Query '{search_query}': {search_result['error']}")
+                logger.warning(
+                    "Search provider failure for request id %s: %s",
+                    request_id,
+                    search_result.get("error"),
+                )
+                return (request_id, [], SAFE_PROVIDER_ERROR)
             
             # Check if sanitization should be skipped (e.g., for health checks)
             should_sanitize = search_result.get("sanitize_output", True)  # Default to True for safety
@@ -572,7 +650,10 @@ class SearchSkill(BaseSkill):
 
                 result_metadata.append({
                     "url": result.get("url", ""),
-                    "page_age": result.get("page_age", result.get("age", "")),
+                    "age": self._normalize_result_age(result),
+                    "page_age": self._normalize_result_age(result),
+                    "language": result.get("language"),
+                    "family_friendly": result.get("family_friendly", True),
                     "profile_name": profile_name,
                     "favicon": favicon,
                     "thumbnail_src": thumbnail_src,
@@ -599,7 +680,10 @@ class SearchSkill(BaseSkill):
                         "title": strip_html_tags(result.get("title", "")),
                         "url": result.get("url", ""),
                         "description": strip_html_tags(result.get("description", "")),
-                        "page_age": result.get("page_age", result.get("age", "")),
+                        "age": self._normalize_result_age(result),
+                        "page_age": self._normalize_result_age(result),
+                        "language": result.get("language"),
+                        "family_friendly": result.get("family_friendly", True),
                         "profile": result.get("profile"),
                         "meta_url": result.get("meta_url"),
                         "thumbnail": result.get("thumbnail"),
@@ -715,6 +799,8 @@ class SearchSkill(BaseSkill):
                             
                             sanitized_title = sanitized_result.get("title", "").strip() if isinstance(sanitized_result.get("title"), str) else ""
                             sanitized_description = sanitized_result.get("description", "").strip() if isinstance(sanitized_result.get("description"), str) else ""
+                            sanitized_title = strip_html_tags(sanitized_title)
+                            sanitized_description = strip_html_tags(sanitized_description)
                             # Parse extra_snippets back from pipe-delimited string
                             extra_snippets_str = sanitized_result.get("extra_snippets", "")
                             sanitized_extra_snippets = extra_snippets_str.split("|") if extra_snippets_str else []
@@ -738,7 +824,10 @@ class SearchSkill(BaseSkill):
                                 "title": sanitized_title,
                                 "url": metadata["url"],
                                 "description": sanitized_description,
+                                "age": metadata["age"],
                                 "page_age": metadata["page_age"],
+                                "language": metadata["language"],
+                                "family_friendly": metadata["family_friendly"],
                                 "profile": {
                                     "name": metadata["profile_name"]
                                 } if metadata["profile_name"] else None,
@@ -790,7 +879,10 @@ class SearchSkill(BaseSkill):
                             "title": strip_html_tags(result.get("title", "")),
                             "url": result.get("url", ""),
                             "description": strip_html_tags(result.get("description", "")),
-                            "page_age": result.get("page_age", result.get("age", "")),
+                            "age": self._normalize_result_age(result),
+                            "page_age": self._normalize_result_age(result),
+                            "language": result.get("language"),
+                            "family_friendly": result.get("family_friendly", True),
                             "profile": {"name": profile_name} if profile_name else None,
                             "meta_url": {"favicon": favicon} if favicon else None,
                             "thumbnail": {"src": thumbnail_src, "original": thumbnail_original} if (thumbnail_src or thumbnail_original) else None,
@@ -920,9 +1012,8 @@ class SearchSkill(BaseSkill):
             return (request_id, previews, None)
             
         except Exception as e:
-            error_msg = f"Query '{search_query}' (id: {request_id}): {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return (request_id, [], error_msg)
+            logger.error("Search request id %s failed unexpectedly: %s", request_id, e, exc_info=True)
+            return (request_id, [], SAFE_PROVIDER_ERROR)
     
     async def execute(
         self,
@@ -976,13 +1067,7 @@ class SearchSkill(BaseSkill):
         if error_response:
             return error_response
         
-        validated_requests, invalid_grouped_results, validation_errors, error = self._partition_requests_by_required_fields(
-            requests=requests,
-            required_fields=["query"],
-            field_display_names={"query": "query"},
-            empty_error_message="No search requests provided. 'requests' array must contain at least one request with a 'query' field.",
-            logger=logger
-        )
+        validated_requests, invalid_grouped_results, validation_errors, error = self._partition_contract_valid_requests(requests)
         if error:
             return SearchResponse(results=[], error=error)
         if not validated_requests:

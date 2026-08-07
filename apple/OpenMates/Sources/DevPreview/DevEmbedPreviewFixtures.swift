@@ -257,7 +257,11 @@ enum DevEmbedPreviewFixtures {
                 data: [
                     "url": "https://www.visitberlin.de/en/restaurants",
                     "title": "Top 10 Restaurants in Berlin - Local Guide",
-                    "description": "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors. Updated for 2026."
+                    "description": "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors. Updated for 2026.",
+                    "age": "2026-07-25T00:00:00Z",
+                    "page_age": "2026-07-25T00:00:00Z",
+                    "language": "en",
+                    "family_friendly": true
                 ],
                 parentEmbedId: "preview-web-search-1"
             ),
@@ -268,7 +272,11 @@ enum DevEmbedPreviewFixtures {
                 data: [
                     "url": "https://www.timeout.com/berlin/restaurants",
                     "title": "Berlin Food Scene: A Complete Guide",
-                    "description": "From street food to Michelin-starred restaurants, explore what makes Berlin one of Europe's top food destinations."
+                    "description": "From street food to Michelin-starred restaurants, explore what makes Berlin one of Europe's top food destinations.",
+                    "age": "2026-07-24T00:00:00Z",
+                    "page_age": "2026-07-24T00:00:00Z",
+                    "language": "en",
+                    "family_friendly": true
                 ],
                 parentEmbedId: "preview-web-search-1"
             ),
@@ -279,7 +287,11 @@ enum DevEmbedPreviewFixtures {
                 data: [
                     "url": "https://www.lonelyplanet.com/germany/berlin/restaurants",
                     "title": "Where to Eat in Berlin - Travel Blog",
-                    "description": "A curated list of must-visit restaurants, cafes, and food markets in Berlin. Includes budget-friendly options."
+                    "description": "A curated list of must-visit restaurants, cafes, and food markets in Berlin. Includes budget-friendly options.",
+                    "age": "2026-07-23T00:00:00Z",
+                    "page_age": "2026-07-23T00:00:00Z",
+                    "language": "en",
+                    "family_friendly": true
                 ],
                 parentEmbedId: "preview-web-search-1"
             )
@@ -289,7 +301,7 @@ enum DevEmbedPreviewFixtures {
             type: EmbedType.webSearch.rawValue,
             appId: "web",
             skillId: "search",
-            data: ["query": "best restaurants in Berlin", "provider": "Brave Search"],
+            data: ["query": "best restaurants in Berlin", "provider": "Brave Search", "result_count": 3],
             embedIds: children.map(\.id).joined(separator: "|")
         )
         return skill(id: "web-search", label: "Search", primary: parent, children: children)

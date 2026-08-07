@@ -120,6 +120,8 @@ embed_types:
       - name: description
         type: string
         required: true
+      - name: age
+        type: string
       - name: page_age
         type: string
       - name: meta_url_favicon

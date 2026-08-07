@@ -28,6 +28,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI_DIST = REPO_ROOT / "frontend/packages/openmates-cli/dist/cli.js"
 NPM_SDK_ENTRY = "./frontend/packages/openmates-cli/dist/index.js"
 PYTHON_SDK_PATH = REPO_ROOT / "packages/openmates-python"
+WEB_SEARCH_FIXTURE_QUERY = "openmates_e2e_web_fixture_ai"
+
+
+def _web_search_payload() -> dict[str, Any]:
+    return {
+        "requests": [
+            {"id": "current", "query": WEB_SEARCH_FIXTURE_QUERY, "count": 1, "filter_tabloids": True},
+            {"id": 42, "query": WEB_SEARCH_FIXTURE_QUERY, "count": 2, "filter_tabloids": False},
+        ]
+    }
 
 
 def _home_state_session() -> dict[str, Any]:
@@ -267,6 +277,86 @@ def _run_npm_ideabucket_sdk(env: dict[str, str]) -> dict[str, Any]:
     return json.loads(result.stdout.strip())
 
 
+def _run_rest_web_search(env: dict[str, str]) -> dict[str, Any]:
+    body = json.dumps(_web_search_payload()).encode("utf-8")
+    req = urllib_request.Request(
+        f"{env['OPENMATES_API_URL'].rstrip('/')}/v1/apps/web/skills/search",
+        method="POST",
+        data=body,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {env['OPENMATES_SMOKE_API_KEY']}",
+            "Content-Type": "application/json",
+            "X-OpenMates-SDK": "cli",
+            "X-OpenMates-Device-Identity": env["OPENMATES_SMOKE_DEVICE_ID"],
+        },
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=60) as response:
+            return json.loads(response.read().decode("utf-8") or "{}")
+    except HTTPError as exc:
+        body_text = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"REST web search failed with HTTP {exc.code}: {body_text}") from exc
+
+
+def _run_cli_web_search(env: dict[str, str]) -> dict[str, Any]:
+    result = _run(
+        [
+            "node",
+            os.fspath(CLI_DIST),
+            "--api-url",
+            env["OPENMATES_API_URL"],
+            "--api-key",
+            env["OPENMATES_SMOKE_API_KEY"],
+            "apps",
+            "web",
+            "search",
+            "--input",
+            _json_for_js(_web_search_payload()),
+            "--json",
+        ],
+        env=env,
+        description="CLI web search smoke",
+    )
+    return _parse_json_output(result.stdout)
+
+
+def _run_npm_web_search_sdk(env: dict[str, str]) -> dict[str, Any]:
+    script = f"""
+      import {{ OpenMates }} from '{NPM_SDK_ENTRY}';
+      const client = new OpenMates({{
+        apiKey: process.env.OPENMATES_SMOKE_API_KEY,
+        apiUrl: process.env.OPENMATES_API_URL,
+        deviceId: process.env.OPENMATES_SMOKE_DEVICE_ID,
+      }});
+      const response = await client.apps.web.search({_json_for_js(_web_search_payload())});
+      console.log(JSON.stringify(response));
+    """
+    result = _run(["node", "--input-type=module", "-e", script], env=env, description="npm web search SDK smoke")
+    return json.loads(result.stdout.strip())
+
+
+def _run_python_web_search_sdk(env: dict[str, str]) -> dict[str, Any]:
+    script = """
+import json
+import os
+import sys
+
+sys.path.insert(0, os.fspath(%r))
+from openmates import OpenMates
+
+client = OpenMates(
+    api_key=os.environ["OPENMATES_SMOKE_API_KEY"],
+    api_url=os.environ["OPENMATES_API_URL"],
+    device_id=os.environ["OPENMATES_SMOKE_DEVICE_ID"],
+)
+payload = %s
+print(json.dumps(client.apps.web.search(payload)))
+""" % (os.fspath(PYTHON_SDK_PATH), repr(_web_search_payload()))
+    result = _run(["python3", "-c", script], env=env, description="Python web search SDK smoke")
+    return json.loads(result.stdout.strip())
+
+
 def _run_python_sdk(env: dict[str, str]) -> dict[str, Any]:
     script = """
 import json
@@ -467,6 +557,62 @@ def _maps_geoapify_summary(response: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _web_search_data(response: dict[str, Any]) -> dict[str, Any]:
+    data = response.get("data") if isinstance(response.get("data"), dict) else response
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Web Search response was not an object: {response!r}")
+    return data
+
+
+def _web_search_summary(response: dict[str, Any]) -> dict[str, Any]:
+    data = _web_search_data(response)
+    groups = data.get("results") if isinstance(data.get("results"), list) else []
+    counts = [len(group.get("results", [])) for group in groups if isinstance(group, dict)]
+    first_group = groups[0] if groups and isinstance(groups[0], dict) else {}
+    first_result = (first_group.get("results") or [{}])[0] if isinstance(first_group.get("results"), list) else {}
+    return {
+        "provider": data.get("provider"),
+        "error": data.get("error"),
+        "groupIds": [group.get("id") for group in groups if isinstance(group, dict)],
+        "counts": counts,
+        "firstTitle": first_result.get("title"),
+        "firstAge": first_result.get("age"),
+        "firstPageAge": first_result.get("page_age"),
+        "firstLanguage": first_result.get("language"),
+        "firstFamilyFriendly": first_result.get("family_friendly"),
+    }
+
+
+def _assert_web_search_contract(response: dict[str, Any], *, client_name: str) -> None:
+    data = _web_search_data(response)
+    if data.get("provider") != "Brave Search":
+        raise RuntimeError(f"{client_name} Web Search returned unexpected provider: {_web_search_summary(response)!r}")
+    if data.get("error"):
+        raise RuntimeError(f"{client_name} Web Search returned an error: {_web_search_summary(response)!r}")
+    groups = data.get("results")
+    if not isinstance(groups, list) or len(groups) != 2:
+        raise RuntimeError(f"{client_name} Web Search did not return two result groups: {_web_search_summary(response)!r}")
+    if [group.get("id") for group in groups] != ["current", 42]:
+        raise RuntimeError(f"{client_name} Web Search did not preserve request IDs: {_web_search_summary(response)!r}")
+    if [len(group.get("results", [])) for group in groups] != [1, 2]:
+        raise RuntimeError(f"{client_name} Web Search did not preserve requested result bounds: {_web_search_summary(response)!r}")
+    for group in groups:
+        for result in group.get("results", []):
+            for field in ("title", "description", "url"):
+                if not isinstance(result.get(field), str) or not result[field]:
+                    raise RuntimeError(f"{client_name} Web Search result missing {field}: {result!r}")
+            if "<" in result["title"] or "<" in result["description"]:
+                raise RuntimeError(f"{client_name} Web Search exposed HTML in text fields: {result!r}")
+            if result.get("age") != result.get("page_age"):
+                raise RuntimeError(f"{client_name} Web Search age/page_age compatibility mismatch: {result!r}")
+            if result.get("family_friendly") is not True:
+                raise RuntimeError(f"{client_name} Web Search did not preserve family_friendly=true: {result!r}")
+            serialized = json.dumps(result)
+            for secret_marker in ("Authorization", "provider_api_key", "raw_stack_trace"):
+                if secret_marker in serialized:
+                    raise RuntimeError(f"{client_name} Web Search leaked provider diagnostics: {result!r}")
+
+
 def _run_cli_maps_geoapify(env: dict[str, str]) -> dict[str, Any]:
     payload = json.dumps(_maps_geoapify_payload(), separators=(",", ":"))
     result = _run(
@@ -644,6 +790,7 @@ def main() -> int:
     parser.add_argument("--models3d-only", action="store_true", help="Run only the real models3d.search npm/pip SDK calls.")
     parser.add_argument("--ideabucket-only", action="store_true", help="Run only live IdeaBucket settings/add/status npm/pip SDK calls.")
     parser.add_argument("--maps-geoapify-only", action="store_true", help="Run only live Maps Geoapify CLI/npm/pip app-skill calls.")
+    parser.add_argument("--web-search-only", action="store_true", help="Run only live REST/CLI/npm/pip Web Search contract calls.")
     args = parser.parse_args()
 
     if os.getenv("OPENMATES_LIVE_SMOKE") != "1":
@@ -675,6 +822,58 @@ def main() -> int:
         env["OPENMATES_SMOKE_API_KEY"] = api_key
 
         approved_devices: dict[str, list[str]] = {"npm": [], "pip": []}
+        if args.web_search_only:
+            approved_devices["rest"] = []
+            approved_devices["cli"] = []
+            try:
+                rest_result = _run_rest_web_search(env)
+            except RuntimeError as exc:
+                if not key_id or not _is_device_approval_error(exc):
+                    raise
+                approved_devices["rest"] = _approve_pending_key_devices(args.api_url, key_id, {"cli"})
+                rest_result = _run_rest_web_search(env)
+            _assert_web_search_contract(rest_result, client_name="rest")
+
+            try:
+                cli_result = _run_cli_web_search(env)
+            except RuntimeError as exc:
+                if not key_id or not _is_device_approval_error(exc):
+                    raise
+                approved_devices["cli"] = _approve_pending_key_devices(args.api_url, key_id, {"cli"})
+                cli_result = _run_cli_web_search(env)
+            _assert_web_search_contract(cli_result, client_name="cli")
+
+            try:
+                npm_result = _run_npm_web_search_sdk(env)
+            except RuntimeError as exc:
+                if not key_id or not _is_device_approval_error(exc):
+                    raise
+                approved_devices["npm"] = _approve_pending_key_devices(args.api_url, key_id, {"npm"})
+                npm_result = _run_npm_web_search_sdk(env)
+            _assert_web_search_contract(npm_result, client_name="npm")
+
+            python_result = None
+            if not args.skip_python:
+                try:
+                    python_result = _run_python_web_search_sdk(env)
+                except RuntimeError as exc:
+                    if not key_id or not _is_device_approval_error(exc):
+                        raise
+                    approved_devices["pip"] = _approve_pending_key_devices(args.api_url, key_id, {"pip"})
+                    python_result = _run_python_web_search_sdk(env)
+                _assert_web_search_contract(python_result, client_name="pip")
+
+            print(json.dumps({
+                "apiUrl": args.api_url,
+                "keyId": key_id,
+                "approvedDevices": approved_devices,
+                "rest": _web_search_summary(rest_result),
+                "cli": _web_search_summary(cli_result),
+                "npm": _web_search_summary(npm_result),
+                "python": _web_search_summary(python_result) if python_result else None,
+            }, indent=2))
+            return 0
+
         if args.maps_geoapify_only:
             cli_result = _run_cli_maps_geoapify(env)
             _assert_maps_geoapify(cli_result, client_name="cli")
