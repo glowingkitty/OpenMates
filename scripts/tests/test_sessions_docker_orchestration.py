@@ -51,6 +51,39 @@ def test_restart_request_blocks_new_dependent_tests(monkeypatch, tmp_path):
         sessions.acquire_test_resource_lease("run-1", "test-session", {"dev-stack"}, timeout=0)
 
 
+def test_official_cloud_docker_command_includes_overlay(monkeypatch, tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "OPENMATES_DEPLOYMENT_MODE=official_cloud\n"
+        "OPENMATES_CLOUD_OVERLAY_ENABLED=true\n"
+        "OPENMATES_CLOUD_OVERLAY_PACKAGE=OpenMatesCloud\n",
+        encoding="utf-8",
+    )
+    overlay_file = tmp_path / "docker-compose.openmatescloud.yml"
+    overlay_file.write_text("services: {}\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "ENV_FILE", env_file)
+    monkeypatch.setattr(sessions, "OPENMATESCLOUD_COMPOSE_FILE", overlay_file)
+
+    command = sessions._docker_compose_command("restart", "api")
+
+    assert command[-4:] == ["-f", str(overlay_file), "restart", "api"]
+
+
+def test_official_cloud_docker_command_fails_closed_without_overlay(monkeypatch, tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "OPENMATES_DEPLOYMENT_MODE=official_cloud\n"
+        "OPENMATES_CLOUD_OVERLAY_ENABLED=false\n"
+        "OPENMATES_CLOUD_OVERLAY_PACKAGE=\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "ENV_FILE", env_file)
+    monkeypatch.setattr(sessions, "OPENMATESCLOUD_COMPOSE_FILE", tmp_path / "missing.yml")
+
+    with pytest.raises(RuntimeError, match="official-cloud Docker restart requires"):
+        sessions._docker_compose_command("restart", "api")
+
+
 def test_direct_dev_runner_holds_docker_resource_lease(monkeypatch):
     run_tests = load_run_tests_module()
     args = SimpleNamespace(

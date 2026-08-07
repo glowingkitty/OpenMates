@@ -122,6 +122,7 @@ DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
 DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
+OPENMATESCLOUD_COMPOSE_FILE = CONTROL_PLANE_ROOT.parent / "OpenMatesCloud" / "docker-compose.openmatescloud.yml"
 DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
@@ -6785,6 +6786,20 @@ def cmd_unlock(args: argparse.Namespace) -> None:
     print(f"Lock '{lock_type}' released.")
 
 
+def _read_env_values(path: Path) -> dict[str, str]:
+    """Read runtime selectors without logging or mutating other environment values."""
+    if not path.is_file():
+        return {}
+    values = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
 def _docker_compose_command(*args: str) -> list[str]:
     command = [
         "docker",
@@ -6796,6 +6811,18 @@ def _docker_compose_command(*args: str) -> list[str]:
     ]
     if DOCKER_COMPOSE_OVERRIDE.is_file():
         command.extend(["-f", str(DOCKER_COMPOSE_OVERRIDE)])
+    runtime_env = _read_env_values(ENV_FILE)
+    if runtime_env.get("OPENMATES_DEPLOYMENT_MODE") == "official_cloud":
+        overlay_ready = (
+            runtime_env.get("OPENMATES_CLOUD_OVERLAY_ENABLED") == "true"
+            and runtime_env.get("OPENMATES_CLOUD_OVERLAY_PACKAGE") == "OpenMatesCloud"
+            and OPENMATESCLOUD_COMPOSE_FILE.is_file()
+        )
+        if not overlay_ready:
+            raise RuntimeError(
+                "official-cloud Docker restart requires the enabled OpenMatesCloud overlay and compose file"
+            )
+        command.extend(["-f", str(OPENMATESCLOUD_COMPOSE_FILE)])
     return [*command, *args]
 
 

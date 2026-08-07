@@ -197,16 +197,20 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-31T17:30:18Z"
     notes: The read-only readiness check passed, but the --execute run stopped before mutating dev/provider state because the gitignored operator helper scripts/revolut_business_setup.py is missing locally and was not present in the OpenMatesCloud sibling repo.
+  - id: ATTEMPT-11
+    task_id: TASK-3
+    approach: Reproduce the disabled dev billing runtime, then make sessions.py Docker lifecycle commands compose the official-cloud overlay and fail closed when its persisted markers or sibling Compose file are missing.
+    outcome: succeeded
+    recorded_at: "2026-08-07T13:13:28Z"
+    notes: Focused sessions Docker orchestration tests passed with 13 tests, including official-cloud overlay inclusion and fail-closed coverage; changed-file Python lint also passed.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Restore the gitignored operator helper scripts/revolut_business_setup.py from the private operator store, then rerun the live TASK-3 income/provider smoke gate with --execute.
-  command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete,duplicate-completed-reference --execute
-  expected_outcome: Dev provider smoke proves income/payment accounting still works through the OpenMatesCloud overlay.
-  blocker:
-    reason: Missing local gitignored operator helper scripts/revolut_business_setup.py required for Revolut Sandbox /sandbox/topup simulation.
-    next_action: Restore the helper from the private operator store before rerunning the live --execute smoke.
-  last_verified_commit: 54059099aa0d577bdf986f62529196ab66c1f11f+openmatescloud-untracked-overlay
+  next_action: Deploy the sessions.py overlay restart invariant, persist official-cloud mode through the supported CLI, restart the affected services, and rerun the read-only dev overlay boot check.
+  command: python3 scripts/api_tests/test_cloud_overlay_boot.py --api-url https://api.dev.openmates.org
+  expected_outcome: Every sessions.py-managed official-cloud restart includes the sibling overlay, and the live dev API reports payments enabled after restart.
+  blocker: null
+  last_verified_commit: working-tree-agent-b396
 
 scenarios:
   - id: S-1
@@ -462,6 +466,32 @@ tests:
         subject_commit: a70cfbbe0aefc49cb24d15fae5f0179b3ff99a0c+working-tree-openmatescloud-task3-overlay-hooks
         timestamp: "2026-07-31T16:24:00Z"
         summary: CLI server unit tests passed with 61 tests, covering self-host exclusion, official-cloud sibling OpenMatesCloud path/compose planning helpers, and env-driven lifecycle compose args that append the overlay file.
+  - id: T-SESSIONS-OVERLAY-RESTART
+    type: pytest
+    file: scripts/tests/test_sessions_docker_orchestration.py
+    command: python3 -m pytest scripts/tests/test_sessions_docker_orchestration.py
+    covers: [AC-1, AC-2]
+    assertions:
+      - sessions.py Docker lifecycle commands include the sibling overlay Compose file in official-cloud mode
+      - official-cloud lifecycle commands fail closed when persisted overlay markers or the Compose file are missing
+      - self-host lifecycle commands remain core-only
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        summary: The regression test was added with the restart fix after the live dev payment configuration 404 reproduced the missing-overlay state.
+        timestamp: "2026-08-07T13:13:28Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_sessions_docker_orchestration.py
+        run_id: local-2026-08-07-sessions-overlay-restart-13-passed
+        subject_commit: working-tree-agent-b396
+        timestamp: "2026-08-07T13:13:28Z"
+        summary: All 13 sessions Docker orchestration tests passed.
   - id: T-OPENMATESCLOUD-PACKAGE
     type: pytest
     file: ../OpenMatesCloud/backend/tests/test_overlay_compose.py
@@ -900,10 +930,12 @@ tasks:
       - backend/tests/test_openmatescloud_overlay_packaging.py
       - backend/tests/test_bank_transfer.py
       - scripts/api_tests/test_cloud_overlay_boot.py
+      - scripts/sessions.py
+      - scripts/tests/test_sessions_docker_orchestration.py
       - ../OpenMatesCloud/docker-compose.openmatescloud.yml
       - ../OpenMatesCloud/backend/openmatescloud/api/billing_overlay.py
       - ../OpenMatesCloud/backend/tests/test_overlay_compose.py
-    verification_ids: [T-OPENMATESCLOUD-PACKAGE, T-SELFHOST-EXCLUSION, T-REGRESSION-BILLING, T-DEV-CLOUD-BOOT, T-DEV-INCOME-SMOKE]
+    verification_ids: [T-OPENMATESCLOUD-PACKAGE, T-SESSIONS-OVERLAY-RESTART, T-SELFHOST-EXCLUSION, T-REGRESSION-BILLING, T-DEV-CLOUD-BOOT, T-DEV-INCOME-SMOKE]
     dependencies: [TASK-1, TASK-2]
     blockers: []
     follow_up_tasks: [TASK-4]
@@ -912,6 +944,8 @@ tasks:
         - backend/tests/test_openmatescloud_overlay_packaging.py
         - backend/tests/test_bank_transfer.py
         - scripts/api_tests/test_cloud_overlay_boot.py
+        - scripts/sessions.py
+        - scripts/tests/test_sessions_docker_orchestration.py
       shared_files:
         - backend/core/api/main.py
         - backend/core/api/app/tasks/celery_config.py
