@@ -1,0 +1,111 @@
+schema_version: 1
+contracts:
+  feature.app-skill.web-search:
+    version: 1
+    status: approved
+    path: features/app-skills/web-search
+    fingerprint: 738df115f3d77305ef48ca7e1865acecd0715462685c39e3e5a0ec2312552375
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+assertions:
+  web-search.request.validated:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: validation
+    fingerprint: 860c899800e2fa8b6fa967b739dfb42d914cacbb9c9b63175cf8c962bdcf6d11
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.request.ids-correlated:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: invariant
+    fingerprint: e4ec0c564f1f3e61383e5456d259b2e0b49a53e9a054eb658e285f5099075f3d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.response.sanitized:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: security
+    fingerprint: cb48e999a2725f11a0d5720e137eee956f0be5df2f62f3837b3cb990f2c33f9b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.results.bounded:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: invariant
+    fingerprint: 26dfcc4aa331cb7887e0c06f84663553891f6e19051b38e9b6f7925c592eb668
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.no-results.explicit:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: behavior
+    fingerprint: fc30a66972f8c43c5540d537dd01f0e06b80ea85c6faad324f8c30f86ff6a8aa
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.provider-error.visible:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: failure
+    fingerprint: 3fd8a7c75c569b9800adf270ddd489c8e64edf464374f5bdc351c51fd1615222
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.secrets.never-exposed:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: privacy
+    fingerprint: 9046ba9759aecfb50741a90d2424292a0f0d1926469eb95901925efc6f1bc1f6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.surface-parity:
+    contract: feature.app-skill.web-search@1
+    contract_id: feature.app-skill.web-search
+    type: parity
+    fingerprint: 51330fc964841b2faa8458fbfd35c728b1eb17ba12f1d64efed4360a37516292
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple

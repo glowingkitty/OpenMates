@@ -41,6 +41,12 @@ current response or session task instead of creating files.
 
 Before asking questions or drafting:
 
+0. Discover the governing approved contract bundle. For a new feature or
+   semantic behavior change, run `define-contract`, show the required full
+   contract/diff in chat, wait for approval, and record the exact bundle hash
+   before creating the full spec. Implementation-only work references the
+   current approved contract without changing it.
+
 1. Search existing GitHub Issues by default if this is tracker work.
 2. Search relevant Linear tasks only when the work is Linear-only or a Linear ID
    was explicitly provided.
@@ -86,7 +92,8 @@ docs/specs/<slug>/spec.yml
 Use the template from `docs/contributing/guides/spec-driven-development.md`.
 Every full spec must include:
 
-- `schema_version: 2`
+- `schema_version: 3` for new contract-aware specs, preserving every Schema V2 ledger field
+- `contract_refs`, `contract_impact`, affected stable assertion IDs, per-criterion assertion links, and `documentation_impact`
 - Goal
 - Scope and non-goals
 - Context discovery and clarification summary

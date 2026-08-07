@@ -19,6 +19,10 @@ State your understanding in 2-3 sentences and get confirmation before continuing
 
 ### Step 2 — Find or propose an automated test spec
 
+Before changing a behavioral test, identify the approved assertion it proves.
+If none exists, use `backfill-contract`; disputed or new behavior must complete
+`define-contract` approval before the reproduction test becomes authoritative.
+
 Run:
 ```bash
 python3 scripts/sessions.py check-tests --session <session-id>
@@ -82,3 +86,4 @@ The same spec MUST pass. This is the proof the fix works.
 - **Use `data-testid` selectors only** when writing or extending specs — never CSS classes.
 - **One spec per bug** when reasonable. If the same fix closes multiple user-reported bugs, one spec covering the shared root cause is fine.
 - **Ask before creating new specs.** Extending is cheaper than creating; the user may know an existing spec you missed.
+- **Changed tests require contract metadata.** Link stable assertion IDs and the exercised surface; do not leave touched tests legacy-unmapped.

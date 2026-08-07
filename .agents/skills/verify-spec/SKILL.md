@@ -48,6 +48,12 @@ For every scenario and acceptance criterion, record:
 
 Pass only when:
 
+- Schema V3 contract references resolve, changed assertions have current
+  matching fingerprints, required surfaces have direct proof, and contract plus
+  documentation impact is resolved.
+- Changed contract bundles have a session-local explicit-user approval receipt
+  matching the exact current bundle hash.
+
 - Every completed acceptance criterion has green evidence.
 - Every required acceptance criterion is covered, waived, or blocked by an
   accepted user/external dependency; ambiguous and uncovered criteria fail.

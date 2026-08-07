@@ -53,12 +53,14 @@ test.describe('App: Web / Skill: search', () => {
 	});
 
 	// ── Phase 1: Embed preview renders ─────────────────────────────────────
+	// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/web', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'web', log);
 	});
 
 	// ── Phase 2: CLI direct skill command ──────────────────────────────────
+	// contract-test: direct surface=cli assertions=web-search.request.validated,web-search.surface-parity
 	test('Phase 2: CLI apps web search returns results', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -85,6 +87,7 @@ test.describe('App: Web / Skill: search', () => {
 	});
 
 	// ── Phase 3: CLI chat send triggers skill ──────────────────────────────
+	// contract-test: supporting surface=cli assertions=web-search.surface-parity
 	test('Phase 3: CLI chats new triggers web search', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -111,6 +114,7 @@ test.describe('App: Web / Skill: search', () => {
 	// results, the assistant answer must still render cleanly without the red
 	// embed-error banner, and the zero-hit embed must finalize to status=finished
 	// (not status=error). Fix is in backend/apps/ai/processing/main_processor.py.
+	// contract-test: direct surface=gui.web assertions=web-search.no-results.explicit,web-search.surface-parity
 	test('Phase 5: Zero-result query does not show error banner', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
@@ -213,6 +217,7 @@ test.describe('App: Web / Skill: search', () => {
 	});
 
 	// ── Phase 4: Web UI chat triggers skill ────────────────────────────────
+	// contract-test: direct surface=gui.web assertions=web-search.surface-parity
 	test('Phase 4: Web chat triggers web search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);

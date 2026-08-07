@@ -41,6 +41,9 @@ PLAN_PROMPT_TERMS = {
     "V-UI-VISUAL-SMOKE",
     "viewports: [laptop, mobile]",
     "handoff",
+    "narration outline",
+    "frame-only review",
+    "Discord publication",
 }
 PLAN_EDIT_PERMISSION_ITEMS = (
     ("*", "deny"),
@@ -57,6 +60,8 @@ SKILL_TERMS = {
         "V-UI-VISUAL-SMOKE",
         "viewports: [laptop, mobile]",
         "handoff",
+        "narration outline",
+        "demonstration eligibility",
     },
     ".claude/skills/plan-from-spec/SKILL.md": {
         "required assumptions",
@@ -64,6 +69,8 @@ SKILL_TERMS = {
         "verification_ids",
         "approvals.implementation_plan",
         "handoff",
+        "capture source",
+        "full video",
     },
     ".claude/skills/tasks-from-spec/SKILL.md": {
         "failed required checks",
@@ -73,6 +80,8 @@ SKILL_TERMS = {
         "--viewport laptop --viewport mobile",
         "ownership",
         "handoff",
+        "demonstration review",
+        "Discord publication",
     },
     ".claude/skills/verify-spec/SKILL.md": {
         "Continue On Failure",
@@ -83,18 +92,20 @@ SKILL_TERMS = {
         "laptop/mobile",
         "subject commit",
         "material",
+        "frame-only",
+        "publication_pending",
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "Agent Workflow Retrospective", "task-closing", "None observed"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",

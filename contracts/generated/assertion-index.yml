@@ -1,0 +1,127 @@
+schema_version: 1
+assertions:
+  web-search.request.validated:
+    contract: feature.app-skill.web-search@1
+    fingerprint: 860c899800e2fa8b6fa967b739dfb42d914cacbb9c9b63175cf8c962bdcf6d11
+    direct_tests:
+    - &id001
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 64
+      name: 'Phase 2: CLI apps web search returns results'
+      surface: cli
+    supporting_tests: []
+    tests:
+    - *id001
+    surfaces:
+      cli:
+        direct_tests:
+        - *id001
+        supporting_tests: []
+    current_direct_proof: false
+  web-search.request.ids-correlated:
+    contract: feature.app-skill.web-search@1
+    fingerprint: e4ec0c564f1f3e61383e5456d259b2e0b49a53e9a054eb658e285f5099075f3d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  web-search.response.sanitized:
+    contract: feature.app-skill.web-search@1
+    fingerprint: cb48e999a2725f11a0d5720e137eee956f0be5df2f62f3837b3cb990f2c33f9b
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  web-search.results.bounded:
+    contract: feature.app-skill.web-search@1
+    fingerprint: 26dfcc4aa331cb7887e0c06f84663553891f6e19051b38e9b6f7925c592eb668
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  web-search.no-results.explicit:
+    contract: feature.app-skill.web-search@1
+    fingerprint: fc30a66972f8c43c5540d537dd01f0e06b80ea85c6faad324f8c30f86ff6a8aa
+    direct_tests:
+    - &id002
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 118
+      name: 'Phase 5: Zero-result query does not show error banner'
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id002
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id002
+        supporting_tests: []
+    current_direct_proof: false
+  web-search.provider-error.visible:
+    contract: feature.app-skill.web-search@1
+    fingerprint: 3fd8a7c75c569b9800adf270ddd489c8e64edf464374f5bdc351c51fd1615222
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  web-search.secrets.never-exposed:
+    contract: feature.app-skill.web-search@1
+    fingerprint: 9046ba9759aecfb50741a90d2424292a0f0d1926469eb95901925efc6f1bc1f6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  web-search.surface-parity:
+    contract: feature.app-skill.web-search@1
+    fingerprint: 51330fc964841b2faa8458fbfd35c728b1eb17ba12f1d64efed4360a37516292
+    direct_tests:
+    - &id004
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 64
+      name: 'Phase 2: CLI apps web search returns results'
+      surface: cli
+    - &id006
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 118
+      name: 'Phase 5: Zero-result query does not show error banner'
+      surface: gui.web
+    - &id007
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 221
+      name: 'Phase 4: Web chat triggers web search with embed'
+      surface: gui.web
+    supporting_tests:
+    - &id003
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 57
+      name: 'Phase 1: embed preview renders at /dev/preview/embeds/web'
+      surface: gui.web
+    - &id005
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 91
+      name: 'Phase 3: CLI chats new triggers web search'
+      surface: cli
+    tests:
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id006
+        - *id007
+        supporting_tests:
+        - *id003
+      cli:
+        direct_tests:
+        - *id004
+        supporting_tests:
+        - *id005
+    current_direct_proof: false

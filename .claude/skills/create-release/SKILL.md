@@ -32,6 +32,14 @@ Version bump decision:
 
 ### Step 2 — Write Release Notes
 
+Generate the contract trace for the commits included in the release and include
+its implemented contract versions, verified assertions, and approved exceptions
+in the release metadata/notes:
+
+```bash
+python3 scripts/contracts.py release-summary --git-range <previous-tag>..<target> --json
+```
+
 Write human-readable notes aimed at **users and contributors** (not a commit dump):
 
 ```markdown

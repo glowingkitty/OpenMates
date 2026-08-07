@@ -39,6 +39,13 @@ OpenMates/
 - **Comments:** Explain business logic and architecture decisions. Link to `docs/architecture/`.
 - **File headers:** Every new `.py`, `.ts`, `.svelte` file needs a header comment (5-10 lines).
 
+## Contract-Driven Development
+
+- Approved bundles under `contracts/` define durable product truth. New features use `define-contract` before full specs or implementation.
+- Contract edits stay in the session worktree and require exact user approval: quote the full new `contract.yml` or every explicit existing bundle change, then record the approved bundle hash. Later edits invalidate approval and deploy blocks.
+- Full specs remain complete implementation/evidence ledgers. New or changed behavioral tests link stable contract assertions and surfaces; touched unmapped tests trigger backfill.
+- Reference contracts from specs, tests, commits, and releases, not product source headers.
+
 ### DRY — Search Before Writing
 
 | Shared location                        | What goes there                            |

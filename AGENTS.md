@@ -130,6 +130,14 @@ For each observed preventable process problem, check the relevant existing hooks
 Use OpenCode skills proactively when the task matches their purpose. Do not wait
 for the user to name the skill if the intent is clear.
 
+Contract-driven development:
+- Approved bundles under `contracts/` are the durable source of truth; specs, tests, docs, and code must not silently redefine them.
+- New features use `define-contract` before `specify`. Semantic contract changes require exact user approval before implementation; implementation-only changes reuse the approved contract and refresh affected proof.
+- Contract work stays in the session worktree. For a new contract, quote the complete `contract.yml` in chat. For an existing contract, quote every explicit `contract.yml` and `examples.yml` change. After approval, record the exact bundle hash with `python3 scripts/contracts.py approve ...`; later edits invalidate approval and deploy blocks.
+- Schema V3 specs retain the complete V2 ledger and add `contract_refs`, affected assertion IDs, contract impact, and documentation impact.
+- New or changed behavioral tests declare `contract-test` assertion metadata and a surface. Touched unmapped tests warn after edit and block deploy until linked to an existing assertion or backfilled through `backfill-contract`/`define-contract`.
+- Contracts are referenced from specs, tests, commits, and releases, not product source headers. Canonical surfaces are REST API, CLI, SDKs (npm/pip), and GUI (web/Apple), with parity required unless the contract records an approved exception.
+
 Spec-driven development:
 - Use the risk tiers in `docs/contributing/guides/spec-driven-development.md`. Auto-select `specify` for Tier 2 high-risk or durable multi-session work; use a concise inline contract for ordinary Tier 1 work instead of forcing a full YAML ledger.
 - Full specs are required for auth, encryption, billing, privacy, teams, sharing, permissions, sync, AI pipeline changes, provider integrations, migrations, new API routes, app skills, embed types, background jobs, cron jobs, and Directus schema changes.

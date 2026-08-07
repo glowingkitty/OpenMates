@@ -55,6 +55,10 @@ docs/specs/<slug>/spec.yml
 
 The plan must include:
 
+- Governing `contract_refs`, affected permanent assertion IDs, exact surface
+  proof, documentation impact, and whether the work is a new contract, semantic
+  amendment, or implementation-only change.
+
 - Link to the spec
 - Existing patterns and files to reuse
 - Technical architecture and boundaries

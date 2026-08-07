@@ -32,6 +32,8 @@ docs/specs/<slug>/spec.yml
 
 Each task must include:
 
+- Permanent assertion IDs and canonical surfaces changed or proven by the task.
+
 - A short action title
 - Scenario IDs covered (`S-*`)
 - Acceptance criteria covered (`AC-*`)

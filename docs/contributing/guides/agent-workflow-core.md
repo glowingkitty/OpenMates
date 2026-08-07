@@ -8,6 +8,14 @@ Keep default context concise. Lazy-load detailed rules, docs, and skills only
 when the task touches that area: frontend, backend, testing, privacy, settings,
 embeds, Apple, specs, deployment, or provider integrations.
 
+For new features, discover approved bundles through `scripts/contracts.py`
+before drafting a spec. Use `define-contract` when permanent truth is missing or
+must change; contract edits remain proposals in the session worktree until the
+full new contract or explicit existing changes are shown in chat and the user
+approves the exact bundle hash. Full Schema V3 specs retain the existing ledger
+and reference permanent assertions. Changed behavioral tests link assertions and
+surfaces; unmapped touched tests trigger incremental backfill and block deploy.
+
 OpenCode Web chats intentionally remain at the root project URL. For mutating
 work, run `python3 scripts/sessions.py start --mode <mode> --task "..."` before
 edits, Bash-heavy investigation, or Task children. Hooks route local reads,
@@ -87,6 +95,8 @@ the canonical captions and bounded image frames, never the full video. Use a
 default three-second interval plus event boundaries, request exact-timestamp
 frames only when needed, and keep Discord publication status separate from the
 review-based completion gate.
+Planning records demonstration eligibility and the narration outline. Completion
+uses frame-only review; Discord publication remains a separate delivery state.
 
 Common commands:
 

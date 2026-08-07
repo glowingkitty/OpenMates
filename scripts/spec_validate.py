@@ -21,7 +21,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VALID_STATUSES = {"draft", "clarifying", "approved", "implementing", "verified"}
-VALID_SCHEMA_VERSIONS = {1, 2}
+VALID_SCHEMA_VERSIONS = {1, 2, 3}
 VALID_TEST_TYPES = {"playwright", "pytest", "vitest", "unit", "lint", "build", "manual"}
 VALID_AC_STATUSES = {"pending", "satisfied", "failed", "waived", "blocked"}
 VALID_COVERAGE_STATUSES = {"uncovered", "covered", "ambiguous", "blocked", "waived"}
@@ -195,7 +195,7 @@ def _validate_acceptance_criteria(
             raise SpecError(f"{criterion_id}.verification_scope must be one of {', '.join(sorted(VALID_VERIFICATION_SCOPES))}")
 
         verification_ids = _optional_string_list(criterion.get("verification_ids"), f"acceptance_criteria[{index}].verification_ids")
-        if schema_version == 2:
+        if schema_version >= 2:
             for field in ("required", "status", "coverage_status", "verification_scope"):
                 if field not in criterion:
                     raise SpecError(f"{criterion_id} Schema V2 record requires {field}")
@@ -203,6 +203,14 @@ def _validate_acceptance_criteria(
                 raise SpecError(f"{criterion_id}.required must be boolean")
             if criterion["required"] and criterion.get("coverage_status") == "covered" and not verification_ids:
                 raise SpecError(f"{criterion_id} requires verification_ids when coverage_status is covered")
+        if schema_version >= 3:
+            contract_assertions = _string_list(
+                criterion.get("contract_assertions"),
+                f"{criterion_id}.contract_assertions",
+            )
+            for assertion_id in contract_assertions:
+                if not re.fullmatch(r"[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)+", assertion_id):
+                    raise SpecError(f"{criterion_id}.contract_assertions contains invalid assertion id {assertion_id!r}")
         if verification_ids and criterion.get("coverage_status") in {"uncovered", "ambiguous"}:
             raise SpecError(f"{criterion_id} has verification_ids but coverage_status is {criterion.get('coverage_status')}")
         if criterion.get("status") == "satisfied" and criterion.get("coverage_status") in {"uncovered", "ambiguous"}:
@@ -220,7 +228,7 @@ def _validate_evidence(
     phase: str,
     schema_version: int,
 ) -> None:
-    if schema_version != 2:
+    if schema_version < 2:
         return
     _as_mapping(evidence, f"{record_id}.{phase}.evidence")
 
@@ -246,6 +254,8 @@ def _validate_tests(data: dict[str, Any], ac_ids: set[str], schema_version: int)
         assertions = _as_list(test.get("assertions"), f"tests[{index}].assertions")
         if not all(isinstance(item, str) and item.strip() for item in assertions):
             raise SpecError(f"{test_id}.assertions must contain non-empty strings")
+        if schema_version >= 3:
+            _string_list(test.get("contract_assertions"), f"{test_id}.contract_assertions")
 
         covers = _as_list(test.get("covers"), f"tests[{index}].covers")
         for criterion_id in covers:
@@ -300,7 +310,7 @@ def _validate_assumptions(data: dict[str, Any], schema_version: int) -> None:
         required_before = assumption.get("required_before", "never")
         if required_before not in VALID_REQUIRED_BEFORE:
             raise SpecError(f"{assumption_id}.required_before must be one of {', '.join(sorted(VALID_REQUIRED_BEFORE))}")
-        if schema_version == 2 and required_before != "never" and status in {"confirmed", "corrected"}:
+        if schema_version >= 2 and required_before != "never" and status in {"confirmed", "corrected"}:
             _as_list(assumption.get("evidence"), f"{assumption_id}.evidence")
 
 
@@ -485,7 +495,7 @@ def _validate_tasks(
         for ref in refs:
             if (ref.startswith("T-") or ref.startswith("V-")) and valid_verification_refs and ref not in valid_verification_refs:
                 raise SpecError(f"{task_id} references unknown verification/test {ref}")
-        if schema_version == 2:
+        if schema_version >= 2:
             for field in ("status", "phase", "covers", "expected_files", "verification_ids", "dependencies", "blockers", "follow_up_tasks", "ownership"):
                 if field not in task:
                     raise SpecError(f"{task_id} Schema V2 record requires {field}")
@@ -495,7 +505,7 @@ def _validate_tasks(
             _as_list(ownership.get("files"), f"{task_id}.ownership.files")
             if not isinstance(ownership.get("shared_files"), list):
                 raise SpecError(f"{task_id}.ownership.shared_files must be a list")
-    if schema_version == 2:
+    if schema_version >= 2:
         for index, task in enumerate(_as_list(tasks, "tasks"), start=1):
             task_id = _require_string(_as_mapping(task, f"tasks[{index}]"), f"tasks[{index}].id")
             for dependency in _string_list(task.get("dependencies"), f"{task_id}.dependencies", allow_empty=True):
@@ -561,6 +571,51 @@ def _validate_schema_v2(data: dict[str, Any], task_ids: set[str]) -> None:
         _require_string(affected_file, f"implementation_plan.affected_files[{index}].reason")
 
 
+def _validate_schema_v3(data: dict[str, Any]) -> None:
+    refs = _as_list(data.get("contract_refs"), "contract_refs")
+    seen: set[str] = set()
+    primary_count = 0
+    for index, ref in enumerate(refs, start=1):
+        ref = _as_mapping(ref, f"contract_refs[{index}]")
+        contract_id = _require_string(ref, f"contract_refs[{index}].id")
+        if not re.fullmatch(r"[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)+", contract_id):
+            raise SpecError(f"contract_refs[{index}].id is invalid: {contract_id!r}")
+        if contract_id in seen:
+            raise SpecError(f"duplicate contract_refs id {contract_id}")
+        seen.add(contract_id)
+        version = ref.get("version")
+        if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+            raise SpecError(f"contract_refs[{index}].version must be a positive integer")
+        role = _require_string(ref, f"contract_refs[{index}].role")
+        if role not in {"primary", "inherited"}:
+            raise SpecError(f"contract_refs[{index}].role must be primary or inherited")
+        primary_count += role == "primary"
+    if primary_count != 1:
+        raise SpecError("contract_refs must contain exactly one primary contract")
+
+    impact = _as_mapping(data.get("contract_impact"), "contract_impact")
+    classification = _require_string(impact, "contract_impact.classification")
+    if classification not in {"new_contract", "semantic_change", "implementation_only"}:
+        raise SpecError("contract_impact.classification must be new_contract, semantic_change, or implementation_only")
+    update_required = impact.get("contract_update_required")
+    if not isinstance(update_required, bool):
+        raise SpecError("contract_impact.contract_update_required must be boolean")
+    if (classification in {"new_contract", "semantic_change"}) != update_required:
+        raise SpecError("contract_impact.contract_update_required contradicts classification")
+    _string_list(impact.get("affected_assertions"), "contract_impact.affected_assertions")
+    _require_string(impact, "contract_impact.reason")
+
+    docs = _as_mapping(data.get("documentation_impact"), "documentation_impact")
+    valid_statuses = {"unchanged", "update_required", "regenerate", "not_applicable"}
+    for area in ("generated_reference", "user_docs", "semantic_layer"):
+        record = _as_mapping(docs.get(area), f"documentation_impact.{area}")
+        status = _require_string(record, f"documentation_impact.{area}.status")
+        if status not in valid_statuses:
+            raise SpecError(f"documentation_impact.{area}.status must be one of {', '.join(sorted(valid_statuses))}")
+        if status in {"unchanged", "not_applicable"}:
+            _require_string(record, f"documentation_impact.{area}.reason")
+
+
 def validate_spec(path: Path) -> dict[str, Any]:
     data = _load_yaml(path)
     schema_version = _schema_version(data)
@@ -595,8 +650,10 @@ def validate_spec(path: Path) -> dict[str, Any]:
     missing_coverage = sorted(ac_ids - covered_ac_ids)
     if missing_coverage:
         raise SpecError(f"acceptance criteria without test coverage: {', '.join(missing_coverage)}")
-    if schema_version == 2:
+    if schema_version >= 2:
         _validate_schema_v2(data, task_ids)
+    if schema_version >= 3:
+        _validate_schema_v3(data)
     return data
 
 

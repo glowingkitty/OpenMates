@@ -6,6 +6,8 @@ Security: temp specs use placeholder values only and never touch product data.
 Tests: python3 -m pytest scripts/tests/test_spec_workflow_validation.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -13,6 +15,8 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -229,6 +233,43 @@ tasks:
     )
 
 
+def schema_v3_spec() -> str:
+    return schema_v2_spec().replace("schema_version: 2", "schema_version: 3", 1).replace(
+        "implementation_state:\n",
+        """contract_refs:
+  - id: feature.example
+    version: 1
+    role: primary
+contract_impact:
+  classification: implementation_only
+  contract_update_required: false
+  affected_assertions:
+    - example.flow.succeeds
+  reason: Approved behavior is unchanged.
+documentation_impact:
+  generated_reference:
+    status: unchanged
+    reason: Models and examples are unchanged.
+  user_docs:
+    status: unchanged
+    reason: User-visible behavior is unchanged.
+  semantic_layer:
+    status: unchanged
+    reason: Architecture boundaries are unchanged.
+implementation_state:
+""",
+        1,
+    ).replace(
+        "    verification_ids:\n      - V-EXAMPLE\n",
+        "    verification_ids:\n      - V-EXAMPLE\n    contract_assertions:\n      - example.flow.succeeds\n",
+        1,
+    ).replace(
+        "    assertions:\n      - example assertion\n",
+        "    assertions:\n      - example assertion\n    contract_assertions:\n      - example.flow.succeeds\n",
+        1,
+    )
+
+
 def test_validator_accepts_plan_like_spec(tmp_path):
     spec_validate = load_module("spec_validate")
     path = write_spec(tmp_path, minimal_spec())
@@ -236,6 +277,30 @@ def test_validator_accepts_plan_like_spec(tmp_path):
     data = spec_validate.validate_spec(path)
 
     assert data["id"] == "example"
+
+
+# contract-test: tooling
+def test_validator_accepts_schema_v3_contract_traceability(tmp_path):
+    spec_validate = load_module("spec_validate")
+    path = write_spec(tmp_path, schema_v3_spec())
+
+    data = spec_validate.validate_spec(path)
+
+    assert data["schema_version"] == 3
+    assert data["contract_refs"][0]["id"] == "feature.example"
+
+
+# contract-test: tooling
+def test_validator_rejects_schema_v3_without_contract_assertions(tmp_path):
+    spec_validate = load_module("spec_validate")
+    body = schema_v3_spec().replace(
+        "    contract_assertions:\n      - example.flow.succeeds\n",
+        "",
+        1,
+    )
+
+    with pytest.raises(spec_validate.SpecError, match="contract_assertions"):
+        spec_validate.validate_spec(write_spec(tmp_path, body))
 
 
 def test_validator_rejects_vague_acceptance_criteria_without_ambiguous_coverage(tmp_path):

@@ -10,6 +10,20 @@ is to protect product intent before OpenCode changes production code: clarify th
 user's vision, write a machine-checkable product contract, create tests first,
 then implement small verified slices.
 
+Approved contract bundles under `contracts/` precede full specs for new features
+and semantic behavior changes. Contracts define durable models, constraints,
+assertions, examples, and REST API/CLI/SDKs/GUI parity; full specs remain the
+complete changing implementation, task, attempt, handoff, and evidence ledger.
+Implementations that do not change approved meaning reference the current
+contract and refresh affected evidence without semantic reapproval.
+
+Contract edits are proposed inside the session worktree. A new contract requires
+the complete compact `contract.yml` to be quoted in chat; an existing contract
+requires every explicit `contract.yml` and `examples.yml` change to be quoted.
+After explicit user confirmation, record the exact bundle hash with
+`scripts/contracts.py approve`. Any later bundle edit invalidates approval and
+the deploy gate blocks integration until confirmation is repeated.
+
 Full specs use a single YAML source of truth:
 
 ```text
@@ -20,7 +34,10 @@ Do not maintain separate Markdown spec, plan, or task files for new full specs.
 If a readable document is needed, generate it from `spec.yml` instead of
 duplicating content by hand.
 
-New full specs declare `schema_version: 2`. Existing specs without that field
+New contract-aware full specs declare `schema_version: 3`. Schema V3 preserves
+all Schema V2 fields and adds `contract_refs`, `contract_impact`, affected
+assertions, per-criterion assertion links, and `documentation_impact`. Existing
+Schema V1/V2 specs remain valid until materially resumed. Existing specs without that field
 remain Schema V1 and are validated under the legacy contract until they are
 actively resumed for material implementation work. Do not bulk-migrate old
 specs solely to satisfy this guide.

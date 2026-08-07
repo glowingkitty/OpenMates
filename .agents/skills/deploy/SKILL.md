@@ -44,6 +44,8 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
    visible blocked-deploy item; resolve the conflict and rerun deploy.
 
 3. **Run spec conformance when applicable:**
+   - Run `python3 scripts/contracts.py check-changed <changed paths> --session <SESSION_ID>` for contract-governed work. Contract edits require an exact-hash approval receipt; changed behavioral tests cannot remain unmapped.
+   - Run `python3 scripts/contracts.py check-generated`; stale registries, assertion indexes, coverage, or evidence fingerprints block deploy.
    - If this work has a full spec under `docs/specs/<slug>/spec.yml`, run `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before the final deploy.
    - A scoped verification deploy may precede final conformance when live Playwright evidence is required. After that run, complete exact captions, local privacy scanning, frame-only demonstration review, and Discord publication attempt before final completion.
    - If this work used an inline spec, include the scenarios, acceptance criteria, and test evidence in the deploy message.
@@ -91,6 +93,7 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
 - Prefix: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`, `style:`, `perf:`, `ci:`, `revert:`
 - Imperative present tense: "change" not "changed"
 - For bug fixes, use structured format: `Symptom:`, `Cause:`, `Fix:`
+- Contract-governed commits include `Contracts:`, `Assertions:`, `Spec:`, and `Contract-Impact:` trailers. Releases aggregate these trailers.
 
 ### If Deploy Fails
 - **Lint errors:** Fix them first, then retry

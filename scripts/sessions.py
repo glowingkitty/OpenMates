@@ -7430,6 +7430,40 @@ def _run_translation_build(*, checkout_root: Path | None = None) -> tuple[int, s
     return result.returncode, result.stdout, result.stderr
 
 
+def _run_contract_gate(files: list[str], *, session_id: str, checkout_root: Path) -> None:
+    """Block unresolved changed tests and unapproved contract bundle hashes."""
+    relevant = [
+        path
+        for path in files
+        if path.startswith("contracts/")
+        or path.startswith("docs/specs/") and Path(path).name == "spec.yml"
+        or path.endswith((".spec.ts", ".test.ts", ".spec.tsx", ".test.tsx", ".spec.js", ".test.js", "Tests.swift", "_test.py"))
+        or Path(path).name.startswith("test_") and path.endswith(".py")
+    ]
+    if not relevant:
+        return
+    script = checkout_root / "scripts" / "contracts.py"
+    if not script.exists():
+        raise RuntimeError("contract gate unavailable: scripts/contracts.py is missing")
+    cmd = [
+        sys.executable,
+        str(script),
+        "check-changed",
+        *relevant,
+        "--session",
+        session_id,
+        "--repo-root",
+        str(checkout_root),
+        "--approvals-file",
+        str(CONTROL_PLANE_ROOT / "scripts" / ".contracts-approvals-state.json"),
+    ]
+    result = subprocess.run(cmd, cwd=str(checkout_root), capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        detail = result.stderr or result.stdout or "contract gate failed"
+        raise RuntimeError(f"CONTRACT GATE FAILED\n{detail.strip()}")
+    print("Contract gate: PASSED")
+
+
 def _run_deploy_gates(
     files: list[str],
     *,
@@ -7437,8 +7471,12 @@ def _run_deploy_gates(
     no_verify: bool,
     skip_tests_reason: str | None,
     require_parity: bool,
+    session_id: str | None = None,
 ) -> None:
     """Run source-dependent deploy gates against one authoritative checkout."""
+    if session_id:
+        _run_contract_gate(files, session_id=session_id, checkout_root=checkout_root)
+
     lint_flags = _get_lint_flags(files)
     if lint_flags and not no_verify:
         print("Running linter...")
@@ -7695,6 +7733,25 @@ def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
     return commit_msg
 
 
+def _validate_contract_commit_message(files: list[str], message: str) -> None:
+    governed = [
+        path
+        for path in files
+        if path.startswith("contracts/") and Path(path).name in {"contract.yml", "examples.yml"}
+    ]
+    if not governed:
+        return
+    missing = [
+        trailer
+        for trailer in ("Contracts:", "Assertions:", "Spec:", "Contract-Impact:")
+        if trailer not in message
+    ]
+    if missing:
+        raise RuntimeError(
+            "contract-governed commit is missing required trailers: " + ", ".join(missing)
+        )
+
+
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
     """Provide ignored frontend prerequisites only when selected files need them."""
     if not (_has_frontend_files(files) or _should_validate_embed_registry(files)):
@@ -7748,6 +7805,7 @@ def _deploy_native_worktree(
                 no_verify=no_verify,
                 skip_tests_reason=skip_tests_reason,
                 require_parity=require_parity,
+                session_id=sid,
             )
 
             _wait_and_acquire_session_lock(
@@ -7784,7 +7842,9 @@ def _deploy_native_worktree(
             ):
                 raise RuntimeError("Integration staged-file validation failed")
 
-            commit_cmd = ["git", "commit", "-m", _integration_commit_message(args, session)]
+            commit_message = _integration_commit_message(args, session)
+            _validate_contract_commit_message(to_commit, commit_message)
+            commit_cmd = ["git", "commit", "-m", commit_message]
             if no_verify:
                 commit_cmd.append("--no-verify")
             os.environ["OPENMATES_SKIP_PRECOMMIT_LOCALES"] = "1"
@@ -8081,6 +8141,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             if deploy_lock_held:
                 _release_session_lock("vercel_deploy", released_by=sid)
 
+    # Contract/test traceability is never bypassed by --skip-tests or --no-verify.
+    _run_contract_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
+
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
     lint_flags = _get_lint_flags(to_commit)
@@ -8266,6 +8329,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             task_summary = linked_task.get("summary", "").strip()
             if task_summary:
                 commit_msg += "\n\n" + task_summary
+
+    _validate_contract_commit_message(to_commit, commit_msg)
 
     no_verify = getattr(args, "no_verify", False)
     if no_verify:

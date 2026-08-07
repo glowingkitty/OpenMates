@@ -63,6 +63,10 @@
           },
           {
             "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/contract-test-impact.sh"
+          },
+          {
+            "type": "command",
             "command": "bash scripts/lint-design-tokens.sh"
           },
           {

@@ -7,6 +7,26 @@ last_verified: 2026-06-11
 
 Detailed test commands, Playwright Docker setup, test runner reference, and sequential debugging workflow.
 
+## Contract Assertion Metadata
+
+Every new or changed behavioral test case names the stable contract assertions
+it proves, its proof strength, and its surface through a framework-neutral
+comment immediately before the test declaration:
+
+```text
+// contract-test: direct surface=gui.web assertions=web-search.surface-parity
+# contract-test: supporting surface=rest_api assertions=web-search.response.validated
+```
+
+Valid proof strengths are `direct` and `supporting`. Valid product surfaces are
+`rest_api`, `cli`, `sdks.npm`, `sdks.pip`, `gui.web`, and `gui.apple`.
+Repository-only test files may use `contract-test: infrastructure` or
+`contract-test: tooling`; a file-level `contract-test-file` marker is allowed
+only for those non-product classifications. New or changed tests cannot use
+`legacy_unmapped`. Run `python3 scripts/contracts.py check-test <path>` to inspect
+a touched test. Assertion links are traceability, not proof by themselves; only
+current successful direct evidence with a matching assertion fingerprint counts.
+
 ---
 
 ## Test Commands
