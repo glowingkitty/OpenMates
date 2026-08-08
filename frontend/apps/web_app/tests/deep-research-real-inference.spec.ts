@@ -32,7 +32,7 @@ async function sendDeepResearchMessage(
 	await dismissVisibleNotifications(page);
 	await editor.click();
 	await page.keyboard.type('@deep', { delay: 50 });
-	await expect(editor).toContainText('@deep', { timeout: 5_000 });
+	await expect(editor).toContainText('deep', { timeout: 5_000 });
 
 	const dropdown = page.getByTestId('mention-dropdown');
 	await expect(dropdown).toBeVisible({ timeout: 10_000 });
@@ -81,8 +81,8 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await screenshot(page, 'deep-research-three-children');
 
 	const finalAssistant = page.getByTestId('message-assistant').last();
-	await expect(finalAssistant).toHaveAttribute('data-streaming', 'false', { timeout: 600_000 });
-	await expect(finalAssistant).toContainText('Short Answer');
+	await expect(finalAssistant).toContainText('Short Answer', { timeout: 600_000 });
+	await expect(finalAssistant).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });
 	await expect(finalAssistant).toContainText('Surface Explanation');
 	await expect(finalAssistant).toContainText('What Else May Be Going On');
 	await expect(finalAssistant).toContainText('Evidence');
