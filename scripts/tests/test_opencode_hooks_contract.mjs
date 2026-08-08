@@ -139,6 +139,34 @@ test("bash guard allows temp writes even when a repo script and source extension
   await assert.doesNotReject(() => runBeforeShell("./scripts/prod-ssh.sh 'cat > /tmp/docker-compose.hotfix.yml'"));
 });
 
+test("routing recovery allows direct prod ssh status and close only", async () => {
+  const hooks = await pluginModule.OpenMatesHooks({
+    routingData: {
+      sessions: {
+        stale: {
+          opencode_session_id: "stale-session",
+          binding_mode: "worktree_routed",
+          worktree: { path: process.cwd(), status: "merged", merged_commit: "abc123456789" },
+        },
+      },
+    },
+    recordRouting: false,
+  });
+  for (const command of ["./scripts/prod-ssh.sh status", "./scripts/prod-ssh.sh close"]) {
+    await assert.doesNotReject(() => hooks["tool.execute.before"](
+      { tool: "bash", sessionID: "stale-session" },
+      { args: { command, workdir: "/model-selected-root" } },
+    ));
+  }
+  await assert.rejects(
+    () => hooks["tool.execute.before"](
+      { tool: "bash", sessionID: "stale-session" },
+      { args: { command: "./scripts/prod-ssh.sh 'docker ps'", workdir: "/model-selected-root" } },
+    ),
+    /repository session worktree is already merged/,
+  );
+});
+
 test("bash guard allows source file references that are not writes", async () => {
   await assert.doesNotReject(() => runBeforeShell("docker compose -f backend/core/docker-compose.yml ps"));
 });

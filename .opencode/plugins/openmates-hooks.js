@@ -811,10 +811,27 @@ function routingRecoveryMessage(sessionID) {
 }
 
 function isRecoveryBash(command) {
+  if (isProdSshRecoveryCommand(command)) return true;
   return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
     || /^\s*python3\s+scripts\/audit_opencode_output_quality\.py\b/.test(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
+}
+
+function isProdSshRecoveryCommand(command) {
+  const segments = commandSegmentTokens(String(command || "").replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  const tokens = segments[0];
+  let index = 0;
+  while (index < tokens.length && isAssignment(tokens[index])) index += 1;
+  const executable = shellUnescape(tokens[index] || "");
+  const args = tokens.slice(index + 1).map(shellUnescape);
+  const helpers = new Set([
+    "./scripts/prod-ssh.sh",
+    "scripts/prod-ssh.sh",
+    `${PROJECT_ROOT}/scripts/prod-ssh.sh`,
+  ]);
+  return helpers.has(executable) && args.length === 1 && ["close", "status"].includes(args[0]);
 }
 
 function routingFailureForTest({ tool = "", sessionID = "", command = "", routeMessage = "" } = {}) {

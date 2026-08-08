@@ -143,6 +143,14 @@ def test_existing_opencode_session_is_reused_after_restart() -> None:
     assert result[1]["worktree"]["path"] == "/repo/agent-abcd"
 
 
+def test_merged_opencode_session_is_not_reused_for_start() -> None:
+    sessions = load_sessions_module()
+
+    assert not sessions.opencode_session_reusable_for_start({"worktree": {"status": "merged"}})
+    assert sessions.opencode_session_reusable_for_start({"worktree": {"status": "active"}})
+    assert sessions.opencode_session_reusable_for_start({})
+
+
 def test_managed_worktrees_cannot_nest(monkeypatch, tmp_path: Path) -> None:
     sessions = load_sessions_module()
     managed = tmp_path / "managed"

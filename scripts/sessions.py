@@ -5098,6 +5098,12 @@ def session_for_opencode(data: dict, opencode_session_id: str) -> tuple[str, dic
     return matches[0] if matches else None
 
 
+def opencode_session_reusable_for_start(session: dict) -> bool:
+    """Return whether `sessions.py start` may keep using this chat binding."""
+    worktree = session.get("worktree") or {}
+    return worktree.get("status") != "merged"
+
+
 def record_worktree_binding(
     *,
     opencode_session_id: str,
@@ -5244,6 +5250,8 @@ def cmd_start(args: argparse.Namespace) -> None:
     # ghost ownership across unrelated sessions.
     opencode_session_id = getattr(args, "opencode_session", None)
     existing = session_for_opencode(_load_sessions(), opencode_session_id) if opencode_session_id else None
+    if existing and not opencode_session_reusable_for_start(existing[1]):
+        existing = None
     is_new_session = existing is None
     if existing:
         sid, _existing_session = existing
