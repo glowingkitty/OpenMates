@@ -904,8 +904,9 @@
   let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
   let hasInlineSubChatBatch = $derived.by(() => {
     const rawContents = [original_message?.content, content]
-      .filter((value): value is string => typeof value === 'string');
-    return rawContents.some((rawContent) => /"type"\s*:\s*"sub_chat_batch"/.test(rawContent));
+      .map((value) => typeof value === 'string' ? value : (value ? JSON.stringify(value) : ''))
+      .filter(Boolean);
+    return rawContents.some((rawContent) => /"type"\s*:\s*"sub[-_]chat[-_]batch"/.test(rawContent));
   });
   let isInteractiveResponseMessage = $derived.by(() => {
     const rawContent = typeof original_message?.content === 'string'
