@@ -1,5 +1,69 @@
 schema_version: 1
 assertions:
+  sync.access.first-party-authenticated:
+    contract: architecture.sync@1
+    fingerprint: 682c7f2b26f3e760ed8377cb9e1329421abfd2de7c119ea3568371437fe7be57
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.status.startup-window-ready:
+    contract: architecture.sync@1
+    fingerprint: a29274e804955b224af252b5c1daa40337fa1f1273aa578f4287dcb6379eb069
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.status.incomplete-window-rewarms:
+    contract: architecture.sync@1
+    fingerprint: b6fd245f9207764f826cfd19e43f08558f0a3d850fef0f415024c032fa718a73
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.startup.bounded-phases:
+    contract: architecture.sync@1
+    fingerprint: 9efb77458dc59cd1f0bb7650d4f1b83a22841c9eea56d32240f878f6aee405a6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.phase2.metadata-only:
+    contract: architecture.sync@1
+    fingerprint: de8486de66300e9410205ca6894da2f2f355d3959688f372d22f4a01380ebd67
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.phase2.drafts.authoritative-encrypted:
+    contract: architecture.sync@1
+    fingerprint: 1496901c68917178cbb62cfe4497ba7c9e8f7ce4b502a3d735f3c9f77b0596ef
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.deletion.partial-window-not-authoritative:
+    contract: architecture.sync@1
+    fingerprint: 7a204bd151ee6f64bd7edf555cb814d19b54e5fa140e96ee4e620e33b2fa5052
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.surface.semantic-parity:
+    contract: architecture.sync@1
+    fingerprint: d7ddd8d27c9e31d4887984b09553c6e9e84cb883212f71beda0967bb39a33da0
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   web-search.request.validated:
     contract: feature.app-skill.web-search@1
     fingerprint: 860c899800e2fa8b6fa967b739dfb42d914cacbb9c9b63175cf8c962bdcf6d11

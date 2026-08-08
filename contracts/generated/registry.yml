@@ -1,5 +1,14 @@
 schema_version: 1
 contracts:
+  architecture.sync:
+    version: 1
+    status: approved
+    path: architecture/sync
+    fingerprint: 64a83835eff186a6ddb9f6dc51d7f8235c4c3591366d614a1dc8db9d581f0503
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
   feature.app-skill.web-search:
     version: 1
     status: approved
@@ -13,6 +22,78 @@ contracts:
     - gui.web
     - gui.apple
 assertions:
+  sync.access.first-party-authenticated:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: security
+    fingerprint: 682c7f2b26f3e760ed8377cb9e1329421abfd2de7c119ea3568371437fe7be57
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  sync.status.startup-window-ready:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: behavior
+    fingerprint: a29274e804955b224af252b5c1daa40337fa1f1273aa578f4287dcb6379eb069
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  sync.status.incomplete-window-rewarms:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: failure
+    fingerprint: b6fd245f9207764f826cfd19e43f08558f0a3d850fef0f415024c032fa718a73
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  sync.startup.bounded-phases:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: invariant
+    fingerprint: 9efb77458dc59cd1f0bb7650d4f1b83a22841c9eea56d32240f878f6aee405a6
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  sync.phase2.metadata-only:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: privacy
+    fingerprint: de8486de66300e9410205ca6894da2f2f355d3959688f372d22f4a01380ebd67
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  sync.phase2.drafts.authoritative-encrypted:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: behavior
+    fingerprint: 1496901c68917178cbb62cfe4497ba7c9e8f7ce4b502a3d735f3c9f77b0596ef
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  sync.deletion.partial-window-not-authoritative:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: invariant
+    fingerprint: 7a204bd151ee6f64bd7edf555cb814d19b54e5fa140e96ee4e620e33b2fa5052
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  sync.surface.semantic-parity:
+    contract: architecture.sync@1
+    contract_id: architecture.sync
+    type: parity
+    fingerprint: d7ddd8d27c9e31d4887984b09553c6e9e84cb883212f71beda0967bb39a33da0
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
   web-search.request.validated:
     contract: feature.app-skill.web-search@1
     contract_id: feature.app-skill.web-search
