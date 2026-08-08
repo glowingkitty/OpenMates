@@ -6,6 +6,7 @@ import { EmbedNodeAttributes } from "./types";
 // Special marker to indicate a duplicate embed reference that should be removed from the document
 const DUPLICATE_EMBED_MARKER = Symbol("DUPLICATE_EMBED");
 const PROTOCOL_EMBED_MARKER = Symbol("PROTOCOL_EMBED");
+const PROTOCOL_JSON_TYPE_PATTERN = /"type"\s*:\s*"(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)"/;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // TipTap document structure types (loosely typed to accommodate various node types)
@@ -541,6 +542,14 @@ function findMatchingEmbedForCodeBlock(
       }
     }
   } catch {
+    if (
+      mode === "read" &&
+      normalizedCodeBlockLanguage === "json" &&
+      PROTOCOL_JSON_TYPE_PATTERN.test(codeText)
+    ) {
+      return PROTOCOL_EMBED_MARKER;
+    }
+
     // Not JSON, might be a regular code block - this is expected for actual code blocks
     console.debug(
       "[findMatchingEmbedForCodeBlock] Not JSON, treating as code block",

@@ -20,6 +20,19 @@ export type SubChatPreview = Chat & {
 
 const subChatsByParentCache = new Map<string, Chat[]>();
 const pendingSubChatsByParent = new Map<string, Promise<Chat[]>>();
+const INTERNAL_PROTOCOL_FENCE_PATTERN =
+  /```(?:json)?\s*[\r\n]+[\s\S]*?"type"\s*:\s*"(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)"[\s\S]*?```/gi;
+const INTERNAL_PROTOCOL_MARKER_PATTERN =
+  /(?:```json|"type"\s*:\s*"(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)")/i;
+
+export function sanitizeSubChatPreviewText(value: string | null | undefined): string | null {
+  const sanitized = (value || "")
+    .replace(INTERNAL_PROTOCOL_FENCE_PATTERN, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!sanitized || INTERNAL_PROTOCOL_MARKER_PATTERN.test(sanitized)) return null;
+  return sanitized;
+}
 
 export function clearSubChatsForParentCache(parentChatId: string): void {
   subChatsByParentCache.delete(parentChatId);
@@ -116,7 +129,11 @@ export async function loadSubChatPreviews(
       }
     }
 
-    preview.previewSummary ||= chat.chat_summary || null;
+    preview.title = sanitizeSubChatPreviewText(preview.title) || undefined;
+    preview.previewSummary =
+      sanitizeSubChatPreviewText(preview.previewSummary) ||
+      sanitizeSubChatPreviewText(chat.chat_summary) ||
+      null;
     preview.previewCategory ||= chat.category || "general_knowledge";
     preview.previewIcon = getValidIconName(
       preview.previewIcon || "",

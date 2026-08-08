@@ -80,6 +80,7 @@
   import { chatDB } from '../services/db';
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
+  import { sanitizeSubChatPreviewText } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { appSkillsStore } from '../stores/appSkillsStore';
@@ -297,6 +298,31 @@
     ].join('; ');
   }
 
+  const SUB_CHAT_BATCH_PROTOCOL_PATTERN = /"type"\s*:\s*"sub[-_]chat[-_]batch"/;
+
+  function containsSubChatBatch(value: unknown): boolean {
+    if (typeof value === 'string') return SUB_CHAT_BATCH_PROTOCOL_PATTERN.test(value);
+    if (!value || typeof value !== 'object') return false;
+    if (Array.isArray(value)) return value.some(containsSubChatBatch);
+
+    const node = value as {
+      type?: unknown;
+      contentRef?: unknown;
+      attrs?: unknown;
+      content?: unknown;
+      groupedItems?: unknown;
+    };
+    const type = typeof node.type === 'string' ? node.type.replace(/_/g, '-') : '';
+    if (type === 'sub-chat-batch') return true;
+    if (typeof node.contentRef === 'string' && node.contentRef.startsWith('sub-chat-batch:')) return true;
+
+    return (
+      containsSubChatBatch(node.attrs) ||
+      containsSubChatBatch(node.content) ||
+      containsSubChatBatch(node.groupedItems)
+    );
+  }
+
   async function loadSubChats() {
     if (role !== 'assistant' || !currentChatId) return;
     if (hasInlineSubChatBatch) {
@@ -348,7 +374,11 @@
           }
         }
 
-        preview.previewSummary ||= chat.chat_summary || null;
+        preview.title = sanitizeSubChatPreviewText(preview.title) || undefined;
+        preview.previewSummary =
+          sanitizeSubChatPreviewText(preview.previewSummary) ||
+          sanitizeSubChatPreviewText(chat.chat_summary) ||
+          null;
         preview.previewCategory ||= chat.category || 'general_knowledge';
         preview.previewIcon = getValidIconName(preview.previewIcon || '', preview.previewCategory || 'general_knowledge');
         previews.push(preview);
@@ -903,10 +933,7 @@
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
   let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
   let hasInlineSubChatBatch = $derived.by(() => {
-    const rawContents = [original_message?.content, content]
-      .map((value) => typeof value === 'string' ? value : (value ? JSON.stringify(value) : ''))
-      .filter(Boolean);
-    return rawContents.some((rawContent) => /"type"\s*:\s*"sub[-_]chat[-_]batch"/.test(rawContent));
+    return [original_message?.content, content, fullContent].some(containsSubChatBatch);
   });
   let isInteractiveResponseMessage = $derived.by(() => {
     const rawContent = typeof original_message?.content === 'string'
