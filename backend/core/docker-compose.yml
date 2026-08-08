@@ -185,7 +185,8 @@ services:
   #########################################################################
   ##### Task Management (Celery)
   #########################################################################
-  # Shared task worker for core API tasks (email, user_init, persistence)
+  # Email-only task worker. Core API tasks run on core-worker below so billing
+  # and invoice email processing cannot silently share a drifted task runtime.
   # App-specific tasks are handled by dedicated app workers (app-ai-worker, app-images-worker, etc.)
   task-worker:
     container_name: task-worker
@@ -208,7 +209,7 @@ services:
       OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
       OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
       MOCK_EXTERNAL_APIS: "true"
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
+      CELERY_QUEUES: "email" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
@@ -230,7 +231,7 @@ services:
              find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
+             --queues=email \
              --concurrency=${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
@@ -258,6 +259,30 @@ services:
         condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
+
+  core-worker:
+    extends:
+      service: task-worker
+    container_name: core-worker
+    environment:
+      CELERY_QUEUES: "user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"
+      CELERY_METRICS_PORT: "9109"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
+             --concurrency=${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
 
   workflow-worker:
     container_name: workflow-worker
