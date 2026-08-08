@@ -76,6 +76,16 @@ test("loaded hook overwrites model-provided shell workdir", async () => {
   assert.equal(executionArgs.workdir, process.cwd());
 });
 
+test("loaded hook binds chained sessions.py start before later commands", async () => {
+  const { executionArgs } = await runBeforeShellWithExecutionArgs(
+    'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" && python3 scripts/issues.py show BTWQJ --env dev',
+  );
+  assert.equal(
+    executionArgs.command,
+    'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" --opencode-session test-session && python3 scripts/issues.py show BTWQJ --env dev',
+  );
+});
+
 test("blocking hook messages always explain reason and next action", async () => {
   for (const command of ["docker compose restart api", "cat > scripts/example.py", "npx playwright test"]) {
     await assert.rejects(

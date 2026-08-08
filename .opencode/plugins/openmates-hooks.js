@@ -101,6 +101,32 @@ function bashCommand(args) {
   return args.command || args.cmd || args.script || "";
 }
 
+function firstUnquotedShellSeparatorIndex(command) {
+  let quote = "";
+  let escaped = false;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (char === "\n" || ";&|".includes(char)) return index;
+  }
+  return -1;
+}
+
 function unquote(value) {
   if (!value) return "";
   const trimmed = value.trim().replace(/[),]+$/g, "");
@@ -264,8 +290,15 @@ function extractWriteTargets(command) {
 function bindSessionStart(input, output) {
   const command = bashCommand(output?.args || input?.args);
   if (!input?.sessionID || !/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) return;
-  if (/--opencode-session\b/.test(command) || /[;&|]/.test(command)) return;
-  output.args.command = `${command} --opencode-session ${input.sessionID}`;
+  const separatorIndex = firstUnquotedShellSeparatorIndex(command);
+  const startCommand = (separatorIndex >= 0 ? command.slice(0, separatorIndex) : command).trim();
+  if (!/^python3\s+scripts\/sessions\.py\s+start\b/.test(startCommand) || /--opencode-session\b/.test(startCommand)) return;
+  const boundStart = `${startCommand} --opencode-session ${input.sessionID}`;
+  if (separatorIndex >= 0) {
+    output.args.command = `${boundStart} ${command.slice(separatorIndex).trimStart()}`;
+  } else {
+    output.args.command = boundStart;
+  }
 }
 
 function sessionsData() {
@@ -778,7 +811,7 @@ function routingRecoveryMessage(sessionID) {
 }
 
 function isRecoveryBash(command) {
-  return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor)\b/.test(command)
+  return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
     || /^\s*python3\s+scripts\/audit_opencode_output_quality\.py\b/.test(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
