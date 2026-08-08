@@ -15,7 +15,7 @@ const {
 	getTestAccount
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
-const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
+const { selectMentionResult } = require('./helpers/mention-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -29,17 +29,7 @@ async function sendDeepResearchMessage(
 	const messageField = page.getByTestId('message-field').last();
 	const editor = messageField.getByTestId('message-editor');
 	await expect(editor).toBeVisible();
-	await dismissVisibleNotifications(page);
-	await editor.click();
-	await page.keyboard.type('@deep', { delay: 50 });
-	await expect(editor).toContainText('deep', { timeout: 5_000 });
-
-	const dropdown = page.getByTestId('mention-dropdown');
-	await expect(dropdown).toBeVisible({ timeout: 10_000 });
-	const focusResult = dropdown.getByTestId('mention-result').filter({ hasText: 'Deep research' }).first();
-	await expect(focusResult).toBeVisible({ timeout: 10_000 });
-	await focusResult.click();
-	await expect(dropdown).not.toBeVisible({ timeout: 5_000 });
+	await selectMentionResult(page, 'deep', 'Deep research');
 	await page.keyboard.insertText(` ${prompt}`);
 	await screenshot(page, 'deep-research-request-typed');
 
