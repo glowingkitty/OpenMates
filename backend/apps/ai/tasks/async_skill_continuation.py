@@ -161,6 +161,7 @@ async def dispatch_async_skill_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
+        continuation_message_id=original_request.continuation_message_id,
         user_preferences=original_request.user_preferences,
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,

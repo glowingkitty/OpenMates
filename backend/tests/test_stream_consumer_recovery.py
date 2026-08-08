@@ -1,3 +1,5 @@
+# contract-test-file: infrastructure
+# ruff: noqa: E402
 """
 Regression tests for AI stream recovery metadata.
 
@@ -11,13 +13,78 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
+import sys
+import types
 from types import SimpleNamespace
 
-from backend.apps.ai.processing.preprocessor import PreprocessingResult
-from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.apps.ai.tasks import stream_consumer
-from backend.apps.ai.tasks import ask_skill_task
-from backend.core.api.app.schemas.chat import AIHistoryMessage
+import pytest
+
+if "tiktoken" not in sys.modules:
+    tiktoken_stub = types.ModuleType("tiktoken")
+    tiktoken_stub.encoding_for_model = lambda *_args, **_kwargs: None
+    tiktoken_stub.get_encoding = lambda *_args, **_kwargs: None
+    sys.modules["tiktoken"] = tiktoken_stub
+
+if "toon_format" not in sys.modules:
+    toon_stub = types.ModuleType("toon_format")
+    toon_stub.decode = lambda value: json.loads(value)
+    toon_stub.encode = lambda value: json.dumps(value, ensure_ascii=False)
+    sys.modules["toon_format"] = toon_stub
+
+if "redis.asyncio" not in sys.modules:
+    redis_stub = types.ModuleType("redis")
+    redis_asyncio_stub = types.ModuleType("redis.asyncio")
+    redis_exceptions_stub = types.ModuleType("redis.exceptions")
+    redis_asyncio_stub.Redis = type("Redis", (), {})
+    redis_asyncio_stub.from_url = lambda *_args, **_kwargs: None
+    redis_exceptions_stub.ConnectionError = ConnectionError
+    redis_stub.asyncio = redis_asyncio_stub
+    redis_stub.exceptions = redis_exceptions_stub
+    sys.modules["redis"] = redis_stub
+    sys.modules["redis.asyncio"] = redis_asyncio_stub
+    sys.modules["redis.exceptions"] = redis_exceptions_stub
+
+_PROVIDER_STUBS = {
+    "backend.apps.ai.llm_providers.mistral_client": {
+        "MistralUsage": type("MistralUsage", (), {}),
+        "UnifiedMistralResponse": type("UnifiedMistralResponse", (), {}),
+    },
+    "backend.apps.ai.llm_providers.google_client": {
+        "GoogleUsageMetadata": type("GoogleUsageMetadata", (), {}),
+        "ParsedGoogleToolCall": type("ParsedGoogleToolCall", (), {}),
+        "UnifiedGoogleResponse": type("UnifiedGoogleResponse", (), {}),
+        "invoke_google_chat_completions": None,
+    },
+    "backend.apps.ai.llm_providers.anthropic_client": {
+        "AnthropicUsageMetadata": type("AnthropicUsageMetadata", (), {}),
+        "UnifiedAnthropicResponse": type("UnifiedAnthropicResponse", (), {}),
+    },
+    "backend.apps.ai.llm_providers.bedrock_shared": {
+        "BedrockUsageMetadata": type("BedrockUsageMetadata", (), {}),
+        "UnifiedBedrockResponse": type("UnifiedBedrockResponse", (), {}),
+    },
+    "backend.apps.ai.llm_providers.openai_shared": {
+        "OpenAIUsageMetadata": type("OpenAIUsageMetadata", (), {}),
+        "UnifiedOpenAIResponse": type("UnifiedOpenAIResponse", (), {}),
+        "_sanitize_schema_for_llm_providers": lambda schema: schema,
+    },
+}
+for module_name, attributes in _PROVIDER_STUBS.items():
+    if module_name not in sys.modules:
+        provider_stub = types.ModuleType(module_name)
+        for attr_name, attr_value in attributes.items():
+            setattr(provider_stub, attr_name, attr_value)
+        sys.modules[module_name] = provider_stub
+
+try:
+    from backend.apps.ai.processing.preprocessor import PreprocessingResult
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.apps.ai.tasks import stream_consumer
+    from backend.apps.ai.tasks import ask_skill_task
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+except ImportError as _exc:
+    pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
 
 class _StubCacheService:
@@ -157,6 +224,28 @@ def test_focus_continuation_frames_are_marked() -> None:
     )
 
     assert payload["is_focus_mode_continuation"] is True
+
+
+def test_continuation_stream_payloads_use_continuation_message_id() -> None:
+    request_data = _ask_request()
+    request_data.continuation_message_id = "99999999-9999-4999-8999-999999999999"
+
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "continued response",
+        1,
+    )
+    thinking_payload = stream_consumer._create_thinking_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "thinking",
+    )
+
+    assert payload["task_id"] == "11111111-1111-4111-8111-111111111111"
+    assert payload["message_id"] == request_data.continuation_message_id
+    assert thinking_payload["task_id"] == "11111111-1111-4111-8111-111111111111"
+    assert thinking_payload["message_id"] == request_data.continuation_message_id
 
 
 def test_assistant_response_created_at_follows_existing_continuation_messages() -> None:
@@ -317,6 +406,7 @@ def test_sub_chat_continuation_uses_recovery_only_metadata_path() -> None:
         message_history=[AIHistoryMessage(role="user", content="hello", created_at=100)],
         recovery_task_id=None,
         recovery_inference_task_id="11111111-1111-4111-8111-111111111111",
+        continuation_message_id="99999999-9999-4999-8999-999999999999",
         is_sub_chat_continuation=True,
     )
     directus = _MetadataDirectus()
@@ -343,6 +433,7 @@ def test_sub_chat_continuation_uses_recovery_only_metadata_path() -> None:
     assert cache.version_sets == []
     assert cache.events == []
     assert len(cache.ai_messages) == 1
+    assert json.loads(cache.ai_messages[0][2])["id"] == request_data.continuation_message_id
     assert "messages_v" not in directus.updates[0]
     assert "last_message_timestamp" not in directus.updates[0]
 
@@ -452,6 +543,7 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -
     assert captured["task_id"] is None
     assert request_payload["recovery_task_id"] is None
     assert request_payload["recovery_inference_task_id"] == original_request.recovery_inference_task_id
+    assert request_payload["continuation_message_id"] == original_request.recovery_inference_task_id
     assert request_payload["recovery_preflight_id"] == original_request.recovery_preflight_id
     assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id
     assert request_payload["recovery_public_key"] == original_request.recovery_public_key

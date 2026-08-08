@@ -111,6 +111,10 @@ def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
     return request_data.resolved_recovery_inference_task_id()
 
 
+def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
+    return getattr(request_data, "continuation_message_id", None) or task_id
+
+
 async def _finalize_legacy_cutover_before_final_marker(
     *,
     request_data: AskSkillRequest,
@@ -557,6 +561,11 @@ async def _dispatch_sub_chat_parent_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
+        continuation_message_id=(
+            original_request.continuation_message_id
+            or original_request.recovery_task_id
+            or original_request.recovery_inference_task_id
+        ),
         recovery_inference_task_id=(
             original_request.recovery_task_id or original_request.recovery_inference_task_id
         ),
@@ -2164,6 +2173,7 @@ async def _persist_sealed_recovery_job(
         preflight_id=request_data.recovery_preflight_id,
         task_id=task_id,
         inference_task_id=inference_task_id,
+        assistant_message_id=_assistant_message_id(task_id, request_data),
         recovery_public_key=request_data.recovery_public_key,
         chat_key_version=request_data.chat_key_version,
         content=content,
@@ -2218,13 +2228,14 @@ def _create_redis_payload(
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     created_at = _assistant_response_created_at(request_data, int(time.time()))
+    assistant_message_id = _assistant_message_id(task_id, request_data)
     payload = {
         "type": "ai_message_chunk",
         "task_id": task_id,
         "chat_id": request_data.chat_id,
         "user_id_uuid": request_data.user_id,
         "user_id_hash": request_data.user_id_hash,
-        "message_id": task_id,
+        "message_id": assistant_message_id,
         "user_message_id": request_data.message_id,
         "created_at": created_at,
         "full_content_so_far": content,
@@ -2303,6 +2314,7 @@ def _create_thinking_redis_payload(
     Returns:
         Dict payload for Redis publishing
     """
+    assistant_message_id = _assistant_message_id(task_id, request_data)
     if is_complete:
         return {
             "type": "thinking_complete",
@@ -2310,7 +2322,7 @@ def _create_thinking_redis_payload(
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "signature": signature,
             "total_tokens": total_tokens,
             "external_request": request_data.is_external,
@@ -2322,7 +2334,7 @@ def _create_thinking_redis_payload(
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "content": content,  # Just the new chunk, not accumulated
             "external_request": request_data.is_external,
         }
@@ -2485,6 +2497,7 @@ async def _update_chat_metadata(
             persisted event is broadcast with the correct role/status for system
             rejection messages (e.g. "insufficient_credits").
     """
+    assistant_message_id = _assistant_message_id(task_id, request_data)
     if _recovery_inference_task_id(request_data):
         fields_to_update = {
             "last_edited_overall_timestamp": timestamp,
@@ -2512,7 +2525,7 @@ async def _update_chat_metadata(
                     user_vault_key_id,
                 )
                 ai_message_for_cache = MessageInCache(
-                    id=task_id,
+                    id=assistant_message_id,
                     chat_id=request_data.chat_id,
                     role="assistant",
                     category=category,
@@ -2720,6 +2733,7 @@ async def _save_to_cache_and_publish(
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
+        assistant_message_id = _assistant_message_id(task_id, request_data)
         
         # SERVER-SIDE ENCRYPTION: Encrypt AI response content with encryption_key_user_server (Vault)
         # This allows server to cache and access for AI while maintaining security
@@ -2747,7 +2761,7 @@ async def _save_to_cache_and_publish(
 
         # Store encrypted markdown content in cache (server-side encrypted with encryption_key_user_server)
         ai_message_for_cache = MessageInCache(
-            id=task_id,
+            id=assistant_message_id,
             chat_id=request_data.chat_id,
             role=cache_role,
             category=category,
@@ -2774,7 +2788,7 @@ async def _save_to_cache_and_publish(
         client_role = "system" if rejection_reason else "assistant"
         client_status = "waiting_for_user" if rejection_reason else "synced"
         client_message: dict = {
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "chat_id": request_data.chat_id,
             "user_message_id": request_data.message_id,
             "role": client_role,
@@ -4787,6 +4801,7 @@ async def _consume_main_processing_stream(
 
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
+    assistant_message_id = _assistant_message_id(task_id, request_data)
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
     
     # Thinking content tracking for thinking models (Gemini, Anthropic)
@@ -4960,7 +4975,7 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
+                    "message_id": assistant_message_id,
                     "sub_chats": chunk.get("sub_chats") or [],
                     "max_auto_sub_chats": chunk.get("max_auto_sub_chats"),
                     "max_direct_sub_chats": chunk.get("max_direct_sub_chats"),
@@ -5008,7 +5023,7 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
+                    "message_id": assistant_message_id,
                     "sub_chats": sub_chats,
                     "report_trigger": chunk.get("report_trigger", "all"),
                     "execution_mode": chunk.get("execution_mode", "parallel"),
@@ -5034,7 +5049,7 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": chunk.get("message_id") or task_id,
+                    "message_id": chunk.get("message_id") or assistant_message_id,
                     "execution_mode": chunk.get("execution_mode", "parallel"),
                     "status": chunk.get("status", "running"),
                     "total": chunk.get("total", 0),
@@ -5053,7 +5068,7 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id
+                    "message_id": assistant_message_id
                 }
                 if cache_service:
                     await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published awaiting_sub_chats_completion event to '{redis_channel_name}'")
@@ -5072,7 +5087,7 @@ async def _consume_main_processing_stream(
                     "parent_id": chunk.get("parent_id"),
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
+                    "message_id": assistant_message_id,
                     "question": chunk.get("question")
                 }
                 if cache_service:

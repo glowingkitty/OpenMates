@@ -28,14 +28,15 @@ def build_sealed_recovery_job_data(
     category: str | None,
     model_name: str | None,
     inference_task_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> dict[str, object]:
     durable_inference_task_id = inference_task_id or task_id
-    task_namespace = uuid.UUID(task_id)
+    durable_assistant_message_id = assistant_message_id or task_id
+    task_namespace = uuid.UUID(durable_assistant_message_id)
     job_id = str(uuid.uuid5(task_namespace, "recovery-job"))
-    assistant_message_id = task_id
     plaintext = json.dumps(
         {
-            "assistant_message_id": assistant_message_id,
+            "assistant_message_id": durable_assistant_message_id,
             "category": category,
             "chat_id": chat_id,
             "content": content,
@@ -55,7 +56,7 @@ def build_sealed_recovery_job_data(
         chat_id=chat_id,
         turn_id=turn_id,
         job_id=job_id,
-        assistant_message_id=assistant_message_id,
+        assistant_message_id=durable_assistant_message_id,
         key_version=chat_key_version,
     )
     return {
@@ -66,7 +67,7 @@ def build_sealed_recovery_job_data(
         "turn_id": turn_id,
         "preflight_id": preflight_id,
         "inference_task_id": durable_inference_task_id,
-        "assistant_message_id": assistant_message_id,
+        "assistant_message_id": durable_assistant_message_id,
         "chat_key_version": chat_key_version,
         "sealed_payload": json.dumps(envelope, sort_keys=True, separators=(",", ":")),
     }

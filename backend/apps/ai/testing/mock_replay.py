@@ -27,6 +27,11 @@ from backend.shared.python_utils.chat_completion_recovery_job import build_seale
 
 logger = logging.getLogger(__name__)
 
+
+def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
+    return getattr(request_data, "continuation_message_id", None) or task_id
+
+
 # Directory where fixture JSON files are stored
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -421,13 +426,14 @@ async def replay_fixture(
                         skill_event, task_id, request_data, cache_service
                     )
 
+        assistant_message_id = _assistant_message_id(task_id, request_data)
         payload: Dict[str, Any] = {
             "type": "ai_message_chunk",
             "task_id": task_id,
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "user_message_id": request_data.message_id,
             "full_content_so_far": content_so_far if not is_final else full_response,
             "sequence": sequence,
@@ -547,6 +553,7 @@ async def _persist_mock_replay_recovery_job(
         preflight_id=request_data.recovery_preflight_id,
         task_id=task_id,
         inference_task_id=inference_task_id,
+        assistant_message_id=_assistant_message_id(task_id, request_data),
         recovery_public_key=request_data.recovery_public_key,
         chat_key_version=request_data.chat_key_version,
         content=content,
