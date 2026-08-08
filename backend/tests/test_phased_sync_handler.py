@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_phased_sync_handler.py
 """
 Regression tests for Phase 1a chat metadata assembly.
@@ -87,6 +88,79 @@ def test_phase1_partial_cache_metadata_is_filled_from_directus(doc_assert) -> No
 
     assert _count_directus_filled_metadata_fields(cached_details, directus_details) == 3
     assert _phase1_metadata_invariant_violations(merged) == []
+
+
+@pytest.mark.anyio
+async def test_sync_status_recovers_missing_primed_flag_when_chat_index_matches_directus(monkeypatch) -> None:
+    rewarm_calls = []
+
+    async def fake_rewarm(cache_service, user_id):
+        rewarm_calls.append((cache_service, user_id))
+
+    monkeypatch.setattr(
+        phased_sync_handler,
+        "_trigger_cache_rewarming_if_needed",
+        fake_rewarm,
+    )
+
+    class FakeCache:
+        def __init__(self):
+            self.primed_users = []
+            self.deleted_keys = []
+
+        async def is_user_cache_primed(self, user_id):
+            return False
+
+        async def get_chat_ids_versions(self, user_id, with_scores=False):
+            return ["chat-1", "chat-2"]
+
+        async def set_user_cache_primed_flag(self, user_id):
+            self.primed_users.append(user_id)
+
+        async def delete(self, key):
+            self.deleted_keys.append(key)
+            return True
+
+    class FakeDirectusChat:
+        async def get_user_chat_count(self, user_id):
+            return 2
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+    cache = FakeCache()
+
+    await phased_sync_handler.handle_sync_status_request(
+        websocket=None,
+        manager=manager,
+        cache_service=cache,
+        directus_service=FakeDirectus(),
+        encryption_service=SimpleNamespace(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={},
+    )
+
+    assert rewarm_calls == []
+    assert cache.primed_users == ["user-1"]
+    assert cache.deleted_keys == ["cache_warming_in_progress:user-1"]
+    assert manager.sent == [
+        {
+            "type": "sync_status_response",
+            "payload": {
+                "is_primed": True,
+                "chat_count": 2,
+                "timestamp": manager.sent[0]["payload"]["timestamp"],
+            },
+        }
+    ]
 
 
 def test_phase1_partial_cache_keeps_cached_message_version_when_present() -> None:

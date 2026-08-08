@@ -1837,6 +1837,18 @@ async def handle_sync_status_request(
                         f"cache_chat_count={chat_count}, db_chat_count={db_chat_count}"
                     )
                     chat_count = db_chat_count
+                elif chat_count >= db_chat_count:
+                    logger.warning(
+                        "[SYNC_RECOVERY] Missing primed flag for user %s but cached chat index "
+                        "covers Directus count (cache_chat_count=%s, db_chat_count=%s). "
+                        "Restoring primed flag and clearing warming flag.",
+                        user_id[:8],
+                        chat_count,
+                        db_chat_count,
+                    )
+                    await cache_service.set_user_cache_primed_flag(user_id)
+                    await cache_service.delete(f"cache_warming_in_progress:{user_id}")
+                    cache_primed = True
         
             logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
         
