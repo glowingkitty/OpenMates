@@ -247,6 +247,22 @@ def test_text_scan_detects_dedicated_discord_webhook(monkeypatch: pytest.MonkeyP
     assert module.scan_text_with_canonical_scanner(f"visible {secret}")
 
 
+def test_playwright_privacy_scan_does_not_treat_ci_run_id_as_phone_number() -> None:
+    module = load_module()
+    source = {
+        "run_id": "31231661641",
+        "subject_commit": "6150eb0",
+        "target": "https://app.dev.openmates.org",
+        "artifact_path": "/tmp/playwright-31231661641/video.webm",
+    }
+
+    payload = module.playwright_source_privacy_payload(source)
+
+    assert "31231661641" not in payload
+    assert "6150eb0" in payload
+    assert module.scan_text_sources({"source_metadata": payload})["status"] == "passed"
+
+
 def test_cli_anonymization_uses_visible_typed_placeholders(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

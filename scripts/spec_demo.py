@@ -504,6 +504,13 @@ def scan_text_sources(values: dict[str, str]) -> dict[str, Any]:
     return {"status": "failed" if findings else "passed", "findings": findings}
 
 
+def playwright_source_privacy_payload(source: dict[str, Any]) -> str:
+    """Exclude the typed CI run identifier from heuristic PII detection."""
+    payload = json.dumps(source, sort_keys=True)
+    run_id = str(source.get("run_id", "")).strip()
+    return payload.replace(run_id, "[RUN_ID]") if run_id else payload
+
+
 def build_artifact_manifest(*, raw: Path, derived: Path, subject_commit: str) -> dict[str, Any]:
     if raw.resolve() == derived.resolve():
         raise DemonstrationError("Raw and derived demonstration artifacts must be distinct")
@@ -628,13 +635,18 @@ def prepare_review_artifacts(
     caption_segments: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
+    source_metadata = (
+        playwright_source_privacy_payload(source)
+        if source.get("kind") == "playwright"
+        else json.dumps(source, sort_keys=True)
+    )
     text_privacy = scan_text_sources(
         {
             "caption_text": caption_text,
             "expected_proof": expected_proof,
             "narration_id": narration_id,
             "video_filename": video_path.name,
-            "source_metadata": json.dumps(source, sort_keys=True),
+            "source_metadata": source_metadata,
             "acceptance_criteria": json.dumps(acceptance_criteria),
         }
     )
@@ -814,7 +826,7 @@ def produce_playwright_demonstration(
     pre_render_privacy = scan_text_sources(
         {
             "source_filename": source_video.name,
-            "source_metadata": json.dumps(selected, sort_keys=True),
+            "source_metadata": playwright_source_privacy_payload(selected),
             "caption_text": caption_text,
             "expected_proof": expected_proof,
             "output_filename": "demo.mp4",

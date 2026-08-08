@@ -15,10 +15,12 @@ const {
 	getTestAccount
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
 const { selectMentionResult } = require('./helpers/mention-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const DEMONSTRATION_REVIEW_HOLD_MS = 3_500;
 
 async function sendDeepResearchMessage(
 	page: any,
@@ -68,6 +70,10 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(carousel).toBeVisible({ timeout: 240_000 });
 	const subChatCards = page.getByTestId('sub-chat-card');
 	await expect(subChatCards).toHaveCount(3, { timeout: 240_000 });
+	for (let index = 0; index < 3; index += 1) {
+		await expect(subChatCards.nth(index)).not.toContainText('"type":"app_skill_use"');
+		await expect(subChatCards.nth(index)).not.toContainText('The AI service encountered an error');
+	}
 	await screenshot(page, 'deep-research-three-children');
 
 	const finalAssistant = page.getByTestId('message-assistant').last();
@@ -80,7 +86,21 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(finalAssistant).toContainText('Bottom Line');
 	await expect(finalAssistant).not.toContainText('The AI service encountered an error');
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
-	await screenshot(page, 'deep-research-final-synthesis');
+
+	const visibleSynthesisSections = [
+		['Short Answer', 'deep-research-synthesis-start'],
+		['What Else May Be Going On', 'deep-research-synthesis-middle'],
+		['Bottom Line', 'deep-research-synthesis-end']
+	];
+	for (const [section, label] of visibleSynthesisSections) {
+		const heading = finalAssistant.getByText(section, { exact: true }).first();
+		await heading.scrollIntoViewIfNeeded();
+		await expect(heading).toBeInViewport();
+		await dismissVisibleNotifications(page);
+		await screenshot(page, label);
+		// Keep each asserted proof state visible in the recorded Playwright artifact.
+		await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
+	}
 
 	await deleteActiveChat(page, log, screenshot, 'deep-research-cleanup');
 	log('Deep research completed with three children and a final parent synthesis.');

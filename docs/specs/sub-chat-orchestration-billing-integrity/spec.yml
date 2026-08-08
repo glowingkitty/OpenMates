@@ -119,7 +119,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 2f63da365
+  subject_commit: 6150eb0
 
 approvals:
   product_contract:
@@ -191,14 +191,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-07T12:24:00Z"
     summary: Endpoint auth/privacy contracts passed 4 Node tests; focused orchestration passed 6 pytest tests; recovery and encryption guards passed 21 pytest tests; Python compilation and spec validation passed.
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Reproduce the three-child Deep research parent-synthesis failure, cap continuation output to the authoritative remaining root budget, and rerun focused container plus deployed browser proof.
+    outcome: succeeded
+    recorded_at: "2026-08-08T01:11:04Z"
+    summary: Commit 6150eb0 passed 35 focused AI-worker tests; deployed Playwright run 31231661641 showed exactly three children and a completed six-section parent synthesis without exceeding the 2,000-credit root ceiling.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Route root and child dispatch through the durable envelope, reject continuations and depth-two spawning, and enforce approved root limits for every execution mode.
-  command: python3 -m pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_stream_consumer_recovery.py backend/tests/test_sub_chat_confirmation_handler.py
-  expected_outcome: Root, child, grandchild, continuation, sequential, and approval paths use one durable root ledger and dispatch only fully prepared batches.
+  next_action: Finish the remaining TASK-4 persistence and encryption guards before advancing to billing-idempotency and usage-rollup unit gates.
+  command: docker exec app-ai-worker pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_chat_directus_encryption_guards.py -q
+  expected_outcome: Child preparation remains encrypted and atomic, with zero dispatch after persistence failure.
   blocker: null
-  last_verified_commit: 2f63da365
+  last_verified_commit: 6150eb0
 
 scenarios:
   - id: S-1
@@ -504,7 +510,16 @@ tests:
         run_id: docker-api-sub-chat-integrity-red-20260807T120630Z
         subject_commit: bd29881
         timestamp: "2026-08-07T12:06:30Z"
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec app-ai-worker pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_main_processor_invalid_tool_calls.py -q
+        run_id: docker-ai-worker-deep-research-budget-green-20260808T011104Z
+        subject_commit: 6150eb0
+        timestamp: "2026-08-08T01:11:04Z"
+        summary: 35 tests passed in 4.26 seconds, including root budget reservation and affordable parent continuation output coverage.
   - id: T-UNIT-PERSISTENCE
     type: pytest
     file: backend/tests/test_sub_chat_orchestration.py
@@ -624,6 +639,30 @@ tests:
       - no descendant or usage row appears during the quiet window after completion
     red_phase: {required: true, expected: fail, evidence: {status: pending}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-E2E-DEEP-RESEARCH
+    type: playwright
+    file: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
+    target: app.dev.openmates.org
+    covers: [AC-9]
+    assertions:
+      - exactly three automatic descendants are visible for one root turn
+      - final parent synthesis completes after all three children
+      - no AI-service error or lingering typing indicator remains
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_applicable, reason: Prior deployed parent-synthesis failures supplied live red evidence.}}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
+        run_id: "31231661641"
+        subject_commit: 6150eb0
+        timestamp: "2026-08-08T00:59:48Z"
+        target: app.dev.openmates.org
+        deployment_reference: dev-containing-6150eb0
+        report: test-results/reports/success/deep-research-real-inference.md
+        screenshot: test-results/screenshots/current/deep-research-real-inference/08-deep-research-final-synthesis.png
   - id: T-E2E-USAGE
     type: playwright
     file: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
@@ -1121,11 +1160,12 @@ tasks:
       - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
       - frontend/packages/ui/src/components/chats/chatUsageRows.ts
       - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+      - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
       - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
       - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-    verification: [T-E2E-SUB-CHAT, T-E2E-USAGE, T-RELATED-E2E]
-    verification_ids: [T-E2E-SUB-CHAT, T-E2E-USAGE, T-RELATED-E2E]
+    verification: [T-E2E-SUB-CHAT, T-E2E-DEEP-RESEARCH, T-E2E-USAGE, T-RELATED-E2E]
+    verification_ids: [T-E2E-SUB-CHAT, T-E2E-DEEP-RESEARCH, T-E2E-USAGE, T-RELATED-E2E]
     dependencies: [TASK-10]
     ownership:
       files:

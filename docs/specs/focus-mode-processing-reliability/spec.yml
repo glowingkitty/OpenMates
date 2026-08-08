@@ -84,7 +84,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: f4d07b3
+  subject_commit: 6150eb0
 
 approvals:
   product_contract:
@@ -245,19 +245,25 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-07T10:47:48Z"
     summary: Focused container tests passed 16/16; deployed focus activation run 31171058050 and real sub-chat inference run 31171165666 passed at f4d07b3.
+  - id: ATTEMPT-21
+    task_id: TASK-3
+    approach: Exercise explicit Deep research with exactly three live children, then fit parent synthesis output to the authoritative remaining root credit budget after the deployed run exposed reservation failure.
+    outcome: succeeded
+    recorded_at: "2026-08-08T01:11:04Z"
+    summary: Commit 6150eb0 passed 35 focused AI-worker tests and deployed Playwright run 31231661641 completed three children plus the six-section parent synthesis without an AI-service error.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Obtain user confirmation for the deployed web behavior, then run Apple verification and complete demonstration evidence.
+  next_action: Obtain user confirmation for the deployed web behavior at commit 6150eb0, then run Apple verification and complete demonstration evidence.
   command: python3 scripts/spec_verify.py docs/specs/focus-mode-processing-reliability/spec.yml --phase green
   expected_outcome: "All green implementation gates pass; user confirmation then permits Apple verification."
   blocker:
     task_id: TASK-4
     requires_user_input: true
     reason: Repository gate order requires user confirmation of deployed web behavior before Apple verification.
-    question: Confirm that focus activation, persistence, details, rejection, and stop behavior work and look correct on the deployed dev app.
+    question: Confirm that focus activation, persistence, details, rejection, stop behavior, and the three-child Deep research synthesis work and look correct on the deployed dev app.
     next_action: Run Apple verification after confirmation.
-  last_verified_commit: f4d07b3
+  last_verified_commit: 6150eb0
 
 scenarios:
   - id: S-1
@@ -675,6 +681,57 @@ tests:
         timestamp: "2026-08-07T10:47:48Z"
         target: app.dev.openmates.org
         deployment_reference: dpl_FmZDY1mKz9PAVSuHevGKLanj5nSF
+  - id: T-PYTEST-DEEP-RESEARCH-BUDGET
+    type: pytest
+    file: backend/tests/test_sub_chat_orchestration.py
+    command: docker exec app-ai-worker pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_main_processor_invalid_tool_calls.py -q
+    covers: [AC-5, AC-7, AC-8]
+    assertions:
+      - root and descendant reservations stay within the authoritative orchestration credit limit
+      - parent continuation output is capped to the largest affordable synthesis quote
+      - Deep research synthesis remains available after three bounded children settle
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {status: not_applicable, reason: The deployed real-inference failure supplied the red evidence before the focused budget regression was added.}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec app-ai-worker pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_main_processor_invalid_tool_calls.py -q
+        run_id: docker-ai-worker-deep-research-budget-green-20260808T011104Z
+        subject_commit: 6150eb0
+        timestamp: "2026-08-08T01:11:04Z"
+        summary: 35 tests passed in 4.26 seconds.
+  - id: T-E2E-DEEP-RESEARCH
+    type: playwright
+    file: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
+    target: app.dev.openmates.org
+    covers: [AC-4, AC-5, AC-7, AC-8]
+    assertions:
+      - explicit Deep research mention activates the focus mode
+      - exactly three bounded child chats become visible
+      - final parent synthesis contains all six required report sections
+      - final response settles without AI-service error or a lingering typing indicator
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {status: not_applicable, reason: Deterministic backend coverage and prior deployed failures supplied red evidence before the final Playwright readiness fixes.}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
+        run_id: "31231661641"
+        subject_commit: 6150eb0
+        timestamp: "2026-08-08T00:59:48Z"
+        target: app.dev.openmates.org
+        deployment_reference: dev-containing-6150eb0
+        report: test-results/reports/success/deep-research-real-inference.md
+        screenshot: test-results/screenshots/current/deep-research-real-inference/08-deep-research-final-synthesis.png
 
 verifications:
   - id: V-UI-VISUAL-SMOKE
@@ -833,8 +890,9 @@ tasks:
       - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
       - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
       - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
-    verification: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO]
-    verification_ids: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO]
+      - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    verification: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO, T-PYTEST-DEEP-RESEARCH-BUDGET, T-E2E-DEEP-RESEARCH]
+    verification_ids: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO, T-PYTEST-DEEP-RESEARCH-BUDGET, T-E2E-DEEP-RESEARCH]
     dependencies: [TASK-2]
     ownership:
       files:
