@@ -5448,6 +5448,7 @@ export async function handleSpawnSubChatsImpl(
       const category = subChatPayload.category?.trim() || null;
       const icon = subChatPayload.icon?.trim() || null;
       const userMessageId = subChatPayload.user_message_id || subChatPayload.message_id;
+      const waitsForCompletion = subChatPayload.wait_for_completion !== false;
 
       if (!scId) {
         console.error(
@@ -5499,6 +5500,7 @@ export async function handleSpawnSubChatsImpl(
         );
       }
       await flushPendingTypingStartedForChat(serviceInstance, scId);
+      serviceInstance.setSubChatProcessing?.(scId, waitsForCompletion);
 
       // 3. Create the first user message in the sub-chat
       if (!userMessageId) {
@@ -5593,6 +5595,7 @@ export function handleSubChatConfirmationResolvedImpl(
 }
 
 export function handleSubChatProgressImpl(
+  serviceInstance: ChatSynchronizationService,
   payload: {
     type: "sub_chat_progress";
     chat_id: string;
@@ -5606,6 +5609,12 @@ export function handleSubChatProgressImpl(
   },
 ): void {
   if (typeof window === "undefined") return;
+  if (payload.active_sub_chat_id) {
+    serviceInstance.setSubChatProcessing?.(
+      payload.active_sub_chat_id,
+      payload.status !== "completed" && payload.status !== "stopped",
+    );
+  }
   window.dispatchEvent(
     new CustomEvent("subChatProgress", { detail: payload }),
   );
@@ -5667,6 +5676,7 @@ export async function handleSubChatCompletedImpl(
     console.error("[ChatSyncService:AI] sub_chat_completed payload missing chat_id", payload);
     return;
   }
+  serviceInstance.setSubChatProcessing?.(subChatId, false);
 
   try {
     const chat = await chatDB.getChat(subChatId);
@@ -5774,6 +5784,7 @@ export async function handleAwaitingUserInputImpl(
 
     const taskId = payload.task_id || payload.message_id;
     aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    serviceInstance.setSubChatProcessing?.(payload.chat_id, false);
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
     if (taskInfo && taskInfo.taskId === taskId) {
       serviceInstance.activeAITasks.delete(payload.chat_id);

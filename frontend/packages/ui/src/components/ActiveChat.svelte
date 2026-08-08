@@ -4071,6 +4071,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Reactive trigger for AI task state changes - incremented when AI tasks start/end
     // Note: Prefixed with underscore as linter reports unused, but it's used as a reactivity trigger
     let _aiTaskStateTrigger = 0;
+    let _subChatProcessingStateTrigger = 0;
 
     // ─── Progressive AI Status Indicator ─────────────────────────────────
     // Tracks the current phase of the message processing pipeline for the
@@ -5361,8 +5362,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // queue/preprocessing time before ai_typing_started provides model metadata.
     let showProcessingRainbow = $derived.by(() => {
         void _aiTaskStateTrigger;
+        void _subChatProcessingStateTrigger;
         const chatId = currentChat?.chat_id;
         if (!chatId) return false;
+
+        if (chatSyncService.isSubChatProcessing(chatId)) return true;
 
         return chatSyncService.getActiveAITaskIdForChat(chatId) !== null || (
             currentTypingStatus?.isTyping === true && currentTypingStatus.chatId === chatId
@@ -11507,6 +11511,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
+        const subChatProcessingStateChangedHandler = ((event: CustomEvent<{ chatId: string }>) => {
+            if (event.detail.chatId === currentChat?.chat_id) {
+                _subChatProcessingStateTrigger++;
+            }
+        }) as EventListenerCallback;
+
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { chat_id, user_message_id, message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
@@ -11819,6 +11829,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
+        chatSyncService.addEventListener('subChatProcessingStateChanged', subChatProcessingStateChangedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
         chatSyncService.addEventListener('messageDeleted', messageDeletedHandler);
 
@@ -12226,6 +12237,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
+            chatSyncService.removeEventListener('subChatProcessingStateChanged', subChatProcessingStateChangedHandler);
             // Remove thinking/reasoning event listeners
             chatSyncService.removeEventListener('aiThinkingChunk', handleAiThinkingChunk as EventListenerCallback);
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);

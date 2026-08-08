@@ -90,6 +90,7 @@ export class ChatSynchronizationService extends EventTarget {
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
     new Map(); // Made public for handlers
+  public activeSubChatIds: Set<string> = new Set();
   private syncingMessageIds: Set<string> = new Set(); // Track message IDs being sent to server to prevent duplicates
 
   // CRITICAL: Sync timeout mechanism to prevent UI from being stuck in "Loading chats..." state
@@ -708,6 +709,7 @@ export class ChatSynchronizationService extends EventTarget {
     );
     webSocketService.on("sub_chat_progress", (payload) =>
       aiHandlers.handleSubChatProgressImpl(
+        this,
         payload as {
           type: "sub_chat_progress";
           chat_id: string;
@@ -1759,6 +1761,29 @@ export class ChatSynchronizationService extends EventTarget {
 
   public getActiveAIUserMessageIdForChat(chatId: string): string | null {
     return this.activeAITasks.get(chatId)?.userMessageId || null;
+  }
+
+  public isSubChatProcessing(chatId: string): boolean {
+    return this.activeSubChatIds.has(chatId);
+  }
+
+  public setSubChatProcessing(chatId: string | null | undefined, isProcessing: boolean): void {
+    if (!chatId) return;
+
+    const wasProcessing = this.activeSubChatIds.has(chatId);
+    if (isProcessing) {
+      this.activeSubChatIds.add(chatId);
+    } else {
+      this.activeSubChatIds.delete(chatId);
+    }
+
+    if (wasProcessing !== isProcessing) {
+      this.dispatchEvent(
+        new CustomEvent("subChatProcessingStateChanged", {
+          detail: { chatId, isProcessing },
+        }),
+      );
+    }
   }
 
   // --- Senders (delegating to chatSyncServiceSenders.ts) ---
