@@ -3738,6 +3738,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     async function handleOpenRecentChat(chat: Chat) {
         console.info(`[ActiveChat] Opening recent chat: ${chat.chat_id}`);
+        if (isPersistedDraftOnlyChat(chat)) {
+            temporaryChatId = null;
+            messageInputFieldRef?.setCurrentChatContext?.(chat.chat_id, null, chat.draft_v ?? 0);
+        }
         phasedSyncState.markInitialChatLoaded();
         activeChatStore.setActiveChat(chat.chat_id);
         await loadChat(chat);
