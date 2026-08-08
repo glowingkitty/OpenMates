@@ -55,6 +55,18 @@ test('Deep research delegates three angles and renders the final parent synthesi
 
 	await loginToTestAccount(page, log, screenshot);
 	await startNewChat(page, log);
+	await page.evaluate(() => {
+		const state = window as Window & { __subChatRawProtocolObserved?: boolean };
+		state.__subChatRawProtocolObserved = false;
+		new MutationObserver(() => {
+			const cardText = Array.from(document.querySelectorAll('[data-testid="sub-chat-card"]'))
+				.map((card) => card.textContent || '')
+				.join('\n');
+			if (cardText.includes('app_skill_use') || cardText.includes('```json')) {
+				state.__subChatRawProtocolObserved = true;
+			}
+		}).observe(document.body, { childList: true, subtree: true, characterData: true });
+	});
 
 	const prompt =
 		'Investigate how the EU AI Act general-purpose AI obligations affect open-source model providers, cloud hosts, and downstream startups. ' +
@@ -71,10 +83,30 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	const subChatCards = page.getByTestId('sub-chat-card');
 	await expect(subChatCards).toHaveCount(3, { timeout: 240_000 });
 	for (let index = 0; index < 3; index += 1) {
-		await expect(subChatCards.nth(index)).not.toContainText('"type":"app_skill_use"');
-		await expect(subChatCards.nth(index)).not.toContainText('The AI service encountered an error');
+		const card = subChatCards.nth(index);
+		const title = card.getByTestId('sub-chat-title');
+		await expect(title).not.toContainText('...');
+		expect(await title.evaluate((element: HTMLElement) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+		await expect(card).toHaveAttribute('data-category', /^(?!general_knowledge$).+/);
+		await expect(card).toHaveAttribute('data-icon', /^(?!help-circle$).+/);
+		await expect(card.getByTestId('sub-chat-open-cta')).toContainText('Click to open sub chat');
+		await expect(card).not.toContainText('"type":"app_skill_use"');
+		await expect(card).not.toContainText('The AI service encountered an error');
 	}
-	await screenshot(page, 'deep-research-three-children');
+	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false');
+	await screenshot(page, 'deep-research-initial-child-cards');
+
+	await subChatCards.first().click();
+	const returnToParent = page.getByTestId('return-to-parent-button');
+	await expect(returnToParent).toContainText('Return to parent chat', { timeout: 30_000 });
+	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'true');
+	await screenshot(page, 'deep-research-active-child-open');
+	await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
+
+	await returnToParent.click();
+	await expect(carousel).toBeVisible({ timeout: 30_000 });
+	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false');
+	await screenshot(page, 'deep-research-returned-to-waiting-parent');
 
 	const finalAssistant = page.getByTestId('message-assistant').last();
 	await expect(finalAssistant).toContainText('Short Answer', { timeout: 600_000 });
@@ -86,6 +118,11 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(finalAssistant).toContainText('Bottom Line');
 	await expect(finalAssistant).not.toContainText('The AI service encountered an error');
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
+	await expect(page.getByTestId('sub-chat-open-cta')).toHaveCount(0);
+	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(3);
+	expect(await page.evaluate(() =>
+		(window as Window & { __subChatRawProtocolObserved?: boolean }).__subChatRawProtocolObserved
+	)).toBe(false);
 
 	const visibleSynthesisSections = [
 		['Short Answer', 'deep-research-synthesis-start'],

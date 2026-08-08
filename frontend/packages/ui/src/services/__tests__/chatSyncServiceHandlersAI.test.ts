@@ -16,6 +16,8 @@ import {
   handleEmbedUpdateImpl,
   handlePostProcessingCompletedImpl,
   handleSendEmbedDataImpl,
+  handleSpawnSubChatsImpl,
+  handleSubChatCompletedImpl,
 } from "../chatSyncServiceHandlersAI";
 
 const HASHED_CHAT_ID = "a".repeat(64);
@@ -31,6 +33,7 @@ const mockChatDB = vi.hoisted(() => ({
   saveMessage: vi.fn(),
   getMessage: vi.fn(),
   getMessagesForChat: vi.fn(),
+  addChat: vi.fn(),
 }));
 
 const mockEmbedStore = vi.hoisted(() => ({
@@ -75,6 +78,7 @@ const mockChatKeyManager = vi.hoisted(() => ({
   getKey: vi.fn(),
   withKey: vi.fn(),
   receiveKeyFromServer: vi.fn(),
+  injectKey: vi.fn(),
   computeKeyFingerprint: vi.fn(() => "raw-key-fingerprint"),
 }));
 const mockWebSocketService = vi.hoisted(() => ({
@@ -211,6 +215,83 @@ vi.mock("../../stores/notificationStore", () => ({
 vi.mock("../../stores/unreadMessagesStore", () => ({
   unreadMessagesStore: mockUnreadMessagesStore,
 }));
+
+vi.mock("../../stores/userProfile", () => ({
+  userProfile: {
+    subscribe: (run: (value: { user_id: string }) => void) => {
+      run({ user_id: "user-1" });
+      return () => {};
+    },
+  },
+}));
+
+describe("sub-chat lifecycle metadata", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockChatDB.getChat.mockResolvedValue(null);
+    mockChatDB.addChat.mockResolvedValue(undefined);
+    mockChatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
+    mockChatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mockEncryptWithChatKey.mockImplementation(async (value: string) => `encrypted:${value}`);
+    mockEncryptChatKeyWithMasterKey.mockResolvedValue("encrypted-parent-key");
+  });
+
+  it("persists complete spawn-time title and category metadata before first render", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const payload = {
+      type: "spawn_sub_chats" as const,
+      chat_id: "parent-chat",
+      sub_chats: [{
+        id: "child-chat",
+        user_message_id: "",
+        prompt: "Investigate the EU AI Act legal obligations for open-source model providers.",
+        title: "EU AI Act legal obligations",
+        category: "legal_law",
+        icon: "scale",
+      }],
+    };
+
+    await handleSpawnSubChatsImpl(service, payload);
+
+    expect(mockChatDB.addChat).toHaveBeenCalledWith(expect.objectContaining({
+      chat_id: "child-chat",
+      title: "EU AI Act legal obligations",
+      encrypted_title: "encrypted:EU AI Act legal obligations",
+      encrypted_category: "encrypted:legal_law",
+      encrypted_icon: "encrypted:scale",
+    }));
+  });
+
+  it("does not persist protocol-only tool JSON as a visible child summary", async () => {
+    const childChat = {
+      chat_id: "child-chat",
+      parent_id: "parent-chat",
+      is_sub_chat: true,
+      encrypted_title: "encrypted-title",
+      messages_v: 1,
+      title_v: 0,
+      unread_count: 0,
+      created_at: 1,
+      updated_at: 1,
+      last_edited_overall_timestamp: 1,
+      chat_summary: null,
+    };
+    mockChatDB.getChat.mockResolvedValue(childChat);
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleSubChatCompletedImpl(service, {
+      type: "sub_chat_completed",
+      chat_id: "child-chat",
+      parent_id: "parent-chat",
+      summary: '```json\n{"type":"app_skill_use","app_id":"web","skill_id":"search"}\n```',
+    });
+
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+      chat_summary: null,
+    }));
+    expect(mockEncryptWithChatKey).not.toHaveBeenCalledWith(expect.stringContaining("app_skill_use"), expect.anything());
+  });
+});
 
 describe("handleAIResponseStorageFailedImpl", () => {
   it("unmarks, queues, and retries the exact assistant response once", async () => {

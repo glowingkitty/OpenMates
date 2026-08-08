@@ -20,6 +20,8 @@ scope:
     - Preserve nested sub-chat completion ordering and continuation ancestry for issue `8LQKD`.
     - Diagnose and repair source or test defects in the activation, rejection, and continuation Playwright specs that exercise this contract.
     - Verify explicit focus-mode activation and focused continuation through a real OpenMates CLI chat against the dev server.
+    - Keep spawned sub-chat cards truthful from their first frame: full available title space, correct category visuals, translated open affordance, sanitized summaries, and processing glow on the chat doing work.
+    - Verify child-to-parent navigation during real Deep research and publish reviewed web and CLI captioned videos for the same prompt and focus mode before user confirmation.
     - Update stale focus-mode architecture documentation to match the deferred activation implementation.
   out:
     - Focus-mode mention-dropdown search and rendering.
@@ -76,11 +78,16 @@ clarification:
   rounds:
     - question: When `web-research` is only relevant, should the model retain both ordinary web search and explicit focus activation as choices, with forced sub-chat delegation beginning only after activation?
       answer: Yes exactly.
+    - question: What must the replacement Deep research web and CLI evidence prove after video review?
+      answer: Sub-chat titles use available space; active child chats glow while a waiting parent does not; spawn-time category gradient and icon are correct; raw tool JSON never appears; a translated click/tap-to-open affordance smoothly yields to the summary; the web recording opens an active child, uses the translated parent link to return, and finishes the parent synthesis; a matching real CLI chat is also recorded and sent to Discord.
   vision_summary: >
     Preprocessing recommends relevant modes but never activates them. The main
     model can use an ordinary skill without changing focus state or explicitly
     activate a focus mode through the visible, rejectable flow. Only a confirmed
-    active Deep research mode may force sub-chat delegation.
+    active Deep research mode may force sub-chat delegation. Spawned child cards
+    and navigation must truthfully reflect the live child state from first render,
+    and both deployed web and real CLI demonstrations must be reviewed before
+    user confirmation.
   approved_by_user: true
 
 implementation_state:
@@ -125,6 +132,16 @@ decisions:
     decision: Report a sub-chat upstream only after its stream is known not to be awaiting nested children, and preserve its ancestry and budget on continuation.
     reason: Provisional batch status is not a child report; treating it as completion resumes ancestors before nested evidence exists.
     decided_at: "2026-08-07T10:31:00Z"
+  - id: D-7
+    status: active
+    decision: Populate child category, icon, title, and open affordance before the spawned shell is first rendered; replace only the affordance with a sanitized summary after completion.
+    reason: General-knowledge fallback visuals, empty cards, and raw protocol payloads misrepresent the child while real work is running.
+    decided_at: "2026-08-08T02:35:00Z"
+  - id: D-8
+    status: active
+    decision: Bind the rainbow processing treatment to the chat currently doing inference, not to an ancestor that is only waiting for descendants.
+    reason: Processing state must remain truthful when users navigate between a waiting parent and active child.
+    decided_at: "2026-08-08T02:35:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -257,18 +274,19 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-08T02:28:15Z"
     summary: Deployed run 31234745560 passed at 8652ae9; the 177.68-second captioned video passed privacy and frame review and was delivered to Discord dev-smoke as message 1535474706738577498.
+  - id: ATTEMPT-23
+    task_id: TASK-5
+    approach: Review the delivered video with the user for product truthfulness rather than relying on passing selectors and frame-level claim coverage.
+    outcome: rejected
+    recorded_at: "2026-08-08T02:35:00Z"
+    summary: Review exposed premature title clamps, missing active-child glow, general-knowledge fallback visuals, transient raw tool JSON, absent translated pre-summary affordance, missing child/parent navigation proof, and missing matching CLI video.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Obtain user confirmation from the reviewed Deep research video at commit 8652ae9, then run Apple verification and complete the remaining focus-mode demonstration evidence.
-  command: python3 scripts/spec_verify.py docs/specs/focus-mode-processing-reliability/spec.yml --phase green
-  expected_outcome: "All green implementation gates pass; user confirmation then permits Apple verification."
-  blocker:
-    task_id: TASK-4
-    requires_user_input: true
-    reason: Repository gate order requires user confirmation of deployed web behavior before Apple verification.
-    question: Confirm that focus activation, persistence, details, rejection, stop behavior, and the three-child Deep research synthesis work and look correct on the deployed dev app.
-    next_action: Run Apple verification after confirmation.
+  current_task_id: TASK-5
+  next_action: Add red lifecycle and deployed journey assertions for truthful sub-chat cards, processing glow, navigation, and matching web/CLI video evidence before any product fix.
+  command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit <test-commit>
+  expected_outcome: The expanded deployed journey fails on at least one reviewed defect before implementation changes.
+  blocker: null
   last_verified_commit: 8652ae9
 
 scenarios:
@@ -347,6 +365,32 @@ scenarios:
       - The backend activates the requested focus mode through the existing explicit-user activation path rather than treating it as an inferred candidate.
       - The returned chat and embed data identify Deep research as active.
       - Focused continuation delegates research through sub-chats and returns a final sourced answer without invalid-tool or preprocessing errors.
+  - id: S-8
+    title: Spawned Deep research children render and navigate truthfully
+    given:
+      - A deployed Deep research parent spawns three children with distinct research angles.
+      - Child work starts before every child has a final summary.
+    when:
+      - The user watches the parent carousel, opens an active child, and returns through the parent-chat link.
+    then:
+      - Each initial card uses all available title space and the category gradient and icon supplied for that child rather than a general-knowledge fallback.
+      - Before a summary exists, the card shows a translated click-to-open label on pointer devices or tap-to-open label on touch devices.
+      - Only the chat actively processing has the rainbow glow; the waiting parent does not glow while descendants run.
+      - The opened child shows a translated link back to its parent and remains visibly processing until its own task settles.
+      - The parent link returns to the waiting parent without interrupting the tree.
+      - A sanitized human-readable summary smoothly replaces the open affordance; raw app_skill_use JSON never appears.
+      - Final parent synthesis still completes with all six Deep research sections.
+  - id: S-9
+    title: Matching web and CLI demonstrations prove the same real Deep research request
+    given:
+      - The expanded deployed web journey passes against the dev app.
+      - The OpenMates CLI is authenticated against the same dev API.
+    when:
+      - Captioned web and CLI demonstrations run the same explicit Deep research focus mode and EU AI Act question through real inference.
+    then:
+      - The web video shows initial cards, active-child navigation and glow, parent return navigation, sanitized summaries, and final synthesis.
+      - The CLI video shows explicit focus activation, three bounded child progress records, and the same six-section final synthesis.
+      - Both videos pass deterministic privacy scanning and bounded frame review before Discord delivery.
 
 acceptance_criteria:
   - id: AC-1
@@ -413,6 +457,54 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-RECOVERY, T-CLI-FOCUS]
+  - id: AC-9
+    scenario: S-8
+    text: Spawned child cards use available title space and correct spawn-time category gradient and icon without a general-knowledge fallback frame.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-SUB-CHAT-LIFECYCLE, T-E2E-DEEP-RESEARCH]
+  - id: AC-10
+    scenario: S-8
+    text: The rainbow processing treatment follows the actively processing chat; a parent waiting for children does not glow, while an opened active child does.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-SUB-CHAT-LIFECYCLE, T-E2E-DEEP-RESEARCH]
+  - id: AC-11
+    scenario: S-8
+    text: A translated click/tap-to-open affordance fills the pre-summary card state and transitions to a sanitized summary without ever rendering raw app_skill_use JSON.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-SUB-CHAT-LIFECYCLE, T-E2E-DEEP-RESEARCH]
+  - id: AC-12
+    scenario: S-8
+    text: The deployed journey opens an active child, proves its glow and translated parent link, returns to the non-glowing waiting parent, and completes final synthesis.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-E2E-DEEP-RESEARCH]
+  - id: AC-13
+    scenario: S-9
+    text: A replacement captioned web video visibly proves every S-8 state, passes privacy and bounded-frame review, and is delivered to Discord.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-DEEP-RESEARCH-WEB-VIDEO]
+  - id: AC-14
+    scenario: S-9
+    text: A captioned real CLI video uses the same focus mode and question, proves bounded child progress and six-section synthesis, passes review, and is delivered to Discord.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-DEEP-RESEARCH-CLI-VIDEO]
 
 assumptions:
   - id: A-1
@@ -442,15 +534,27 @@ contracts:
       rate_limits: Existing chat and AI task limits are unchanged.
       credit_budget: Existing AI inference and skill/sub-chat budgets are unchanged.
       encryption: The server emits a plaintext focus identifier only to the authenticated first-party client; the client encrypts it with the chat key before persistence. No decrypted chat content or key material is added to the contract.
+    - surface: Existing first-party spawn_sub_chats and sub-chat lifecycle WebSocket messages gain validated category and icon metadata needed before encrypted child-shell persistence.
+      access_model: first-party client surface only
+      auth: Authenticated user and owned parent chat context are required.
+      rate_limits: Existing chat and AI task limits are unchanged.
+      credit_budget: Existing bounded root orchestration budgets are unchanged.
+      encryption: Spawn metadata is sent only to the authenticated first-party client and stored through the existing encrypted child metadata path; no chat key or decrypted transcript is exposed.
   state:
     - "`relevant_focus_modes` contains candidates only and must not be persisted or displayed as active."
     - "`active_focus_id` is input state from an explicit client selection or completed activation continuation, never a side effect of relevance."
     - Active Deep research may alter tool routing; relevant Deep research may not.
+    - A waiting parent and actively processing child have distinct processing states; only the latter drives the active-chat rainbow treatment.
+    - Protocol-only tool payloads are never valid user-visible sub-chat summaries.
   ui_states:
     - inactive candidate with no focus UI
     - countdown activation card with reject action
     - activated card and active focus pill
     - rejected card hidden with ordinary processing resumed
+    - spawned child card with full available title, validated category visuals, and translated pointer/touch open affordance
+    - opened active child with rainbow processing treatment and translated parent-chat navigation
+    - waiting parent without rainbow treatment while child processing continues
+    - completed child card with sanitized summary replacing the open affordance
   privacy_security:
     - Preserve client-side encryption of persisted active focus metadata.
     - Do not commit issue share keys, user identifiers, chat identifiers, raw private prompts, or trace payloads.
@@ -710,45 +814,70 @@ tests:
         subject_commit: 6150eb0
         timestamp: "2026-08-08T01:11:04Z"
         summary: 35 tests passed in 4.26 seconds.
+  - id: T-VITEST-SUB-CHAT-LIFECYCLE
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-9, AC-10, AC-11]
+    assertions:
+      - spawn metadata initializes child title, category, icon, and pre-summary affordance state before first render
+      - waiting parent processing state is cleared while active child state remains attributable
+      - completion sanitizes protocol-only app_skill_use JSON before summary persistence
+      - pointer and touch affordance translation keys exist and summary replacement state is deterministic
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-E2E-DEEP-RESEARCH
     type: playwright
     file: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
     command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
     target: app.dev.openmates.org
-    covers: [AC-4, AC-5, AC-7, AC-8]
+    covers: [AC-4, AC-5, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12]
     assertions:
       - explicit Deep research mention activates the focus mode
       - exactly three bounded child chats become visible
-      - child cards do not expose raw app_skill_use payloads
+      - initial child titles use available space and child category gradients and icons are correct from spawn
+      - translated click/tap-to-open affordances are visible before summaries and transition smoothly to sanitized summaries
+      - child cards never expose raw app_skill_use payloads
+      - opening an active child shows its rainbow processing treatment and translated parent-chat link
+      - returning through the parent link shows the waiting parent without rainbow treatment
       - final parent synthesis contains all six required report sections
       - the recording visibly scrolls through synthesis start, middle, and end
       - final response settles without AI-service error or a lingering typing indicator
-    red_phase:
-      required: false
-      expected: not_applicable
-      evidence: {status: not_applicable, reason: Deterministic backend coverage and prior deployed failures supplied red evidence before the final Playwright readiness fixes.}
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence:
-        status: passed
-        command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
-        run_id: "31234745560"
-        subject_commit: 8652ae9
-        timestamp: "2026-08-08T02:25:29Z"
-        target: app.dev.openmates.org
-        deployment_reference: dpl_2bEfNe8RXv7ZHCJAMovtXosEQj6o
-        report: test-results/reports/success/deep-research-real-inference.md
-        screenshot: test-results/screenshots/current/deep-research-real-inference/10-deep-research-synthesis-end.png
-        reviewed_video_evidence: test-results/proof-videos/0a36/deep-research-playwright-reviewed
-        publication_message_id: "1535474706738577498"
+      evidence: {status: pending}
+      history:
+        - status: passed
+          command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
+          run_id: "31234745560"
+          subject_commit: 8652ae9
+          timestamp: "2026-08-08T02:25:29Z"
+          target: app.dev.openmates.org
+          deployment_reference: dpl_2bEfNe8RXv7ZHCJAMovtXosEQj6o
+          reason: Superseded after user video review added title, category, glow, CTA, navigation, and matching CLI proof requirements.
 
 verifications:
+  - id: V-DEEP-RESEARCH-WEB-VIDEO
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-13]
+    status: pending
+    evidence: {status: pending, reason: Replacement video is required after the prior delivered recording exposed objective product defects.}
+  - id: V-DEEP-RESEARCH-CLI-VIDEO
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-14]
+    status: pending
+    evidence: {status: pending, reason: Matching real CLI focus-mode demonstration has not yet been captured and reviewed.}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
     required_for_done: true
-    covers: [AC-3, AC-4, AC-6]
+    covers: [AC-3, AC-4, AC-6, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
     status: passed
     target: https://app.dev.openmates.org/
     viewports: [laptop, mobile]
@@ -770,7 +899,7 @@ verifications:
     required_for_done: true
     covers: [AC-3, AC-4, AC-6]
     status: pending
-    evidence: {status: pending, reason: Prior confirmation was rejected by issue 8LQKD; fresh confirmation is required after f4d07b3.}
+    evidence: {status: pending, reason: User rejected the 8652ae9 video after identifying seven sub-chat presentation, navigation, and evidence gaps; fresh confirmation requires replacement web and CLI videos.}
   - id: V-APPLE
     kind: automated_test
     phase: final
@@ -819,6 +948,14 @@ implementation_plan:
       reason: Change only if investigation confirms a test defect rather than product defect.
     - path: frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
       reason: Change only if investigation confirms a test defect rather than product defect.
+    - path: frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+      reason: Render truthful title, category, translated affordance, summary transition, and navigation states.
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      reason: Preserve spawn metadata, distinguish waiting parent from active child, and sanitize completion summaries.
+    - path: frontend/packages/ui/src/components/ChatHistory.svelte
+      reason: Use translated parent-chat navigation copy.
+    - path: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+      reason: Prove child navigation and every video-reviewed state through deployed real inference.
   verification_strategy:
     - Record deterministic pytest red evidence before source edits and green evidence after the minimal fix.
     - Restart affected local Docker AI workers/API and run ordinary-search plus explicit `@Web-Research` CLI chats against dev.
@@ -831,6 +968,7 @@ implementation_plan:
     - npm and pip SDK parity marked not applicable unless implementation changes their explicit focus contract
     - Deployed web Playwright specs
     - Reviewed laptop/mobile visual smoke
+    - Frame-reviewed and delivered matching web and CLI demonstrations
     - User confirmation
     - Apple remote test or build
 
@@ -918,19 +1056,70 @@ tasks:
     status: in_progress
     phase: running_checks
     covers:
-      scenarios: [S-3, S-4, S-5, S-6]
-      acceptance_criteria: [AC-3, AC-4, AC-6, AC-7]
+      scenarios: [S-3, S-4, S-5, S-6, S-8, S-9]
+      acceptance_criteria: [AC-3, AC-4, AC-6, AC-7, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
     expected_files:
       - docs/specs/focus-mode-processing-reliability/spec.yml
-    verification: [V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE]
-    verification_ids: [V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE]
-    dependencies: [TASK-3]
+    verification: [V-UI-VISUAL-SMOKE, V-DEEP-RESEARCH-WEB-VIDEO, V-DEEP-RESEARCH-CLI-VIDEO, V-USER-CONFIRMATION, V-APPLE]
+    verification_ids: [V-UI-VISUAL-SMOKE, V-DEEP-RESEARCH-WEB-VIDEO, V-DEEP-RESEARCH-CLI-VIDEO, V-USER-CONFIRMATION, V-APPLE]
+    dependencies: [TASK-6]
     ownership:
       files: [docs/specs/focus-mode-processing-reliability/spec.yml]
       shared_files: []
     blockers:
       - User confirmation is required before Apple verification under the cross-client gate order.
     follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Repair truthful spawned sub-chat lifecycle UI
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-9, AC-10, AC-11, AC-12]
+    expected_files:
+      - backend/apps/ai/sub_chat_orchestration.py
+      - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      - frontend/packages/ui/src/services/subChatPreviewService.ts
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      - frontend/packages/ui/src/i18n/sources/chats.yml
+      - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    verification: [T-VITEST-SUB-CHAT-LIFECYCLE, T-E2E-DEEP-RESEARCH]
+    verification_ids: [T-VITEST-SUB-CHAT-LIFECYCLE, T-E2E-DEEP-RESEARCH]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+        - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+        - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/components/ActiveChat.svelte
+        - frontend/packages/ui/src/components/ChatHistory.svelte
+        - frontend/packages/ui/src/i18n/sources/chats.yml
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: true
+  - id: TASK-6
+    title: Produce matching reviewed web and CLI Deep research videos
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-9]
+      acceptance_criteria: [AC-13, AC-14]
+    expected_files:
+      - docs/specs/focus-mode-processing-reliability/spec.yml
+      - test-results/proof-videos/0a36
+    verification: [V-DEEP-RESEARCH-WEB-VIDEO, V-DEEP-RESEARCH-CLI-VIDEO]
+    verification_ids: [V-DEEP-RESEARCH-WEB-VIDEO, V-DEEP-RESEARCH-CLI-VIDEO]
+    dependencies: [TASK-5]
+    ownership:
+      files: [docs/specs/focus-mode-processing-reliability/spec.yml]
+      shared_files: [test-results/proof-videos/0a36]
+    blockers: []
+    follow_up_tasks: [TASK-4]
     independently_deployable: false
 
 demonstration:
@@ -952,9 +1141,14 @@ demonstration:
       acceptance_criteria: [AC-3, AC-6]
     - id: NARR-3
       purpose: Show confirmed Deep research activation.
-      expected_proof: Countdown completes, active focus UI appears, and delegated continuation completes without technical errors.
-      scenario_ids: [S-4, S-6, S-7]
-      acceptance_criteria: [AC-4, AC-5, AC-7, AC-8]
+      expected_proof: Countdown completes, initial child cards are truthful, an active child opens with processing glow, translated parent navigation returns to the waiting parent, summaries replace open affordances without raw JSON, and synthesis completes.
+      scenario_ids: [S-4, S-6, S-8]
+      acceptance_criteria: [AC-4, AC-5, AC-7, AC-9, AC-10, AC-11, AC-12, AC-13]
+    - id: NARR-4
+      purpose: Show the same explicit Deep research request in the real OpenMates CLI.
+      expected_proof: CLI output identifies the active focus mode, reports three bounded child chats, and returns the six-section final synthesis.
+      scenario_ids: [S-7, S-9]
+      acceptance_criteria: [AC-8, AC-14]
   evidence:
     status: pending
     privacy_status: pending

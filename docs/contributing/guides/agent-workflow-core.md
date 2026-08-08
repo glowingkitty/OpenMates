@@ -56,7 +56,13 @@ retained video path or delivery link. Give the active agent the canonical
 captions and bounded image frames, never the full video. Use a default
 three-second interval plus event boundaries, request exact-timestamp frames only
 when needed, and keep Discord publication status separate from the review-based
-completion gate. Audio narration remains optional unless explicitly requested.
+completion gate. If any reviewed frame shows an objective product defect such as
+clipping, premature truncation, wrong metadata, raw protocol/error text, missing
+processing animation, stale loading state, or broken navigation, classify it as
+an implementation defect and automatically return to a failing test, product
+fix, deploy, source rerun, and replacement recording. Do not accept, document as
+an accepted difference, or narrate around an obvious rendering defect. Audio
+narration remains optional unless explicitly requested.
 
 Common commands:
 
