@@ -2419,6 +2419,7 @@
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
+        const chatIdAtBlur = currentChatId;
         // Cancel any existing blur timeout before creating a new one
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -2444,9 +2445,13 @@
                 // It will reopen when focus is regained if cursor is after '@'
                 showMentionDropdown = false;
                 mentionQuery = '';
+
+                // The delayed blur can outlive a composer context switch. Never
+                // persist the old editor into a newly selected chat.
+                if (currentChatId !== chatIdAtBlur) return;
                 
                 syncTextOnlyDomToEditorBeforeDraftSave(editor);
-                flushSaveDraft(editor, currentChatId);
+                flushSaveDraft(editor, chatIdAtBlur);
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content
                 // that should be preserved even though they can't be sent alone
