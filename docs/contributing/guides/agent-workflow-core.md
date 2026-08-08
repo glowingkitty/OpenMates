@@ -45,6 +45,10 @@ embed, or spec changes are needed, perform a scoped `dev` deploy with
 against `https://app.dev.openmates.org`. This repo instruction authorizes that
 scoped deploy; do not stop with a generic "no explicit deploy/commit request"
 blocker unless a session-lifecycle safety exception applies.
+When checking deployed-code readiness from a session worktree that lacks
+`frontend/apps/web_app/.vercel/project.json`, prefer the same `scripts/tests.py`
+`--gate-deploy --expected-commit <sha>` path instead of retrying Vercel helper
+commands that require local Vercel metadata.
 
 Final responses should be evidence-based and concise. Name changed files, exact
 verification commands, failed checks, skipped checks, and any uncertainty. For
