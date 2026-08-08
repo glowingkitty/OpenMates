@@ -5366,31 +5366,10 @@
     // Track previous chat ID to detect changes
     let previousChatId: string | undefined = undefined;
     
-    // React to chat ID changes to save drafts when switching chats using $effect
-    // CRITICAL: Save the previous chat's draft BEFORE the context switches
-    // This prevents draft loss when quickly switching between chats
+    // Reset per-chat PII state when the active composer changes. Draft persistence
+    // is owned by setCurrentChatContext(), which flushes before switching context.
     $effect(() => {
         if (currentChatId !== previousChatId && previousChatId !== undefined) {
-            const draftState = get(draftEditorUIState);
-            if (draftState.currentChatId === previousChatId && !draftState.isSwitchingContext) {
-                console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
-                // CRITICAL: Flush draft for the PREVIOUS chat before switching
-                // Use the previous chat ID explicitly to ensure we save the right draft
-                // The draft service will use the current state's chatId, so we need to ensure it's still set
-                flushCurrentEditorDraft(previousChatId); // Save draft for the previous chat before switching
-                // Small delay to ensure the save completes before context switch
-                setTimeout(() => {
-                    console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
-                }, 100);
-            } else {
-                console.debug('[MessageInput] Skipping stale previous-chat draft flush', {
-                    previousChatId,
-                    currentChatId,
-                    draftStateChatId: draftState.currentChatId,
-                    isSwitchingContext: draftState.isSwitchingContext
-                });
-            }
-            
             // Reset PII detection state for the new chat.
             // Without this, stale PII matches from the previous chat persist
             // (the "Sensitive data detected" banner stays visible even when the
