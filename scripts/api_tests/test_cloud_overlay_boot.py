@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """
 OpenMatesCloud overlay boot smoke check.
 
@@ -27,6 +28,7 @@ OVERLAY_ENABLED_ENV = "OPENMATES_CLOUD_OVERLAY_ENABLED"
 EXPECTED_OVERLAY_PACKAGE = "OpenMatesCloud"
 EXPECTED_WORKER_QUEUES = {
     "task-worker": {"email"},
+    "user-init-worker": {"user_init"},
     "core-worker": {"persistence"},
 }
 
@@ -94,7 +96,7 @@ def _check_cli_overlay_containers() -> list[str]:
         raise CloudOverlayBootError("api container does not have the OpenMatesCloud overlay marker")
     findings.append("api overlay env present")
 
-    for container_name in ("task-worker", "core-worker", "task-scheduler"):
+    for container_name in ("task-worker", "user-init-worker", "core-worker", "task-scheduler"):
         env = _docker_env(container_name)
         if env.get(OVERLAY_PACKAGE_ENV) != EXPECTED_OVERLAY_PACKAGE:
             raise CloudOverlayBootError(f"{container_name} missing OpenMatesCloud overlay marker")

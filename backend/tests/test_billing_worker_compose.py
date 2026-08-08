@@ -7,6 +7,8 @@ This test keeps source and self-host task-worker definitions aligned before a
 deploy can reintroduce silent billing/invoice failures.
 """
 
+# contract-test-file: infrastructure
+
 from pathlib import Path
 
 import yaml
@@ -14,7 +16,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 EMAIL_QUEUE = "email"
-CORE_TASK_QUEUES = "user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+USER_INIT_QUEUE = "user_init"
+CORE_TASK_QUEUES = "persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
 COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.yml",
     ROOT / "backend/core/docker-compose.selfhost.yml",
@@ -47,9 +50,16 @@ def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
         core_worker = compose["services"]["core-worker"]
         assert core_worker["environment"]["CELERY_QUEUES"] == CORE_TASK_QUEUES, compose_path
         assert f"--queues={CORE_TASK_QUEUES} " in core_worker["command"], compose_path
+        assert USER_INIT_QUEUE not in core_worker["environment"]["CELERY_QUEUES"].split(","), compose_path
         assert "email" not in core_worker["environment"]["CELERY_QUEUES"].split(","), compose_path
         if compose_path == COMPOSE_FILES[0]:
             assert core_worker["extends"] == {"service": "task-worker"}, compose_path
+
+        user_init_worker = compose["services"].get("user-init-worker")
+        assert user_init_worker is not None, compose_path
+        assert user_init_worker["environment"]["CELERY_QUEUES"] == USER_INIT_QUEUE, compose_path
+        assert f"--queues={USER_INIT_QUEUE} " in user_init_worker["command"], compose_path
+        assert "persistence" not in user_init_worker["environment"]["CELERY_QUEUES"].split(","), compose_path
 
 
 def test_api_image_packages_worker_and_billing_translation_runtime() -> None:
@@ -62,7 +72,9 @@ def test_api_image_packages_worker_and_billing_translation_runtime() -> None:
 
 
 def test_core_worker_is_in_every_runtime_control_plane() -> None:
-    assert '"core-worker"' in RELEASE_PREPARATION.read_text(encoding="utf-8")
-    assert '"core-worker"' in CLI_SERVER_PLANNING.read_text(encoding="utf-8")
-    assert '"core-worker"' in CLOUD_BOOT_SMOKE.read_text(encoding="utf-8")
+    for service in ('"core-worker"', '"user-init-worker"'):
+        assert service in RELEASE_PREPARATION.read_text(encoding="utf-8")
+        assert service in CLI_SERVER_PLANNING.read_text(encoding="utf-8")
+        assert service in CLOUD_BOOT_SMOKE.read_text(encoding="utf-8")
     assert '"core-worker:9109"' in PROMETHEUS_CONFIG.read_text(encoding="utf-8")
+    assert '"user-init-worker:9110"' in PROMETHEUS_CONFIG.read_text(encoding="utf-8")
