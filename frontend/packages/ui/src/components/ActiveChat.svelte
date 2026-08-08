@@ -66,7 +66,7 @@
 
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
-    import { decryptWithChatKey, decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
+    import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
@@ -106,7 +106,6 @@
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { anonymousChatStorage } from '../services/anonymousChatStorage';
     import { isAnonymousChatId } from '../services/anonymousChatIds';
-    import { hasAnonymousSessionKey, unwrapAnonymousChatKey } from '../services/anonymousChatKeyWrapping';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
@@ -5170,11 +5169,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         !$authStore.isAuthenticated && showWelcome && guestInterestSelectorVisible && !isTouchEnvironment && !isEffectivelyNarrow
     );
 
-    // Fade out and disable pointer-events on the welcome content (banner + resume cards)
-    // whenever the message input is focused on the welcome screen (all devices), or when
-    // the keyboard opens on mobile / narrow viewports, or when suggestions would overlap.
+    // Keep desktop welcome controls interactive after composer auto-focus.
+    // Constrained layouts still hide them to make room for the keyboard.
     let hideWelcomeForKeyboard = $derived(
-        messageInputFocused && !keepGuestInterestOverlayVisible && (showWelcome || isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+        messageInputFocused &&
+        !keepGuestInterestOverlayVisible &&
+        (isTouchEnvironment || isEffectivelyNarrow)
     );
 
     // Effective chat width: The actual width of the chat area
@@ -5225,8 +5225,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
       let currentMessageWindowHasMoreBefore = $state(false);
       let olderMessageWindowLoading = $state(false);
       let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
-      let anonymousShellHydratingChatId = $state<string | null>(null);
-
       function pruneCurrentDecryptedMessageWindow(messages: ChatMessageModel[]): ChatMessageModel[] {
         const prunedWindow = pruneDecryptedMessageWindow(messages, {
             compressionCheckpoints: currentCompressionCheckpoints,
@@ -5249,110 +5247,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      ));
       let hasActiveShareableChatSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
       let hasActiveChatDetailsSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
-
-     async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
-        if (typeof indexedDB === 'undefined') return null;
-        if (!hasAnonymousSessionKey()) {
-            await new Promise<void>((resolve, reject) => {
-                const request = indexedDB.open('chats_db');
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    const db = request.result;
-                    const transaction = db.transaction(['chats', 'messages'], 'readwrite');
-                    transaction.objectStore('chats').delete(chatId);
-
-                    const cursorRequest = transaction
-                        .objectStore('messages')
-                        .index('chat_id_created_at')
-                        .openCursor(IDBKeyRange.bound([chatId, -Infinity], [chatId, Infinity]));
-                    cursorRequest.onsuccess = () => {
-                        const cursor = cursorRequest.result;
-                        if (!cursor) return;
-                        cursor.delete();
-                        cursor.continue();
-                    };
-
-                    transaction.onerror = () => {
-                        db.close();
-                        reject(transaction.error);
-                    };
-                    transaction.oncomplete = () => {
-                        db.close();
-                        resolve();
-                    };
-                };
-            }).catch((error) => {
-                console.warn('[ActiveChat] Failed to clear anonymous IndexedDB snapshot after session key removal:', error);
-            });
-            return null;
-        }
-
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open('chats_db');
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                const db = request.result;
-                const transaction = db.transaction(['chats', 'messages'], 'readonly');
-                const chatRequest = transaction.objectStore('chats').get(chatId);
-                const messagesRequest = transaction
-                    .objectStore('messages')
-                    .index('chat_id_created_at')
-                    .getAll(IDBKeyRange.bound([chatId, -Infinity], [chatId, Infinity]));
-
-                transaction.onerror = () => {
-                    db.close();
-                    reject(transaction.error);
-                };
-                transaction.oncomplete = () => {
-                    db.close();
-                    const chat = chatRequest.result as Chat | undefined;
-                    if (!chat?.is_anonymous) {
-                        resolve(null);
-                        return;
-                    }
-                    void (async () => {
-                        const chatKey = await unwrapAnonymousChatKey(chat.anonymous_encrypted_chat_key);
-                        const messages = await Promise.all(((messagesRequest.result ?? []) as ChatMessageModel[]).map(async (message) => {
-                            if (!chatKey || !message.encrypted_content || message.content) return message;
-                            const content = await decryptWithChatKey(message.encrypted_content, chatKey, {
-                                chatId,
-                                fieldName: 'encrypted_content'
-                            });
-                            return content ? { ...message, content } : message;
-                        }));
-                        resolve({ chat, messages });
-                    })().catch(reject);
-                };
-            };
-        });
-     }
-
-     $effect(() => {
-        const chat = currentChat;
-        if (!chat?.is_anonymous || chat.chat_id !== initialAnonymousChatId || chat.messages_v !== 0 || currentMessages.length > 0 || anonymousShellHydratingChatId === chat.chat_id) return;
-
-        anonymousShellHydratingChatId = chat.chat_id;
-        void (async () => {
-            for (let attempt = 0; attempt < 100; attempt += 1) {
-                const snapshot = await readAnonymousSnapshotFromIndexedDb(chat.chat_id);
-                if (snapshot && snapshot.messages.length > 0 && currentChat?.chat_id === chat.chat_id) {
-                    currentChat = snapshot.chat;
-                    currentMessages = snapshot.messages;
-                    chatHistoryRef?.updateMessages(snapshot.messages);
-                    showWelcome = false;
-                    return;
-                }
-
-                await new Promise((resolve) => setTimeout(resolve, 100));
-            }
-        })().catch((error) => {
-            console.warn('[ActiveChat] Failed to hydrate anonymous shell from IndexedDB snapshot:', error);
-        }).finally(() => {
-            if (anonymousShellHydratingChatId === chat.chat_id) {
-                anonymousShellHydratingChatId = null;
-            }
-        });
-     });
 
      $effect(() => {
         const ref = chatHistoryRef;
@@ -12424,7 +12318,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
-    data-processing={showProcessingRainbow ? 'true' : 'false'}
     class:ai-typing={showProcessingRainbow}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
@@ -14819,6 +14712,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .message-input-wrapper {
         position: relative; /* For absolute positioning of typing indicator if needed */
+        z-index: var(--z-index-dropdown);
     }
 
     .typing-indicator {
@@ -15795,17 +15689,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
-    }
-
-    .chat-side:has(.center-content) {
-        pointer-events: none;
-    }
-
-    .chat-side:has(.center-content) .daily-inspiration-area,
-    .chat-side:has(.center-content) .top-buttons,
-    .chat-side:has(.center-content) .center-content,
-    .chat-side:has(.center-content) .guest-interest-tags-overlay {
-        pointer-events: auto;
     }
 
     /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.
