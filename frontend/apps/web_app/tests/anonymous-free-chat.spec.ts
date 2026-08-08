@@ -555,6 +555,7 @@ test.describe('Anonymous free chat', () => {
 			timeout: 15000
 		});
 		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
+		await page.getByTestId('message-assistant').last().scrollIntoViewIfNeeded();
 		await expect(reloadedSecondAnswer).toBeVisible({
 			timeout: 15000
 		});
