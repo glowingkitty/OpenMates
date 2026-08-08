@@ -867,6 +867,12 @@ _BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+-[a-zA-Z0-9]{2,4})\](?!\()')
 # Legacy grouped citations emitted by some models. Known refs are expanded into
 # separate canonical inline links during finalization.
 _GROUPED_CITE_REFS_PATTERN = re.compile(r'\[cite:\s*([^\]\n]+)\]', re.IGNORECASE)
+_GROUPED_BARE_EMBED_REFS_PATTERN = re.compile(
+    r'\[('
+    r'(?:[^\]\s,]+-[a-zA-Z0-9]{2,4})'
+    r'(?:\s*,\s*(?:[^\]\s,]+-[a-zA-Z0-9]{2,4}))+'
+    r')\](?!\()'
+)
 
 # Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
 # https:// link and an (embed:ref) parenthetical for the same anchor.
@@ -1610,8 +1616,9 @@ async def _fix_bad_embed_display_text(
         if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
     ]
     grouped_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(aggregated_response))
+    grouped_bare_matches = list(_GROUPED_BARE_EMBED_REFS_PATTERN.finditer(aggregated_response))
 
-    if not all_matches and not bare_matches and not grouped_cite_matches:
+    if not all_matches and not bare_matches and not grouped_cite_matches and not grouped_bare_matches:
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
@@ -1805,13 +1812,20 @@ async def _fix_bad_embed_display_text(
     # Expand legacy grouped citations only when every ref resolves to a child
     # embed from this response. Unknown tokens remain untouched rather than
     # creating links that cannot resolve in the client.
-    if grouped_cite_matches and embed_ref_to_title:
-        current_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(modified))
+    if (grouped_cite_matches or grouped_bare_matches) and embed_ref_to_title:
+        current_grouped_matches = [
+            (match, match.group(1))
+            for match in _GROUPED_CITE_REFS_PATTERN.finditer(modified)
+        ] + [
+            (match, match.group(1))
+            for match in _GROUPED_BARE_EMBED_REFS_PATTERN.finditer(modified)
+        ]
+        current_grouped_matches.sort(key=lambda item: item[0].start(), reverse=True)
         grouped_fixed = 0
-        for match in reversed(current_cite_matches):
+        for match, refs_text in current_grouped_matches:
             if _is_markdown_literal_position(modified, match.start()):
                 continue
-            embed_refs = [ref.strip() for ref in match.group(1).split(",") if ref.strip()]
+            embed_refs = [ref.strip() for ref in refs_text.split(",") if ref.strip()]
             if not embed_refs or any(ref not in embed_ref_to_title for ref in embed_refs):
                 continue
 

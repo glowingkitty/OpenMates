@@ -555,48 +555,73 @@ assertions:
       line: 45
       name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
       surface: gui.apple
-    - &id049
+    - &id053
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 64
       name: 'Phase 2: CLI apps web search returns results'
       surface: cli
-    - &id051
+    - &id055
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 118
       name: 'Phase 5: Zero-result query does not show error banner'
       surface: gui.web
-    - &id052
+    - &id056
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 221
       name: 'Phase 4: Web chat triggers web search with embed'
       surface: gui.web
-    - &id053
+    - &id057
+      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+      line: 35
+      name: repairs persisted grouped bare embed refs into inline embed nodes
+      surface: gui.web
+    - &id058
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id054
+    - &id059
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id055
+    - &id060
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id056
+    - &id061
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests:
     - &id048
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 23
+      name: test_single_bare_ref_pattern_ignores_grouped_refs
+      surface: gui.web
+    - &id049
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 30
+      name: test_grouped_pattern_matches_domain_refs
+      surface: gui.web
+    - &id050
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 38
+      name: test_grouped_pattern_ignores_plain_comma_lists
+      surface: gui.web
+    - &id051
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 46
+      name: test_converts_grouped_known_bare_refs_to_inline_links
+      surface: gui.web
+    - &id052
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 57
       name: 'Phase 1: embed preview renders at /dev/preview/embeds/web'
       surface: gui.web
-    - &id050
+    - &id054
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 91
       name: 'Phase 3: CLI chats new triggers web search'
@@ -614,6 +639,11 @@ assertions:
     - *id054
     - *id055
     - *id056
+    - *id057
+    - *id058
+    - *id059
+    - *id060
+    - *id061
     surfaces:
       gui.apple:
         direct_tests:
@@ -623,26 +653,31 @@ assertions:
         supporting_tests: []
       gui.web:
         direct_tests:
-        - *id051
-        - *id052
+        - *id055
+        - *id056
+        - *id057
         supporting_tests:
         - *id048
+        - *id049
+        - *id050
+        - *id051
+        - *id052
       cli:
         direct_tests:
-        - *id049
-        - *id054
+        - *id053
+        - *id059
         supporting_tests:
-        - *id050
+        - *id054
       rest_api:
         direct_tests:
-        - *id053
+        - *id058
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id055
+        - *id060
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id056
+        - *id061
         supporting_tests: []
     current_direct_proof: false

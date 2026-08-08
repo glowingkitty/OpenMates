@@ -46,6 +46,94 @@ import {
 // as the embed preview card, with zero additional async work.
 
 const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
+const BARE_EMBED_REF_TOKEN_SOURCE = String.raw`[A-Za-z0-9._~:-]+-[A-Za-z0-9]{2,4}`;
+const BARE_EMBED_REF_TOKEN_RE = new RegExp(
+  `^${BARE_EMBED_REF_TOKEN_SOURCE}$`,
+);
+const BARE_EMBED_REF_GROUP_RE = new RegExp(
+  "\\[((?:" + BARE_EMBED_REF_TOKEN_SOURCE + ")(?:\\s*,\\s*(?:" +
+    BARE_EMBED_REF_TOKEN_SOURCE + "))+)\\](?!\\()",
+  "g",
+);
+
+function hasCodeOrLinkMark(node: any): boolean {
+  return Array.isArray(node?.marks) && node.marks.some(
+    (mark: any) => mark?.type === "code" || mark?.type === "link",
+  );
+}
+
+function createMarkedTextNode(text: string, sourceNode: any): any | null {
+  if (!text) return null;
+  const textNode: any = { type: "text", text };
+  if (Array.isArray(sourceNode?.marks) && sourceNode.marks.length > 0) {
+    textNode.marks = sourceNode.marks;
+  }
+  return textNode;
+}
+
+function createInlineEmbedNodeFromRawRef(
+  rawRef: string,
+  fallbackAppId: string | null,
+): any {
+  const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
+    parseEmbedLinkTarget(rawRef);
+  const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+  return {
+    type: "embedInline",
+    attrs: {
+      embedRef: cleanRef,
+      embedId: refEntry?.embedId ?? null,
+      displayText: resolveEmbedDisplayText(rawRef, cleanRef),
+      appId: refEntry?.appId ?? fallbackAppId,
+      focusLineStart: lineStart,
+      focusLineEnd: lineEnd,
+      highlightQuoteText,
+      focusSheetRange: sheetRange,
+    },
+  };
+}
+
+function convertBareEmbedRefGroupsInTextNode(
+  node: any,
+  fallbackAppId: string | null,
+): any | any[] {
+  if (node.type !== "text" || typeof node.text !== "string") return node;
+  if (hasCodeOrLinkMark(node)) return node;
+
+  BARE_EMBED_REF_GROUP_RE.lastIndex = 0;
+  if (!BARE_EMBED_REF_GROUP_RE.test(node.text)) return node;
+
+  BARE_EMBED_REF_GROUP_RE.lastIndex = 0;
+  const output: any[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = BARE_EMBED_REF_GROUP_RE.exec(node.text)) !== null) {
+    const refs = match[1]
+      .split(",")
+      .map((ref) => ref.trim())
+      .filter((ref) => BARE_EMBED_REF_TOKEN_RE.test(ref));
+
+    if (refs.length === 0) continue;
+
+    const before = createMarkedTextNode(
+      node.text.slice(lastIndex, match.index),
+      node,
+    );
+    if (before) output.push(before);
+
+    refs.forEach((ref, index) => {
+      if (index > 0) output.push({ type: "text", text: ", " });
+      output.push(createInlineEmbedNodeFromRawRef(ref, fallbackAppId));
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (output.length === 0) return node;
+  const after = createMarkedTextNode(node.text.slice(lastIndex), node);
+  if (after) output.push(after);
+  return output;
+}
 
 function createCompactAppSkillEmbedNode(
   refEntry: EmbedRefIndexEntry,
@@ -136,6 +224,8 @@ function convertEmbedLinksInNode(
   node: any,
   fallbackAppId: string | null,
 ): any | any[] {
+  if (node.type === "codeBlock") return node;
+
   // Leaf text node — check for embed: or wiki: link mark
   if (node.type === "text" && Array.isArray(node.marks)) {
     const codeMarkIndex = node.marks.findIndex((m: any) => m.type === "code");
@@ -265,6 +355,14 @@ function convertEmbedLinksInNode(
         },
       };
     }
+  }
+
+  const bareEmbedRefConversion = convertBareEmbedRefGroupsInTextNode(
+    node,
+    fallbackAppId,
+  );
+  if (Array.isArray(bareEmbedRefConversion) || bareEmbedRefConversion !== node) {
+    return bareEmbedRefConversion;
   }
 
   // Recurse into children
