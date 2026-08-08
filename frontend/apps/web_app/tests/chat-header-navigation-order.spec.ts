@@ -12,6 +12,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { fillMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const { logHitTestDiagnostics } = require('./helpers/hit-test-diagnostics');
 
 const INTRO_CHAT_TITLES = new Set([
 	'OpenMates | For everyone',
@@ -90,6 +91,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			const resumeDraftCard = page.getByTestId('resume-chat-draft-card').filter({ hasText: draftText });
 			await expect(resumeDraftCard).toBeVisible({ timeout: 15000 });
 			expect(await resumeDraftCard.getAttribute('data-chat-id')).toBe(draftChatId);
+			await logHitTestDiagnostics(resumeDraftCard, 'resume-draft-card');
 			await resumeDraftCard.click();
 			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 			expect(page.url()).toContain(`chat-id=${draftChatId}`);
