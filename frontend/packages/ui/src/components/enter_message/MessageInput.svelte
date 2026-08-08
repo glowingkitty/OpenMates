@@ -353,6 +353,7 @@
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isScrollable = $state(false);
     let showMenu = $state(false);
+    let menuOpenedAt = $state(0);
     let menuX = $state(0);
     let menuY = $state(0);
     let selectedEmbedId: string | null = null;
@@ -3556,7 +3557,9 @@
             isMenuInteraction = true;
             menuX = result.menuX; menuY = result.menuY;
             selectedEmbedId = result.selectedEmbedId; menuType = result.menuType;
-            selectedNode = result.selectedNode; showMenu = true;
+            selectedNode = result.selectedNode;
+            menuOpenedAt = Date.now();
+            showMenu = true;
         } else {
             isMenuInteraction = false; showMenu = false; selectedNode = null; selectedEmbedId = null;
         }
@@ -3634,6 +3637,7 @@
         selectedEmbedId = embedId;
         menuType = resolvedMenuType;
         selectedNode = foundNode as { node: ProseMirrorNode; pos: number };
+        menuOpenedAt = Date.now();
         showMenu = true;
 
         console.debug('[MessageInput] Opened embed context menu via embed-context-menu event:', {
@@ -5984,7 +5988,7 @@
         {/if}
  
         {#if showMenu}
-            <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} showPasteAsText={showPasteAsText} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} on:pasteastext={() => handleMenuAction('pasteastext')} />
+            <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} openedAt={menuOpenedAt} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} showPasteAsText={showPasteAsText} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} on:pasteastext={() => handleMenuAction('pasteastext')} />
         {/if}
 
         {#if $recordingState.showRecordAudioUI}

@@ -7,6 +7,7 @@
         x?: number;
         y?: number;
         show?: boolean;
+        openedAt?: number;
         type?: 'default' | 'pdf' | 'web' | 'video-transcript' | 'video';
         isYouTube?: boolean;
         originalUrl?: string | undefined;
@@ -22,6 +23,7 @@
         x = 0,
         y = 0,
         show = false,
+        openedAt = 0,
         type = 'default',
         isYouTube = false,
         originalUrl = undefined,
@@ -34,11 +36,6 @@
     } = createEventDispatcher();
     const MENU_OPEN_SCROLL_GRACE_MS = 200;
     let menuElement = $state<HTMLDivElement>();
-    let menuShownAt = $state(0);
-
-    $effect(() => {
-        if (show) menuShownAt = Date.now();
-    });
 
     // Handle clicking outside the menu
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -56,7 +53,7 @@
 
     // Add scroll handler
     function handleScroll() {
-        if (show && Date.now() - menuShownAt >= MENU_OPEN_SCROLL_GRACE_MS) {
+        if (show && Date.now() - openedAt >= MENU_OPEN_SCROLL_GRACE_MS) {
             dispatch('close');
         }
     }
