@@ -5,6 +5,8 @@ dev backend would ignore live-mock markers and spend real provider quota.
 Run: python3 -m pytest scripts/tests/test_run_tests_backend_mock_preflight.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -18,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RUN_TESTS_PATH = ROOT / "scripts/run_tests.py"
 DEV_COMPOSE_PATH = ROOT / "backend/core/docker-compose.yml"
 SELFHOST_COMPOSE_PATH = ROOT / "backend/core/docker-compose.selfhost.yml"
+SELFHOST_API_DOCKERFILE_PATH = ROOT / "backend/core/api/Dockerfile.selfhost"
 
 
 def load_run_tests_module():
@@ -47,6 +50,14 @@ def test_dev_compose_forces_live_mock_feature_flag_for_e2e() -> None:
     assert 'MOCK_EXTERNAL_APIS: "true"' in dev_compose
     assert "${MOCK_EXTERNAL_APIS" not in dev_compose
     assert 'MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"' in selfhost_compose
+
+
+def test_selfhost_api_image_requires_shared_runtime_config() -> None:
+    dockerfile = SELFHOST_API_DOCKERFILE_PATH.read_text(encoding="utf-8")
+
+    assert "COPY shared /shared" in dockerfile
+    assert "test -s /shared/config/pricing.yml" in dockerfile
+    assert "test -s /shared/config/urls.yml" in dockerfile
 
 
 def test_backend_live_mock_preflight_fails_when_container_would_ignore_markers(monkeypatch) -> None:
