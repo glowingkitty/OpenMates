@@ -467,7 +467,7 @@
     }
 
     function syncTextOnlyDomToEditorBeforeDraftSave(editor: Editor): boolean {
-        if (editor.isDestroyed || editorHasEmbedContent(editor)) return false;
+        if (editor.isDestroyed || isDraftPreview || editorHasEmbedContent(editor)) return false;
         const dom = editor.view.dom;
         const domText = ((dom instanceof HTMLElement ? dom.innerText : dom.textContent) ?? '').replace(/\u00a0/g, ' ');
         const editorText = editor.getText().replace(/\u00a0/g, ' ');
