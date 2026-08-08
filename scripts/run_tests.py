@@ -6652,6 +6652,13 @@ class TestOrchestrator:
             0,
             account_overrides=target_accounts,
         )
+        if self._repair_missing_preflight_account_ids(results):
+            _log("Playwright account preflight: rerunning repaired account slot(s)")
+            results = runner._run_batch(
+                [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+                0,
+                account_overrides=target_accounts,
+            )
         failures = [r for r in results if r.status != "passed"]
         if failures:
             failed_slots = ", ".join(str(r.account) for r in failures)
@@ -6675,6 +6682,66 @@ class TestOrchestrator:
             duration_seconds=round(time.time() - started, 1),
             reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
         )
+
+    def _repair_missing_preflight_account_ids(self, results: list[SpecResult]) -> bool:
+        """Repair configured E2E accounts that fail preflight due to missing account_id."""
+        if self.environment != "development":
+            return False
+
+        missing_account_id_results = [
+            result for result in results
+            if result.status != "passed"
+            and "users.account_id" in " ".join(
+                part for part in (result.error, result.debug_output_summary) if part
+            )
+        ]
+        if not missing_account_id_results:
+            return False
+
+        accounts = _configured_preflight_accounts(missing_account_id_results)
+        if not accounts:
+            _log("E2E account_id repair skipped: failed preflight did not expose configured account email", "WARN")
+            return False
+
+        script_path = PROJECT_ROOT / "backend" / "scripts" / "repair_test_account_account_ids.py"
+        try:
+            script_source = script_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            _log(f"E2E account_id repair skipped: repair script unavailable: {exc}", "ERROR")
+            return False
+
+        runner_source = (
+            "import json, os, runpy, sys, tempfile\n"
+            "payload = json.load(sys.stdin)\n"
+            "with tempfile.NamedTemporaryFile('w', suffix='.py', delete=False) as handle:\n"
+            "    handle.write(payload['script'])\n"
+            "    script_path = handle.name\n"
+            "try:\n"
+            "    sys.argv = [script_path, '--accounts-json', json.dumps(payload['accounts'])]\n"
+            "    runpy.run_path(script_path, run_name='__main__')\n"
+            "finally:\n"
+            "    os.unlink(script_path)\n"
+        )
+        try:
+            proc = subprocess.run(
+                ["docker", "exec", "-i", "api", "python", "-c", runner_source],
+                input=json.dumps({"script": script_source, "accounts": accounts}),
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            _log(f"E2E account_id repair failed to execute: {exc}", "ERROR")
+            return False
+        output = (proc.stdout or "").strip()
+        if output:
+            for line in output.splitlines():
+                _log(f"E2E account_id repair: {line}")
+        if proc.returncode != 0:
+            detail = (proc.stderr or output or "unknown error").strip()[:MAX_ERROR_SNIPPET]
+            _log(f"E2E account_id repair failed: {detail}", "ERROR")
+            return False
+        return True
 
     @staticmethod
     def _ensure_preflight_account_credits(results: list[SpecResult]) -> Optional[str]:

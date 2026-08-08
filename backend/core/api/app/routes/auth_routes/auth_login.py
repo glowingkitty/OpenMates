@@ -368,6 +368,7 @@ async def login(
                 logger.info("Authentication failed - returning tfa_required=True to prevent email enumeration")
                 minimal_user_info = UserResponse(
                     id=None,
+                    account_id=None,
                     username="",
                     is_admin=False,
                     credits=0,
@@ -764,6 +765,7 @@ async def login(
                 message="Login successful",
                 user=UserResponse(
                     id=user_id,
+                    account_id=user_profile.get("account_id"),
                     username=user_profile.get("username"),
                     is_admin=user_profile.get("is_admin", False),
                     credits=user_profile.get("credits", 0),
@@ -805,6 +807,7 @@ async def login(
             # Include last_opened so frontend can redirect to signup if 2FA isn't actually configured
             minimal_user_info = UserResponse(
                 id=user_id,
+                account_id=user_profile.get("account_id"),
                 username="",  # Default empty string
                 is_admin=False, # Default False
                 credits=0,      # Default 0
@@ -993,6 +996,7 @@ async def login(
                     success=True, message="Login successful",
                     user=UserResponse(
                         id=user_id,
+                        account_id=user_profile.get("account_id"),
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),
@@ -1313,6 +1317,7 @@ async def login(
                     success=True, message="Login successful using backup code",
                     user=UserResponse(
                         id=user_id,
+                        account_id=user_profile.get("account_id"),
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),

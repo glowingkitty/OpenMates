@@ -9,6 +9,8 @@ without dispatching GitHub Actions or touching real credentials.
 Architecture: docs/specs/e2e-credential-isolation/spec.yml
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -1084,6 +1086,66 @@ def test_credit_guard_pipes_local_script_into_api_container(tmp_path, monkeypatc
     assert captured["capture_output"] is True
     assert captured["text"] is True
     assert captured["timeout"] == 180
+
+
+def test_account_id_repair_pipes_local_script_for_missing_account_id_preflight(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    repair_script = tmp_path / "backend" / "scripts" / "repair_test_account_account_ids.py"
+    repair_script.parent.mkdir(parents=True)
+    repair_script.write_text("print('repair script')\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.environment = "development"
+    captured = {}
+
+    def fake_run(cmd, input, capture_output, text, timeout):
+        captured["cmd"] = cmd
+        captured["input"] = input
+        captured["capture_output"] = capture_output
+        captured["text"] = text
+        captured["timeout"] = timeout
+        return SimpleNamespace(stdout="accounts_checked=1\nrepaired slots=1 account_id_present=true\n", stderr="", returncode=0)
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    repaired = orchestrator._repair_missing_preflight_account_ids([
+        run_tests.SpecResult(
+            name="test-account-preflight.spec.ts",
+            status="failed",
+            account=1,
+            account_email="acct@example.test",
+            error="Persistent E2E account is missing users.account_id",
+        )
+    ])
+
+    assert repaired is True
+    assert captured["cmd"][:6] == ["docker", "exec", "-i", "api", "python", "-c"]
+    assert "acct@example.test" not in " ".join(captured["cmd"])
+    payload = json.loads(captured["input"])
+    assert payload["script"] == "print('repair script')\n"
+    assert payload["accounts"] == [{"slot": 1, "email": "acct@example.test"}]
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+    assert captured["timeout"] == 180
+
+
+def test_account_id_repair_skips_non_development_environment():
+    run_tests = load_run_tests_module()
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.environment = "production"
+
+    repaired = orchestrator._repair_missing_preflight_account_ids([
+        run_tests.SpecResult(
+            name="test-account-preflight.spec.ts",
+            status="failed",
+            account=1,
+            account_email="acct@example.test",
+            error="Persistent E2E account is missing users.account_id",
+        )
+    ])
+
+    assert repaired is False
 
 
 def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path, monkeypatch):

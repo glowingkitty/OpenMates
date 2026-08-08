@@ -105,6 +105,7 @@ class UserCacheMixin:
         "vault_key_version",
         "encrypted_settings",
         "lookup_hashes",
+        "account_id",
     )
 
     @staticmethod
