@@ -426,6 +426,12 @@ def _authoritative_chat_reconciliation(
     }
 
 
+def _cache_index_covers_startup_window(cached_chat_count: int, db_chat_count: int) -> bool:
+    """Return true when Redis has enough IDs to start Directus-backed startup sync."""
+    required_cache_count = min(max(db_chat_count, 0), STARTUP_METADATA_PARENT_CHAT_LIMIT)
+    return cached_chat_count >= required_cache_count
+
+
 def _is_deleted_chat_tombstone(metadata: Any) -> bool:
     if not isinstance(metadata, dict):
         return False
@@ -1894,24 +1900,25 @@ async def handle_sync_status_request(
             # never treat an empty local IndexedDB as final while chats still exist.
             if not cache_primed:
                 db_chat_count = await directus_service.chat.get_user_chat_count(user_id)
-                if db_chat_count > chat_count:
-                    logger.warning(
-                        f"[SYNC_DEBUG] Cache status DB fallback for user {user_id}: "
-                        f"cache_chat_count={chat_count}, db_chat_count={db_chat_count}"
-                    )
-                    chat_count = db_chat_count
-                elif chat_count >= db_chat_count:
+                if _cache_index_covers_startup_window(chat_count, db_chat_count):
                     logger.warning(
                         "[SYNC_RECOVERY] Missing primed flag for user %s but cached chat index "
-                        "covers Directus count (cache_chat_count=%s, db_chat_count=%s). "
+                        "covers startup window (cache_chat_count=%s, db_chat_count=%s, startup_limit=%s). "
                         "Restoring primed flag and clearing warming flag.",
                         user_id[:8],
                         chat_count,
                         db_chat_count,
+                        STARTUP_METADATA_PARENT_CHAT_LIMIT,
                     )
                     await cache_service.set_user_cache_primed_flag(user_id)
                     await cache_service.delete(f"cache_warming_in_progress:{user_id}")
                     cache_primed = True
+                elif db_chat_count > chat_count:
+                    logger.warning(
+                        f"[SYNC_DEBUG] Cache status DB fallback for user {user_id}: "
+                        f"cache_chat_count={chat_count}, db_chat_count={db_chat_count}"
+                    )
+                chat_count = db_chat_count
         
             logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
         
