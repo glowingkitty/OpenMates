@@ -109,12 +109,58 @@ def _apply_authoritative_draft_metadata(
     chat_details["draft_v"] = 0
 
 
+def _apply_batched_draft_metadata(
+    chat_wrapper: Dict[str, Any],
+) -> bool:
+    if (
+        "user_encrypted_draft_content" not in chat_wrapper
+        and "user_draft_version_db" not in chat_wrapper
+    ):
+        return False
+
+    chat_details = chat_wrapper.get("chat_details", {})
+    draft_v = _version_int(chat_wrapper.get("user_draft_version_db"))
+    encrypted_md = chat_wrapper.get("user_encrypted_draft_content")
+    if encrypted_md and encrypted_md != "null" and draft_v > 0:
+        _apply_authoritative_draft_metadata(chat_details, (encrypted_md, draft_v, None))
+    else:
+        _apply_authoritative_draft_metadata(chat_details, None)
+    return True
+
+
+async def _apply_cached_draft_override(
+    chat_details: Dict[str, Any],
+    cache_service: CacheService,
+    user_id: str,
+    chat_id: str,
+) -> None:
+    cached = await cache_service.get_user_draft_from_cache(user_id=user_id, chat_id=chat_id)
+    if cached is None:
+        return
+
+    cached_md, cached_version, cached_preview = cached
+    cached_version_int = _version_int(cached_version)
+    current_version_int = _version_int(chat_details.get("draft_v"))
+    is_tombstoned = getattr(cache_service, "is_user_draft_tombstoned", None)
+    if is_tombstoned and await is_tombstoned(user_id, chat_id):
+        if cached_version_int >= current_version_int:
+            _apply_authoritative_draft_metadata(chat_details, None)
+        return
+
+    if cached_md is not None and cached_md != "null" and cached_version_int >= current_version_int:
+        _apply_authoritative_draft_metadata(
+            chat_details,
+            (cached_md, cached_version_int, cached_preview),
+        )
+
+
 async def _apply_phase2_authoritative_drafts(
     chat_wrappers: List[Dict[str, Any]],
     cache_service: CacheService,
     directus_service: DirectusService,
     user_id: str,
     draft_loader=None,
+    cache_draft_chat_ids: Optional[set[str]] = None,
 ) -> None:
     if draft_loader is None:
         from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
@@ -137,13 +183,20 @@ async def _apply_phase2_authoritative_drafts(
             chat_id = chat_details.get("id")
             if not chat_id:
                 continue
+            has_batched_draft = _apply_batched_draft_metadata(chat_wrapper)
             try:
-                draft = await draft_loader(
-                    cache_service,
-                    directus_service,
-                    user_id,
-                    chat_id,
-                )
+                if cache_draft_chat_ids is not None:
+                    if chat_id in cache_draft_chat_ids:
+                        await _apply_cached_draft_override(
+                            chat_details,
+                            cache_service,
+                            user_id,
+                            chat_id,
+                        )
+                    continue
+                if has_batched_draft:
+                    continue
+                draft = await draft_loader(cache_service, directus_service, user_id, chat_id)
             except Exception as draft_error:
                 logger.warning(
                     "Phase 2: Draft metadata unavailable for chat %s: %s",
@@ -1309,6 +1362,7 @@ async def _handle_phase2_sync(
         )
 
         draft_only_added = 0
+        draft_chat_ids = []
         try:
             existing_chat_ids = {
                 str(wrapper.get("chat_details", {}).get("id"))
@@ -1414,6 +1468,7 @@ async def _handle_phase2_sync(
             cache_service,
             directus_service,
             user_id,
+            cache_draft_chat_ids=set(draft_chat_ids),
         )
 
         # Delta sync: skip chats where client already has up-to-date metadata

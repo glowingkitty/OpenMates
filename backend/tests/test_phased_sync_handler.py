@@ -43,6 +43,120 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
 
 
 @pytest.mark.anyio
+async def test_phase2_uses_batched_draft_metadata_without_per_chat_lookup() -> None:
+    calls = []
+
+    async def load_draft(cache_service, directus_service, user_id, chat_id):
+        calls.append(chat_id)
+        raise AssertionError("batched draft metadata should not need per-chat lookup")
+
+    wrappers = [
+        {
+            "chat_details": {"id": "chat-with-draft"},
+            "user_encrypted_draft_content": "directus-cipher",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {
+                "id": "chat-without-draft",
+                "draft_v": 3,
+                "encrypted_draft_md": "stale-cipher",
+                "encrypted_draft_preview": "stale-preview",
+            },
+            "user_encrypted_draft_content": None,
+            "user_draft_version_db": 0,
+        },
+    ]
+
+    await phased_sync_handler._apply_phase2_authoritative_drafts(
+        wrappers,
+        cache_service=object(),
+        directus_service=object(),
+        user_id="user-1",
+        draft_loader=load_draft,
+    )
+
+    assert calls == []
+    assert wrappers[0]["chat_details"]["draft_v"] == 4
+    assert wrappers[0]["chat_details"]["encrypted_draft_md"] == "directus-cipher"
+    assert wrappers[0]["chat_details"]["encrypted_draft_preview"] is None
+    assert wrappers[1]["chat_details"]["draft_v"] == 0
+    assert wrappers[1]["chat_details"]["encrypted_draft_md"] is None
+    assert wrappers[1]["chat_details"]["encrypted_draft_preview"] is None
+
+
+@pytest.mark.anyio
+async def test_phase2_overlays_cache_draft_candidates_without_directus_lookup() -> None:
+    directus_calls = []
+
+    async def load_draft(cache_service, directus_service, user_id, chat_id):
+        directus_calls.append(chat_id)
+        raise AssertionError("cache draft candidates should not fall back to Directus per chat")
+
+    class FakeCache:
+        def __init__(self):
+            self.reads = []
+            self.cached_drafts = {
+                "cache-newer": ("cache-cipher", 5, "cache-preview"),
+                "directus-newer": ("cache-old", 3, "cache-old-preview"),
+                "tombstoned": (None, 6, None),
+            }
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            self.reads.append(chat_id)
+            return self.cached_drafts.get(chat_id)
+
+        async def is_user_draft_tombstoned(self, user_id, chat_id):
+            return chat_id == "tombstoned"
+
+    wrappers = [
+        {
+            "chat_details": {"id": "cache-newer"},
+            "user_encrypted_draft_content": "directus-cipher",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {"id": "directus-newer"},
+            "user_encrypted_draft_content": "directus-current",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {"id": "tombstoned"},
+            "user_encrypted_draft_content": "directus-stale",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {"id": "no-cache-key"},
+            "user_encrypted_draft_content": "directus-only",
+            "user_draft_version_db": 2,
+        },
+    ]
+    cache = FakeCache()
+
+    await phased_sync_handler._apply_phase2_authoritative_drafts(
+        wrappers,
+        cache_service=cache,
+        directus_service=object(),
+        user_id="user-1",
+        draft_loader=load_draft,
+        cache_draft_chat_ids={"cache-newer", "directus-newer", "tombstoned"},
+    )
+
+    by_id = {wrapper["chat_details"]["id"]: wrapper["chat_details"] for wrapper in wrappers}
+    assert directus_calls == []
+    assert set(cache.reads) == {"cache-newer", "directus-newer", "tombstoned"}
+    assert by_id["cache-newer"]["draft_v"] == 5
+    assert by_id["cache-newer"]["encrypted_draft_md"] == "cache-cipher"
+    assert by_id["cache-newer"]["encrypted_draft_preview"] == "cache-preview"
+    assert by_id["directus-newer"]["draft_v"] == 4
+    assert by_id["directus-newer"]["encrypted_draft_md"] == "directus-current"
+    assert by_id["tombstoned"]["draft_v"] == 0
+    assert by_id["tombstoned"]["encrypted_draft_md"] is None
+    assert by_id["no-cache-key"]["draft_v"] == 2
+    assert by_id["no-cache-key"]["encrypted_draft_md"] == "directus-only"
+
+
+@pytest.mark.anyio
 async def test_phase2_draft_lookups_are_bounded_and_concurrent() -> None:
     active = 0
     max_active = 0
