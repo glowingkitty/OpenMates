@@ -8,6 +8,7 @@ When Redis is partially warm, missing encrypted header fields must be filled
 from Directus so the client has metadata to decrypt on cold boot.
 """
 
+import asyncio
 import sys
 import types
 from types import SimpleNamespace
@@ -39,6 +40,52 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
     _phase1_metadata_invariant_violations,
     handle_phased_sync_request,
 )
+
+
+@pytest.mark.anyio
+async def test_phase2_draft_lookups_are_bounded_and_concurrent() -> None:
+    active = 0
+    max_active = 0
+
+    async def load_draft(cache_service, directus_service, user_id, chat_id):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        if chat_id == "chat-0":
+            return None
+        if chat_id == "chat-1":
+            raise RuntimeError("draft unavailable")
+        return f"cipher-{chat_id}", 1, None
+
+    wrappers = [
+        {
+            "chat_details": {
+                "id": f"chat-{index}",
+                "draft_v": 9,
+                "encrypted_draft_md": "stale-cipher",
+                "encrypted_draft_preview": "stale-preview",
+            }
+        }
+        for index in range(25)
+    ]
+
+    await phased_sync_handler._apply_phase2_authoritative_drafts(
+        wrappers,
+        cache_service=object(),
+        directus_service=object(),
+        user_id="user-1",
+        draft_loader=load_draft,
+    )
+
+    assert max_active > 1
+    assert max_active <= phased_sync_handler.PHASE2_DRAFT_LOOKUP_CONCURRENCY
+    assert wrappers[0]["chat_details"]["draft_v"] == 0
+    assert wrappers[0]["chat_details"]["encrypted_draft_md"] is None
+    assert wrappers[1]["chat_details"]["draft_v"] == 9
+    assert wrappers[1]["chat_details"]["encrypted_draft_md"] == "stale-cipher"
+    assert all(wrapper["chat_details"]["draft_v"] == 1 for wrapper in wrappers[2:])
 
 
 def test_phase1_partial_cache_metadata_is_filled_from_directus(doc_assert) -> None:

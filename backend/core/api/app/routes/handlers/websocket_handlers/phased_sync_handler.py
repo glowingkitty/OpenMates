@@ -1,6 +1,7 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
 from __future__ import annotations
 
+import asyncio
 import logging
 import hashlib
 import time
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
 STARTUP_FULL_PARENT_CHAT_LIMIT = 10
 STARTUP_METADATA_PARENT_CHAT_LIMIT = 100
 STARTUP_SUB_CHAT_METADATA_LIMIT = 50
+# Keep Phase 2 below the Directus connection budget while avoiding serial N+1 latency.
+PHASE2_DRAFT_LOOKUP_CONCURRENCY = 10
 
 PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
     "encrypted_chat_key",
@@ -104,6 +107,55 @@ def _apply_authoritative_draft_metadata(
     chat_details["encrypted_draft_md"] = None
     chat_details["encrypted_draft_preview"] = None
     chat_details["draft_v"] = 0
+
+
+async def _apply_phase2_authoritative_drafts(
+    chat_wrappers: List[Dict[str, Any]],
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    draft_loader=None,
+) -> None:
+    if draft_loader is None:
+        from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
+            get_authoritative_user_draft,
+        )
+
+        draft_loader = get_authoritative_user_draft
+
+    wrapper_iterator = iter(chat_wrappers)
+    iterator_lock = asyncio.Lock()
+
+    async def apply_drafts() -> None:
+        while True:
+            async with iterator_lock:
+                try:
+                    chat_wrapper = next(wrapper_iterator)
+                except StopIteration:
+                    return
+            chat_details = chat_wrapper.get("chat_details", {})
+            chat_id = chat_details.get("id")
+            if not chat_id:
+                continue
+            try:
+                draft = await draft_loader(
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    chat_id,
+                )
+            except Exception as draft_error:
+                logger.warning(
+                    "Phase 2: Draft metadata unavailable for chat %s: %s",
+                    chat_id,
+                    draft_error,
+                    exc_info=True,
+                )
+                continue
+            _apply_authoritative_draft_metadata(chat_details, draft)
+
+    worker_count = min(PHASE2_DRAFT_LOOKUP_CONCURRENCY, len(chat_wrappers))
+    await asyncio.gather(*(apply_drafts() for _ in range(worker_count)))
 
 
 async def _build_draft_only_phase2_wrapper(
@@ -1322,30 +1374,12 @@ async def _handle_phase2_sync(
             ]))
 
         # Draft ciphertext is part of chat metadata but remains opaque to the server.
-        from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
-            get_authoritative_user_draft,
+        await _apply_phase2_authoritative_drafts(
+            all_recent_chats,
+            cache_service,
+            directus_service,
+            user_id,
         )
-        for chat_wrapper in all_recent_chats:
-            chat_details = chat_wrapper.get("chat_details", {})
-            chat_id = chat_details.get("id")
-            if not chat_id:
-                continue
-            try:
-                draft = await get_authoritative_user_draft(
-                    cache_service,
-                    directus_service,
-                    user_id,
-                    chat_id,
-                )
-            except Exception as draft_error:
-                logger.warning(
-                    "Phase 2: Draft metadata unavailable for chat %s: %s",
-                    chat_id,
-                    draft_error,
-                    exc_info=True,
-                )
-                continue
-            _apply_authoritative_draft_metadata(chat_details, draft)
 
         # Delta sync: skip chats where client already has up-to-date metadata
         client_chat_ids_set = set(client_chat_ids)
