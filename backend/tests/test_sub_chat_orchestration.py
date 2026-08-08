@@ -22,6 +22,7 @@ from backend.apps.ai.sub_chat_orchestration import (
     validate_sub_chat_capacity,
 )
 from backend.apps.ai.processing.main_processor import (
+    _max_affordable_ai_output_tokens,
     _orchestrated_ai_output_token_limit,
     _quote_ai_iteration_credits,
     _skill_operation_id,
@@ -359,6 +360,27 @@ def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> No
     )
 
     assert limited_quote < maximum_quote
+
+
+def test_ai_output_limit_fits_authoritative_remaining_orchestration_credits(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.main_processor._quote_ai_iteration_credits",
+        lambda *, output_token_limit, **kwargs: 10 + output_token_limit,
+    )
+    kwargs = {
+        "model_id": "provider/model",
+        "system_prompt": "system",
+        "message_history": [{"role": "user", "content": "hello"}],
+        "tools": None,
+    }
+
+    fitted_limit = _max_affordable_ai_output_tokens(
+        **kwargs,
+        requested_output_token_limit=100,
+        available_credits=59,
+    )
+
+    assert fitted_limit == 49
 
 
 def test_orchestration_output_limit_preserves_lower_model_limit(monkeypatch) -> None:

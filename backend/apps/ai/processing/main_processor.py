@@ -1527,6 +1527,95 @@ def _quote_ai_iteration_credits(
     )
 
 
+def _max_affordable_ai_output_tokens(
+    *,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    requested_output_token_limit: int,
+    available_credits: int,
+) -> Optional[int]:
+    if requested_output_token_limit <= 0 or available_credits <= 0:
+        return None
+
+    quote_kwargs = {
+        "model_id": model_id,
+        "system_prompt": system_prompt,
+        "message_history": message_history,
+        "tools": tools,
+    }
+    if _quote_ai_iteration_credits(
+        **quote_kwargs,
+        output_token_limit=requested_output_token_limit,
+    ) <= available_credits:
+        return requested_output_token_limit
+
+    affordable_limit: Optional[int] = None
+    low = 1
+    high = requested_output_token_limit
+    while low <= high:
+        candidate = (low + high) // 2
+        quote = _quote_ai_iteration_credits(**quote_kwargs, output_token_limit=candidate)
+        if quote <= available_credits:
+            affordable_limit = candidate
+            low = candidate + 1
+        else:
+            high = candidate - 1
+    return affordable_limit
+
+
+async def _fit_parent_continuation_output_token_limit(
+    *,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    requested_output_token_limit: Optional[int],
+    request_data: AskSkillRequest,
+    directus_service: Optional[DirectusService],
+    log_prefix: str,
+) -> Optional[int]:
+    if (
+        requested_output_token_limit is None
+        or not is_sub_chat_continuation(request_data)
+        or not request_data.orchestration_id
+        or not directus_service
+    ):
+        return requested_output_token_limit
+
+    root_state = await SubChatOrchestrationService(directus_service).execute("get_root_state", {
+        "protocol_version": 1,
+        "orchestration_id": request_data.orchestration_id,
+        "hashed_user_id": request_data.user_id_hash,
+    })
+    available_credits = max(
+        int(root_state["credit_limit"])
+        - int(root_state["spent_credits"])
+        - int(root_state["reserved_credits"]),
+        0,
+    )
+    fitted_limit = _max_affordable_ai_output_tokens(
+        model_id=model_id,
+        system_prompt=system_prompt,
+        message_history=message_history,
+        tools=tools,
+        requested_output_token_limit=requested_output_token_limit,
+        available_credits=available_credits,
+    )
+    if fitted_limit is None:
+        raise RuntimeError("Remaining orchestration credits cannot cover parent synthesis input")
+    if fitted_limit < requested_output_token_limit:
+        logger.info(
+            "%s [SUB_CHAT] Reduced parent synthesis output limit from %s to %s tokens to fit %s remaining credits",
+            log_prefix,
+            requested_output_token_limit,
+            fitted_limit,
+            available_credits,
+        )
+    return fitted_limit
+
+
 def _orchestrated_ai_output_token_limit(
     model_id: str,
     orchestration_id: Optional[str],
@@ -3518,6 +3607,16 @@ async def handle_main_processing(
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
+                )
+                current_output_token_limit = await _fit_parent_continuation_output_token_limit(
+                    model_id=current_model_id,
+                    system_prompt=iteration_system_prompt,
+                    message_history=current_message_history,
+                    tools=available_tools_for_llm if not force_no_tools else None,
+                    requested_output_token_limit=current_output_token_limit,
+                    request_data=request_data,
+                    directus_service=directus_service,
+                    log_prefix=log_prefix,
                 )
 
                 if model_fallback_attempts > 1:
