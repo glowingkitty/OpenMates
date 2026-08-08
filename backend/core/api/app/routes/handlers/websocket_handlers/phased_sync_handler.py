@@ -203,6 +203,34 @@ async def _build_draft_only_phase2_wrapper(
     }
 
 
+async def _build_phase2_draft_only_wrappers(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_ids: List[str],
+    wrapper_builder=None,
+) -> List[Dict[str, Any]]:
+    wrapper_builder = wrapper_builder or _build_draft_only_phase2_wrapper
+    wrappers: List[Dict[str, Any]] = []
+    for offset in range(0, len(chat_ids), PHASE2_DRAFT_LOOKUP_CONCURRENCY):
+        batch_ids = chat_ids[offset:offset + PHASE2_DRAFT_LOOKUP_CONCURRENCY]
+        batch_results = await asyncio.gather(*(
+            wrapper_builder(
+                cache_service,
+                directus_service,
+                user_id,
+                chat_id,
+            )
+            for chat_id in batch_ids
+        ), return_exceptions=True)
+        for result in batch_results:
+            if isinstance(result, BaseException):
+                raise result
+        batch_wrappers = batch_results
+        wrappers.extend(wrapper for wrapper in batch_wrappers if wrapper)
+    return wrappers
+
+
 async def _fetch_new_chat_suggestions(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -1283,24 +1311,25 @@ async def _handle_phase2_sync(
             }
             draft_chat_ids = [] if team_id else await cache_service.get_all_user_draft_chat_ids(user_id)
             draft_chat_ids = list(dict.fromkeys([*draft_chat_ids, *(refresh_chat_ids or [])]))
-            for draft_chat_id in draft_chat_ids:
-                if draft_chat_id in existing_chat_ids:
-                    continue
-                draft_wrapper = await _build_draft_only_phase2_wrapper(
-                    cache_service,
-                    directus_service,
+            draft_only_chat_ids = [
+                chat_id for chat_id in draft_chat_ids if chat_id not in existing_chat_ids
+            ]
+            draft_only_wrappers = await _build_phase2_draft_only_wrappers(
+                cache_service,
+                directus_service,
+                user_id,
+                draft_only_chat_ids,
+            )
+            for draft_wrapper in draft_only_wrappers:
+                draft_chat_id = draft_wrapper["chat_details"]["id"]
+                all_recent_chats.append(draft_wrapper)
+                existing_chat_ids.add(draft_chat_id)
+                draft_only_added += 1
+                await cache_service.add_chat_to_ids_versions(
                     user_id,
                     draft_chat_id,
+                    draft_wrapper["chat_details"]["last_edited_overall_timestamp"],
                 )
-                if draft_wrapper:
-                    all_recent_chats.append(draft_wrapper)
-                    existing_chat_ids.add(draft_chat_id)
-                    draft_only_added += 1
-                    await cache_service.add_chat_to_ids_versions(
-                        user_id,
-                        draft_chat_id,
-                        draft_wrapper["chat_details"]["last_edited_overall_timestamp"],
-                    )
         except Exception as draft_only_error:
             logger.warning(
                 "Phase 2: Draft-only metadata discovery failed for user %s: %s",

@@ -88,6 +88,61 @@ async def test_phase2_draft_lookups_are_bounded_and_concurrent() -> None:
     assert all(wrapper["chat_details"]["draft_v"] == 1 for wrapper in wrappers[2:])
 
 
+@pytest.mark.anyio
+async def test_phase2_draft_only_discovery_is_bounded_and_concurrent() -> None:
+    active = 0
+    max_active = 0
+
+    async def build_wrapper(cache_service, directus_service, user_id, chat_id):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        return {"chat_details": {"id": chat_id}}
+
+    chat_ids = [f"chat-{index}" for index in range(25)]
+    wrappers = await phased_sync_handler._build_phase2_draft_only_wrappers(
+        cache_service=object(),
+        directus_service=object(),
+        user_id="user-1",
+        chat_ids=chat_ids,
+        wrapper_builder=build_wrapper,
+    )
+
+    assert max_active > 1
+    assert max_active <= phased_sync_handler.PHASE2_DRAFT_LOOKUP_CONCURRENCY
+    assert [wrapper["chat_details"]["id"] for wrapper in wrappers] == chat_ids
+
+
+@pytest.mark.anyio
+async def test_phase2_draft_only_discovery_settles_batch_before_raising() -> None:
+    active = 0
+    completed = 0
+
+    async def build_wrapper(cache_service, directus_service, user_id, chat_id):
+        nonlocal active, completed
+        if chat_id == "chat-0":
+            raise RuntimeError("draft unavailable")
+        active += 1
+        await asyncio.sleep(0.01)
+        active -= 1
+        completed += 1
+        return {"chat_details": {"id": chat_id}}
+
+    with pytest.raises(RuntimeError, match="draft unavailable"):
+        await phased_sync_handler._build_phase2_draft_only_wrappers(
+            cache_service=object(),
+            directus_service=object(),
+            user_id="user-1",
+            chat_ids=[f"chat-{index}" for index in range(10)],
+            wrapper_builder=build_wrapper,
+        )
+
+    assert active == 0
+    assert completed == 9
+
+
 def test_phase1_partial_cache_metadata_is_filled_from_directus(doc_assert) -> None:
     doc_assert("phase1-partial-cache-metadata-fills-from-directus")
     cached_details = {
