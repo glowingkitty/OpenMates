@@ -94,3 +94,69 @@ def test_age_policy_drops_slot_instead_of_swapping_unrelated_video(monkeypatch):
     )
 
     assert inspirations == []
+
+
+def test_generation_rejects_text_media_topic_mismatch(monkeypatch):
+    """Do not keep space-station copy when the selected video is about Paris."""
+    monkeypatch.setitem(sys.modules, "backend.apps.ai.utils.llm_utils", fake_llm_utils)
+    generator = importlib.import_module("backend.apps.ai.daily_inspiration.generator")
+
+    async def fake_find_video_candidates(*_args, **_kwargs):
+        return [
+            {
+                "youtube_id": "DOH-HNotTaE",
+                "title": "Paris Explained - YouTube",
+                "thumbnail_url": "https://img.youtube.com/vi/DOH-HNotTaE/hqdefault.jpg",
+                "channel_name": "Manuel Bravo",
+                "view_count": 2_694_070,
+                "duration_seconds": 1346,
+                "published_at": "2024-05-25T19:00:08Z",
+            }
+        ]
+
+    async def fake_call_preprocessing_llm(*_args, **_kwargs):
+        return SimpleNamespace(
+            error_message=None,
+            arguments={
+                "inspirations": [
+                    {
+                        "phrase": (
+                            "The International Space Station orbits Earth every 90 minutes. "
+                            "How do astronauts live and work in microgravity?"
+                        ),
+                        "title": "Life in Space Station",
+                        "assistant_response": (
+                            "Astronauts adapt to weightlessness, orbital day-night cycles, "
+                            "and carefully designed station routines."
+                        ),
+                        "category": "science",
+                        "selected_video_youtube_id": "DOH-HNotTaE",
+                        "follow_up_suggestions": [
+                            "How do astronauts sleep?",
+                            "How does microgravity affect muscles?",
+                            "What experiments run on the ISS?",
+                        ],
+                    }
+                ]
+            },
+        )
+
+    async def fake_validate_inspiration(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr(generator, "find_video_candidates", fake_find_video_candidates)
+    monkeypatch.setattr(generator, "call_preprocessing_llm", fake_call_preprocessing_llm)
+    monkeypatch.setattr(generator, "validate_inspiration", fake_validate_inspiration)
+
+    inspirations = asyncio.run(
+        generator.generate_inspirations(
+            user_id="user-123",
+            count=1,
+            topic_suggestions=["Parisian architectural evolution"],
+            secrets_manager=SimpleNamespace(),
+            task_id="test_text_media_mismatch",
+            language="en",
+        )
+    )
+
+    assert inspirations == []

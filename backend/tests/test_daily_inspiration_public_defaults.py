@@ -123,8 +123,8 @@ def test_daily_inspiration_quotas_share_the_ten_card_3_3_4_contract() -> None:
     assert "DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT" in personalized_source
     assert "_DEFAULT_FEATURE_COUNT = 4" in route_source
     assert 'build_feature_inspirations(\n                _DEFAULT_FEATURE_COUNT,' in route_source
-    assert 'public:default_inspirations:v10:' in route_source
-    assert 'public:default_inspirations:v10:' in selector_source
+    assert 'public:default_inspirations:v11:' in route_source
+    assert 'public:default_inspirations:v11:' in selector_source
     assert "_limit_default_type(" in route_source
 
 
@@ -167,3 +167,15 @@ def test_static_wiki_fallbacks_do_not_include_redirect_only_murmuration() -> Non
 
     assert "Murmuration" not in wiki_titles
     assert "Collective_animal_behavior" in wiki_titles
+
+
+def test_default_selection_and_endpoint_filter_video_text_media_mismatches() -> None:
+    selector_source = (
+        REPO_ROOT / "backend/core/api/app/tasks/default_inspiration_tasks.py"
+    ).read_text()
+    route_source = (
+        REPO_ROOT / "backend/core/api/app/routes/default_inspirations.py"
+    ).read_text()
+
+    assert "is_inspiration_media_coherent" in selector_source
+    assert "is_inspiration_media_coherent" in route_source

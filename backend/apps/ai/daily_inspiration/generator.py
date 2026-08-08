@@ -34,6 +34,7 @@ from backend.apps.ai.daily_inspiration.content_filter import (
     check_daily_inspiration_entry,
     is_blocked_topic,
 )
+from backend.apps.ai.daily_inspiration.media_coherence import check_inspiration_media_coherence
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationVideo
 from backend.apps.ai.daily_inspiration.validator import validate_inspiration
 from backend.apps.ai.daily_inspiration.video_processor import find_video_candidates
@@ -489,7 +490,6 @@ async def generate_inspirations(
     # Step 2: Search for videos for each slot (in parallel would be ideal but sequential is safer
     # for rate limits — Brave has low quotas)
     video_candidates_per_slot: List[List[Dict[str, Any]]] = []
-    all_candidate_map: Dict[str, Dict[str, Any]] = {}  # youtube_id → candidate dict
 
     # Resolve Brave search locale params from the user's UI language
     search_params = get_search_params_for_language(language)
@@ -505,8 +505,6 @@ async def generate_inspirations(
                 f"[DailyInspiration][{task_id}] No candidates for phrase '{phrase}' — using empty slot"
             )
         video_candidates_per_slot.append(candidates)
-        for c in candidates:
-            all_candidate_map[c["youtube_id"]] = c
 
     # If all slots have no candidates, abort
     if not any(video_candidates_per_slot):
@@ -585,10 +583,41 @@ async def generate_inspirations(
             )
             continue
 
-        candidate = all_candidate_map.get(youtube_id)
+        slot_candidates = (
+            video_candidates_per_slot[slot_idx]
+            if slot_idx < len(video_candidates_per_slot)
+            else []
+        )
+        slot_candidate_map = {
+            candidate_item.get("youtube_id"): candidate_item
+            for candidate_item in slot_candidates
+            if candidate_item.get("youtube_id")
+        }
+        candidate = slot_candidate_map.get(youtube_id)
         if not candidate:
             logger.warning(
-                f"[DailyInspiration][{task_id}] LLM selected unknown youtube_id '{youtube_id}' — skipping"
+                f"[DailyInspiration][{task_id}] LLM selected youtube_id '{youtube_id}' "
+                f"outside slot {slot_idx + 1} candidates — skipping"
+            )
+            continue
+
+        coherence_result = check_inspiration_media_coherence({
+            "title": title,
+            "phrase": phrase,
+            "assistant_response": assistant_response or "",
+            "category": category,
+            "content_type": "video",
+            "youtube_id": youtube_id,
+            "video_title": candidate.get("title", ""),
+            "video_channel_name": candidate.get("channel_name"),
+        })
+        if coherence_result["verdict"] == "REJECT":
+            logger.warning(
+                f"[DailyInspiration][{task_id}] Media coherence REJECTED inspiration "
+                f"'{title}' (video: {candidate.get('title', '')[:50]}) — "
+                f"reason={coherence_result.get('reason')}, "
+                f"media_tokens={coherence_result.get('media_tokens', [])[:6]}, "
+                f"copy_tokens={coherence_result.get('copy_tokens', [])[:6]}"
             )
             continue
 
