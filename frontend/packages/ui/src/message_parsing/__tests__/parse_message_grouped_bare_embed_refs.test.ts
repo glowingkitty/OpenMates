@@ -41,11 +41,11 @@ describe("parse_message grouped bare embed refs", () => {
     expect(inlineEmbeds).toHaveLength(2);
     expect(inlineEmbeds[0].attrs).toMatchObject({
       embedRef: "openai.com-msb",
-      displayText: "openai.com",
+      displayText: "Source: openai.com",
     });
     expect(inlineEmbeds[1].attrs).toMatchObject({
       embedRef: "openai.com-Uoj",
-      displayText: "openai.com",
+      displayText: "Source: openai.com",
     });
     expect(JSON.stringify(doc)).not.toContain("[openai.com-msb, openai.com-Uoj]");
   });

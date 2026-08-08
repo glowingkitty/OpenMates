@@ -46,6 +46,7 @@ import {
 // as the embed preview card, with zero additional async work.
 
 const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
+const BARE_EMBED_SOURCE_LABEL_PREFIX = "Source: ";
 const BARE_EMBED_REF_TOKEN_SOURCE = String.raw`[A-Za-z0-9._~:-]+-[A-Za-z0-9]{2,4}`;
 const BARE_EMBED_REF_TOKEN_RE = new RegExp(
   `^${BARE_EMBED_REF_TOKEN_SOURCE}$`,
@@ -78,12 +79,13 @@ function createInlineEmbedNodeFromRawRef(
   const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
     parseEmbedLinkTarget(rawRef);
   const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+  const displayText = resolveEmbedDisplayText(rawRef, cleanRef);
   return {
     type: "embedInline",
     attrs: {
       embedRef: cleanRef,
       embedId: refEntry?.embedId ?? null,
-      displayText: resolveEmbedDisplayText(rawRef, cleanRef),
+      displayText: `${BARE_EMBED_SOURCE_LABEL_PREFIX}${displayText}`,
       appId: refEntry?.appId ?? fallbackAppId,
       focusLineStart: lineStart,
       focusLineEnd: lineEnd,
