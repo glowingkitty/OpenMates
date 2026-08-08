@@ -370,13 +370,14 @@ tests:
   - id: T-E2E-DEEP-RESEARCH-001
     type: playwright
     file: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
-    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
+    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
     target: app.dev.openmates.org
     covers:
       - AC-5
       - AC-6
     assertions:
       - Explicit Deep research activation delegates exactly three distinct child chats.
+      - Child reports do not expose raw app_skill_use payloads.
       - The final parent response includes all six required Deep research sections.
       - Parent synthesis settles without AI-service error or a lingering typing indicator.
     red_phase:
@@ -390,10 +391,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: GitHub Actions 31231661641
-        subject_commit: 6150eb0
-        timestamp: "2026-08-08T00:59:48Z"
-        notes: "The deployed flow selected the explicit Deep research mention, displayed activation, completed exactly three children, and rendered Short Answer, Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, and Bottom Line."
+        run_id: GitHub Actions 31234745560
+        subject_commit: 8652ae9
+        timestamp: "2026-08-08T02:25:29Z"
+        notes: "The deployed flow selected the explicit Deep research mention, displayed activation, completed exactly three clean child reports, and visibly scrolled through Short Answer, Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, and Bottom Line. The captioned frame-reviewed video was delivered to Discord dev-smoke as message 1535474706738577498."
 
 implementation_plan:
   existing_patterns:

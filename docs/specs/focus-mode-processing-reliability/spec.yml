@@ -84,7 +84,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6150eb0
+  subject_commit: 8652ae9
 
 approvals:
   product_contract:
@@ -251,10 +251,16 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-08T01:11:04Z"
     summary: Commit 6150eb0 passed 35 focused AI-worker tests and deployed Playwright run 31231661641 completed three children plus the six-section parent synthesis without an AI-service error.
+  - id: ATTEMPT-22
+    task_id: TASK-4
+    approach: Produce a captioned Playwright demonstration, reject the first recording when synthesis remained below the viewport, then deploy explicit synthesis proof states and review every bounded frame from the replacement run.
+    outcome: succeeded
+    recorded_at: "2026-08-08T02:28:15Z"
+    summary: Deployed run 31234745560 passed at 8652ae9; the 177.68-second captioned video passed privacy and frame review and was delivered to Discord dev-smoke as message 1535474706738577498.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Obtain user confirmation for the deployed web behavior at commit 6150eb0, then run Apple verification and complete demonstration evidence.
+  next_action: Obtain user confirmation from the reviewed Deep research video at commit 8652ae9, then run Apple verification and complete the remaining focus-mode demonstration evidence.
   command: python3 scripts/spec_verify.py docs/specs/focus-mode-processing-reliability/spec.yml --phase green
   expected_outcome: "All green implementation gates pass; user confirmation then permits Apple verification."
   blocker:
@@ -263,7 +269,7 @@ handoff:
     reason: Repository gate order requires user confirmation of deployed web behavior before Apple verification.
     question: Confirm that focus activation, persistence, details, rejection, stop behavior, and the three-child Deep research synthesis work and look correct on the deployed dev app.
     next_action: Run Apple verification after confirmation.
-  last_verified_commit: 6150eb0
+  last_verified_commit: 8652ae9
 
 scenarios:
   - id: S-1
@@ -707,13 +713,15 @@ tests:
   - id: T-E2E-DEEP-RESEARCH
     type: playwright
     file: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
-    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
+    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
     target: app.dev.openmates.org
     covers: [AC-4, AC-5, AC-7, AC-8]
     assertions:
       - explicit Deep research mention activates the focus mode
       - exactly three bounded child chats become visible
+      - child cards do not expose raw app_skill_use payloads
       - final parent synthesis contains all six required report sections
+      - the recording visibly scrolls through synthesis start, middle, and end
       - final response settles without AI-service error or a lingering typing indicator
     red_phase:
       required: false
@@ -724,14 +732,16 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
-        run_id: "31231661641"
-        subject_commit: 6150eb0
-        timestamp: "2026-08-08T00:59:48Z"
+        command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
+        run_id: "31234745560"
+        subject_commit: 8652ae9
+        timestamp: "2026-08-08T02:25:29Z"
         target: app.dev.openmates.org
-        deployment_reference: dev-containing-6150eb0
+        deployment_reference: dpl_2bEfNe8RXv7ZHCJAMovtXosEQj6o
         report: test-results/reports/success/deep-research-real-inference.md
-        screenshot: test-results/screenshots/current/deep-research-real-inference/08-deep-research-final-synthesis.png
+        screenshot: test-results/screenshots/current/deep-research-real-inference/10-deep-research-synthesis-end.png
+        reviewed_video_evidence: test-results/proof-videos/0a36/deep-research-playwright-reviewed
+        publication_message_id: "1535474706738577498"
 
 verifications:
   - id: V-UI-VISUAL-SMOKE

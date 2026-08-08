@@ -119,7 +119,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6150eb0
+  subject_commit: 8652ae9
 
 approvals:
   product_contract:
@@ -197,6 +197,12 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-08T01:11:04Z"
     summary: Commit 6150eb0 passed 35 focused AI-worker tests; deployed Playwright run 31231661641 showed exactly three children and a completed six-section parent synthesis without exceeding the 2,000-credit root ceiling.
+  - id: ATTEMPT-6
+    task_id: TASK-11
+    approach: Reject a captioned recording that hid parent synthesis, then deploy visible synthesis checkpoints and a child-card raw-payload guard before rerunning the exact bounded Deep research flow.
+    outcome: succeeded
+    recorded_at: "2026-08-08T02:28:15Z"
+    summary: Run 31234745560 passed at 8652ae9 with three clean child reports and visible synthesis sections; its captioned 177.68-second video passed frame review and was delivered as Discord message 1535474706738577498.
 
 handoff:
   current_task_id: TASK-4
@@ -204,7 +210,7 @@ handoff:
   command: docker exec app-ai-worker pytest backend/tests/test_sub_chat_orchestration.py backend/tests/test_chat_directus_encryption_guards.py -q
   expected_outcome: Child preparation remains encrypted and atomic, with zero dispatch after persistence failure.
   blocker: null
-  last_verified_commit: 6150eb0
+  last_verified_commit: 8652ae9
 
 scenarios:
   - id: S-1
@@ -642,11 +648,12 @@ tests:
   - id: T-E2E-DEEP-RESEARCH
     type: playwright
     file: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
-    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
+    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
     target: app.dev.openmates.org
     covers: [AC-9]
     assertions:
       - exactly three automatic descendants are visible for one root turn
+      - completed child cards contain reports rather than raw app_skill_use payloads
       - final parent synthesis completes after all three children
       - no AI-service error or lingering typing indicator remains
     red_phase: {required: false, expected: not_applicable, evidence: {status: not_applicable, reason: Prior deployed parent-synthesis failures supplied live red evidence.}}
@@ -655,14 +662,16 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 6150eb0
-        run_id: "31231661641"
-        subject_commit: 6150eb0
-        timestamp: "2026-08-08T00:59:48Z"
+        command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
+        run_id: "31234745560"
+        subject_commit: 8652ae9
+        timestamp: "2026-08-08T02:25:29Z"
         target: app.dev.openmates.org
-        deployment_reference: dev-containing-6150eb0
+        deployment_reference: dpl_2bEfNe8RXv7ZHCJAMovtXosEQj6o
         report: test-results/reports/success/deep-research-real-inference.md
-        screenshot: test-results/screenshots/current/deep-research-real-inference/08-deep-research-final-synthesis.png
+        screenshot: test-results/screenshots/current/deep-research-real-inference/10-deep-research-synthesis-end.png
+        reviewed_video_evidence: test-results/proof-videos/0a36/deep-research-playwright-reviewed
+        publication_message_id: "1535474706738577498"
   - id: T-E2E-USAGE
     type: playwright
     file: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
