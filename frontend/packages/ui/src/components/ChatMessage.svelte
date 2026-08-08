@@ -323,9 +323,14 @@
     );
   }
 
+  async function chatHasInlineSubChatBatch(chatId: string): Promise<boolean> {
+    const messages = await chatDB.getMessagesForChat(chatId);
+    return messages.some((message) => message.role === 'assistant' && containsSubChatBatch(message.content));
+  }
+
   async function loadSubChats() {
     if (role !== 'assistant' || !currentChatId) return;
-    if (hasInlineSubChatBatch) {
+    if (hasInlineSubChatBatch || await chatHasInlineSubChatBatch(currentChatId)) {
       subChatsOfThisMessage = [];
       return;
     }
