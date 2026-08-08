@@ -561,11 +561,7 @@ async def _dispatch_sub_chat_parent_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
-        continuation_message_id=(
-            original_request.continuation_message_id
-            or original_request.recovery_task_id
-            or original_request.recovery_inference_task_id
-        ),
+        continuation_message_id=original_request.continuation_message_id,
         recovery_inference_task_id=(
             original_request.recovery_task_id or original_request.recovery_inference_task_id
         ),

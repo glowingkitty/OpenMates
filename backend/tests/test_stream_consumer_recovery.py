@@ -48,6 +48,7 @@ if "redis.asyncio" not in sys.modules:
 _PROVIDER_STUBS = {
     "backend.apps.ai.llm_providers.mistral_client": {
         "MistralUsage": type("MistralUsage", (), {}),
+        "ParsedMistralToolCall": type("ParsedMistralToolCall", (), {}),
         "UnifiedMistralResponse": type("UnifiedMistralResponse", (), {}),
     },
     "backend.apps.ai.llm_providers.google_client": {
@@ -58,14 +59,17 @@ _PROVIDER_STUBS = {
     },
     "backend.apps.ai.llm_providers.anthropic_client": {
         "AnthropicUsageMetadata": type("AnthropicUsageMetadata", (), {}),
+        "ParsedAnthropicToolCall": type("ParsedAnthropicToolCall", (), {}),
         "UnifiedAnthropicResponse": type("UnifiedAnthropicResponse", (), {}),
     },
     "backend.apps.ai.llm_providers.bedrock_shared": {
         "BedrockUsageMetadata": type("BedrockUsageMetadata", (), {}),
+        "ParsedBedrockToolCall": type("ParsedBedrockToolCall", (), {}),
         "UnifiedBedrockResponse": type("UnifiedBedrockResponse", (), {}),
     },
     "backend.apps.ai.llm_providers.openai_shared": {
         "OpenAIUsageMetadata": type("OpenAIUsageMetadata", (), {}),
+        "ParsedOpenAIToolCall": type("ParsedOpenAIToolCall", (), {}),
         "UnifiedOpenAIResponse": type("UnifiedOpenAIResponse", (), {}),
         "_sanitize_schema_for_llm_providers": lambda schema: schema,
     },
@@ -499,7 +503,7 @@ def test_standardized_server_error_fallback_can_be_sealed_for_recovery(monkeypat
     assert result == {"job_id": "77777777-7777-4777-8777-777777777777"}
 
 
-def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -> None:
+def test_sub_chat_parent_continuation_preserves_recovery_identity_without_reusing_assistant_id(monkeypatch) -> None:
     original_request = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
         message_id="33333333-3333-4333-8333-333333333333",
@@ -543,7 +547,7 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity(monkeypatch) -
     assert captured["task_id"] is None
     assert request_payload["recovery_task_id"] is None
     assert request_payload["recovery_inference_task_id"] == original_request.recovery_inference_task_id
-    assert request_payload["continuation_message_id"] == original_request.recovery_inference_task_id
+    assert request_payload["continuation_message_id"] is None
     assert request_payload["recovery_preflight_id"] == original_request.recovery_preflight_id
     assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id
     assert request_payload["recovery_public_key"] == original_request.recovery_public_key

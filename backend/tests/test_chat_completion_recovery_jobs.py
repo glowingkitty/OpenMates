@@ -76,7 +76,7 @@ def test_recovery_job_identity_is_stable_across_retries() -> None:
     assert build_sealed_recovery_job_data(**kwargs)["job_id"] == build_sealed_recovery_job_data(**kwargs)["job_id"]
 
 
-def test_continuation_can_seal_under_original_assistant_identity() -> None:
+def test_continuation_can_seal_under_distinct_assistant_identity() -> None:
     chat_key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
     chat_id = "22222222-2222-4222-8222-222222222222"
     _, public_key = derive_recovery_keypair(chat_key, chat_id, 7)
@@ -91,7 +91,7 @@ def test_continuation_can_seal_under_original_assistant_identity() -> None:
         preflight_id="77777777-7777-4777-8777-777777777777",
         task_id=continuation_task_id,
         inference_task_id=original_inference_task_id,
-        assistant_message_id=original_inference_task_id,
+        assistant_message_id=continuation_task_id,
         recovery_public_key=public_key,
         chat_key_version=7,
         content="Final synthesis",
@@ -100,4 +100,4 @@ def test_continuation_can_seal_under_original_assistant_identity() -> None:
     )
 
     assert data["inference_task_id"] == original_inference_task_id
-    assert data["assistant_message_id"] == original_inference_task_id
+    assert data["assistant_message_id"] == continuation_task_id
