@@ -28,7 +28,6 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
-const { logHitTestDiagnostics } = require('./helpers/hit-test-diagnostics');
 
 const CYCLES = 5;
 const CHAT_LOAD_TIMEOUT = 12000;
@@ -150,7 +149,6 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			// ── 2b. Record current hash, then click the first card ───────────
 			const hashBefore = await page.evaluate(() => window.location.hash);
 
-			await logHitTestDiagnostics(chatCard, `guest-chat-card-cycle-${cycle}`);
 			await chatCard.click();
 			console.log(`[chat-nav] [${cycle}] Clicked first chat card`);
 

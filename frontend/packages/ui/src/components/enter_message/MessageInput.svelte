@@ -2431,7 +2431,11 @@
             blurTimeoutId = null; // Clear the timeout ID
             // Check if editor is still actually blurred (not refocused)
             // This prevents race conditions where focus is regained quickly
-            if (editor && !editor.isDestroyed && !editor.isFocused && !isMenuInteraction) {
+            const editorDom = editor?.view.dom;
+            const activeElement = document.activeElement;
+            const editorDomIsFocused = !!editorDom &&
+                (activeElement === editorDom || (activeElement instanceof Node && editorDom.contains(activeElement)));
+            if (editor && !editor.isDestroyed && !editorDomIsFocused && !isMenuInteraction) {
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
                 

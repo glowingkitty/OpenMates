@@ -11,7 +11,6 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
-const { logHitTestDiagnostics } = require('./helpers/hit-test-diagnostics');
 
 const LONG_ANONYMOUS_CHAT_SUMMARY =
 	'Anonymous streaming lifecycle completed with a deliberately long generated summary that should wrap across many visual lines when the chat header does not clamp it. This extra context protects the header layout from regressions by forcing overflow on narrow mobile widths. The visible summary must stay concise even when post-processing returns a verbose description.';
@@ -945,7 +944,6 @@ test.describe('Anonymous free chat', () => {
 		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible({ timeout: 5000 });
 		await expect.poll(() => uploadRequests).toEqual([]);
 		await page.getByTestId('embed-full-width-wrapper').first().click({ button: 'right' });
-		await logHitTestDiagnostics(page.getByTestId('embed-context-menu-delete'), 'anonymous-embed-delete');
 		await page.getByTestId('embed-context-menu-delete').click();
 		await expect(page.getByTestId('anonymous-upload-signup-banner')).toHaveCount(0);
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);

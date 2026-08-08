@@ -32,7 +32,13 @@
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view' | 'copy' | 'share' | 'pasteastext'): void;
     } = createEventDispatcher();
+    const MENU_OPEN_SCROLL_GRACE_MS = 200;
     let menuElement = $state<HTMLDivElement>();
+    let menuShownAt = $state(0);
+
+    $effect(() => {
+        if (show) menuShownAt = Date.now();
+    });
 
     // Handle clicking outside the menu
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -50,7 +56,7 @@
 
     // Add scroll handler
     function handleScroll() {
-        if (show) {
+        if (show && Date.now() - menuShownAt >= MENU_OPEN_SCROLL_GRACE_MS) {
             dispatch('close');
         }
     }
