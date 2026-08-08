@@ -237,11 +237,27 @@ async def _cache_lookup_user_profile(
                 await cache_service.set(warming_flag, "warming", ttl=LOOKUP_CACHE_TTL_SECONDS)
                 last_opened_path = user_profile.get("last_opened")
                 logger.info("[PREDICTIVE] Pre-warming cache for user %s from %s", user_id[:6], source)
-                app.send_task(
-                    name='app.tasks.user_cache_tasks.warm_user_cache',
-                    kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
-                    queue='user_init'
-                )
+                try:
+                    task_result = app.send_task(
+                        name='app.tasks.user_cache_tasks.warm_user_cache',
+                        kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
+                        queue='user_init'
+                    )
+                    logger.info(
+                        "[PREDICTIVE] Dispatched warm_user_cache for user %s from %s (task_id=%s)",
+                        user_id[:6],
+                        source,
+                        getattr(task_result, "id", "unknown"),
+                    )
+                except Exception as dispatch_error:
+                    await cache_service.delete(warming_flag)
+                    logger.error(
+                        "[PREDICTIVE] Failed to dispatch warm_user_cache for user %s from %s; cleared warming flag: %s",
+                        user_id[:6],
+                        source,
+                        dispatch_error,
+                        exc_info=True,
+                    )
             else:
                 logger.info("Cache warming already in progress for user %s", user_id[:8])
         else:

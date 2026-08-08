@@ -1920,17 +1920,27 @@ async def _trigger_cache_rewarming_if_needed(
                 f"[SYNC_REWARM] Cache not primed for user {user_id[:8]}... "
                 f"Dispatching warm_user_cache task (triggered by sync status request on reconnect)."
             )
-            celery_app.send_task(
-                name='app.tasks.user_cache_tasks.warm_user_cache',
-                kwargs={'user_id': user_id, 'last_opened_path_from_user_model': None},
-                queue='user_init'
-            )
+            try:
+                task_result = celery_app.send_task(
+                    name='app.tasks.user_cache_tasks.warm_user_cache',
+                    kwargs={'user_id': user_id, 'last_opened_path_from_user_model': None},
+                    queue='user_init'
+                )
+                logger.info(
+                    "[SYNC_REWARM] Dispatched warm_user_cache for user %s from sync status request (task_id=%s)",
+                    user_id[:8],
+                    getattr(task_result, "id", "unknown"),
+                )
+            except Exception:
+                await cache_service.delete(warming_flag)
+                raise
         else:
             # Eager mode (tests) - set primed flag directly
             logger.info(
                 f"[SYNC_REWARM] Celery is in eager mode. Setting primed flag directly for user {user_id[:8]}..."
             )
             await cache_service.set_user_cache_primed_flag(user_id)
+            await cache_service.delete(warming_flag)
             
     except Exception as e:
         # Non-blocking: don't let re-warming failure prevent the sync status response

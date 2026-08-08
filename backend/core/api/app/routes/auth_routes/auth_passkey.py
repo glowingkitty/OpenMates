@@ -1603,11 +1603,25 @@ async def passkey_assertion_initiate(
 
                             # Dispatch async - doesn't block assertion initiate response
                             # By the time user completes passkey authentication, cache should be ready
-                            app.send_task(
-                                name='app.tasks.user_cache_tasks.warm_user_cache',
-                                kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
-                                queue='user_init'
-                            )
+                            try:
+                                task_result = app.send_task(
+                                    name='app.tasks.user_cache_tasks.warm_user_cache',
+                                    kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
+                                    queue='user_init'
+                                )
+                                logger.info(
+                                    "[PASSKEY] Dispatched warm_user_cache for user %s from /passkey/assertion/initiate endpoint (task_id=%s)",
+                                    user_id[:6],
+                                    getattr(task_result, "id", "unknown"),
+                                )
+                            except Exception as dispatch_error:
+                                await cache_service.delete(warming_flag)
+                                logger.error(
+                                    "[PASSKEY] Failed to dispatch warm_user_cache for user %s; cleared warming flag: %s",
+                                    user_id[:6],
+                                    dispatch_error,
+                                    exc_info=True,
+                                )
                         else:
                             logger.info(f"Cache warming already in progress for user {user_id[:6]}...")
                     else:

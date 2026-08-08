@@ -13,6 +13,43 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CHAT_VERSION = 0
 DEFAULT_UNREAD_COUNT = 0
+CACHE_WARMING_IN_PROGRESS_KEY_PREFIX = "cache_warming_in_progress:"
+
+
+def _cache_warming_in_progress_key(user_id: str) -> str:
+    return f"{CACHE_WARMING_IN_PROGRESS_KEY_PREFIX}{user_id}"
+
+
+async def _clear_cache_warming_in_progress_flag(
+    cache_service: CacheService,
+    user_id: str,
+    task_id: Optional[str],
+) -> None:
+    flag_key = _cache_warming_in_progress_key(user_id)
+    deleted = await cache_service.delete(flag_key)
+    if deleted:
+        logger.info(
+            "TASK_CLEANUP_SYNC_WRAPPER: Cleared cache warming flag for user_id: %s, task_id: %s",
+            user_id,
+            task_id,
+        )
+    else:
+        logger.debug(
+            "TASK_CLEANUP_SYNC_WRAPPER: Cache warming flag absent for user_id: %s, task_id: %s",
+            user_id,
+            task_id,
+        )
+
+
+async def _clear_cache_warming_in_progress_flag_for_user(
+    user_id: str,
+    task_id: Optional[str],
+) -> None:
+    cache_service = CacheService()
+    try:
+        await _clear_cache_warming_in_progress_flag(cache_service, user_id, task_id)
+    finally:
+        await cache_service.close()
 
 
 def _timestamp_or_zero(value: Optional[int]) -> int:
@@ -929,12 +966,14 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
     client = await cache_service.client
     if not client:
         logger.error(f"Failed to connect to Redis cache. Cache warming cannot proceed for user {user_id}")
+        await cache_service.close()
         return
     try:
         pong = await client.ping()
         logger.debug(f"Cache service connected successfully (PING={pong})")
     except Exception as e:
         logger.error(f"Failed to ping Redis cache: {e}. Cache warming cannot proceed for user {user_id}")
+        await cache_service.close()
         return
     
     directus_service = DirectusService()
@@ -1017,6 +1056,18 @@ def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Option
         return False
     finally:
         if loop:
+            try:
+                loop.run_until_complete(
+                    _clear_cache_warming_in_progress_flag_for_user(user_id, task_id)
+                )
+            except Exception as cleanup_error:
+                logger.error(
+                    "TASK_CLEANUP_SYNC_WRAPPER: Failed to clear cache warming flag for user_id: %s, task_id: %s: %s",
+                    user_id,
+                    task_id,
+                    cleanup_error,
+                    exc_info=True,
+                )
             loop.close()
         logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for warm_user_cache task_id: {task_id}")
 
