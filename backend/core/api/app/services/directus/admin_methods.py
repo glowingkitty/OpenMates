@@ -5,10 +5,14 @@ Methods for managing server administrators.
 
 import logging
 import hashlib
+import time
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+ADMIN_STATUS_CHECKED_AT_FIELD = "_admin_status_checked_at"
+ADMIN_STATUS_RECHECK_SECONDS = 300
 
 class AdminMethods:
     """Methods for managing server administrators"""
@@ -153,6 +157,50 @@ class AdminMethods:
         """
         admin_record = await self.get_admin_by_user_id(user_id)
         return admin_record is not None
+
+    async def repair_cached_admin_status(
+        self,
+        user_id: str,
+        user_data: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Repair stale cached admin flags from the canonical server_admins record."""
+        if not user_id:
+            return False
+
+        if user_data is not None and user_data.get("is_admin") is True:
+            return True
+
+        now = int(time.time())
+        checked_at = user_data.get(ADMIN_STATUS_CHECKED_AT_FIELD) if isinstance(user_data, dict) else None
+        if isinstance(checked_at, (int, float)) and now - int(checked_at) < ADMIN_STATUS_RECHECK_SECONDS:
+            return False
+
+        admin_record = await self.get_admin_by_user_id(user_id)
+        if not admin_record:
+            if user_data is not None:
+                user_data[ADMIN_STATUS_CHECKED_AT_FIELD] = now
+            try:
+                await self.directus_service.cache.update_user(user_id, {ADMIN_STATUS_CHECKED_AT_FIELD: now})
+            except Exception as cache_err:
+                logger.warning(f"Failed to cache admin-status check timestamp: {cache_err}")
+            return False
+
+        if user_data is not None:
+            user_data["is_admin"] = True
+            user_data.pop(ADMIN_STATUS_CHECKED_AT_FIELD, None)
+
+        try:
+            await self.directus_service.update_user(user_id, {"is_admin": True})
+        except Exception as user_update_err:
+            logger.warning(f"Failed to repair user admin flag in Directus for {user_id}: {user_update_err}")
+
+        try:
+            cache_updated = await self.directus_service.cache.update_user(user_id, {"is_admin": True})
+            logger.info(f"Repaired cached auth session admin flag for user {user_id}: {cache_updated}")
+        except Exception as cache_err:
+            logger.warning(f"Failed to repair cached auth session admin flag: {cache_err}")
+
+        return True
 
     async def revoke_admin_privileges(self, user_id: str) -> bool:
         """

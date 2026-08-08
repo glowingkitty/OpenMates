@@ -208,6 +208,7 @@ async def get_current_user(
             logger.warning(f"Corrupt cached session data (missing: {missing}) — falling through to DB lookup")
             cached_data = None
         else:
+            await directus_service.admin.repair_cached_admin_status(cached_user_id, cached_data)
             # Ensure all fields expected by the User model are present, providing defaults if necessary
             await _set_session_auth_state(request, cache_service, cached_user_id, refresh_token)
             return User(
@@ -286,6 +287,8 @@ async def get_current_user(
     if not success or not user_data:
         logger.error(f"Failed to fetch user profile for user {user_id}: {profile_message}")
         raise HTTPException(status_code=500, detail=f"Could not fetch user data: {profile_message}")
+
+    await directus_service.admin.repair_cached_admin_status(user_id, user_data)
 
     # Rebuild the cache so subsequent requests don't need another refresh
     if "user_id" not in user_data and "id" in user_data:
@@ -514,7 +517,9 @@ async def get_current_user_or_api_key(
                     
                     if not profile_username or not profile_vault_key_id:
                         raise HTTPException(status_code=500, detail="User data incomplete")
-                    
+
+                    await directus_service.admin.repair_cached_admin_status(user_id, user_data)
+
                     return User(
                         id=user_id,
                         username=profile_username,
