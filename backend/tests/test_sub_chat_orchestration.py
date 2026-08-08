@@ -45,6 +45,22 @@ def test_template_expansion_is_capped() -> None:
     assert expanded[-1]["prompt"] == f"Research {MAX_TEMPLATE_EXPANSION_ITEMS - 1}"
 
 
+def test_template_expansion_preserves_spawn_ui_metadata() -> None:
+    expanded = expand_sub_chat_requests([
+        {
+            "prompt_template": "Research {x}",
+            "title": "Research {x}",
+            "category": "legal_law",
+            "icon": "scale",
+            "list": ["GPAI obligations"],
+        }
+    ])
+
+    assert expanded[0]["title"] == "Research GPAI obligations"
+    assert expanded[0]["category"] == "legal_law"
+    assert expanded[0]["icon"] == "scale"
+
+
 def test_template_expansion_cannot_bypass_root_cap_for_sequential_queues() -> None:
     expanded = expand_sub_chat_requests([
         {

@@ -667,6 +667,9 @@ export class ChatSynchronizationService extends EventTarget {
             id: string;
             user_message_id: string;
             prompt: string;
+            title?: string;
+            category?: string;
+            icon?: string;
             wait_for_completion?: boolean;
           }>;
         },
@@ -728,6 +731,17 @@ export class ChatSynchronizationService extends EventTarget {
           message_id?: string;
           task_id?: string;
           summary?: string;
+        },
+      ),
+    );
+    webSocketService.on("awaiting_sub_chats_completion", (payload) =>
+      aiHandlers.handleAwaitingSubChatsCompletionImpl(
+        this,
+        payload as {
+          type: "awaiting_sub_chats_completion";
+          chat_id: string;
+          task_id?: string;
+          message_id?: string;
         },
       ),
     );

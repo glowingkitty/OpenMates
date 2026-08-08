@@ -8,6 +8,8 @@
 
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
+  import { text } from '@repo/ui';
   import ChatContextMenu from '../chats/ChatContextMenu.svelte';
   import { activeChatStore } from '../../stores/activeChatStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -46,6 +48,7 @@
   let contextMenuY = $state(0);
   let contextMenuVisible = $state(false);
   let downloading = $state(false);
+  let prefersTouchCta = $state(false);
 
   function getSubChatPreviewStyle(category?: string | null): string {
     const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
@@ -143,6 +146,12 @@
   }
 
   onMount(() => {
+    const pointerQuery = window.matchMedia('(pointer: coarse)');
+    const updatePointerCta = () => {
+      prefersTouchCta = pointerQuery.matches || navigator.maxTouchPoints > 0;
+    };
+    updatePointerCta();
+    pointerQuery.addEventListener('change', updatePointerCta);
     void load();
 
     const handleListChange = (event: Event) => {
@@ -164,6 +173,7 @@
       window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
       window.removeEventListener('subChatProgress', handleSubChatLifecycle);
       window.removeEventListener('subChatCompleted', handleSubChatLifecycle);
+      pointerQuery.removeEventListener('change', updatePointerCta);
     };
   });
 
@@ -186,15 +196,17 @@
         class="sub-chat-card sub-chat-large-card"
         data-testid="sub-chat-card"
         data-chat-id={sc.chat_id}
+        data-category={subChatCategory}
+        data-icon={sc.previewIcon || getValidIconName('', subChatCategory)}
         style={getSubChatPreviewStyle(subChatCategory)}
         oncontextmenu={(event) => handleContextMenu(event, sc)}
         onclick={() => openSubChat(sc)}
       >
         <div
           class="sub-chat-status-pill"
-          data-testid={sc.updated_at > sc.created_at ? 'sub-chat-status-done' : 'sub-chat-status-active'}
+          data-testid={sc.previewSummary ? 'sub-chat-status-done' : 'sub-chat-status-active'}
         >
-          {sc.updated_at > sc.created_at ? 'Done' : 'Active'}
+          {sc.previewSummary ? 'Done' : 'Active'}
         </div>
         <div class="sub-chat-large-orbs" aria-hidden="true">
           <div class="sub-chat-orb sub-chat-orb-1"></div>
@@ -215,7 +227,11 @@
             {sc.title || 'Autonomous Task'}
           </span>
           {#if sc.previewSummary}
-            <p class="sub-chat-large-summary">{sc.previewSummary}</p>
+            <p class="sub-chat-large-summary" data-testid="sub-chat-summary" transition:fade={{ duration: 180 }}>{sc.previewSummary}</p>
+          {:else}
+            <p class="sub-chat-open-cta" data-testid="sub-chat-open-cta" transition:fade={{ duration: 180 }}>
+              {$text(prefersTouchCta ? 'chats.chat.sub_chats.tap_to_open' : 'chats.chat.sub_chats.click_to_open')}
+            </p>
           {/if}
         </div>
       </button>
@@ -363,17 +379,13 @@
   }
 
   .sub-chat-large-title {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
     max-width: 100%;
     color: var(--color-font-button);
     font-size: var(--font-size-p);
     font-weight: 700;
     line-height: 1.3;
     text-align: center;
+    overflow-wrap: anywhere;
   }
 
   .sub-chat-large-summary {
@@ -388,6 +400,15 @@
     line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  .sub-chat-open-cta {
+    margin: 2px 0 0;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: var(--font-size-xxs);
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
   }
 
   .sub-chat-large-orbs {

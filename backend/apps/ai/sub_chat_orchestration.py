@@ -103,6 +103,11 @@ def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]], max_template_
         budget_limit = sc.get("budget_limit")
         report_trigger = sc.get("report_trigger", "all")
 
+        def resolve_metadata(value: Any, item: Any | None = None) -> str | None:
+            if not isinstance(value, str) or not value.strip():
+                return None
+            return value.replace("{x}", str(item)).strip() if item is not None else value.strip()
+
         if prompt_template and sc_list:
             template_limit = max_template_items if max_template_items is not None else MAX_TEMPLATE_EXPANSION_ITEMS
             items = sc_list[:template_limit]
@@ -113,6 +118,9 @@ def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]], max_template_
                     "id": sc_id,
                     "user_message_id": f"{sc_id[-10:]}-{uuid.uuid4()}",
                     "prompt": resolved_prompt,
+                    "title": resolve_metadata(sc.get("title"), item),
+                    "category": resolve_metadata(sc.get("category"), item),
+                    "icon": resolve_metadata(sc.get("icon"), item),
                     "wait_for_completion": wait_for_completion,
                     "budget_limit": budget_limit,
                     "report_trigger": report_trigger,
@@ -123,6 +131,9 @@ def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]], max_template_
                 "id": sc_id,
                 "user_message_id": f"{sc_id[-10:]}-{uuid.uuid4()}",
                 "prompt": prompt or prompt_template or "",
+                "title": resolve_metadata(sc.get("title")),
+                "category": resolve_metadata(sc.get("category")),
+                "icon": resolve_metadata(sc.get("icon")),
                 "wait_for_completion": wait_for_completion,
                 "budget_limit": budget_limit,
                 "report_trigger": report_trigger,

@@ -447,6 +447,54 @@ chat.sub_chats.return_to_parent:
   he: חזור לצ'אט האב
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
+chat.sub_chats.click_to_open:
+  context: Instruction shown on a sub-chat preview card before its summary is available.
+  en: Click to open sub chat
+  de: Klicken, um den Unterchat zu öffnen
+  zh: 点击打开子聊天
+  es: Haz clic para abrir el chat secundario
+  fr: Cliquez pour ouvrir la sous-discussion
+  pt: Clique para abrir o subchat
+  ru: Нажмите, чтобы открыть подчат
+  ja: クリックしてサブチャットを開く
+  ko: 클릭하여 하위 채팅 열기
+  it: Fai clic per aprire la sotto-chat
+  tr: Alt sohbeti açmak için tıklayın
+  vi: Nhấp để mở cuộc trò chuyện con
+  id: Klik untuk membuka sub-chat
+  pl: Kliknij, aby otworzyć podczat
+  nl: Klik om de subchat te openen
+  ar: انقر لفتح المحادثة الفرعية
+  hi: सब-चैट खोलने के लिए क्लिक करें
+  th: คลิกเพื่อเปิดแชตย่อย
+  cs: Kliknutím otevřete podchat
+  sv: Klicka för att öppna underchatten
+  he: לחץ כדי לפתוח את תת-הצ'אט
+
+chat.sub_chats.tap_to_open:
+  context: Touch-device instruction shown on a sub-chat preview card before its summary is available.
+  en: Tap to open sub chat
+  de: Tippen, um den Unterchat zu öffnen
+  zh: 点按打开子聊天
+  es: Toca para abrir el chat secundario
+  fr: Touchez pour ouvrir la sous-discussion
+  pt: Toque para abrir o subchat
+  ru: Коснитесь, чтобы открыть подчат
+  ja: タップしてサブチャットを開く
+  ko: 탭하여 하위 채팅 열기
+  it: Tocca per aprire la sotto-chat
+  tr: Alt sohbeti açmak için dokunun
+  vi: Chạm để mở cuộc trò chuyện con
+  id: Ketuk untuk membuka sub-chat
+  pl: Dotknij, aby otworzyć podczat
+  nl: Tik om de subchat te openen
+  ar: اضغط لفتح المحادثة الفرعية
+  hi: सब-चैट खोलने के लिए टैप करें
+  th: แตะเพื่อเปิดแชตย่อย
+  cs: Klepnutím otevřete podchat
+  sv: Tryck för att öppna underchatten
+  he: הקש כדי לפתוח את תת-הצ'אט
+
 chat.sub_chats.start_first:
   context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
   en: Start first {count}

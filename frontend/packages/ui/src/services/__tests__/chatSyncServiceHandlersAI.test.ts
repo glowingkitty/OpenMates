@@ -13,6 +13,7 @@ import {
   handleAIResponseStorageConfirmedImpl,
   handleAIResponseStorageFailedImpl,
   handleAITypingStartedImpl,
+  handleAwaitingSubChatsCompletionImpl,
   handleEmbedUpdateImpl,
   handlePostProcessingCompletedImpl,
   handleSendEmbedDataImpl,
@@ -50,6 +51,7 @@ const mockEmbedStore = vi.hoisted(() => ({
 
 const mockAiTypingStore = vi.hoisted(() => ({
   clearTyping: vi.fn(),
+  clearTypingForChat: vi.fn(),
   setTyping: vi.fn(),
   subscribe: vi.fn((run: (value: unknown) => void) => {
     run(null);
@@ -290,6 +292,27 @@ describe("sub-chat lifecycle metadata", () => {
       chat_summary: null,
     }));
     expect(mockEncryptWithChatKey).not.toHaveBeenCalledWith(expect.stringContaining("app_skill_use"), expect.anything());
+  });
+
+  it("stops showing the parent as processing while it waits for child chats", () => {
+    const activeAITasks = new Map([
+      ["parent-chat", { taskId: "parent-task", userMessageId: "user-message" }],
+    ]);
+    const service = {
+      activeAITasks,
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    handleAwaitingSubChatsCompletionImpl(service, {
+      type: "awaiting_sub_chats_completion",
+      chat_id: "parent-chat",
+      task_id: "parent-task",
+      message_id: "parent-task",
+    });
+
+    expect(activeAITasks.has("parent-chat")).toBe(false);
+    expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith("parent-chat");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
   });
 });
 

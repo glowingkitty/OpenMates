@@ -3042,6 +3042,18 @@ async def handle_main_processing(
                                     "type": "string",
                                     "description": "Template prompt containing '{x}' to spawn multiple similar sub-chats."
                                 },
+                                "title": {
+                                    "type": "string",
+                                    "description": "Concise 3-7 word UI title for this sub-chat. For templates, '{x}' is replaced with the current item."
+                                },
+                                "category": {
+                                    "type": "string",
+                                    "description": "The most relevant OpenMates mate category ID for this sub-chat, such as legal_law, business_development, or science."
+                                },
+                                "icon": {
+                                    "type": "string",
+                                    "description": "A relevant Lucide icon name for this sub-chat, such as scale, landmark, chart-line, or search."
+                                },
                                 "list": {
                                     "type": "array",
                                     "items": {"type": "string"},
@@ -3062,7 +3074,8 @@ async def handle_main_processing(
                                     "description": "Whether to report back after 'each' sub-chat completes or only after 'all' have completed. Default 'all'.",
                                     "default": "all"
                                 }
-                            }
+                            },
+                            "required": ["title", "category", "icon"]
                         }
                     }
                 },

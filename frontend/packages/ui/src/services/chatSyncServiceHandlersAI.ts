@@ -5398,6 +5398,9 @@ export async function handleSpawnSubChatsImpl(
       id: string;
       user_message_id: string;
       prompt: string;
+      title?: string;
+      category?: string;
+      icon?: string;
       wait_for_completion?: boolean;
     }>;
   },
@@ -5441,6 +5444,9 @@ export async function handleSpawnSubChatsImpl(
       };
       const scId = subChatPayload.id || subChatPayload.chat_id;
       const prompt = subChatPayload.prompt || "";
+      const title = subChatPayload.title?.trim() || prompt.trim();
+      const category = subChatPayload.category?.trim() || null;
+      const icon = subChatPayload.icon?.trim() || null;
       const userMessageId = subChatPayload.user_message_id || subChatPayload.message_id;
 
       if (!scId) {
@@ -5461,31 +5467,33 @@ export async function handleSpawnSubChatsImpl(
       // 2. Retrieve or create sub-chat record locally in IndexedDB
       let childChat = await chatDB.getChat(scId);
       if (!childChat) {
-        childChat = {
+        const createdChildChat: Chat = {
           chat_id: scId,
           parent_id: parentChatId,
           is_sub_chat: true,
-          title: prompt.substring(0, 30) + (prompt.length > 30 ? "..." : ""),
-          encrypted_title: await encryptWithChatKey(
-            prompt.substring(0, 30),
-            parentKey,
-          ),
+          title,
+          encrypted_title: await encryptWithChatKey(title, parentKey),
+          category,
+          encrypted_category: category ? await encryptWithChatKey(category, parentKey) : null,
+          icon,
+          encrypted_icon: icon ? await encryptWithChatKey(icon, parentKey) : null,
           messages_v: 1,
           title_v: 0,
           unread_count: 0,
           created_at: Math.floor(Date.now() / 1000),
           updated_at: Math.floor(Date.now() / 1000),
           last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
-          user_id: currentUserId,
+          user_id: currentUserId || undefined,
         };
 
         // Encrypt the chat key with the master key for device sync and storage
         const encryptedChatKey = await encryptChatKeyWithMasterKey(parentKey);
         if (encryptedChatKey) {
-          childChat.encrypted_chat_key = encryptedChatKey;
+          createdChildChat.encrypted_chat_key = encryptedChatKey;
         }
 
-        await chatDB.addChat(childChat);
+        await chatDB.addChat(createdChildChat);
+        childChat = createdChildChat;
         console.info(
           `[ChatSyncService:AI] Created child chat record locally for ${scId}`,
         );
@@ -5603,6 +5611,44 @@ export function handleSubChatProgressImpl(
   );
 }
 
+export function handleAwaitingSubChatsCompletionImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    type: "awaiting_sub_chats_completion";
+    chat_id: string;
+    task_id?: string;
+    message_id?: string;
+  },
+): void {
+  const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+  if (taskInfo) {
+    serviceInstance.activeAITasks.delete(payload.chat_id);
+  }
+  aiTypingStore.clearTypingForChat(payload.chat_id);
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiTaskEnded", {
+      detail: {
+        chatId: payload.chat_id,
+        taskId: payload.task_id,
+        status: "waiting_for_sub_chats",
+      },
+    }),
+  );
+}
+
+function sanitizeSubChatSummary(summary: unknown): string | null {
+  if (typeof summary !== "string") return null;
+  const withoutProtocolBlocks = summary.replace(/```json\s*([\s\S]*?)```/gi, (block, json: string) => {
+    try {
+      const parsed = JSON.parse(json.trim()) as { type?: unknown };
+      return parsed.type === "app_skill_use" ? "" : block;
+    } catch {
+      return block;
+    }
+  }).trim();
+  return withoutProtocolBlocks || null;
+}
+
 export async function handleSubChatCompletedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: {
@@ -5630,9 +5676,7 @@ export async function handleSubChatCompletedImpl(
       if (!key && payload.parent_id) {
         key = chatKeyManager.getKeySync(payload.parent_id) || await chatKeyManager.getKey(payload.parent_id);
       }
-      const summary = typeof payload.summary === "string" && payload.summary.trim()
-        ? payload.summary.trim()
-        : null;
+      const summary = sanitizeSubChatSummary(payload.summary);
       const updatedChat: Chat = {
         ...chat,
         is_sub_chat: true,

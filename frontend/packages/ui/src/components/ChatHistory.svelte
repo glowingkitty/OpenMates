@@ -1344,19 +1344,16 @@
   
   // --- Parent chat / Sub-chat "Return" header tracking ---
   let parentChatId = $state<string | null>(null);
-  let parentChatTitle = $state<string | null>(null);
 
   async function checkParentChat(activeId: string | null | undefined, retries = 5) {
     if (!activeId) {
       parentChatId = null;
-      parentChatTitle = null;
       return;
     }
     try {
       const staticChat = getStaticExampleChat(activeId);
       if (staticChat?.parent_id) {
         parentChatId = staticChat.parent_id;
-        parentChatTitle = getStaticExampleChat(staticChat.parent_id)?.title || "Parent Chat";
         return;
       }
 
@@ -1366,19 +1363,15 @@
       const chat = await getChat(chatDB, activeId);
       if (chat && chat.parent_id) {
         parentChatId = chat.parent_id;
-        const parentChat = await getChat(chatDB, chat.parent_id);
-        parentChatTitle = parentChat?.title || "Parent Chat";
       } else if (chat?.is_sub_chat && retries > 0) {
         await new Promise(resolve => setTimeout(resolve, 300));
         return checkParentChat(activeId, retries - 1);
       } else {
         parentChatId = null;
-        parentChatTitle = null;
       }
     } catch (e) {
       console.error('Error checking parent chat:', e);
       parentChatId = null;
-      parentChatTitle = null;
     }
   }
 
@@ -2775,7 +2768,7 @@
             type="button"
             class="return-to-parent-button"
             data-testid="return-to-parent-button"
-            title={`Return to ${parentChatTitle}`}
+            title={$text('chats.chat.sub_chats.return_to_parent')}
             style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
             onclick={() => {
                 void navigateToChat(parentChatId);
@@ -2787,7 +2780,7 @@
                     <polyline points="12 19 5 12 12 5"></polyline>
                 </svg>
             </span>
-            <span>Return</span>
+            <span>{$text('chats.chat.sub_chats.return_to_parent')}</span>
         </button>
     {/if}
     <!-- Chat header banner: absolutely positioned at the top of the scroll container
