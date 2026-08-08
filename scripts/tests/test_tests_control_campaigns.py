@@ -7,6 +7,8 @@ runs. They lock down campaign scope, group evidence, child failures, and resume
 behavior before the production control-plane implementation changes.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -466,11 +468,20 @@ def test_parallel_dispatch_leases_and_spawns_three_visible_workers(tmp_path, mon
 
     def capture_run(command, **_kwargs):
         launches.append(command)
-        return CompletedProcess(command, 0, stdout="Session spawned", stderr="")
+        index = len(launches)
+        return CompletedProcess(
+            command,
+            0,
+            stdout=(
+                f"OpenCode chat spawned: worker-{index}\n"
+                f"OpenCode session: ses_worker_{index}\n"
+                f"Web chat: https://code.dev.openmates.org/root/session/ses_worker_{index}\n"
+            ),
+            stderr="",
+        )
 
     monkeypatch.setattr(control.subprocess, "run", capture_run)
     monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
-    monkeypatch.setattr(control, "available_zellij_session_slots", lambda: 3)
 
     result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=3)
 
@@ -478,6 +489,9 @@ def test_parallel_dispatch_leases_and_spawns_three_visible_workers(tmp_path, mon
     assert len(launches) == 3
     assert all("spawn-chat" in command and "--mode" in command and "execute" in command for command in launches)
     assert all("claude" not in " ".join(command).lower() for command in launches)
+    assert all(item["opencode_session_id"].startswith("ses_worker_") for item in result["spawned"])
+    assert all(item["inspect_command"].startswith("python3 scripts/sessions.py chat read ses_worker_") for item in result["spawned"])
+    assert all("attach_command" not in item for item in result["spawned"])
     status = control.debug_campaign_status(campaign_key)
     assert len(status["workers"]) == 3
     assert {worker["worker_id"] for worker in status["workers"]} == {

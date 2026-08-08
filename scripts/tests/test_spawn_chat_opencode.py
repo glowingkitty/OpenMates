@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Regression tests for interactive OpenCode chat spawning.
+"""Regression tests for persisted OpenCode Web chat spawning.
 
-The separate-chat workflow must launch OpenCode, preserve plan-mode safety,
-and never fall back to the retired Claude CLI path used by spawn-chat.
+The separate-chat workflow must launch OpenCode through the existing Web server,
+preserve plan-mode safety, and never fall back to the retired Claude CLI path.
 """
+
+# contract-test-file: tooling
 
 from pathlib import Path
 import json
@@ -22,21 +24,23 @@ def use_test_opencode_binary(monkeypatch) -> None:
     monkeypatch.setattr(_zellij_utils, "_resolve_opencode_bin", lambda: "opencode")
 
 
-def test_spawn_opencode_session_uses_interactive_plan_agent(tmp_path: Path, monkeypatch) -> None:
-    calls = iter(
-        [
-            CompletedProcess([], 0, stdout="", stderr=""),
-            CompletedProcess([], 0, stdout="research-example active\n", stderr=""),
-        ]
-    )
+class FakeProcess:
+    def __init__(self, returncode=None):
+        self.returncode = returncode
+
+    def poll(self):
+        return self.returncode
+
+
+def test_spawn_opencode_session_uses_sidebar_plan_agent(tmp_path: Path, monkeypatch) -> None:
     captured = {}
 
-    monkeypatch.setattr(_zellij_utils, "_run_zellij", lambda *_args, **_kwargs: next(calls))
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
 
-    def capture_popen(command, **_kwargs):
-        captured["layout"] = Path(command[2]).read_text(encoding="utf-8")
-        return object()
+    def capture_popen(command, **kwargs):
+        captured["command"] = command
+        captured["cwd"] = kwargs["cwd"]
+        return FakeProcess()
 
     monkeypatch.setattr(_zellij_utils.subprocess, "Popen", capture_popen)
 
@@ -47,30 +51,34 @@ def test_spawn_opencode_session_uses_interactive_plan_agent(tmp_path: Path, monk
         permission_mode="plan",
     )
 
-    layout = captured["layout"]
-    assert 'pane command="opencode"' in layout
-    assert '"run" "--attach" "http://127.0.0.1:4096" "--interactive"' in layout
-    assert '"--title" "research-example" "--agent" "plan"' in layout
-    assert "Review the \\\"example\\\" flow." in layout
-    assert "claude" not in layout
-    assert "--auto" not in layout
+    command = captured["command"]
+    assert command[:8] == [
+        "opencode",
+        "run",
+        "--attach",
+        _zellij_utils.OPENCODE_SERVER_URL,
+        "--dir",
+        str(tmp_path),
+        "--format",
+        "json",
+    ]
+    assert command[command.index("--title") + 1] == "research-example"
+    assert command[command.index("--agent") + 1] == "plan"
+    assert command[-1] == 'Review the "example" flow.'
+    assert "--interactive" not in command
+    assert "--auto" not in command
+    assert "claude" not in " ".join(command).lower()
+    assert captured["cwd"] == str(tmp_path)
 
 
 def test_spawn_opencode_execute_mode_auto_approves_permissions(tmp_path: Path, monkeypatch) -> None:
-    calls = iter(
-        [
-            CompletedProcess([], 0, stdout="", stderr=""),
-            CompletedProcess([], 0, stdout="fix-example active\n", stderr=""),
-        ]
-    )
     captured = {}
 
-    monkeypatch.setattr(_zellij_utils, "_run_zellij", lambda *_args, **_kwargs: next(calls))
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
 
-    def capture_popen(command, **_kwargs):
-        captured["layout"] = Path(command[2]).read_text(encoding="utf-8")
-        return object()
+    def capture_popen(command, **kwargs):
+        captured["command"] = command
+        return FakeProcess()
 
     monkeypatch.setattr(_zellij_utils.subprocess, "Popen", capture_popen)
 
@@ -81,28 +89,22 @@ def test_spawn_opencode_execute_mode_auto_approves_permissions(tmp_path: Path, m
         permission_mode="execute",
     )
 
-    layout = captured["layout"]
-    assert 'pane command="opencode"' in layout
-    assert '"run" "--attach" "http://127.0.0.1:4096" "--interactive"' in layout
-    assert '"--title" "fix-example" "--agent" "build" "--model" "openai/gpt-5.6-sol" "--auto"' in layout
-    assert '"--agent" "plan"' not in layout
+    command = captured["command"]
+    assert command[command.index("--title") + 1] == "fix-example"
+    assert command[command.index("--agent") + 1] == "build"
+    assert command[command.index("--model") + 1] == "openai/gpt-5.6-sol"
+    assert "--auto" in command
+    assert "--interactive" not in command
 
 
 def test_resume_opencode_session_uses_existing_session_id(tmp_path: Path, monkeypatch) -> None:
-    calls = iter(
-        [
-            CompletedProcess([], 0, stdout="", stderr=""),
-            CompletedProcess([], 0, stdout="resume-example active\n", stderr=""),
-        ]
-    )
     captured = {}
 
-    monkeypatch.setattr(_zellij_utils, "_run_zellij", lambda *_args, **_kwargs: next(calls))
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
 
-    def capture_popen(command, **_kwargs):
-        captured["layout"] = Path(command[2]).read_text(encoding="utf-8")
-        return object()
+    def capture_popen(command, **kwargs):
+        captured["command"] = command
+        return FakeProcess()
 
     monkeypatch.setattr(_zellij_utils.subprocess, "Popen", capture_popen)
 
@@ -113,12 +115,12 @@ def test_resume_opencode_session_uses_existing_session_id(tmp_path: Path, monkey
         "Continue the interrupted review.",
     )
 
-    layout = captured["layout"]
-    assert 'pane command="opencode"' in layout
-    assert '"--session" "ses_existing"' in layout
-    assert '"--agent" "plan"' in layout
-    assert "--auto" not in layout
-    assert "claude" not in layout
+    command = captured["command"]
+    assert command[command.index("--session") + 1] == "ses_existing"
+    assert "--title" not in command
+    assert command[command.index("--agent") + 1] == "plan"
+    assert "--auto" not in command
+    assert "claude" not in " ".join(command).lower()
 
 
 def test_find_opencode_session_id_ignores_older_same_title(tmp_path: Path, monkeypatch) -> None:
@@ -151,7 +153,7 @@ def test_find_opencode_session_id_ignores_older_same_title(tmp_path: Path, monke
     assert captured["command"][-2:] == ["--format", "json"]
 
 
-def test_spawn_opencode_rejects_invalid_mode_and_exited_session(tmp_path: Path, monkeypatch) -> None:
+def test_spawn_opencode_rejects_invalid_mode_and_failed_process(tmp_path: Path, monkeypatch) -> None:
     assert not _zellij_utils.spawn_opencode_session(
         "unsafe-example",
         "Do work.",
@@ -159,15 +161,8 @@ def test_spawn_opencode_rejects_invalid_mode_and_exited_session(tmp_path: Path, 
         permission_mode="unexpected",
     )
 
-    calls = iter(
-        [
-            CompletedProcess([], 0, stdout="", stderr=""),
-            CompletedProcess([], 0, stdout="fix-example [EXITED]\n", stderr=""),
-        ]
-    )
-    monkeypatch.setattr(_zellij_utils, "_run_zellij", lambda *_args, **_kwargs: next(calls))
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
-    monkeypatch.setattr(_zellij_utils.subprocess, "Popen", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(_zellij_utils.subprocess, "Popen", lambda *_args, **_kwargs: FakeProcess(returncode=2))
 
     assert not _zellij_utils.spawn_opencode_session(
         "fix-example",
@@ -177,7 +172,7 @@ def test_spawn_opencode_rejects_invalid_mode_and_exited_session(tmp_path: Path, 
     )
 
 
-def test_spawn_chat_uses_canonical_root_and_direct_prompt(tmp_path: Path, monkeypatch) -> None:
+def test_spawn_chat_uses_canonical_root_and_direct_prompt(tmp_path: Path, monkeypatch, capsys) -> None:
     worktree = tmp_path / "worktree"
     canonical = tmp_path / "canonical"
     (canonical / "scripts").mkdir(parents=True)
@@ -192,6 +187,7 @@ def test_spawn_chat_uses_canonical_root_and_direct_prompt(tmp_path: Path, monkey
         return True
 
     monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", capture_spawn)
+    monkeypatch.setattr(_zellij_utils, "find_opencode_session_id", lambda *_args, **_kwargs: "ses_spawned")
 
     sessions.cmd_spawn_chat(
         SimpleNamespace(
@@ -206,6 +202,10 @@ def test_spawn_chat_uses_canonical_root_and_direct_prompt(tmp_path: Path, monkey
     assert captured["cwd"] == str(canonical)
     assert captured["prompt"].endswith("Review the report.")
     assert "scripts/.tmp" not in captured["prompt"]
+    output = capsys.readouterr().out
+    assert "OpenCode session: ses_spawned" in output
+    assert "Web chat: https://code.dev.openmates.org" in output
+    assert "zellij attach" not in output
 
 
 def test_spawn_chat_never_references_claude_launcher() -> None:
@@ -215,6 +215,7 @@ def test_spawn_chat_never_references_claude_launcher() -> None:
     assert "spawn_opencode_session" in command
     assert "spawn_claude_session" not in command
     assert "Claude session" not in command
+    assert "zellij attach" not in command
 
 
 def test_restore_command_never_references_claude_launcher() -> None:
@@ -223,6 +224,7 @@ def test_restore_command_never_references_claude_launcher() -> None:
 
     assert "resume_opencode_session" in command
     assert "resume_claude_session" not in command
+    assert "zellij attach" not in command
 
 
 def test_server_restart_fails_closed_when_session_discovery_fails() -> None:
@@ -271,6 +273,7 @@ def test_spawn_chat_reads_prompt_file_before_switching_to_canonical_root(tmp_pat
     monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", canonical)
     monkeypatch.setitem(sys.modules, "_zellij_utils", _zellij_utils)
     monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", lambda **kwargs: captured.update(kwargs) or True)
+    monkeypatch.setattr(_zellij_utils, "find_opencode_session_id", lambda *_args, **_kwargs: None)
 
     sessions.cmd_spawn_chat(SimpleNamespace(
         prompt=None,

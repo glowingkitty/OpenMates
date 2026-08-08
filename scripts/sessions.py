@@ -22,6 +22,11 @@ Usage:
     python3 scripts/sessions.py release --session a3f2 --file path/to/file.py
     python3 scripts/sessions.py edit-lease acquire --opencode-session ses_... --file path/to/file.py
 
+    # OpenCode transcript debugging
+    python3 scripts/sessions.py opencode-chat read https://code.dev.openmates.org/<project>/session/ses_...
+    python3 scripts/sessions.py opencode-chat search ses_... "worktree"
+    python3 scripts/sessions.py chat read ses_...  # alias for opencode-chat
+
     # On-demand doc loading
     python3 scripts/sessions.py context --doc debugging
     python3 scripts/sessions.py context --doc sync
@@ -42,6 +47,8 @@ Usage:
 """
 
 import argparse
+import base64
+import binascii
 import fcntl
 import fnmatch
 import glob as glob_mod
@@ -52,17 +59,20 @@ import re
 import secrets
 import shutil
 import socket
+import sqlite3
 import subprocess
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 try:
     from scripts.opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
@@ -107,6 +117,8 @@ OPENCODE_STALE_READ_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-
 OPENCODE_STALE_READ_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.lock"
 OPENCODE_PRESENCE_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.json"
 OPENCODE_PRESENCE_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.lock"
+OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
+OPENCODE_WEB_BASE_URL = os.environ.get("OPENCODE_WEB_BASE_URL", "https://code.dev.openmates.org")
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
@@ -187,6 +199,20 @@ APPLE_CONTEXT_KEYWORDS = (
     "testflight",
     "native",
 )
+OPENCODE_SESSION_ID_RE = re.compile(r"^ses_[A-Za-z0-9_-]+$")
+OPENCODE_CHAT_URL_SESSION_RE = re.compile(r"/session/(?P<session>ses_[A-Za-z0-9_-]+)")
+OPENCODE_CHAT_ISSUE_RE = re.compile(
+    r"(^|\n)\s*error:|\b(blocked|failed|failure|traceback|timeout|timed out|permission denied|no active sessions\.py|"
+    r"apply_patch verification failed)\b",
+    re.IGNORECASE,
+)
+OPENCODE_CHAT_DEFAULT_MAX_MESSAGES = 160
+OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE = 24
+OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS = 1_500
+OPENCODE_CHAT_DEFAULT_MAX_ISSUES = 60
+OPENCODE_CHAT_TOOL_OUTPUT_PREVIEW_CHARS = 600
+OPENCODE_CHAT_TEXT_CHILD_SESSION_LIMIT = 25
+OPENCODE_CHAT_REPOSITORY_FILE_LIMIT = 50
 
 # ---------------------------------------------------------------------------
 # Tag system — maps task tags to relevant instruction docs
@@ -544,6 +570,508 @@ def opencode_stale_read_error(session_id: str, raw_path: str | Path) -> str | No
     if current and current != expected:
         return f"BLOCKED: {relative_path} changed since this OpenCode session read it. Re-read the file before editing."
     return None
+
+
+def _decode_opencode_project_path(encoded: str) -> str | None:
+    value = urllib.parse.unquote(encoded.strip())
+    if not value:
+        return None
+    padding = "=" * (-len(value) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode((value + padding).encode("ascii")).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        return None
+    return decoded if decoded.startswith("/") else None
+
+
+def parse_opencode_chat_reference(reference: str) -> dict[str, str | None]:
+    """Return the OpenCode session ID and optional project path from a chat URL."""
+    raw = reference.strip()
+    if not raw:
+        raise ValueError("OpenCode chat reference is required")
+    if OPENCODE_SESSION_ID_RE.match(raw):
+        return {"session_id": raw, "project_directory": None}
+
+    parsed = urllib.parse.urlparse(raw)
+    segments = [segment for segment in parsed.path.split("/") if segment]
+    for index, segment in enumerate(segments):
+        if segment != "session" or index + 1 >= len(segments):
+            continue
+        session_id = urllib.parse.unquote(segments[index + 1])
+        if not OPENCODE_SESSION_ID_RE.match(session_id):
+            break
+        project_directory = _decode_opencode_project_path(segments[index - 1]) if index > 0 else None
+        return {"session_id": session_id, "project_directory": project_directory}
+
+    match = OPENCODE_CHAT_URL_SESSION_RE.search(raw)
+    if match:
+        return {"session_id": match.group("session"), "project_directory": None}
+    raise ValueError("Expected an OpenCode session ID or /<project>/session/ses_... URL")
+
+
+def opencode_chat_url(session_id: str, project_directory: str | Path | None = None) -> str:
+    """Return the OpenCode Web deep link for a local project/session pair."""
+    directory = str(Path(project_directory or CONTROL_PLANE_ROOT).resolve())
+    encoded = base64.urlsafe_b64encode(directory.encode("utf-8")).decode("ascii").rstrip("=")
+    return f"{OPENCODE_WEB_BASE_URL.rstrip('/')}/{encoded}/session/{session_id}"
+
+
+def _opencode_timestamp_iso(value: object) -> str:
+    try:
+        return datetime.fromtimestamp(float(value) / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError, OSError, OverflowError):
+        return "unknown"
+
+
+def _opencode_readonly_connection(db_path: Path | None = None) -> sqlite3.Connection:
+    path = (db_path or OPENCODE_DB_PATH).expanduser()
+    if not path.is_file():
+        raise FileNotFoundError(f"OpenCode database not found: {path}")
+    connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA query_only = ON")
+    return connection
+
+
+def _decode_opencode_json(raw: object) -> Any:
+    try:
+        return json.loads(str(raw))
+    except (TypeError, json.JSONDecodeError):
+        return raw
+
+
+def _truncate_opencode_value(value: Any, max_chars: int, truncated: dict[str, bool]) -> Any:
+    if isinstance(value, str):
+        if len(value) > max_chars:
+            truncated["fields"] = True
+            return value[:max_chars] + "...[truncated]"
+        return value
+    if isinstance(value, dict):
+        return {str(key): _truncate_opencode_value(item, max_chars, truncated) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_truncate_opencode_value(item, max_chars, truncated) for item in value]
+    return value
+
+
+def _bounded_opencode_text(value: Any, max_chars: int, truncated: dict[str, bool]) -> str:
+    if isinstance(value, str):
+        text = value
+    else:
+        text = json.dumps(value, ensure_ascii=False, sort_keys=True) if value is not None else ""
+    bounded = _truncate_opencode_value(text, max_chars, truncated)
+    return str(bounded)
+
+
+def _opencode_message_projection(data: Any) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {"role": "unknown", "raw": data}
+    projected = {
+        key: data[key]
+        for key in ("role", "agent", "mode", "modelID", "providerID", "finish")
+        if key in data
+    }
+    model = data.get("model")
+    if isinstance(model, dict):
+        projected["model"] = {
+            key: model[key]
+            for key in ("providerID", "modelID", "variant")
+            if key in model
+        }
+    return projected
+
+
+def _opencode_part_projection(
+    data: Any,
+    *,
+    include_tool_output: bool,
+    max_chars: int,
+    truncated: dict[str, bool],
+) -> dict[str, Any] | None:
+    if not isinstance(data, dict):
+        return {"type": "unknown", "value": _truncate_opencode_value(data, max_chars, truncated)}
+    part_type = str(data.get("type") or "unknown")
+    if part_type in {"reasoning", "step-start", "step-finish", "snapshot"}:
+        return None
+    if part_type == "text":
+        return {
+            "type": "text",
+            "text": _bounded_opencode_text(data.get("text", ""), max_chars, truncated),
+            "phase": (data.get("metadata") or {}).get("openai", {}).get("phase") if isinstance(data.get("metadata"), dict) else None,
+        }
+    if part_type == "tool":
+        state = data.get("state") if isinstance(data.get("state"), dict) else {}
+        projected = {
+            "type": "tool",
+            "tool": str(data.get("tool") or "unknown"),
+            "status": str(state.get("status") or "unknown"),
+            "title": data.get("title"),
+            "call_id": data.get("callID") or data.get("callId"),
+        }
+        if state.get("error"):
+            projected["error"] = _bounded_opencode_text(state.get("error"), max_chars, truncated)
+        output = state.get("output")
+        input_value = state.get("input")
+        output_text = _bounded_opencode_text(output, OPENCODE_CHAT_TOOL_OUTPUT_PREVIEW_CHARS, truncated)
+        if include_tool_output:
+            projected["input"] = _truncate_opencode_value(input_value, max_chars, truncated)
+            projected["output"] = _truncate_opencode_value(output, max_chars, truncated)
+        elif output_text and (projected["status"] == "error" or OPENCODE_CHAT_ISSUE_RE.search(output_text)):
+            projected["output_preview"] = output_text
+        return projected
+    if part_type in {"file", "image", "attachment"}:
+        return {
+            "type": part_type,
+            "filename": data.get("filename") or data.get("name"),
+            "mime": data.get("mime") or data.get("mimeType"),
+            "content_omitted": True,
+        }
+    return {
+        "type": part_type,
+        "status": data.get("status"),
+        "text": _bounded_opencode_text(data.get("text", ""), max_chars, truncated) if data.get("text") else None,
+    }
+
+
+def _opencode_model_label(message: dict[str, Any]) -> str:
+    model = message.get("model")
+    if isinstance(model, dict):
+        provider = str(model.get("providerID") or "")
+        model_id = str(model.get("modelID") or "")
+        variant = str(model.get("variant") or "")
+        label = "/".join(item for item in (provider, model_id) if item)
+        return f"{label} ({variant})" if label and variant else label
+    provider = str(message.get("providerID") or "")
+    model_id = str(message.get("modelID") or "")
+    return "/".join(item for item in (provider, model_id) if item)
+
+
+def _sqlite_like_pattern(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _find_opencode_descendant_sessions(connection: sqlite3.Connection, session_id: str) -> list[str]:
+    discovered: list[str] = []
+    queue = [session_id]
+    while queue:
+        parent = queue.pop(0)
+        rows = connection.execute(
+            """
+            SELECT id
+            FROM session
+            WHERE parent_id = ?
+            ORDER BY time_created ASC, id ASC
+            """,
+            (parent,),
+        ).fetchall()
+        for row in rows:
+            child_id = str(row["id"])
+            if child_id in discovered or child_id == session_id:
+                continue
+            discovered.append(child_id)
+            queue.append(child_id)
+    return discovered
+
+
+def _load_opencode_session_rows(
+    connection: sqlite3.Connection,
+    session_id: str,
+    *,
+    include_children: bool,
+) -> list[sqlite3.Row]:
+    root = connection.execute(
+        """
+        SELECT id, directory, parent_id, title, time_created, time_updated
+        FROM session
+        WHERE id = ?
+        """,
+        (session_id,),
+    ).fetchone()
+    if root is None:
+        raise LookupError(f"OpenCode session not found: {session_id}")
+    session_ids = [session_id]
+    if include_children:
+        session_ids.extend(_find_opencode_descendant_sessions(connection, session_id))
+    placeholders = ", ".join("?" for _ in session_ids)
+    return connection.execute(
+        f"""
+        SELECT id, directory, parent_id, title, time_created, time_updated
+        FROM session
+        WHERE id IN ({placeholders})
+        ORDER BY COALESCE(parent_id, id) ASC, time_created ASC, id ASC
+        """,
+        tuple(session_ids),
+    ).fetchall()
+
+
+def _load_opencode_message_rows(
+    connection: sqlite3.Connection,
+    session_ids: list[str],
+    *,
+    query: str | None,
+    max_messages: int,
+) -> tuple[list[sqlite3.Row], bool]:
+    placeholders = ", ".join("?" for _ in session_ids)
+    parameters: list[Any] = [*session_ids]
+    match_sql = ""
+    if query:
+        pattern = _sqlite_like_pattern(query)
+        match_sql = (
+            "AND (message.data LIKE ? ESCAPE '\\' "
+            "OR EXISTS (SELECT 1 FROM part WHERE part.message_id = message.id AND part.data LIKE ? ESCAPE '\\'))"
+        )
+        parameters.extend([pattern, pattern])
+    parameters.append(max_messages + 1)
+    rows = connection.execute(
+        f"""
+        SELECT id, session_id, time_created, time_updated, data
+        FROM message
+        WHERE session_id IN ({placeholders})
+        {match_sql}
+        ORDER BY time_created ASC, id ASC
+        LIMIT ?
+        """,
+        tuple(parameters),
+    ).fetchall()
+    return rows[:max_messages], len(rows) > max_messages
+
+
+def _load_opencode_part_rows(
+    connection: sqlite3.Connection,
+    message_id: str,
+    *,
+    max_parts_per_message: int,
+) -> tuple[list[sqlite3.Row], bool]:
+    rows = connection.execute(
+        """
+        SELECT id, message_id, session_id, time_created, time_updated, data
+        FROM part
+        WHERE message_id = ?
+        ORDER BY time_created ASC, id ASC
+        LIMIT ?
+        """,
+        (message_id, max_parts_per_message + 1),
+    ).fetchall()
+    return rows[:max_parts_per_message], len(rows) > max_parts_per_message
+
+
+def _matching_repository_sessions(opencode_session_id: str) -> list[dict[str, Any]]:
+    try:
+        sessions = _load_sessions().get("sessions", {})
+    except Exception:
+        return []
+    matches = []
+    for session_id, session in sessions.items():
+        if not isinstance(session, dict) or session.get("opencode_session_id") != opencode_session_id:
+            continue
+        worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        modified_files = session.get("modified_files") or []
+        matches.append(
+            {
+                "repository_session_id": session_id,
+                "task": session.get("task"),
+                "mode": session.get("mode"),
+                "tags": session.get("tags") or [],
+                "last_active": session.get("last_active"),
+                "worktree": {
+                    "status": worktree.get("status"),
+                    "path": worktree.get("path"),
+                    "binding_mode": worktree.get("binding_mode"),
+                },
+                "modified_file_count": len(modified_files),
+                "modified_files": modified_files[:OPENCODE_CHAT_REPOSITORY_FILE_LIMIT],
+                "modified_files_truncated": len(modified_files) > OPENCODE_CHAT_REPOSITORY_FILE_LIMIT,
+            }
+        )
+    return matches
+
+
+def _record_opencode_issue_signal(
+    issues: list[dict[str, Any]],
+    *,
+    max_issues: int,
+    kind: str,
+    session_id: str,
+    message_id: str,
+    part_id: str,
+    tool: str = "",
+    text: str = "",
+) -> None:
+    if len(issues) >= max_issues:
+        return
+    issues.append(
+        {
+            "kind": kind,
+            "session_id": session_id,
+            "message_id": message_id,
+            "part_id": part_id,
+            "tool": tool or None,
+            "text": textwrap.shorten(" ".join(text.split()), width=300, placeholder="...[truncated]") if text else "",
+        }
+    )
+
+
+def read_opencode_chat(
+    reference: str,
+    *,
+    query: str | None = None,
+    include_children: bool = True,
+    include_tool_output: bool = False,
+    max_messages: int = OPENCODE_CHAT_DEFAULT_MAX_MESSAGES,
+    max_parts_per_message: int = OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE,
+    max_part_chars: int = OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS,
+    max_issues: int = OPENCODE_CHAT_DEFAULT_MAX_ISSUES,
+    db_path: Path | None = None,
+) -> dict[str, Any]:
+    """Read a bounded local OpenCode transcript from a session ID or web URL."""
+    if min(max_messages, max_parts_per_message, max_part_chars, max_issues) <= 0:
+        raise ValueError("OpenCode chat limits must be positive")
+    parsed = parse_opencode_chat_reference(reference)
+    session_id = str(parsed["session_id"])
+    truncated = {"messages": False, "parts": False, "fields": False, "issues": False}
+    connection = _opencode_readonly_connection(db_path)
+    try:
+        session_rows = _load_opencode_session_rows(connection, session_id, include_children=include_children)
+        sessions = [
+            {
+                "session_id": str(row["id"]),
+                "parent_session_id": str(row["parent_id"]) if row["parent_id"] else None,
+                "title": str(row["title"] or ""),
+                "directory": str(row["directory"] or ""),
+                "time_created": _opencode_timestamp_iso(row["time_created"]),
+                "time_updated": _opencode_timestamp_iso(row["time_updated"]),
+            }
+            for row in session_rows
+        ]
+        session_ids = [session["session_id"] for session in sessions]
+        message_rows, messages_truncated = _load_opencode_message_rows(
+            connection,
+            session_ids,
+            query=query,
+            max_messages=max_messages,
+        )
+        truncated["messages"] = messages_truncated
+        messages: list[dict[str, Any]] = []
+        issue_signals: list[dict[str, Any]] = []
+        part_count = 0
+        query_folded = query.casefold() if query else None
+        for row in message_rows:
+            message_data = _decode_opencode_json(row["data"])
+            projected_message = _opencode_message_projection(message_data)
+            part_rows, parts_truncated = _load_opencode_part_rows(
+                connection,
+                str(row["id"]),
+                max_parts_per_message=max_parts_per_message,
+            )
+            if parts_truncated:
+                truncated["parts"] = True
+            parts: list[dict[str, Any]] = []
+            message_matches = False
+            for part_row in part_rows:
+                decoded_part = _decode_opencode_json(part_row["data"])
+                raw_part_text = json.dumps(decoded_part, ensure_ascii=False, sort_keys=True) if isinstance(decoded_part, (dict, list)) else str(decoded_part)
+                projected_part = _opencode_part_projection(
+                    decoded_part,
+                    include_tool_output=include_tool_output,
+                    max_chars=max_part_chars,
+                    truncated=truncated,
+                )
+                if projected_part is None:
+                    continue
+                part_matches = bool(query_folded and query_folded in raw_part_text.casefold())
+                message_matches = message_matches or part_matches
+                if part_matches:
+                    projected_part["matched"] = True
+                part_type = projected_part.get("type")
+                if part_type == "tool":
+                    status = str(projected_part.get("status") or "")
+                    error_text = str(projected_part.get("error") or "")
+                    preview_text = str(projected_part.get("output_preview") or "")
+                    if status == "error" or error_text:
+                        _record_opencode_issue_signal(
+                            issue_signals,
+                            max_issues=max_issues,
+                            kind="tool_error",
+                            session_id=str(row["session_id"]),
+                            message_id=str(row["id"]),
+                            part_id=str(part_row["id"]),
+                            tool=str(projected_part.get("tool") or ""),
+                            text=error_text or preview_text,
+                        )
+                    elif preview_text and OPENCODE_CHAT_ISSUE_RE.search(preview_text):
+                        _record_opencode_issue_signal(
+                            issue_signals,
+                            max_issues=max_issues,
+                            kind="tool_output_signal",
+                            session_id=str(row["session_id"]),
+                            message_id=str(row["id"]),
+                            part_id=str(part_row["id"]),
+                            tool=str(projected_part.get("tool") or ""),
+                            text=preview_text,
+                        )
+                elif part_type == "text":
+                    text = str(projected_part.get("text") or "")
+                    if OPENCODE_CHAT_ISSUE_RE.search(text):
+                        _record_opencode_issue_signal(
+                            issue_signals,
+                            max_issues=max_issues,
+                            kind="text_signal",
+                            session_id=str(row["session_id"]),
+                            message_id=str(row["id"]),
+                            part_id=str(part_row["id"]),
+                            text=text,
+                        )
+                projected_part.update(
+                    {
+                        "part_id": str(part_row["id"]),
+                        "time_created": _opencode_timestamp_iso(part_row["time_created"]),
+                    }
+                )
+                parts.append(projected_part)
+            message_raw_text = json.dumps(message_data, ensure_ascii=False, sort_keys=True) if isinstance(message_data, (dict, list)) else str(message_data)
+            if query_folded and not (message_matches or query_folded in message_raw_text.casefold()):
+                continue
+            messages.append(
+                {
+                    "message_id": str(row["id"]),
+                    "session_id": str(row["session_id"]),
+                    "time_created": _opencode_timestamp_iso(row["time_created"]),
+                    "time_updated": _opencode_timestamp_iso(row["time_updated"]),
+                    "role": projected_message.get("role") or "unknown",
+                    "agent": projected_message.get("agent"),
+                    "mode": projected_message.get("mode"),
+                    "model": _opencode_model_label(projected_message),
+                    "finish": projected_message.get("finish"),
+                    "parts": parts,
+                }
+            )
+            part_count += len(parts)
+        if len(issue_signals) >= max_issues:
+            truncated["issues"] = True
+        return {
+            "status": "ok",
+            "reference": reference,
+            "session_id": session_id,
+            "project_directory_from_url": parsed.get("project_directory"),
+            "database": str((db_path or OPENCODE_DB_PATH).expanduser()),
+            "query": query,
+            "include_children": include_children,
+            "include_tool_output": include_tool_output,
+            "sessions": sessions,
+            "repository_sessions": _matching_repository_sessions(session_id),
+            "message_count": len(messages),
+            "part_count": part_count,
+            "issue_signals": issue_signals,
+            "messages": messages,
+            "truncated": truncated,
+        }
+    finally:
+        connection.close()
+
+
+def search_opencode_chat(reference: str, query: str, **kwargs: Any) -> dict[str, Any]:
+    """Search a bounded local OpenCode transcript from a session ID or web URL."""
+    return read_opencode_chat(reference, query=query, **kwargs)
 
 
 def _load_sessions() -> dict:
@@ -4974,13 +5502,12 @@ def _linear_start_integration(
     label_ids = issue_data.get("label_ids", [])
     add_label(linear_issue_id, current_label_ids=label_ids)
 
-    # Post pickup comment (include Zellij attach info)
+    # Post pickup comment with current OpenCode-era resume guidance.
     post_comment(
         linear_issue_id,
         f"Picked up by OpenCode session `{sid}`\n\n"
-        f"Resume from the OpenCode web UI or attached Zellij session.\n"
-        f"Zellij: `zellij attach session-{sid}`\n"
-        f"Web UI: http://localhost:8082",
+        f"Resume from the OpenCode Web project sidebar or inspect the linked chat with\n"
+        f"`python3 scripts/sessions.py chat read <opencode-session-id>`.",
     )
 
     # Display issue context in session output
@@ -5308,12 +5835,9 @@ def cmd_start(args: argparse.Namespace) -> None:
     if is_new_session:
         _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
 
-    # ── Zellij integration ────────────────────────────────────────────────
-    # NOTE: We no longer create a Zellij session on start. The CLI already
-    # runs inside a Zellij session. Creating extra
-    # sessions caused unbounded session accumulation and OOM on the server.
-    # Poller-spawned sessions still create their own Zellij sessions via
-    # spawn_opencode_session().
+    # ── OpenCode integration ──────────────────────────────────────────────
+    # Start records the current chat/worktree binding only. Parallel workers are
+    # now persisted OpenCode Web chats, not additional Zellij terminal sessions.
 
     # ===================================================================
     # Output context for the active agent (mode-aware, structured with box sections)
@@ -10167,6 +10691,144 @@ def cmd_task_track(args: argparse.Namespace) -> None:
         print(f"[{task_id}] Already tracked: {file_path}")
 
 
+def _opencode_chat_session_label(session_id: str) -> str:
+    return session_id[:12] if session_id else "unknown"
+
+
+def _append_indented_block(lines: list[str], text: str, *, prefix: str = "      ") -> None:
+    if not text:
+        return
+    for line in text.splitlines() or [text]:
+        lines.append(f"{prefix}{line}")
+
+
+def _format_opencode_chat_text(view: dict[str, Any]) -> str:
+    sessions = view.get("sessions") or []
+    root = sessions[0] if sessions else {}
+    lines = [
+        "== OPENCODE CHAT ==",
+        f"Session: {view.get('session_id')}",
+        f"Title: {root.get('title') or '(untitled)'}",
+        f"Directory: {root.get('directory') or 'unknown'}",
+        f"Updated: {root.get('time_updated') or 'unknown'}",
+    ]
+    if view.get("project_directory_from_url"):
+        lines.append(f"URL project: {view['project_directory_from_url']}")
+    if view.get("query"):
+        lines.append(f"Query: {view['query']}")
+    child_sessions = [session for session in sessions if session.get("parent_session_id")]
+    lines.append(f"Included sessions: {len(sessions)} ({len(child_sessions)} child)")
+    lines.append(f"Messages: {view.get('message_count', 0)}; parts: {view.get('part_count', 0)}")
+
+    repository_sessions = view.get("repository_sessions") or []
+    if repository_sessions:
+        lines.extend(["", "Repository session mappings:"])
+        for item in repository_sessions:
+            worktree = item.get("worktree") or {}
+            file_count = item.get("modified_file_count", len(item.get("modified_files") or []))
+            lines.append(
+                f"  - {item.get('repository_session_id')}: {item.get('task') or '(no task)'} "
+                f"[{item.get('mode') or 'unknown'}; worktree={worktree.get('status') or 'unknown'}; files={file_count}]"
+            )
+
+    issues = view.get("issue_signals") or []
+    lines.extend(["", "Issue signals:"])
+    if issues:
+        for issue in issues:
+            tool = f" tool={issue['tool']}" if issue.get("tool") else ""
+            text = f": {issue.get('text')}" if issue.get("text") else ""
+            lines.append(
+                f"  - {issue.get('kind')} session={_opencode_chat_session_label(str(issue.get('session_id') or ''))}{tool}{text}"
+            )
+    else:
+        lines.append("  none")
+
+    if child_sessions:
+        lines.extend(["", "Child sessions:"])
+        visible_children = child_sessions[:OPENCODE_CHAT_TEXT_CHILD_SESSION_LIMIT]
+        for session in visible_children:
+            lines.append(
+                f"  - {session.get('session_id')}: {session.get('title') or '(untitled)'} "
+                f"parent={session.get('parent_session_id')} updated={session.get('time_updated')}"
+            )
+        hidden_children = len(child_sessions) - len(visible_children)
+        if hidden_children > 0:
+            lines.append(f"  ... {hidden_children} more child sessions omitted from text output; use --json for the full list")
+
+    lines.extend(["", "Transcript:"])
+    for message in view.get("messages") or []:
+        metadata = []
+        if message.get("agent"):
+            metadata.append(f"agent={message['agent']}")
+        if message.get("model"):
+            metadata.append(f"model={message['model']}")
+        if message.get("finish"):
+            metadata.append(f"finish={message['finish']}")
+        metadata_text = f" ({', '.join(metadata)})" if metadata else ""
+        lines.append(
+            f"[{message.get('time_created')}] "
+            f"{str(message.get('role') or 'unknown').upper()} "
+            f"session={_opencode_chat_session_label(str(message.get('session_id') or ''))}{metadata_text}"
+        )
+        parts = message.get("parts") or []
+        if not parts:
+            lines.append("    (no retained parts)")
+            continue
+        for part in parts:
+            marker = "*" if part.get("matched") else "-"
+            part_type = part.get("type")
+            if part_type == "text":
+                phase = f" phase={part['phase']}" if part.get("phase") else ""
+                lines.append(f"    {marker} text{phase}:")
+                _append_indented_block(lines, str(part.get("text") or ""))
+                continue
+            if part_type == "tool":
+                title = f" title={part['title']}" if part.get("title") else ""
+                lines.append(
+                    f"    {marker} tool {part.get('tool') or 'unknown'} "
+                    f"status={part.get('status') or 'unknown'}{title}"
+                )
+                if part.get("error"):
+                    _append_indented_block(lines, f"error: {part['error']}")
+                if part.get("output_preview"):
+                    _append_indented_block(lines, f"output: {part['output_preview']}")
+                if part.get("output") is not None:
+                    _append_indented_block(lines, f"output: {_bounded_opencode_text(part['output'], OPENCODE_CHAT_TOOL_OUTPUT_PREVIEW_CHARS, {'fields': False})}")
+                continue
+            lines.append(f"    {marker} {part_type or 'part'}: {part}")
+
+    truncated = view.get("truncated") or {}
+    if any(truncated.values()):
+        labels = ", ".join(key for key, value in truncated.items() if value)
+        lines.extend(["", f"Truncated: {labels}"])
+    return "\n".join(lines) + "\n"
+
+
+def cmd_opencode_chat(args: argparse.Namespace) -> None:
+    """Read or search a local OpenCode chat transcript by session ID or web URL."""
+    query = getattr(args, "query", None)
+    if isinstance(query, list):
+        query = " ".join(query)
+    try:
+        view = read_opencode_chat(
+            args.reference,
+            query=query,
+            include_children=not getattr(args, "no_children", False),
+            include_tool_output=getattr(args, "include_tool_output", False),
+            max_messages=getattr(args, "max_messages", OPENCODE_CHAT_DEFAULT_MAX_MESSAGES),
+            max_parts_per_message=getattr(args, "max_parts_per_message", OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE),
+            max_part_chars=getattr(args, "max_part_chars", OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS),
+            db_path=getattr(args, "db", None),
+        )
+    except (FileNotFoundError, LookupError, ValueError, sqlite3.Error) as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        sys.exit(1)
+    if getattr(args, "json", False):
+        print(json.dumps(view, indent=2, ensure_ascii=False, sort_keys=True))
+        return
+    print(_format_opencode_chat_text(view), end="")
+
+
 def cmd_trigger_tests(args: argparse.Namespace) -> None:
     """Trigger tests via the unified tests.py control plane."""
     suite = getattr(args, "suite", "all") or "all"
@@ -10233,13 +10895,7 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 def cmd_spawn_chat(args: argparse.Namespace) -> None:
-    """Spawn a new OpenCode session in a separate Zellij tab.
-
-    Creates an interactive OpenCode session visible in the Zellij web UI
-    (localhost:8082) and attachable via `zellij attach <name>`.
-
-    Default is plan mode (read-only). Use --mode execute for full edit access.
-    """
+    """Spawn a new persisted OpenCode chat visible in the existing Web sidebar."""
     # Resolve prompt text
     if args.prompt_file:
         prompt_path = Path(args.prompt_file)
@@ -10292,8 +10948,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                     issue_data["id"],
                     f"**OpenCode session started:** `{session_name}`\n\n"
                     f"**Mode:** {permission_mode}\n"
-                    f"**Attach:** `zellij attach {session_name}`\n"
-                    f"**Web UI:** http://localhost:8082"
+                    f"**OpenCode Web:** visible in the project sidebar when the run starts."
                 )
                 print(f"Linear: {linear_issue_id} → In Progress + claude-is-working")
 
@@ -10308,9 +10963,8 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
                     f"  or 'Fix deployed: commit abc123, updated key derivation'\n"
                     f"- At END: update status via mcp__linear__save_issue with\n"
                     f'  id: "{issue_data["identifier"]}", state: "In Review",\n'
-                    f"  and post a final comment with resume commands:\n"
-                    f"  zellij attach {session_name}\n"
-                    f"  opencode run --session <your-session-id>\n"
+                    f"  and post a final comment with the OpenCode session ID, any commit SHA,\n"
+                    f"  verification evidence, and the next exact command if follow-up is needed.\n"
                 )
             else:
                 print(f"Warning: Could not fetch Linear issue {linear_issue_id}", file=sys.stderr)
@@ -10320,14 +10974,15 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     prompt = mode_prefix + prompt + linear_suffix
 
     try:
-        from _zellij_utils import spawn_opencode_session
+        from _zellij_utils import find_opencode_session_id, spawn_opencode_session
     except ImportError:
         # Add scripts dir to path for import
         scripts_dir = str(PROJECT_ROOT / "scripts")
         if scripts_dir not in sys.path:
             sys.path.insert(0, scripts_dir)
-        from _zellij_utils import spawn_opencode_session
+        from _zellij_utils import find_opencode_session_id, spawn_opencode_session
 
+    created_after_ms = int(time.time() * 1000)
     success = spawn_opencode_session(
         session_name=session_name,
         prompt=prompt,
@@ -10337,17 +10992,28 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
 
     if success:
         mode_label = "execute (full access, auto-approved)" if permission_mode == "execute" else "plan (research only)"
-        print(f"Session spawned: {session_name}")
+        opencode_session_id = find_opencode_session_id(
+            session_name,
+            str(CONTROL_PLANE_ROOT),
+            created_after_ms=created_after_ms,
+            attempts=6,
+        )
+        print(f"OpenCode chat spawned: {session_name}")
         print(f"Mode: {mode_label}")
-        print(f"Attach: zellij attach {session_name}")
-        print("Web UI: http://localhost:8082")
+        if opencode_session_id:
+            print(f"OpenCode session: {opencode_session_id}")
+            print(f"Web chat: {opencode_chat_url(opencode_session_id)}")
+            print(f"Inspect: python3 scripts/sessions.py chat read {opencode_session_id}")
+        else:
+            print("OpenCode session: pending; use `opencode session list -n 10 --format json` to resolve it.")
+        print("Visible in the existing OpenCode Web project sidebar; no Zellij session was created.")
     else:
-        print("Error: failed to spawn session. Is Zellij running?", file=sys.stderr)
+        print("Error: failed to spawn OpenCode chat. Is the OpenCode server running?", file=sys.stderr)
         sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
-# restore — Resume interrupted OpenCode sessions in Zellij
+# restore — Resume interrupted OpenCode sessions
 # ---------------------------------------------------------------------------
 
 
@@ -10404,9 +11070,9 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
 
 
 def cmd_restore(args: argparse.Namespace) -> None:
-    """Restore an OpenCode session in a new Zellij tab.
+    """Send a continuation prompt to an existing OpenCode session.
 
-    Resumes the session with --resume and sends a continuation prompt.
+    Resumes the session with opencode run --session and sends a continuation prompt.
     If --list is passed, discovers and prints recent interrupted sessions.
     """
     scripts_dir = str(PROJECT_ROOT / "scripts")
@@ -10568,15 +11234,15 @@ def cmd_restore(args: argparse.Namespace) -> None:
             print(f"Error: no session found matching '{session_id}'.", file=sys.stderr)
             sys.exit(1)
 
-    # Determine Zellij session name
-    zellij_name = getattr(args, "name", None) or f"restore-{session_id[:8]}"
+    # Keep the name argument as a diagnostic title for compatibility with older callers.
+    restore_name = getattr(args, "name", None) or f"restore-{session_id[:8]}"
     prompt = getattr(args, "prompt", None) or (
         "The server crashed and this session was interrupted. "
         "Continue where you left off."
     )
 
     success = resume_opencode_session(
-        session_name=zellij_name,
+        session_name=restore_name,
         opencode_session_id=session_id,
         cwd=str(CONTROL_PLANE_ROOT),
         prompt=prompt,
@@ -10584,12 +11250,12 @@ def cmd_restore(args: argparse.Namespace) -> None:
     )
 
     if success:
-        print(f"Session restored: {zellij_name}")
+        print(f"Continuation sent: {restore_name}")
         print(f"OpenCode session: {session_id}")
-        print(f"Attach: zellij attach {zellij_name}")
-        print("Web UI: http://localhost:8082")
+        print(f"Web chat: {opencode_chat_url(session_id)}")
+        print(f"Inspect: python3 scripts/sessions.py chat read {session_id}")
     else:
-        print("Error: failed to restore session. Is Zellij running?", file=sys.stderr)
+        print("Error: failed to send continuation. Is the OpenCode server running?", file=sys.stderr)
         sys.exit(1)
 
 
@@ -10912,6 +11578,41 @@ def main() -> None:
         p_stale_read_action = p_stale_read_sub.add_parser(action)
         p_stale_read_action.add_argument("--opencode-session", required=True, help="OpenCode session ID")
         p_stale_read_action.add_argument("--file", required=True, help="Repository file path")
+
+    p_opencode_chat = sub.add_parser(
+        "opencode-chat",
+        help="Read or search local OpenCode chat transcripts by session ID or web URL",
+    )
+    p_opencode_chat_sub = p_opencode_chat.add_subparsers(dest="opencode_chat_action", required=True)
+
+    def add_opencode_chat_args(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("reference", help="OpenCode session ID or code.dev.openmates.org chat URL")
+        parser.add_argument("--json", action="store_true", help="Emit structured JSON instead of readable text")
+        parser.add_argument("--no-children", action="store_true", help="Do not include child/subagent sessions")
+        parser.add_argument("--include-tool-output", action="store_true", help="Include bounded completed tool inputs/outputs")
+        parser.add_argument("--max-messages", type=int, default=OPENCODE_CHAT_DEFAULT_MAX_MESSAGES)
+        parser.add_argument("--max-parts-per-message", type=int, default=OPENCODE_CHAT_DEFAULT_MAX_PARTS_PER_MESSAGE)
+        parser.add_argument("--max-part-chars", type=int, default=OPENCODE_CHAT_DEFAULT_MAX_PART_CHARS)
+        parser.add_argument("--db", type=Path, help="Override OpenCode SQLite database path")
+
+    p_opencode_chat_read = p_opencode_chat_sub.add_parser("read", help="Read a bounded chat transcript")
+    add_opencode_chat_args(p_opencode_chat_read)
+    p_opencode_chat_read.add_argument("--query", help="Only show messages whose message or part JSON contains this text")
+    p_opencode_chat_search = p_opencode_chat_sub.add_parser("search", help="Search inside a bounded chat transcript")
+    add_opencode_chat_args(p_opencode_chat_search)
+    p_opencode_chat_search.add_argument("query", nargs="+", help="Search text")
+
+    p_chat = sub.add_parser(
+        "chat",
+        help="Alias for opencode-chat read/search",
+    )
+    p_chat_sub = p_chat.add_subparsers(dest="opencode_chat_action", required=True)
+    p_chat_read = p_chat_sub.add_parser("read", help="Read a bounded OpenCode chat transcript")
+    add_opencode_chat_args(p_chat_read)
+    p_chat_read.add_argument("--query", help="Only show messages whose message or part JSON contains this text")
+    p_chat_search = p_chat_sub.add_parser("search", help="Search inside a bounded OpenCode chat transcript")
+    add_opencode_chat_args(p_chat_search)
+    p_chat_search.add_argument("query", nargs="+", help="Search text")
 
     p_presence = sub.add_parser("presence", help="Manage ephemeral OpenCode presence and task intent")
     p_presence_sub = p_presence.add_subparsers(dest="presence_action", required=True)
@@ -11341,7 +12042,7 @@ def main() -> None:
     # spawn-chat
     p_spawn = sub.add_parser(
         "spawn-chat",
-        help="Spawn an OpenCode session in a separate Zellij tab",
+        help="Spawn a persisted OpenCode chat in the existing Web sidebar",
     )
     p_spawn.add_argument(
         "--prompt",
@@ -11372,7 +12073,7 @@ def main() -> None:
     # restore
     p_restore = sub.add_parser(
         "restore",
-        help="Restore an OpenCode session in a Zellij tab",
+        help="Send a continuation prompt to an existing OpenCode session",
     )
     p_restore.add_argument(
         "session_id",
@@ -11386,7 +12087,7 @@ def main() -> None:
     )
     p_restore.add_argument(
         "--name", "-n",
-        help="Zellij session name (default: restore-<id-prefix>)",
+        help="Diagnostic launch title (default: restore-<id-prefix>)",
     )
     p_restore.add_argument(
         "--mode",
@@ -11480,6 +12181,8 @@ def main() -> None:
         "check-write": cmd_check_write,
         "edit-lease": cmd_edit_lease,
         "stale-read": cmd_stale_read,
+        "opencode-chat": cmd_opencode_chat,
+        "chat": cmd_opencode_chat,
         "presence": cmd_presence,
         "docker": cmd_docker,
         "worktree": cmd_worktree,

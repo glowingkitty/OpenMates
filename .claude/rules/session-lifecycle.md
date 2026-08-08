@@ -50,11 +50,13 @@ python3 scripts/sessions.py check-docs --session <ID>
 python3 scripts/sessions.py docker restart --session <ID> --service api
 python3 scripts/sessions.py docker restart --session <ID> --build --service api --service task-worker
 python3 scripts/sessions.py stale-docs --tags frontend
+python3 scripts/sessions.py chat read <ses_or_code_dev_url>
+python3 scripts/sessions.py chat search <ses_or_code_dev_url> "worktree"
 ```
 
 ## Spawn Parallel Sessions
 
-Spawn OpenCode chats in separate Zellij sessions for parallel work:
+Spawn persisted OpenCode Web chats in the existing project sidebar for parallel work:
 ```bash
 # Plan mode (default, read-only) — research and planning
 python3 scripts/sessions.py spawn-chat --prompt "Research X" --name "research-X"
@@ -62,7 +64,7 @@ python3 scripts/sessions.py spawn-chat --prompt "Research X" --name "research-X"
 # Execute mode (full access) — only when user explicitly requests
 python3 scripts/sessions.py spawn-chat --prompt-file prompt.txt --name "fix-task" --mode execute
 ```
-**Always ask user confirmation before spawning.** Attach: `zellij attach <name>` or localhost:8082.
+**Always ask user confirmation before spawning.** No new Zellij session is created; use the returned OpenCode session ID or sidebar URL, and inspect with `sessions.py chat read/search` when debugging hooks, tools, or worktree setup.
 
 ## Multi-Session Tasks
 

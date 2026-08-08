@@ -1,6 +1,6 @@
 ---
 name: spawn-chat
-description: Spawn a separate OpenCode chat in Zellij and ensure it starts its own sessions.py worktree. Use when the user explicitly asks for a new, separate, or parallel chat/session.
+description: Spawn a persisted OpenCode Web chat in the existing project sidebar and ensure it starts its own sessions.py worktree. Use when the user explicitly asks for a new, separate, or parallel chat/session.
 user-invocable: true
 argument-hint: "<plan|execute> <short name> <task>"
 ---
@@ -18,8 +18,8 @@ sessions behind.
    Do not spawn when tasks have sequential dependencies or likely file overlap.
 3. Use `plan` by default. Use `execute` only when the user explicitly requests
    implementation or direct fixes.
-4. Choose a unique lowercase Zellij name with hyphens, no secrets, and at most
-   50 characters.
+4. Choose a unique lowercase chat name with hyphens, no secrets, and at most
+   50 characters. It becomes the OpenCode chat title.
 5. Include this as the spawned chat's first required action:
 
    ```text
@@ -35,17 +35,20 @@ sessions behind.
    python3 scripts/sessions.py spawn-chat --prompt "<complete prompt>" --name "<name>" --mode <plan|execute>
    ```
 
-7. Verify the named Zellij session appears with `zellij list-sessions
-   --no-formatting`. Then verify a matching repository session appears with
+7. Verify the command prints an OpenCode session ID or a pending message. Then
+   verify a matching repository session appears with
    `python3 scripts/sessions.py status --json`. Allow the chat time to execute
    its required start command.
-8. If either verification fails, inspect the named Zellij pane output. Do not
-   retry `spawn-chat` blindly because retries create duplicate empty chats.
-9. Report the chat name, mode, attach command, repository session ID, and task.
+8. If verification fails, inspect the spawned chat with
+   `python3 scripts/sessions.py chat read <session-id>` or search it
+   with `python3 scripts/sessions.py chat search <session-id> "error"`.
+   Do not retry `spawn-chat` blindly because retries create duplicate chats.
+9. Report the chat name, mode, OpenCode session ID/sidebar URL, repository
+   session ID, and task.
 
 ## Guardrails
 
-- `spawn-chat` must launch OpenCode, never the Claude Code runtime.
+- `spawn-chat` must launch a persisted OpenCode Web chat, never the Claude Code runtime and never a new Zellij session.
 - Never pass secrets, credentials, private logs, or user data in the prompt or
   chat name.
 - Never give two execute chats overlapping file ownership.

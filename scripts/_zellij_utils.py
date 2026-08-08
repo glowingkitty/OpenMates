@@ -1,11 +1,11 @@
 """
 scripts/_zellij_utils.py
 
-Thin wrapper around the Zellij CLI for programmatic session management.
+Thin wrapper around legacy Zellij session management plus OpenCode chat launch.
 
-Each agent task gets its own named Zellij session, visible at the
-Zellij web UI (localhost:8082). Sessions are created, listed, and cleaned
-up through this module.
+OpenCode worker chats are now persisted through the existing OpenCode Web
+server and appear in that project sidebar. Zellij helpers remain for legacy
+cleanup and manually attached terminals.
 
 All public functions are non-fatal: they print warnings to stderr and
 return None/False on failure. Callers should never crash due to Zellij
@@ -21,6 +21,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -30,6 +31,7 @@ ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
 OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
 OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.6-sol")
+OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
 
 # Hard cap on concurrent Zellij sessions to prevent OOM on a 30GB server.
 # Each agent session uses ~500MB RAM. 6 sessions = ~3GB headroom.
@@ -334,7 +336,7 @@ POLLER_SESSION_PREFIXES = ("fix-", "plan-", "research-")
 
 def count_poller_sessions() -> int:
     """
-    Count non-EXITED Zellij sessions spawned by the linear-poller.
+    Count non-EXITED legacy Zellij sessions spawned by older poller runs.
 
     Only sessions with poller-managed prefixes (fix-*, plan-*, research-*)
     are counted. Manual sessions (claude1, session-XXXX, etc.) are excluded
@@ -585,7 +587,7 @@ def spawn_opencode_session(
     permission_mode: str = "plan",
     opencode_session_id: str | None = None,
 ) -> bool:
-    """Spawn an interactive OpenCode chat in a named Zellij session."""
+    """Spawn a persisted OpenCode chat through the already-running web server."""
     session_name = _sanitize_session_name(session_name)
     if permission_mode not in {"plan", "execute"}:
         print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
@@ -595,18 +597,16 @@ def spawn_opencode_session(
         print("Warning: OpenCode binary not found.", file=sys.stderr)
         return False
 
-    result = _run_zellij(["list-sessions", "--no-formatting"])
-    if result and result.returncode == 0:
-        for line in result.stdout.splitlines():
-            stripped = line.strip()
-            if stripped.startswith(session_name + " ") or stripped == session_name:
-                if "EXITED" in stripped:
-                    _run_zellij(["delete-session", session_name])
-                else:
-                    print(f"Warning: Zellij session '{session_name}' already exists.", file=sys.stderr)
-                    return False
-
-    command = ["run", "--attach", OPENCODE_SERVER_URL, "--interactive"]
+    command = [
+        opencode_bin,
+        "run",
+        "--attach",
+        OPENCODE_SERVER_URL,
+        "--dir",
+        cwd,
+        "--format",
+        "json",
+    ]
     if opencode_session_id:
         command.extend(["--session", opencode_session_id])
     else:
@@ -617,48 +617,41 @@ def spawn_opencode_session(
         command.extend(["--agent", "build", "--model", OPENCODE_EXECUTE_MODEL, "--auto"])
     command.append(prompt)
 
-    def kdl_quote(value: str) -> str:
-        return json.dumps(value, ensure_ascii=True)
-
-    layout_content = (
-        "layout {\n"
-        f"    pane command={kdl_quote(opencode_bin)} {{\n"
-        f"        args {' '.join(kdl_quote(argument) for argument in command)}\n"
-        f"        cwd {kdl_quote(cwd)}\n"
-        "        focus true\n"
-        "    }\n"
-        "}\n"
-    )
-
     tmp_dir = Path(cwd) / "scripts" / ".tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    layout_path = tmp_dir / f"{session_name}.kdl"
+    log_path = tmp_dir / f"opencode-spawn-{session_name}-{int(time.time())}.jsonl"
+
+    run_env = os.environ.copy()
+    run_env["PATH"] = (
+        "/home/superdev/.local/bin:/home/superdev/.npm-global/bin:"
+        + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+    )
 
     try:
-        layout_path.write_text(layout_content, encoding="utf-8")
-        subprocess.Popen(
-            [ZELLIJ_BIN, "--new-session-with-layout", str(layout_path), "-s", session_name],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            env=os.environ.copy(),
-        )
+        with log_path.open("ab") as log_handle:
+            process = subprocess.Popen(
+                command,
+                cwd=cwd,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                env=run_env,
+                start_new_session=True,
+            )
     except (FileNotFoundError, OSError) as exc:
-        print(f"Warning: OpenCode Zellij launch failed: {exc}", file=sys.stderr)
-        layout_path.unlink(missing_ok=True)
+        print(f"Warning: OpenCode chat launch failed: {exc}", file=sys.stderr)
         return False
 
-    import time
-    time.sleep(2)
-    layout_path.unlink(missing_ok=True)
+    time.sleep(1)
+    returncode = process.poll()
+    if returncode is None or returncode == 0:
+        return True
 
-    check = _run_zellij(["list-sessions", "--no-formatting"])
-    if check and check.returncode == 0:
-        for line in check.stdout.splitlines():
-            stripped = line.strip()
-            if stripped and "EXITED" not in stripped and stripped.split(maxsplit=1)[0] == session_name:
-                return True
-
-    print(f"Warning: session '{session_name}' not found after launch.", file=sys.stderr)
+    try:
+        output_tail = log_path.read_text(encoding="utf-8", errors="replace")[-OPENCODE_SPAWN_LOG_TAIL_CHARS:]
+    except OSError:
+        output_tail = ""
+    detail = f"\n{output_tail}" if output_tail else ""
+    print(f"Warning: OpenCode chat '{session_name}' exited with code {returncode}.{detail}", file=sys.stderr)
     return False
 
 
@@ -669,7 +662,7 @@ def resume_opencode_session(
     prompt: str = "The server restarted and this session was interrupted. Continue where you left off.",
     permission_mode: str = "plan",
 ) -> bool:
-    """Resume an existing OpenCode session in a new Zellij session."""
+    """Send a continuation prompt to an existing OpenCode session."""
     return spawn_opencode_session(
         session_name=session_name,
         prompt=prompt,

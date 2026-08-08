@@ -93,8 +93,10 @@ For each observed preventable process problem, check the relevant existing hooks
 
 ## Parallel Work — Spawning Separate Sessions
 
-You can suggest spawning parallel Claude Code sessions for independent tasks.
+You can suggest spawning parallel OpenCode chats for independent tasks.
 **Always ask the user for confirmation before spawning.**
+Spawned chats are persisted OpenCode Web chats in the same project sidebar;
+they do not create separate Zellij sessions.
 
 ```bash
 # Spawn a planning/research session (default: plan mode, read-only)
@@ -107,7 +109,15 @@ python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/prompt.txt --n
 python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/fix-prompt.txt --name "fix-OPE-42" --mode execute
 ```
 
-The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
+The spawned chat must start its own `sessions.py` session before mutating work. Use the returned OpenCode session ID or sidebar URL to inspect it.
+
+```bash
+python3 scripts/sessions.py chat read ses_...
+python3 scripts/sessions.py chat read "https://code.dev.openmates.org/<project>/session/ses_..."
+python3 scripts/sessions.py chat search ses_... "worktree"
+
+# Long form is also supported: opencode-chat read/search
+```
 
 **When to suggest:** Multiple independent tasks, post-meeting planning, parallel research.
 **When NOT to:** Tasks with file conflicts, sequential dependencies, or when the user prefers focused work.

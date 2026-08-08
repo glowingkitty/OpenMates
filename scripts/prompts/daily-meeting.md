@@ -264,8 +264,8 @@ After the user confirms priorities and milestone changes (if any):
 6. Write meeting summary to `scripts/.tmp/daily-meeting-summary-{{DATE}}.md`
 
 **Important:** Save ALL confirmed priorities (up to 10) in the state file, ranked by priority.
-Only the first 4 will be spawned as planning sessions (MAX_CONCURRENT_SESSIONS=4).
-The rest are picked up via `/next-task` as sessions finish.
+Confirmed priorities can be spawned as persisted OpenCode Web planning chats when
+the user asks for parallel planning. Otherwise, they are picked up via `/next-task`.
 
 Use this JSON structure for the state file:
 ```json

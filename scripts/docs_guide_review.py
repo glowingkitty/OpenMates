@@ -470,7 +470,7 @@ def main() -> int:
         "--execute-mode",
         choices=("spawn", "direct"),
         default="spawn",
-        help="Execution backend. spawn opens a Zellij session; direct waits for opencode run.",
+        help="Execution backend. spawn creates a persisted OpenCode Web chat; direct waits for opencode run.",
     )
     parser.add_argument(
         "--result-file",

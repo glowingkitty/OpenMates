@@ -56,6 +56,19 @@ OpenMates/
 
 Architecture decisions: write once in `docs/architecture/`, reference in code.
 
+Whenever asking a clarifying question, include an explicit `Recommendation:`
+with the evidence-based preferred answer and brief rationale, plus `Examples:`
+with concrete, task-specific options or outcomes. Ask only one decision question
+per message; the recommendation and examples are supporting context, not extra
+questions. If evidence is incomplete, recommend the safest reversible default
+and state the uncertainty.
+
+## Agent Workflow Retrospective
+
+For every non-trivial task-closing summary, include a concise retrospective about the agentic process used to fulfill the request, not about the request's product results. Report only observed preventable process problems from the main chat, research, tool use, delegated agents, and sub-chats, such as failed or redundant searches, incorrect skill or agent selection, instruction conflicts, avoidable rereads or tool calls, policy or hook friction, abandoned approaches, missed verification, or coordination failures. Do not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them. Ordinary task difficulty is not a workflow issue.
+
+For each observed preventable process problem, check the relevant existing hooks, skills, agents, agent instructions, and deterministic audits/tests before recommending the smallest concrete workflow improvement. Classify each recommendation as a hook, skill, agent/subagent definition, agent instruction, or deterministic audit/test. Do not recommend new prompt prose when an existing mechanism already covers the issue or a deterministic guard would be more reliable. State when existing coverage is sufficient and no change is warranted. Use `None observed` when no preventable agent-workflow issue occurred. Do not invent problems, expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require this section.
+
 ---
 
 ## Obsidian Vault
@@ -193,6 +206,8 @@ Use the repo rule files when the task touches relevant areas. In OpenCode, these
 
 You can suggest spawning parallel OpenCode chats for independent tasks.
 Always ask the user for confirmation before spawning.
+Spawned chats are persisted OpenCode Web chats in the same project sidebar;
+they do not create separate Zellij sessions.
 
 ```bash
 # Spawn a planning/research session (default: plan mode, read-only)
@@ -205,7 +220,18 @@ python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/prompt.txt --n
 python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/fix-prompt.txt --name "fix-OPE-42" --mode execute
 ```
 
-The spawned chat must start its own `sessions.py` session before mutating work. The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
+The spawned chat must start its own `sessions.py` session before mutating work. Use the returned OpenCode session ID or sidebar URL to inspect it.
+
+```bash
+# Read an existing OpenCode chat from a session ID or code.dev URL
+python3 scripts/sessions.py chat read ses_...
+python3 scripts/sessions.py chat read "https://code.dev.openmates.org/<project>/session/ses_..."
+
+# Search a chat for hook, worktree, tool, or error evidence
+python3 scripts/sessions.py chat search ses_... "worktree"
+
+# Long form is also supported: opencode-chat read/search
+```
 
 **When to suggest:** Multiple independent tasks, post-meeting planning, parallel research.
 **When NOT to:** Tasks with file conflicts, sequential dependencies, or when the user prefers focused work.

@@ -3,7 +3,7 @@
 scripts/linear-poller.py
 
 Polls Linear for issues with 'claude-plan', 'claude-research', or 'claude-fix'
-labels and spawns OpenCode sessions in Zellij for each one.
+labels and spawns persisted OpenCode Web chats for each one.
 
 - claude-plan: spawns a plan-mode session (read-only research, posts findings)
 - claude-research: spawns a research session (codebase + web analysis, posts findings as comments)
@@ -150,9 +150,8 @@ def _build_linear_tracking_instructions(
         f"3. Remove the claude-is-working label by calling mcp__linear__save_issue\n"
         f'   with id: "{identifier}" and the current labelIds minus the\n'
         f"   claude-is-working label\n"
-        f"4. Include resume commands in the final comment:\n"
-        f"   zellij attach {session_name}\n"
-        f"   opencode run --session <your-session-id>\n"
+        f"4. Include the OpenCode session ID and any needed follow-up command in the final comment.\n"
+        f"   Debug transcript command: python3 scripts/sessions.py chat read <your-session-id>\n"
         f"\n"
         f"If you hit a tool error, token limit, or cannot proceed:\n"
         f"  Post a comment explaining what happened and set status to Todo.\n"
@@ -282,9 +281,9 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
     }.get(mode, mode)
     post_comment(
         full_issue["id"],
-        f"**Claude {mode} session started:** `{session_name}`\n\n"
-        f"**Attach:** `zellij attach {session_name}`\n"
-        f"**Web UI:** http://localhost:8082\n\n"
+        f"**OpenCode {mode} chat started:** `{session_name}`\n\n"
+        f"**OpenCode session:** `{opencode_session_id or 'pending'}`\n"
+        f"**OpenCode Web:** visible in the project sidebar.\n\n"
         f"Mode: {mode_desc}"
     )
 
@@ -296,7 +295,7 @@ COMPLETED_STATES = {"In Review", "Done", "Cancelled"}
 
 # Minimum number of comments expected on a processed task (pickup + results).
 # If the issue has fewer non-pickup comments, the session failed to report back.
-PICKUP_COMMENT_PREFIX = "**Claude "  # e.g. "**Claude plan session started:**"
+PICKUP_COMMENT_PREFIXES = ("**OpenCode ", "**Claude ")
 
 
 def _find_jsonl_for_session(
@@ -418,7 +417,7 @@ def _session_posted_results(identifier: str) -> bool:
     for c in comments:
         body = c.get("body", "")
         # Skip the pickup/session-started comment
-        if body.startswith(PICKUP_COMMENT_PREFIX):
+        if body.startswith(PICKUP_COMMENT_PREFIXES):
             continue
         # Skip queued comments
         if body.startswith("**Queued**"):
@@ -494,7 +493,7 @@ def _salvage_abandoned_sessions() -> int:
         # Check if results were already posted
         if _session_posted_results(identifier):
             # Results posted but session exited without updating status —
-            # clean up the session tracking and kill the Zellij session
+            # clean up tracking and any legacy Zellij session with this name.
             if state in ("EXITED", "ACTIVE"):
                 kill_session(session_name)
             to_remove.append(session_name)
@@ -544,7 +543,7 @@ def _salvage_abandoned_sessions() -> int:
                 current_label_ids=issue_data.get("label_ids", []),
             )
 
-        # Kill the Zellij session
+        # Remove any legacy Zellij session left by pre-sidebar spawn behavior.
         if state in ("EXITED", "ACTIVE"):
             kill_session(session_name)
 
@@ -563,10 +562,9 @@ def _salvage_abandoned_sessions() -> int:
 
 def _cleanup_completed_sessions() -> int:
     """
-    Kill Zellij sessions whose Linear task has moved to In Review, Done, or
-    Cancelled. Runs every poller cycle (30s) so sessions are reclaimed fast.
+    Clean completed poller tracking and legacy Zellij sessions for old records.
 
-    Returns the number of sessions cleaned up.
+    Returns the number of tracking records cleaned up.
     """
     tracked = _read_poller_sessions()
     if not tracked:
@@ -589,7 +587,7 @@ def _cleanup_completed_sessions() -> int:
         if issue_data.get("state") not in COMPLETED_STATES:
             continue
 
-        # Task is done — kill the Zellij session and clean up
+        # Task is done; remove any legacy Zellij session and clean up tracking.
         state = zellij_state.get(session_name)
         if state:
             kill_session(session_name)

@@ -2673,16 +2673,19 @@ Required workflow:
 """
 
 
-def available_zellij_session_slots() -> int:
-    try:
-        from _zellij_utils import MAX_CONCURRENT_SESSIONS, _run_zellij
-    except ImportError:
-        from scripts._zellij_utils import MAX_CONCURRENT_SESSIONS, _run_zellij
-    result = _run_zellij(["list-sessions", "--no-formatting"])
-    if result is None or result.returncode != 0:
-        raise RuntimeError("Could not determine Zellij session capacity")
-    active = sum(1 for line in result.stdout.splitlines() if line.strip() and "EXITED" not in line)
-    return max(0, MAX_CONCURRENT_SESSIONS - active)
+def available_opencode_chat_slots(active_parallel_workers: int) -> int:
+    return max(0, MAX_PARALLEL_DEBUG_WORKERS - active_parallel_workers)
+
+
+def _parse_spawn_chat_output(output: str) -> dict[str, str | None]:
+    details: dict[str, str | None] = {"opencode_session_id": None, "web_chat": None}
+    for line in output.splitlines():
+        if line.startswith("OpenCode session:"):
+            value = line.split(":", 1)[1].strip()
+            details["opencode_session_id"] = None if value == "pending" else value
+        elif line.startswith("Web chat:"):
+            details["web_chat"] = line.split(":", 1)[1].strip()
+    return details
 
 
 def dispatch_parallel_debug_chats(
@@ -2699,9 +2702,9 @@ def dispatch_parallel_debug_chats(
     active_parallel_claims = [claim for claim in active_claims if claim.get("worker_id")]
     if len(active_parallel_claims) >= MAX_PARALLEL_DEBUG_WORKERS:
         raise RuntimeError(f"Parallel debug worker cap reached ({MAX_PARALLEL_DEBUG_WORKERS})")
-    zellij_slots = available_zellij_session_slots()
-    if zellij_slots <= 0:
-        raise RuntimeError("No Zellij session capacity is available for parallel debug workers")
+    chat_slots = available_opencode_chat_slots(len(active_parallel_claims))
+    if chat_slots <= 0:
+        raise RuntimeError("No OpenCode chat capacity is available for parallel debug workers")
     active_linked_files: set[str] = set()
     triage_by_id = {str(group["group_id"]): group for group in build_triage().get("groups") or []}
     for claim in active_claims:
@@ -2714,7 +2717,7 @@ def dispatch_parallel_debug_chats(
     selection = select_parallel_debug_groups(
         status["groups"],
         _active_debug_group_keys(claims),
-        max_workers=min(max_workers, MAX_PARALLEL_DEBUG_WORKERS - len(active_parallel_claims), zellij_slots),
+        max_workers=min(max_workers, chat_slots),
         triage_groups=triage_by_id,
         active_linked_files=active_linked_files,
     )
@@ -2768,14 +2771,18 @@ def dispatch_parallel_debug_chats(
             )
             selection["skipped"][str(group["group_key"])] = "chat launch was not confirmed; lease retained pending observation"
             continue
+        spawn_details = _parse_spawn_chat_output(result.stdout)
+        opencode_session_id = spawn_details.get("opencode_session_id")
         spawned.append({
             "chat_name": chat_name,
+            "opencode_session_id": opencode_session_id,
+            "web_chat": spawn_details.get("web_chat"),
             "campaign_key": campaign_key,
             "group_key": group.get("group_key"),
             "lease_id": lease.get("lease_id"),
             "member_test_keys": group.get("member_test_keys") or [],
             "linked_files": group.get("parallel_linked_files") or [],
-            "attach_command": f"zellij attach {chat_name}",
+            "inspect_command": f"python3 scripts/sessions.py chat read {opencode_session_id}" if opencode_session_id else None,
         })
     return {
         "campaign_key": campaign_key,

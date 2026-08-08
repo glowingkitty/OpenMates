@@ -12,7 +12,7 @@ Commands:
     run-meeting     Full pipeline: gather data → start main meeting session
     dry-run         Gather data and print the meeting prompt (no Claude session)
     auto-confirm    Apply proposed priorities to Linear (called by timer)
-    spawn-planning  Spawn planning sessions for confirmed priorities
+    spawn-planning  Spawn planning chats for confirmed priorities
 
 State file: scripts/.daily-meeting-state.json
 
@@ -851,7 +851,7 @@ def cmd_auto_confirm() -> None:
     print(f"{LOG_PREFIX} Auto-confirm complete. Linear labels should be applied in next meeting session.")
 
 
-# ── Spawn planning sessions ─────────────────────────────────────────────────
+# ── Spawn planning chats ────────────────────────────────────────────────────
 
 
 def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) -> str:
@@ -879,8 +879,8 @@ def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) ->
 
 
 def cmd_spawn_planning() -> None:
-    """Spawn planning sessions for today's confirmed priorities."""
-    from _zellij_utils import spawn_opencode_session, count_active_sessions, MAX_CONCURRENT_SESSIONS
+    """Spawn planning chats for today's confirmed priorities."""
+    from _zellij_utils import spawn_opencode_session
 
     state = load_meeting_state()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -912,17 +912,8 @@ def cmd_spawn_planning() -> None:
         if not linear_id:
             continue
 
-        active = count_active_sessions()
-        if active >= MAX_CONCURRENT_SESSIONS:
-            skipped.append(linear_id)
-            print(
-                f"{LOG_PREFIX} Skipping {linear_id} — "
-                f"{active} active sessions (max {MAX_CONCURRENT_SESSIONS})"
-            )
-            continue
-
         session_name = f"plan-{linear_id}-{today}"
-        print(f"{LOG_PREFIX} Spawning planning session for {linear_id}...")
+        print(f"{LOG_PREFIX} Spawning planning chat for {linear_id}...")
 
         issue_data = None
         if get_issue_with_comments:
@@ -948,18 +939,18 @@ def cmd_spawn_planning() -> None:
 
         if success:
             spawned.append((linear_id, session_name))
-            print(f"{LOG_PREFIX}   → {session_name} (attach: zellij attach {session_name})")
+            print(f"{LOG_PREFIX}   → {session_name} (OpenCode Web sidebar)")
         else:
-            print(f"{LOG_PREFIX}   → FAILED to spawn for {linear_id}", file=sys.stderr)
+            print(f"{LOG_PREFIX}   → FAILED to spawn chat for {linear_id}", file=sys.stderr)
 
-    print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning sessions.")
+    print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning chats.")
     if skipped:
-        print(f"{LOG_PREFIX} Skipped {len(skipped)} due to session cap ({MAX_CONCURRENT_SESSIONS}): {', '.join(skipped)}")
+        print(f"{LOG_PREFIX} Skipped {len(skipped)}: {', '.join(skipped)}")
         print(f"{LOG_PREFIX} Use /next-task or sessions.py spawn-chat to pick these up later.")
     if spawned:
-        print(f"{LOG_PREFIX} Web UI: http://localhost:8082")
+        print(f"{LOG_PREFIX} OpenCode Web: project sidebar")
         for linear_id, name in spawned:
-            print(f"{LOG_PREFIX}   zellij attach {name}")
+            print(f"{LOG_PREFIX}   {linear_id}: {name}")
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────
