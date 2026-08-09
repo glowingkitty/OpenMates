@@ -906,29 +906,29 @@ assertions:
     direct_tests:
     - &id074
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 174
+      line: 178
       name: replaces a stale streaming assistant row with the completed pending response
       surface: gui.web
     - &id075
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 258
+      line: 262
       name: treats already-terminal matching recovery claims as handled
       surface: gui.web
     - &id076
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 333
+      line: 337
       name: persists an available recovery job even when the assistant row is locally
         synced
       surface: gui.web
     - &id077
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 892
+      line: 896
       name: refreshes the chat version and retries terminal persistence after a recovery
         version conflict
       surface: gui.web
     - &id078
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 1024
+      line: 1028
       name: ignores delayed claim and persist frames from an earlier recovery attempt
       surface: gui.web
     - &id079
@@ -961,24 +961,24 @@ assertions:
     direct_tests:
     - &id080
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 333
+      line: 337
       name: persists an available recovery job even when the assistant row is locally
         synced
       surface: gui.web
     - &id081
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 450
+      line: 454
       name: waits for the chat shell and key before claiming an early recovery job
       surface: gui.web
     - &id082
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 560
+      line: 564
       name: hydrates a missing local chat user id before claiming a keyed recovery
         job
       surface: gui.web
     - &id083
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 666
+      line: 670
       name: does not let one pending recovery job block another available job
       surface: gui.web
     supporting_tests: []
@@ -1002,28 +1002,28 @@ assertions:
     direct_tests:
     - &id084
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 258
+      line: 262
       name: treats already-terminal matching recovery claims as handled
       surface: gui.web
     - &id085
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 666
+      line: 670
       name: does not let one pending recovery job block another available job
       surface: gui.web
     - &id086
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 789
+      line: 793
       name: keeps an early recovery job alive while cold boot initial sync completes
       surface: gui.web
     - &id087
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 892
+      line: 896
       name: refreshes the chat version and retries terminal persistence after a recovery
         version conflict
       surface: gui.web
     - &id088
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 1024
+      line: 1028
       name: ignores delayed claim and persist frames from an earlier recovery attempt
       surface: gui.web
     - &id089
@@ -1056,7 +1056,7 @@ assertions:
     direct_tests:
     - &id090
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 174
+      line: 178
       name: replaces a stale streaming assistant row with the completed pending response
       surface: gui.web
     supporting_tests: []
@@ -1074,12 +1074,12 @@ assertions:
     direct_tests:
     - &id091
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 174
+      line: 178
       name: replaces a stale streaming assistant row with the completed pending response
       surface: gui.web
     - &id092
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 220
+      line: 224
       name: does not replace waiting_for_user local state
       surface: gui.web
     supporting_tests: []
@@ -1099,18 +1099,18 @@ assertions:
     direct_tests:
     - &id093
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 450
+      line: 454
       name: waits for the chat shell and key before claiming an early recovery job
       surface: gui.web
     - &id094
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 560
+      line: 564
       name: hydrates a missing local chat user id before claiming a keyed recovery
         job
       surface: gui.web
     - &id095
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 789
+      line: 793
       name: keeps an early recovery job alive while cold boot initial sync completes
       surface: gui.web
     supporting_tests: []
@@ -1164,7 +1164,7 @@ assertions:
     direct_tests:
     - &id096
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 105
+      line: 109
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []

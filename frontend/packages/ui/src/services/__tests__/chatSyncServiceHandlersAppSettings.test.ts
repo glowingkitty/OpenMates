@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
   ensureChatKeySafeForWrite: vi.fn(),
   encryptWithChatKey: vi.fn(),
   markDeviceReceivedFreeTestingCreditsFromNotification: vi.fn(),
+  dispatchEmbedFullscreen: vi.fn(),
   webSocketService: {
     addEventListener: vi.fn(),
     on: vi.fn(),
@@ -69,6 +70,9 @@ vi.mock("../../stores/aiTypingStore", () => ({
 }));
 vi.mock("../chatKeyWriteGuard", () => ({
   ensureChatKeySafeForWrite: mocks.ensureChatKeySafeForWrite,
+}));
+vi.mock("../embedFullscreenController", () => ({
+  dispatchEmbedFullscreen: mocks.dispatchEmbedFullscreen,
 }));
 vi.mock("../encryption/MessageEncryptor", () => ({
   encryptWithChatKey: mocks.encryptWithChatKey,
