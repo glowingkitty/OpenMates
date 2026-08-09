@@ -29,6 +29,18 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.billing:
+    version: 1
+    status: approved
+    path: features/billing
+    fingerprint: a7ba8780a45baf83f561a18ffd210e61c9204224b98a73c15fde8dbe267cad20
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.chat-navigation:
     version: 1
     status: approved
@@ -281,6 +293,102 @@ assertions:
     contract_id: feature.app-skill.web-search
     type: parity
     fingerprint: 51330fc964841b2faa8458fbfd35c728b1eb17ba12f1d64efed4360a37516292
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.access.authenticated-first-party:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: security
+    fingerprint: d67b4c386c13b9852fc9533d9024e812aab2624b3f0ccd2b3c71536282ef9ffe
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.credits.idempotent-charge:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: invariant
+    fingerprint: 9c2606ba51a959e0639fc62d450e469fff039dbda34ea2759db17b19d46b07c2
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.purchase.provider-routing:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: behavior
+    fingerprint: 56ec0aa527a77dfb773342710b892f41ad20410be767e3efc5d80f75d79eed74
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.documents.visible-downloadable:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: behavior
+    fingerprint: 87fa9e3b2eec4f4c87961f75f790213fa574a87aa3c1eadf7a5809036dbcac7d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.bank-transfer.pending-visible:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: behavior
+    fingerprint: 86add96bf1e4368121702728d49213af83732e1f61c30db7eaee157490b78865
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.usage.receipt-token-breakdown:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: behavior
+    fingerprint: d1eb6faaea84c8fe0ff4833fc12fda758d440eacd1b9d1953bc6837723bcdc44
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.self-host.cloud-guard:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: invariant
+    fingerprint: 83caa7779c71255787cb29622c407eaa74bb8173e96f9257cba1e66dfbbe109b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.surface.semantic-parity:
+    contract: feature.billing@1
+    contract_id: feature.billing
+    type: parity
+    fingerprint: ead658f28d90c4bdd430e13f56f638a6a6599f52b729279c1af76b63b907f85f
     required_surfaces:
     - rest_api
     - cli

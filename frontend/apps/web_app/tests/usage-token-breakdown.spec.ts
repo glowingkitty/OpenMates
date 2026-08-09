@@ -44,6 +44,7 @@ const {
 
 const {
 	loginToTestAccount,
+	waitForChatReady,
 	startNewChat,
 	sendMessage,
 	deleteActiveChat
@@ -64,6 +65,7 @@ test.describe('Usage Token Breakdown', () => {
 		attachNetworkListeners(page, testInfo);
 	});
 
+	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown
 	test('receipt-style breakdown: sub-items sum to total input', async ({ page }) => {
 		test.setTimeout(120000); // 2 minutes — AI inference + usage fetch
 		const logStep = createSignupLogger('USAGE_TOKENS');
@@ -72,6 +74,7 @@ test.describe('Usage Token Breakdown', () => {
 
 		// Step 1: Login
 		await loginToTestAccount(page, logStep, takeScreenshot);
+		await waitForChatReady(page, logStep);
 		logStep('Logged in successfully');
 
 		// Step 2: Start a new chat and send a message
