@@ -858,20 +858,24 @@ _INLINE_EMBED_LINK_PATTERN = re.compile(
 )
 
 # Regex to detect bare embed ref brackets that are missing the (embed:...) parenthetical.
-# Matches: [domain.tld-XYZ] or [carrier-0800-XYZ] where the bracketed content
-# looks like an embed_ref.
+# Matches: [domain.tld-XYZ], [carrier-0800-XYZ], or recoverable suffix-only
+# refs like [-XYZ] where the bracketed content looks like an embed_ref.
 # Negative lookahead (?!\() ensures we only match brackets NOT already followed by (...).
 # Example: [news.ycombinator.com-ANo] → should become [Hacker News](embed:news.ycombinator.com-ANo)
-_BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+-[a-zA-Z0-9]{2,4})\](?!\()')
+_EMBED_REF_HYPHEN_CHARS = r'\-\u2010\u2011\u2012\u2013\u2014\u2015\u2212'
+_EMBED_REF_TOKEN_PATTERN = (
+    rf'(?:[a-zA-Z0-9._~:][a-zA-Z0-9._~:-]*[{_EMBED_REF_HYPHEN_CHARS}][a-zA-Z0-9]{{2,4}}'
+    rf'|[{_EMBED_REF_HYPHEN_CHARS}][a-zA-Z0-9]{{2,4}})'
+)
+_EMBED_REF_SUFFIX_ONLY_PATTERN = re.compile(r'^-[a-zA-Z0-9]{2,4}$')
+_EMBED_REF_UNICODE_DASH_PATTERN = re.compile(r'[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]')
+_BARE_EMBED_REF_PATTERN = re.compile(rf'\[({_EMBED_REF_TOKEN_PATTERN})\](?!\()')
 
 # Legacy grouped citations emitted by some models. Known refs are expanded into
 # separate canonical inline links during finalization.
 _GROUPED_CITE_REFS_PATTERN = re.compile(r'\[cite:\s*([^\]\n]+)\]', re.IGNORECASE)
 _GROUPED_BARE_EMBED_REFS_PATTERN = re.compile(
-    r'\[('
-    r'(?:[^\]\s,]+-[a-zA-Z0-9]{2,4})'
-    r'(?:\s*,\s*(?:[^\]\s,]+-[a-zA-Z0-9]{2,4}))+'
-    r')\](?!\()'
+    rf'\[({_EMBED_REF_TOKEN_PATTERN}(?:\s*,\s*{_EMBED_REF_TOKEN_PATTERN})+)\](?!\()'
 )
 
 # Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
@@ -1580,6 +1584,45 @@ def _is_markdown_literal_position(markdown: str, position: int) -> bool:
     return bool(inline_code_delimiter)
 
 
+def _normalize_embed_ref_token(embed_ref: str) -> str:
+    return _EMBED_REF_UNICODE_DASH_PATTERN.sub("-", embed_ref.strip())
+
+
+def _normalize_embed_ref_suffix_key(embed_ref: str) -> str:
+    return _normalize_embed_ref_token(embed_ref).lower()
+
+
+def _build_embed_ref_suffix_index(embed_refs: List[str]) -> Dict[str, Optional[str]]:
+    suffix_index: Dict[str, Optional[str]] = {}
+    for embed_ref in embed_refs:
+        suffix_match = _EMBED_REF_SUFFIX_PATTERN.search(embed_ref)
+        if not suffix_match:
+            continue
+        suffix = _normalize_embed_ref_suffix_key(suffix_match.group(0))
+        existing = suffix_index.get(suffix)
+        if existing is None and suffix in suffix_index:
+            continue
+        if existing and existing != embed_ref:
+            suffix_index[suffix] = None
+            continue
+        suffix_index[suffix] = embed_ref
+    return suffix_index
+
+
+def _resolve_embed_ref_token(
+    embed_ref_token: str,
+    embed_ref_to_title: Dict[str, str],
+    embed_ref_suffix_index: Dict[str, Optional[str]],
+) -> Optional[str]:
+    normalized = _normalize_embed_ref_token(embed_ref_token)
+    if normalized in embed_ref_to_title:
+        return normalized
+    if not _EMBED_REF_SUFFIX_ONLY_PATTERN.fullmatch(normalized):
+        return None
+    resolved = embed_ref_suffix_index.get(_normalize_embed_ref_suffix_key(normalized))
+    return resolved if resolved in embed_ref_to_title else None
+
+
 async def _fix_bad_embed_display_text(
     aggregated_response: str,
     tool_calls_info: Optional[List[Dict[str, Any]]],
@@ -1613,7 +1656,7 @@ async def _fix_bad_embed_display_text(
     bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(aggregated_response))
     bare_matches = [
         m for m in bare_matches
-        if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
+        if _EMBED_REF_SUFFIX_PATTERN.search(_normalize_embed_ref_token(m.group(1)))
     ]
     grouped_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(aggregated_response))
     grouped_bare_matches = list(_GROUPED_BARE_EMBED_REFS_PATTERN.finditer(aggregated_response))
@@ -1741,6 +1784,7 @@ async def _fix_bad_embed_display_text(
     # Apply fixes — replace bad display text with title or cleaned domain
     modified = aggregated_response
     replacements_made = 0
+    embed_ref_suffix_index = _build_embed_ref_suffix_index(list(embed_ref_to_title.keys()))
 
     # Process in reverse order to preserve match positions after replacements
     for link_info in reversed(bad_links):
@@ -1788,14 +1832,22 @@ async def _fix_bad_embed_display_text(
         current_bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(modified))
         current_bare_matches = [
             m for m in current_bare_matches
-            if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
-            and m.group(1) in embed_ref_to_title
+            if _EMBED_REF_SUFFIX_PATTERN.search(_normalize_embed_ref_token(m.group(1)))
         ]
 
         bare_fixed = 0
+        bare_removed = 0
         for match in reversed(current_bare_matches):
-            embed_ref = match.group(1)
+            embed_ref = _resolve_embed_ref_token(
+                match.group(1),
+                embed_ref_to_title,
+                embed_ref_suffix_index,
+            )
             full_match = match.group(0)
+            if not embed_ref:
+                modified = modified[:match.start()] + "" + modified[match.end():]
+                bare_removed += 1
+                continue
             display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
             new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
             modified = modified[:match.start()] + new_link + modified[match.end():]
@@ -1808,10 +1860,14 @@ async def _fix_bad_embed_display_text(
             logger.info(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
             )
+        if bare_removed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Removed {bare_removed} unresolved bare embed bracket(s)"
+            )
 
-    # Expand legacy grouped citations only when every ref resolves to a child
-    # embed from this response. Unknown tokens remain untouched rather than
-    # creating links that cannot resolve in the client.
+    # Expand legacy grouped citations when refs resolve to child embeds from
+    # this response. Unresolved tokens are removed so pseudo-links do not leak
+    # into the persisted assistant response.
     if (grouped_cite_matches or grouped_bare_matches) and embed_ref_to_title:
         current_grouped_matches = [
             (match, match.group(1))
@@ -1825,13 +1881,20 @@ async def _fix_bad_embed_display_text(
         for match, refs_text in current_grouped_matches:
             if _is_markdown_literal_position(modified, match.start()):
                 continue
-            embed_refs = [ref.strip() for ref in refs_text.split(",") if ref.strip()]
-            if not embed_refs or any(ref not in embed_ref_to_title for ref in embed_refs):
+            embed_refs = [
+                _resolve_embed_ref_token(ref, embed_ref_to_title, embed_ref_suffix_index)
+                for ref in refs_text.split(",")
+                if ref.strip()
+            ]
+            resolved_embed_refs = [ref for ref in embed_refs if ref]
+            if not resolved_embed_refs:
+                modified = modified[:match.start()] + "" + modified[match.end():]
+                grouped_fixed += 1
                 continue
 
             links = ", ".join(
                 f"[{_escape_markdown_link_label(embed_ref_to_title[embed_ref])}](embed:{embed_ref})"
-                for embed_ref in embed_refs
+                for embed_ref in resolved_embed_refs
             )
             modified = modified[:match.start()] + links + modified[match.end():]
             grouped_fixed += 1

@@ -12,6 +12,7 @@ import { migrateEmbedNodes, needsMigration } from "./migration";
 import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
 import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
 import {
+  resolveEmbedRefIndexReference,
   resolveEmbedRefIndexEntry,
   type EmbedRefIndexEntry,
 } from "../services/embedRefIndex";
@@ -47,7 +48,9 @@ import {
 
 const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
 const BARE_EMBED_SOURCE_LABEL_PREFIX = "Source: ";
-const BARE_EMBED_REF_TOKEN_SOURCE = String.raw`[A-Za-z0-9._~:-]+-[A-Za-z0-9]{2,4}`;
+const BARE_EMBED_REF_HYPHEN_SOURCE = String.raw`[\-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]`;
+const BARE_EMBED_REF_SUFFIX_SOURCE = String.raw`[A-Za-z0-9]{2,4}`;
+const BARE_EMBED_REF_TOKEN_SOURCE = String.raw`(?:[A-Za-z0-9._~:][A-Za-z0-9._~:-]*${BARE_EMBED_REF_HYPHEN_SOURCE}${BARE_EMBED_REF_SUFFIX_SOURCE}|${BARE_EMBED_REF_HYPHEN_SOURCE}${BARE_EMBED_REF_SUFFIX_SOURCE})`;
 const BARE_EMBED_REF_TOKEN_RE = new RegExp(
   `^${BARE_EMBED_REF_TOKEN_SOURCE}$`,
 );
@@ -78,12 +81,14 @@ function createInlineEmbedNodeFromRawRef(
 ): any {
   const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
     parseEmbedLinkTarget(rawRef);
-  const refEntry = resolveEmbedRefIndexEntry(cleanRef);
-  const displayText = resolveEmbedDisplayText(rawRef, cleanRef);
+  const resolvedRef = resolveEmbedRefIndexReference(cleanRef);
+  const refEntry = resolvedRef?.entry ?? null;
+  const embedRef = resolvedRef?.embedRef ?? cleanRef;
+  const displayText = resolveEmbedDisplayText(embedRef, embedRef);
   return {
     type: "embedInline",
     attrs: {
-      embedRef: cleanRef,
+      embedRef,
       embedId: refEntry?.embedId ?? null,
       displayText: `${BARE_EMBED_SOURCE_LABEL_PREFIX}${displayText}`,
       appId: refEntry?.appId ?? fallbackAppId,
@@ -115,8 +120,11 @@ function convertBareEmbedRefGroupsInTextNode(
       .split(",")
       .map((ref) => ref.trim())
       .filter((ref) => BARE_EMBED_REF_TOKEN_RE.test(ref));
+    const resolvedRefs = refs
+      .map((ref) => resolveEmbedRefIndexReference(ref)?.embedRef ?? null)
+      .filter((ref): ref is string => typeof ref === "string" && ref.length > 0);
 
-    if (refs.length === 0) continue;
+    if (resolvedRefs.length === 0) continue;
 
     const before = createMarkedTextNode(
       node.text.slice(lastIndex, match.index),
@@ -124,7 +132,7 @@ function convertBareEmbedRefGroupsInTextNode(
     );
     if (before) output.push(before);
 
-    refs.forEach((ref, index) => {
+    resolvedRefs.forEach((ref, index) => {
       if (index > 0) output.push({ type: "text", text: ", " });
       output.push(createInlineEmbedNodeFromRawRef(ref, fallbackAppId));
     });
