@@ -58,7 +58,7 @@ function waitForDraftUpdateReceiptAtVersion(chatId: string, minimumDraftVersion:
 		let unsubscribeStatus: (() => void) | undefined;
 
 		const cleanup = () => {
-			window.clearTimeout(timeout);
+			globalThis.clearTimeout(timeout);
 			webSocketService.off("draft_update_receipt", handleReceipt);
 			unsubscribeStatus?.();
 			unsubscribeStatus = undefined;
@@ -71,7 +71,7 @@ function waitForDraftUpdateReceiptAtVersion(chatId: string, minimumDraftVersion:
 			callback();
 		};
 
-		const timeout = window.setTimeout(() => {
+		const timeout = globalThis.setTimeout(() => {
 			settle(() =>
 				reject(
 					new Error(
