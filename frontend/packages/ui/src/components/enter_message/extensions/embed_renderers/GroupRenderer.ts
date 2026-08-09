@@ -29,7 +29,7 @@ import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
 import InteractiveQuestionContainer from "../../../interactive_questions/InteractiveQuestionContainer.svelte";
 import type { InteractiveQuestionPayload } from "../../../interactive_questions/types";
-import { isInteractiveQuestionPayload } from "../../../interactive_questions/utils/questionState";
+import { parseInteractiveQuestionPayloadCandidate } from "../../../interactive_questions/utils/questionState";
 import NotebookEmbedPreview from "../../../embeds/code/NotebookEmbedPreview.svelte";
 import ApplicationEmbedPreview from "../../../embeds/code/ApplicationEmbedPreview.svelte";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
@@ -127,20 +127,6 @@ function needsSignupForLocalPreview(item: EmbedNodeAttributes): boolean {
 
 function normalizedLanguage(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function parseInteractiveQuestionPayloadCandidate(
-  value: unknown,
-): InteractiveQuestionPayload | null {
-  if (isInteractiveQuestionPayload(value)) return value;
-  if (typeof value !== "string" || value.trim().length === 0) return null;
-
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return isInteractiveQuestionPayload(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 /**
