@@ -7234,6 +7234,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Handler for when the create icon is clicked.
      */
     async function handleNewChatClick() {
+        loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
         if (blurTimer) {
@@ -9215,10 +9216,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 freshChat = chat;
             }
         }
+         if (thisLoadGeneration !== loadChatGeneration) {
+             console.warn(`[ActiveChat] loadChat: Stale lookup for ${chat.chat_id} (gen ${thisLoadGeneration}, current ${loadChatGeneration}) - aborting before state mutation`);
+             return;
+         }
+
          currentChat = freshChat || chat; // currentChat is now just metadata
          if (currentChat?.chat_id && $authStore.isAuthenticated && !isPublicChat(currentChat.chat_id)) {
              try {
                  const rawChat = await chatDB.getRawChat(currentChat.chat_id);
+                 if (thisLoadGeneration !== loadChatGeneration) {
+                     console.warn(`[ActiveChat] loadChat: Stale raw-chat merge for ${chat.chat_id} (gen ${thisLoadGeneration}, current ${loadChatGeneration}) - aborting before state mutation`);
+                     return;
+                 }
                  if (rawChat) {
                       const mergedMessagesV = Math.max(
                           Number(currentChat.messages_v ?? 0),
