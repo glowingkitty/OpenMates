@@ -105,7 +105,14 @@ python3 scripts/sessions.py proof-video review \
 ```
 
 Fix composition, timing, narration, recording, or implementation defects and
-repeat review when needed. After a passed review:
+repeat review when needed. Obvious product/rendering defects in reviewed frames
+must auto-trigger product work rather than an accepted difference: add or
+strengthen a failing test, fix the code or web app, deploy, rerun the real source
+proof, and create a replacement video. This includes clipping, premature text
+truncation, wrong icons/gradients/metadata, raw protocol or implementation text,
+missing active-processing animation, stale loading/error states, and broken
+navigation. Never approve or publish a video that merely hides, documents, or
+narrates around such a defect. After a passed review:
 
 ```bash
 python3 scripts/sessions.py proof-video publish \

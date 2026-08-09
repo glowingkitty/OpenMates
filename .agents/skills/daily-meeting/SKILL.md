@@ -161,7 +161,7 @@ After the user confirms (or adjusts) priorities and any milestone changes:
 
 After all labels are applied and state is saved, ask the user:
 
-**"Want me to spawn planning sessions for today's priorities? Each will run in a separate Zellij tab researching and drafting an implementation plan."**
+**"Want me to spawn planning chats for today's priorities? Each will appear in the existing OpenCode Web project sidebar and draft an implementation plan."**
 
 If the user confirms:
 ```bash

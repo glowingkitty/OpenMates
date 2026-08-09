@@ -88,6 +88,19 @@ This selection comes from Directus and includes every durable group member. Do
 not replace it with `--only-failed` or a single first spec. Playwright changes
 still require the normal scoped deploy and expected-commit gate.
 
+If a scoped `sessions.py deploy` integrates the fix before this verification or
+any Docker/proof step, treat that worktree as closed for subject-commit-bound
+evidence. Start a fresh `sessions.py` session/worktree, then rerun the exact
+campaign command against the deployed commit:
+
+```bash
+python3 scripts/sessions.py start --mode testing --task "Verify <campaign/group> after deploy"
+python3 scripts/tests.py run --campaign <campaign-id> --group <group-id>
+```
+
+Do not retry campaign runs, Docker restarts, gate-deploy checks, or proof-video
+commands from a worktree after the routing guard reports it is already merged.
+
 After all members have passing evidence:
 
 ```bash

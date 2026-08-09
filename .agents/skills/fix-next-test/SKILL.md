@@ -46,6 +46,13 @@ python3 scripts/tests.py campaign complete-group --group <group-id> --commit <sh
 Persist acceptance criteria before source edits and every attempt after it is
 known. Verify all group members, not only the first test returned by triage.
 
+If a scoped `sessions.py deploy` integrates the fix before the group rerun,
+the current worktree is closed for subject-commit-bound evidence. Start a fresh
+`sessions.py` session/worktree, then rerun the same campaign/group command from
+that new session. Do not retry campaign runs, Docker restarts, gate-deploy
+checks, or proof-video commands from a worktree after the routing guard reports
+it is already merged.
+
 ### Step 3: Return campaign state
 
 Print `campaign status` after the group becomes green or blocked. Do not claim
