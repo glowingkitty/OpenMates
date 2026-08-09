@@ -27,7 +27,10 @@ const locationMock = vi.hoisted(() => {
 // Mock $app/environment and $app/navigation before importing the store
 vi.mock("$app/environment", () => ({ browser: true }));
 vi.mock("$app/navigation", () => ({
-  replaceState: vi.fn(),
+  replaceState: vi.fn((url: string) => {
+    const hashIndex = url.indexOf("#");
+    locationMock.hash = hashIndex === -1 ? "" : url.slice(hashIndex + 1);
+  }),
 }));
 
 // Import after mocks are set up
@@ -50,6 +53,7 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("initial state", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("starts as null when no hash is present", () => {
       expect(activeChatStore.get()).toBeNull();
     });
@@ -60,16 +64,19 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("setActiveChat", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("sets the active chat ID", () => {
       activeChatStore.setActiveChat("chat-123");
       expect(activeChatStore.get()).toBe("chat-123");
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("updates URL hash with chat ID", () => {
       activeChatStore.setActiveChat("chat-456");
       expect(locationMock.hash).toBe("chat-id=chat-456");
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("sets null to clear active chat", () => {
       activeChatStore.setActiveChat("chat-123");
       activeChatStore.setActiveChat(null);
@@ -82,6 +89,7 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("clearActiveChat", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("sets store to null", () => {
       activeChatStore.setActiveChat("chat-123");
       activeChatStore.clearActiveChat();
@@ -94,6 +102,7 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("setWithoutHashUpdate", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("updates store value without changing URL hash", () => {
       locationMock.hash = "";
       activeChatStore.setWithoutHashUpdate("chat-789");
@@ -108,31 +117,37 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("getChatIdFromHash", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("returns null when no hash present", () => {
       locationMock.hash = "";
       expect(activeChatStore.getChatIdFromHash()).toBeNull();
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("returns chat ID from valid hash", () => {
       locationMock.hash = "#chat-id=abc-123";
       expect(activeChatStore.getChatIdFromHash()).toBe("abc-123");
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("ignores additional hash parameters", () => {
       locationMock.hash = "#chat-id=abc-123&e2e-debug=run-1&e2e-token=test-token";
       expect(activeChatStore.getChatIdFromHash()).toBe("abc-123");
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("finds chat ID when debug parameters precede it", () => {
       locationMock.hash = "#e2e-debug=run-1&e2e-token=test-token&chat-id=abc-123";
       expect(activeChatStore.getChatIdFromHash()).toBe("abc-123");
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("returns null for unrelated hash", () => {
       locationMock.hash = "#other-param=value";
       expect(activeChatStore.getChatIdFromHash()).toBeNull();
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("returns null for empty chat-id hash", () => {
       locationMock.hash = "#chat-id=";
       expect(activeChatStore.getChatIdFromHash()).toBeNull();
@@ -144,6 +159,7 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("subscribe", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("notifies subscribers on change", () => {
       const values: (string | null)[] = [];
       const unsubscribe = activeChatStore.subscribe((v) => values.push(v));
@@ -165,11 +181,13 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("isProgrammaticHashUpdate", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("returns true immediately after setActiveChat", () => {
       activeChatStore.setActiveChat("chat-123");
       expect(isProgrammaticHashUpdate()).toBe(true);
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("returns false when no recent programmatic update", async () => {
       // Without any setActiveChat call, should be false
       // (or enough time has passed since the last one in beforeEach)
@@ -183,10 +201,12 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("deepLinkProcessing", () => {
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("starts as false", () => {
       expect(get(deepLinkProcessing)).toBe(false);
     });
 
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("can be set to true during deep link processing", () => {
       deepLinkProcessing.set(true);
       expect(get(deepLinkProcessing)).toBe(true);

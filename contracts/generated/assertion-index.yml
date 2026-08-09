@@ -226,20 +226,27 @@ assertions:
   drafts.boundaries.session-and-incognito:
     contract: architecture.drafts@1
     fingerprint: 83685d2c507700a3287352973c45c564aa90d218fc3484dc11c6c8e119ed7ec7
-    direct_tests: []
-    supporting_tests:
+    direct_tests:
     - &id022
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 1219
+      name: stores finalized server incognito embeds in memory without durable persistence
+      surface: gui.web
+    supporting_tests:
+    - &id023
       path: frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
       line: 292
       name: does not convert empty public-chat flushes into private draft deletions
       surface: gui.web
     tests:
     - *id022
+    - *id023
     surfaces:
       gui.web:
-        direct_tests: []
-        supporting_tests:
+        direct_tests:
         - *id022
+        supporting_tests:
+        - *id023
     current_direct_proof: false
   sync.access.first-party-authenticated:
     contract: architecture.sync@1
@@ -269,36 +276,113 @@ assertions:
     contract: architecture.sync@1
     fingerprint: 9efb77458dc59cd1f0bb7650d4f1b83a22841c9eea56d32240f878f6aee405a6
     direct_tests:
-    - &id023
+    - &id024
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
       line: 109
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
+    - &id025
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 115
+      name: retries cache status when sync status reports an unprimed cache
+      surface: gui.web
+    - &id026
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 135
+      name: starts initial sync when sync status reports a primed cache
+      surface: gui.web
+    - &id027
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 439
+      name: does not mark sync complete when cache is cold but server reports chats
+      surface: gui.web
     supporting_tests: []
     tests:
-    - *id023
+    - *id024
+    - *id025
+    - *id026
+    - *id027
     surfaces:
       gui.web:
         direct_tests:
-        - *id023
+        - *id024
+        - *id025
+        - *id026
+        - *id027
         supporting_tests: []
     current_direct_proof: false
   sync.phase2.metadata-only:
     contract: architecture.sync@1
     fingerprint: de8486de66300e9410205ca6894da2f2f355d3959688f372d22f4a01380ebd67
     direct_tests:
-    - &id024
+    - &id028
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
       line: 109
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
+    - &id029
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 152
+      name: continues after one chat fails to persist
+      surface: gui.web
+    - &id030
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 199
+      name: skips new synced metadata rows without encrypted_chat_key
+      surface: gui.web
+    - &id031
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 227
+      name: keeps synced metadata when a local encrypted_chat_key already exists
+      surface: gui.web
+    - &id032
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 272
+      name: does not batch-save metadata-only chats without encrypted_chat_key
+      surface: gui.web
+    - &id033
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 299
+      name: allows public metadata-only chats without encrypted_chat_key
+      surface: gui.web
+    - &id034
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 326
+      name: preserves metadata-only chats without a server key when a local key exists
+      surface: gui.web
+    - &id035
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 360
+      name: preserves anonymous metadata-only chat key fields
+      surface: gui.web
+    - &id036
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 395
+      name: keeps load-more metadata without a server key when a local key exists
+      surface: gui.web
     supporting_tests: []
     tests:
-    - *id024
+    - *id028
+    - *id029
+    - *id030
+    - *id031
+    - *id032
+    - *id033
+    - *id034
+    - *id035
+    - *id036
     surfaces:
       gui.web:
         direct_tests:
-        - *id024
+        - *id028
+        - *id029
+        - *id030
+        - *id031
+        - *id032
+        - *id033
+        - *id034
+        - *id035
+        - *id036
         supporting_tests: []
     current_direct_proof: false
   sync.phase2.drafts.authoritative-encrypted:
@@ -320,60 +404,70 @@ assertions:
   sync.surface.semantic-parity:
     contract: architecture.sync@1
     fingerprint: d7ddd8d27c9e31d4887984b09553c6e9e84cb883212f71beda0967bb39a33da0
-    direct_tests: []
+    direct_tests:
+    - &id037
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 152
+      name: continues after one chat fails to persist
+      surface: gui.web
     supporting_tests: []
-    tests: []
-    surfaces: {}
+    tests:
+    - *id037
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id037
+        supporting_tests: []
     current_direct_proof: false
   audio-generate.request.validated:
     contract: feature.app-skill.audio-generate@1
     fingerprint: 5e29c5e58fbb29d13eba0c0dc663cd27ccac15040575e9087280ccc4d8a3f307
     direct_tests:
-    - &id025
+    - &id038
       path: backend/tests/test_rest_api_audio.py
       line: 82
       name: test_audio_generate_request_rejects_unsupported_provider_and_duration
       surface: rest_api
-    - &id026
+    - &id039
       path: backend/tests/test_rest_api_audio.py
       line: 146
       name: test_audio_generate_ignores_rest_context_fields_for_strict_request_models
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id025
-    - *id026
+    - *id038
+    - *id039
     surfaces:
       rest_api:
         direct_tests:
-        - *id025
-        - *id026
+        - *id038
+        - *id039
         supporting_tests: []
     current_direct_proof: false
   audio-generate.provider.explicit-selection:
     contract: feature.app-skill.audio-generate@1
     fingerprint: 450b07ec4b29499f62b66b4ea1cab73bf7043d281322c9330339455184fb2dd5
     direct_tests:
-    - &id028
+    - &id041
       path: backend/tests/test_rest_api_audio.py
       line: 82
       name: test_audio_generate_request_rejects_unsupported_provider_and_duration
       surface: rest_api
     supporting_tests:
-    - &id027
+    - &id040
       path: backend/tests/test_rest_api_audio.py
       line: 65
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
-    - *id027
-    - *id028
+    - *id040
+    - *id041
     surfaces:
       rest_api:
         direct_tests:
-        - *id028
+        - *id041
         supporting_tests:
-        - *id027
+        - *id040
     current_direct_proof: false
   audio-generate.request.ids-correlated:
     contract: feature.app-skill.audio-generate@1
@@ -388,96 +482,96 @@ assertions:
     fingerprint: eaa7bae34d16099b17ff424d9c75ea4dded970d803b695d6d6a668bebc6ce88b
     direct_tests: []
     supporting_tests:
-    - &id029
+    - &id042
       path: backend/tests/test_media_generation_safety.py
       line: 181
       name: test_audio_generate_rejects_speech_request
       surface: rest_api
     tests:
-    - *id029
+    - *id042
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id029
+        - *id042
     current_direct_proof: false
   audio-generate.safety.blocks-abuse:
     contract: feature.app-skill.audio-generate@1
     fingerprint: 0f44876f1ec112931693f59bf8a789ca55445719b360b6e493b453fe609ed28e
     direct_tests: []
     supporting_tests:
-    - &id030
+    - &id043
       path: backend/tests/test_media_generation_safety.py
       line: 192
       name: test_audio_generate_allows_short_original_sfx
       surface: rest_api
     tests:
-    - *id030
+    - *id043
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id030
+        - *id043
     current_direct_proof: false
   audio-generate.output.playable-audio:
     contract: feature.app-skill.audio-generate@1
     fingerprint: 280cae348d5e8ade787a318d071e13889a95d3d193e8884f000bd72e5d0a6a81
     direct_tests:
-    - &id031
+    - &id044
       path: backend/tests/test_rest_api_audio.py
       line: 105
       name: test_audio_generate_returns_playable_audio_without_leaks
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id031
+    - *id044
     surfaces:
       rest_api:
         direct_tests:
-        - *id031
+        - *id044
         supporting_tests: []
     current_direct_proof: false
   audio-generate.output.binary-excluded-from-inference:
     contract: feature.app-skill.audio-generate@1
     fingerprint: fdcc7acaf3ef87c558dd454abcf5bfcfd7ec48e407ac9949620c6e6b66b3d15c
     direct_tests:
-    - &id033
+    - &id046
       path: backend/tests/test_rest_api_audio.py
       line: 105
       name: test_audio_generate_returns_playable_audio_without_leaks
       surface: rest_api
     supporting_tests:
-    - &id032
+    - &id045
       path: backend/tests/test_rest_api_audio.py
       line: 65
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
-    - *id032
-    - *id033
+    - *id045
+    - *id046
     surfaces:
       rest_api:
         direct_tests:
-        - *id033
+        - *id046
         supporting_tests:
-        - *id032
+        - *id045
     current_direct_proof: false
   audio-generate.billing.success-only:
     contract: feature.app-skill.audio-generate@1
     fingerprint: d364d83498ca514d968fe248721eaa80426a104f89ba507d150c94ea339d1a7c
     direct_tests:
-    - &id034
+    - &id047
       path: backend/tests/test_rest_api_audio.py
       line: 105
       name: test_audio_generate_returns_playable_audio_without_leaks
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id034
+    - *id047
     surfaces:
       rest_api:
         direct_tests:
-        - *id034
+        - *id047
         supporting_tests: []
     current_direct_proof: false
   audio-generate.provider-error.visible:
@@ -500,97 +594,97 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     fingerprint: 050669b20b184f509a500ec72639d3aad699047dff6e2867d35c6b4c6d5606ed
     direct_tests:
-    - &id035
+    - &id048
       path: backend/tests/test_rest_api_audio.py
       line: 146
       name: test_audio_generate_ignores_rest_context_fields_for_strict_request_models
       surface: rest_api
     supporting_tests:
-    - &id036
+    - &id049
       path: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
       line: 17
       name: includes native audio, web, design, images, models3d, business, and fitness
         metadata
       surface: sdks.npm
-    - &id037
+    - &id050
       path: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
       line: 104
       name: delegates native methods to the app-skill runner
       surface: sdks.npm
-    - &id038
+    - &id051
       path: packages/openmates-python/tests/test_sdk_generator.py
       line: 13
       name: test_generated_metadata_includes_audio_web_search_images_generate_business_and_fitness
       surface: sdks.pip
-    - &id039
+    - &id052
       path: packages/openmates-python/tests/test_sdk_generator.py
       line: 123
       name: test_generated_native_methods_delegate_to_runner
       surface: sdks.pip
     tests:
-    - *id035
-    - *id036
-    - *id037
-    - *id038
-    - *id039
+    - *id048
+    - *id049
+    - *id050
+    - *id051
+    - *id052
     surfaces:
       rest_api:
         direct_tests:
-        - *id035
+        - *id048
         supporting_tests: []
       sdks.npm:
         direct_tests: []
         supporting_tests:
-        - *id036
-        - *id037
+        - *id049
+        - *id050
       sdks.pip:
         direct_tests: []
         supporting_tests:
-        - *id038
-        - *id039
+        - *id051
+        - *id052
     current_direct_proof: false
   audio-speak.request.validated:
     contract: feature.app-skill.audio-speak@1
     fingerprint: 0c7d36e774bbe42c601d5ae0b742fc54cfdce96d06ffa9f7aed8ae0a219178ba
     direct_tests:
-    - &id040
+    - &id053
       path: backend/tests/test_rest_api_audio.py
       line: 93
       name: test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id040
+    - *id053
     surfaces:
       rest_api:
         direct_tests:
-        - *id040
+        - *id053
         supporting_tests: []
     current_direct_proof: false
   audio-speak.provider.explicit-selection:
     contract: feature.app-skill.audio-speak@1
     fingerprint: b787a8ca7e90c97635acc4eb45ea0ec732a0ce5e7f7066224061697f7f2805aa
     direct_tests:
-    - &id042
+    - &id055
       path: backend/tests/test_rest_api_audio.py
       line: 93
       name: test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id
       surface: rest_api
     supporting_tests:
-    - &id041
+    - &id054
       path: backend/tests/test_rest_api_audio.py
       line: 65
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
-    - *id041
-    - *id042
+    - *id054
+    - *id055
     surfaces:
       rest_api:
         direct_tests:
-        - *id042
+        - *id055
         supporting_tests:
-        - *id041
+        - *id054
     current_direct_proof: false
   audio-speak.request.ids-correlated:
     contract: feature.app-skill.audio-speak@1
@@ -604,18 +698,18 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     fingerprint: a99675f5660e7d7e240766502c4c3a9f7dec6985242d8ccade546eec1d4c44b8
     direct_tests:
-    - &id043
+    - &id056
       path: backend/tests/test_rest_api_audio.py
       line: 93
       name: test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id043
+    - *id056
     surfaces:
       rest_api:
         direct_tests:
-        - *id043
+        - *id056
         supporting_tests: []
     current_direct_proof: false
   audio-speak.safety.blocks-impersonation:
@@ -630,57 +724,57 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     fingerprint: 45007c8804ff4078964ac6da69be65143f08b35abe04e8dd95ce9837752df27d
     direct_tests:
-    - &id047
+    - &id060
       path: backend/tests/test_rest_api_audio.py
       line: 225
       name: test_audio_speak_calls_provider_only_after_safeguard_approval
       surface: rest_api
     supporting_tests:
-    - &id044
+    - &id057
       path: backend/tests/test_media_generation_safety.py
       line: 202
       name: test_audio_speak_blocks_seed_phrase_scam
       surface: rest_api
-    - &id045
+    - &id058
       path: backend/tests/test_media_generation_safety.py
       line: 213
       name: test_audio_speak_blocks_coercive_fake_authority
       surface: rest_api
-    - &id046
+    - &id059
       path: backend/tests/test_media_generation_safety.py
       line: 224
       name: test_audio_speak_allows_safe_assistant_sample
       surface: rest_api
     tests:
-    - *id044
-    - *id045
-    - *id046
-    - *id047
+    - *id057
+    - *id058
+    - *id059
+    - *id060
     surfaces:
       rest_api:
         direct_tests:
-        - *id047
+        - *id060
         supporting_tests:
-        - *id044
-        - *id045
-        - *id046
+        - *id057
+        - *id058
+        - *id059
     current_direct_proof: false
   audio-speak.safety.provider-call-after-approval:
     contract: feature.app-skill.audio-speak@1
     fingerprint: 0dbfe13784ac17ecadc24c315f1b63d4ace422aa77d603652c4efbf728f2e76b
     direct_tests:
-    - &id048
+    - &id061
       path: backend/tests/test_rest_api_audio.py
       line: 187
       name: test_audio_speak_rejects_before_provider_and_billing
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id048
+    - *id061
     surfaces:
       rest_api:
         direct_tests:
-        - *id048
+        - *id061
         supporting_tests: []
     current_direct_proof: false
   audio-speak.safety.minimal-classifier-payload:
@@ -695,18 +789,18 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     fingerprint: ab3a731589523d8dce1879e7fc8df0c62d362ca152fd4554d1f76eb2d4e9bb0a
     direct_tests:
-    - &id049
+    - &id062
       path: backend/tests/test_rest_api_audio.py
       line: 225
       name: test_audio_speak_calls_provider_only_after_safeguard_approval
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id049
+    - *id062
     surfaces:
       rest_api:
         direct_tests:
-        - *id049
+        - *id062
         supporting_tests: []
     current_direct_proof: false
   audio-speak.output.binary-excluded-from-inference:
@@ -714,42 +808,42 @@ assertions:
     fingerprint: 780bd18c794e6df6e292cf9d1508feb872bc74e29ba3b2d16d55263520dc1211
     direct_tests: []
     supporting_tests:
-    - &id050
+    - &id063
       path: backend/tests/test_rest_api_audio.py
       line: 65
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
-    - *id050
+    - *id063
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id050
+        - *id063
     current_direct_proof: false
   audio-speak.billing.success-only:
     contract: feature.app-skill.audio-speak@1
     fingerprint: 3be520c7e770a976e9fb9056f669be90b3231ee4336c419dd77a1415f7452fd7
     direct_tests:
-    - &id051
+    - &id064
       path: backend/tests/test_rest_api_audio.py
       line: 187
       name: test_audio_speak_rejects_before_provider_and_billing
       surface: rest_api
-    - &id052
+    - &id065
       path: backend/tests/test_rest_api_audio.py
       line: 225
       name: test_audio_speak_calls_provider_only_after_safeguard_approval
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id051
-    - *id052
+    - *id064
+    - *id065
     surfaces:
       rest_api:
         direct_tests:
-        - *id051
-        - *id052
+        - *id064
+        - *id065
         supporting_tests: []
     current_direct_proof: false
   audio-speak.provider-error.visible:
@@ -773,211 +867,79 @@ assertions:
     fingerprint: b0cb4c42ebf886171a6c542c39540f6e3b44ce7dd0a87c658302184e826cc378
     direct_tests: []
     supporting_tests:
-    - &id053
+    - &id066
       path: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
       line: 17
       name: includes native audio, web, design, images, models3d, business, and fitness
         metadata
       surface: sdks.npm
-    - &id054
+    - &id067
       path: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
       line: 104
       name: delegates native methods to the app-skill runner
       surface: sdks.npm
-    - &id055
+    - &id068
       path: packages/openmates-python/tests/test_sdk_generator.py
       line: 13
       name: test_generated_metadata_includes_audio_web_search_images_generate_business_and_fitness
       surface: sdks.pip
-    - &id056
+    - &id069
       path: packages/openmates-python/tests/test_sdk_generator.py
       line: 123
       name: test_generated_native_methods_delegate_to_runner
       surface: sdks.pip
     tests:
-    - *id053
-    - *id054
-    - *id055
-    - *id056
-    surfaces:
-      sdks.npm:
-        direct_tests: []
-        supporting_tests:
-        - *id053
-        - *id054
-      sdks.pip:
-        direct_tests: []
-        supporting_tests:
-        - *id055
-        - *id056
-    current_direct_proof: false
-  web-search.request.validated:
-    contract: feature.app-skill.web-search@1
-    fingerprint: 860c899800e2fa8b6fa967b739dfb42d914cacbb9c9b63175cf8c962bdcf6d11
-    direct_tests:
-    - &id057
-      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
-      line: 11
-      name: testWebSearchShortcutRequestUsesContractCountParameter
-      surface: gui.apple
-    - &id058
-      path: backend/tests/test_web_search_contract.py
-      line: 34
-      name: test_web_search_rejects_invalid_contract_inputs_before_provider
-      surface: rest_api
-    - &id059
-      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
-      line: 64
-      name: 'Phase 2: CLI apps web search returns results'
-      surface: cli
-    - &id060
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 43
-      name: test_web_search_rest_api_live_contract_parity
-      surface: rest_api
-    - &id061
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 48
-      name: test_web_search_cli_live_contract_parity
-      surface: cli
-    - &id062
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 53
-      name: test_web_search_npm_sdk_live_contract_parity
-      surface: sdks.npm
-    - &id063
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 58
-      name: test_web_search_pip_sdk_live_contract_parity
-      surface: sdks.pip
-    supporting_tests: []
-    tests:
-    - *id057
-    - *id058
-    - *id059
-    - *id060
-    - *id061
-    - *id062
-    - *id063
-    surfaces:
-      gui.apple:
-        direct_tests:
-        - *id057
-        supporting_tests: []
-      rest_api:
-        direct_tests:
-        - *id058
-        - *id060
-        supporting_tests: []
-      cli:
-        direct_tests:
-        - *id059
-        - *id061
-        supporting_tests: []
-      sdks.npm:
-        direct_tests:
-        - *id062
-        supporting_tests: []
-      sdks.pip:
-        direct_tests:
-        - *id063
-        supporting_tests: []
-    current_direct_proof: false
-  web-search.request.ids-correlated:
-    contract: feature.app-skill.web-search@1
-    fingerprint: e4ec0c564f1f3e61383e5456d259b2e0b49a53e9a054eb658e285f5099075f3d
-    direct_tests:
-    - &id064
-      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
-      line: 22
-      name: testWebSearchAppleFixtureMatchesContractResultShape
-      surface: gui.apple
-    - &id065
-      path: backend/tests/test_web_search_contract.py
-      line: 59
-      name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
-      surface: rest_api
-    - &id066
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 43
-      name: test_web_search_rest_api_live_contract_parity
-      surface: rest_api
-    - &id067
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 48
-      name: test_web_search_cli_live_contract_parity
-      surface: cli
-    - &id068
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 53
-      name: test_web_search_npm_sdk_live_contract_parity
-      surface: sdks.npm
-    - &id069
-      path: scripts/tests/test_web_search_live_contract_surfaces.py
-      line: 58
-      name: test_web_search_pip_sdk_live_contract_parity
-      surface: sdks.pip
-    supporting_tests: []
-    tests:
-    - *id064
-    - *id065
     - *id066
     - *id067
     - *id068
     - *id069
     surfaces:
-      gui.apple:
-        direct_tests:
-        - *id064
-        supporting_tests: []
-      rest_api:
-        direct_tests:
-        - *id065
-        - *id066
-        supporting_tests: []
-      cli:
-        direct_tests:
-        - *id067
-        supporting_tests: []
       sdks.npm:
-        direct_tests:
-        - *id068
-        supporting_tests: []
+        direct_tests: []
+        supporting_tests:
+        - *id066
+        - *id067
       sdks.pip:
-        direct_tests:
+        direct_tests: []
+        supporting_tests:
+        - *id068
         - *id069
-        supporting_tests: []
     current_direct_proof: false
-  web-search.response.sanitized:
+  web-search.request.validated:
     contract: feature.app-skill.web-search@1
-    fingerprint: cb48e999a2725f11a0d5720e137eee956f0be5df2f62f3837b3cb990f2c33f9b
+    fingerprint: 860c899800e2fa8b6fa967b739dfb42d914cacbb9c9b63175cf8c962bdcf6d11
     direct_tests:
     - &id070
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
-      line: 22
-      name: testWebSearchAppleFixtureMatchesContractResultShape
+      line: 11
+      name: testWebSearchShortcutRequestUsesContractCountParameter
       surface: gui.apple
     - &id071
       path: backend/tests/test_web_search_contract.py
-      line: 59
-      name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
+      line: 34
+      name: test_web_search_rejects_invalid_contract_inputs_before_provider
       surface: rest_api
     - &id072
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 64
+      name: 'Phase 2: CLI apps web search returns results'
+      surface: cli
+    - &id073
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id073
+    - &id074
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id074
+    - &id075
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id075
+    - &id076
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
@@ -990,6 +952,7 @@ assertions:
     - *id073
     - *id074
     - *id075
+    - *id076
     surfaces:
       gui.apple:
         direct_tests:
@@ -998,105 +961,101 @@ assertions:
       rest_api:
         direct_tests:
         - *id071
-        - *id072
+        - *id073
         supporting_tests: []
       cli:
         direct_tests:
-        - *id073
+        - *id072
+        - *id074
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id074
+        - *id075
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id075
+        - *id076
         supporting_tests: []
     current_direct_proof: false
-  web-search.results.bounded:
+  web-search.request.ids-correlated:
     contract: feature.app-skill.web-search@1
-    fingerprint: 26dfcc4aa331cb7887e0c06f84663553891f6e19051b38e9b6f7925c592eb668
+    fingerprint: e4ec0c564f1f3e61383e5456d259b2e0b49a53e9a054eb658e285f5099075f3d
     direct_tests:
-    - &id076
+    - &id077
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 22
       name: testWebSearchAppleFixtureMatchesContractResultShape
       surface: gui.apple
-    - &id077
+    - &id078
       path: backend/tests/test_web_search_contract.py
       line: 59
       name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
       surface: rest_api
-    - &id078
+    - &id079
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id079
+    - &id080
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id080
+    - &id081
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id081
+    - &id082
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id076
     - *id077
     - *id078
     - *id079
     - *id080
     - *id081
+    - *id082
     surfaces:
       gui.apple:
         direct_tests:
-        - *id076
+        - *id077
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id077
         - *id078
+        - *id079
         supporting_tests: []
       cli:
         direct_tests:
-        - *id079
+        - *id080
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id080
+        - *id081
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id081
+        - *id082
         supporting_tests: []
     current_direct_proof: false
-  web-search.no-results.explicit:
+  web-search.response.sanitized:
     contract: feature.app-skill.web-search@1
-    fingerprint: fc30a66972f8c43c5540d537dd01f0e06b80ea85c6faad324f8c30f86ff6a8aa
+    fingerprint: cb48e999a2725f11a0d5720e137eee956f0be5df2f62f3837b3cb990f2c33f9b
     direct_tests:
-    - &id082
-      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
-      line: 45
-      name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
-      surface: gui.apple
     - &id083
-      path: backend/tests/test_web_search_contract.py
-      line: 86
-      name: test_web_search_zero_results_are_finished_success
-      surface: rest_api
+      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
+      line: 22
+      name: testWebSearchAppleFixtureMatchesContractResultShape
+      surface: gui.apple
     - &id084
-      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
-      line: 118
-      name: 'Phase 5: Zero-result query does not show error banner'
-      surface: gui.web
+      path: backend/tests/test_web_search_contract.py
+      line: 59
+      name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
+      surface: rest_api
     - &id085
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
@@ -1119,7 +1078,6 @@ assertions:
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id082
     - *id083
     - *id084
     - *id085
@@ -1129,16 +1087,12 @@ assertions:
     surfaces:
       gui.apple:
         direct_tests:
-        - *id082
+        - *id083
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id083
-        - *id085
-        supporting_tests: []
-      gui.web:
-        direct_tests:
         - *id084
+        - *id085
         supporting_tests: []
       cli:
         direct_tests:
@@ -1153,19 +1107,19 @@ assertions:
         - *id088
         supporting_tests: []
     current_direct_proof: false
-  web-search.provider-error.visible:
+  web-search.results.bounded:
     contract: feature.app-skill.web-search@1
-    fingerprint: 3fd8a7c75c569b9800adf270ddd489c8e64edf464374f5bdc351c51fd1615222
+    fingerprint: 26dfcc4aa331cb7887e0c06f84663553891f6e19051b38e9b6f7925c592eb668
     direct_tests:
     - &id089
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
-      line: 45
-      name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
+      line: 22
+      name: testWebSearchAppleFixtureMatchesContractResultShape
       surface: gui.apple
     - &id090
       path: backend/tests/test_web_search_contract.py
-      line: 109
-      name: test_web_search_provider_errors_are_safe_and_redacted
+      line: 59
+      name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
       surface: rest_api
     - &id091
       path: scripts/tests/test_web_search_live_contract_surfaces.py
@@ -1218,9 +1172,9 @@ assertions:
         - *id094
         supporting_tests: []
     current_direct_proof: false
-  web-search.secrets.never-exposed:
+  web-search.no-results.explicit:
     contract: feature.app-skill.web-search@1
-    fingerprint: 9046ba9759aecfb50741a90d2424292a0f0d1926469eb95901925efc6f1bc1f6
+    fingerprint: fc30a66972f8c43c5540d537dd01f0e06b80ea85c6faad324f8c30f86ff6a8aa
     direct_tests:
     - &id095
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
@@ -1229,25 +1183,30 @@ assertions:
       surface: gui.apple
     - &id096
       path: backend/tests/test_web_search_contract.py
-      line: 109
-      name: test_web_search_provider_errors_are_safe_and_redacted
+      line: 86
+      name: test_web_search_zero_results_are_finished_success
       surface: rest_api
     - &id097
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 118
+      name: 'Phase 5: Zero-result query does not show error banner'
+      surface: gui.web
+    - &id098
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id098
+    - &id099
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id099
+    - &id100
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id100
+    - &id101
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
@@ -1260,6 +1219,7 @@ assertions:
     - *id098
     - *id099
     - *id100
+    - *id101
     surfaces:
       gui.apple:
         direct_tests:
@@ -1268,167 +1228,288 @@ assertions:
       rest_api:
         direct_tests:
         - *id096
+        - *id098
+        supporting_tests: []
+      gui.web:
+        direct_tests:
         - *id097
         supporting_tests: []
       cli:
         direct_tests:
-        - *id098
+        - *id099
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id099
+        - *id100
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id100
+        - *id101
         supporting_tests: []
     current_direct_proof: false
-  web-search.surface-parity:
+  web-search.provider-error.visible:
     contract: feature.app-skill.web-search@1
-    fingerprint: 51330fc964841b2faa8458fbfd35c728b1eb17ba12f1d64efed4360a37516292
+    fingerprint: 3fd8a7c75c569b9800adf270ddd489c8e64edf464374f5bdc351c51fd1615222
     direct_tests:
-    - &id101
-      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
-      line: 11
-      name: testWebSearchShortcutRequestUsesContractCountParameter
-      surface: gui.apple
     - &id102
-      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
-      line: 22
-      name: testWebSearchAppleFixtureMatchesContractResultShape
-      surface: gui.apple
-    - &id103
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 45
       name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
       surface: gui.apple
-    - &id112
-      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
-      line: 64
-      name: 'Phase 2: CLI apps web search returns results'
-      surface: cli
-    - &id114
-      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
-      line: 118
-      name: 'Phase 5: Zero-result query does not show error banner'
-      surface: gui.web
-    - &id115
-      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
-      line: 221
-      name: 'Phase 4: Web chat triggers web search with embed'
-      surface: gui.web
-    - &id116
-      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
-      line: 36
-      name: repairs persisted grouped bare embed refs into inline embed nodes
-      surface: gui.web
-    - &id122
+    - &id103
+      path: backend/tests/test_web_search_contract.py
+      line: 109
+      name: test_web_search_provider_errors_are_safe_and_redacted
+      surface: rest_api
+    - &id104
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id123
+    - &id105
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id124
+    - &id106
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id125
+    - &id107
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
-    supporting_tests:
-    - &id104
-      path: backend/tests/test_grouped_bare_embed_refs.py
-      line: 23
-      name: test_single_bare_ref_pattern_ignores_grouped_refs
-      surface: gui.web
-    - &id105
-      path: backend/tests/test_grouped_bare_embed_refs.py
-      line: 30
-      name: test_grouped_pattern_matches_domain_refs
-      surface: gui.web
-    - &id106
-      path: backend/tests/test_grouped_bare_embed_refs.py
-      line: 38
-      name: test_grouped_pattern_matches_suffix_only_refs
-      surface: gui.web
-    - &id107
-      path: backend/tests/test_grouped_bare_embed_refs.py
-      line: 46
-      name: test_grouped_pattern_ignores_plain_comma_lists
-      surface: gui.web
-    - &id108
-      path: backend/tests/test_grouped_bare_embed_refs.py
-      line: 54
-      name: test_converts_grouped_known_bare_refs_to_inline_links
-      surface: gui.web
-    - &id109
-      path: backend/tests/test_grouped_bare_embed_refs.py
-      line: 100
-      name: test_converts_single_suffix_only_ref_to_inline_link
-      surface: gui.web
-    - &id110
-      path: backend/tests/test_grouped_bare_embed_refs.py
-      line: 137
-      name: test_converts_suffix_only_refs_and_removes_unresolved_tokens
-      surface: gui.web
-    - &id111
-      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
-      line: 57
-      name: 'Phase 1: embed preview renders at /dev/preview/embeds/web'
-      surface: gui.web
-    - &id113
-      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
-      line: 91
-      name: 'Phase 3: CLI chats new triggers web search'
-      surface: cli
-    - &id117
-      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
-      line: 68
-      name: repairs grouped bare embed refs before the encrypted ref index is warm
-      surface: gui.web
-    - &id118
-      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
-      line: 89
-      name: repairs persisted grouped suffix-only embed refs into canonical inline
-        embed nodes
-      surface: gui.web
-    - &id119
-      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
-      line: 124
-      name: repairs persisted single suffix-only embed refs into canonical inline
-        embed nodes
-      surface: gui.web
-    - &id120
-      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
-      line: 123
-      name: resolves unique suffix-only refs case-insensitively
-      surface: gui.web
-    - &id121
-      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
-      line: 144
-      name: does not resolve ambiguous suffix-only refs
-      surface: gui.web
+    supporting_tests: []
     tests:
-    - *id101
     - *id102
     - *id103
     - *id104
     - *id105
     - *id106
     - *id107
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id102
+        supporting_tests: []
+      rest_api:
+        direct_tests:
+        - *id103
+        - *id104
+        supporting_tests: []
+      cli:
+        direct_tests:
+        - *id105
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id106
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id107
+        supporting_tests: []
+    current_direct_proof: false
+  web-search.secrets.never-exposed:
+    contract: feature.app-skill.web-search@1
+    fingerprint: 9046ba9759aecfb50741a90d2424292a0f0d1926469eb95901925efc6f1bc1f6
+    direct_tests:
+    - &id108
+      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
+      line: 45
+      name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
+      surface: gui.apple
+    - &id109
+      path: backend/tests/test_web_search_contract.py
+      line: 109
+      name: test_web_search_provider_errors_are_safe_and_redacted
+      surface: rest_api
+    - &id110
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 43
+      name: test_web_search_rest_api_live_contract_parity
+      surface: rest_api
+    - &id111
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 48
+      name: test_web_search_cli_live_contract_parity
+      surface: cli
+    - &id112
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 53
+      name: test_web_search_npm_sdk_live_contract_parity
+      surface: sdks.npm
+    - &id113
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 58
+      name: test_web_search_pip_sdk_live_contract_parity
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
     - *id108
     - *id109
     - *id110
     - *id111
     - *id112
     - *id113
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id108
+        supporting_tests: []
+      rest_api:
+        direct_tests:
+        - *id109
+        - *id110
+        supporting_tests: []
+      cli:
+        direct_tests:
+        - *id111
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id112
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id113
+        supporting_tests: []
+    current_direct_proof: false
+  web-search.surface-parity:
+    contract: feature.app-skill.web-search@1
+    fingerprint: 51330fc964841b2faa8458fbfd35c728b1eb17ba12f1d64efed4360a37516292
+    direct_tests:
+    - &id114
+      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
+      line: 11
+      name: testWebSearchShortcutRequestUsesContractCountParameter
+      surface: gui.apple
+    - &id115
+      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
+      line: 22
+      name: testWebSearchAppleFixtureMatchesContractResultShape
+      surface: gui.apple
+    - &id116
+      path: apple/OpenMatesTests/WebSearchContractParityTests.swift
+      line: 45
+      name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
+      surface: gui.apple
+    - &id125
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 64
+      name: 'Phase 2: CLI apps web search returns results'
+      surface: cli
+    - &id127
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 118
+      name: 'Phase 5: Zero-result query does not show error banner'
+      surface: gui.web
+    - &id128
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 221
+      name: 'Phase 4: Web chat triggers web search with embed'
+      surface: gui.web
+    - &id129
+      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+      line: 36
+      name: repairs persisted grouped bare embed refs into inline embed nodes
+      surface: gui.web
+    - &id135
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 43
+      name: test_web_search_rest_api_live_contract_parity
+      surface: rest_api
+    - &id136
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 48
+      name: test_web_search_cli_live_contract_parity
+      surface: cli
+    - &id137
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 53
+      name: test_web_search_npm_sdk_live_contract_parity
+      surface: sdks.npm
+    - &id138
+      path: scripts/tests/test_web_search_live_contract_surfaces.py
+      line: 58
+      name: test_web_search_pip_sdk_live_contract_parity
+      surface: sdks.pip
+    supporting_tests:
+    - &id117
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 23
+      name: test_single_bare_ref_pattern_ignores_grouped_refs
+      surface: gui.web
+    - &id118
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 30
+      name: test_grouped_pattern_matches_domain_refs
+      surface: gui.web
+    - &id119
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 38
+      name: test_grouped_pattern_matches_suffix_only_refs
+      surface: gui.web
+    - &id120
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 46
+      name: test_grouped_pattern_ignores_plain_comma_lists
+      surface: gui.web
+    - &id121
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 54
+      name: test_converts_grouped_known_bare_refs_to_inline_links
+      surface: gui.web
+    - &id122
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 100
+      name: test_converts_single_suffix_only_ref_to_inline_link
+      surface: gui.web
+    - &id123
+      path: backend/tests/test_grouped_bare_embed_refs.py
+      line: 137
+      name: test_converts_suffix_only_refs_and_removes_unresolved_tokens
+      surface: gui.web
+    - &id124
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 57
+      name: 'Phase 1: embed preview renders at /dev/preview/embeds/web'
+      surface: gui.web
+    - &id126
+      path: frontend/apps/web_app/tests/skill-web-search.spec.ts
+      line: 91
+      name: 'Phase 3: CLI chats new triggers web search'
+      surface: cli
+    - &id130
+      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+      line: 68
+      name: repairs grouped bare embed refs before the encrypted ref index is warm
+      surface: gui.web
+    - &id131
+      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+      line: 89
+      name: repairs persisted grouped suffix-only embed refs into canonical inline
+        embed nodes
+      surface: gui.web
+    - &id132
+      path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+      line: 124
+      name: repairs persisted single suffix-only embed refs into canonical inline
+        embed nodes
+      surface: gui.web
+    - &id133
+      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+      line: 123
+      name: resolves unique suffix-only refs case-insensitively
+      surface: gui.web
+    - &id134
+      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+      line: 144
+      name: does not resolve ambiguous suffix-only refs
+      surface: gui.web
+    tests:
     - *id114
     - *id115
     - *id116
@@ -1441,113 +1522,126 @@ assertions:
     - *id123
     - *id124
     - *id125
+    - *id126
+    - *id127
+    - *id128
+    - *id129
+    - *id130
+    - *id131
+    - *id132
+    - *id133
+    - *id134
+    - *id135
+    - *id136
+    - *id137
+    - *id138
     surfaces:
       gui.apple:
-        direct_tests:
-        - *id101
-        - *id102
-        - *id103
-        supporting_tests: []
-      gui.web:
         direct_tests:
         - *id114
         - *id115
         - *id116
+        supporting_tests: []
+      gui.web:
+        direct_tests:
+        - *id127
+        - *id128
+        - *id129
         supporting_tests:
-        - *id104
-        - *id105
-        - *id106
-        - *id107
-        - *id108
-        - *id109
-        - *id110
-        - *id111
         - *id117
         - *id118
         - *id119
         - *id120
         - *id121
+        - *id122
+        - *id123
+        - *id124
+        - *id130
+        - *id131
+        - *id132
+        - *id133
+        - *id134
       cli:
         direct_tests:
-        - *id112
-        - *id123
+        - *id125
+        - *id136
         supporting_tests:
-        - *id113
+        - *id126
       rest_api:
         direct_tests:
-        - *id122
+        - *id135
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id124
+        - *id137
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id125
+        - *id138
         supporting_tests: []
     current_direct_proof: false
   billing.access.authenticated-first-party:
     contract: feature.billing@1
     fingerprint: d67b4c386c13b9852fc9533d9024e812aab2624b3f0ccd2b3c71536282ef9ffe
     direct_tests:
-    - &id126
+    - &id139
       path: backend/tests/test_apps_api.py
       line: 429
       name: test_code_run_app_skill_route_preserves_api_key_attribution
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id126
+    - *id139
     surfaces:
       rest_api:
         direct_tests:
-        - *id126
+        - *id139
         supporting_tests: []
     current_direct_proof: false
   billing.credits.idempotent-charge:
     contract: feature.billing@1
     fingerprint: 9c2606ba51a959e0639fc62d450e469fff039dbda34ea2759db17b19d46b07c2
     direct_tests:
-    - &id127
+    - &id140
       path: backend/tests/test_apps_api.py
       line: 186
       name: test_image_to_html_processing_response_defers_billing_to_worker
       surface: rest_api
-    - &id128
+    - &id141
       path: backend/tests/test_apps_api.py
       line: 429
       name: test_code_run_app_skill_route_preserves_api_key_attribution
       surface: rest_api
-    - &id129
+    - &id142
       path: backend/tests/test_apps_api.py
       line: 532
       name: test_apps_api_uses_image_to_html_result_declared_credits
       surface: rest_api
-    - &id130
+    - &id143
       path: backend/tests/test_apps_api.py
       line: 552
       name: test_apps_api_calculates_image_to_html_preflight_reservation
       surface: rest_api
-    - &id131
+    - &id144
       path: backend/tests/test_apps_api.py
       line: 566
       name: test_generated_image_to_html_route_preserves_base64_request
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id127
-    - *id128
-    - *id129
-    - *id130
-    - *id131
+    - *id140
+    - *id141
+    - *id142
+    - *id143
+    - *id144
     surfaces:
       rest_api:
         direct_tests:
-        - *id127
-        - *id128
-        - *id129
-        - *id130
-        - *id131
+        - *id140
+        - *id141
+        - *id142
+        - *id143
+        - *id144
         supporting_tests: []
     current_direct_proof: false
   billing.purchase.provider-routing:
@@ -1578,18 +1672,18 @@ assertions:
     contract: feature.billing@1
     fingerprint: d1eb6faaea84c8fe0ff4833fc12fda758d440eacd1b9d1953bc6837723bcdc44
     direct_tests:
-    - &id132
+    - &id145
       path: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
       line: 69
       name: 'receipt-style breakdown: sub-items sum to total input'
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id132
+    - *id145
     surfaces:
       gui.web:
         direct_tests:
-        - *id132
+        - *id145
         supporting_tests: []
     current_direct_proof: false
   billing.self-host.cloud-guard:
@@ -1604,450 +1698,190 @@ assertions:
     contract: feature.billing@1
     fingerprint: ead658f28d90c4bdd430e13f56f638a6a6599f52b729279c1af76b63b907f85f
     direct_tests:
-    - &id133
+    - &id146
       path: backend/tests/test_apps_api.py
       line: 256
       name: test_session_auth_tags_apple_client_with_device_hash
       surface: rest_api
-    - &id134
+    - &id147
       path: backend/tests/test_apps_api.py
       line: 289
       name: test_usage_summaries_use_apple_device_identifier
       surface: rest_api
-    - &id135
+    - &id148
       path: backend/tests/test_apps_api.py
       line: 336
       name: test_usage_details_filter_apple_device_identifier
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id133
-    - *id134
-    - *id135
+    - *id146
+    - *id147
+    - *id148
     surfaces:
       rest_api:
         direct_tests:
-        - *id133
-        - *id134
-        - *id135
+        - *id146
+        - *id147
+        - *id148
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.order.sidebar-header-match:
     contract: feature.chat-navigation@1
     fingerprint: bc8c8041e813125ca32c31997890f9f7c04edfff69c489394f0b8f9cf3cecf5a
     direct_tests:
-    - &id136
+    - &id149
       path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
       line: 17
       name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
       surface: gui.apple
-    - &id137
+    - &id150
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       line: 72
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web
-    - &id138
+    - &id151
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       line: 175
       name: right control and right-to-left swipe navigate to previous sidebar chat
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id136
-    - *id137
-    - *id138
+    - *id149
+    - *id150
+    - *id151
     surfaces:
       gui.apple:
         direct_tests:
-        - *id136
+        - *id149
         supporting_tests: []
       gui.web:
         direct_tests:
-        - *id137
-        - *id138
+        - *id150
+        - *id151
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.draft-only.addressable:
     contract: feature.chat-navigation@1
     fingerprint: a46f5d9ff95dcdc4b78557d6e2091d314d8dfe66e7d50be822e32e5a445c0fcf
     direct_tests:
-    - &id139
-      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
-      line: 17
-      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
-      surface: gui.apple
-    - &id140
-      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
-      name: navigates from a regular chat to the newest draft-only chat with the sidebar
-        closed
-      surface: gui.web
-    supporting_tests: []
-    tests:
-    - *id139
-    - *id140
-    surfaces:
-      gui.apple:
-        direct_tests:
-        - *id139
-        supporting_tests: []
-      gui.web:
-        direct_tests:
-        - *id140
-        supporting_tests: []
-    current_direct_proof: false
-  chat-navigation.empty-new-chat.excluded:
-    contract: feature.chat-navigation@1
-    fingerprint: dda29285bb9bc3d479f8e0708f1012502547d32a02fea67872c6a82ef4835b54
-    direct_tests:
-    - &id141
-      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
-      line: 17
-      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
-      surface: gui.apple
-    - &id142
-      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
-      name: navigates from a regular chat to the newest draft-only chat with the sidebar
-        closed
-      surface: gui.web
-    supporting_tests: []
-    tests:
-    - *id141
-    - *id142
-    surfaces:
-      gui.apple:
-        direct_tests:
-        - *id141
-        supporting_tests: []
-      gui.web:
-        direct_tests:
-        - *id142
-        supporting_tests: []
-    current_direct_proof: false
-  chats.persistence.client-encrypted:
-    contract: feature.chats@1
-    fingerprint: c449797d3fb3bbcd339b5292393935f02a2479b6695eba35b937ca202e5a19ca
-    direct_tests: []
-    supporting_tests: []
-    tests: []
-    surfaces: {}
-    current_direct_proof: false
-  chats.message.identity-idempotent:
-    contract: feature.chats@1
-    fingerprint: 48a43c8f66d64d6542891f6ec8b524df6346e91da8c1a036a8971153dba22f1f
-    direct_tests:
-    - &id143
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 197
-      name: replaces a stale streaming assistant row with the completed pending response
-      surface: gui.web
-    - &id144
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 291
-      name: treats already-terminal matching recovery claims as handled
-      surface: gui.web
-    - &id145
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 366
-      name: persists an available recovery job even when the assistant row is locally
-        synced
-      surface: gui.web
-    - &id146
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 925
-      name: refreshes the chat version and retries terminal persistence after a recovery
-        version conflict
-      surface: gui.web
-    - &id147
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 1057
-      name: ignores delayed claim and persist frames from an earlier recovery attempt
-      surface: gui.web
-    - &id148
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
-      line: 74
-      name: ignores delayed claim and persist frames from an earlier attempt
-      surface: gui.web
-    supporting_tests: []
-    tests:
-    - *id143
-    - *id144
-    - *id145
-    - *id146
-    - *id147
-    - *id148
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id143
-        - *id144
-        - *id145
-        - *id146
-        - *id147
-        - *id148
-        supporting_tests: []
-    current_direct_proof: false
-  chats.completion.recovery-takeover:
-    contract: feature.chats@1
-    fingerprint: bf24b3f6fd71d37ab138c4423d64d296ff41aabd8fe25490931cb02110d93fc5
-    direct_tests:
-    - &id149
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 366
-      name: persists an available recovery job even when the assistant row is locally
-        synced
-      surface: gui.web
-    - &id150
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 483
-      name: waits for the chat shell and key before claiming an early recovery job
-      surface: gui.web
-    - &id151
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 593
-      name: hydrates a missing local chat user id before claiming a keyed recovery
-        job
-      surface: gui.web
     - &id152
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 699
-      name: does not let one pending recovery job block another available job
-      surface: gui.web
-    supporting_tests: []
-    tests:
-    - *id149
-    - *id150
-    - *id151
-    - *id152
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id149
-        - *id150
-        - *id151
-        - *id152
-        supporting_tests: []
-    current_direct_proof: false
-  chats.completion.lease-fenced:
-    contract: feature.chats@1
-    fingerprint: db4c803b123e9607dcdbe4591f3bd2ba3f0dba08bd7107c73c80ee26154e12b0
-    direct_tests:
+      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+      line: 17
+      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
+      surface: gui.apple
     - &id153
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 291
-      name: treats already-terminal matching recovery claims as handled
+      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      line: 72
+      name: navigates from a regular chat to the newest draft-only chat with the sidebar
+        closed
       surface: gui.web
     - &id154
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 699
-      name: does not let one pending recovery job block another available job
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 115
+      name: retries cache status when sync status reports an unprimed cache
       surface: gui.web
+    supporting_tests:
     - &id155
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 822
-      name: keeps an early recovery job alive while cold boot initial sync completes
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 57
+      name: starts as null when no hash is present
       surface: gui.web
     - &id156
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 925
-      name: refreshes the chat version and retries terminal persistence after a recovery
-        version conflict
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 68
+      name: sets the active chat ID
       surface: gui.web
     - &id157
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 1057
-      name: ignores delayed claim and persist frames from an earlier recovery attempt
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 74
+      name: updates URL hash with chat ID
       surface: gui.web
     - &id158
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
-      line: 74
-      name: ignores delayed claim and persist frames from an earlier attempt
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 80
+      name: sets null to clear active chat
       surface: gui.web
-    supporting_tests: []
+    - &id159
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 93
+      name: sets store to null
+      surface: gui.web
+    - &id160
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 106
+      name: updates store value without changing URL hash
+      surface: gui.web
+    - &id161
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 121
+      name: returns null when no hash present
+      surface: gui.web
+    - &id162
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 127
+      name: returns chat ID from valid hash
+      surface: gui.web
+    - &id163
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 133
+      name: ignores additional hash parameters
+      surface: gui.web
+    - &id164
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 139
+      name: finds chat ID when debug parameters precede it
+      surface: gui.web
+    - &id165
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 145
+      name: returns null for unrelated hash
+      surface: gui.web
+    - &id166
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 151
+      name: returns null for empty chat-id hash
+      surface: gui.web
+    - &id167
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 163
+      name: notifies subscribers on change
+      surface: gui.web
+    - &id168
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 185
+      name: returns true immediately after setActiveChat
+      surface: gui.web
+    - &id169
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 191
+      name: returns false when no recent programmatic update
+      surface: gui.web
+    - &id170
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 205
+      name: starts as false
+      surface: gui.web
+    - &id171
+      path: frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+      line: 210
+      name: can be set to true during deep link processing
+      surface: gui.web
     tests:
+    - *id152
     - *id153
     - *id154
     - *id155
     - *id156
     - *id157
     - *id158
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id153
-        - *id154
-        - *id155
-        - *id156
-        - *id157
-        - *id158
-        supporting_tests: []
-    current_direct_proof: false
-  chats.completion.pending-delivery:
-    contract: feature.chats@1
-    fingerprint: 7f1e0680600f3c40e51665bfb62cd3bbbdacd3ae4e0f3d3d61db62092ce53050
-    direct_tests:
-    - &id159
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 197
-      name: replaces a stale streaming assistant row with the completed pending response
-      surface: gui.web
-    supporting_tests: []
-    tests:
     - *id159
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id159
-        supporting_tests: []
-    current_direct_proof: false
-  chats.local-state.precedence:
-    contract: feature.chats@1
-    fingerprint: 8ea89adc125485e5f87a48a6ee53d5e4e5fc3736572eb283c62f374186c5c760
-    direct_tests:
-    - &id160
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 197
-      name: replaces a stale streaming assistant row with the completed pending response
-      surface: gui.web
-    - &id161
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 243
-      name: does not replace waiting_for_user local state
-      surface: gui.web
-    supporting_tests: []
-    tests:
     - *id160
     - *id161
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id160
-        - *id161
-        supporting_tests: []
-    current_direct_proof: false
-  chats.sync.key-gated-recovery:
-    contract: feature.chats@1
-    fingerprint: 1510dc79394cf653e01d98e159fb2a9fe10631c3cded00b8e709d847797d6a3b
-    direct_tests:
-    - &id162
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 483
-      name: waits for the chat shell and key before claiming an early recovery job
-      surface: gui.web
-    - &id163
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 593
-      name: hydrates a missing local chat user id before claiming a keyed recovery
-        job
-      surface: gui.web
-    - &id164
-      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-      line: 822
-      name: keeps an early recovery job alive while cold boot initial sync completes
-      surface: gui.web
-    supporting_tests: []
-    tests:
     - *id162
     - *id163
     - *id164
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id162
-        - *id163
-        - *id164
-        supporting_tests: []
-    current_direct_proof: false
-  chats.surface.semantic-parity:
-    contract: feature.chats@1
-    fingerprint: 58395fe0a222248b663a71955fab6cc55f0e88893fadc7599fcd19e63c8d0a70
-    direct_tests:
-    - &id166
-      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
-      line: 45
-      name: lists audio recording embeds as downloadable files
-      surface: gui.web
-    - &id167
-      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
-      line: 68
-      name: keeps only downloadable file rows and preserves useful metadata
-      surface: gui.web
-    - &id168
-      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
-      line: 119
-      name: does not list generic embed UUID fallbacks as downloadable files
-      surface: gui.web
-    supporting_tests:
-    - &id165
-      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
-      line: 34
-      name: extracts unique embed refs from full and truncated message content
-      surface: gui.web
-    - &id169
-      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
-      line: 64
-      name: mounts the generic app-skill card for unknown app skills in groups
-      surface: gui.web
-    - &id170
-      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
-      line: 111
-      name: uses the input image thumbnail and opens the generated code child fullscreen
-      surface: gui.web
-    - &id171
-      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
-      line: 221
-      name: renders historical interactive_question code embeds as interactive question
-        cards
-      surface: gui.web
-    - &id172
-      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
-      line: 266
-      name: renders read-mode interactive_question code fences as interactive question
-        cards
-      surface: gui.web
-    - &id173
-      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
-      line: 12
-      name: restores reference-only metadata from JSON embed references
-      surface: gui.web
-    - &id174
-      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
-      line: 34
-      name: keeps complete JSON embed references finished when no status is present
-      surface: gui.web
-    - &id175
-      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
-      line: 53
-      name: preserves explicit processing status from JSON embed references
-      surface: gui.web
-    - &id176
-      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
-      line: 73
-      name: preserves interactive question payloads in read-mode code blocks
-      surface: gui.web
-    - &id177
-      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
-      line: 21
-      name: does not publish identical ref registrations
-      surface: gui.web
-    - &id178
-      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
-      line: 42
-      name: publishes and resolves new aliases
-      surface: gui.web
-    - &id179
-      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
-      line: 65
-      name: publishes changes to each metadata field
-      surface: gui.web
-    - &id180
-      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
-      line: 105
-      name: remaps readable refs without removing stable ID aliases
-      surface: gui.web
-    tests:
     - *id165
     - *id166
     - *id167
@@ -2055,8 +1889,174 @@ assertions:
     - *id169
     - *id170
     - *id171
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id152
+        supporting_tests: []
+      gui.web:
+        direct_tests:
+        - *id153
+        - *id154
+        supporting_tests:
+        - *id155
+        - *id156
+        - *id157
+        - *id158
+        - *id159
+        - *id160
+        - *id161
+        - *id162
+        - *id163
+        - *id164
+        - *id165
+        - *id166
+        - *id167
+        - *id168
+        - *id169
+        - *id170
+        - *id171
+    current_direct_proof: false
+  chat-navigation.empty-new-chat.excluded:
+    contract: feature.chat-navigation@1
+    fingerprint: dda29285bb9bc3d479f8e0708f1012502547d32a02fea67872c6a82ef4835b54
+    direct_tests:
+    - &id172
+      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+      line: 17
+      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
+      surface: gui.apple
+    - &id173
+      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      line: 72
+      name: navigates from a regular chat to the newest draft-only chat with the sidebar
+        closed
+      surface: gui.web
+    supporting_tests: []
+    tests:
     - *id172
     - *id173
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id172
+        supporting_tests: []
+      gui.web:
+        direct_tests:
+        - *id173
+        supporting_tests: []
+    current_direct_proof: false
+  chats.persistence.client-encrypted:
+    contract: feature.chats@1
+    fingerprint: c449797d3fb3bbcd339b5292393935f02a2479b6695eba35b937ca202e5a19ca
+    direct_tests:
+    - &id174
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 242
+      name: persists complete spawn-time title and category metadata before first
+        render
+      surface: gui.web
+    - &id175
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 269
+      name: does not persist protocol-only tool JSON as a visible child summary
+      surface: gui.web
+    - &id176
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 491
+      name: preserves the existing encrypted chat key wrapper during metadata updates
+      surface: gui.web
+    - &id177
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 523
+      name: does not replace a local encrypted chat key wrapper with a different payload
+        wrapper
+      surface: gui.web
+    - &id178
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 562
+      name: stores the server-provided encrypted chat key wrapper when missing locally
+      surface: gui.web
+    - &id179
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 609
+      name: receives the server key and blocks metadata encryption when the hydrated
+        wrapper does not match
+      surface: gui.web
+    - &id180
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 682
+      name: does not overwrite a newer manual summary with stale generated post-processing
+      surface: gui.web
+    - &id181
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 810
+      name: stores already-encrypted Directus fallback embeds without waiting for
+        raw chat keys
+      surface: gui.web
+    - &id182
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 877
+      name: accepts finalized send_embed_data refreshes for existing finished embeds
+      surface: gui.web
+    - &id183
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 968
+      name: stores Finance owner PII mappings as sidecar data without syncing them
+        in store_embed
+      surface: gui.web
+    - &id184
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 1048
+      name: flushes queued finalized embeds that arrived with hashed chat IDs
+      surface: gui.web
+    - &id185
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 1134
+      name: flushes hashed queued finalized embeds when the raw chat shell is created
+      surface: gui.web
+    - &id186
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 1219
+      name: stores finalized server incognito embeds in memory without durable persistence
+      surface: gui.web
+    - &id187
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 199
+      name: skips new synced metadata rows without encrypted_chat_key
+      surface: gui.web
+    - &id188
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 227
+      name: keeps synced metadata when a local encrypted_chat_key already exists
+      surface: gui.web
+    - &id189
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 272
+      name: does not batch-save metadata-only chats without encrypted_chat_key
+      surface: gui.web
+    - &id190
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 326
+      name: preserves metadata-only chats without a server key when a local key exists
+      surface: gui.web
+    - &id191
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 360
+      name: preserves anonymous metadata-only chat key fields
+      surface: gui.web
+    - &id192
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+      line: 395
+      name: keeps load-more metadata without a server key when a local key exists
+      surface: gui.web
+    supporting_tests:
+    - &id193
+      path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+      line: 48
+      name: only includes encrypted chat metadata on the first local message
+      surface: gui.web
+    tests:
     - *id174
     - *id175
     - *id176
@@ -2064,19 +2064,22 @@ assertions:
     - *id178
     - *id179
     - *id180
+    - *id181
+    - *id182
+    - *id183
+    - *id184
+    - *id185
+    - *id186
+    - *id187
+    - *id188
+    - *id189
+    - *id190
+    - *id191
+    - *id192
+    - *id193
     surfaces:
       gui.web:
         direct_tests:
-        - *id166
-        - *id167
-        - *id168
-        supporting_tests:
-        - *id165
-        - *id169
-        - *id170
-        - *id171
-        - *id172
-        - *id173
         - *id174
         - *id175
         - *id176
@@ -2084,122 +2087,690 @@ assertions:
         - *id178
         - *id179
         - *id180
+        - *id181
+        - *id182
+        - *id183
+        - *id184
+        - *id185
+        - *id186
+        - *id187
+        - *id188
+        - *id189
+        - *id190
+        - *id191
+        - *id192
+        supporting_tests:
+        - *id193
+    current_direct_proof: false
+  chats.message.identity-idempotent:
+    contract: feature.chats@1
+    fingerprint: 48a43c8f66d64d6542891f6ec8b524df6346e91da8c1a036a8971153dba22f1f
+    direct_tests:
+    - &id194
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 242
+      name: persists complete spawn-time title and category metadata before first
+        render
+      surface: gui.web
+    - &id195
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 324
+      name: unmarks, queues, and retries the exact assistant response once
+      surface: gui.web
+    - &id196
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 362
+      name: removes the retry entry only after durable storage confirmation
+      surface: gui.web
+    - &id197
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 197
+      name: replaces a stale streaming assistant row with the completed pending response
+      surface: gui.web
+    - &id198
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 291
+      name: treats already-terminal matching recovery claims as handled
+      surface: gui.web
+    - &id199
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 366
+      name: persists an available recovery job even when the assistant row is locally
+        synced
+      surface: gui.web
+    - &id200
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 925
+      name: refreshes the chat version and retries terminal persistence after a recovery
+        version conflict
+      surface: gui.web
+    - &id201
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 1057
+      name: ignores delayed claim and persist frames from an earlier recovery attempt
+      surface: gui.web
+    - &id202
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+      line: 74
+      name: ignores delayed claim and persist frames from an earlier attempt
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id194
+    - *id195
+    - *id196
+    - *id197
+    - *id198
+    - *id199
+    - *id200
+    - *id201
+    - *id202
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id194
+        - *id195
+        - *id196
+        - *id197
+        - *id198
+        - *id199
+        - *id200
+        - *id201
+        - *id202
+        supporting_tests: []
+    current_direct_proof: false
+  chats.completion.recovery-takeover:
+    contract: feature.chats@1
+    fingerprint: bf24b3f6fd71d37ab138c4423d64d296ff41aabd8fe25490931cb02110d93fc5
+    direct_tests:
+    - &id203
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 390
+      name: does not send legacy persistence for epoch-one recovery completions
+      surface: gui.web
+    - &id204
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 366
+      name: persists an available recovery job even when the assistant row is locally
+        synced
+      surface: gui.web
+    - &id205
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 483
+      name: waits for the chat shell and key before claiming an early recovery job
+      surface: gui.web
+    - &id206
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 593
+      name: hydrates a missing local chat user id before claiming a keyed recovery
+        job
+      surface: gui.web
+    - &id207
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 699
+      name: does not let one pending recovery job block another available job
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id203
+    - *id204
+    - *id205
+    - *id206
+    - *id207
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id203
+        - *id204
+        - *id205
+        - *id206
+        - *id207
+        supporting_tests: []
+    current_direct_proof: false
+  chats.completion.lease-fenced:
+    contract: feature.chats@1
+    fingerprint: db4c803b123e9607dcdbe4591f3bd2ba3f0dba08bd7107c73c80ee26154e12b0
+    direct_tests:
+    - &id208
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 390
+      name: does not send legacy persistence for epoch-one recovery completions
+      surface: gui.web
+    - &id209
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 291
+      name: treats already-terminal matching recovery claims as handled
+      surface: gui.web
+    - &id210
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 699
+      name: does not let one pending recovery job block another available job
+      surface: gui.web
+    - &id211
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 822
+      name: keeps an early recovery job alive while cold boot initial sync completes
+      surface: gui.web
+    - &id212
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 925
+      name: refreshes the chat version and retries terminal persistence after a recovery
+        version conflict
+      surface: gui.web
+    - &id213
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 1057
+      name: ignores delayed claim and persist frames from an earlier recovery attempt
+      surface: gui.web
+    - &id214
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+      line: 74
+      name: ignores delayed claim and persist frames from an earlier attempt
+      surface: gui.web
+    supporting_tests:
+    - &id215
+      path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+      line: 41
+      name: uses the server version before the locally saved user message
+      surface: gui.web
+    - &id216
+      path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+      line: 56
+      name: only treats preflight acknowledgement timeouts as retryable
+      surface: gui.web
+    tests:
+    - *id208
+    - *id209
+    - *id210
+    - *id211
+    - *id212
+    - *id213
+    - *id214
+    - *id215
+    - *id216
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id208
+        - *id209
+        - *id210
+        - *id211
+        - *id212
+        - *id213
+        - *id214
+        supporting_tests:
+        - *id215
+        - *id216
+    current_direct_proof: false
+  chats.completion.pending-delivery:
+    contract: feature.chats@1
+    fingerprint: 7f1e0680600f3c40e51665bfb62cd3bbbdacd3ae4e0f3d3d61db62092ce53050
+    direct_tests:
+    - &id217
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 324
+      name: unmarks, queues, and retries the exact assistant response once
+      surface: gui.web
+    - &id218
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 362
+      name: removes the retry entry only after durable storage confirmation
+      surface: gui.web
+    - &id219
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 417
+      name: does not notify when the completed background response is for the visibly
+        open chat
+      surface: gui.web
+    - &id220
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 197
+      name: replaces a stale streaming assistant row with the completed pending response
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id217
+    - *id218
+    - *id219
+    - *id220
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id217
+        - *id218
+        - *id219
+        - *id220
+        supporting_tests: []
+    current_direct_proof: false
+  chats.local-state.precedence:
+    contract: feature.chats@1
+    fingerprint: 8ea89adc125485e5f87a48a6ee53d5e4e5fc3736572eb283c62f374186c5c760
+    direct_tests:
+    - &id221
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 300
+      name: stops showing the parent as processing while it waits for child chats
+      surface: gui.web
+    - &id222
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 417
+      name: does not notify when the completed background response is for the visibly
+        open chat
+      surface: gui.web
+    - &id223
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 682
+      name: does not overwrite a newer manual summary with stale generated post-processing
+      surface: gui.web
+    - &id224
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 750
+      name: keeps placeholder embeds processing until final content arrives
+      surface: gui.web
+    - &id225
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 197
+      name: replaces a stale streaming assistant row with the completed pending response
+      surface: gui.web
+    - &id226
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 243
+      name: does not replace waiting_for_user local state
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id221
+    - *id222
+    - *id223
+    - *id224
+    - *id225
+    - *id226
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id221
+        - *id222
+        - *id223
+        - *id224
+        - *id225
+        - *id226
+        supporting_tests: []
+    current_direct_proof: false
+  chats.sync.key-gated-recovery:
+    contract: feature.chats@1
+    fingerprint: 1510dc79394cf653e01d98e159fb2a9fe10631c3cded00b8e709d847797d6a3b
+    direct_tests:
+    - &id227
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 491
+      name: preserves the existing encrypted chat key wrapper during metadata updates
+      surface: gui.web
+    - &id228
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 523
+      name: does not replace a local encrypted chat key wrapper with a different payload
+        wrapper
+      surface: gui.web
+    - &id229
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 562
+      name: stores the server-provided encrypted chat key wrapper when missing locally
+      surface: gui.web
+    - &id230
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 609
+      name: receives the server key and blocks metadata encryption when the hydrated
+        wrapper does not match
+      surface: gui.web
+    - &id231
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 810
+      name: stores already-encrypted Directus fallback embeds without waiting for
+        raw chat keys
+      surface: gui.web
+    - &id232
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 1048
+      name: flushes queued finalized embeds that arrived with hashed chat IDs
+      surface: gui.web
+    - &id233
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 1134
+      name: flushes hashed queued finalized embeds when the raw chat shell is created
+      surface: gui.web
+    - &id234
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 483
+      name: waits for the chat shell and key before claiming an early recovery job
+      surface: gui.web
+    - &id235
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 593
+      name: hydrates a missing local chat user id before claiming a keyed recovery
+        job
+      surface: gui.web
+    - &id236
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 822
+      name: keeps an early recovery job alive while cold boot initial sync completes
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id227
+    - *id228
+    - *id229
+    - *id230
+    - *id231
+    - *id232
+    - *id233
+    - *id234
+    - *id235
+    - *id236
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id227
+        - *id228
+        - *id229
+        - *id230
+        - *id231
+        - *id232
+        - *id233
+        - *id234
+        - *id235
+        - *id236
+        supporting_tests: []
+    current_direct_proof: false
+  chats.surface.semantic-parity:
+    contract: feature.chats@1
+    fingerprint: 58395fe0a222248b663a71955fab6cc55f0e88893fadc7599fcd19e63c8d0a70
+    direct_tests:
+    - &id238
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 45
+      name: lists audio recording embeds as downloadable files
+      surface: gui.web
+    - &id239
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 68
+      name: keeps only downloadable file rows and preserves useful metadata
+      surface: gui.web
+    - &id240
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 119
+      name: does not list generic embed UUID fallbacks as downloadable files
+      surface: gui.web
+    - &id249
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 269
+      name: does not persist protocol-only tool JSON as a visible child summary
+      surface: gui.web
+    - &id250
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 300
+      name: stops showing the parent as processing while it waits for child chats
+      surface: gui.web
+    - &id251
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 750
+      name: keeps placeholder embeds processing until final content arrives
+      surface: gui.web
+    - &id252
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 877
+      name: accepts finalized send_embed_data refreshes for existing finished embeds
+      surface: gui.web
+    - &id253
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      line: 968
+      name: stores Finance owner PII mappings as sidecar data without syncing them
+        in store_embed
+      surface: gui.web
+    supporting_tests:
+    - &id237
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 34
+      name: extracts unique embed refs from full and truncated message content
+      surface: gui.web
+    - &id241
+      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+      line: 69
+      name: mounts the generic app-skill card for unknown app skills in groups
+      surface: gui.web
+    - &id242
+      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+      line: 118
+      name: uses the input image thumbnail and opens the generated code child fullscreen
+      surface: gui.web
+    - &id243
+      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+      line: 228
+      name: renders historical interactive_question code embeds as interactive question
+        cards
+      surface: gui.web
+    - &id244
+      path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+      line: 273
+      name: renders read-mode interactive_question code fences as interactive question
+        cards
+      surface: gui.web
+    - &id245
+      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+      line: 12
+      name: restores reference-only metadata from JSON embed references
+      surface: gui.web
+    - &id246
+      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+      line: 34
+      name: keeps complete JSON embed references finished when no status is present
+      surface: gui.web
+    - &id247
+      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+      line: 53
+      name: preserves explicit processing status from JSON embed references
+      surface: gui.web
+    - &id248
+      path: frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+      line: 73
+      name: preserves interactive question payloads in read-mode code blocks
+      surface: gui.web
+    - &id254
+      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+      line: 21
+      name: does not publish identical ref registrations
+      surface: gui.web
+    - &id255
+      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+      line: 42
+      name: publishes and resolves new aliases
+      surface: gui.web
+    - &id256
+      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+      line: 65
+      name: publishes changes to each metadata field
+      surface: gui.web
+    - &id257
+      path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+      line: 105
+      name: remaps readable refs without removing stable ID aliases
+      surface: gui.web
+    - &id258
+      path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+      line: 27
+      name: does not extract interactive question protocol blocks as code embeds
+      surface: gui.web
+    - &id259
+      path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+      line: 35
+      name: continues extracting regular code fences
+      surface: gui.web
+    tests:
+    - *id237
+    - *id238
+    - *id239
+    - *id240
+    - *id241
+    - *id242
+    - *id243
+    - *id244
+    - *id245
+    - *id246
+    - *id247
+    - *id248
+    - *id249
+    - *id250
+    - *id251
+    - *id252
+    - *id253
+    - *id254
+    - *id255
+    - *id256
+    - *id257
+    - *id258
+    - *id259
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id238
+        - *id239
+        - *id240
+        - *id249
+        - *id250
+        - *id251
+        - *id252
+        - *id253
+        supporting_tests:
+        - *id237
+        - *id241
+        - *id242
+        - *id243
+        - *id244
+        - *id245
+        - *id246
+        - *id247
+        - *id248
+        - *id254
+        - *id255
+        - *id256
+        - *id257
+        - *id258
+        - *id259
     current_direct_proof: false
   daily-inspiration.authenticated-continuity:
     contract: feature.daily-inspiration@1
     fingerprint: ec8361dad848aa2c0f861b0558dd5de8b8f53877da5f02ebfe28452364eec0f7
     direct_tests: []
     supporting_tests:
-    - &id181
+    - &id260
       path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
       line: 57
       name: shows authenticated fallback synchronously on authenticated cold boot
       surface: gui.web
-    - &id182
+    - &id261
       path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
       line: 77
       name: replaces guest onboarding with authenticated fallback without an empty
         emission
       surface: gui.web
-    - &id183
+    - &id262
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 85
       name: replaces guest onboarding with an authenticated public source
       surface: gui.web
-    - &id184
+    - &id263
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 180
       name: allows authenticated fallback to replace incomplete personalized records
       surface: gui.web
     tests:
-    - *id181
-    - *id182
-    - *id183
-    - *id184
+    - *id260
+    - *id261
+    - *id262
+    - *id263
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id181
-        - *id182
-        - *id183
-        - *id184
+        - *id260
+        - *id261
+        - *id262
+        - *id263
     current_direct_proof: false
   daily-inspiration.personalized-priority:
     contract: feature.daily-inspiration@1
     fingerprint: f53b58ca405a81bc3ec17c8a07bc24b9ae14a4d07b94f41dd311ae1323726887
     direct_tests: []
     supporting_tests:
-    - &id185
+    - &id264
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 64
       name: preserves manual carousel index for duplicate authenticated deliveries
       surface: gui.web
-    - &id186
+    - &id265
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 104
       name: does not let guest onboarding overwrite personalized records
       surface: gui.web
-    - &id187
+    - &id266
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 180
       name: allows authenticated fallback to replace incomplete personalized records
       surface: gui.web
     tests:
-    - *id185
-    - *id186
-    - *id187
+    - *id264
+    - *id265
+    - *id266
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id185
-        - *id186
-        - *id187
+        - *id264
+        - *id265
+        - *id266
     current_direct_proof: false
   daily-inspiration.guest-isolated:
     contract: feature.daily-inspiration@1
     fingerprint: ab1fddcbf4ace0c01b9b2f2dc02a49ef42cdab1b584bc076becfce13db290a33
     direct_tests: []
     supporting_tests:
-    - &id188
+    - &id267
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 125
       name: forces the exact guest onboarding set after authenticated data races with
         logout
       surface: gui.web
-    - &id189
+    - &id268
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 143
       name: preserves the guest source when local interest ranking rewrites its order
       surface: gui.web
     tests:
-    - *id188
-    - *id189
+    - *id267
+    - *id268
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id188
-        - *id189
+        - *id267
+        - *id268
     current_direct_proof: false
   daily-inspiration.authenticated-fallback-content:
     contract: feature.daily-inspiration@1
     fingerprint: 2be6820049d372c5fa3c94647c3a73e49315f3e791d21d5583a1ece1b2963e2e
     direct_tests: []
     supporting_tests:
-    - &id190
+    - &id269
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 154
       name: provides an authenticated-only 3/3/4 fallback
       surface: gui.web
     tests:
-    - *id190
+    - *id269
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id190
+        - *id269
     current_direct_proof: false
   daily-inspiration.public-defaults:
     contract: feature.daily-inspiration@1
@@ -2222,18 +2793,18 @@ assertions:
     fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
     direct_tests: []
     supporting_tests:
-    - &id191
+    - &id270
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 64
       name: preserves manual carousel index for duplicate authenticated deliveries
       surface: gui.web
     tests:
-    - *id191
+    - *id270
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id191
+        - *id270
     current_direct_proof: false
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
@@ -2263,18 +2834,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id192
+    - &id271
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id192
+    - *id271
     surfaces:
       gui.web:
         direct_tests:
-        - *id192
+        - *id271
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:

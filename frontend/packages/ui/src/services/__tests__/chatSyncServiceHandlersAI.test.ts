@@ -238,6 +238,7 @@ describe("sub-chat lifecycle metadata", () => {
     mockEncryptChatKeyWithMasterKey.mockResolvedValue("encrypted-parent-key");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
   it("persists complete spawn-time title and category metadata before first render", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     const payload = {
@@ -264,6 +265,7 @@ describe("sub-chat lifecycle metadata", () => {
     }));
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
   it("does not persist protocol-only tool JSON as a visible child summary", async () => {
     const childChat = {
       chat_id: "child-chat",
@@ -294,6 +296,7 @@ describe("sub-chat lifecycle metadata", () => {
     expect(mockEncryptWithChatKey).not.toHaveBeenCalledWith(expect.stringContaining("app_skill_use"), expect.anything());
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.local-state.precedence,chats.surface.semantic-parity
   it("stops showing the parent as processing while it waits for child chats", () => {
     const activeAITasks = new Map([
       ["parent-chat", { taskId: "parent-task", userMessageId: "user-message" }],
@@ -317,6 +320,7 @@ describe("sub-chat lifecycle metadata", () => {
 });
 
 describe("handleAIResponseStorageFailedImpl", () => {
+  // contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
   it("unmarks, queues, and retries the exact assistant response once", async () => {
     const service = {
       unmarkMessageSyncing: vi.fn(),
@@ -354,6 +358,7 @@ describe("handleAIResponseStorageFailedImpl", () => {
     });
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
   it("removes the retry entry only after durable storage confirmation", async () => {
     const service = {
       unmarkMessageSyncing: vi.fn(),
@@ -381,6 +386,7 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     mockActiveChatStore.get.mockReturnValue(null);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.recovery-takeover,chats.completion.lease-fenced
   it("does not send legacy persistence for epoch-one recovery completions", async () => {
     const activeAITasks = new Map([["chat-1", { taskId: "task-1" }]]);
     const service = {
@@ -407,6 +413,7 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.local-state.precedence
   it("does not notify when the completed background response is for the visibly open chat", async () => {
     const chat = {
       chat_id: "chat-1",
@@ -449,6 +456,22 @@ describe("handleAITypingStartedImpl", () => {
       new Uint8Array([1, 2, 3]),
     );
     mockEncryptedChatKeyMatchesRawKey.mockResolvedValue(true);
+    mockEnsureChatKeySafeForWrite.mockImplementation(async (
+      chatId: string,
+      chatKey: Uint8Array,
+    ) => {
+      const currentChat = await mockChatDB.getChat(chatId) as {
+        encrypted_chat_key?: unknown;
+      } | null;
+      const wrapper = currentChat?.encrypted_chat_key;
+      return typeof wrapper === "string"
+        ? mockEncryptedChatKeyMatchesRawKey(
+            wrapper,
+            chatKey,
+            mockChatKeyManager.computeKeyFingerprint,
+          )
+        : true;
+    });
     mockAddCandidateKey.mockResolvedValue(undefined);
     mockEncryptWithChatKey.mockImplementation(async (value: string) =>
       `encrypted:${value}`,
@@ -464,6 +487,7 @@ describe("handleAITypingStartedImpl", () => {
     mockChatDB.getMessagesForChat.mockResolvedValue([]);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("preserves the existing encrypted chat key wrapper during metadata updates", async () => {
     const existingChat = {
       chat_id: "chat-1",
@@ -495,6 +519,7 @@ describe("handleAITypingStartedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("does not replace a local encrypted chat key wrapper with a different payload wrapper", async () => {
     const existingChat = {
       chat_id: "chat-1",
@@ -533,6 +558,7 @@ describe("handleAITypingStartedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("stores the server-provided encrypted chat key wrapper when missing locally", async () => {
     const existingChat = {
       chat_id: "chat-1",
@@ -579,6 +605,7 @@ describe("handleAITypingStartedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("receives the server key and blocks metadata encryption when the hydrated wrapper does not match", async () => {
     mockChatKeyManager.getKeySync
       .mockReturnValueOnce(null)
@@ -651,6 +678,7 @@ describe("handlePostProcessingCompletedImpl", () => {
     mockSendPostProcessingMetadata.mockResolvedValue(undefined);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.local-state.precedence
   it("does not overwrite a newer manual summary with stale generated post-processing", async () => {
     const existingChat = {
       chat_id: "chat-1",
@@ -718,6 +746,7 @@ describe("handleEmbedUpdateImpl", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence
   it("keeps placeholder embeds processing until final content arrives", async () => {
     const existingEmbed = {
       embed_id: "embed-1",
@@ -777,6 +806,7 @@ describe("handleSendEmbedDataImpl", () => {
     });
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("stores already-encrypted Directus fallback embeds without waiting for raw chat keys", async () => {
     const hashedChatId = "a".repeat(64);
     const hashedMessageId = "b".repeat(64);
@@ -843,6 +873,7 @@ describe("handleSendEmbedDataImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
   it("accepts finalized send_embed_data refreshes for existing finished embeds", async () => {
     const chatKey = new Uint8Array([1, 2, 3]);
     const embedKey = new Uint8Array([4, 5, 6]);
@@ -933,6 +964,7 @@ describe("handleSendEmbedDataImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
   it("stores Finance owner PII mappings as sidecar data without syncing them in store_embed", async () => {
     const chatKey = new Uint8Array([1, 2, 3]);
     const embedKey = new Uint8Array([4, 5, 6]);
@@ -1012,6 +1044,7 @@ describe("handleSendEmbedDataImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("flushes queued finalized embeds that arrived with hashed chat IDs", async () => {
     vi.useFakeTimers();
     try {
@@ -1097,6 +1130,7 @@ describe("handleSendEmbedDataImpl", () => {
     }
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("flushes hashed queued finalized embeds when the raw chat shell is created", async () => {
     vi.useFakeTimers();
     try {
@@ -1181,6 +1215,7 @@ describe("handleSendEmbedDataImpl", () => {
     }
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,drafts.boundaries.session-and-incognito
   it("stores finalized server incognito embeds in memory without durable persistence", async () => {
     const service = {
       dispatchEvent: vi.fn(),

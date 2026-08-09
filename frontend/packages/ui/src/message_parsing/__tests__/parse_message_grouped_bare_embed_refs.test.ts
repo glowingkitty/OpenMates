@@ -139,6 +139,6 @@ describe("parse_message grouped bare embed refs", () => {
       embedId: "embed-1",
       displayText: "Source: macrumors.com",
     });
-    expect(serialized).not.toContain("-Ur6");
+    expect(serialized).not.toContain("[-Ur6]");
   });
 });

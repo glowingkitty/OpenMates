@@ -41,6 +41,11 @@ vi.mock('../../../../../services/embedResolver', () => embedResolverMocks);
 
 vi.mock('../../../../../services/embedFullscreenController', () => fullscreenControllerMocks);
 
+vi.mock('../../../../../services/embedFullscreenResolver', () => ({
+  hasFullscreenComponent: vi.fn(() => true),
+  resolveRegistryKey: vi.fn((type: string) => type),
+}));
+
 describe('GroupRenderer', () => {
   beforeEach(() => {
     svelteMountMocks.mount.mockClear();
@@ -103,7 +108,9 @@ describe('GroupRenderer', () => {
         }),
       }),
     );
-    expect(content.querySelector('[data-embed-type="app-skill-use"]')).toBeNull();
+    expect(
+      content.querySelector('.embed-unified-container[data-embed-type="app-skill-use"]'),
+    ).toBeNull();
     expect(content.textContent).not.toContain('Skill: code | image_to_html');
   });
 

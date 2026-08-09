@@ -40,6 +40,12 @@ vi.mock("../userDB", () => ({ userDB: mocks.userDB }));
 vi.mock("../chatListCache", () => ({ chatListCache: mocks.chatListCache }));
 vi.mock("../../stores/userProfile", () => ({
   updateTotalChatCount: mocks.updateTotalChatCount,
+  userProfile: {
+    subscribe: (run: (value: { user_id: string }) => void) => {
+      run({ user_id: "user-1" });
+      return () => undefined;
+    },
+  },
 }));
 vi.mock("../../stores/unreadMessagesStore", () => ({
   unreadMessagesStore: mocks.unreadMessagesStore,
@@ -105,6 +111,7 @@ beforeEach(() => {
 });
 
 describe("handleSyncStatusResponseImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,chat-navigation.draft-only.addressable
   it("retries cache status when sync status reports an unprimed cache", async () => {
     const service = createService();
     phasedSyncState.markSyncCompleted();
@@ -124,6 +131,7 @@ describe("handleSyncStatusResponseImpl", () => {
     phasedSyncState.reset();
   });
 
+  // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
   it("starts initial sync when sync status reports a primed cache", async () => {
     const service = createService();
 
@@ -140,6 +148,7 @@ describe("handleSyncStatusResponseImpl", () => {
 });
 
 describe("handlePhase2RecentChatsImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,sync.surface.semantic-parity
   it("continues after one chat fails to persist", async () => {
     const service = createService();
     mocks.chatDB.addChat
@@ -186,6 +195,7 @@ describe("handlePhase2RecentChatsImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
   it("skips new synced metadata rows without encrypted_chat_key", async () => {
     const service = createService();
 
@@ -213,6 +223,7 @@ describe("handlePhase2RecentChatsImpl", () => {
     expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
   });
 
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
   it("keeps synced metadata when a local encrypted_chat_key already exists", async () => {
     const service = createService();
     mocks.chatDB.getChat.mockResolvedValue({
@@ -257,6 +268,7 @@ describe("handlePhase2RecentChatsImpl", () => {
 });
 
 describe("handleSyncMetadataChatsResponseImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
   it("does not batch-save metadata-only chats without encrypted_chat_key", async () => {
     const service = createService();
 
@@ -283,6 +295,7 @@ describe("handleSyncMetadataChatsResponseImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only
   it("allows public metadata-only chats without encrypted_chat_key", async () => {
     const service = createService();
     mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(1);
@@ -309,6 +322,7 @@ describe("handleSyncMetadataChatsResponseImpl", () => {
     ]);
   });
 
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
   it("preserves metadata-only chats without a server key when a local key exists", async () => {
     const service = createService();
     mocks.chatDB.getChat.mockResolvedValueOnce({
@@ -342,6 +356,7 @@ describe("handleSyncMetadataChatsResponseImpl", () => {
     ]);
   });
 
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
   it("preserves anonymous metadata-only chat key fields", async () => {
     const service = createService();
     mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(1);
@@ -376,6 +391,7 @@ describe("handleSyncMetadataChatsResponseImpl", () => {
 });
 
 describe("handleLoadMoreChatsResponseImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
   it("keeps load-more metadata without a server key when a local key exists", async () => {
     const service = createService();
     mocks.chatDB.getChat.mockResolvedValueOnce({
@@ -419,6 +435,7 @@ describe("handleLoadMoreChatsResponseImpl", () => {
 });
 
 describe("ChatSynchronizationService cache status retry", () => {
+  // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
   it("does not mark sync complete when cache is cold but server reports chats", () => {
     vi.useFakeTimers();
     const service = Object.create(

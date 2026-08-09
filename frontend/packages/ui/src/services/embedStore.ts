@@ -2329,7 +2329,13 @@ export class EmbedStore {
    */
   async getRawEntry(
     contentRef: string,
-  ): Promise<{ parent_embed_id?: string; embed_ids?: string[]; type?: string } | null> {
+  ): Promise<{
+    embed_id?: string;
+    parent_embed_id?: string;
+    embed_ids?: string[];
+    type?: string;
+    status?: EmbedStoreEntry["status"];
+  } | null> {
     // Check memory cache first
     let entry = embedCache.get(contentRef);
 
@@ -2366,9 +2372,11 @@ export class EmbedStore {
     // Always check parent_embed_id first (for child embeds), then embed_ids (for parent embeds)
     if (entry.parent_embed_id !== undefined || entry.embed_ids !== undefined) {
       return {
+        embed_id: entry.embed_id,
         parent_embed_id: entry.parent_embed_id,
         embed_ids: Array.isArray(entry.embed_ids) ? entry.embed_ids : undefined,
         type: entry.type,
+        status: entry.status,
       };
     }
 
@@ -2386,21 +2394,23 @@ export class EmbedStore {
         if (storedData.trim().startsWith("{")) {
           const parsed = JSON.parse(storedData);
           return {
+            embed_id: parsed.embed_id,
             parent_embed_id: parsed.parent_embed_id,
             embed_ids: Array.isArray(parsed.embed_ids)
               ? parsed.embed_ids
               : undefined,
+            status: parsed.status,
           };
         }
       } else if (typeof storedData === "object") {
+        const parsed = storedData as Record<string, unknown>;
         return {
-          parent_embed_id: (storedData as Record<string, unknown>)
-            .parent_embed_id as string | undefined,
-          embed_ids: Array.isArray(
-            (storedData as Record<string, unknown>).embed_ids,
-          )
-            ? ((storedData as Record<string, unknown>).embed_ids as string[])
+          embed_id: parsed.embed_id as string | undefined,
+          parent_embed_id: parsed.parent_embed_id as string | undefined,
+          embed_ids: Array.isArray(parsed.embed_ids)
+            ? parsed.embed_ids as string[]
             : undefined,
+          status: parsed.status as EmbedStoreEntry["status"] | undefined,
         };
       }
     } catch {

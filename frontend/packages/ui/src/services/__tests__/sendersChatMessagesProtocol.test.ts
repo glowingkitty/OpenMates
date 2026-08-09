@@ -5,7 +5,16 @@
  * Interactive question answers are chat protocol, not user-authored code embeds.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../websocketService", () => ({
+  webSocketService: {
+    forceReconnect: vi.fn(),
+    off: vi.fn(),
+    on: vi.fn(),
+    sendMessage: vi.fn(),
+  },
+}));
 import {
   isPreflightAcknowledgementTimeout,
   preflightExpectedMessagesVersion,
@@ -14,6 +23,7 @@ import {
 } from "../sendersChatMessages";
 
 describe("sendersChatMessages protocol fences", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("does not extract interactive question protocol blocks as code embeds", () => {
     expect(shouldSkipClientCodeBlockExtraction("interactive_question", "{}"))
       .toBe(true);
@@ -21,17 +31,20 @@ describe("sendersChatMessages protocol fences", () => {
       .toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("continues extracting regular code fences", () => {
     expect(shouldSkipClientCodeBlockExtraction("typescript", "const answer = 42;"))
       .toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("uses the server version before the locally saved user message", () => {
     expect(preflightExpectedMessagesVersion(undefined)).toBe(0);
     expect(preflightExpectedMessagesVersion(1)).toBe(0);
     expect(preflightExpectedMessagesVersion(7)).toBe(6);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("only includes encrypted chat metadata on the first local message", () => {
     expect(shouldIncludePreflightChatMetadata(undefined)).toBe(true);
     expect(shouldIncludePreflightChatMetadata(1)).toBe(true);
@@ -39,6 +52,7 @@ describe("sendersChatMessages protocol fences", () => {
     expect(shouldIncludePreflightChatMetadata(7)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("only treats preflight acknowledgement timeouts as retryable", () => {
     expect(
       isPreflightAcknowledgementTimeout(

@@ -143,6 +143,31 @@ function installFileTextShim(): void {
   defineConfigurableProperty(activeWindow, "File", TestFile);
 }
 
+function installBlobArrayBufferShim(): void {
+  const NativeBlob = globalThis.Blob;
+  if (
+    typeof NativeBlob === "undefined" ||
+    typeof NativeBlob.prototype.arrayBuffer === "function"
+  ) return;
+
+  defineConfigurableProperty(
+    NativeBlob.prototype,
+    "arrayBuffer",
+    function arrayBuffer(this: Blob) {
+      return new Promise<ArrayBuffer>((resolve, reject) => {
+        if (typeof FileReader === "undefined") {
+          reject(new Error("Blob.arrayBuffer() is unavailable in this test environment"));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = () => reject(reader.error ?? new Error("Blob.arrayBuffer() failed"));
+        reader.readAsArrayBuffer(this);
+      });
+    },
+  );
+}
+
 fs.readFileSync = ((path: ReadFileSyncPath, options?: ReadFileSyncOptions) => (
   originalReadFileSync(normalizeReadFilePath(path), options)
 )) as typeof fs.readFileSync;
@@ -268,6 +293,7 @@ if (typeof globalThis.sessionStorage === "undefined") {
 }
 
 installFileTextShim();
+installBlobArrayBufferShim();
 
 if (typeof globalThis.document === "undefined") {
   defineConfigurableProperty(globalThis, "document", activeWindow.document ?? testDocument);

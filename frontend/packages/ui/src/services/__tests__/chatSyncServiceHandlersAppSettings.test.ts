@@ -1165,7 +1165,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(persistAttempts).toBe(0);
 
-    await vi.advanceTimersByTimeAsync(61_000);
+    await vi.advanceTimersByTimeAsync(61_001);
     expect(secondClaimRequestId).toEqual(expect.any(String));
     expect(secondClaimRequestId).not.toBe(firstClaimRequestId);
     expect(recoverySettled).toBe(false);
@@ -1183,7 +1183,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(61_000);
+    await vi.advanceTimersByTimeAsync(61_001);
     expect(secondPersistRequestId).toEqual(expect.any(String));
     expect(secondPersistRequestId).not.toBe(firstPersistRequestId);
     expect(recoverySettled).toBe(false);

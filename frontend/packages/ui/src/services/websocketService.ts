@@ -9,7 +9,7 @@
 import { getWebSocketUrl } from "../config/api";
 import { getSessionId } from "../utils/sessionId";
 import { getWebSocketToken } from "../utils/cookies"; // Use getWebSocketToken instead of getAuthRefreshToken
-import { authStore } from "../stores/authStore"; // To check login status
+import { authStore } from "../stores/authState"; // To check login status without aggregate-store cycles
 import { get } from "svelte/store"; // Import get
 import {
   isLoggingOut,
@@ -567,7 +567,8 @@ class WebSocketService extends EventTarget {
         console.info(
           `[WebSocketService] Refreshing auth session before WebSocket retry: ${reason}`,
         );
-        const isAuthenticated = await authStore.checkAuth(undefined, true);
+        const { checkAuth } = await import("../stores/authSessionActions");
+        const isAuthenticated = await checkAuth(undefined, true);
         const hasWebSocketToken = Boolean(getWebSocketToken());
         if (!isAuthenticated) {
           console.warn(
