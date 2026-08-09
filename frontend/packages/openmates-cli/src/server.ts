@@ -94,6 +94,8 @@ const UPDATE_HEALTH_TIMEOUT_MS = 120_000;
 const UPDATE_HEALTH_INTERVAL_MS = 5_000;
 const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
 const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
+const ENV_BACKUP_PREFIX = ".env.openmates-backup-";
+const ENV_BACKUP_RETENTION_COUNT = 5;
 const IMAGE_CHANNEL_TAGS = {
   stable: MAIN_BRANCH,
   main: MAIN_BRANCH,
@@ -998,12 +1000,23 @@ function readEnvContent(installPath: string): string {
   return existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
 }
 
+function pruneEnvBackups(installPath: string): void {
+  const backups = readdirSync(installPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.startsWith(ENV_BACKUP_PREFIX))
+    .map((entry) => entry.name)
+    .sort();
+  for (const backup of backups.slice(0, Math.max(0, backups.length - ENV_BACKUP_RETENTION_COUNT))) {
+    rmSync(join(installPath, backup), { force: true });
+  }
+}
+
 function backupEnvFile(installPath: string): string | null {
   const envPath = envPathForInstall(installPath);
   if (!existsSync(envPath)) return null;
-  const backupPath = join(installPath, `.env.openmates-backup-${nowStamp()}`);
+  const backupPath = join(installPath, `${ENV_BACKUP_PREFIX}${nowStamp()}`);
   copyFileSync(envPath, backupPath);
   chmodSync(backupPath, 0o600);
+  pruneEnvBackups(installPath);
   return backupPath;
 }
 

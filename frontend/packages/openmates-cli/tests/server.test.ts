@@ -1,3 +1,4 @@
+// contract-test-file: tooling
 /**
  * Unit tests for CLI server management commands.
  *
@@ -510,6 +511,19 @@ describe("composeArgs", () => {
 
     assert.match(composeSource, /OPENMATES_CLOUD_OVERLAY_ENABLED/);
     assert.match(composeSource, /planDockerComposeArgs/);
+  });
+
+  it("caps generated env backups so secret-bearing copies do not accumulate", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const pruneSource = source.slice(source.indexOf("function pruneEnvBackups"), source.indexOf("function backupEnvFile"));
+    const backupSource = source.slice(source.indexOf("function backupEnvFile"), source.indexOf("function writeEnvContent"));
+
+    assert.match(source, /const ENV_BACKUP_PREFIX = "\.env\.openmates-backup-"/);
+    assert.match(source, /const ENV_BACKUP_RETENTION_COUNT = 5/);
+    assert.match(pruneSource, /entry\.isFile\(\) && entry\.name\.startsWith\(ENV_BACKUP_PREFIX\)/);
+    assert.match(pruneSource, /backups\.slice\(0, Math\.max\(0, backups\.length - ENV_BACKUP_RETENTION_COUNT\)\)/);
+    assert.match(pruneSource, /rmSync\(join\(installPath, backup\), \{ force: true \}\)/);
+    assert.match(backupSource, /pruneEnvBackups\(installPath\)/);
   });
 });
 

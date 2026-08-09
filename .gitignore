@@ -230,6 +230,7 @@ deployment/prod_server/prod-cloud-config.yaml
 .tempcontext
 .ruff_cache
 .vscode
+.env.openmates-backup-*
 
 *-env*
 .aider*
