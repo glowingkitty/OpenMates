@@ -56,6 +56,7 @@ let updateChatListDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 // 300ms debounce prevents redundant DB reads during rapid sync events mid-session.
 // On cold boot (initial mount) the skipDebounce flag bypasses this for instant display.
 const UPDATE_DEBOUNCE_MS = 300;
+let activeChatRecoveryInFlightForId: string | null = null;
 
 // --- Microtask coalescing for chatUpdated fast-path ---
 // When many chats receive their first WS message in a burst (e.g. opening the sidebar
@@ -130,6 +131,30 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			upsertLocalChatList(chat);
 		}
 		console.debug(`[Chats] Applied ${pendingChats.length} pending chat-list upsert(s) to local state`);
+	}
+
+	async function recoverActiveChatForDisplay(chatId: string): Promise<void> {
+		if (activeChatRecoveryInFlightForId === chatId) return;
+		activeChatRecoveryInFlightForId = chatId;
+
+		try {
+			const recoveredChat = await chatDB.getChat(chatId) ?? chatListCache.getPendingOrCachedChat(chatId);
+			if (!recoveredChat) {
+				console.debug('[Chats] Active chat missing from limited list and not found in cache/IDB:', chatId);
+				return;
+			}
+			if (!$authStore.isAuthenticated) return;
+
+			upsertLocalChatList(recoveredChat);
+			chatListCache.upsertChat(recoveredChat);
+			console.debug('[Chats] Recovered active chat for sidebar display:', chatId);
+		} catch (error) {
+			console.warn('[Chats] Failed to recover active chat for sidebar display:', chatId, error);
+		} finally {
+			if (activeChatRecoveryInFlightForId === chatId) {
+				activeChatRecoveryInFlightForId = null;
+			}
+		}
 	}
 
 	// Phased Loading State — progressive display with incremental pagination:
@@ -606,6 +631,17 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	let activeChatData: ChatType | null = $derived(
 		selectedChatId ? (allChats.find(c => c.chat_id === selectedChatId) ?? null) : null
 	);
+
+	$effect(() => {
+		const chatIdToKeepVisible = selectedChatId ?? lastActiveChatIdForDisplay;
+		if (!$authStore.isAuthenticated || !chatIdToKeepVisible || isPublicChat(chatIdToKeepVisible)) return;
+		if (allChatsFromDB.some(chat => chat.chat_id === chatIdToKeepVisible)) return;
+
+		// The cold-boot/sidebar-remount path reads a limited IDB slice for fast first paint.
+		// Draft-only chats can be active but outside that message-timestamp slice, so recover
+		// just the active row instead of expanding the whole list.
+		void recoverActiveChatForDisplay(chatIdToKeepVisible);
+	});
 
 	// Decrypted metadata for the sticky active-chat pin (title, category, icon).
 	// Mirrors what Chat.svelte does via chatMetadataCache — async, so stored in $state.
