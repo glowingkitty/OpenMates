@@ -35,6 +35,7 @@ import AppKit
 enum ChatBannerState {
     case loading
     case loaded(title: String, appId: String, summary: String?)
+    case draftOnly(preview: String)
     case incognito
 }
 
@@ -85,6 +86,8 @@ struct ChatBannerView: View {
     private let desktopMinimumBannerHeight: CGFloat = 240
     private let compactMinimumBannerHeight: CGFloat = 230
     private let responsiveBannerHeightRatio: CGFloat = 0.35
+    private let draftAppId = "general_knowledge"
+    private let draftIconName = "lightbulb"
 
     private var minimumBannerHeight: CGFloat {
         isMobileHeader ? compactMinimumBannerHeight : desktopMinimumBannerHeight
@@ -134,7 +137,7 @@ struct ChatBannerView: View {
                 }
                 .clipShape(BottomRoundedRect(radius: 14))
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                // Swipe gesture: left swipe → next chat, right swipe → previous chat
+                // Swipe gesture: left swipe → previous/older chat, right swipe → next/newer chat.
                 // Web: resolveHeaderSwipeNavigation — 50px threshold, abs(deltaX) > abs(deltaY) * 1.5
                 .gesture(
                     DragGesture(minimumDistance: 50)
@@ -143,12 +146,12 @@ struct ChatBannerView: View {
                             let dy = value.translation.height
                             guard abs(dx) > abs(dy) * 1.5 else { return }
                             if layoutDirection == .rightToLeft {
-                                if dx < 0 { onPrevious?() }
-                                else { onNext?() }
+                                if dx < 0 { onNext?() }
+                                else { onPrevious?() }
                             } else if dx < 0 {
-                                onNext?()
-                            } else {
                                 onPrevious?()
+                            } else {
+                                onNext?()
                             }
                         }
                 )
@@ -173,6 +176,8 @@ struct ChatBannerView: View {
             CategoryMapping.isKnownCategory(appId)
                 ? CategoryMapping.gradient(for: appId)
                 : AppIconView.gradient(forAppId: appId)
+        case .draftOnly:
+            CategoryMapping.gradient(for: draftAppId)
         }
     }
 
@@ -188,6 +193,8 @@ struct ChatBannerView: View {
             return CategoryMapping.isKnownCategory(appId)
                 ? CategoryMapping.orbColor(for: appId)
                 : orbColorForApp(appId)
+        case .draftOnly:
+            return CategoryMapping.orbColor(for: draftAppId)
         }
     }
 
@@ -223,33 +230,10 @@ struct ChatBannerView: View {
     private func decoIcons(time: Double) -> some View {
         switch state {
         case .loaded(_, let appId, _):
-            GeometryReader { geo in
-                let iconSize: CGFloat = isMobileHeader ? 90 : 126
-                let floatOffset = decoAppeared ? floatY(time: time, period: 16, radius: 10) : 30
+            loadedDecoIcons(appId: appId, iconName: iconName, time: time)
 
-                // Left icon — positioned at left edge, partially clipped
-                // Web: left: calc(50% - 240px - 106px); bottom: -15px
-                decoIcon(appId: appId, iconName: iconName, size: iconSize, rotation: -15)
-                    .position(
-                        x: geo.size.width * 0.08,
-                        y: geo.size.height - 15 + floatOffset
-                    )
-                    .opacity(decoAppeared ? 0.4 : 0)
-
-                // Right icon — positioned at right edge
-                decoIcon(appId: appId, iconName: iconName, size: iconSize, rotation: 15)
-                    .position(
-                        x: geo.size.width * 0.92,
-                        y: geo.size.height - 15 + floatY(time: time + 8, period: 16, radius: 10)
-                    )
-                    .opacity(decoAppeared ? 0.4 : 0)
-            }
-            .allowsHitTesting(false)
-            .onAppear {
-                withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
-                    decoAppeared = true
-                }
-            }
+        case .draftOnly:
+            loadedDecoIcons(appId: draftAppId, iconName: draftIconName, time: time)
 
         case .incognito:
             GeometryReader { geo in
@@ -278,6 +262,36 @@ struct ChatBannerView: View {
 
         case .loading:
             EmptyView()
+        }
+    }
+
+    private func loadedDecoIcons(appId: String, iconName: String?, time: Double) -> some View {
+        GeometryReader { geo in
+            let iconSize: CGFloat = isMobileHeader ? 90 : 126
+            let floatOffset = decoAppeared ? floatY(time: time, period: 16, radius: 10) : 30
+
+            // Left icon — positioned at left edge, partially clipped
+            // Web: left: calc(50% - 240px - 106px); bottom: -15px
+            decoIcon(appId: appId, iconName: iconName, size: iconSize, rotation: -15)
+                .position(
+                    x: geo.size.width * 0.08,
+                    y: geo.size.height - 15 + floatOffset
+                )
+                .opacity(decoAppeared ? 0.4 : 0)
+
+            // Right icon — positioned at right edge
+            decoIcon(appId: appId, iconName: iconName, size: iconSize, rotation: 15)
+                .position(
+                    x: geo.size.width * 0.92,
+                    y: geo.size.height - 15 + floatY(time: time + 8, period: 16, radius: 10)
+                )
+                .opacity(decoAppeared ? 0.4 : 0)
+        }
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
+                decoAppeared = true
+            }
         }
     }
 
@@ -321,6 +335,9 @@ struct ChatBannerView: View {
 
         case .loaded(let title, let appId, let summary):
             loadedContent(title: title, appId: appId, iconName: iconName, summary: summary)
+
+        case .draftOnly(let preview):
+            standardLoadedContent(title: preview, appId: draftAppId, iconName: draftIconName, summary: nil, isDraftOnly: true)
         }
     }
 
@@ -514,7 +531,13 @@ struct ChatBannerView: View {
 
     // MARK: Standard loaded content — centered icon + title + summary
 
-    private func standardLoadedContent(title: String, appId: String, iconName: String?, summary: String?) -> some View {
+    private func standardLoadedContent(
+        title: String,
+        appId: String,
+        iconName: String?,
+        summary: String?,
+        isDraftOnly: Bool = false
+    ) -> some View {
         VStack(spacing: .spacing2) {
             // Category icon (38px, white, raw shape — NOT a gradient circle)
             bannerIcon(appId: appId, iconName: iconName, size: isMobileHeader ? 32 : 38)
@@ -527,8 +550,8 @@ struct ChatBannerView: View {
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                 .accessibilityIdentifier("chat-header-title")
 
-            if isExampleChat {
-                Text(AppStrings.exampleChatBadge)
+            if isExampleChat || isDraftOnly {
+                Text(isDraftOnly ? AppStrings.draftBadge : AppStrings.exampleChatBadge)
                     .font(.omXs)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white)
@@ -537,6 +560,7 @@ struct ChatBannerView: View {
                     .background(Color.white.opacity(0.20))
                     .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
                     .padding(.top, .spacing1)
+                    .accessibilityIdentifier(isDraftOnly ? "draft-chat-badge" : "example-chat-badge")
             }
 
             if let summary, !summary.isEmpty {
@@ -588,8 +612,8 @@ struct ChatBannerView: View {
     @ViewBuilder
     private var navArrows: some View {
         HStack(spacing: 0) {
-            if let onPrevious {
-                Button(action: onPrevious) {
+            if let onNext {
+                Button(action: onNext) {
                     ZStack {
                         Color.clear
                         Image(systemName: layoutDirection == .rightToLeft ? SFSymbol.chevronRight : SFSymbol.chevronLeft)
@@ -600,14 +624,14 @@ struct ChatBannerView: View {
                 .buttonStyle(NavArrowButtonStyle())
                 .frame(width: 40)
                 .frame(maxHeight: .infinity)
-                .accessibilityLabel(AppStrings.localized("chat.header.previous_chat"))
-                .accessibilityIdentifier("chat-header-previous")
+                .accessibilityLabel(AppStrings.localized("chat.header.next_chat"))
+                .accessibilityIdentifier("chat-header-next")
             }
 
             Spacer()
 
-            if let onNext {
-                Button(action: onNext) {
+            if let onPrevious {
+                Button(action: onPrevious) {
                     ZStack {
                         Color.clear
                         Image(systemName: layoutDirection == .rightToLeft ? SFSymbol.chevronLeft : SFSymbol.chevronRight)
@@ -618,8 +642,8 @@ struct ChatBannerView: View {
                 .buttonStyle(NavArrowButtonStyle())
                 .frame(width: 40)
                 .frame(maxHeight: .infinity)
-                .accessibilityLabel(AppStrings.localized("chat.header.next_chat"))
-                .accessibilityIdentifier("chat-header-next")
+                .accessibilityLabel(AppStrings.localized("chat.header.previous_chat"))
+                .accessibilityIdentifier("chat-header-previous")
             }
         }
     }

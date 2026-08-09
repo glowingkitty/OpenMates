@@ -305,6 +305,13 @@ final class DraftService: ObservableObject {
         draftPreviews[chatId]
     }
 
+    #if DEBUG
+    func seedUITestDraftPreview(chatId: String, preview: String) {
+        draftPreviews[chatId] = preview
+        postDraftChange(chatId: chatId)
+    }
+    #endif
+
     private func refreshDraftState(chatId: String) async {
         do {
             if let draft = try await loadDraft(chatId: chatId) {

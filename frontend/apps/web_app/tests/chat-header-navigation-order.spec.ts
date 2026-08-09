@@ -68,6 +68,7 @@ async function swipeHeader(page: any, startX: number, endX: number): Promise<voi
 }
 
 test.describe('ChatHeader follows Chats.svelte order', () => {
+	// contract-test: direct surface=gui.web assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded
 	test('navigates from a regular chat to the newest draft-only chat with the sidebar closed', async ({
 		page
 	}: {
@@ -76,6 +77,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		test.setTimeout(120000);
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
+		await startNewChat(page);
 
 		const draftText = `Header navigation draft ${Date.now()}`;
 		const messageEditor = page.getByTestId('message-editor');
@@ -143,6 +145,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=chat-navigation.order.sidebar-header-match
 	test('right control and right-to-left swipe navigate to previous sidebar chat', async ({
 		page
 	}: {

@@ -681,3 +681,97 @@ assertions:
         - *id061
         supporting_tests: []
     current_direct_proof: false
+  chat-navigation.order.sidebar-header-match:
+    contract: feature.chat-navigation@1
+    fingerprint: bc8c8041e813125ca32c31997890f9f7c04edfff69c489394f0b8f9cf3cecf5a
+    direct_tests:
+    - &id062
+      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+      line: 17
+      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
+      surface: gui.apple
+    - &id063
+      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      line: 72
+      name: navigates from a regular chat to the newest draft-only chat with the sidebar
+        closed
+      surface: gui.web
+    - &id064
+      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      line: 149
+      name: right control and right-to-left swipe navigate to previous sidebar chat
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id062
+    - *id063
+    - *id064
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id062
+        supporting_tests: []
+      gui.web:
+        direct_tests:
+        - *id063
+        - *id064
+        supporting_tests: []
+    current_direct_proof: false
+  chat-navigation.draft-only.addressable:
+    contract: feature.chat-navigation@1
+    fingerprint: a46f5d9ff95dcdc4b78557d6e2091d314d8dfe66e7d50be822e32e5a445c0fcf
+    direct_tests:
+    - &id065
+      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+      line: 17
+      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
+      surface: gui.apple
+    - &id066
+      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      line: 72
+      name: navigates from a regular chat to the newest draft-only chat with the sidebar
+        closed
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id065
+    - *id066
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id065
+        supporting_tests: []
+      gui.web:
+        direct_tests:
+        - *id066
+        supporting_tests: []
+    current_direct_proof: false
+  chat-navigation.empty-new-chat.excluded:
+    contract: feature.chat-navigation@1
+    fingerprint: dda29285bb9bc3d479f8e0708f1012502547d32a02fea67872c6a82ef4835b54
+    direct_tests:
+    - &id067
+      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+      line: 17
+      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
+      surface: gui.apple
+    - &id068
+      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      line: 72
+      name: navigates from a regular chat to the newest draft-only chat with the sidebar
+        closed
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id067
+    - *id068
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id067
+        supporting_tests: []
+      gui.web:
+        direct_tests:
+        - *id068
+        supporting_tests: []
+    current_direct_proof: false

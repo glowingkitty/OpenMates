@@ -987,6 +987,7 @@ enum AppStrings {
     // MARK: - Chat banner (ChatHeader.svelte)
     static var creatingNewChat: String { L("chat.creating_new_chat") }
     static var exampleChatBadge: String { L("chat.header.example_chat") }
+    static var draftBadge: String { L("enter_message.draft") }
     static var chatHeaderJustNow: String { L("chat.header.just_now") }
     static var incognitoModeActive: String { L("settings.incognito_mode_active") }
 

@@ -75,6 +75,40 @@ final class AuthManager: ObservableObject {
 
     func checkSession() async {
         Self._shared = self
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation") {
+            currentUser = UserProfile(
+                id: "ui-test-chat-navigation-user",
+                username: "ui-test-chat-navigation",
+                email: nil,
+                credits: 0,
+                language: "en",
+                darkmode: nil,
+                timezone: "UTC",
+                lastOpened: "ui-test-regular-chat",
+                profileImageUrl: nil,
+                isAdmin: false,
+                encryptedKey: nil,
+                keyIv: nil,
+                salt: nil,
+                userEmailSalt: nil,
+                encryptedSettings: nil,
+                autoDeleteChatsAfterDays: nil,
+                pushNotificationEnabled: nil,
+                emailNotificationsEnabled: nil,
+                emailNotificationPreferences: nil,
+                backupReminderIntervalDays: nil,
+                defaultAiModelSimple: nil,
+                defaultAiModelComplex: nil,
+                followUpSuggestionsEnabled: nil,
+                quickTipsEnabled: nil
+            )
+            webSocketToken = nil
+            sessionValidationState = .offlineAuthenticated
+            state = .authenticated
+            return
+        }
+        #endif
         if ProcessInfo.processInfo.arguments.contains("--ui-test-disable-auth-cache") {
             sessionValidationState = .unauthenticated
             state = .unauthenticated

@@ -157,6 +157,7 @@ struct ChatView: View {
     @StateObject private var enhancedPIIModelController = EnhancedPIIModelDownloadController.shared
     @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
     @StateObject private var composerSession = NativeComposerSession()
+    @ObservedObject private var draftService = DraftService.shared
     @State private var selectedEmbed: EmbedRecord?
     @State private var fullscreenPreviousEmbeds: [EmbedRecord] = []
     @State private var showEmbedFullscreen = false
@@ -560,6 +561,11 @@ struct ChatView: View {
 
     private var effectiveBannerState: ChatBannerState? {
         if let bannerState { return bannerState }
+        if let chat = viewModel.chat,
+           isDraftOnlyChat(chat) {
+            let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return .draftOnly(preview: preview?.isEmpty == false ? preview! : chat.displayTitle)
+        }
         guard let chat = viewModel.chat,
               let title = chat.title,
               let category = chat.category,
@@ -586,6 +592,11 @@ struct ChatView: View {
             return appId
         }
         return viewModel.chat?.category ?? viewModel.chat?.appId
+    }
+
+    private func isDraftOnlyChat(_ chat: Chat) -> Bool {
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty && (chat.messagesV ?? 0) == 0 && (chat.draftV ?? 0) > 0
     }
 
     private var followUpSuggestionIcon: String? {

@@ -292,6 +292,12 @@ final class ChatStore: ObservableObject {
     }
 
     private func chatSortPrecedes(_ a: Chat, _ b: Chat) -> Bool {
+        let aHasDraft = (a.draftV ?? 0) > 0
+        let bHasDraft = (b.draftV ?? 0) > 0
+        if aHasDraft != bHasDraft {
+            return aHasDraft
+        }
+
         let aDate = a.lastMessageDate ?? .distantPast
         let bDate = b.lastMessageDate ?? .distantPast
         if aDate != bDate {

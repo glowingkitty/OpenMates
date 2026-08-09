@@ -21,6 +21,14 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.chat-navigation:
+    version: 1
+    status: approved
+    path: features/chat-navigation
+    fingerprint: dae01cc418d0cb88f015c1b6c3405fd6f6eaae70540258878ad3a146aaec1b9f
+    required_surfaces:
+    - gui.web
+    - gui.apple
 assertions:
   sync.access.first-party-authenticated:
     contract: architecture.sync@1
@@ -188,5 +196,29 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
+  chat-navigation.order.sidebar-header-match:
+    contract: feature.chat-navigation@1
+    contract_id: feature.chat-navigation
+    type: behavior
+    fingerprint: bc8c8041e813125ca32c31997890f9f7c04edfff69c489394f0b8f9cf3cecf5a
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  chat-navigation.draft-only.addressable:
+    contract: feature.chat-navigation@1
+    contract_id: feature.chat-navigation
+    type: behavior
+    fingerprint: a46f5d9ff95dcdc4b78557d6e2091d314d8dfe66e7d50be822e32e5a445c0fcf
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  chat-navigation.empty-new-chat.excluded:
+    contract: feature.chat-navigation@1
+    contract_id: feature.chat-navigation
+    type: invariant
+    fingerprint: dda29285bb9bc3d479f8e0708f1012502547d32a02fea67872c6a82ef4835b54
+    required_surfaces:
     - gui.web
     - gui.apple

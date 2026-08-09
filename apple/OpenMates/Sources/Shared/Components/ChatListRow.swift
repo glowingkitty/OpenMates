@@ -71,6 +71,20 @@ struct ChatListRow: View {
         chat.isSubChat == true || chat.parentId != nil
     }
 
+    private var draftPreview: String? {
+        guard (chat.draftV ?? 0) > 0 else { return nil }
+        let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return preview?.isEmpty == false ? preview : nil
+    }
+
+    private var titleForDisplay: String {
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if title.isEmpty, let draftPreview {
+            return draftPreview
+        }
+        return chat.displayTitle
+    }
+
     var body: some View {
         HStack(spacing: .spacing4) {
             if isSubChatRow {
@@ -120,13 +134,13 @@ struct ChatListRow: View {
             }
 
             VStack(alignment: .leading, spacing: .spacing1) {
-                Text(chat.displayTitle)
+                Text(titleForDisplay)
                     .font(.omP)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
 
-                if let preview = draftService.draftPreview(chatId: chat.id), chat.draftV ?? 0 > 0 {
+                if let preview = draftPreview, preview != titleForDisplay {
                     Text(preview)
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)
@@ -154,7 +168,7 @@ struct ChatListRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(isSubChatRow ? "sub-chat-item" : "chat-item-wrapper")
         .accessibilityValue(accessibilityScope)
-        .accessibilityLabel("\(chat.displayTitle)\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
+        .accessibilityLabel("\(titleForDisplay)\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }
 }

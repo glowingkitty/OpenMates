@@ -163,7 +163,13 @@ struct MainAppView: View {
     private func isVisibleUserChat(_ chat: Chat) -> Bool {
         publicChatGroup(for: chat.id) == nil &&
             isTopLevelUserChat(chat) &&
+            !isEmptyShellChat(chat) &&
             !chat.isHiddenFromNormalSurfaces
+    }
+
+    private func isEmptyShellChat(_ chat: Chat) -> Bool {
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty && (chat.messagesV ?? 0) == 0 && (chat.draftV ?? 0) == 0
     }
 
     private func isTopLevelUserChat(_ chat: Chat) -> Bool {
@@ -173,6 +179,13 @@ struct MainAppView: View {
     private var visibleFilteredUnpinnedChats: [Chat] {
         guard isAuthenticated, searchText.isEmpty else { return filteredUnpinnedChats }
         return Array(filteredUnpinnedChats.prefix(visibleUserChatLimit))
+    }
+
+    private var visibleSidebarChatIds: [String] {
+        let userChatIds = (filteredPinnedChats + visibleFilteredUnpinnedChats).map(\.id)
+        let publicChatIds = [PublicChatGroup.intro, .examples, .announcements, .legal]
+            .flatMap { publicChats(in: $0).map(\.id) }
+        return userChatIds + publicChatIds
     }
 
     private var userChatCountForDisplayLimit: Int {
@@ -210,6 +223,15 @@ struct MainAppView: View {
         #if DEBUG
         ProcessInfo.processInfo.arguments.contains("--ui-test-shell-performance-fixture")
             || ProcessInfo.processInfo.environment["UI_TEST_SHELL_PERFORMANCE_FIXTURE"] == "1"
+        #else
+        false
+        #endif
+    }
+
+    private var isChatNavigationUITestEnabled: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation")
+            || ProcessInfo.processInfo.environment["UI_TEST_AUTHENTICATED_CHAT_NAVIGATION"] == "1"
         #else
         false
         #endif
@@ -560,8 +582,27 @@ struct MainAppView: View {
             .overlay(alignment: .bottomLeading) {
                 shellMetricsProbe(viewportWidth: viewportWidth, compactPanelWidth: compactPanelWidth)
             }
+            .overlay(alignment: .bottomTrailing) {
+                chatNavigationUITestProbe
+            }
         }
         .background(Color.grey0)
+    }
+
+    @ViewBuilder
+    private var chatNavigationUITestProbe: some View {
+        if isChatNavigationUITestEnabled {
+            Text("chat-navigation-order=\(visibleSidebarChatIds.joined(separator: ",")); selected-chat-id=\(selectedChatId ?? "nil")")
+                .font(.omMicro)
+                .foregroundStyle(Color.fontTertiary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing1)
+                .background(Color.grey0.opacity(0.86))
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("chat-navigation-order-metrics")
+        }
     }
 
     @ViewBuilder
@@ -1612,16 +1653,14 @@ struct MainAppView: View {
     // MARK: - Chat navigation (prev/next)
     // Web: chatNavigationStore — navigatePrev/navigateNext switch to adjacent chat in sidebar list.
 
-    /// Ordered chat list matching sidebar display order (pinned first, then by lastMessageAt).
+    /// Ordered chat list matching the currently rendered sidebar sections.
     private var orderedChatIds: [String] {
-        let pinned = chatStore.chats.filter { $0.isPinned == true }.sorted { ($0.lastMessageAt ?? "") > ($1.lastMessageAt ?? "") }
-        let unpinned = chatStore.chats.filter { $0.isPinned != true && $0.isArchived != true }.sorted { ($0.lastMessageAt ?? "") > ($1.lastMessageAt ?? "") }
-        return (pinned + unpinned).map(\.id)
+        visibleSidebarChatIds
     }
 
     private func previousChatAction(for chatId: String) -> (() -> Void)? {
-        guard let idx = orderedChatIds.firstIndex(of: chatId), idx > 0 else { return nil }
-        let prevId = orderedChatIds[idx - 1]
+        guard let idx = orderedChatIds.firstIndex(of: chatId), idx < orderedChatIds.count - 1 else { return nil }
+        let prevId = orderedChatIds[idx + 1]
         return {
             selectedChatId = prevId
             searchSelection = nil
@@ -1629,8 +1668,8 @@ struct MainAppView: View {
     }
 
     private func nextChatAction(for chatId: String) -> (() -> Void)? {
-        guard let idx = orderedChatIds.firstIndex(of: chatId), idx < orderedChatIds.count - 1 else { return nil }
-        let nextId = orderedChatIds[idx + 1]
+        guard let idx = orderedChatIds.firstIndex(of: chatId), idx > 0 else { return nil }
+        let nextId = orderedChatIds[idx - 1]
         return {
             selectedChatId = nextId
             searchSelection = nil
@@ -2088,6 +2127,134 @@ struct MainAppView: View {
         #endif
     }
 
+    private func seedChatNavigationUITestState() {
+        #if DEBUG
+        guard isChatNavigationUITestEnabled else { return }
+        let formatter = ISO8601DateFormatter()
+        let now = Date()
+        let draftPreview = "Header navigation draft"
+        let draftCreatedAt = formatter.string(from: now.addingTimeInterval(-30))
+        let newerCreatedAt = formatter.string(from: now.addingTimeInterval(-60))
+        let selectedCreatedAt = formatter.string(from: now.addingTimeInterval(-120))
+        let olderCreatedAt = formatter.string(from: now.addingTimeInterval(-180))
+        let emptyCreatedAt = formatter.string(from: now.addingTimeInterval(-240))
+
+        let seededChats = [
+            Chat(
+                id: "ui-test-draft-chat",
+                title: nil,
+                lastMessageAt: nil,
+                createdAt: draftCreatedAt,
+                updatedAt: draftCreatedAt,
+                isArchived: false,
+                isPinned: false,
+                appId: "general_knowledge",
+                category: "general_knowledge",
+                icon: "lightbulb",
+                encryptedTitle: nil,
+                encryptedChatKey: nil,
+                messagesV: 0,
+                titleV: 0,
+                draftV: 1
+            ),
+            Chat(
+                id: "ui-test-newer-chat",
+                title: "Newer Chat",
+                lastMessageAt: newerCreatedAt,
+                createdAt: newerCreatedAt,
+                updatedAt: newerCreatedAt,
+                isArchived: false,
+                isPinned: false,
+                appId: "general_knowledge",
+                category: "general_knowledge",
+                icon: "message-square",
+                chatSummary: "Newer seeded chat",
+                encryptedTitle: nil,
+                encryptedChatKey: nil,
+                messagesV: 1,
+                titleV: 1,
+                draftV: 0
+            ),
+            Chat(
+                id: "ui-test-current-chat",
+                title: "Current Chat",
+                lastMessageAt: selectedCreatedAt,
+                createdAt: selectedCreatedAt,
+                updatedAt: selectedCreatedAt,
+                isArchived: false,
+                isPinned: false,
+                appId: "general_knowledge",
+                category: "general_knowledge",
+                icon: "message-square",
+                chatSummary: "Selected seeded chat",
+                encryptedTitle: nil,
+                encryptedChatKey: nil,
+                messagesV: 1,
+                titleV: 1,
+                draftV: 0
+            ),
+            Chat(
+                id: "ui-test-older-chat",
+                title: "Older Chat",
+                lastMessageAt: olderCreatedAt,
+                createdAt: olderCreatedAt,
+                updatedAt: olderCreatedAt,
+                isArchived: false,
+                isPinned: false,
+                appId: "general_knowledge",
+                category: "general_knowledge",
+                icon: "message-square",
+                chatSummary: "Older seeded chat",
+                encryptedTitle: nil,
+                encryptedChatKey: nil,
+                messagesV: 1,
+                titleV: 1,
+                draftV: 0
+            ),
+            Chat(
+                id: "ui-test-empty-shell-chat",
+                title: nil,
+                lastMessageAt: nil,
+                createdAt: emptyCreatedAt,
+                updatedAt: emptyCreatedAt,
+                isArchived: false,
+                isPinned: false,
+                appId: "general_knowledge",
+                encryptedTitle: nil,
+                encryptedChatKey: nil,
+                messagesV: 0,
+                titleV: 0,
+                draftV: 0
+            )
+        ]
+
+        chatStore.performWithoutPersistence {
+            chatStore.upsertChats(seededChats)
+            for chat in seededChats where (chat.messagesV ?? 0) > 0 {
+                chatStore.setMessages(for: chat.id, messages: [
+                    Message(
+                        id: "message-\(chat.id)",
+                        chatId: chat.id,
+                        role: .user,
+                        content: chat.displayTitle,
+                        encryptedContent: nil,
+                        createdAt: chat.lastMessageAt ?? chat.createdAt,
+                        updatedAt: chat.updatedAt,
+                        appId: chat.appId,
+                        isStreaming: false,
+                        embedRefs: nil
+                    )
+                ])
+            }
+        }
+        DraftService.shared.seedUITestDraftPreview(chatId: "ui-test-draft-chat", preview: draftPreview)
+        totalChatCount = seededChats.filter { !isEmptyShellChat($0) }.count
+        selectedChatId = "ui-test-current-chat"
+        showNewChat = false
+        showAuthSheet = false
+        #endif
+    }
+
     private var shellPerformanceUITestSeedCount: Int {
         #if DEBUG
         let rawValue = ProcessInfo.processInfo.environment["UI_TEST_SHELL_CHAT_COUNT"]
@@ -2168,6 +2335,11 @@ struct MainAppView: View {
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
         loadDemoChats(selectDefault: false)
+
+        if isChatNavigationUITestEnabled {
+            seedChatNavigationUITestState()
+            return
+        }
 
         let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
         syncBridge = bridge
