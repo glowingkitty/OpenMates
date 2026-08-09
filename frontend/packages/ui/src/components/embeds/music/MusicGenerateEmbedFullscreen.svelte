@@ -25,6 +25,14 @@
     data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
+    appId?: string;
+    skillId?: string;
+    skillName?: string;
+    skillIconName?: string;
+    modelFallbackName?: string;
+    coverSymbol?: string;
+    accentColor?: string;
+    testIdPrefix?: string;
     hasPreviousEmbed?: boolean;
     hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void;
@@ -38,6 +46,14 @@
     data,
     onClose,
     embedId,
+    appId = 'music',
+    skillId = 'generate',
+    skillName: skillNameProp,
+    skillIconName = 'ai',
+    modelFallbackName = 'Lyria',
+    coverSymbol = '♪',
+    accentColor = 'var(--color-app-music)',
+    testIdPrefix,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
@@ -51,7 +67,7 @@
   let prompt = $derived(typeof dc.prompt === 'string' ? dc.prompt : '');
   let mode = $derived(typeof dc.mode === 'string' ? dc.mode : 'background');
   let model = $derived(typeof dc.model === 'string' ? dc.model : '');
-  let modelName = $derived(model ? getModelDisplayName(model) : 'Lyria');
+  let modelName = $derived(model ? getModelDisplayName(model) : modelFallbackName);
   let durationSeconds = $derived(typeof dc.duration_seconds === 'number' ? dc.duration_seconds : undefined);
   let s3BaseUrl = $derived(typeof dc.s3_base_url === 'string' ? dc.s3_base_url : '');
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as MusicFiles : undefined);
@@ -66,7 +82,10 @@
   let audioError = $state<string | undefined>();
   let retainedS3Key: string | undefined;
 
-  let headerTitle = $derived(prompt ? truncate(prompt, 80) : $text('app_skills.music.generate'));
+  const defaultSkillName = $text('app_skills.music.generate');
+  let skillName = $derived(skillNameProp ?? defaultSkillName);
+  let resolvedTestIdPrefix = $derived(testIdPrefix ?? `${appId}-${skillId.replace(/_/g, '-')}`);
+  let headerTitle = $derived(prompt ? truncate(prompt, 80) : skillName);
   let headerSubtitle = $derived(`${modelName}${durationSeconds ? ` · ${formatDuration(durationSeconds)}` : ''}`);
 
   onDestroy(() => {
@@ -108,9 +127,9 @@
 </script>
 
 <UnifiedEmbedFullscreen
-  appId="music"
-  skillId="generate"
-  skillIconName="ai"
+  {appId}
+  {skillId}
+  {skillIconName}
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}
   showSkillIcon={true}
@@ -125,9 +144,9 @@
   {onShowChat}
 >
   {#snippet content()}
-    <div class="music-fullscreen" data-testid="music-generate-fullscreen">
+    <div class="music-fullscreen" data-testid={`${resolvedTestIdPrefix}-fullscreen`}>
       <section class="player-card">
-        <div class="cover" aria-hidden="true">♪</div>
+        <div class="cover" aria-hidden="true" style={`--generated-audio-accent: ${accentColor};`}>{coverSymbol}</div>
         <div class="player-main">
           <h2>{mode.replace(/_/g, ' ')}</h2>
           {#if error}
@@ -135,7 +154,7 @@
           {:else if audioUrl}
             <audio
               class="player"
-              data-testid="music-generate-fullscreen-audio"
+              data-testid={`${resolvedTestIdPrefix}-fullscreen-audio`}
               src={audioUrl}
               controls
               autoplay
@@ -174,9 +193,9 @@
 
   .player-card,
   .details-card {
-    border-radius: 24px;
+    border-radius: var(--radius-8);
     background: var(--color-grey-0);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-lg);
     padding: 20px;
   }
 
@@ -189,13 +208,13 @@
 
   .cover {
     aspect-ratio: 1;
-    border-radius: 28px;
-    background: var(--color-app-music);
+    border-radius: var(--radius-8);
+    background: var(--generated-audio-accent, var(--color-app-music));
     color: var(--color-grey-0);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 72px;
+    font-size: var(--font-size-hero);
     font-weight: 700;
   }
 
@@ -217,7 +236,7 @@
 
   dt {
     color: var(--color-font-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     margin-bottom: 4px;
   }

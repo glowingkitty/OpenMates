@@ -26,9 +26,14 @@
 
   interface Props {
     id: string;
+    appId?: string;
+    skillId?: string;
+    skillName?: string;
+    skillIconName?: string;
     prompt?: string;
     mode?: string;
     model?: string;
+    modelFallbackName?: string;
     durationSeconds?: number;
     s3BaseUrl?: string;
     files?: MusicFiles;
@@ -39,14 +44,25 @@
     error?: string;
     taskId?: string;
     isMobile?: boolean;
+    coverSymbol?: string;
+    accentColor?: string;
+    itemTitle?: string;
+    processingStatusText?: string;
+    errorStatusText?: string;
+    testIdPrefix?: string;
     onFullscreen: () => void;
   }
 
   let {
     id,
+    appId = 'music',
+    skillId = 'generate',
+    skillName: skillNameProp,
+    skillIconName = 'ai',
     prompt: promptProp,
     mode: modeProp,
     model: modelProp,
+    modelFallbackName = 'Lyria',
     durationSeconds: durationProp,
     s3BaseUrl: s3BaseUrlProp,
     files: filesProp,
@@ -57,6 +73,12 @@
     error: errorProp,
     taskId,
     isMobile = false,
+    coverSymbol = '♪',
+    accentColor = 'var(--color-app-music)',
+    itemTitle: itemTitleProp,
+    processingStatusText,
+    errorStatusText,
+    testIdPrefix,
     onFullscreen,
   }: Props = $props();
 
@@ -85,14 +107,19 @@
   let audioError = $state<string | undefined>();
   let retainedS3Key: string | undefined;
 
-  const skillName = $text('app_skills.music.generate');
-  const modelName = $derived(model ? getModelDisplayName(model) : 'Lyria');
+  const defaultSkillName = $text('app_skills.music.generate');
+  const defaultGeneratingText = $text('embeds.music_generate.generating');
+  const defaultErrorText = $text('embeds.music_generate.error');
+  const skillName = $derived(skillNameProp ?? defaultSkillName);
+  const modelName = $derived(model ? getModelDisplayName(model) : modelFallbackName);
   const durationLabel = $derived(formatDuration(durationSeconds || files?.original?.duration_seconds));
+  const itemTitle = $derived(itemTitleProp ?? modeLabel(mode));
+  const resolvedTestIdPrefix = $derived(testIdPrefix ?? `${appId}-${skillId.replace(/_/g, '-')}`);
   const statusText = $derived(
     status === 'processing'
-      ? $text('embeds.music_generate.generating')
+      ? (processingStatusText ?? defaultGeneratingText)
       : status === 'error'
-        ? $text('embeds.music_generate.error')
+        ? (errorStatusText ?? defaultErrorText)
         : `${modelName}${durationLabel ? ` · ${durationLabel}` : ''}`
   );
 
@@ -113,8 +140,18 @@
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     const decoded = data.decodedContent;
     updatedStatus = (decoded.status as 'processing' | 'finished' | 'error') || (data.status as 'processing' | 'finished' | 'error') || status;
-    updatedPrompt = typeof decoded.prompt === 'string' ? decoded.prompt : updatedPrompt;
-    updatedMode = typeof decoded.mode === 'string' ? decoded.mode : updatedMode;
+    updatedPrompt = typeof decoded.prompt === 'string'
+      ? decoded.prompt
+      : typeof decoded.text_preview === 'string'
+        ? decoded.text_preview
+        : updatedPrompt;
+    updatedMode = typeof decoded.mode === 'string'
+      ? decoded.mode
+      : typeof decoded.voice === 'string'
+        ? decoded.voice
+        : typeof decoded.generation_type === 'string'
+          ? decoded.generation_type
+          : updatedMode;
     updatedModel = typeof decoded.model === 'string' ? decoded.model : updatedModel;
     updatedDurationSeconds = typeof decoded.duration_seconds === 'number' ? decoded.duration_seconds : updatedDurationSeconds;
     updatedS3BaseUrl = typeof decoded.s3_base_url === 'string' ? decoded.s3_base_url : updatedS3BaseUrl;
@@ -151,9 +188,9 @@
 
 <UnifiedEmbedPreview
   {id}
-  appId="music"
-  skillId="generate"
-  skillIconName="ai"
+  {appId}
+  {skillId}
+  {skillIconName}
   {status}
   {skillName}
   {taskId}
@@ -163,20 +200,20 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details()}
-    <div class="music-preview" data-testid="music-generate-preview">
+    <div class="music-preview" data-testid={`${resolvedTestIdPrefix}-preview`}>
       {#if status === 'error'}
-        <div class="error-box">{error || $text('embeds.music_generate.error')}</div>
+        <div class="error-box">{error || errorStatusText || defaultErrorText}</div>
       {:else}
-        <div class="track-art" aria-hidden="true">
-          <span class="note">♪</span>
+        <div class="track-art" aria-hidden="true" style={`--generated-audio-accent: ${accentColor};`}>
+          <span class="note">{coverSymbol}</span>
         </div>
         <div class="track-details">
-          <div class="track-title">{modeLabel(mode)}</div>
-          <div class="prompt">{prompt || $text('embeds.music_generate.generating')}</div>
+          <div class="track-title">{itemTitle}</div>
+          <div class="prompt">{prompt || processingStatusText || defaultGeneratingText}</div>
           {#if status === 'finished' && audioUrl}
             <audio
               class="audio-player"
-              data-testid="music-generate-audio"
+              data-testid={`${resolvedTestIdPrefix}-audio`}
               src={audioUrl}
               controls
               preload="metadata"
@@ -207,18 +244,18 @@
   .track-art {
     width: 70px;
     height: 70px;
-    border-radius: 14px;
-    background: var(--color-app-music);
+    border-radius: var(--radius-6);
+    background: var(--generated-audio-accent, var(--color-app-music));
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+    box-shadow: var(--shadow-lg);
     flex: 0 0 auto;
   }
 
   .note {
     color: var(--color-grey-0);
-    font-size: 34px;
+    font-size: var(--font-size-xxxl);
     font-weight: 700;
   }
 
@@ -232,13 +269,13 @@
 
   .track-title {
     color: var(--color-font-primary);
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
   }
 
   .prompt {
     color: var(--color-font-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     line-height: 1.35;
     display: -webkit-box;
     line-clamp: 2;
@@ -255,7 +292,7 @@
   .loading-line {
     width: 100%;
     height: 8px;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: linear-gradient(90deg, var(--color-grey-20), var(--color-grey-10), var(--color-grey-20));
     animation: pulse 1.4s infinite ease-in-out;
   }
@@ -263,7 +300,7 @@
   .error-box,
   .error-inline {
     color: var(--color-error, #d33);
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 
   @keyframes pulse {

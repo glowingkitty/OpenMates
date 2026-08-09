@@ -55,6 +55,7 @@ import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerat
 import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
 import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
+import AudioGenerateEmbedPreview from "../../../embeds/audio/AudioGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
@@ -2119,6 +2120,37 @@ export class GroupRenderer implements EmbedRenderer {
             files: decodedContent?.files || undefined,
             aesKey: decodedContent?.aes_key || "",
             aesNonce: decodedContent?.aes_nonce || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "audio" && (skillId === "generate" || skillId === "speak")) {
+        const audioSkillId = skillId as "generate" | "speak";
+        const component = mount(AudioGenerateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            skillId: audioSkillId,
+            content: decodedContent,
+            prompt: decodedContent?.prompt || decodedContent?.text_preview || "",
+            mode:
+              decodedContent?.mode ||
+              (audioSkillId === "speak" ? decodedContent?.voice : decodedContent?.generation_type) ||
+              (audioSkillId === "speak" ? "speech" : "sound_effect"),
+            model: decodedContent?.model || "",
+            durationSeconds: decodedContent?.duration_seconds,
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
+            previewAudioUrl: decodedContent?.previewAudioUrl || decodedContent?.preview_audio_url || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             taskId,

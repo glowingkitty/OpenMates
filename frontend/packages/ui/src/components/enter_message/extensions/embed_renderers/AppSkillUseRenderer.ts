@@ -54,6 +54,7 @@ import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerat
 import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
 import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
+import AudioGenerateEmbedPreview from "../../../embeds/audio/AudioGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
@@ -912,6 +913,22 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           embedData,
           decodedContent,
           content,
+        );
+      }
+
+      if (appId === "audio" && (skillId === "generate" || skillId === "speak")) {
+        console.debug("[AppSkillUseRenderer] Rendering audio generate/speak for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderAudioGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+          skillId as "generate" | "speak",
         );
       }
 
@@ -4024,6 +4041,100 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (mountError) {
       console.error(
         "[AppSkillUseRenderer] Error mounting MusicGenerateEmbedPreview component:",
+        mountError,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render generated SFX and read-aloud embeds with the audio player preview.
+   */
+  private renderAudioGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+    skillId: "generate" | "speak",
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    const prompt = decodedContent?.prompt || decodedContent?.text_preview || "";
+    const mode =
+      decodedContent?.mode ||
+      (skillId === "speak" ? decodedContent?.voice : decodedContent?.generation_type) ||
+      (skillId === "speak" ? "speech" : "sound_effect");
+    const model = decodedContent?.model || "";
+    const durationSeconds = decodedContent?.duration_seconds;
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+    const previewAudioUrl = decodedContent?.previewAudioUrl || decodedContent?.preview_audio_url || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(AudioGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          skillId,
+          content: decodedContent,
+          prompt,
+          mode,
+          model,
+          durationSeconds,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          previewAudioUrl,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted AudioGenerateEmbedPreview component:",
+        {
+          embedId,
+          skillId,
+          status,
+          prompt: prompt.substring(0, 30) + "...",
+        },
+      );
+    } catch (mountError) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting AudioGenerateEmbedPreview component:",
         mountError,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
