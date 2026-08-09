@@ -5,6 +5,44 @@ capabilities:
   audio.transcribe:
     available: false
     unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  audio.generate:
+    available: true
+    execution_mode: async_job
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - prompt: soft confirmation chime
+          provider: elevenlabs
+    output_schema: &generation_output
+      type: object
+      properties:
+        summary:
+          type: string
+        result_count:
+          type: integer
+        provider:
+          type: string
+        artifact_ids:
+          type: array
+          items:
+            type: string
+  audio.speak:
+    available: true
+    execution_mode: async_job
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - text: Welcome back.
+          provider: elevenlabs
+    output_schema: *generation_output
   books.translate:
     available: false
     unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
@@ -189,19 +227,7 @@ capabilities:
           aspect_ratio: "1:1"
           output_filetype: png
           quality: default
-    output_schema: &generation_output
-      type: object
-      properties:
-        summary:
-          type: string
-        result_count:
-          type: integer
-        provider:
-          type: string
-        artifact_ids:
-          type: array
-          items:
-            type: string
+    output_schema: *generation_output
   images.vectorize:
     available: false
     unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
@@ -344,6 +370,12 @@ capabilities:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
   plans.search:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  projects.create:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  projects.search:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
   reminder.set-reminder:
