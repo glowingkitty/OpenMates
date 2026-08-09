@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { parseEmbedNodes } from "../embedParsing";
 
 describe("parseEmbedNodes", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("restores reference-only metadata from JSON embed references", () => {
     const markdown = `\`\`\`json
 {
@@ -29,6 +30,7 @@ describe("parseEmbedNodes", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("keeps complete JSON embed references finished when no status is present", () => {
     const markdown = `\`\`\`json
 {
@@ -47,6 +49,7 @@ describe("parseEmbedNodes", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("preserves explicit processing status from JSON embed references", () => {
     const markdown = `\`\`\`json
 {
@@ -63,6 +66,27 @@ describe("parseEmbedNodes", () => {
       type: "code-code",
       contentRef: "embed:processing-code-1",
       status: "processing",
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
+  it("preserves interactive question payloads in read-mode code blocks", () => {
+    const payload = {
+      id: "question-1",
+      type: "choice",
+      question: "Pick one",
+      options: [{ id: "a", text: "A" }],
+    };
+    const markdown = `\`\`\`interactive_question
+${JSON.stringify(payload)}
+\`\`\``;
+
+    const [embed] = parseEmbedNodes(markdown, "read");
+
+    expect(embed).toMatchObject({
+      type: "code-code",
+      language: "interactive_question",
+      code: JSON.stringify(payload),
     });
   });
 });

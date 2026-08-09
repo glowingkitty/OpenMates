@@ -261,4 +261,41 @@ describe('GroupRenderer', () => {
       }),
     );
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
+  it('renders read-mode interactive_question code fences as interactive question cards', async () => {
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.appendChild(content);
+    const payload = {
+      id: 'question-2',
+      type: 'choice',
+      question: 'Pick one',
+      options: [{ id: 'a', text: 'A' }],
+    };
+
+    await renderer.render({
+      attrs: {
+        id: 'read-mode-question-embed',
+        type: 'code-code',
+        status: 'finished',
+        contentRef: 'stream:read-mode-question-embed',
+        language: 'interactive_question',
+        code: JSON.stringify(payload),
+      },
+      container,
+      content,
+    });
+
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(
+      InteractiveQuestionContainer,
+      expect.objectContaining({
+        props: expect.objectContaining({
+          payload,
+          chatId: '',
+        }),
+      }),
+    );
+  });
 });

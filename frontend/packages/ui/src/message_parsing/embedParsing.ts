@@ -12,7 +12,12 @@ import { normalizeEmbedType } from "../data/embedRegistry.generated";
 
 const EMBEDS_MAP_VIEW_LANGUAGE = "embeds_map_view";
 const EMBEDS_RESULTS_VIEW_LANGUAGE = "embeds_results_view";
+const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
 const MAP_VIEW_ALLOWED_FIELDS = new Set(["title", "embeds", "sources", "highlight"]);
+
+function normalizeFenceLanguage(language?: string): string {
+  return (language || "").toLowerCase().trim();
+}
 
 function isResultsViewLanguage(language: string): boolean {
   const fenceLanguage = language.trim().split(/\s+/, 1)[0].toLowerCase();
@@ -146,7 +151,7 @@ function mapEmbedReferenceType(embedType: string): string {
  * @returns The embed type ('code-code' or 'docs-doc')
  */
 function getEmbedTypeFromLanguage(language?: string): "code-code" | "docs-doc" {
-  const normalizedLang = (language || "").toLowerCase().trim();
+  const normalizedLang = normalizeFenceLanguage(language);
   if (normalizedLang === "doc" || normalizedLang === "document") {
     return "docs-doc";
   }
@@ -165,7 +170,7 @@ function createPreviewEmbed(
   // STABLE ID: Derive from language + first 200 chars of content so
   // re-parsing the same markdown produces an identical node ID.
   const embedType = getEmbedTypeFromLanguage(language);
-  const normalizedLang = (language || "").toLowerCase().trim();
+  const normalizedLang = normalizeFenceLanguage(language);
   const id = deterministicId(
     `${embedType}:${normalizedLang}:${content.slice(0, 200)}`,
     "code",
@@ -212,7 +217,7 @@ function createReadEmbed(
   // STABLE ID: Derive from language + first 200 chars of content so
   // re-parsing during streaming produces the same node ID each time.
   const embedType = getEmbedTypeFromLanguage(language);
-  const normalizedLang = (language || "").toLowerCase().trim();
+  const normalizedLang = normalizeFenceLanguage(language);
   const id = deterministicId(
     `${embedType}:${normalizedLang}:${content.slice(0, 200)}`,
     "code",
@@ -235,6 +240,9 @@ function createReadEmbed(
   if (embedType === "code-code") {
     readEmbed.language = normalizedLang || undefined;
     readEmbed.filename = filename || undefined;
+    if (normalizedLang === INTERACTIVE_QUESTION_LANGUAGE) {
+      readEmbed.code = content;
+    }
   } else {
     const titleMatch = content.match(EMBED_PATTERNS.TITLE_COMMENT);
     if (titleMatch) {
