@@ -16,6 +16,7 @@ scope:
   includes:
     - Explicit user-invoked text-to-speech/read-aloud generation
     - OpenMates voice preset, accent, and style fields mapped internally to provider voice IDs
+    - Low-cost default and premium high-quality ElevenLabs text-to-speech model selection
     - Direct synchronous responses only when live provider latency remains suitable
     - Playable generated-audio app-skill embeds with binary fields excluded from model inference
   excludes:
@@ -71,7 +72,7 @@ models:
     model:
       type: enum
       default: eleven_flash_v2_5
-      values: [eleven_flash_v2_5]
+      values: [eleven_flash_v2_5, eleven_multilingual_v2]
 
   AudioSpeakResult:
     id:

@@ -33,7 +33,7 @@ contracts:
     version: 1
     status: approved
     path: features/app-skills/audio-speak
-    fingerprint: afe608391f25375d3a6b9c0e0d81ffc541a9ebc6ac3e7da5debc32cefaa596de
+    fingerprint: f07414b3683aabb309c3966a7df03be85e12c012de66ac8429f5f8192fc3a74d
     required_surfaces:
     - rest_api
     - cli
@@ -372,7 +372,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: validation
-    fingerprint: 0c7d36e774bbe42c601d5ae0b742fc54cfdce96d06ffa9f7aed8ae0a219178ba
+    fingerprint: 80dc84fd593ae5cb1273c127872c36561c21fd4c3917fa637e741adf6a94570d
     required_surfaces:
     - rest_api
     - cli
@@ -384,7 +384,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: b787a8ca7e90c97635acc4eb45ea0ec732a0ce5e7f7066224061697f7f2805aa
+    fingerprint: 771e5f83fef506d86c59528579062eb7a505f1e3ee56d46b1ebaf56c8654c774
     required_surfaces:
     - rest_api
     - cli
@@ -396,7 +396,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 5a8b042227ef465928b4040af45c4fc73d911ea3a1064249a4d1fe2fae11449c
+    fingerprint: f567a042d33723819d051d0b4ed2f0474513314fb19d0009ab39daa58ec9f00a
     required_surfaces:
     - rest_api
     - cli
@@ -408,7 +408,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: security
-    fingerprint: a99675f5660e7d7e240766502c4c3a9f7dec6985242d8ccade546eec1d4c44b8
+    fingerprint: 84a7fc874706a0a402f93ab021101528c6009341b8bcbbe90a54c63796240603
     required_surfaces:
     - rest_api
     - cli
@@ -528,7 +528,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: parity
-    fingerprint: b0cb4c42ebf886171a6c542c39540f6e3b44ce7dd0a87c658302184e826cc378
+    fingerprint: f754fd3a2a8fd0329d3c8cd2152f95bb80d07b5855a782cde044efb2ac747159
     required_surfaces:
     - rest_api
     - cli

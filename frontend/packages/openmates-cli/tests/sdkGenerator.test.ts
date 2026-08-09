@@ -61,6 +61,11 @@ describe("generated npm SDK app skills", () => {
       audioSpeak.schema.properties.requests.items.properties.voice.enum,
       ["warm_neutral", "bright_neutral", "calm_narrator"],
     );
+    assert.deepEqual(
+      audioSpeak.schema.properties.requests.items.properties.model.enum,
+      ["eleven_flash_v2_5", "eleven_multilingual_v2"],
+    );
+    assert.equal(audioSpeak.schema.properties.requests.items.properties.model.default, "eleven_flash_v2_5");
 
     assert.ok(webSearch);
     assert.equal(webSearch.app_namespace_ts, "web");

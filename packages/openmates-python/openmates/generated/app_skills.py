@@ -119,7 +119,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'in the '
                                                                                         'result.'},
                                                                   'model': {'default': 'eleven_flash_v2_5',
-                                                                            'enum': ['eleven_flash_v2_5'],
+                                                                            'description': 'ElevenLabs '
+                                                                                           'TTS '
+                                                                                           'model. '
+                                                                                           'Flash '
+                                                                                           'v2.5 '
+                                                                                           'is the '
+                                                                                           'low-cost '
+                                                                                           'default; '
+                                                                                           'Multilingual '
+                                                                                           'v2 is '
+                                                                                           'the '
+                                                                                           'premium '
+                                                                                           'high-quality '
+                                                                                           'option.',
+                                                                            'enum': ['eleven_flash_v2_5',
+                                                                                     'eleven_multilingual_v2'],
                                                                             'type': 'string'},
                                                                   'output_format': {'default': 'mp3_44100_128',
                                                                                     'enum': ['mp3_22050_32',

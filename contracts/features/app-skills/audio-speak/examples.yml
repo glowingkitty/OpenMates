@@ -18,6 +18,16 @@ valid_inputs:
         - {id: english, text: The upload is complete., provider: elevenlabs, voice: bright_neutral, accent: en_us}
         - {id: german, text: Der Upload ist abgeschlossen., provider: elevenlabs, voice: calm_narrator, accent: de_de}
     expect: {group_ids: [english, german], semantic_safeguard: allowed_for_each_request}
+  - id: premium-high-quality-speech
+    input:
+      requests:
+        - text: OpenMates is ready. I found the next step and can help you move it forward.
+          provider: elevenlabs
+          voice: warm_neutral
+          accent: en_us
+          style: friendly
+          model: eleven_multilingual_v2
+    expect: {groups: 1, generation_type: speech, model: eleven_multilingual_v2, semantic_safeguard: allowed}
 
 invalid_inputs:
   - id: missing-requests
@@ -43,6 +53,9 @@ invalid_inputs:
         - {text: three}
         - {text: four}
     expect_error: {constraint: AudioSpeakRequest.requests.max_items}
+  - id: unsupported-model
+    input: {requests: [{text: Hello, provider: elevenlabs, model: unsupported_tts_model}]}
+    expect_error: {constraint: AudioSpeakRequestItem.model.enum}
 
 successful_outputs:
   - id: playable-direct-speech

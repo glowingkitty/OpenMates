@@ -45,7 +45,7 @@ models:
 
   - id: "eleven_flash_v2_5"
     name: "ElevenLabs Flash v2.5"
-    description: "Low-latency text-to-speech model used by audio.speak."
+    description: "Low-latency, low-cost text-to-speech model used as the default by audio.speak."
     country_origin: "US"
     for_app_skill: "audio.speak"
     input_types:
@@ -67,5 +67,32 @@ models:
         price: 0.01
         currency: OpenMates credits
         source: "OpenMates character pricing for ElevenLabs Flash v2.5 TTS, with calculate_total_credits enforcing a one-credit successful-output floor."
+    features:
+      max_input_characters: 2000
+
+  - id: "eleven_multilingual_v2"
+    name: "ElevenLabs Multilingual v2"
+    description: "Premium high-quality text-to-speech model available through audio.speak."
+    country_origin: "US"
+    for_app_skill: "audio.speak"
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_multilingual_v2"
+        region: "US"
+    pricing:
+      per_unit:
+        credits: 0.02
+        unit_name: character
+    costs:
+      input_per_character:
+        price: 0.02
+        currency: OpenMates credits
+        source: "OpenMates premium character pricing for ElevenLabs Multilingual v2 TTS, with calculate_total_credits enforcing a one-credit successful-output floor."
     features:
       max_input_characters: 2000

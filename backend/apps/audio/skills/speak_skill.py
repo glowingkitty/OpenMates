@@ -17,19 +17,32 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.elevenlabs import ElevenLabsClient
 from backend.shared.providers.groq.safeguard import get_safeguard_client
+from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROVIDER = "elevenlabs"
 DEFAULT_MODEL = "eleven_flash_v2_5"
+PREMIUM_MODEL = "eleven_multilingual_v2"
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
+SPEECH_MODEL_PRICING = {
+    DEFAULT_MODEL: {"per_unit": {"credits": 0.01, "unit_name": "character"}},
+    PREMIUM_MODEL: {"per_unit": {"credits": 0.02, "unit_name": "character"}},
+}
 VOICE_PRESET_TO_ELEVENLABS_ID = {
     "warm_neutral": "21m00Tcm4TlvDq8ikWAM",
     "bright_neutral": "EXAVITQu4vr4xnSDxMaL",
     "calm_narrator": "pNInz6obpgDQGcFmaJgB",
 }
 IGNORE_FIELDS_FOR_INFERENCE = ["audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"]
+
+
+def _calculate_speech_credits(*, model: str, characters: int) -> int:
+    return calculate_total_credits(
+        pricing_config=SPEECH_MODEL_PRICING[model],
+        units_processed=characters,
+    )
 
 
 @dataclass(frozen=True)
@@ -62,7 +75,7 @@ class AudioSpeakRequestItem(BaseModel):
         "mp3_44100_128",
         "mp3_44100_192",
     ] = DEFAULT_OUTPUT_FORMAT
-    model: Literal["eleven_flash_v2_5"] = DEFAULT_MODEL
+    model: Literal["eleven_flash_v2_5", "eleven_multilingual_v2"] = DEFAULT_MODEL
 
     @field_validator("text")
     @classmethod
@@ -199,6 +212,7 @@ class SpeakSkill(BaseSkill):
                         voice=item.voice,
                         accent=item.accent,
                         style=item.style,
+                        model=item.model,
                         byte_length=0,
                         credits_charged=None,
                         error=safety.user_facing_message,
@@ -215,7 +229,7 @@ class SpeakSkill(BaseSkill):
                     output_format=item.output_format,
                     speed=item.speed,
                 )
-                credits = await self.calculate_skill_credits(units_processed=len(item.text))
+                credits = _calculate_speech_credits(model=item.model, characters=len(item.text))
                 results.append(
                     AudioSpeakResult(
                         id=item_id,
@@ -242,6 +256,7 @@ class SpeakSkill(BaseSkill):
                         voice=item.voice,
                         accent=item.accent,
                         style=item.style,
+                        model=item.model,
                         byte_length=0,
                         credits_charged=None,
                         error="Selected voice preset is temporarily unavailable.",
@@ -257,6 +272,7 @@ class SpeakSkill(BaseSkill):
                         voice=item.voice,
                         accent=item.accent,
                         style=item.style,
+                        model=item.model,
                         byte_length=0,
                         credits_charged=None,
                         error="Speech generation is temporarily unavailable.",

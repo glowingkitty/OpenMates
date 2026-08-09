@@ -73,6 +73,12 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
         assert skill["providers"] == [{"name": "ElevenLabs"}]
         request_item = skill["tool_schema"]["properties"]["requests"]["items"]
         assert request_item["properties"]["provider"]["enum"] == ["elevenlabs"]
+        if skill_id == "speak":
+            assert request_item["properties"]["model"]["enum"] == [
+                "eleven_flash_v2_5",
+                "eleven_multilingual_v2",
+            ]
+            assert request_item["properties"]["model"]["default"] == "eleven_flash_v2_5"
         assert "audio_base64" in skill["exclude_fields_for_llm"]
         assert "aes_key" in skill["exclude_fields_for_llm"]
         assert "vault_wrapped_aes_key" in skill["exclude_fields_for_llm"]
@@ -98,6 +104,9 @@ def test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id():
 
     with pytest.raises(ValidationError):
         AudioSpeakRequest(requests=[{"text": "Hello", "provider": "elevenlabs", "voice": "EXAVITQu4vr4xnSDxMaL"}])
+
+    with pytest.raises(ValidationError):
+        AudioSpeakRequest(requests=[{"text": "Hello", "provider": "elevenlabs", "model": "unsupported_tts_model"}])
 
 
 # contract-test: direct surface=rest_api assertions=audio-generate.output.playable-audio,audio-generate.output.binary-excluded-from-inference,audio-generate.billing.success-only
@@ -265,6 +274,61 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
     assert first["audio_base64"]
     assert first["credits_charged"] == 2
     assert "voice-mp3" not in str(result)
+
+
+# contract-test: direct surface=rest_api assertions=audio-speak.request.validated,audio-speak.output.playable-audio,audio-speak.billing.success-only
+@pytest.mark.asyncio
+async def test_audio_speak_accepts_premium_model_and_charges_model_rate(monkeypatch):
+    import backend.apps.audio.skills.speak_skill as speak_module
+    from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
+
+    calls = []
+
+    async def fake_classify_audio_speech_safety(**kwargs):
+        calls.append(("safeguard", kwargs["text"]))
+        return speak_module.AudioSpeechSafetyDecision(approved=True)
+
+    class FakeElevenLabsClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def text_to_speech(self, **kwargs):
+            calls.append(("tts", kwargs["model"]))
+            assert kwargs["model"] == "eleven_multilingual_v2"
+            return ElevenLabsAudioResult(
+                audio_bytes=b"premium-voice-mp3",
+                mime_type="audio/mpeg",
+                model="eleven_multilingual_v2",
+                duration_seconds=2.4,
+            )
+
+    monkeypatch.setattr(speak_module, "classify_audio_speech_safety", fake_classify_audio_speech_safety)
+    monkeypatch.setattr(speak_module, "ElevenLabsClient", FakeElevenLabsClient)
+    text = "Premium voice sample. " * 8
+
+    result = await _load_audio_app().dispatch_skill(
+        "speak",
+        {
+            "requests": [
+                {
+                    "text": text,
+                    "provider": "elevenlabs",
+                    "voice": "warm_neutral",
+                    "model": "eleven_multilingual_v2",
+                }
+            ]
+        },
+    )
+
+    assert calls == [
+        ("safeguard", text.strip()),
+        ("tts", "eleven_multilingual_v2"),
+    ]
+    first = result["results"][0]
+    assert first["status"] == "finished"
+    assert first["model"] == "eleven_multilingual_v2"
+    assert first["credits_charged"] == 3
+    assert first["audio_base64"]
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.output.binary-excluded-from-inference,audio-speak.provider-error.visible
