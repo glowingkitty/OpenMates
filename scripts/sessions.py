@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Session lifecycle manager for concurrent Claude Code sessions.
+Session lifecycle manager for concurrent OpenMates agent sessions.
 
 Manages session registration, file tracking, concurrent edit safety,
 tag-based instruction doc preloading, architecture doc staleness detection,
@@ -123,6 +123,7 @@ CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
+CHECKPOINT_LOCK_RETENTION_HOURS = 24
 VERCEL_DEPLOY_LOCK_MINUTES = 90
 DOCKER_TEST_LEASE_TTL_SECONDS = 12 * 60 * 60
 DOCKER_OPERATION_HISTORY_LIMIT = 20
@@ -2677,6 +2678,33 @@ def _worktree_checkpoint_lock(session_id: str):
             yield
         finally:
             fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+
+
+def _prune_checkpoint_lock_files(data: dict) -> list[str]:
+    """Remove orphaned checkpoint lock files after their session records expire."""
+    if not WORKTREE_CHECKPOINT_LOCKS_DIR.is_dir():
+        return []
+    active_lock_names = {
+        f"{re.sub(r'[^A-Za-z0-9_-]', '-', str(session_id))[:64] or 'unknown'}.lock"
+        for session_id in data.get("sessions", {})
+    }
+    removed: list[str] = []
+    cutoff = time.time() - CHECKPOINT_LOCK_RETENTION_HOURS * 60 * 60
+    for lock_path in WORKTREE_CHECKPOINT_LOCKS_DIR.glob("*.lock"):
+        if lock_path.name in active_lock_names:
+            continue
+        try:
+            if lock_path.stat().st_mtime > cutoff:
+                continue
+            lock_path.unlink()
+        except OSError:
+            continue
+        removed.append(lock_path.stem)
+    try:
+        WORKTREE_CHECKPOINT_LOCKS_DIR.rmdir()
+    except OSError:
+        pass
+    return removed
 
 
 def _create_worktree_checkpoint_commit(
@@ -5741,6 +5769,7 @@ def register_session_record(
     def register(data: dict) -> tuple[str, list[str], list[str], dict]:
         pruned = _prune_stale(data)
         cleared_locks = _prune_stale_locks(data)
+        _prune_checkpoint_lock_files(data)
         session_id = secrets.token_hex(2)
         attempts = 0
         while session_id in data.get("sessions", {}) and attempts < 10:
@@ -6394,6 +6423,7 @@ def cmd_end(args: argparse.Namespace) -> None:
         def remove_plain(current: dict) -> None:
             current.setdefault("sessions", {}).pop(sid, None)
             _prune_stale(current)
+            _prune_checkpoint_lock_files(current)
         _mutate_sessions(remove_plain)
 
     print(f"Session {sid} ended and removed from sessions.json.")
@@ -6688,6 +6718,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     data = _load_sessions()
     _prune_stale(data)
     _prune_stale_locks(data)
+    _prune_checkpoint_lock_files(data)
     _prune_stale_edit_leases(data)
     _save_sessions(data)
 

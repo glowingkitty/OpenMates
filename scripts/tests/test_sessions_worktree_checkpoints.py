@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Durable checkpoint contracts for forgotten mutating OpenCode chats.
 
 The fixtures use isolated Git repositories. Checkpoint creation must preserve
@@ -211,3 +212,28 @@ def test_checkpoint_failure_records_recovery_reason(monkeypatch, tmp_path: Path)
     auto = data["sessions"]["abcd"]["auto_integration"]
     assert data["sessions"]["abcd"]["workspace_state"] == "recovery_needed"
     assert auto["block_reason"] == "checkpoint_failed:synthetic checkpoint failure"
+
+
+def test_prune_checkpoint_lock_files_removes_only_old_orphans(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    locks = tmp_path / "checkpoint-locks"
+    locks.mkdir()
+    active = locks / "abcd.lock"
+    stale_orphan = locks / "stale.lock"
+    recent_orphan = locks / "recent.lock"
+    for lock in (active, stale_orphan, recent_orphan):
+        lock.write_text("", encoding="utf-8")
+    old_mtime = 1_700_000_000
+    recent_mtime = old_mtime + 25 * 60 * 60
+    monkeypatch.setattr(sessions.time, "time", lambda: recent_mtime)
+    for lock in (active, stale_orphan):
+        lock.touch()
+        sessions.os.utime(lock, (old_mtime, old_mtime))
+    sessions.os.utime(recent_orphan, (recent_mtime, recent_mtime))
+
+    monkeypatch.setattr(sessions, "WORKTREE_CHECKPOINT_LOCKS_DIR", locks)
+
+    assert sessions._prune_checkpoint_lock_files({"sessions": {"abcd": {}}}) == ["stale"]
+    assert active.exists()
+    assert not stale_orphan.exists()
+    assert recent_orphan.exists()

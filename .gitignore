@@ -241,7 +241,8 @@ deployment/prod_server/prod-cloud-config.yaml
 privacy-video.mp4
 .turbo
 
-# Claude Code — ignore runtime state, allow config/hooks/skills
+# Shared agent runtime state in the legacy .claude control-plane path.
+# Keep config/hooks/skills trackable, but ignore generated session artifacts.
 .claude/sessions.json
 .claude/sessions.json.tmp
 .claude/sessions.lock
@@ -254,6 +255,7 @@ privacy-video.mp4
 .claude/security-acknowledged.json
 .claude/security-acknowledged.json.tmp
 .claude/.prefetch-cache/
+.claude/checkpoint-locks/
 # Claude Code's in-session scheduled-task infrastructure — we never use it;
 # all recurring jobs live in the host crontab. The lock file shows up any
 # time a Claude session starts, so keep it out of git.
