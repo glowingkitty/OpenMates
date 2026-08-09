@@ -11,7 +11,7 @@ export {};
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { fillMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const { fillMessageEditor, focusMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 
 const INTRO_CHAT_TITLES = new Set([
 	'OpenMates | For everyone',
@@ -156,7 +156,8 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			await expect(page.getByTestId('chat-header-title')).toContainText(draftText);
 		} finally {
 			if (draftChatId && page.url().includes(draftChatId)) {
-				await messageEditor.click();
+				await expect(messageEditor).toContainText(draftText, { timeout: 15000 });
+				await focusMessageEditor(messageEditor);
 				await page.keyboard.press('Control+A');
 				await page.keyboard.press('Backspace');
 				await expect.poll(async () => (

@@ -76,20 +76,8 @@ export async function fillMessageEditor(page: any, messageEditor: any, message: 
 	const currentText = async (): Promise<string> => normalizeEditorDraftText(
 		await messageEditor.evaluate((editor: HTMLElement) => editor.innerText ?? '').catch(() => '')
 	);
-	const focusEditor = async (): Promise<void> => {
-		await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
-		await expect.poll(
-			async () => messageEditor.evaluate((editor: HTMLElement) => {
-				const activeElement = document.activeElement;
-				return activeElement instanceof HTMLElement
-					&& activeElement.isContentEditable
-					&& editor.contains(activeElement);
-			}),
-			{ timeout: 5000, intervals: [100, 250, 500] }
-		).toBe(true);
-	};
 
-	await focusEditor();
+	await focusMessageEditor(messageEditor);
 	await page.keyboard.insertText(message);
 	if (await expect.poll(currentText, { timeout: 2500, intervals: [100, 250, 500] })
 		.toBe(expectedText)
@@ -98,11 +86,24 @@ export async function fillMessageEditor(page: any, messageEditor: any, message: 
 		return;
 	}
 
-	await focusEditor();
+	await focusMessageEditor(messageEditor);
 	await page.keyboard.press('Control+A');
 	await page.keyboard.press('Backspace');
 	await page.keyboard.insertText(message);
 	await expect.poll(currentText, { timeout: 5000, intervals: [100, 250, 500] }).toBe(expectedText);
+}
+
+export async function focusMessageEditor(messageEditor: any): Promise<void> {
+	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
+	await expect.poll(
+		async () => messageEditor.evaluate((editor: HTMLElement) => {
+			const activeElement = document.activeElement;
+			return activeElement instanceof HTMLElement
+				&& activeElement.isContentEditable
+				&& editor.contains(activeElement);
+		}),
+		{ timeout: 5000, intervals: [100, 250, 500] }
+	).toBe(true);
 }
 
 async function userMessagePersisted(
@@ -1449,6 +1450,7 @@ async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
 
 module.exports = {
 	fillMessageEditor,
+	focusMessageEditor,
 	loginToTestAccount,
 	submitPasswordAndHandleOtp,
 	openSignupInterface,
