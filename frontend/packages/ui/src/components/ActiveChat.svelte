@@ -13212,6 +13212,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         />
                     {/if}
 
+                    {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}
                           disablePointerEvents={showWelcome}
@@ -13257,7 +13258,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           on:scrollPositionUI={handleScrollPositionUI}
                          on:scrollPositionChanged={handleScrollPositionChanged}
                          on:scrolledToBottom={handleScrolledToBottom}
-                     />
+                         />
+                    {/key}
 
                     <!-- Scroll-to-top button: visible when not at top and chat has messages -->
                     {#if !showWelcome && !isAtTop}
