@@ -191,14 +191,20 @@ attempts:
     approach: Use the existing dynamic app-skill REST surface rather than creating bespoke audio API routes.
     outcome: planned
     recorded_at: "2026-08-09T14:11:06Z"
+  - id: ATTEMPT-3
+    task_id: TASK-6
+    approach: Run live dev REST audio.generate/audio.speak probes with a temporary approved CLI API key, post generated MP3 samples to Discord dev-smoke, and save a sanitized manifest.
+    outcome: succeeded
+    recorded_at: "2026-08-09T22:22:30Z"
+    evidence: test-results/audio-samples/elevenlabs-20260809/manifest.json
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write the initial backend safety and REST contract tests before provider implementation.
-  command: python3 -m pytest backend/tests/test_media_generation_safety.py backend/tests/test_rest_api_audio.py
-  expected_outcome: Tests fail for missing audio.generate/audio.speak provider, safety, and app-skill behavior before implementation.
+  current_task_id: TASK-7
+  next_action: Complete remaining cross-client verification gates that are not covered by the live REST/Discord sample evidence.
+  command: python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml
+  expected_outcome: Spec verification reports only genuinely pending gates such as user confirmation or Apple parity.
   blocker: null
-  last_verified_commit: 519869e8f
+  last_verified_commit: bb2569bc5
 
 scenarios:
   - id: S-1
@@ -375,7 +381,7 @@ acceptance_criteria:
     scenario: S-7
     text: Low-cost live probes generate OpenMates SFX samples and one assistant response voice sample, save local artifacts, and post them to Discord or record a publication blocker.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [V-DISCORD-SAMPLES, V-LATENCY-PRICING]
@@ -398,7 +404,10 @@ assumptions:
     text: Representative short ElevenLabs SFX and TTS requests usually complete within the 5-6 second direct-response target.
     category: latency
     required_before: completion
-    status: unchecked
+    status: confirmed
+    evidence:
+      - source: test-results/audio-samples/elevenlabs-20260809/manifest.json
+        summary: Live dev REST probes completed in 3339ms, 2331ms, and 1673ms for two audio.generate SFX samples and one audio.speak sample.
   - id: A-3
     text: Official ElevenLabs TTS pricing can be mapped to an OpenMates credit rule before billing ships.
     category: billing
@@ -408,7 +417,10 @@ assumptions:
     text: Discord webhook configuration is available to scripts/discord_webhook.py for posting generated samples.
     category: publication
     required_before: completion
-    status: unchecked
+    status: confirmed
+    evidence:
+      - source: test-results/audio-samples/elevenlabs-20260809/manifest.json
+        summary: All three generated MP3 samples were delivered to Discord dev-smoke through scripts/discord_webhook.py without storing the webhook URL.
 
 contracts:
   api:
@@ -591,16 +603,34 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-7]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      status: passed
+      command: python3 - <<'PY'  # live REST audio sample runner
+      run_id: elevenlabs-20260809-222218
+      timestamp: "2026-08-09T22:22:30Z"
+      subject_commit: bb2569bc5
+      target: https://api.dev.openmates.org
+      manifest_path: test-results/audio-samples/elevenlabs-20260809/manifest.json
+      manifest_sha256: 658f33b20261442b53f71c16df37c3f86604191890a754ec5d97d66ba661e049
+      summary: audio.generate samples completed in 3339ms and 2331ms with 1 and 2 credits charged; audio.speak completed in 1673ms with 1 credit charged. All were below the 5-6 second direct-response target.
 
   - id: V-DISCORD-SAMPLES
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-7]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      status: passed
+      command: python3 - <<'PY'  # live REST audio sample runner
+      run_id: elevenlabs-20260809-222218
+      timestamp: "2026-08-09T22:22:30Z"
+      subject_commit: bb2569bc5
+      target: https://api.dev.openmates.org
+      manifest_path: test-results/audio-samples/elevenlabs-20260809/manifest.json
+      manifest_sha256: 658f33b20261442b53f71c16df37c3f86604191890a754ec5d97d66ba661e049
+      summary: Generated openmates-sfx-success-chime.mp3, openmates-sfx-gentle-alert.mp3, and openmates-assistant-voice-sample.mp3; all three Discord attachment posts returned delivered message and attachment IDs. Manifest stores no API key, webhook URL, audio_base64, or sample prompts.
 
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
@@ -865,8 +895,8 @@ tasks:
 
   - id: TASK-6
     title: Generate and post live Discord samples
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-7]
       acceptance_criteria: [AC-7]
