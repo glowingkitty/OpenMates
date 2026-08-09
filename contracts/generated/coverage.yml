@@ -1,7 +1,7 @@
 schema_version: 1
 approved_contracts: 8
 assertions_total: 56
-assertions_with_tests: 32
+assertions_with_tests: 33
 assertions_with_current_proof: 0
 surface_parity:
   rest_api:

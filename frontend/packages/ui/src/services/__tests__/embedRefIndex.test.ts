@@ -10,12 +10,14 @@ import {
   embedRefIndexVersion,
   registerEmbedRefIndex,
   resolveEmbedRefIndexEntry,
+  resolveEmbedRefIndexReference,
 } from "../embedRefIndex";
 
 describe("embedRefIndexVersion", () => {
   beforeEach(clearEmbedRefIndexEntries);
   afterEach(clearEmbedRefIndexEntries);
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("does not publish identical ref registrations", () => {
     let notifications = 0;
     const unsubscribe = embedRefIndexVersion.subscribe(() => {
@@ -36,6 +38,7 @@ describe("embedRefIndexVersion", () => {
     unsubscribe();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("publishes and resolves new aliases", () => {
     let notifications = 0;
     const unsubscribe = embedRefIndexVersion.subscribe(() => {
@@ -58,6 +61,7 @@ describe("embedRefIndexVersion", () => {
     unsubscribe();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("publishes changes to each metadata field", () => {
     let notifications = 0;
     const unsubscribe = embedRefIndexVersion.subscribe(() => {
@@ -97,6 +101,7 @@ describe("embedRefIndexVersion", () => {
     unsubscribe();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("remaps readable refs without removing stable ID aliases", () => {
     const firstEntry = {
       embedId: "event-1",
@@ -112,5 +117,44 @@ describe("embedRefIndexVersion", () => {
     expect(resolveEmbedRefIndexEntry("event-one-A1b")).toEqual(secondEntry);
     expect(resolveEmbedRefIndexEntry("event-1")).toEqual(firstEntry);
     expect(resolveEmbedRefIndexEntry("event-2")).toEqual(secondEntry);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+  it("resolves unique suffix-only refs case-insensitively", () => {
+    const entry = {
+      embedId: "embed-1",
+      appId: "web-search",
+      skillId: "search",
+      type: "website",
+    };
+
+    registerEmbedRefIndex("mashable.com-7fJ", entry);
+
+    expect(resolveEmbedRefIndexReference("-7fj")).toEqual({
+      embedRef: "mashable.com-7fJ",
+      entry,
+    });
+    expect(resolveEmbedRefIndexReference("‑7FJ")).toEqual({
+      embedRef: "mashable.com-7fJ",
+      entry,
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+  it("does not resolve ambiguous suffix-only refs", () => {
+    registerEmbedRefIndex("mashable.com-7fJ", {
+      embedId: "embed-1",
+      appId: "web-search",
+      skillId: "search",
+      type: "website",
+    });
+    registerEmbedRefIndex("example.com-7fj", {
+      embedId: "embed-2",
+      appId: "web-search",
+      skillId: "search",
+      type: "website",
+    });
+
+    expect(resolveEmbedRefIndexReference("-7fj")).toBeNull();
   });
 });

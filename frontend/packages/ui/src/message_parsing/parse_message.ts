@@ -56,7 +56,7 @@ const BARE_EMBED_REF_TOKEN_RE = new RegExp(
 );
 const BARE_EMBED_REF_GROUP_RE = new RegExp(
   "\\[((?:" + BARE_EMBED_REF_TOKEN_SOURCE + ")(?:\\s*,\\s*(?:" +
-    BARE_EMBED_REF_TOKEN_SOURCE + "))+)\\](?!\\()",
+    BARE_EMBED_REF_TOKEN_SOURCE + "))*)\\](?!\\()",
   "g",
 );
 
