@@ -122,7 +122,16 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			const draftRowIndex = await chatItems.evaluateAll((rows: Element[], id: string) =>
 				rows.findIndex((row) => row.getAttribute('data-chat-id') === id), draftChatId);
 			expect(draftRowIndex, 'Expected the draft chat to be present in sidebar order').toBeGreaterThanOrEqual(0);
-			const regularChatAfterDraft = chatItems.nth(draftRowIndex + 1);
+			const regularRowIndex = await chatItems.evaluateAll((rows: Element[], id: string) => {
+				const index = rows.findIndex((row) => row.getAttribute('data-chat-id') === id);
+				if (index < 0) return -1;
+				for (let candidate = index + 1; candidate < rows.length; candidate += 1) {
+					if (rows[candidate].querySelector('[data-testid="chat-with-profile"]')) return candidate;
+				}
+				return -1;
+			}, draftChatId);
+			expect(regularRowIndex, 'Expected a regular chat after the draft in sidebar order').toBeGreaterThan(draftRowIndex);
+			const regularChatAfterDraft = chatItems.nth(regularRowIndex);
 			await expect(regularChatAfterDraft).toBeVisible({ timeout: 15000 });
 			await expect(regularChatAfterDraft.getByTestId('chat-with-profile')).toBeVisible({ timeout: 15000 });
 			await regularChatAfterDraft.click();
@@ -135,7 +144,12 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 					.click();
 			}
 			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
-			await page.getByTestId('chat-header-next').click();
+			for (let step = 0; step < regularRowIndex - draftRowIndex; step += 1) {
+				const previousUrl = page.url();
+				await page.getByTestId('chat-header-next').click();
+				await page.waitForFunction((url: string) => window.location.href !== url, previousUrl, { timeout: 12000 });
+				if (page.url().includes(`chat-id=${draftChatId}`)) break;
+			}
 
 			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 			expect(page.url()).toContain(`chat-id=${draftChatId}`);
