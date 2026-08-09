@@ -815,7 +815,7 @@ assertions:
       surface: gui.web
     - &id069
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 151
+      line: 157
       name: right control and right-to-left swipe navigate to previous sidebar chat
       surface: gui.web
     supporting_tests: []

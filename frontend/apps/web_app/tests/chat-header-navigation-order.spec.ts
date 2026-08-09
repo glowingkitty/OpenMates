@@ -81,7 +81,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		// composer so the typed text creates a draft-only chat shell.
 		await startNewChat(page);
 
-		const draftText = `Header navigation draft ${Date.now()}`;
+		const draftText = `Header navigation draft ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditor = page.getByTestId('message-editor');
 		await fillMessageEditor(page, messageEditor, draftText);
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
@@ -142,6 +142,12 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 				await messageEditor.click();
 				await page.keyboard.press('Control+A');
 				await page.keyboard.press('Backspace');
+				await expect.poll(async () => (
+					await messageEditor.evaluate((editor: HTMLElement) => editor.innerText ?? '')
+				).replace(/\s+/g, ' ').trim(), { timeout: 5000 }).toBe('');
+				const dismissButton = page.getByTestId('input-dismiss-button');
+				await expect(dismissButton).toBeVisible({ timeout: 5000 });
+				await dismissButton.click();
 				await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0, { timeout: 15000 });
 			}
 		}
