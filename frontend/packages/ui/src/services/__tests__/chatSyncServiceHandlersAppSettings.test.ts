@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   },
   chatKeyManager: {
     getKey: vi.fn(),
+    onKeyReady: vi.fn(() => () => undefined),
   },
   userDB: {
     getUserProfile: vi.fn(),
@@ -99,6 +100,7 @@ describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: direct surface=gui.web assertions=workflows.chat-delivery.claim-fenced
   it("claims only pending workflow chat deliveries", async () => {
     await handleWorkflowChatDeliveriesAvailableImpl({
       deliveries: [
@@ -167,6 +169,7 @@ describe("handlePendingAIResponseImpl", () => {
     mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.local-state.precedence,chats.message.identity-idempotent
   it("replaces a stale streaming assistant row with the completed pending response", async () => {
     mocks.chatDB.getMessage.mockResolvedValue({
       message_id: "assistant-1",
@@ -212,6 +215,7 @@ describe("handlePendingAIResponseImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.local-state.precedence
   it("does not replace waiting_for_user local state", async () => {
     mocks.chatDB.getMessage.mockResolvedValue({
       message_id: "assistant-1",
@@ -249,6 +253,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
   it("treats already-terminal matching recovery claims as handled", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const handlers = new Map<string, (payload: unknown) => void>();
@@ -323,6 +328,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     consoleError.mockRestore();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
   it("persists an available recovery job even when the assistant row is locally synced", async () => {
     mocks.activeChatStore.get.mockReturnValue("chat-1");
     window.location.hash = "#chat-id=chat-2";
@@ -439,6 +445,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.completion.recovery-takeover
   it("waits for the chat shell and key before claiming an early recovery job", async () => {
     vi.useFakeTimers();
     const handlers = new Map<string, (payload: unknown) => void>();
@@ -548,6 +555,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.completion.recovery-takeover
   it("hydrates a missing local chat user id before claiming a keyed recovery job", async () => {
     const handlers = new Map<string, (payload: unknown) => void>();
     let claimRequestId: string | undefined;
@@ -653,6 +661,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.completion.recovery-takeover
   it("does not let one pending recovery job block another available job", async () => {
     const handlers = new Map<string, Set<(payload: unknown) => void>>();
     const emit = (type: string, payload: unknown) => {
@@ -775,6 +784,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.completion.lease-fenced
   it("keeps an early recovery job alive while cold boot initial sync completes", async () => {
     vi.useFakeTimers();
     const handlers = new Map<string, (payload: unknown) => void>();
@@ -877,6 +887,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
   it("refreshes the chat version and retries terminal persistence after a recovery version conflict", async () => {
     const handlers = new Map<string, Set<(payload: unknown) => void>>();
     const emit = (type: string, payload: unknown) => {
@@ -1008,6 +1019,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     consoleError.mockRestore();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
   it("ignores delayed claim and persist frames from an earlier recovery attempt", async () => {
     vi.useFakeTimers();
     let requestCounter = 0;

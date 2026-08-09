@@ -892,3 +892,303 @@ assertions:
         - *id073
         supporting_tests: []
     current_direct_proof: false
+  chats.persistence.client-encrypted:
+    contract: feature.chats@1
+    fingerprint: c449797d3fb3bbcd339b5292393935f02a2479b6695eba35b937ca202e5a19ca
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  chats.message.identity-idempotent:
+    contract: feature.chats@1
+    fingerprint: 48a43c8f66d64d6542891f6ec8b524df6346e91da8c1a036a8971153dba22f1f
+    direct_tests:
+    - &id074
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 173
+      name: replaces a stale streaming assistant row with the completed pending response
+      surface: gui.web
+    - &id075
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 257
+      name: treats already-terminal matching recovery claims as handled
+      surface: gui.web
+    - &id076
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 332
+      name: persists an available recovery job even when the assistant row is locally
+        synced
+      surface: gui.web
+    - &id077
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 891
+      name: refreshes the chat version and retries terminal persistence after a recovery
+        version conflict
+      surface: gui.web
+    - &id078
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 1023
+      name: ignores delayed claim and persist frames from an earlier recovery attempt
+      surface: gui.web
+    - &id079
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+      line: 74
+      name: ignores delayed claim and persist frames from an earlier attempt
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id074
+    - *id075
+    - *id076
+    - *id077
+    - *id078
+    - *id079
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id074
+        - *id075
+        - *id076
+        - *id077
+        - *id078
+        - *id079
+        supporting_tests: []
+    current_direct_proof: false
+  chats.completion.recovery-takeover:
+    contract: feature.chats@1
+    fingerprint: bf24b3f6fd71d37ab138c4423d64d296ff41aabd8fe25490931cb02110d93fc5
+    direct_tests:
+    - &id080
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 332
+      name: persists an available recovery job even when the assistant row is locally
+        synced
+      surface: gui.web
+    - &id081
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 449
+      name: waits for the chat shell and key before claiming an early recovery job
+      surface: gui.web
+    - &id082
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 559
+      name: hydrates a missing local chat user id before claiming a keyed recovery
+        job
+      surface: gui.web
+    - &id083
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 665
+      name: does not let one pending recovery job block another available job
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id080
+    - *id081
+    - *id082
+    - *id083
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id080
+        - *id081
+        - *id082
+        - *id083
+        supporting_tests: []
+    current_direct_proof: false
+  chats.completion.lease-fenced:
+    contract: feature.chats@1
+    fingerprint: db4c803b123e9607dcdbe4591f3bd2ba3f0dba08bd7107c73c80ee26154e12b0
+    direct_tests:
+    - &id084
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 257
+      name: treats already-terminal matching recovery claims as handled
+      surface: gui.web
+    - &id085
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 665
+      name: does not let one pending recovery job block another available job
+      surface: gui.web
+    - &id086
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 788
+      name: keeps an early recovery job alive while cold boot initial sync completes
+      surface: gui.web
+    - &id087
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 891
+      name: refreshes the chat version and retries terminal persistence after a recovery
+        version conflict
+      surface: gui.web
+    - &id088
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 1023
+      name: ignores delayed claim and persist frames from an earlier recovery attempt
+      surface: gui.web
+    - &id089
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+      line: 74
+      name: ignores delayed claim and persist frames from an earlier attempt
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id084
+    - *id085
+    - *id086
+    - *id087
+    - *id088
+    - *id089
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id084
+        - *id085
+        - *id086
+        - *id087
+        - *id088
+        - *id089
+        supporting_tests: []
+    current_direct_proof: false
+  chats.completion.pending-delivery:
+    contract: feature.chats@1
+    fingerprint: 7f1e0680600f3c40e51665bfb62cd3bbbdacd3ae4e0f3d3d61db62092ce53050
+    direct_tests:
+    - &id090
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 173
+      name: replaces a stale streaming assistant row with the completed pending response
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id090
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id090
+        supporting_tests: []
+    current_direct_proof: false
+  chats.local-state.precedence:
+    contract: feature.chats@1
+    fingerprint: 8ea89adc125485e5f87a48a6ee53d5e4e5fc3736572eb283c62f374186c5c760
+    direct_tests:
+    - &id091
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 173
+      name: replaces a stale streaming assistant row with the completed pending response
+      surface: gui.web
+    - &id092
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 219
+      name: does not replace waiting_for_user local state
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id091
+    - *id092
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id091
+        - *id092
+        supporting_tests: []
+    current_direct_proof: false
+  chats.sync.key-gated-recovery:
+    contract: feature.chats@1
+    fingerprint: 1510dc79394cf653e01d98e159fb2a9fe10631c3cded00b8e709d847797d6a3b
+    direct_tests:
+    - &id093
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 449
+      name: waits for the chat shell and key before claiming an early recovery job
+      surface: gui.web
+    - &id094
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 559
+      name: hydrates a missing local chat user id before claiming a keyed recovery
+        job
+      surface: gui.web
+    - &id095
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 788
+      name: keeps an early recovery job alive while cold boot initial sync completes
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id093
+    - *id094
+    - *id095
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id093
+        - *id094
+        - *id095
+        supporting_tests: []
+    current_direct_proof: false
+  chats.surface.semantic-parity:
+    contract: feature.chats@1
+    fingerprint: 58395fe0a222248b663a71955fab6cc55f0e88893fadc7599fcd19e63c8d0a70
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  workflows.execution.lifecycle-visible:
+    contract: feature.workflows@1
+    fingerprint: d25a8f209228a00137c102ecab3a2e00907ba7827d4be0ee46284169c39d1c84
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  workflows.content.encrypted-retained:
+    contract: feature.workflows@1
+    fingerprint: 99cd4a5703e0e6e6645e017decec9547f4a195ba8c65eb4bbaf18466c19aa1df
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  workflows.chat-delivery.pending-private:
+    contract: feature.workflows@1
+    fingerprint: e5896a0ffa0a12fd0cc8641f4692bcdad889e5d7f6401b95b1385b13e17fcba6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  workflows.chat-delivery.claim-fenced:
+    contract: feature.workflows@1
+    fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
+    direct_tests:
+    - &id096
+      path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      line: 104
+      name: claims only pending workflow chat deliveries
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id096
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id096
+        supporting_tests: []
+    current_direct_proof: false
+  workflows.chat-delivery.client-encrypted:
+    contract: feature.workflows@1
+    fingerprint: 29100bc3f11e838cd08469b69e82dab8d37dd23bf875aa301fec9fe68d3b347a
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  workflows.surface.semantic-parity:
+    contract: feature.workflows@1
+    fingerprint: 771fdad5361a08f36636996970e9eb67b48281573595902ace90327581fd160c
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false

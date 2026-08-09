@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   },
   chatKeyManager: {
     getKey: vi.fn(),
+    onKeyReady: vi.fn(() => () => undefined),
   },
   ensureChatKeySafeForWrite: vi.fn(),
   webSocketService: {
@@ -69,6 +70,7 @@ describe("recovery job request correlation", () => {
     vi.restoreAllMocks();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
   it("ignores delayed claim and persist frames from an earlier attempt", async () => {
     const handlers = new Map();
     let claimAttempts = 0;

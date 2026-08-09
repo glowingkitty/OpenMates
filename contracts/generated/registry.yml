@@ -37,6 +37,24 @@ contracts:
     required_surfaces:
     - gui.web
     - gui.apple
+  feature.chats:
+    version: 1
+    status: approved
+    path: features/chats
+    fingerprint: 71abe35624ec3f3c7572c36e627f823f268b43e27bd5fdb8e284dd38fbc68354
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  feature.workflows:
+    version: 1
+    status: approved
+    path: features/workflows
+    fingerprint: 4c63c9b4ff32cd28615f14034c83adce313f3533718773fc57adf01dae27db23
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
 assertions:
   drafts.access.first-party-encrypted:
     contract: architecture.drafts@1
@@ -294,3 +312,129 @@ assertions:
     required_surfaces:
     - gui.web
     - gui.apple
+  chats.persistence.client-encrypted:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: privacy
+    fingerprint: c449797d3fb3bbcd339b5292393935f02a2479b6695eba35b937ca202e5a19ca
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.message.identity-idempotent:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: invariant
+    fingerprint: 48a43c8f66d64d6542891f6ec8b524df6346e91da8c1a036a8971153dba22f1f
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.completion.recovery-takeover:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: bf24b3f6fd71d37ab138c4423d64d296ff41aabd8fe25490931cb02110d93fc5
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.completion.lease-fenced:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: invariant
+    fingerprint: db4c803b123e9607dcdbe4591f3bd2ba3f0dba08bd7107c73c80ee26154e12b0
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.completion.pending-delivery:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: 7f1e0680600f3c40e51665bfb62cd3bbbdacd3ae4e0f3d3d61db62092ce53050
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.local-state.precedence:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: 8ea89adc125485e5f87a48a6ee53d5e4e5fc3736572eb283c62f374186c5c760
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.sync.key-gated-recovery:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: invariant
+    fingerprint: 1510dc79394cf653e01d98e159fb2a9fe10631c3cded00b8e709d847797d6a3b
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.surface.semantic-parity:
+    contract: feature.chats@1
+    contract_id: feature.chats
+    type: parity
+    fingerprint: 58395fe0a222248b663a71955fab6cc55f0e88893fadc7599fcd19e63c8d0a70
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  workflows.execution.lifecycle-visible:
+    contract: feature.workflows@1
+    contract_id: feature.workflows
+    type: behavior
+    fingerprint: d25a8f209228a00137c102ecab3a2e00907ba7827d4be0ee46284169c39d1c84
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+  workflows.content.encrypted-retained:
+    contract: feature.workflows@1
+    contract_id: feature.workflows
+    type: privacy
+    fingerprint: 99cd4a5703e0e6e6645e017decec9547f4a195ba8c65eb4bbaf18466c19aa1df
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+  workflows.chat-delivery.pending-private:
+    contract: feature.workflows@1
+    contract_id: feature.workflows
+    type: privacy
+    fingerprint: e5896a0ffa0a12fd0cc8641f4692bcdad889e5d7f6401b95b1385b13e17fcba6
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+  workflows.chat-delivery.claim-fenced:
+    contract: feature.workflows@1
+    contract_id: feature.workflows
+    type: invariant
+    fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+  workflows.chat-delivery.client-encrypted:
+    contract: feature.workflows@1
+    contract_id: feature.workflows
+    type: behavior
+    fingerprint: 29100bc3f11e838cd08469b69e82dab8d37dd23bf875aa301fec9fe68d3b347a
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+  workflows.surface.semantic-parity:
+    contract: feature.workflows@1
+    contract_id: feature.workflows
+    type: parity
+    fingerprint: 771fdad5361a08f36636996970e9eb67b48281573595902ace90327581fd160c
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
