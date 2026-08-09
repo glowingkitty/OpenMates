@@ -7,6 +7,7 @@ import { EmbedNodeAttributes } from "./types";
 const DUPLICATE_EMBED_MARKER = Symbol("DUPLICATE_EMBED");
 const PROTOCOL_EMBED_MARKER = Symbol("PROTOCOL_EMBED");
 const PROTOCOL_JSON_TYPE_PATTERN = /"type"\s*:\s*"(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)"/;
+const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // TipTap document structure types (loosely typed to accommodate various node types)
@@ -606,6 +607,13 @@ function findMatchingEmbedForCodeBlock(
       const index = embedNodes.indexOf(matchingCodeEmbed);
       if (index > -1) {
         embedNodes.splice(index, 1);
+      }
+      if (normalizedCodeBlockLanguage === INTERACTIVE_QUESTION_LANGUAGE) {
+        return {
+          ...matchingCodeEmbed,
+          code: codeText.trim(),
+          language: matchingCodeEmbed.language || normalizedCodeBlockLanguage,
+        };
       }
       return matchingCodeEmbed;
     }

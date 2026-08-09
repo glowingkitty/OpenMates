@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { enhanceDocumentWithEmbeds } from "../documentEnhancement";
 
 describe("enhanceDocumentWithEmbeds", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("does not render unmatched app_skill_use protocol JSON as a code block", () => {
     const doc = {
       type: "doc",
@@ -45,5 +46,45 @@ describe("enhanceDocumentWithEmbeds", () => {
         content: [{ type: "text", text: "Visible answer text" }],
       },
     ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
+  it("preserves read-mode interactive question payloads on matched code embeds", () => {
+    const payload = {
+      type: "choice",
+      id: "iphone_interest_2026",
+      multiple: false,
+      question: "Which iPhone topic should we explore next?",
+      options: [{ id: "camera", text: "Camera rumors" }],
+    };
+    const codeText = JSON.stringify(payload, null, 2);
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          attrs: { language: "interactive_question" },
+          content: [{ type: "text", text: codeText }],
+        },
+      ],
+    };
+
+    const enhanced = enhanceDocumentWithEmbeds(doc, [
+      {
+        id: "historical-question-embed",
+        type: "code-code",
+        status: "finished",
+        contentRef: null,
+        language: "interactive_question",
+        filename: "Code snippet",
+      },
+    ], "read");
+
+    expect(enhanced.content?.[0]?.content?.[0]?.attrs).toMatchObject({
+      id: "historical-question-embed",
+      type: "code-code",
+      language: "interactive_question",
+      code: codeText,
+    });
   });
 });
