@@ -197,6 +197,12 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-09T22:22:30Z"
     evidence: test-results/audio-samples/elevenlabs-20260809/manifest.json
+  - id: ATTEMPT-4
+    task_id: TASK-6
+    approach: Regenerate the complete durable sample set after deploying the premium ElevenLabs speech model, using a temporary approved CLI API key and sanitized manifest output.
+    outcome: succeeded
+    recorded_at: "2026-08-09T23:36:02Z"
+    evidence: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
 
 handoff:
   current_task_id: TASK-7
@@ -204,7 +210,7 @@ handoff:
   command: python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml
   expected_outcome: Spec verification reports only genuinely pending gates such as user confirmation or Apple parity.
   blocker: null
-  last_verified_commit: bb2569bc5
+  last_verified_commit: 3f0d2ad
 
 scenarios:
   - id: S-1
@@ -379,7 +385,7 @@ acceptance_criteria:
 
   - id: AC-7
     scenario: S-7
-    text: Low-cost live probes generate OpenMates SFX samples and one assistant response voice sample, save local artifacts, and post them to Discord or record a publication blocker.
+    text: Live probes generate OpenMates SFX samples plus default and premium assistant response voice samples, save local artifacts, and post them to Discord or record a publication blocker.
     required: true
     status: satisfied
     coverage_status: covered
@@ -408,6 +414,8 @@ assumptions:
     evidence:
       - source: test-results/audio-samples/elevenlabs-20260809/manifest.json
         summary: Live dev REST probes completed in 3339ms, 2331ms, and 1673ms for two audio.generate SFX samples and one audio.speak sample.
+      - source: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+        summary: Durable live dev REST probes completed nine audio samples in 1487-3780ms, including Flash v2.5 speech and premium Multilingual v2 speech.
   - id: A-3
     text: Official ElevenLabs TTS pricing can be mapped to an OpenMates credit rule before billing ships.
     category: billing
@@ -421,6 +429,8 @@ assumptions:
     evidence:
       - source: test-results/audio-samples/elevenlabs-20260809/manifest.json
         summary: All three generated MP3 samples were delivered to Discord dev-smoke through scripts/discord_webhook.py without storing the webhook URL.
+      - source: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+        summary: All nine generated MP3 samples were delivered to Discord dev-smoke through scripts/discord_webhook.py; the manifest stores no API key, webhook URL, prompt text, or audio_base64.
 
 contracts:
   api:
@@ -606,14 +616,14 @@ verifications:
     status: passed
     evidence:
       status: passed
-      command: python3 - <<'PY'  # live REST audio sample runner
-      run_id: elevenlabs-20260809-222218
-      timestamp: "2026-08-09T22:22:30Z"
-      subject_commit: bb2569bc5
+      command: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifacts.py --plan-json /tmp/opencode/audio_samples_0baf.json --api-url https://api.dev.openmates.org
+      run_id: elevenlabs-20260809-233535
+      timestamp: "2026-08-09T23:36:02Z"
+      subject_commit: 3f0d2ad
       target: https://api.dev.openmates.org
-      manifest_path: test-results/audio-samples/elevenlabs-20260809/manifest.json
-      manifest_sha256: 658f33b20261442b53f71c16df37c3f86604191890a754ec5d97d66ba661e049
-      summary: audio.generate samples completed in 3339ms and 2331ms with 1 and 2 credits charged; audio.speak completed in 1673ms with 1 credit charged. All were below the 5-6 second direct-response target.
+      manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+      manifest_sha256: caf2dd2ffc6e6e31b8ddcec8c541f9b9022637a8b0a78d49b4b97caba47b10c0
+      summary: Seven audio.generate SFX samples completed in 1842-3780ms with 1-2 credits charged; Flash v2.5 speech completed in 1487ms with 1 credit charged; premium Multilingual v2 speech completed in 1939ms with 1 credit charged due the one-credit floor. All stayed below the 5-6 second direct-response target.
 
   - id: V-DISCORD-SAMPLES
     kind: artifact_review
@@ -623,14 +633,14 @@ verifications:
     status: passed
     evidence:
       status: passed
-      command: python3 - <<'PY'  # live REST audio sample runner
-      run_id: elevenlabs-20260809-222218
-      timestamp: "2026-08-09T22:22:30Z"
-      subject_commit: bb2569bc5
+      command: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifacts.py --plan-json /tmp/opencode/audio_samples_0baf.json --api-url https://api.dev.openmates.org
+      run_id: elevenlabs-20260809-233535
+      timestamp: "2026-08-09T23:36:02Z"
+      subject_commit: 3f0d2ad
       target: https://api.dev.openmates.org
-      manifest_path: test-results/audio-samples/elevenlabs-20260809/manifest.json
-      manifest_sha256: 658f33b20261442b53f71c16df37c3f86604191890a754ec5d97d66ba661e049
-      summary: Generated openmates-sfx-success-chime.mp3, openmates-sfx-gentle-alert.mp3, and openmates-assistant-voice-sample.mp3; all three Discord attachment posts returned delivered message and attachment IDs. Manifest stores no API key, webhook URL, audio_base64, or sample prompts.
+      manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+      manifest_sha256: caf2dd2ffc6e6e31b8ddcec8c541f9b9022637a8b0a78d49b4b97caba47b10c0
+      summary: Generated openmates-sfx-success-chime.mp3, openmates-sfx-gentle-alert.mp3, openmates-assistant-voice-sample-flash.mp3, openmates-assistant-voice-sample-premium.mp3, openmates-sfx-authenticated-ready.mp3, openmates-sfx-message-sent-processing-started.mp3, openmates-sfx-assistant-message-complete.mp3, openmates-sfx-assistant-needs-user-input.mp3, and openmates-sfx-full-plan-completed.mp3; all nine Discord attachment posts returned delivered message and attachment IDs. Manifest stores no API key, webhook URL, audio_base64, or sample prompts.
 
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
@@ -901,13 +911,15 @@ tasks:
       scenarios: [S-7]
       acceptance_criteria: [AC-7]
     expected_files:
-      - scripts/api_tests/test_elevenlabs_audio_skills.py
+      - scripts/generate_audio_sample_artifacts.py
       - scripts/discord_webhook.py
+      - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
     verification_ids: [V-DISCORD-SAMPLES, V-LATENCY-PRICING]
     dependencies: [TASK-3]
     ownership:
       files:
-        - scripts/api_tests/test_elevenlabs_audio_skills.py
+        - scripts/generate_audio_sample_artifacts.py
+        - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
       shared_files:
         - scripts/discord_webhook.py
     blockers: []

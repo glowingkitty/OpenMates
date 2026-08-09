@@ -329,7 +329,7 @@ def main() -> int:
             "api_key_persisted": False,
             "webhook_url_persisted": False,
             "prompts_persisted": False,
-            "audio_base64_persisted": False,
+            "binary_audio_payload_persisted": False,
         },
         "plan_sha256": _plan_hash(args.plan_json),
         "artifacts": artifacts,
