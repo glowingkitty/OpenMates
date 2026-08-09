@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
   encryptWithChatKey: vi.fn(),
   markDeviceReceivedFreeTestingCreditsFromNotification: vi.fn(),
   webSocketService: {
+    addEventListener: vi.fn(),
     on: vi.fn(),
     off: vi.fn(),
     sendMessage: vi.fn(),
