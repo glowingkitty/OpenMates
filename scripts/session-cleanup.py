@@ -285,7 +285,7 @@ def cleanup_dead_poller_sessions(dry_run: bool = False) -> int:
             opencode_sid = info.get("opencode_session_id")
             resume_hint = ""
             if opencode_sid:
-                resume_hint = f"**Resume:** `opencode run --session {opencode_sid}`\n"
+                resume_hint = f"**Resume:** reopen OpenCode Web chat `{opencode_sid}`\n"
 
             post_comment(
                 issue_id,

@@ -124,18 +124,38 @@ assertions:
   sync.startup.bounded-phases:
     contract: architecture.sync@1
     fingerprint: 9efb77458dc59cd1f0bb7650d4f1b83a22841c9eea56d32240f878f6aee405a6
-    direct_tests: []
+    direct_tests:
+    - &id004
+      path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+      line: 109
+      name: startup sync is bounded and older content hydrates on demand
+      surface: gui.web
     supporting_tests: []
-    tests: []
-    surfaces: {}
+    tests:
+    - *id004
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id004
+        supporting_tests: []
     current_direct_proof: false
   sync.phase2.metadata-only:
     contract: architecture.sync@1
     fingerprint: de8486de66300e9410205ca6894da2f2f355d3959688f372d22f4a01380ebd67
-    direct_tests: []
+    direct_tests:
+    - &id005
+      path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+      line: 109
+      name: startup sync is bounded and older content hydrates on demand
+      surface: gui.web
     supporting_tests: []
-    tests: []
-    surfaces: {}
+    tests:
+    - *id005
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id005
+        supporting_tests: []
     current_direct_proof: false
   sync.phase2.drafts.authoritative-encrypted:
     contract: architecture.sync@1
@@ -165,567 +185,565 @@ assertions:
     contract: feature.app-skill.web-search@1
     fingerprint: 860c899800e2fa8b6fa967b739dfb42d914cacbb9c9b63175cf8c962bdcf6d11
     direct_tests:
-    - &id004
+    - &id006
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 11
       name: testWebSearchShortcutRequestUsesContractCountParameter
       surface: gui.apple
-    - &id005
+    - &id007
       path: backend/tests/test_web_search_contract.py
       line: 34
       name: test_web_search_rejects_invalid_contract_inputs_before_provider
       surface: rest_api
-    - &id006
+    - &id008
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 64
       name: 'Phase 2: CLI apps web search returns results'
       surface: cli
-    - &id007
+    - &id009
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id008
+    - &id010
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id009
+    - &id011
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id010
+    - &id012
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id004
-    - *id005
     - *id006
     - *id007
     - *id008
     - *id009
     - *id010
+    - *id011
+    - *id012
     surfaces:
       gui.apple:
         direct_tests:
-        - *id004
+        - *id006
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id005
         - *id007
+        - *id009
         supporting_tests: []
       cli:
         direct_tests:
-        - *id006
         - *id008
+        - *id010
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id009
+        - *id011
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id010
+        - *id012
         supporting_tests: []
     current_direct_proof: false
   web-search.request.ids-correlated:
     contract: feature.app-skill.web-search@1
     fingerprint: e4ec0c564f1f3e61383e5456d259b2e0b49a53e9a054eb658e285f5099075f3d
     direct_tests:
-    - &id011
+    - &id013
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 22
       name: testWebSearchAppleFixtureMatchesContractResultShape
       surface: gui.apple
-    - &id012
+    - &id014
       path: backend/tests/test_web_search_contract.py
       line: 59
       name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
       surface: rest_api
-    - &id013
+    - &id015
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id014
+    - &id016
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id015
+    - &id017
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id016
+    - &id018
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id011
-    - *id012
     - *id013
     - *id014
     - *id015
     - *id016
+    - *id017
+    - *id018
     surfaces:
       gui.apple:
         direct_tests:
-        - *id011
+        - *id013
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id012
-        - *id013
+        - *id014
+        - *id015
         supporting_tests: []
       cli:
         direct_tests:
-        - *id014
+        - *id016
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id015
+        - *id017
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id016
+        - *id018
         supporting_tests: []
     current_direct_proof: false
   web-search.response.sanitized:
     contract: feature.app-skill.web-search@1
     fingerprint: cb48e999a2725f11a0d5720e137eee956f0be5df2f62f3837b3cb990f2c33f9b
     direct_tests:
-    - &id017
+    - &id019
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 22
       name: testWebSearchAppleFixtureMatchesContractResultShape
       surface: gui.apple
-    - &id018
+    - &id020
       path: backend/tests/test_web_search_contract.py
       line: 59
       name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
       surface: rest_api
-    - &id019
+    - &id021
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id020
+    - &id022
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id021
+    - &id023
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id022
+    - &id024
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id017
-    - *id018
     - *id019
     - *id020
     - *id021
     - *id022
+    - *id023
+    - *id024
     surfaces:
       gui.apple:
         direct_tests:
-        - *id017
+        - *id019
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id018
-        - *id019
+        - *id020
+        - *id021
         supporting_tests: []
       cli:
         direct_tests:
-        - *id020
+        - *id022
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id021
+        - *id023
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id022
+        - *id024
         supporting_tests: []
     current_direct_proof: false
   web-search.results.bounded:
     contract: feature.app-skill.web-search@1
     fingerprint: 26dfcc4aa331cb7887e0c06f84663553891f6e19051b38e9b6f7925c592eb668
     direct_tests:
-    - &id023
+    - &id025
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 22
       name: testWebSearchAppleFixtureMatchesContractResultShape
       surface: gui.apple
-    - &id024
+    - &id026
       path: backend/tests/test_web_search_contract.py
       line: 59
       name: test_web_search_fixture_preserves_ids_bounds_and_contract_fields
       surface: rest_api
-    - &id025
+    - &id027
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id026
+    - &id028
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id027
+    - &id029
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id028
+    - &id030
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id023
-    - *id024
     - *id025
     - *id026
     - *id027
     - *id028
+    - *id029
+    - *id030
     surfaces:
       gui.apple:
         direct_tests:
-        - *id023
+        - *id025
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id024
-        - *id025
+        - *id026
+        - *id027
         supporting_tests: []
       cli:
         direct_tests:
-        - *id026
+        - *id028
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id027
+        - *id029
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id028
+        - *id030
         supporting_tests: []
     current_direct_proof: false
   web-search.no-results.explicit:
     contract: feature.app-skill.web-search@1
     fingerprint: fc30a66972f8c43c5540d537dd01f0e06b80ea85c6faad324f8c30f86ff6a8aa
     direct_tests:
-    - &id029
+    - &id031
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 45
       name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
       surface: gui.apple
-    - &id030
+    - &id032
       path: backend/tests/test_web_search_contract.py
       line: 86
       name: test_web_search_zero_results_are_finished_success
       surface: rest_api
-    - &id031
+    - &id033
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 118
       name: 'Phase 5: Zero-result query does not show error banner'
       surface: gui.web
-    - &id032
+    - &id034
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id033
+    - &id035
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id034
+    - &id036
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id035
+    - &id037
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id029
-    - *id030
     - *id031
     - *id032
     - *id033
     - *id034
     - *id035
+    - *id036
+    - *id037
     surfaces:
       gui.apple:
         direct_tests:
-        - *id029
+        - *id031
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id030
         - *id032
+        - *id034
         supporting_tests: []
       gui.web:
         direct_tests:
-        - *id031
+        - *id033
         supporting_tests: []
       cli:
         direct_tests:
-        - *id033
+        - *id035
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id034
+        - *id036
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id035
+        - *id037
         supporting_tests: []
     current_direct_proof: false
   web-search.provider-error.visible:
     contract: feature.app-skill.web-search@1
     fingerprint: 3fd8a7c75c569b9800adf270ddd489c8e64edf464374f5bdc351c51fd1615222
     direct_tests:
-    - &id036
+    - &id038
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 45
       name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
       surface: gui.apple
-    - &id037
+    - &id039
       path: backend/tests/test_web_search_contract.py
       line: 109
       name: test_web_search_provider_errors_are_safe_and_redacted
       surface: rest_api
-    - &id038
+    - &id040
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id039
+    - &id041
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id040
+    - &id042
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id041
+    - &id043
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id036
-    - *id037
     - *id038
     - *id039
     - *id040
     - *id041
+    - *id042
+    - *id043
     surfaces:
       gui.apple:
         direct_tests:
-        - *id036
+        - *id038
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id037
-        - *id038
+        - *id039
+        - *id040
         supporting_tests: []
       cli:
         direct_tests:
-        - *id039
+        - *id041
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id040
+        - *id042
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id041
+        - *id043
         supporting_tests: []
     current_direct_proof: false
   web-search.secrets.never-exposed:
     contract: feature.app-skill.web-search@1
     fingerprint: 9046ba9759aecfb50741a90d2424292a0f0d1926469eb95901925efc6f1bc1f6
     direct_tests:
-    - &id042
+    - &id044
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 45
       name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
       surface: gui.apple
-    - &id043
+    - &id045
       path: backend/tests/test_web_search_contract.py
       line: 109
       name: test_web_search_provider_errors_are_safe_and_redacted
       surface: rest_api
-    - &id044
+    - &id046
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id045
+    - &id047
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id046
+    - &id048
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id047
+    - &id049
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id042
-    - *id043
     - *id044
     - *id045
     - *id046
     - *id047
+    - *id048
+    - *id049
     surfaces:
       gui.apple:
         direct_tests:
-        - *id042
+        - *id044
         supporting_tests: []
       rest_api:
         direct_tests:
-        - *id043
-        - *id044
+        - *id045
+        - *id046
         supporting_tests: []
       cli:
         direct_tests:
-        - *id045
+        - *id047
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id046
+        - *id048
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id047
+        - *id049
         supporting_tests: []
     current_direct_proof: false
   web-search.surface-parity:
     contract: feature.app-skill.web-search@1
     fingerprint: 51330fc964841b2faa8458fbfd35c728b1eb17ba12f1d64efed4360a37516292
     direct_tests:
-    - &id048
+    - &id050
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 11
       name: testWebSearchShortcutRequestUsesContractCountParameter
       surface: gui.apple
-    - &id049
+    - &id051
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 22
       name: testWebSearchAppleFixtureMatchesContractResultShape
       surface: gui.apple
-    - &id050
+    - &id052
       path: apple/OpenMatesTests/WebSearchContractParityTests.swift
       line: 45
       name: testWebSearchShortcutFormatterPreservesEmptyAndSafeErrors
       surface: gui.apple
-    - &id056
+    - &id058
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 64
       name: 'Phase 2: CLI apps web search returns results'
       surface: cli
-    - &id058
+    - &id060
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 118
       name: 'Phase 5: Zero-result query does not show error banner'
       surface: gui.web
-    - &id059
+    - &id061
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 221
       name: 'Phase 4: Web chat triggers web search with embed'
       surface: gui.web
-    - &id060
+    - &id062
       path: frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
       line: 35
       name: repairs persisted grouped bare embed refs into inline embed nodes
       surface: gui.web
-    - &id061
+    - &id063
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 43
       name: test_web_search_rest_api_live_contract_parity
       surface: rest_api
-    - &id062
+    - &id064
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 48
       name: test_web_search_cli_live_contract_parity
       surface: cli
-    - &id063
+    - &id065
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 53
       name: test_web_search_npm_sdk_live_contract_parity
       surface: sdks.npm
-    - &id064
+    - &id066
       path: scripts/tests/test_web_search_live_contract_surfaces.py
       line: 58
       name: test_web_search_pip_sdk_live_contract_parity
       surface: sdks.pip
     supporting_tests:
-    - &id051
+    - &id053
       path: backend/tests/test_grouped_bare_embed_refs.py
       line: 23
       name: test_single_bare_ref_pattern_ignores_grouped_refs
       surface: gui.web
-    - &id052
+    - &id054
       path: backend/tests/test_grouped_bare_embed_refs.py
       line: 30
       name: test_grouped_pattern_matches_domain_refs
       surface: gui.web
-    - &id053
+    - &id055
       path: backend/tests/test_grouped_bare_embed_refs.py
       line: 38
       name: test_grouped_pattern_ignores_plain_comma_lists
       surface: gui.web
-    - &id054
+    - &id056
       path: backend/tests/test_grouped_bare_embed_refs.py
       line: 46
       name: test_converts_grouped_known_bare_refs_to_inline_links
       surface: gui.web
-    - &id055
+    - &id057
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 57
       name: 'Phase 1: embed preview renders at /dev/preview/embeds/web'
       surface: gui.web
-    - &id057
+    - &id059
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 91
       name: 'Phase 3: CLI chats new triggers web search'
       surface: cli
     tests:
-    - *id048
-    - *id049
     - *id050
     - *id051
     - *id052
@@ -741,111 +759,84 @@ assertions:
     - *id062
     - *id063
     - *id064
+    - *id065
+    - *id066
     surfaces:
       gui.apple:
         direct_tests:
-        - *id048
-        - *id049
         - *id050
+        - *id051
+        - *id052
         supporting_tests: []
       gui.web:
         direct_tests:
-        - *id058
-        - *id059
         - *id060
+        - *id061
+        - *id062
         supporting_tests:
-        - *id051
-        - *id052
         - *id053
         - *id054
         - *id055
+        - *id056
+        - *id057
       cli:
         direct_tests:
-        - *id056
-        - *id062
+        - *id058
+        - *id064
         supporting_tests:
-        - *id057
+        - *id059
       rest_api:
-        direct_tests:
-        - *id061
-        supporting_tests: []
-      sdks.npm:
         direct_tests:
         - *id063
         supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id065
+        supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id064
+        - *id066
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.order.sidebar-header-match:
     contract: feature.chat-navigation@1
     fingerprint: bc8c8041e813125ca32c31997890f9f7c04edfff69c489394f0b8f9cf3cecf5a
     direct_tests:
-    - &id065
+    - &id067
       path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
       line: 17
       name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
       surface: gui.apple
-    - &id066
+    - &id068
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       line: 72
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web
-    - &id067
+    - &id069
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       line: 151
       name: right control and right-to-left swipe navigate to previous sidebar chat
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id065
-    - *id066
     - *id067
-    surfaces:
-      gui.apple:
-        direct_tests:
-        - *id065
-        supporting_tests: []
-      gui.web:
-        direct_tests:
-        - *id066
-        - *id067
-        supporting_tests: []
-    current_direct_proof: false
-  chat-navigation.draft-only.addressable:
-    contract: feature.chat-navigation@1
-    fingerprint: a46f5d9ff95dcdc4b78557d6e2091d314d8dfe66e7d50be822e32e5a445c0fcf
-    direct_tests:
-    - &id068
-      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
-      line: 17
-      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
-      surface: gui.apple
-    - &id069
-      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
-      name: navigates from a regular chat to the newest draft-only chat with the sidebar
-        closed
-      surface: gui.web
-    supporting_tests: []
-    tests:
     - *id068
     - *id069
     surfaces:
       gui.apple:
         direct_tests:
-        - *id068
+        - *id067
         supporting_tests: []
       gui.web:
         direct_tests:
+        - *id068
         - *id069
         supporting_tests: []
     current_direct_proof: false
-  chat-navigation.empty-new-chat.excluded:
+  chat-navigation.draft-only.addressable:
     contract: feature.chat-navigation@1
-    fingerprint: dda29285bb9bc3d479f8e0708f1012502547d32a02fea67872c6a82ef4835b54
+    fingerprint: a46f5d9ff95dcdc4b78557d6e2091d314d8dfe66e7d50be822e32e5a445c0fcf
     direct_tests:
     - &id070
       path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
@@ -870,5 +861,34 @@ assertions:
       gui.web:
         direct_tests:
         - *id071
+        supporting_tests: []
+    current_direct_proof: false
+  chat-navigation.empty-new-chat.excluded:
+    contract: feature.chat-navigation@1
+    fingerprint: dda29285bb9bc3d479f8e0708f1012502547d32a02fea67872c6a82ef4835b54
+    direct_tests:
+    - &id072
+      path: apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+      line: 17
+      name: testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat
+      surface: gui.apple
+    - &id073
+      path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      line: 72
+      name: navigates from a regular chat to the newest draft-only chat with the sidebar
+        closed
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id072
+    - *id073
+    surfaces:
+      gui.apple:
+        direct_tests:
+        - *id072
+        supporting_tests: []
+      gui.web:
+        direct_tests:
+        - *id073
         supporting_tests: []
     current_direct_proof: false

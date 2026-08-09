@@ -161,6 +161,11 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE = re.compile(
 WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES = (".key", ".mobileprovision", ".p12", ".pbxproj", ".pem")
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
+CONTRACT_GENERATED_ARTIFACTS = {
+    "contracts/generated/assertion-index.yml",
+    "contracts/generated/coverage.yml",
+    "contracts/generated/registry.yml",
+}
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
 WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed"}
@@ -2361,6 +2366,35 @@ def _remove_integration_worktree(integration: dict) -> None:
         raise RuntimeError(f"Could not remove integration worktree {path}: {stderr}")
 
 
+def _split_contract_generated_artifacts(files: list[str]) -> tuple[list[str], list[str]]:
+    """Separate deterministic contract outputs from source patches."""
+    generated = [relative_path for relative_path in files if relative_path in CONTRACT_GENERATED_ARTIFACTS]
+    source = [relative_path for relative_path in files if relative_path not in CONTRACT_GENERATED_ARTIFACTS]
+    return source, generated
+
+
+def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
+    """Regenerate selected contract artifacts in an integration checkout."""
+    if not generated_files:
+        return
+    script = checkout_root / "scripts" / "contracts.py"
+    if not script.exists():
+        raise RuntimeError("contract artifact generation unavailable: scripts/contracts.py is missing")
+    result = subprocess.run(
+        [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
+        cwd=str(checkout_root),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        detail = result.stderr or result.stdout or "contract artifact generation failed"
+        raise RuntimeError(detail.strip())
+    rc, _stdout, stderr = _run_cmd(["git", "add", "--", *sorted(generated_files)], cwd=str(checkout_root))
+    if rc != 0:
+        raise RuntimeError(f"Could not stage regenerated contract artifacts: {stderr}")
+
+
 def _apply_worktree_diff_to_checkout(
     source_metadata: dict,
     files: list[str],
@@ -2375,6 +2409,7 @@ def _apply_worktree_diff_to_checkout(
     source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
+    patch_files, contract_generated_files = _split_contract_generated_artifacts(files)
     if checkpoint_commit:
         rc, checkpoint_parent, stderr = _run_cmd(
             ["git", "rev-parse", f"{checkpoint_commit}^"],
@@ -2389,7 +2424,7 @@ def _apply_worktree_diff_to_checkout(
                 final_base=prepared_base,
             )
         diff_result = subprocess.run(
-            ["git", "diff", "--binary", source_base, checkpoint_commit, "--", *files],
+            ["git", "diff", "--binary", source_base, checkpoint_commit, "--", *patch_files],
             cwd=str(CONTROL_PLANE_ROOT),
             capture_output=True,
             timeout=120,
@@ -2416,6 +2451,7 @@ def _apply_worktree_diff_to_checkout(
                     source_base=source_base,
                     final_base=prepared_base,
                 )
+        _regenerate_contract_artifacts(checkout_root, contract_generated_files)
         return
     current_patch_id = _worktree_patch_id(source_metadata, files)
     if current_patch_id != patch_id:
@@ -2426,7 +2462,7 @@ def _apply_worktree_diff_to_checkout(
             final_base=prepared_base,
         )
 
-    untracked = _worktree_untracked_files(source_metadata) & set(files)
+    untracked = _worktree_untracked_files(source_metadata) & set(patch_files)
     untracked = {
         relative_path
         for relative_path in untracked
@@ -2435,7 +2471,7 @@ def _apply_worktree_diff_to_checkout(
             cwd=str(source_path),
         )[0] != 0
     }
-    tracked_files = [relative_path for relative_path in files if relative_path not in untracked]
+    tracked_files = [relative_path for relative_path in patch_files if relative_path not in untracked]
     if tracked_files:
         with tempfile.TemporaryDirectory(prefix="openmates-integration-index-") as temp_dir:
             index_env = {**os.environ, "GIT_INDEX_FILE": str(Path(temp_dir) / "index")}
@@ -2494,6 +2530,8 @@ def _apply_worktree_diff_to_checkout(
         rc, _stdout, stderr = _run_cmd(["git", "add", "--", relative_path], cwd=str(checkout_root))
         if rc != 0:
             raise RuntimeError(f"Could not stage untracked deploy path {relative_path}: {stderr}")
+
+    _regenerate_contract_artifacts(checkout_root, contract_generated_files)
 
 
 def _prepare_integration_worktree(
@@ -11072,7 +11110,7 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
 def cmd_restore(args: argparse.Namespace) -> None:
     """Send a continuation prompt to an existing OpenCode session.
 
-    Resumes the session with opencode run --session and sends a continuation prompt.
+    Resumes the session through the OpenCode Web runner and sends a continuation prompt.
     If --list is passed, discovers and prints recent interrupted sessions.
     """
     scripts_dir = str(PROJECT_ROOT / "scripts")

@@ -6,6 +6,8 @@ Security: no OpenCode process is launched; tests only inspect temporary files.
 Run: python3 -m pytest scripts/tests/test_opencode_automation_budget_audit.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -58,6 +60,30 @@ import subprocess
 OPENCODE_AUTOMATION_RISK_CLASSIFICATION = "low-risk docs review; scoped prompt and timeout"
 subprocess.run(["opencode", "run", "--dangerously-skip-permissions", "task"], timeout=30)
 """,
+    )
+
+    assert issues == []
+
+
+def test_repo_tests_are_not_treated_as_live_automation(monkeypatch, tmp_path: Path) -> None:
+    audit = load_audit_module()
+    monkeypatch.setattr(audit, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(audit, "PROMPTS_ROOT", tmp_path / "scripts" / "prompts")
+    script = tmp_path / "scripts" / "tests" / "test_spawn_chat_opencode.py"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        'assert "opencode run --dangerously-skip-permissions" not in command\n',
+        encoding="utf-8",
+    )
+
+    assert audit.audit_script(script) == []
+
+
+def test_opencode_runtime_text_is_not_a_direct_invocation(monkeypatch, tmp_path: Path) -> None:
+    issues = audit_temp_script(
+        monkeypatch,
+        tmp_path,
+        '"""Reconstruct durable routing without depending on OpenCode runtime state."""\n',
     )
 
     assert issues == []

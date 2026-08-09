@@ -5,6 +5,8 @@ The record is stored in sessions.json so blocked worktree deploys remain
 visible until a human resolves the root integration conflict and retries.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -171,6 +173,19 @@ def test_session_state_removes_orphaned_and_merged_blocked_deploys():
         {"session_id": "active", "status": "blocked"},
         {"session_id": "missing", "status": "resolved"},
     ]
+
+
+def test_contract_generated_artifacts_are_not_replayed_as_source_patches():
+    sessions = load_sessions_module()
+
+    source, generated = sessions._split_contract_generated_artifacts([
+        "frontend/apps/web_app/tests/startup-sync-contract.spec.ts",
+        "contracts/generated/assertion-index.yml",
+        "contracts/generated/coverage.yml",
+    ])
+
+    assert source == ["frontend/apps/web_app/tests/startup-sync-contract.spec.ts"]
+    assert generated == ["contracts/generated/assertion-index.yml", "contracts/generated/coverage.yml"]
 
 
 def test_worktree_retry_blocks_root_drift_and_refreshes_safe_amendment(monkeypatch, tmp_path):

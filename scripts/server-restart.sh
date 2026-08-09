@@ -15,6 +15,7 @@ PROJECT_DIR="$HOME/projects/OpenMates"
 TMUX_SESSION="opencode"
 OPENCODE_SERVER_URL="${OPENCODE_SERVER_URL:-http://127.0.0.1:4096}"
 OPENCODE_MODEL="${OPENCODE_MODEL:-openai/gpt-5.6-sol}"
+OPENCODE_RESTART_TIMEOUT_SECONDS="${OPENCODE_RESTART_TIMEOUT_SECONDS:-7200}"
 DOCKER_ENV="$PROJECT_DIR/.env"
 COMPOSE_BASE="$PROJECT_DIR/backend/core/docker-compose.yml"
 COMPOSE_OVERRIDE="$PROJECT_DIR/backend/core/docker-compose.override.yml"
@@ -102,6 +103,7 @@ fi
 build_opencode_cmd() {
     local pane_index=$1
     local -a opencode_args=(opencode run --attach "$OPENCODE_SERVER_URL" --interactive)
+    local -a bounded_args
     local quoted_dir command_text
 
     if ! $FRESH && [ $pane_index -lt ${#SESSION_IDS[@]} ]; then
@@ -110,7 +112,8 @@ build_opencode_cmd() {
         opencode_args+=(--title "server-restart-$pane_index" --agent build --model "$OPENCODE_MODEL" --auto "Start a fresh OpenMates coding session. Run sessions.py start before mutating work.")
     fi
     printf -v quoted_dir '%q' "$PROJECT_DIR"
-    printf -v command_text '%q ' "${opencode_args[@]}"
+    bounded_args=(timeout "$OPENCODE_RESTART_TIMEOUT_SECONDS" "${opencode_args[@]}")
+    printf -v command_text '%q ' "${bounded_args[@]}"
     printf 'cd %s && %s' "$quoted_dir" "$command_text"
 }
 

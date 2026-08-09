@@ -19,7 +19,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROMPTS_ROOT = REPO_ROOT / "scripts" / "prompts"
-DIRECT_OPENCODE_RE = re.compile(r"opencode(?:['\"\s,]+)run|opencode\s+run", re.IGNORECASE)
+DIRECT_OPENCODE_RE = re.compile(r"opencode(?:['\"\s,]+)run\b|opencode\s+run\b", re.IGNORECASE)
 RUN_SESSION_RE = re.compile(r"\brun_opencode_session\s*\(")
 RISKY_TERMS = ("auth", "payment", "billing", "encryption", "sync", "privacy", "legal", "migration", "websocket")
 REQUIRED_PROMPT_RULES = (
@@ -75,11 +75,13 @@ def _is_opencode_script(path: Path, text: str) -> bool:
 def audit_script(path: Path) -> list[AuditIssue]:
     if not path.is_file():
         return []
+    rel = _rel(path)
+    if rel.startswith("scripts/tests/"):
+        return []
     text = path.read_text(encoding="utf-8", errors="replace")
     if not _is_opencode_script(path, text):
         return []
 
-    rel = _rel(path)
     issues: list[AuditIssue] = []
     lower = text.lower()
     direct_invocation = bool(DIRECT_OPENCODE_RE.search(text))
