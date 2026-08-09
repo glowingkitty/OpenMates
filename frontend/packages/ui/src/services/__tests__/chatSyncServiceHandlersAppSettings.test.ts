@@ -1154,7 +1154,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       recoverySettled = true;
     });
 
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(20_001);
     sendClaimed(firstClaimRequestId!);
     handlers.get("error")?.({
       code: "recovery_job_expired",
@@ -1172,7 +1172,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     sendClaimed(secondClaimRequestId!);
     await vi.advanceTimersByTimeAsync(0);
 
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(20_001);
     sendPersisted(firstPersistRequestId!);
     handlers.get("error")?.({
       code: "stale_lease",

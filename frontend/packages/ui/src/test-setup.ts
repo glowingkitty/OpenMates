@@ -16,6 +16,7 @@ const repoRoot = resolve(uiPackageRoot, "../../..");
 const originalReadFileSync = fs.readFileSync;
 type ReadFileSyncPath = Parameters<typeof originalReadFileSync>[0];
 type ReadFileSyncOptions = Parameters<typeof originalReadFileSync>[1];
+const fileTextByInstance = new WeakMap<File, string>();
 
 const windowEventTarget = new EventTarget();
 const testLocation = {
@@ -114,6 +115,32 @@ function resolveViteReadFileUrl(path: URL): URL | string {
 
 function normalizeReadFilePath(path: ReadFileSyncPath): ReadFileSyncPath {
   return path instanceof URL ? resolveViteReadFileUrl(path) : path;
+}
+
+function blobPartToText(part: BlobPart): string {
+  if (typeof part === "string") return part;
+  if (part instanceof ArrayBuffer) return new TextDecoder().decode(part);
+  if (ArrayBuffer.isView(part)) return new TextDecoder().decode(part);
+  return String(part);
+}
+
+function installFileTextShim(): void {
+  const NativeFile = globalThis.File;
+  if (typeof NativeFile === "undefined" || typeof NativeFile.prototype.text === "function") return;
+
+  class TestFile extends NativeFile {
+    constructor(fileBits: BlobPart[], fileName: string, options?: FilePropertyBag) {
+      super(fileBits, fileName, options);
+      fileTextByInstance.set(this, fileBits.map(blobPartToText).join(""));
+    }
+
+    text(): Promise<string> {
+      return Promise.resolve(fileTextByInstance.get(this) ?? "");
+    }
+  }
+
+  defineConfigurableProperty(globalThis, "File", TestFile);
+  defineConfigurableProperty(activeWindow, "File", TestFile);
 }
 
 fs.readFileSync = ((path: ReadFileSyncPath, options?: ReadFileSyncOptions) => (
@@ -240,11 +267,7 @@ if (typeof globalThis.sessionStorage === "undefined") {
   defineConfigurableProperty(globalThis, "sessionStorage", testSessionStorage);
 }
 
-if (typeof File !== "undefined" && typeof File.prototype.text !== "function") {
-  defineConfigurableProperty(File.prototype, "text", function text(this: Blob) {
-    return new Response(this).text();
-  });
-}
+installFileTextShim();
 
 if (typeof globalThis.document === "undefined") {
   defineConfigurableProperty(globalThis, "document", activeWindow.document ?? testDocument);
