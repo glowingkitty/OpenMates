@@ -379,6 +379,7 @@ export class CodeCodeGroupHandler implements EmbedGroupHandler {
       contentRef: embed.contentRef,
       language: embed.language,
       filename: embed.filename,
+      code: embed.code,
     }));
 
     return {

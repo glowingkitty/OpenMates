@@ -2577,27 +2577,27 @@ assertions:
       line: 119
       name: does not list generic embed UUID fallbacks as downloadable files
       surface: gui.web
-    - &id259
+    - &id262
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       line: 269
       name: does not persist protocol-only tool JSON as a visible child summary
       surface: gui.web
-    - &id260
+    - &id263
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       line: 300
       name: stops showing the parent as processing while it waits for child chats
       surface: gui.web
-    - &id261
+    - &id264
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       line: 750
       name: keeps placeholder embeds processing until final content arrives
       surface: gui.web
-    - &id262
+    - &id265
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       line: 877
       name: accepts finalized send_embed_data refreshes for existing finished embeds
       surface: gui.web
-    - &id263
+    - &id266
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       line: 968
       name: stores Finance owner PII mappings as sidecar data without syncing them
@@ -2661,32 +2661,47 @@ assertions:
       line: 73
       name: preserves interactive question payloads in read-mode code blocks
       surface: gui.web
-    - &id264
+    - &id259
+      path: frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+      line: 13
+      name: does not group reference-only embeds
+      surface: gui.web
+    - &id260
+      path: frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+      line: 32
+      name: groups consecutive image search result embeds
+      surface: gui.web
+    - &id261
+      path: frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+      line: 73
+      name: preserves inline interactive question code when code embeds are grouped
+      surface: gui.web
+    - &id267
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 21
       name: does not publish identical ref registrations
       surface: gui.web
-    - &id265
+    - &id268
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 42
       name: publishes and resolves new aliases
       surface: gui.web
-    - &id266
+    - &id269
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 65
       name: publishes changes to each metadata field
       surface: gui.web
-    - &id267
+    - &id270
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 105
       name: remaps readable refs without removing stable ID aliases
       surface: gui.web
-    - &id268
+    - &id271
       path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       line: 27
       name: does not extract interactive question protocol blocks as code embeds
       surface: gui.web
-    - &id269
+    - &id272
       path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       line: 35
       name: continues extracting regular code fences
@@ -2717,17 +2732,20 @@ assertions:
     - *id267
     - *id268
     - *id269
+    - *id270
+    - *id271
+    - *id272
     surfaces:
       gui.web:
         direct_tests:
         - *id246
         - *id247
         - *id248
-        - *id259
-        - *id260
-        - *id261
         - *id262
         - *id263
+        - *id264
+        - *id265
+        - *id266
         supporting_tests:
         - *id245
         - *id249
@@ -2740,67 +2758,36 @@ assertions:
         - *id256
         - *id257
         - *id258
-        - *id264
-        - *id265
-        - *id266
+        - *id259
+        - *id260
+        - *id261
         - *id267
         - *id268
         - *id269
+        - *id270
+        - *id271
+        - *id272
     current_direct_proof: false
   daily-inspiration.authenticated-continuity:
     contract: feature.daily-inspiration@1
     fingerprint: ec8361dad848aa2c0f861b0558dd5de8b8f53877da5f02ebfe28452364eec0f7
     direct_tests: []
     supporting_tests:
-    - &id270
+    - &id273
       path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
       line: 57
       name: shows authenticated fallback synchronously on authenticated cold boot
       surface: gui.web
-    - &id271
+    - &id274
       path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
       line: 77
       name: replaces guest onboarding with authenticated fallback without an empty
         emission
       surface: gui.web
-    - &id272
+    - &id275
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 85
       name: replaces guest onboarding with an authenticated public source
-      surface: gui.web
-    - &id273
-      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 180
-      name: allows authenticated fallback to replace incomplete personalized records
-      surface: gui.web
-    tests:
-    - *id270
-    - *id271
-    - *id272
-    - *id273
-    surfaces:
-      gui.web:
-        direct_tests: []
-        supporting_tests:
-        - *id270
-        - *id271
-        - *id272
-        - *id273
-    current_direct_proof: false
-  daily-inspiration.personalized-priority:
-    contract: feature.daily-inspiration@1
-    fingerprint: f53b58ca405a81bc3ec17c8a07bc24b9ae14a4d07b94f41dd311ae1323726887
-    direct_tests: []
-    supporting_tests:
-    - &id274
-      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 64
-      name: preserves manual carousel index for duplicate authenticated deliveries
-      surface: gui.web
-    - &id275
-      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 104
-      name: does not let guest onboarding overwrite personalized records
       surface: gui.web
     - &id276
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
@@ -2808,6 +2795,7 @@ assertions:
       name: allows authenticated fallback to replace incomplete personalized records
       surface: gui.web
     tests:
+    - *id273
     - *id274
     - *id275
     - *id276
@@ -2815,53 +2803,86 @@ assertions:
       gui.web:
         direct_tests: []
         supporting_tests:
+        - *id273
         - *id274
         - *id275
         - *id276
     current_direct_proof: false
-  daily-inspiration.guest-isolated:
+  daily-inspiration.personalized-priority:
     contract: feature.daily-inspiration@1
-    fingerprint: ab1fddcbf4ace0c01b9b2f2dc02a49ef42cdab1b584bc076becfce13db290a33
+    fingerprint: f53b58ca405a81bc3ec17c8a07bc24b9ae14a4d07b94f41dd311ae1323726887
     direct_tests: []
     supporting_tests:
     - &id277
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 125
-      name: forces the exact guest onboarding set after authenticated data races with
-        logout
+      line: 64
+      name: preserves manual carousel index for duplicate authenticated deliveries
       surface: gui.web
     - &id278
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 143
-      name: preserves the guest source when local interest ranking rewrites its order
+      line: 104
+      name: does not let guest onboarding overwrite personalized records
+      surface: gui.web
+    - &id279
+      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+      line: 180
+      name: allows authenticated fallback to replace incomplete personalized records
       surface: gui.web
     tests:
     - *id277
     - *id278
+    - *id279
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
         - *id277
         - *id278
+        - *id279
+    current_direct_proof: false
+  daily-inspiration.guest-isolated:
+    contract: feature.daily-inspiration@1
+    fingerprint: ab1fddcbf4ace0c01b9b2f2dc02a49ef42cdab1b584bc076becfce13db290a33
+    direct_tests: []
+    supporting_tests:
+    - &id280
+      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+      line: 125
+      name: forces the exact guest onboarding set after authenticated data races with
+        logout
+      surface: gui.web
+    - &id281
+      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+      line: 143
+      name: preserves the guest source when local interest ranking rewrites its order
+      surface: gui.web
+    tests:
+    - *id280
+    - *id281
+    surfaces:
+      gui.web:
+        direct_tests: []
+        supporting_tests:
+        - *id280
+        - *id281
     current_direct_proof: false
   daily-inspiration.authenticated-fallback-content:
     contract: feature.daily-inspiration@1
     fingerprint: 2be6820049d372c5fa3c94647c3a73e49315f3e791d21d5583a1ece1b2963e2e
     direct_tests: []
     supporting_tests:
-    - &id279
+    - &id282
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 154
       name: provides an authenticated-only 3/3/4 fallback
       surface: gui.web
     tests:
-    - *id279
+    - *id282
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id279
+        - *id282
     current_direct_proof: false
   daily-inspiration.public-defaults:
     contract: feature.daily-inspiration@1
@@ -2884,18 +2905,18 @@ assertions:
     fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
     direct_tests: []
     supporting_tests:
-    - &id280
+    - &id283
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 64
       name: preserves manual carousel index for duplicate authenticated deliveries
       surface: gui.web
     tests:
-    - *id280
+    - *id283
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id280
+        - *id283
     current_direct_proof: false
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
@@ -2925,18 +2946,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id281
+    - &id284
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id281
+    - *id284
     surfaces:
       gui.web:
         direct_tests:
-        - *id281
+        - *id284
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:

@@ -9,6 +9,7 @@ import { groupHandlerRegistry } from "../groupHandlers";
 import type { EmbedNodeAttributes } from "../types";
 
 describe("groupHandlerRegistry", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("does not group reference-only embeds", () => {
     const first: EmbedNodeAttributes = {
       id: "file-a",
@@ -27,6 +28,7 @@ describe("groupHandlerRegistry", () => {
     expect(groupHandlerRegistry.canGroup(first, second)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("groups consecutive image search result embeds", () => {
     const first: EmbedNodeAttributes = {
       id: "image-a",
@@ -65,5 +67,41 @@ describe("groupHandlerRegistry", () => {
         thumbnail_url: "https://example.com/second.jpg",
       }),
     ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
+  it("preserves inline interactive question code when code embeds are grouped", () => {
+    const questionJson = JSON.stringify({
+      id: "iphone_interest_2026",
+      type: "choice",
+      question: "Which iPhone topic should we explore next?",
+      options: [{ id: "camera", text: "Camera rumors" }],
+    });
+    const first: EmbedNodeAttributes = {
+      id: "question-embed",
+      type: "code-code",
+      status: "finished",
+      contentRef: null,
+      language: "interactive_question",
+      filename: "Code snippet",
+      code: questionJson,
+    };
+    const second: EmbedNodeAttributes = {
+      id: "code-embed",
+      type: "code-code",
+      status: "finished",
+      contentRef: null,
+      language: "typescript",
+      filename: "example.ts",
+    };
+
+    const group = groupHandlerRegistry.createGroup([first, second]);
+
+    expect(group?.type).toBe("code-code-group");
+    expect(group?.groupedItems?.[0]).toMatchObject({
+      id: "question-embed",
+      language: "interactive_question",
+      code: questionJson,
+    });
   });
 });
