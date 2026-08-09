@@ -11,6 +11,16 @@ const testLocation = {
   pathname: "/",
   search: "",
 };
+const testLocalStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+};
+const testSessionStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+};
 
 const testPage = {
   data: {},
@@ -73,16 +83,8 @@ Object.defineProperty(global, "window", {
   value: {
     btoa: (str: string) => Buffer.from(str, "binary").toString("base64"),
     atob: (str: string) => Buffer.from(str, "base64").toString("binary"),
-    sessionStorage: {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-    },
-    localStorage: {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-    },
+    sessionStorage: testSessionStorage,
+    localStorage: testLocalStorage,
     location: testLocation,
     history: {
       replaceState: vi.fn(),
@@ -118,6 +120,16 @@ Object.defineProperty(global, "window", {
     ),
     dispatchEvent: vi.fn((event: Event) => windowEventTarget.dispatchEvent(event)),
   },
+  writable: true,
+});
+
+Object.defineProperty(global, "localStorage", {
+  value: testLocalStorage,
+  writable: true,
+});
+
+Object.defineProperty(global, "sessionStorage", {
+  value: testSessionStorage,
   writable: true,
 });
 
