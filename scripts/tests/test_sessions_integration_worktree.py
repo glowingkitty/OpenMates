@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Integration-worktree tests for the sessions.py deploy path.
 
 The fixtures use isolated Git repositories and never touch the OpenMates index.
@@ -239,6 +240,51 @@ def test_gate_runner_uses_integration_checkout(monkeypatch, tmp_path):
     )
 
     assert calls == [("lint", checkout)]
+
+
+def test_gate_runner_generates_embed_registry_before_lint(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    checkout = tmp_path / "integration"
+    checkout.mkdir()
+    calls: list[str] = []
+
+    monkeypatch.setattr(sessions, "_run_contract_gate", lambda *_args, **_kwargs: calls.append("contracts"))
+    monkeypatch.setattr(
+        sessions,
+        "_enforce_embed_registry_validation",
+        lambda *_args, **_kwargs: calls.append("embed-registry"),
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_run_lint",
+        lambda _files, *, checkout_root: calls.append("lint") or (0, "", ""),
+    )
+    monkeypatch.setattr(sessions, "_run_translation_build", lambda **_kwargs: calls.append("translations") or (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_translation_validation", lambda **_kwargs: calls.append("locales") or (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: calls.append("tests"))
+    monkeypatch.setattr(sessions, "_enforce_sdk_cleartext_gate", lambda *_args, **_kwargs: calls.append("sdk"))
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: calls.append("pytest"))
+
+    sessions._run_deploy_gates(
+        ["frontend/packages/ui/src/services/embedStore.ts"],
+        checkout_root=checkout,
+        no_verify=False,
+        skip_tests_reason="unit fixture",
+        require_parity=False,
+        session_id="abcd",
+    )
+
+    assert calls[:3] == ["contracts", "embed-registry", "lint"]
+    assert calls == [
+        "contracts",
+        "embed-registry",
+        "lint",
+        "translations",
+        "locales",
+        "tests",
+        "sdk",
+        "pytest",
+    ]
 
 
 def test_failed_gate_cleans_integration_and_leaves_all_authoritative_state_unchanged(monkeypatch, tmp_path):

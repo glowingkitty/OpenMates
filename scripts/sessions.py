@@ -8144,6 +8144,8 @@ def _run_deploy_gates(
     if session_id:
         _run_contract_gate(files, session_id=session_id, checkout_root=checkout_root)
 
+    _enforce_embed_registry_validation(files, checkout_root=checkout_root)
+
     lint_flags = _get_lint_flags(files)
     if lint_flags and not no_verify:
         print("Running linter...")
@@ -8193,7 +8195,6 @@ def _run_deploy_gates(
         no_verify=no_verify,
         checkout_root=checkout_root,
     )
-    _enforce_embed_registry_validation(files, checkout_root=checkout_root)
 
 
 def cmd_prepare_deploy(args: argparse.Namespace) -> None:
@@ -8811,6 +8812,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     # Contract/test traceability is never bypassed by --skip-tests or --no-verify.
     _run_contract_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
 
+    _enforce_embed_registry_validation(to_commit)
+
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
     lint_flags = _get_lint_flags(to_commit)
@@ -8880,8 +8883,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # 1e. Pytest gate — hard-block on failing related pytest unit tests
     _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
-
-    _enforce_embed_registry_validation(to_commit)
 
     print("Checking Vercel web app build machine...")
     try:
