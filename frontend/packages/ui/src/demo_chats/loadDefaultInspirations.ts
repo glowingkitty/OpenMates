@@ -133,6 +133,14 @@ function storeHasSurfaceData(surface: DailyInspirationSurface): boolean {
   return state.inspirations.some((inspiration) => (inspiration.surface ?? "chats") === surface);
 }
 
+function setAuthenticatedFallbackInspirations(locale: string, reason: string): void {
+  const fallback = getAuthenticatedFallbackInspirations(locale);
+  dailyInspirationStore.setSurfaceInspirations("chats", fallback, {
+    source: "authenticated-fallback",
+  });
+  console.debug(`${LOG_PREFIX} ${reason} (${fallback.length} inspiration(s))`);
+}
+
 export function loadGuestOnboardingInspirations(): void {
   const currentLang = get(svelteLocaleStore) || "en";
   const guestInspirations = getHardcodedInspirationsForSurface(currentLang, "chats");
@@ -145,15 +153,15 @@ export function loadGuestOnboardingInspirations(): void {
 /**
  * Populate the daily inspiration store on page load.
  *
- * STEP 0 (synchronous): Immediately loads hardcoded inspirations so the banner
- * is visible from the first frame — no blank state, no loading flash.
+ * STEP 0 (synchronous): Immediately loads guest onboarding or authenticated
+ * fallback inspirations so the banner is visible from the first frame.
  *
  * STEP 1 (async): Tries IndexedDB (persisted personalised inspirations from
  * previous WebSocket delivery).
  *
  * STEP 2 (async): Falls back to the public server defaults endpoint.
  *
- * Steps 1 and 2 REPLACE hardcoded data when they arrive. Personalized
+ * Steps 1 and 2 REPLACE bootstrap data when they arrive. Personalized
  * inspirations delivered via WebSocket always take ultimate priority.
  */
 export async function loadDefaultInspirations(
@@ -210,12 +218,13 @@ export async function loadDefaultInspirations(
     // Skip if the store is already populated with REAL data (not hardcoded).
     // WS delivery or Phase 1 sync may have raced ahead of us.
     const current = get(dailyInspirationStore);
+    const isAuthenticated = get(authStore).isAuthenticated;
+    const currentLangSync = get(svelteLocaleStore) || "en";
     if (surface !== "chats") {
       if (storeHasSurfaceData(surface)) {
         console.debug(`${LOG_PREFIX} ${surface} inspirations already loaded — skipping`);
         return;
       }
-      const currentLangSync = get(svelteLocaleStore) || "en";
       const hardcoded = getHardcodedInspirationsForSurface(currentLangSync, surface);
       dailyInspirationStore.setSurfaceInspirations(surface, hardcoded, {
         personalized: false,
@@ -236,14 +245,20 @@ export async function loadDefaultInspirations(
         );
         return;
       }
-      dailyInspirationStore.reset();
+      if (isAuthenticated) {
+        setAuthenticatedFallbackInspirations(
+          currentLangSync,
+          "Loaded authenticated fallback after rejecting incomplete inspiration set",
+        );
+      } else {
+        dailyInspirationStore.reset();
+      }
       console.warn(`${LOG_PREFIX} Rejected guest or incomplete authenticated inspiration set`);
     }
 
     // ── Step 0: Load hardcoded defaults immediately ───────────────────────────
-    // Show the banner from the very first frame with hand-picked inspirations.
-    // These will be replaced by IndexedDB / server / WS data when it arrives.
-    const isAuthenticated = get(authStore).isAuthenticated;
+    // Show the banner from the very first frame. Authenticated fallback stays
+    // visible until IndexedDB / server / WS data replaces it.
     if (!isAuthenticated && current.inspirations.length === 0) {
       loadGuestOnboardingInspirations();
     }
@@ -253,9 +268,15 @@ export async function loadDefaultInspirations(
       return;
     }
 
-    if (get(dailyInspirationStore).source === "guest-onboarding") {
-      dailyInspirationStore.reset();
-      console.debug(`${LOG_PREFIX} Cleared guest onboarding before authenticated recovery`);
+    const stateBeforeRecovery = get(dailyInspirationStore);
+    if (
+      stateBeforeRecovery.source === "guest-onboarding"
+      || stateBeforeRecovery.inspirations.length === 0
+    ) {
+      setAuthenticatedFallbackInspirations(
+        currentLangSync,
+        "Loaded authenticated fallback before authenticated recovery",
+      );
     }
 
     // ── Step 1: Try IndexedDB ─────────────────────────────────────────────────
@@ -351,10 +372,9 @@ export async function loadDefaultInspirations(
       console.error(
         `${LOG_PREFIX} Server returned ${response.status} fetching default inspirations — hardcoded will remain`,
       );
-      dailyInspirationStore.setSurfaceInspirations(
-        "chats",
-        getAuthenticatedFallbackInspirations(currentLang),
-        { source: "authenticated-fallback" },
+      setAuthenticatedFallbackInspirations(
+        currentLang,
+        "Loaded authenticated fallback after server default error",
       );
       return;
     }
@@ -370,10 +390,9 @@ export async function loadDefaultInspirations(
       console.debug(
         `${LOG_PREFIX} No default inspirations available from server — hardcoded will remain`,
       );
-      dailyInspirationStore.setSurfaceInspirations(
-        "chats",
-        getAuthenticatedFallbackInspirations(currentLang),
-        { source: "authenticated-fallback" },
+      setAuthenticatedFallbackInspirations(
+        currentLang,
+        "Loaded authenticated fallback after empty server defaults",
       );
       return;
     }
@@ -402,10 +421,9 @@ export async function loadDefaultInspirations(
     const state = get(dailyInspirationStore);
     if (surface === "chats" && get(authStore).isAuthenticated && !state.isPersonalized) {
       const currentLang = get(svelteLocaleStore) || "en";
-      dailyInspirationStore.setSurfaceInspirations(
-        "chats",
-        getAuthenticatedFallbackInspirations(currentLang),
-        { source: "authenticated-fallback" },
+      setAuthenticatedFallbackInspirations(
+        currentLang,
+        "Loaded authenticated fallback after inspiration load failure",
       );
     }
   }

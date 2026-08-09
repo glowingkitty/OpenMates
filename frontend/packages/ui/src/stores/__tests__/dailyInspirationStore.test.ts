@@ -60,6 +60,7 @@ describe("dailyInspirationStore", () => {
     dailyInspirationStore.reset();
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.personalized-priority,daily-inspiration.opened-state
   it("preserves manual carousel index for duplicate authenticated deliveries", () => {
     dailyInspirationStore.setInspirations(INSPIRATIONS, { personalized: true });
     dailyInspirationStore.goTo(1);
@@ -80,6 +81,7 @@ describe("dailyInspirationStore", () => {
     expect(state.source).toBe("personalized");
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-continuity
   it("replaces guest onboarding with an authenticated public source", () => {
     dailyInspirationStore.setSurfaceInspirations(
       "chats",
@@ -98,6 +100,7 @@ describe("dailyInspirationStore", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.personalized-priority
   it("does not let guest onboarding overwrite personalized records", () => {
     dailyInspirationStore.setInspirations(INSPIRATIONS, {
       personalized: true,
@@ -118,6 +121,7 @@ describe("dailyInspirationStore", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
   it("forces the exact guest onboarding set after authenticated data races with logout", () => {
     dailyInspirationStore.setInspirations(INSPIRATIONS, {
       personalized: true,
@@ -135,6 +139,7 @@ describe("dailyInspirationStore", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
   it("preserves the guest source when local interest ranking rewrites its order", () => {
     dailyInspirationStore.setSurfaceInspirations("chats", INSPIRATIONS, {
       source: "guest-onboarding",
@@ -145,6 +150,7 @@ describe("dailyInspirationStore", () => {
     expect(get(dailyInspirationStore).source).toBe("guest-onboarding");
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-fallback-content
   it("provides an authenticated-only 3/3/4 fallback", () => {
     const fallback = getAuthenticatedFallbackInspirations("en");
     const counts = fallback.reduce<Record<string, number>>((result, inspiration) => {
@@ -168,5 +174,24 @@ describe("dailyInspirationStore", () => {
         ...fallback.slice(1),
       ]),
     ).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-continuity,daily-inspiration.personalized-priority
+  it("allows authenticated fallback to replace incomplete personalized records", () => {
+    dailyInspirationStore.setInspirations(INSPIRATIONS, {
+      personalized: true,
+      source: "personalized",
+    });
+
+    dailyInspirationStore.setSurfaceInspirations(
+      "chats",
+      getAuthenticatedFallbackInspirations("en"),
+      { source: "authenticated-fallback" },
+    );
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("authenticated-fallback");
+    expect(state.isPersonalized).toBe(false);
+    expect(hasCompleteAuthenticatedDailySet(state.inspirations)).toBe(true);
   });
 });

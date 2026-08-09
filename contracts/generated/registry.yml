@@ -58,6 +58,14 @@ contracts:
     - cli
     - gui.web
     - gui.apple
+  feature.daily-inspiration:
+    version: 1
+    status: approved
+    path: features/daily-inspiration
+    fingerprint: 4b16efb0e66b84ed4837d581458e52aff8a6ca226577c9220aec2874d34612e9
+    required_surfaces:
+    - rest_api
+    - gui.web
   feature.workflows:
     version: 1
     status: approved
@@ -492,6 +500,62 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  daily-inspiration.authenticated-continuity:
+    contract: feature.daily-inspiration@1
+    contract_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: ec8361dad848aa2c0f861b0558dd5de8b8f53877da5f02ebfe28452364eec0f7
+    required_surfaces:
+    - rest_api
+    - gui.web
+  daily-inspiration.personalized-priority:
+    contract: feature.daily-inspiration@1
+    contract_id: feature.daily-inspiration
+    type: invariant
+    fingerprint: f53b58ca405a81bc3ec17c8a07bc24b9ae14a4d07b94f41dd311ae1323726887
+    required_surfaces:
+    - rest_api
+    - gui.web
+  daily-inspiration.guest-isolated:
+    contract: feature.daily-inspiration@1
+    contract_id: feature.daily-inspiration
+    type: invariant
+    fingerprint: ab1fddcbf4ace0c01b9b2f2dc02a49ef42cdab1b584bc076becfce13db290a33
+    required_surfaces:
+    - rest_api
+    - gui.web
+  daily-inspiration.authenticated-fallback-content:
+    contract: feature.daily-inspiration@1
+    contract_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: 2be6820049d372c5fa3c94647c3a73e49315f3e791d21d5583a1ece1b2963e2e
+    required_surfaces:
+    - rest_api
+    - gui.web
+  daily-inspiration.public-defaults:
+    contract: feature.daily-inspiration@1
+    contract_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: 675b871762da0785298f049b611aed95f02730aafe6485e11a9b6b5d735c3bfc
+    required_surfaces:
+    - rest_api
+    - gui.web
+  daily-inspiration.encrypted-persistence:
+    contract: feature.daily-inspiration@1
+    contract_id: feature.daily-inspiration
+    type: privacy
+    fingerprint: 4eddcfc76a36a228ca41810ee762c7c7c211a8fa11478afb4f54576c9e11fe40
+    required_surfaces:
+    - rest_api
+    - gui.web
+  daily-inspiration.opened-state:
+    contract: feature.daily-inspiration@1
+    contract_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
+    required_surfaces:
+    - rest_api
+    - gui.web
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
     contract_id: feature.workflows

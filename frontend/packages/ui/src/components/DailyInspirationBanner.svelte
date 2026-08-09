@@ -247,15 +247,16 @@
   let landingIntroPrimaryRailEl = $state<HTMLElement | null>(null);
 
   // ─── Crossfade when data source changes ─────────────────────────────────────
-  // When hardcoded inspirations are replaced by real data (IndexedDB / server /
-  // WS), the banner crossfades: the old content fades out, then the new content
-  // fades in. This avoids a jarring instant swap.
+  // When bootstrap/fallback inspirations are replaced by a new source, the
+  // banner crossfades: the old content fades out, then the new content fades in.
+  // This avoids a jarring instant swap during auth recovery.
   const HARDCODED_ID_PREFIX = "hardcoded-";
   let isCrossfading = $state(false);
 
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
   const unsubscribeDailyInspirations = dailyInspirationStore.subscribe((state) => {
+    const previousSource = inspirationSource;
     inspirationSource = state.source;
     const wasHardcoded = inspirations.length > 0 &&
       inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
@@ -270,8 +271,13 @@
       isDailyInspirationVisible(inspiration),
     );
     const isSameVisibleSet = hasSameVisibleInspirationIds(previousVisibleInspirations, nextVisibleInspirations);
+    const isSourceReplacement = previousSource !== 'none' && previousSource !== state.source;
+    const shouldCrossfade = !isSameVisibleSet &&
+      previousVisibleInspirations.length > 0 &&
+      nextVisibleInspirations.length > 0 &&
+      ((wasHardcoded && isNowReal) || isSourceReplacement);
 
-    if (wasHardcoded && isNowReal) {
+    if (shouldCrossfade) {
       // Trigger crossfade: fade out, swap data, fade in
       isCrossfading = true;
       setTimeout(() => {
@@ -2096,7 +2102,7 @@
     to   { opacity: 1; transform: translateY(0);   }
   }
 
-  /* Crossfade transition: when hardcoded data is replaced by real data,
+  /* Crossfade transition: when bootstrap/fallback data is replaced,
      the banner fades out (200ms), data swaps, then fades back in (300ms). */
   .daily-inspiration-wrapper {
     transition: opacity 300ms ease-in;

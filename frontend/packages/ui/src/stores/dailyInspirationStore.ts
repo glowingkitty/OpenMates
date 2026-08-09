@@ -321,7 +321,15 @@ export const dailyInspirationStore = {
     store.update((state) => {
       const source = resolveSource(options, state.source);
       if (state.isPersonalized && !personalized && surface === "chats") {
-        return state;
+        const chatInspirations = state.inspirations.filter(
+          (inspiration) => inspirationSurface(inspiration) === "chats",
+        );
+        const canReplaceIncompletePersonalizedSet =
+          source === "authenticated-fallback"
+          && !hasCompleteAuthenticatedDailySet(chatInspirations);
+        if (!canReplaceIncompletePersonalizedSet) {
+          return state;
+        }
       }
       if (
         surface === "chats"
