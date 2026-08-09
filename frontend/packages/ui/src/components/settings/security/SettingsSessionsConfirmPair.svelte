@@ -66,6 +66,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     let generatedPin = $state<string | null>(null);
     let autoLogoutMinutes = $state<number | null>(null);
     const PAIR_PIN_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXY3468';
+    const PAIR_AUTHORIZE_STALE_SESSION_RETRY_DELAY_MS = 250;
     let completionPollInterval: ReturnType<typeof setInterval> | null = null;
 
     // ========================================================================
@@ -160,18 +161,31 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
             //    - authorizer_device_name: shown on initiating device
             const authorizerName = getAuthorizerDeviceName();
 
-            const response = await fetch(getApiEndpoint(`/v1/auth/pair/authorize/${token}`), {
+            const authorizePayload = JSON.stringify({
+                encrypted_bundle: encryptedBundleB64,
+                iv: ivB64,
+                pin,
+                authorizer_device_name: authorizerName,
+                auto_logout_minutes: autoLogoutMinutes,
+            });
+
+            let response = await fetch(getApiEndpoint(`/v1/auth/pair/authorize/${token}`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({
-                    encrypted_bundle: encryptedBundleB64,
-                    iv: ivB64,
-                    pin,
-                    authorizer_device_name: authorizerName,
-                    auto_logout_minutes: autoLogoutMinutes,
-                }),
+                body: authorizePayload,
             });
+
+            if (response.status === 401) {
+                // A concurrent session refresh can rotate the cookie just as pairing is approved.
+                await new Promise(resolve => setTimeout(resolve, PAIR_AUTHORIZE_STALE_SESSION_RETRY_DELAY_MS));
+                response = await fetch(getApiEndpoint(`/v1/auth/pair/authorize/${token}`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: authorizePayload,
+                });
+            }
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
@@ -640,7 +654,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     .btn-copy:hover {
         background: var(--color-grey-20);
         color: var(--color-font-primary);
-        border-color: var(--color-grey-35, var(--color-grey-30));
+        border-color: var(--color-grey-40);
     }
 
     .btn-copy:active {
