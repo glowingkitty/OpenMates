@@ -47,7 +47,7 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
     // First, process for code blocks as they are more distinct
     let match;
     while ((match = markdownCodeBlockRegex.exec(text)) !== null) {
-        const [fullMatch, lang, _codeContent] = match;
+        const [fullMatch, lang, codeContent] = match;
         const matchStart = match.index;
         const matchEnd = matchStart + fullMatch.length;
 
@@ -66,6 +66,8 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
                 contentRef: null,
                 language: (lang || '').trim(),
                 filename: 'Code snippet', // Or derive from language
+                lineCount: codeContent.split('\n').length,
+                code: codeContent,
             },
         });
         lastIndex = matchEnd;
