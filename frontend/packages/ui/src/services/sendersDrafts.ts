@@ -19,6 +19,26 @@ import type { OfflineChange, UpdateDraftPayload, DeleteDraftPayload } from "../t
 
 const DRAFT_UPDATE_RECEIPT_TIMEOUT_MS = 10_000;
 const DRAFT_DELETE_RECEIPT_TIMEOUT_MS = 10_000;
+const DRAFT_RECEIPT_CONNECTION_LOST_ERROR_NAME =
+	"DraftReceiptConnectionLostError";
+
+export class DraftReceiptConnectionLostError extends Error {
+	constructor(chatId: string, minimumDraftVersion: number, status: string) {
+		super(
+			`WebSocket became ${status} while waiting for draft update receipt for chat ${chatId} at draft_v >= ${minimumDraftVersion}`
+		);
+		this.name = DRAFT_RECEIPT_CONNECTION_LOST_ERROR_NAME;
+	}
+}
+
+export function isDraftReceiptConnectionLostError(error: unknown): boolean {
+	return error instanceof Error && error.name === DRAFT_RECEIPT_CONNECTION_LOST_ERROR_NAME;
+}
+
+type DraftOfflineQueueService = ChatSynchronizationService & {
+	queueOfflineChange?: (change: Omit<OfflineChange, "change_id">) => void | Promise<void>;
+	sendOfflineChanges?: () => void | Promise<void>;
+};
 
 type DraftUpdateReceiptPayload = {
 	chat_id?: string;
@@ -33,25 +53,100 @@ type DraftDeleteReceiptPayload = {
 
 function waitForDraftUpdateReceiptAtVersion(chatId: string, minimumDraftVersion: number): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const timeout = window.setTimeout(() => {
+		let isSettled = false;
+		let hasObservedInitialStatus = false;
+		let unsubscribeStatus: (() => void) | undefined;
+
+		const cleanup = () => {
+			window.clearTimeout(timeout);
 			webSocketService.off("draft_update_receipt", handleReceipt);
-			reject(new Error(`Timed out waiting for draft update receipt for chat ${chatId} at draft_v >= ${minimumDraftVersion}`));
+			unsubscribeStatus?.();
+			unsubscribeStatus = undefined;
+		};
+
+		const settle = (callback: () => void) => {
+			if (isSettled) return;
+			isSettled = true;
+			cleanup();
+			callback();
+		};
+
+		const timeout = window.setTimeout(() => {
+			settle(() =>
+				reject(
+					new Error(
+						`Timed out waiting for draft update receipt for chat ${chatId} at draft_v >= ${minimumDraftVersion}`
+					)
+				)
+			);
 		}, DRAFT_UPDATE_RECEIPT_TIMEOUT_MS);
 
 		const handleReceipt = (payload: DraftUpdateReceiptPayload): void => {
 			if (payload.chat_id !== chatId) return;
 			if ((payload.draft_v ?? 0) < minimumDraftVersion) return;
-			window.clearTimeout(timeout);
-			webSocketService.off("draft_update_receipt", handleReceipt);
 			if (payload.success === false) {
-				reject(new Error(`Draft update receipt reported failure for chat ${chatId}`));
+				settle(() => reject(new Error(`Draft update receipt reported failure for chat ${chatId}`)));
 				return;
 			}
-			resolve();
+			settle(resolve);
 		};
 
 		webSocketService.on("draft_update_receipt", handleReceipt);
+		unsubscribeStatus = websocketStatus.subscribe((state) => {
+			if (!hasObservedInitialStatus) {
+				hasObservedInitialStatus = true;
+				return;
+			}
+			if (state.status !== "connected") {
+				settle(() =>
+					reject(
+						new DraftReceiptConnectionLostError(
+							chatId,
+							minimumDraftVersion,
+							state.status
+						)
+					)
+				);
+			}
+		});
 	});
+}
+
+async function queueInterruptedDraftUpdate(
+	serviceInstance: ChatSynchronizationService,
+	chat_id: string,
+	draft_content: string | null,
+	expectedDraftVersion: number,
+	error: unknown
+): Promise<void> {
+	console.warn(
+		`[ChatSyncService:Senders] WebSocket connection changed before draft update receipt for chat ${chat_id}. Queuing encrypted draft update:`,
+		error
+	);
+	const offlineChange: Omit<OfflineChange, "change_id"> = {
+		chat_id,
+		type: "draft",
+		value: draft_content,
+		version_before_edit: Math.max(0, expectedDraftVersion - 1)
+	};
+	const queueService = serviceInstance as DraftOfflineQueueService;
+	if (queueService.queueOfflineChange) {
+		await queueService.queueOfflineChange(offlineChange);
+	} else {
+		await chatDB.addOfflineChange({
+			...offlineChange,
+			change_id: crypto.randomUUID()
+		});
+	}
+
+	if (get(websocketStatus).status === "connected") {
+		void Promise.resolve(queueService.sendOfflineChanges?.()).catch((flushError: unknown) => {
+			console.warn(
+				`[ChatSyncService:Senders] Deferred offline draft flush failed for chat ${chat_id}:`,
+				flushError
+			);
+		});
+	}
 }
 
 function waitForDraftDeleteReceipt(chatId: string): Promise<void> {
@@ -99,6 +194,16 @@ export async function sendUpdateDraftImpl(
 		await receipt;
 	} catch (error) {
 		receipt.catch(() => undefined);
+		if (isDraftReceiptConnectionLostError(error)) {
+			await queueInterruptedDraftUpdate(
+				serviceInstance,
+				chat_id,
+				draft_content,
+				expectedDraftVersion,
+				error
+			);
+			return;
+		}
 		throw error;
 	}
 

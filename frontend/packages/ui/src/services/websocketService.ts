@@ -228,6 +228,7 @@ class WebSocketService extends EventTarget {
   private readonly allowedNoHandlerTypes = new Set<string>([
     "active_chat_set_ack",
     "pong", // Pong responses to ping - handler registered in constructor
+    "draft_update_receipt", // Server acknowledgment that a draft update was processed successfully
     "draft_delete_receipt", // Server acknowledgment that draft deletion was processed successfully
     // Add more types here if needed
   ]);
