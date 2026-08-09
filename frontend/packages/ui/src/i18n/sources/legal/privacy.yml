@@ -6639,9 +6639,11 @@ providers.ai_models.groq.description:
   context: Groq description
   en: >-
     Groq is used server-side to sanitize external content (search results and
-    scraped web pages) before it is included in AI responses. Groq sees the
-    external content we fetched on your behalf, not your chat messages, and
-    never learns which user requested each piece of content.
+    scraped web pages) before it is included in AI responses. For audio.speak,
+    Groq also receives the requested speech text without OpenMates user
+    identifiers to approve or reject the request before ElevenLabs is called.
+    Groq never learns which user requested each piece of content or speech
+    sample.
   de: Groq wird serverseitig verwendet, um externe Inhalte (Suchergebnisse und gescrapte Webseiten) zu bereinigen, bevor sie in KI-Antworten aufgenommen werden. Groq sieht die externen Inhalte, die wir in deinem Namen abgerufen haben, nicht deine Chat-Nachrichten, und erfährt nie, welcher Nutzer welchen Inhalt angefordert hat.
   zh: Groq 在服务器端用于在外部内容（搜索结果和抓取的网页）包含在 AI 回复之前对其进行清理。Groq 会看到我们代表您获取的外部内容，但不会看到您的聊天消息，也永远不会知道是哪个用户请求了这些内容。
   es: Groq se utiliza en el lado del servidor para sanear el contenido externo (resultados de búsqueda y páginas web extraídas) antes de que se incluya en las respuestas de la IA. Groq ve el contenido externo que recuperamos en tu nombre, no tus mensajes de chat, y nunca sabe qué usuario solicitó cada fragmento de contenido.
@@ -7072,6 +7074,106 @@ providers.image_generation.bfl.description:
   sv: Black Forest Labs driver generering av utkastbilder via FLUX-modeller. BFL tar emot dina prompter för bildgenerering och, vid redigering, källbilderna du tillhandahåller.
   he: Black Forest Labs מפעילה יצירת טיוטות תמונות באמצעות מודלי FLUX. ‏BFL מקבלת את פקודות יצירת התמונות שלך, ובעת עריכה, את תמונות המקור שאתה מספק.
   verified_by_human: []
+providers.audio_generation.heading:
+  context: Subheading for audio generation and speech providers
+  en: Audio generation and speech (only when you use an audio generation skill)
+  de: Audio generation and speech (only when you use an audio generation skill)
+  zh: Audio generation and speech (only when you use an audio generation skill)
+  es: Audio generation and speech (only when you use an audio generation skill)
+  fr: Audio generation and speech (only when you use an audio generation skill)
+  pt: Audio generation and speech (only when you use an audio generation skill)
+  ru: Audio generation and speech (only when you use an audio generation skill)
+  ja: Audio generation and speech (only when you use an audio generation skill)
+  ko: Audio generation and speech (only when you use an audio generation skill)
+  it: Audio generation and speech (only when you use an audio generation skill)
+  tr: Audio generation and speech (only when you use an audio generation skill)
+  vi: Audio generation and speech (only when you use an audio generation skill)
+  id: Audio generation and speech (only when you use an audio generation skill)
+  pl: Audio generation and speech (only when you use an audio generation skill)
+  nl: Audio generation and speech (only when you use an audio generation skill)
+  ar: Audio generation and speech (only when you use an audio generation skill)
+  hi: Audio generation and speech (only when you use an audio generation skill)
+  th: Audio generation and speech (only when you use an audio generation skill)
+  cs: Audio generation and speech (only when you use an audio generation skill)
+  sv: Audio generation and speech (only when you use an audio generation skill)
+  he: Audio generation and speech (only when you use an audio generation skill)
+  verified_by_human: [en]
+
+providers.audio_generation.description:
+  context: Description of audio generation and speech providers
+  en: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  de: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  zh: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  es: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  fr: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  pt: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  ru: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  ja: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  ko: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  it: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  tr: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  vi: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  id: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  pl: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  nl: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  ar: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  hi: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  th: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  cs: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  sv: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  he: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  verified_by_human: [en]
+
+providers.audio_generation.elevenlabs.heading:
+  context: Heading for ElevenLabs audio generation provider entry
+  en: ElevenLabs (sound effects and text-to-speech)
+  de: ElevenLabs (sound effects and text-to-speech)
+  zh: ElevenLabs (sound effects and text-to-speech)
+  es: ElevenLabs (sound effects and text-to-speech)
+  fr: ElevenLabs (sound effects and text-to-speech)
+  pt: ElevenLabs (sound effects and text-to-speech)
+  ru: ElevenLabs (sound effects and text-to-speech)
+  ja: ElevenLabs (sound effects and text-to-speech)
+  ko: ElevenLabs (sound effects and text-to-speech)
+  it: ElevenLabs (sound effects and text-to-speech)
+  tr: ElevenLabs (sound effects and text-to-speech)
+  vi: ElevenLabs (sound effects and text-to-speech)
+  id: ElevenLabs (sound effects and text-to-speech)
+  pl: ElevenLabs (sound effects and text-to-speech)
+  nl: ElevenLabs (sound effects and text-to-speech)
+  ar: ElevenLabs (sound effects and text-to-speech)
+  hi: ElevenLabs (sound effects and text-to-speech)
+  th: ElevenLabs (sound effects and text-to-speech)
+  cs: ElevenLabs (sound effects and text-to-speech)
+  sv: ElevenLabs (sound effects and text-to-speech)
+  he: ElevenLabs (sound effects and text-to-speech)
+  verified_by_human: [en]
+
+providers.audio_generation.elevenlabs.description:
+  context: ElevenLabs audio generation and speech data sharing disclosure
+  en: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  de: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  zh: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  es: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  fr: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  pt: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  ru: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  ja: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  ko: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  it: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  tr: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  vi: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  id: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  pl: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  nl: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  ar: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  hi: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  th: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  cs: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  sv: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  he: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  verified_by_human: [en]
+
 providers.music_generation.heading:
   context: Subheading for music generation providers
   en: Music generation (only when you use a music skill)

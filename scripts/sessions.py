@@ -8131,6 +8131,57 @@ def _run_contract_gate(files: list[str], *, session_id: str, checkout_root: Path
     print("Contract gate: PASSED")
 
 
+CONTRACT_GENERATED_FILES = (
+    "contracts/generated/registry.yml",
+    "contracts/generated/assertion-index.yml",
+    "contracts/generated/coverage.yml",
+)
+
+
+def _should_regenerate_contract_artifacts(files: list[str]) -> bool:
+    """Return True when deploy inputs can change contract-generated artifacts."""
+
+    return any(
+        path.startswith("contracts/")
+        or path.startswith("docs/specs/") and Path(path).name == "spec.yml"
+        or path.endswith((".spec.ts", ".test.ts", ".spec.tsx", ".test.tsx", ".spec.js", ".test.js", "Tests.swift", "_test.py"))
+        or Path(path).name.startswith("test_") and path.endswith(".py")
+        for path in files
+    )
+
+
+def _regenerate_contract_artifacts_for_deploy(files: list[str], *, checkout_root: Path) -> list[str]:
+    """Regenerate and stage contract artifacts inside a disposable deploy checkout."""
+
+    if not _should_regenerate_contract_artifacts(files):
+        return []
+    script = checkout_root / "scripts" / "contracts.py"
+    if not script.exists():
+        raise RuntimeError("contract generation unavailable: scripts/contracts.py is missing")
+    print("Regenerating contract artifacts for integration checkout...")
+    rc, stdout, stderr = _run_cmd(
+        [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
+        cwd=str(checkout_root),
+        timeout=120,
+    )
+    if rc != 0:
+        detail = stderr or stdout or "contract artifact generation failed"
+        raise RuntimeError(detail)
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "add", "--", *CONTRACT_GENERATED_FILES],
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not stage contract-generated artifacts: {stderr}")
+    staged = _get_staged_files(checkout_root=checkout_root)
+    generated = [path for path in CONTRACT_GENERATED_FILES if path in staged]
+    if generated:
+        print("Contract artifacts: REGENERATED")
+    else:
+        print("Contract artifacts: CURRENT")
+    return generated
+
+
 def _run_deploy_gates(
     files: list[str],
     *,
@@ -8467,8 +8518,13 @@ def _deploy_native_worktree(
         while True:
             checkout_root = Path(integration["path"])
             _bootstrap_integration_for_files(checkout_root, to_commit)
-            _run_deploy_gates(
+            generated_contract_files = _regenerate_contract_artifacts_for_deploy(
                 to_commit,
+                checkout_root=checkout_root,
+            )
+            commit_files = sorted(set(to_commit).union(generated_contract_files))
+            _run_deploy_gates(
+                commit_files,
                 checkout_root=checkout_root,
                 no_verify=no_verify,
                 skip_tests_reason=skip_tests_reason,
@@ -8504,14 +8560,14 @@ def _deploy_native_worktree(
             _enforce_vercel_standard_build_machine()
             print("Vercel build machine: standard/fixed")
             if not _validate_staged_deploy_files(
-                set(to_commit),
+                set(commit_files),
                 context="before integration commit",
                 checkout_root=checkout_root,
             ):
                 raise RuntimeError("Integration staged-file validation failed")
 
             commit_message = _integration_commit_message(args, session)
-            _validate_contract_commit_message(to_commit, commit_message)
+            _validate_contract_commit_message(commit_files, commit_message)
             commit_cmd = ["git", "commit", "-m", commit_message]
             if no_verify:
                 commit_cmd.append("--no-verify")

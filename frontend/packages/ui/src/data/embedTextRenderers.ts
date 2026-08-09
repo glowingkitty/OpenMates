@@ -62,7 +62,7 @@ import { renderHealthSearch, renderAppointment } from '../components/embeds/heal
 import { renderHomeSearch, renderListing } from '../components/embeds/home/homeEmbedText';
 import { renderSheet } from '../components/embeds/sheets/sheetsEmbedText';
 import { renderPdf } from '../components/embeds/pdf/pdfEmbedText';
-import { renderRecording, renderAudioTranscribe } from '../components/embeds/audio/audioEmbedText';
+import { renderRecording, renderAudioGenerate, renderAudioSpeak, renderAudioTranscribe } from '../components/embeds/audio/audioEmbedText';
 import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
@@ -245,6 +245,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:reminder:set-reminder': renderReminder,
 	'app:reminder:list-reminders': renderReminder,
 	'app:reminder:cancel-reminder': renderReminder,
+	'app:audio:generate': renderAudioGenerate,
+	'app:audio:speak': renderAudioSpeak,
 	'app:audio:transcribe': renderAudioTranscribe,
 	'app:social_media:get-posts': renderSocialMediaGetPosts,
 	'app:social_media:search': renderSocialMediaSearch,

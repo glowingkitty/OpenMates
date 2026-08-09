@@ -406,9 +406,11 @@ provider_groups:
         location: US
         used_for:
           - server-side sanitization of external content (search results, scraped web pages) before inclusion in chat responses
+          - safety classification of audio.speak text before ElevenLabs text-to-speech generation
         data_shared:
           - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization
-          - No user identifiers; Groq does not know which user requested each piece of content
+          - Text requested for audio.speak text-to-speech when that skill is invoked
+          - No user identifiers; Groq does not know which user requested each piece of content or speech sample
       alibaba:
         privacy_policy: https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy
         location: Hong Kong
@@ -473,6 +475,27 @@ provider_groups:
         data_shared:
           - Image generation prompts
           - Source images when editing
+
+  # =====================================================================
+  # Group D2 — Audio generation and text-to-speech. Only used when you
+  # invoke an audio generation skill.
+  # =====================================================================
+  audio_generation:
+    description: >
+      These providers are only used when you invoke an audio generation or
+      text-to-speech skill. If you never use the audio generation skills, none
+      of your data is shared with them.
+    providers:
+      elevenlabs:
+        privacy_policy: https://elevenlabs.io/privacy-policy  # verified 2026-08-09
+        location: US
+        used_for:
+          - short non-speech sound-effect generation via the audio.generate skill
+          - explicit user-invoked text-to-speech/read-aloud via the audio.speak skill
+        data_shared:
+          - Sound-effect generation prompts and generation settings
+          - Requested speech text, voice preset, accent, style, speed, and output settings when audio.speak passes the required safeguard
+          - Note: audio.speak text is checked by the Groq safeguard before ElevenLabs is called; rejected requests are not sent to ElevenLabs and are not charged generation credits
 
   # =====================================================================
   # Group E — 3D model generation. Only used when you invoke a 3D skill.

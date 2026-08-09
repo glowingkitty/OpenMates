@@ -293,6 +293,13 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.image_generation.recraft", privacyPolicyLinks.recraft);
   renderProvider("legal.privacy.providers.image_generation.bfl", privacyPolicyLinks.bfl);
 
+  // Group D2 — Audio generation and text-to-speech
+  lines.push(`### ${t("legal.privacy.providers.audio_generation.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.audio_generation.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.audio_generation.elevenlabs", privacyPolicyLinks.elevenLabs);
+
   // Group E — 3D model generation
   lines.push(`### ${t("legal.privacy.providers.model_generation.heading")}`);
   lines.push("");

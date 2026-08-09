@@ -15,6 +15,8 @@ from typing import Iterable, Optional
 MAX_IMAGE_REQUESTS_PER_CALL = 5
 MAX_VIDEO_REQUESTS_PER_CALL = 1
 MAX_MUSIC_REQUESTS_PER_CALL = 5
+MAX_SOUND_EFFECT_REQUESTS_PER_CALL = 5
+MAX_SPEECH_REQUESTS_PER_CALL = 3
 
 _FAMOUS_PERSON_CONTEXT_RE = re.compile(
     r"\b(?:in|imitat(?:e|ing)|clone|copy|mimic|sound(?:s)?\s+like|"
@@ -70,6 +72,19 @@ _DECEPTIVE_MEDIA_RE = re.compile(
     r"confession\s+video|public\s+apology|official\s+announcement)\b",
     re.IGNORECASE,
 )
+_SOUND_EFFECT_SPEECH_RE = re.compile(
+    r"\b(?:say|says|saying|speak|speaks|speaking|read\s+aloud|tts|text[-\s]?to[-\s]?speech|"
+    r"narrat(?:e|es|ing|ion)|spoken\s+words?|voice\s+(?:line|saying|says))\b",
+    re.IGNORECASE,
+)
+_NO_SPEECH_RE = re.compile(r"\b(?:no|without)\s+(?:speech|spoken\s+words?|voice|vocals?)\b", re.IGNORECASE)
+_COERCIVE_FAKE_AUTHORITY_RE = re.compile(
+    r"\b(?:this\s+is\s+your\s+(?:ceo|boss|manager|bank|government|police|doctor)|"
+    r"urgently\s+(?:transfer|wire|send)\s+(?:the\s+)?(?:funds?|money)|"
+    r"do\s+not\s+(?:verify|tell\s+anyone|ask\s+questions)|"
+    r"ignore\s+(?:verification|security\s+checks?))\b",
+    re.IGNORECASE,
+)
 
 _USEFUL_CONTEXT_RE = re.compile(
     r"\b(?:prototype|mockup|draft|concept|educational|lesson|explainer|accessibility|"
@@ -120,6 +135,10 @@ def _request_limit_for_media(media_type: str) -> int:
         return MAX_VIDEO_REQUESTS_PER_CALL
     if media_type == "music":
         return MAX_MUSIC_REQUESTS_PER_CALL
+    if media_type == "sound_effect":
+        return MAX_SOUND_EFFECT_REQUESTS_PER_CALL
+    if media_type == "speech":
+        return MAX_SPEECH_REQUESTS_PER_CALL
     return MAX_IMAGE_REQUESTS_PER_CALL
 
 
@@ -152,6 +171,17 @@ def validate_media_generation_request(
     if not text.strip():
         return MediaGenerationDecision(allowed=True)
 
+    if normalized_media_type == "sound_effect" and _SOUND_EFFECT_SPEECH_RE.search(text) and not _NO_SPEECH_RE.search(text):
+        return MediaGenerationDecision(
+            allowed=False,
+            category="audio_speech_wrong_skill",
+            severity="moderate",
+            user_facing_message=(
+                "Use audio.speak for spoken words or narration. audio.generate is only for non-speech sound effects."
+            ),
+            reason="speech_requested_in_sound_effect_skill",
+        )
+
     if _SCAM_RE.search(text):
         return MediaGenerationDecision(
             allowed=False,
@@ -161,6 +191,17 @@ def validate_media_generation_request(
                 "I can't help create deceptive, fraudulent, or scam-related media."
             ),
             reason="scam_or_fraud_pattern",
+        )
+
+    if normalized_media_type == "speech" and _COERCIVE_FAKE_AUTHORITY_RE.search(text):
+        return MediaGenerationDecision(
+            allowed=False,
+            category="G5_deceptive_or_coercive_speech",
+            severity="severe",
+            user_facing_message=(
+                "I can't create deceptive, coercive, or fake-authority speech."
+            ),
+            reason="coercive_fake_authority_speech_pattern",
         )
 
     if _SPAM_RE.search(text) and not _USEFUL_CONTEXT_RE.search(text):
@@ -211,7 +252,7 @@ def validate_media_generation_request(
             reason="public_figure_or_voice_imitation_pattern",
         )
 
-    if normalized_media_type in {"video", "music"} and _DECEPTIVE_MEDIA_RE.search(text):
+    if normalized_media_type in {"video", "music", "sound_effect", "speech"} and _DECEPTIVE_MEDIA_RE.search(text):
         return MediaGenerationDecision(
             allowed=False,
             category="G4_deceptive_synthetic_media",

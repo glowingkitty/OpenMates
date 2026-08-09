@@ -179,6 +179,9 @@ export const privacyPolicyLinks = {
   recraft: "https://www.recraft.ai/privacy", // verified 2026-04-14
   bfl: "https://blackforestlabs.ai/privacy-policy/",
 
+  // Group D2 — Audio generation and text-to-speech
+  elevenLabs: "https://elevenlabs.io/privacy-policy", // verified 2026-08-09
+
   // Group E — 3D model generation
   hi3d: "https://docs.hi3d.ai/en/api/resources/privacy-policy", // verified 2026-07-11
 

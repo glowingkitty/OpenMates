@@ -36,6 +36,199 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "audio",
+    "skill_id": "generate",
+    "app_namespace_ts": "audio",
+    "skill_method_ts": "generate",
+    "app_namespace_py": "audio",
+    "skill_method_py": "generate",
+    "description_key": "app_skills.audio.generate.description",
+    "description": "Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit read-aloud speech.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "REQUIRED: Array of short sound-effect generation request objects.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "Optional caller-supplied ID preserved in the result."
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400,
+                "description": "Non-speech sound effect prompt."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "elevenlabs"
+                ],
+                "default": "elevenlabs",
+                "description": "Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion."
+              },
+              "duration_seconds": {
+                "type": "number",
+                "minimum": 0.5,
+                "maximum": 2.0,
+                "default": 1.0
+              },
+              "prompt_influence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "default": 0.3
+              },
+              "loop": {
+                "type": "boolean",
+                "default": false
+              },
+              "output_format": {
+                "type": "string",
+                "enum": [
+                  "mp3_22050_32",
+                  "mp3_24000_48",
+                  "mp3_44100_32",
+                  "mp3_44100_64",
+                  "mp3_44100_96",
+                  "mp3_44100_128",
+                  "mp3_44100_192"
+                ],
+                "default": "mp3_44100_128"
+              },
+              "model": {
+                "type": "string",
+                "enum": [
+                  "eleven_text_to_sound_v2"
+                ],
+                "default": "eleven_text_to_sound_v2"
+              }
+            },
+            "required": [
+              "prompt",
+              "provider"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
+  },
+  {
+    "app_id": "audio",
+    "skill_id": "speak",
+    "app_namespace_ts": "audio",
+    "skill_method_ts": "speak",
+    "app_namespace_py": "audio",
+    "skill_method_py": "speak",
+    "description_key": "app_skills.audio.speak.description",
+    "description": "Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "description": "REQUIRED: Array of explicit text-to-speech request objects.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "Optional caller-supplied ID preserved in the result."
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "Text to synthesize after safety approval."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "elevenlabs"
+                ],
+                "default": "elevenlabs",
+                "description": "Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion."
+              },
+              "voice": {
+                "type": "string",
+                "enum": [
+                  "warm_neutral",
+                  "bright_neutral",
+                  "calm_narrator"
+                ],
+                "default": "warm_neutral",
+                "description": "OpenMates voice preset; raw provider voice IDs are not accepted."
+              },
+              "accent": {
+                "type": "string",
+                "enum": [
+                  "en_us",
+                  "en_gb",
+                  "de_de",
+                  "es_es",
+                  "fr_fr"
+                ],
+                "default": "en_us"
+              },
+              "style": {
+                "type": "string",
+                "enum": [
+                  "natural",
+                  "calm",
+                  "friendly",
+                  "energetic"
+                ],
+                "default": "natural"
+              },
+              "speed": {
+                "type": "number",
+                "minimum": 0.7,
+                "maximum": 1.2,
+                "default": 1.0
+              },
+              "output_format": {
+                "type": "string",
+                "enum": [
+                  "mp3_22050_32",
+                  "mp3_24000_48",
+                  "mp3_44100_32",
+                  "mp3_44100_64",
+                  "mp3_44100_96",
+                  "mp3_44100_128",
+                  "mp3_44100_192"
+                ],
+                "default": "mp3_44100_128"
+              },
+              "model": {
+                "type": "string",
+                "enum": [
+                  "eleven_flash_v2_5"
+                ],
+                "default": "eleven_flash_v2_5"
+              }
+            },
+            "required": [
+              "text",
+              "provider"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
+  },
+  {
     "app_id": "books",
     "skill_id": "translate",
     "app_namespace_ts": "books",
@@ -3649,6 +3842,29 @@ export class AiAppSkills {
   }
 }
 
+export class AudioAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit read-aloud speech.
+   * Description key: app_skills.audio.generate.description
+   * Skill: audio/generate
+   */
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("audio", "generate", input, options);
+  }
+  /**
+   * Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+   * Description key: app_skills.audio.speak.description
+   * Skill: audio/speak
+   */
+  async speak<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("audio", "speak", input, options);
+  }
+}
+
 export class BooksAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
@@ -4318,6 +4534,7 @@ export class WorkflowsAppSkills {
 export class GeneratedAppSkills {
   constructor(runSkill: AppSkillRunner) {
     this.ai = new AiAppSkills(runSkill);
+    this.audio = new AudioAppSkills(runSkill);
     this.books = new BooksAppSkills(runSkill);
     this.business = new BusinessAppSkills(runSkill);
     this.code = new CodeAppSkills(runSkill);
@@ -4350,6 +4567,7 @@ export class GeneratedAppSkills {
     this.workflows = new WorkflowsAppSkills(runSkill);
   }
   readonly ai: AiAppSkills;
+  readonly audio: AudioAppSkills;
   readonly books: BooksAppSkills;
   readonly business: BusinessAppSkills;
   readonly code: CodeAppSkills;

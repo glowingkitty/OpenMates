@@ -71,7 +71,7 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html")}
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
 
 
 def _apple_session_device_hash(request: Request, user_id: str) -> Optional[str]:
@@ -926,6 +926,10 @@ def is_skill_execution_successful(result: Dict[str, Any]) -> bool:
                     # Check if this result item has actual results (not just errors)
                     item_results = result_item.get("results", [])
                     item_error = result_item.get("error")
+                    item_status = str(result_item.get("status") or "").lower()
+                    if item_status in {"finished", "processing"} and not item_error:
+                        all_failed = False
+                        break
                     
                     # If there are actual results (non-empty list), execution was at least partially successful
                     if isinstance(item_results, list) and len(item_results) > 0:
@@ -1123,6 +1127,11 @@ def get_variable_result_credits(
     found = False
     for item in results:
         item_data = _as_dict(item)
+        direct_credits = item_data.get("credits_charged")
+        if item_data.get("status") == "finished" and direct_credits is not None:
+            total += int(direct_credits or 0)
+            found = True
+            continue
         if item_data.get("status") == "processing" and item_data.get("task_id"):
             found = True
             continue

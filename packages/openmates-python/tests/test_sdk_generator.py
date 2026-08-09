@@ -9,7 +9,18 @@ Run: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
 from openmates.generated.app_skills import APP_SKILL_METADATA, GeneratedAppSkills
 
 
-def test_generated_metadata_includes_web_search_images_generate_business_and_fitness():
+# contract-test: supporting surface=sdks.pip assertions=audio-generate.surface-parity,audio-speak.surface-parity
+def test_generated_metadata_includes_audio_web_search_images_generate_business_and_fitness():
+    audio_generate = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "audio" and skill["skill_id"] == "generate"
+    )
+    audio_speak = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "audio" and skill["skill_id"] == "speak"
+    )
     web_search = next(
         skill for skill in APP_SKILL_METADATA if skill["app_id"] == "web" and skill["skill_id"] == "search"
     )
@@ -48,6 +59,20 @@ def test_generated_metadata_includes_web_search_images_generate_business_and_fit
         for skill in APP_SKILL_METADATA
         if skill["app_id"] == "travel" and skill["skill_id"] == "search_connections"
     )
+
+    assert audio_generate["app_namespace_py"] == "audio"
+    assert audio_generate["skill_method_py"] == "generate"
+    assert audio_generate["schema"]["properties"]["requests"]["items"]["properties"]["provider"]["enum"] == [
+        "elevenlabs"
+    ]
+
+    assert audio_speak["app_namespace_py"] == "audio"
+    assert audio_speak["skill_method_py"] == "speak"
+    assert audio_speak["schema"]["properties"]["requests"]["items"]["properties"]["voice"]["enum"] == [
+        "warm_neutral",
+        "bright_neutral",
+        "calm_narrator",
+    ]
 
     assert web_search["app_namespace_py"] == "web"
     assert web_search["skill_method_py"] == "search"
@@ -94,6 +119,7 @@ def test_generated_metadata_includes_web_search_images_generate_business_and_fit
     ]
 
 
+# contract-test: supporting surface=sdks.pip assertions=audio-generate.surface-parity,audio-speak.surface-parity
 def test_generated_native_methods_delegate_to_runner():
     calls = []
 
@@ -103,6 +129,8 @@ def test_generated_native_methods_delegate_to_runner():
 
     apps = GeneratedAppSkills(run_skill)
     result = apps.web.search({"requests": [{"query": "hello"}]})
+    audio_result = apps.audio.generate({"requests": [{"prompt": "soft tick", "provider": "elevenlabs"}]})
+    speech_result = apps.audio.speak({"requests": [{"text": "Welcome back.", "provider": "elevenlabs"}]})
     icon_result = apps.design.search_icons({"requests": [{"query": "home"}]})
     fitness_result = apps.fitness.search_classes({"requests": [{"address": "Sorauer Str. 12"}]})
     models3d_result = apps.models3d.search({"requests": [{"query": "benchy"}]})
@@ -112,12 +140,26 @@ def test_generated_native_methods_delegate_to_runner():
     )
 
     assert result == {"ok": True}
+    assert audio_result == {"ok": True}
+    assert speech_result == {"ok": True}
     assert icon_result == {"ok": True}
     assert fitness_result == {"ok": True}
     assert models3d_result == {"ok": True}
     assert business_result == {"ok": True}
     assert calls == [
         {"app_id": "web", "skill_id": "search", "input_data": {"requests": [{"query": "hello"}]}, "options": {"prompt_injection_protection": None}},
+        {
+            "app_id": "audio",
+            "skill_id": "generate",
+            "input_data": {"requests": [{"prompt": "soft tick", "provider": "elevenlabs"}]},
+            "options": {"prompt_injection_protection": None},
+        },
+        {
+            "app_id": "audio",
+            "skill_id": "speak",
+            "input_data": {"requests": [{"text": "Welcome back.", "provider": "elevenlabs"}]},
+            "options": {"prompt_injection_protection": None},
+        },
         {"app_id": "design", "skill_id": "search_icons", "input_data": {"requests": [{"query": "home"}]}, "options": {"prompt_injection_protection": None}},
         {
             "app_id": "fitness",

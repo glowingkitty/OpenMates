@@ -25,6 +25,169 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'ask',
   'skill_method_py': 'ask',
   'skill_method_ts': 'ask'},
+ {'app_id': 'audio',
+  'app_namespace_py': 'audio',
+  'app_namespace_ts': 'audio',
+  'description': 'Generate short, non-speech sound effects from text prompts, such as UI '
+                 'confirmation ticks, gentle alerts, transitions, and product sounds. Do not use '
+                 'this for spoken words, narration, vocals, voice cloning, scams, public figures, '
+                 'or deceptive media; use audio.speak for explicit read-aloud speech.',
+  'description_key': 'app_skills.audio.generate.description',
+  'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of short sound-effect '
+                                                        'generation request objects.',
+                                         'items': {'properties': {'duration_seconds': {'default': 1.0,
+                                                                                       'maximum': 2.0,
+                                                                                       'minimum': 0.5,
+                                                                                       'type': 'number'},
+                                                                  'id': {'description': 'Optional '
+                                                                                        'caller-supplied '
+                                                                                        'ID '
+                                                                                        'preserved '
+                                                                                        'in the '
+                                                                                        'result.'},
+                                                                  'loop': {'default': False,
+                                                                           'type': 'boolean'},
+                                                                  'model': {'default': 'eleven_text_to_sound_v2',
+                                                                            'enum': ['eleven_text_to_sound_v2'],
+                                                                            'type': 'string'},
+                                                                  'output_format': {'default': 'mp3_44100_128',
+                                                                                    'enum': ['mp3_22050_32',
+                                                                                             'mp3_24000_48',
+                                                                                             'mp3_44100_32',
+                                                                                             'mp3_44100_64',
+                                                                                             'mp3_44100_96',
+                                                                                             'mp3_44100_128',
+                                                                                             'mp3_44100_192'],
+                                                                                    'type': 'string'},
+                                                                  'prompt': {'description': 'Non-speech '
+                                                                                            'sound '
+                                                                                            'effect '
+                                                                                            'prompt.',
+                                                                             'maxLength': 400,
+                                                                             'minLength': 1,
+                                                                             'type': 'string'},
+                                                                  'prompt_influence': {'default': 0.3,
+                                                                                       'maximum': 1,
+                                                                                       'minimum': 0,
+                                                                                       'type': 'number'},
+                                                                  'provider': {'default': 'elevenlabs',
+                                                                               'description': 'Audio '
+                                                                                              'provider. '
+                                                                                              'v1 '
+                                                                                              'supports '
+                                                                                              'ElevenLabs '
+                                                                                              'only; '
+                                                                                              'keep '
+                                                                                              'explicit '
+                                                                                              'for '
+                                                                                              'future '
+                                                                                              'provider '
+                                                                                              'expansion.',
+                                                                               'enum': ['elevenlabs'],
+                                                                               'type': 'string'}},
+                                                   'required': ['prompt', 'provider'],
+                                                   'type': 'object'},
+                                         'maxItems': 5,
+                                         'minItems': 1,
+                                         'type': 'array'}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'generate',
+  'skill_method_py': 'generate',
+  'skill_method_ts': 'generate'},
+ {'app_id': 'audio',
+  'app_namespace_py': 'audio',
+  'app_namespace_ts': 'audio',
+  'description': 'Convert explicit user-provided text into short speech audio using an OpenMates '
+                 'voice preset after a required GPT OSS safeguard approval. Do not use this for '
+                 'automatic assistant voice replies, long narration, voice cloning, raw provider '
+                 'voice IDs, impersonation, scams, or deceptive speech.',
+  'description_key': 'app_skills.audio.speak.description',
+  'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of explicit '
+                                                        'text-to-speech request objects.',
+                                         'items': {'properties': {'accent': {'default': 'en_us',
+                                                                             'enum': ['en_us',
+                                                                                      'en_gb',
+                                                                                      'de_de',
+                                                                                      'es_es',
+                                                                                      'fr_fr'],
+                                                                             'type': 'string'},
+                                                                  'id': {'description': 'Optional '
+                                                                                        'caller-supplied '
+                                                                                        'ID '
+                                                                                        'preserved '
+                                                                                        'in the '
+                                                                                        'result.'},
+                                                                  'model': {'default': 'eleven_flash_v2_5',
+                                                                            'enum': ['eleven_flash_v2_5'],
+                                                                            'type': 'string'},
+                                                                  'output_format': {'default': 'mp3_44100_128',
+                                                                                    'enum': ['mp3_22050_32',
+                                                                                             'mp3_24000_48',
+                                                                                             'mp3_44100_32',
+                                                                                             'mp3_44100_64',
+                                                                                             'mp3_44100_96',
+                                                                                             'mp3_44100_128',
+                                                                                             'mp3_44100_192'],
+                                                                                    'type': 'string'},
+                                                                  'provider': {'default': 'elevenlabs',
+                                                                               'description': 'Audio '
+                                                                                              'provider. '
+                                                                                              'v1 '
+                                                                                              'supports '
+                                                                                              'ElevenLabs '
+                                                                                              'only; '
+                                                                                              'keep '
+                                                                                              'explicit '
+                                                                                              'for '
+                                                                                              'future '
+                                                                                              'provider '
+                                                                                              'expansion.',
+                                                                               'enum': ['elevenlabs'],
+                                                                               'type': 'string'},
+                                                                  'speed': {'default': 1.0,
+                                                                            'maximum': 1.2,
+                                                                            'minimum': 0.7,
+                                                                            'type': 'number'},
+                                                                  'style': {'default': 'natural',
+                                                                            'enum': ['natural',
+                                                                                     'calm',
+                                                                                     'friendly',
+                                                                                     'energetic'],
+                                                                            'type': 'string'},
+                                                                  'text': {'description': 'Text to '
+                                                                                          'synthesize '
+                                                                                          'after '
+                                                                                          'safety '
+                                                                                          'approval.',
+                                                                           'maxLength': 2000,
+                                                                           'minLength': 1,
+                                                                           'type': 'string'},
+                                                                  'voice': {'default': 'warm_neutral',
+                                                                            'description': 'OpenMates '
+                                                                                           'voice '
+                                                                                           'preset; '
+                                                                                           'raw '
+                                                                                           'provider '
+                                                                                           'voice '
+                                                                                           'IDs '
+                                                                                           'are '
+                                                                                           'not '
+                                                                                           'accepted.',
+                                                                            'enum': ['warm_neutral',
+                                                                                     'bright_neutral',
+                                                                                     'calm_narrator'],
+                                                                            'type': 'string'}},
+                                                   'required': ['text', 'provider'],
+                                                   'type': 'object'},
+                                         'maxItems': 3,
+                                         'minItems': 1,
+                                         'type': 'array'}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'speak',
+  'skill_method_py': 'speak',
+  'skill_method_ts': 'speak'},
  {'app_id': 'books',
   'app_namespace_py': 'books',
   'app_namespace_ts': 'books',
@@ -5452,6 +5615,26 @@ class AiAppSkills:
         """
         return self._run_skill("ai", "ask", input_data, prompt_injection_protection=prompt_injection_protection)
 
+class AudioAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit read-aloud speech.
+
+        Description key: app_skills.audio.generate.description
+        Skill: audio/generate
+        """
+        return self._run_skill("audio", "generate", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def speak(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+
+        Description key: app_skills.audio.speak.description
+        Skill: audio/speak
+        """
+        return self._run_skill("audio", "speak", input_data, prompt_injection_protection=prompt_injection_protection)
+
 class BooksAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
@@ -6031,6 +6214,7 @@ class WorkflowsAppSkills:
 class GeneratedAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self.ai = AiAppSkills(run_skill)
+        self.audio = AudioAppSkills(run_skill)
         self.books = BooksAppSkills(run_skill)
         self.business = BusinessAppSkills(run_skill)
         self.code = CodeAppSkills(run_skill)
