@@ -109,7 +109,7 @@ export const text: Readable<TranslateFunction> = browser
               }
 
               // Only sanitize if DOMPurify is loaded
-              if (DOMPurify) {
+              if (typeof DOMPurify?.sanitize === 'function') {
                   return DOMPurify.sanitize(translated, {
                       ALLOWED_TAGS: [
                           'mark', 'span', 'bold',

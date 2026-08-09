@@ -12,6 +12,17 @@ export type DayStatus = {
 	status: ServiceStatus;
 };
 
+export type TimelineEntry = {
+	date: string;
+	status?: ServiceStatus | 'passed' | 'failed' | 'not_run' | string;
+	has_run?: boolean;
+	passed?: number;
+	failed?: number;
+	not_run?: number;
+	pass_rate?: number;
+	tone?: number;
+};
+
 export type ResponseTimePoint = {
 	timestamp: string;
 	avg_ms: number;

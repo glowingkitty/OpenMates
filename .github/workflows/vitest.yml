@@ -51,9 +51,6 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         env:
-          # Use node environment instead of jsdom — jsdom with crypto.subtle
-          # mocks causes process hangs on GHA Ubuntu runners.
-          VITEST_ENVIRONMENT: node
           TEST_FILES_JSON: ${{ inputs.test_files_json || '' }}
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
@@ -61,7 +58,7 @@ jobs:
           mapfile -t TEST_FILES < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_FILES_JSON") or "[]"); marker="frontend/packages/ui/"; print("\n".join(v.split(marker,1)[1] for v in values if marker in v), end="")')
           if [ -n "$TEST_FILES_JSON" ] && [ ${#TEST_FILES[@]} -eq 0 ]; then echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json; exit 0; fi
           set +e
-          npx vitest run --reporter=json --environment node \
+          npx vitest run --reporter=json \
             --testTimeout 30000 \
             --exclude 'src/services/encryption/**' \
             "${TEST_FILES[@]}" \

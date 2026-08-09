@@ -3553,11 +3553,13 @@ export const embedStore = new EmbedStore();
 // embeds whose key lookup previously failed (because the chat key wasn't loaded yet)
 // can retry and succeed. Without this, the negative cache permanently blocks re-lookup
 // even after the chat key loads via OPE-314's bulk key retry.
-chatKeyManager.onKeyReady((_chatId: string) => {
-  if (embedKeyNegativeCache.size > 0) {
-    embedKeyNegativeCache.clear();
-    console.debug(
-      `[EmbedStore] Cleared embed key negative cache — chat key ready, embed lookups will retry`,
-    );
-  }
-});
+if (typeof chatKeyManager.onKeyReady === "function") {
+  chatKeyManager.onKeyReady((_chatId: string) => {
+    if (embedKeyNegativeCache.size > 0) {
+      embedKeyNegativeCache.clear();
+      console.debug(
+        `[EmbedStore] Cleared embed key negative cache — chat key ready, embed lookups will retry`,
+      );
+    }
+  });
+}
