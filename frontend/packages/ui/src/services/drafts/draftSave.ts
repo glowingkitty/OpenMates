@@ -941,6 +941,17 @@ export const saveDraftDebounced = debounce(
     // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
     // but for DRAFTS, a mention alone IS valid content that should be saved.
     if (editor.isEmpty) {
+      if (currentState.isSwitchingContext) {
+        console.debug(
+          "[DraftService] Editor empty but context switch in progress - skipping authenticated draft deletion to prevent data loss:",
+          {
+            chatIdForOperation: currentChatIdForOperation,
+            currentStateChatId: currentState.currentChatId,
+          },
+        );
+        return;
+      }
+
       if (currentChatIdForOperation) {
         if (isPublicChat(currentChatIdForOperation)) {
           console.info(
@@ -1385,10 +1396,10 @@ export function triggerSaveDraft(
   const editor = editorOverride ?? getEditorInstance();
   if (!editor) return;
 
-  // CRITICAL: For non-authenticated users, check if we're switching context
-  // If so, skip the save to prevent deleting the wrong chat's draft
+  // CRITICAL: During context switches, editor empty/update events can be transient
+  // and delayed debounced deletes may execute after the switching flag clears.
   const currentState = get(draftEditorUIState);
-  if (!get(authStore).isAuthenticated && currentState.isSwitchingContext) {
+  if (currentState.isSwitchingContext) {
     console.debug(
       "[DraftService] Context switch in progress, skipping triggerSaveDraft to prevent data loss",
     );

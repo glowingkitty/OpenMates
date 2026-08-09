@@ -272,12 +272,14 @@ describe("draftSave", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("clearCurrentDraft", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
     it("completes without error even with no active chat/editor", async () => {
       // clearCurrentDraft early-returns when no editor or chat ID is available.
       // The key behavior: it should never throw.
       await expect(clearCurrentDraft()).resolves.not.toThrow();
     });
 
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
     it("does not throw on DB errors", async () => {
       mocks.chatDB.chats.delete.mockRejectedValueOnce(new Error("DB error"));
       // Should not throw — best-effort deletion
@@ -286,6 +288,7 @@ describe("draftSave", () => {
   });
 
   describe("public chat empty draft saves", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.boundaries.session-and-incognito,drafts.draft-only.lifecycle
     it("does not convert empty public-chat flushes into private draft deletions", async () => {
       const editor = createEditor(true);
       mocks.getEditorInstance.mockReturnValue(editor);
@@ -304,7 +307,42 @@ describe("draftSave", () => {
     });
   });
 
+  describe("context switching empty draft saves", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
+    it("does not schedule authenticated draft deletion while switching context", () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({
+        currentChatId: "auth-draft-chat",
+        isSwitchingContext: true,
+      });
+
+      triggerSaveDraft("auth-draft-chat", editor as never);
+
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("auth-draft-chat");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
+    it("does not execute authenticated draft deletion while switching context", async () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({
+        currentChatId: "auth-draft-chat",
+        isSwitchingContext: true,
+      });
+
+      await saveDraftDebounced("auth-draft-chat", editor as never);
+
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("auth-draft-chat");
+    });
+  });
+
   describe("new-chat draft activation", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.draft-only.lifecycle
     it("publishes the persisted draft shell ID for selection after a successful first save", async () => {
       const editor = createEditor(false);
       mocks.getEditorInstance.mockReturnValue(editor);
@@ -317,6 +355,7 @@ describe("draftSave", () => {
       expect(mocks.draftState.newlyCreatedChatIdToSelect).toBe("created-chat-id");
     });
 
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
     it("does not publish a draft shell ID when first persistence fails", async () => {
       const editor = createEditor(false);
       mocks.getEditorInstance.mockReturnValue(editor);
@@ -329,6 +368,7 @@ describe("draftSave", () => {
       expect(mocks.draftState.hasUnsavedChanges).toBe(true);
     });
 
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.draft-only.lifecycle
     it("releases the save lock when the draft is cleared during encryption", async () => {
       const editor = createEditor(false);
       mocks.getEditorInstance.mockReturnValue(editor);
@@ -351,6 +391,7 @@ describe("draftSave", () => {
       expect(mocks.draftState.isSaveInProgress).toBe(false);
     });
 
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
     it("removes a first-save shell that finishes persisting after clear", async () => {
       const editor = createEditor(false);
       mocks.getEditorInstance.mockReturnValue(editor);
@@ -392,17 +433,20 @@ describe("draftSave", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("triggerSaveDraft", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
     it("is callable without arguments", () => {
       // With mocked debounce (immediate), this should not throw
       expect(() => triggerSaveDraft()).not.toThrow();
     });
 
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
     it("accepts optional chatId parameter", () => {
       expect(() => triggerSaveDraft("override-chat-id")).not.toThrow();
     });
   });
 
   describe("flushSaveDraft", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
     it("is callable and triggers immediate save", () => {
       expect(() => flushSaveDraft()).not.toThrow();
     });
