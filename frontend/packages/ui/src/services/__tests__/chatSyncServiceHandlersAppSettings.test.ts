@@ -1089,6 +1089,12 @@ describe("handleRecoveryJobsAvailableImpl", () => {
         committed_messages_v: 3,
       });
     };
+    const advanceUntil = async (predicate: () => boolean) => {
+      for (let elapsed = 0; elapsed < 80_000 && !predicate(); elapsed += 1_000) {
+        await vi.advanceTimersByTimeAsync(1_000);
+        await vi.advanceTimersByTimeAsync(0);
+      }
+    };
     mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
       handlers.set(type, handler);
     });
@@ -1165,9 +1171,8 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(persistAttempts).toBe(0);
 
-    await vi.waitFor(() => {
-      expect(secondClaimRequestId).toEqual(expect.any(String));
-    }, { timeout: 65_000, interval: 1_000 });
+    await advanceUntil(() => secondClaimRequestId !== undefined);
+    expect(secondClaimRequestId).toEqual(expect.any(String));
     expect(secondClaimRequestId).not.toBe(firstClaimRequestId);
     expect(recoverySettled).toBe(false);
     sendClaimed(secondClaimRequestId!);
@@ -1184,9 +1189,8 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
 
-    await vi.waitFor(() => {
-      expect(secondPersistRequestId).toEqual(expect.any(String));
-    }, { timeout: 65_000, interval: 1_000 });
+    await advanceUntil(() => secondPersistRequestId !== undefined);
+    expect(secondPersistRequestId).toEqual(expect.any(String));
     expect(secondPersistRequestId).not.toBe(firstPersistRequestId);
     expect(recoverySettled).toBe(false);
     sendPersisted(secondPersistRequestId!);
