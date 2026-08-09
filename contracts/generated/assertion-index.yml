@@ -1470,24 +1470,44 @@ assertions:
   chats.surface.semantic-parity:
     contract: feature.chats@1
     fingerprint: 58395fe0a222248b663a71955fab6cc55f0e88893fadc7599fcd19e63c8d0a70
-    direct_tests: []
+    direct_tests:
+    - &id133
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 45
+      name: lists audio recording embeds as downloadable files
+      surface: gui.web
+    - &id134
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 68
+      name: keeps only downloadable file rows and preserves useful metadata
+      surface: gui.web
+    - &id135
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 119
+      name: does not list generic embed UUID fallbacks as downloadable files
+      surface: gui.web
     supporting_tests:
     - &id132
+      path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+      line: 34
+      name: extracts unique embed refs from full and truncated message content
+      surface: gui.web
+    - &id136
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 21
       name: does not publish identical ref registrations
       surface: gui.web
-    - &id133
+    - &id137
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 42
       name: publishes and resolves new aliases
       surface: gui.web
-    - &id134
+    - &id138
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 65
       name: publishes changes to each metadata field
       surface: gui.web
-    - &id135
+    - &id139
       path: frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
       line: 105
       name: remaps readable refs without removing stable ID aliases
@@ -1497,71 +1517,45 @@ assertions:
     - *id133
     - *id134
     - *id135
-    surfaces:
-      gui.web:
-        direct_tests: []
-        supporting_tests:
-        - *id132
-        - *id133
-        - *id134
-        - *id135
-    current_direct_proof: false
-  daily-inspiration.authenticated-continuity:
-    contract: feature.daily-inspiration@1
-    fingerprint: ec8361dad848aa2c0f861b0558dd5de8b8f53877da5f02ebfe28452364eec0f7
-    direct_tests: []
-    supporting_tests:
-    - &id136
-      path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
-      line: 52
-      name: shows authenticated fallback synchronously on authenticated cold boot
-      surface: gui.web
-    - &id137
-      path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
-      line: 72
-      name: replaces guest onboarding with authenticated fallback without an empty
-        emission
-      surface: gui.web
-    - &id138
-      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 85
-      name: replaces guest onboarding with an authenticated public source
-      surface: gui.web
-    - &id139
-      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 180
-      name: allows authenticated fallback to replace incomplete personalized records
-      surface: gui.web
-    tests:
     - *id136
     - *id137
     - *id138
     - *id139
     surfaces:
       gui.web:
-        direct_tests: []
+        direct_tests:
+        - *id133
+        - *id134
+        - *id135
         supporting_tests:
+        - *id132
         - *id136
         - *id137
         - *id138
         - *id139
     current_direct_proof: false
-  daily-inspiration.personalized-priority:
+  daily-inspiration.authenticated-continuity:
     contract: feature.daily-inspiration@1
-    fingerprint: f53b58ca405a81bc3ec17c8a07bc24b9ae14a4d07b94f41dd311ae1323726887
+    fingerprint: ec8361dad848aa2c0f861b0558dd5de8b8f53877da5f02ebfe28452364eec0f7
     direct_tests: []
     supporting_tests:
     - &id140
-      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 64
-      name: preserves manual carousel index for duplicate authenticated deliveries
+      path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+      line: 52
+      name: shows authenticated fallback synchronously on authenticated cold boot
       surface: gui.web
     - &id141
-      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-      line: 104
-      name: does not let guest onboarding overwrite personalized records
+      path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+      line: 72
+      name: replaces guest onboarding with authenticated fallback without an empty
+        emission
       surface: gui.web
     - &id142
+      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+      line: 85
+      name: replaces guest onboarding with an authenticated public source
+      surface: gui.web
+    - &id143
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 180
       name: allows authenticated fallback to replace incomplete personalized records
@@ -1570,6 +1564,7 @@ assertions:
     - *id140
     - *id141
     - *id142
+    - *id143
     surfaces:
       gui.web:
         direct_tests: []
@@ -1577,50 +1572,83 @@ assertions:
         - *id140
         - *id141
         - *id142
+        - *id143
+    current_direct_proof: false
+  daily-inspiration.personalized-priority:
+    contract: feature.daily-inspiration@1
+    fingerprint: f53b58ca405a81bc3ec17c8a07bc24b9ae14a4d07b94f41dd311ae1323726887
+    direct_tests: []
+    supporting_tests:
+    - &id144
+      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+      line: 64
+      name: preserves manual carousel index for duplicate authenticated deliveries
+      surface: gui.web
+    - &id145
+      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+      line: 104
+      name: does not let guest onboarding overwrite personalized records
+      surface: gui.web
+    - &id146
+      path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+      line: 180
+      name: allows authenticated fallback to replace incomplete personalized records
+      surface: gui.web
+    tests:
+    - *id144
+    - *id145
+    - *id146
+    surfaces:
+      gui.web:
+        direct_tests: []
+        supporting_tests:
+        - *id144
+        - *id145
+        - *id146
     current_direct_proof: false
   daily-inspiration.guest-isolated:
     contract: feature.daily-inspiration@1
     fingerprint: ab1fddcbf4ace0c01b9b2f2dc02a49ef42cdab1b584bc076becfce13db290a33
     direct_tests: []
     supporting_tests:
-    - &id143
+    - &id147
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 125
       name: forces the exact guest onboarding set after authenticated data races with
         logout
       surface: gui.web
-    - &id144
+    - &id148
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 143
       name: preserves the guest source when local interest ranking rewrites its order
       surface: gui.web
     tests:
-    - *id143
-    - *id144
+    - *id147
+    - *id148
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id143
-        - *id144
+        - *id147
+        - *id148
     current_direct_proof: false
   daily-inspiration.authenticated-fallback-content:
     contract: feature.daily-inspiration@1
     fingerprint: 2be6820049d372c5fa3c94647c3a73e49315f3e791d21d5583a1ece1b2963e2e
     direct_tests: []
     supporting_tests:
-    - &id145
+    - &id149
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 154
       name: provides an authenticated-only 3/3/4 fallback
       surface: gui.web
     tests:
-    - *id145
+    - *id149
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id145
+        - *id149
     current_direct_proof: false
   daily-inspiration.public-defaults:
     contract: feature.daily-inspiration@1
@@ -1643,18 +1671,18 @@ assertions:
     fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
     direct_tests: []
     supporting_tests:
-    - &id146
+    - &id150
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 64
       name: preserves manual carousel index for duplicate authenticated deliveries
       surface: gui.web
     tests:
-    - *id146
+    - *id150
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id146
+        - *id150
     current_direct_proof: false
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
@@ -1684,18 +1712,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id147
+    - &id151
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 109
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id147
+    - *id151
     surfaces:
       gui.web:
         direct_tests:
-        - *id147
+        - *id151
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:

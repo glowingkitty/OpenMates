@@ -61,6 +61,7 @@ function parseJsonEmbedRef(json: string): string | null {
 function isDownloadable(file: UploadedFileSearchResult): boolean {
   const type = String(file.type ?? '').toLowerCase();
   const nodeType = String(file.nodeType ?? '').toLowerCase();
+  if (type === 'web' || type.startsWith('web-')) return false;
   return DOWNLOADABLE_TYPES.has(type) || DOWNLOADABLE_TYPES.has(nodeType);
 }
 

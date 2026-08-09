@@ -30,6 +30,7 @@ function message(content: string, truncatedContent = ''): Message {
 }
 
 describe('chat settings downloadable files', () => {
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it('extracts unique embed refs from full and truncated message content', () => {
     const refs = extractChatEmbedRefs([
       message('Open embed:code:one and embed:image:two'),
@@ -40,6 +41,7 @@ describe('chat settings downloadable files', () => {
     expect(refs).toEqual(['embed:code:one', 'embed:image:two', 'embed:pdf:three', 'embed:voice-note-1']);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
   it('lists audio recording embeds as downloadable files', async () => {
     uploadedFiles.getUploadedFilesByContentRefs.mockResolvedValueOnce([
       {
@@ -62,6 +64,7 @@ describe('chat settings downloadable files', () => {
     expect(rows[0]).toMatchObject({ contentRef: 'embed:voice-note-1', iconName: 'audio', metadata: '00:08' });
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
   it('keeps only downloadable file rows and preserves useful metadata', async () => {
     uploadedFiles.getUploadedFilesByContentRefs.mockResolvedValueOnce([
       {
@@ -110,5 +113,28 @@ describe('chat settings downloadable files', () => {
     expect(rows.map((row) => row.contentRef)).toEqual(['embed:code:one', 'embed:sheets:budget']);
     expect(rows[0].metadata).toBe('42 lines | TypeScript');
     expect(rows[1].metadata).toBe('spreadsheet');
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
+  it('does not list generic embed UUID fallbacks as downloadable files', async () => {
+    uploadedFiles.getUploadedFilesByContentRefs.mockResolvedValueOnce([
+      {
+        embedId: '679deba7-2815-4d8e-9c3d-8ade97ea5dce',
+        contentRef: 'embed:679deba7-2815-4d8e-9c3d-8ade97ea5dce',
+        title: '679deba7-2815-4d8e-9c3d-8ade97ea5dce',
+        subtitle: 'Uploaded file',
+        type: 'web-website',
+        nodeType: 'docs-doc',
+        iconName: 'document',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]);
+
+    const rows = await loadChatFileRows([
+      message('[iPhone source](embed:679deba7-2815-4d8e-9c3d-8ade97ea5dce)'),
+    ]);
+
+    expect(rows).toEqual([]);
   });
 });

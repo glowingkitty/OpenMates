@@ -261,7 +261,15 @@ export class EmbedStore {
   }
 
   private hasUploadSearchEvidence(entry: EmbedStoreEntry): boolean {
-    return this.isFileLikeType(entry.type) || !!entry.file_path || !!entry.encrypted_type;
+    if (entry.file_path || entry.encrypted_type) return true;
+
+    const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name;
+    if (metadataName) return true;
+
+    const type = entry.type;
+    if (type === "docs" || type === "docs-doc") return false;
+
+    return this.isFileLikeType(type);
   }
 
   private async getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]> {
@@ -397,8 +405,11 @@ export class EmbedStore {
         const embedId = this.extractEmbedIdFromContentRef(contentRef) || entry.embed_id;
         if (!embedId) continue;
 
+        if (!this.hasUploadSearchEvidence(entry)) continue;
+
         const searchableNames = await this.getSearchableFileNames({ ...entry, contentRef });
-        const title = searchableNames[0] || entry.metadata?.title || entry.file_path || embedId;
+        const title = searchableNames[0] || entry.metadata?.title || entry.file_path;
+        if (!title) continue;
         const nodeType = this.inferNodeTypeFromFileName(String(title), entry.type || "file");
         results.push({
           embedId,
