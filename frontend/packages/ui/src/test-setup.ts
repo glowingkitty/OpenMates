@@ -6,6 +6,63 @@
 import { vi } from "vitest";
 
 const windowEventTarget = new EventTarget();
+const testLocation = {
+  hash: "",
+  pathname: "/",
+  search: "",
+};
+
+const testPage = {
+  data: {},
+  error: null,
+  form: null,
+  params: {},
+  route: { id: null },
+  status: 200,
+  url: new URL("http://localhost/"),
+};
+
+function readable<T>(value: T) {
+  return {
+    subscribe(run: (current: T) => void) {
+      run(value);
+      return () => undefined;
+    },
+  };
+}
+
+vi.mock("$app/environment", () => ({
+  browser: true,
+  building: false,
+  dev: true,
+  version: "test",
+}));
+
+vi.mock("$app/navigation", () => ({
+  afterNavigate: vi.fn(),
+  beforeNavigate: vi.fn(),
+  disableScrollHandling: vi.fn(),
+  goto: vi.fn(),
+  invalidate: vi.fn(),
+  invalidateAll: vi.fn(),
+  onNavigate: vi.fn(),
+  preloadCode: vi.fn(),
+  preloadData: vi.fn(),
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+}));
+
+vi.mock("$app/stores", () => ({
+  navigating: readable(null),
+  page: readable(testPage),
+  updated: { ...readable(false), check: vi.fn() },
+}));
+
+vi.mock("$app/state", () => ({
+  navigating: { current: null },
+  page: { current: testPage },
+  updated: { check: vi.fn(), current: false },
+}));
 
 // Mock browser APIs that might not be available in test environment.
 //
@@ -25,6 +82,11 @@ Object.defineProperty(global, "window", {
       getItem: vi.fn(),
       setItem: vi.fn(),
       removeItem: vi.fn(),
+    },
+    location: testLocation,
+    history: {
+      replaceState: vi.fn(),
+      pushState: vi.fn(),
     },
     // navigator.standalone is read by detectIsPWA() at module-init time in
     // pushNotificationStore. Stub it so the read doesn't throw.
