@@ -1541,12 +1541,12 @@ assertions:
     supporting_tests:
     - &id140
       path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
-      line: 52
+      line: 57
       name: shows authenticated fallback synchronously on authenticated cold boot
       surface: gui.web
     - &id141
       path: frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
-      line: 72
+      line: 77
       name: replaces guest onboarding with authenticated fallback without an empty
         emission
       surface: gui.web

@@ -360,18 +360,20 @@ export const CHAT_METADATA_KEY_READY_EVENT = "chatMetadataKeyReady";
 // a chat key loads after a delay (master key race on page load / new tab).
 // Without this, null metadata from a failed decryption stays cached for 5 minutes,
 // leaving the sidebar with missing category/icon and ChatHeader stuck in loading state.
-chatKeyManager.onKeyReady((chatId: string) => {
-  if (!chatMetadataCache.retryAfterKeyReady(chatId)) {
-    return;
-  }
-  // Dispatch a window event so sidebar Chat components can re-render for this chat.
-  // Only chats that rendered before their key was available need this retry.
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent(CHAT_METADATA_KEY_READY_EVENT, { detail: { chatId } }),
-    );
-  }
-});
+if (typeof chatKeyManager.onKeyReady === "function") {
+  chatKeyManager.onKeyReady((chatId: string) => {
+    if (!chatMetadataCache.retryAfterKeyReady(chatId)) {
+      return;
+    }
+    // Dispatch a window event so sidebar Chat components can re-render for this chat.
+    // Only chats that rendered before their key was available need this retry.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(CHAT_METADATA_KEY_READY_EVENT, { detail: { chatId } }),
+      );
+    }
+  });
+}
 
 // Set up periodic cleanup of expired entries (every 2 minutes)
 setInterval(

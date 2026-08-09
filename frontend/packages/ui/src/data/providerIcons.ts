@@ -7,7 +7,7 @@
 // Import all provider icons as URLs
 // The glob pattern matches the icons used in modelsMetadata
 const iconModules = import.meta.glob<string>(
-  "@openmates/ui/static/icons/*.{svg,png,jpg,jpeg}",
+  "./../../static/icons/*.{svg,png,jpg,jpeg}",
   { eager: true, import: "default", query: "?url" },
 );
 
@@ -25,7 +25,7 @@ export const providerIconUrls: Record<string, string> = {};
 for (const [path, url] of Object.entries(iconModules)) {
   if (path.endsWith("/icons/server.svg")) continue;
   // Extract just the "icons/filename.ext" part from the full path
-  // Path format: "@openmates/ui/static/icons/anthropic.svg"
+  // Path format: "./../../static/icons/anthropic.svg"
   // We want: "icons/anthropic.svg"
   const match = path.match(/\/icons\/([^/]+\.(?:svg|png|jpg|jpeg))$/);
   if (match) {
