@@ -1160,7 +1160,10 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       recoverySettled = true;
     });
 
-    await vi.advanceTimersByTimeAsync(20_001);
+    await advanceUntil(() => firstClaimRequestId !== undefined);
+    expect(firstClaimRequestId).toEqual(expect.any(String));
+
+    await advanceUntil(() => secondClaimRequestId !== undefined);
     sendClaimed(firstClaimRequestId!);
     handlers.get("error")?.({
       code: "recovery_job_expired",
@@ -1171,14 +1174,15 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(persistAttempts).toBe(0);
 
-    await advanceUntil(() => secondClaimRequestId !== undefined);
     expect(secondClaimRequestId).toEqual(expect.any(String));
     expect(secondClaimRequestId).not.toBe(firstClaimRequestId);
     expect(recoverySettled).toBe(false);
     sendClaimed(secondClaimRequestId!);
-    await vi.advanceTimersByTimeAsync(0);
 
-    await vi.advanceTimersByTimeAsync(20_001);
+    await advanceUntil(() => firstPersistRequestId !== undefined);
+    expect(firstPersistRequestId).toEqual(expect.any(String));
+
+    await advanceUntil(() => secondPersistRequestId !== undefined);
     sendPersisted(firstPersistRequestId!);
     handlers.get("error")?.({
       code: "stale_lease",
@@ -1189,7 +1193,6 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
 
-    await advanceUntil(() => secondPersistRequestId !== undefined);
     expect(secondPersistRequestId).toEqual(expect.any(String));
     expect(secondPersistRequestId).not.toBe(firstPersistRequestId);
     expect(recoverySettled).toBe(false);
