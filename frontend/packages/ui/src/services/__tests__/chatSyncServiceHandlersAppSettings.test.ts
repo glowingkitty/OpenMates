@@ -84,10 +84,10 @@ vi.mock("../../utils/chatCompletionRecovery", () => ({
   deriveChatCompletionRecoveryKeypair: mocks.deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope: mocks.openChatCompletionRecoveryEnvelope,
 }));
-vi.mock("../i18n/translations", () => ({
+vi.mock("../../i18n/translations", () => ({
   text: vi.fn((key: string) => key),
 }));
-vi.mock("../stores/serverStatusStore", () => ({
+vi.mock("../../stores/serverStatusStore", () => ({
   markDeviceReceivedFreeTestingCreditsFromNotification:
     mocks.markDeviceReceivedFreeTestingCreditsFromNotification,
 }));
