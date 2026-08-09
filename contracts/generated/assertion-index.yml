@@ -283,17 +283,17 @@ assertions:
       surface: gui.web
     - &id025
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 115
+      line: 117
       name: retries cache status when sync status reports an unprimed cache
       surface: gui.web
     - &id026
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 135
+      line: 137
       name: starts initial sync when sync status reports a primed cache
       surface: gui.web
     - &id027
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 439
+      line: 441
       name: does not mark sync complete when cache is cold but server reports chats
       surface: gui.web
     supporting_tests: []
@@ -322,42 +322,42 @@ assertions:
       surface: gui.web
     - &id029
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 152
+      line: 154
       name: continues after one chat fails to persist
       surface: gui.web
     - &id030
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 199
+      line: 201
       name: skips new synced metadata rows without encrypted_chat_key
       surface: gui.web
     - &id031
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 227
+      line: 229
       name: keeps synced metadata when a local encrypted_chat_key already exists
       surface: gui.web
     - &id032
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 272
+      line: 274
       name: does not batch-save metadata-only chats without encrypted_chat_key
       surface: gui.web
     - &id033
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 299
+      line: 301
       name: allows public metadata-only chats without encrypted_chat_key
       surface: gui.web
     - &id034
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 326
+      line: 328
       name: preserves metadata-only chats without a server key when a local key exists
       surface: gui.web
     - &id035
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 360
+      line: 362
       name: preserves anonymous metadata-only chat key fields
       surface: gui.web
     - &id036
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 395
+      line: 397
       name: keeps load-more metadata without a server key when a local key exists
       surface: gui.web
     supporting_tests: []
@@ -407,7 +407,7 @@ assertions:
     direct_tests:
     - &id037
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 152
+      line: 154
       name: continues after one chat fails to persist
       surface: gui.web
     supporting_tests: []
@@ -1779,7 +1779,7 @@ assertions:
       surface: gui.web
     - &id154
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 115
+      line: 117
       name: retries cache status when sync status reports an unprimed cache
       surface: gui.web
     supporting_tests:
@@ -2022,32 +2022,32 @@ assertions:
       surface: gui.web
     - &id187
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 199
+      line: 201
       name: skips new synced metadata rows without encrypted_chat_key
       surface: gui.web
     - &id188
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 227
+      line: 229
       name: keeps synced metadata when a local encrypted_chat_key already exists
       surface: gui.web
     - &id189
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 272
+      line: 274
       name: does not batch-save metadata-only chats without encrypted_chat_key
       surface: gui.web
     - &id190
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 326
+      line: 328
       name: preserves metadata-only chats without a server key when a local key exists
       surface: gui.web
     - &id191
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 360
+      line: 362
       name: preserves anonymous metadata-only chat key fields
       surface: gui.web
     - &id192
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
-      line: 395
+      line: 397
       name: keeps load-more metadata without a server key when a local key exists
       surface: gui.web
     supporting_tests:

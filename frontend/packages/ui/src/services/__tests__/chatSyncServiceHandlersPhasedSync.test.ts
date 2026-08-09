@@ -80,6 +80,8 @@ type RetryServiceHarness = Pick<
   ChatSynchronizationService,
   "scheduleCacheStatusRetry_FOR_HANDLERS_ONLY"
 > & {
+  CACHE_STATUS_MAX_RETRIES: number;
+  CACHE_STATUS_RETRY_INTERVAL_MS: number;
   cachePrimed: boolean;
   cacheStatusRetryCount: number;
   cacheStatusServerChatCount: number;
@@ -443,6 +445,8 @@ describe("ChatSynchronizationService cache status retry", () => {
     ) as RetryServiceHarness;
 
     service.cachePrimed = false;
+    service.CACHE_STATUS_MAX_RETRIES = 10;
+    service.CACHE_STATUS_RETRY_INTERVAL_MS = 3000;
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;

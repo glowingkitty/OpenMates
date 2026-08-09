@@ -1673,9 +1673,11 @@ export class GroupRenderer implements EmbedRenderer {
     const handleFullscreen = () => {
       this.openFullscreen(item, embedData, fullscreenContent);
     };
-    const handleGenericFullscreen = () => {
-      void this.openAppSkillOutputFullscreen(item, embedData, fullscreenContent);
-    };
+    const handleGenericFullscreen = () => this.openAppSkillOutputFullscreen(
+      item,
+      embedData,
+      fullscreenContent,
+    );
 
     try {
       if (appId === "web" && skillId === "search") {
