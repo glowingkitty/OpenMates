@@ -1,5 +1,13 @@
 schema_version: 1
 contracts:
+  architecture.drafts:
+    version: 1
+    status: approved
+    path: architecture/drafts
+    fingerprint: ac3697f0ccdb369ee5eae8fd24cdcd5cbd181da35a16f9140459e473048caee2
+    required_surfaces:
+    - gui.web
+    - gui.apple
   architecture.sync:
     version: 1
     status: approved
@@ -30,6 +38,70 @@ contracts:
     - gui.web
     - gui.apple
 assertions:
+  drafts.access.first-party-encrypted:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: security
+    fingerprint: ba2ee86cc1a4bac5f90e2dc307a69ace34343eb155cf579fb4c3b669ce937a14
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  drafts.persistence.local-first-encrypted:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: behavior
+    fingerprint: 7e109bcc6cf75cabffa511dd93103fdf06129f87ba197a4e505a6d68b12efe99
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  drafts.sync.version-authoritative:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: invariant
+    fingerprint: ce5dc3d630d90c883e423490df9fb248fc041a35b537bdc202aa7087360993d3
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  drafts.draft-only.lifecycle:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: behavior
+    fingerprint: 39773733e991d52d8d02db71491d33a73b5bbeebfb86ab6516730aa4fc7cb9bd
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  drafts.draft-only.presentation:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: behavior
+    fingerprint: 74f36453c2bb0feab550be8ddf4ee60e23c7ebb5ddb85e8fd382e3d9f572ec0d
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  drafts.navigation.includes-draft-only:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: behavior
+    fingerprint: c0d74b96e7569164548baa2e6403964cc4022abd239981bf651098f6d939e590
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  drafts.established-chat.presentation-unchanged:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: invariant
+    fingerprint: 635d29649dcb48177304b798a99ae603987d3101866b14ebab91848ec7171fcc
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  drafts.boundaries.session-and-incognito:
+    contract: architecture.drafts@1
+    contract_id: architecture.drafts
+    type: privacy
+    fingerprint: 83685d2c507700a3287352973c45c564aa90d218fc3484dc11c6c8e119ed7ec7
+    required_surfaces:
+    - gui.web
+    - gui.apple
   sync.access.first-party-authenticated:
     contract: architecture.sync@1
     contract_id: architecture.sync

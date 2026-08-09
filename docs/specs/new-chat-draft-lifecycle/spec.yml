@@ -106,6 +106,22 @@ approvals:
     approved_at: "2026-08-04T00:00:00Z"
     reason: User approved the ordered plan covering tests, implementation, deployed web verification, and Apple parity.
 
+contract_refs:
+  - contract: architecture.drafts@1
+    path: contracts/architecture/drafts/contract.yml
+    assertions:
+      - drafts.access.first-party-encrypted
+      - drafts.persistence.local-first-encrypted
+      - drafts.sync.version-authoritative
+      - drafts.draft-only.lifecycle
+      - drafts.draft-only.presentation
+      - drafts.navigation.includes-draft-only
+      - drafts.established-chat.presentation-unchanged
+      - drafts.boundaries.session-and-incognito
+    evidence_locations:
+      - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+
 decisions:
   - id: D-1
     status: active
