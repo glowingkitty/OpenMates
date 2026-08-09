@@ -597,6 +597,28 @@ function scheduleOfflineDraftFlush(): void {
   }
 }
 
+async function hasPersistedDraftAwaitingRestore(chatId: string): Promise<boolean> {
+  const currentState = get(draftEditorUIState);
+  if (currentState.currentChatId !== chatId) return false;
+  if ((currentState.currentUserDraftVersion ?? 0) <= 0) return false;
+  if (currentState.lastSavedContentMarkdown !== null) return false;
+
+  try {
+    const rawChat = await chatDB.getRawChat(chatId);
+    return !!(
+      rawChat &&
+      (rawChat.draft_v ?? 0) > 0 &&
+      (rawChat.encrypted_draft_md || rawChat.encrypted_draft_preview)
+    );
+  } catch (error) {
+    console.warn(
+      `[DraftService] Could not verify persisted draft before empty-editor cleanup for ${chatId}:`,
+      error,
+    );
+    return false;
+  }
+}
+
 async function discardStaleDraftWrite(chatId: string): Promise<void> {
   try {
     const messages = await chatDB.getMessagesForChat(chatId);
@@ -971,6 +993,18 @@ export const saveDraftDebounced = debounce(
           );
           return;
         }
+
+        if (await hasPersistedDraftAwaitingRestore(currentChatIdForOperation)) {
+          console.debug(
+            "[DraftService] Editor empty but persisted draft has not finished restoring; skipping authenticated draft deletion:",
+            {
+              chatId: currentChatIdForOperation,
+              draftVersion: currentState.currentUserDraftVersion,
+            },
+          );
+          return;
+        }
+
         console.info(
           "[DraftService] Editor content is empty. Triggering draft deletion process.",
         );

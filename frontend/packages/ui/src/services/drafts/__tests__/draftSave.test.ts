@@ -257,6 +257,7 @@ describe("draftSave", () => {
     mocks.chatDB.getChat.mockResolvedValue(undefined);
     mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
     mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+    mocks.chatDB.getRawChat.mockResolvedValue(undefined);
     mocks.chatDB.createNewChatWithCurrentUserDraft.mockResolvedValue({
       chat_id: "created-chat-id",
       draft_v: 1,
@@ -338,6 +339,52 @@ describe("draftSave", () => {
       expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
       expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
       expect(mocks.draftState.currentChatId).toBe("auth-draft-chat");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.navigation.includes-draft-only,drafts.draft-only.lifecycle
+    it("does not delete an authenticated persisted draft while plaintext restore is pending", async () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({
+        currentChatId: "auth-draft-chat",
+        currentUserDraftVersion: 3,
+        lastSavedContentMarkdown: null,
+      });
+      mocks.chatDB.getRawChat.mockResolvedValueOnce({
+        chat_id: "auth-draft-chat",
+        encrypted_title: null,
+        encrypted_draft_md: "encrypted-draft",
+        encrypted_draft_preview: "encrypted-preview",
+        draft_v: 3,
+        messages_v: 0,
+        title_v: 0,
+        last_edited_overall_timestamp: 1,
+        unread_count: 0,
+        created_at: 1,
+        updated_at: 1,
+      });
+
+      await saveDraftDebounced("auth-draft-chat", editor as never);
+
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("auth-draft-chat");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("allows authenticated draft deletion after restored plaintext is known", async () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({
+        currentChatId: "auth-draft-chat",
+        currentUserDraftVersion: 3,
+        lastSavedContentMarkdown: "Known restored draft",
+      });
+
+      await saveDraftDebounced("auth-draft-chat", editor as never);
+
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("auth-draft-chat");
     });
   });
 

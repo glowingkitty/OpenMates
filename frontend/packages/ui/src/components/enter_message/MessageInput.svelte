@@ -5263,6 +5263,13 @@
             // For demo chats with no draft, we don't want to set originalMarkdown
             if (draftContentForContext !== null) {
                 updateOriginalMarkdown(editor); // Update markdown tracking
+                draftEditorUIState.update((state) => {
+                    if (state.currentChatId !== chatId) return state;
+                    return {
+                        ...state,
+                        lastSavedContentMarkdown: tipTapToCanonicalMarkdown(editor.getJSON()),
+                    };
+                });
             } else {
                 originalMarkdown = ''; // Clear markdown tracking for chats with no draft
             }
