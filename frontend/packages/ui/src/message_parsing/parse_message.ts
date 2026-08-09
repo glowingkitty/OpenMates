@@ -54,6 +54,7 @@ const BARE_EMBED_REF_TOKEN_SOURCE = String.raw`(?:[A-Za-z0-9._~:][A-Za-z0-9._~:-
 const BARE_EMBED_REF_TOKEN_RE = new RegExp(
   `^${BARE_EMBED_REF_TOKEN_SOURCE}$`,
 );
+const BARE_DOMAIN_EMBED_REF_TOKEN_RE = /^[A-Za-z0-9][-A-Za-z0-9.]*\.[A-Za-z]{2,}(?:\.[A-Za-z]{2,})?-[A-Za-z0-9]{2,4}$/;
 const BARE_EMBED_REF_GROUP_RE = new RegExp(
   "\\[((?:" + BARE_EMBED_REF_TOKEN_SOURCE + ")(?:\\s*,\\s*(?:" +
     BARE_EMBED_REF_TOKEN_SOURCE + "))*)\\](?!\\()",
@@ -121,7 +122,14 @@ function convertBareEmbedRefGroupsInTextNode(
       .map((ref) => ref.trim())
       .filter((ref) => BARE_EMBED_REF_TOKEN_RE.test(ref));
     const resolvedRefs = refs
-      .map((ref) => resolveEmbedRefIndexReference(ref)?.embedRef ?? null)
+      .map((ref) => {
+        const resolvedRef = resolveEmbedRefIndexReference(ref)?.embedRef;
+        if (resolvedRef) return resolvedRef;
+        // Cold shared-chat loads may parse messages before encrypted child embeds
+        // warm the in-memory ref index. Domain-shaped refs are already specific
+        // enough to render as inline links and self-repair through EmbedInlineLink.
+        return BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(ref) ? ref : null;
+      })
       .filter((ref): ref is string => typeof ref === "string" && ref.length > 0);
 
     if (resolvedRefs.length === 0) continue;

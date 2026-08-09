@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+import InteractiveQuestionContainer from '../../../../interactive_questions/InteractiveQuestionContainer.svelte';
 import { GroupRenderer } from '../GroupRenderer';
 
 type MountCall = [unknown, { props: Record<string, unknown> }];
@@ -59,6 +60,7 @@ describe('GroupRenderer', () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it('mounts the generic app-skill card for unknown app skills in groups', async () => {
     const renderer = new GroupRenderer();
     const container = document.createElement('div');
@@ -105,6 +107,7 @@ describe('GroupRenderer', () => {
     expect(content.textContent).not.toContain('Skill: code | image_to_html');
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it('uses the input image thumbnail and opens the generated code child fullscreen', async () => {
     embedResolverMocks.resolveEmbed.mockImplementation(async (embedId: string) => {
       if (embedId === 'parent-skill') {
@@ -210,6 +213,51 @@ describe('GroupRenderer', () => {
         embedData: expect.objectContaining({ embed_id: 'generated-code' }),
         decodedContent: expect.objectContaining({ language: 'html' }),
         attrs: undefined,
+      }),
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
+  it('renders historical interactive_question code embeds as interactive question cards', async () => {
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.appendChild(content);
+    const payload = {
+      id: 'question-1',
+      type: 'choice',
+      question: 'Pick one',
+      options: [{ id: 'a', text: 'A' }],
+    };
+
+    await renderer.render({
+      attrs: {
+        id: 'historical-question-embed',
+        type: 'code-code',
+        status: 'finished',
+        contentRef: 'embed:historical-question-embed',
+      },
+      container,
+      content,
+      embedData: {
+        embed_id: 'historical-question-embed',
+        type: 'code-code',
+        status: 'finished',
+      },
+      decodedContent: {
+        language: 'interactive_question',
+        filename: 'Code snippet',
+        code: JSON.stringify(payload),
+      },
+    });
+
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(
+      InteractiveQuestionContainer,
+      expect.objectContaining({
+        props: expect.objectContaining({
+          payload,
+          chatId: '',
+        }),
       }),
     );
   });

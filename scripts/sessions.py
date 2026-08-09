@@ -7981,6 +7981,7 @@ def _should_validate_embed_registry(files: list[str]) -> bool:
     """Return True when changed files can affect generated embed contracts."""
     return any(
         f.startswith("frontend/packages/ui/src/components/embeds/")
+        or f.startswith("frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/")
         or f.startswith("frontend/packages/ui/src/data/embed")
         or (f.startswith("backend/apps/") and f.endswith("/app.yml"))
         for f in files

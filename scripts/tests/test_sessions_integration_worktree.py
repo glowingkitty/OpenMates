@@ -266,7 +266,7 @@ def test_gate_runner_generates_embed_registry_before_lint(monkeypatch, tmp_path)
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: calls.append("pytest"))
 
     sessions._run_deploy_gates(
-        ["frontend/packages/ui/src/services/embedStore.ts"],
+        ["frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts"],
         checkout_root=checkout,
         no_verify=False,
         skip_tests_reason="unit fixture",

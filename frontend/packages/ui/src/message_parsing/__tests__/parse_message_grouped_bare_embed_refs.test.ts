@@ -65,6 +65,27 @@ describe("parse_message grouped bare embed refs", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+  it("repairs grouped bare embed refs before the encrypted ref index is warm", () => {
+    const doc = parseAssistant(
+      "Sources include [openai.com-msb, openai.com-Uoj] for the release details.",
+    );
+    const inlineEmbeds = findInlineEmbeds(doc.content || []);
+
+    expect(inlineEmbeds).toHaveLength(2);
+    expect(inlineEmbeds[0].attrs).toMatchObject({
+      embedRef: "openai.com-msb",
+      embedId: null,
+      displayText: "Source: openai.com",
+    });
+    expect(inlineEmbeds[1].attrs).toMatchObject({
+      embedRef: "openai.com-Uoj",
+      embedId: null,
+      displayText: "Source: openai.com",
+    });
+    expect(JSON.stringify(doc)).not.toContain("[openai.com-msb, openai.com-Uoj]");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity
   it("repairs persisted grouped suffix-only embed refs into canonical inline embed nodes", () => {
     registerEmbedRefIndex("mashable.com-7fJ", {
       embedId: "embed-1",

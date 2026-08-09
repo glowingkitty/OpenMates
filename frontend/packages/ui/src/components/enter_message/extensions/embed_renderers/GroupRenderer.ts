@@ -27,6 +27,9 @@ import { mount, unmount } from "svelte";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
+import InteractiveQuestionContainer from "../../../interactive_questions/InteractiveQuestionContainer.svelte";
+import type { InteractiveQuestionPayload } from "../../../interactive_questions/types";
+import { isInteractiveQuestionPayload } from "../../../interactive_questions/utils/questionState";
 import NotebookEmbedPreview from "../../../embeds/code/NotebookEmbedPreview.svelte";
 import ApplicationEmbedPreview from "../../../embeds/code/ApplicationEmbedPreview.svelte";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
@@ -116,9 +119,28 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 const scrollIndicatorCleanups = new WeakMap<HTMLElement, () => void>();
 const INDICATOR_VISIBLE_RATIO = 0.12;
 const INDICATOR_VISIBILITY_TOLERANCE_PX = 1;
+const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
 
 function needsSignupForLocalPreview(item: EmbedNodeAttributes): boolean {
   return item.needsSignup === true;
+}
+
+function normalizedLanguage(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function parseInteractiveQuestionPayloadCandidate(
+  value: unknown,
+): InteractiveQuestionPayload | null {
+  if (isInteractiveQuestionPayload(value)) return value;
+  if (typeof value !== "string" || value.trim().length === 0) return null;
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isInteractiveQuestionPayload(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -4081,6 +4103,24 @@ export class GroupRenderer implements EmbedRenderer {
       codeContent = decodedContent?.code || "";
     }
 
+    if (normalizedLanguage(language) === INTERACTIVE_QUESTION_LANGUAGE) {
+      const payload = parseInteractiveQuestionPayloadCandidate(decodedContent?.code) ||
+        parseInteractiveQuestionPayloadCandidate(decodedContent?.content) ||
+        parseInteractiveQuestionPayloadCandidate(decodedContent?.payload) ||
+        parseInteractiveQuestionPayloadCandidate(item.code) ||
+        parseInteractiveQuestionPayloadCandidate(decodedContent);
+
+      if (payload) {
+        this.renderInteractiveQuestionComponent(payload, content);
+        return;
+      }
+
+      console.warn(
+        "[GroupRenderer] interactive_question code embed did not contain a valid question payload; falling back to code preview",
+        { embedId: item.id, contentRef: item.contentRef },
+      );
+    }
+
     // Determine status
     const status = item.status || "finished";
 
@@ -4147,6 +4187,30 @@ export class GroupRenderer implements EmbedRenderer {
       );
       content.innerHTML = fallbackHtml;
     }
+  }
+
+  private renderInteractiveQuestionComponent(
+    payload: InteractiveQuestionPayload,
+    content: HTMLElement,
+  ): void {
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+
+    content.innerHTML = "";
+    const component = mount(InteractiveQuestionContainer, {
+      target: content,
+      props: {
+        payload,
+        chatId: "",
+      },
+    });
+    mountedComponents.set(content, component);
   }
 
   private async renderNotebookComponent(
