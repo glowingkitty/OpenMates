@@ -1128,6 +1128,8 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       user_id: "user-1",
       messages_v: 2,
     });
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
     mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
     mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(
       new TextEncoder().encode(JSON.stringify({
@@ -1141,6 +1143,12 @@ describe("handleRecoveryJobsAvailableImpl", () => {
         turn_id: "turn-1",
       })),
     );
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content",
+      encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category",
+      encrypted_model_name: "encrypted-model",
+    });
     const service = {
       dispatchEvent: vi.fn(),
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
