@@ -255,6 +255,10 @@ describe("handlePendingAIResponseImpl", () => {
 describe("handleRecoveryJobsAvailableImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.assign(window, {
+      setTimeout: (...args: Parameters<typeof globalThis.setTimeout>) => globalThis.setTimeout(...args),
+      clearTimeout: (...args: Parameters<typeof globalThis.clearTimeout>) => globalThis.clearTimeout(...args),
+    });
     window.history.replaceState(null, "", "/");
   });
 
