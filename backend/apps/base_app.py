@@ -32,6 +32,13 @@ logger = logging.getLogger(__name__)
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_TIMEOUT = 10
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+INTERNAL_REQUEST_CONTEXT_FIELDS = {
+    '_user_id',
+    '_api_key_name',
+    '_api_key_hash',
+    '_device_hash',
+    '_external_request',
+}
 
 
 def _is_list_annotation(annotation: Any) -> bool:
@@ -40,6 +47,33 @@ def _is_list_annotation(annotation: Any) -> bool:
         return True
     annotation_text = str(annotation)
     return "List" in annotation_text or annotation_text.startswith("list[")
+
+
+def _pydantic_model_accepts_internal_context(model_type: Any) -> bool:
+    """Return true when a request model declares underscore context aliases."""
+
+    fields = getattr(model_type, "model_fields", None) or getattr(model_type, "__fields__", {})
+    for field_name, field_info in fields.items():
+        aliases = {field_name, getattr(field_info, "alias", None)}
+        validation_alias = getattr(field_info, "validation_alias", None)
+        if isinstance(validation_alias, str):
+            aliases.add(validation_alias)
+        if any(alias in INTERNAL_REQUEST_CONTEXT_FIELDS for alias in aliases if alias):
+            return True
+    return False
+
+
+def _clean_request_body_for_pydantic_model(
+    request_body: Dict[str, Any],
+    model_types: list[Any],
+) -> Dict[str, Any]:
+    """Strip internal metadata unless the request model explicitly accepts it."""
+
+    preserve_context = any(_pydantic_model_accepts_internal_context(model_type) for model_type in model_types)
+    return {
+        k: v for k, v in request_body.items()
+        if not k.startswith("_") or (preserve_context and k in INTERNAL_REQUEST_CONTEXT_FIELDS)
+    }
 
 
 class CreditChargePayload(BaseModel):
@@ -528,15 +562,14 @@ class BaseApp:
                         break
 
                 if request_model or union_types:
-                    # Remove internal metadata fields before instantiating Pydantic model
-                    # EXCEPT for context fields (_user_id, _api_key_name, _api_key_hash, _device_hash, _external_request) which are
-                    # used by skills like AI ask to identify the authenticated user from external API requests
-                    # These context fields are injected by the external API handler and need to be preserved
-                    context_fields = {'_user_id', '_api_key_name', '_api_key_hash', '_device_hash', '_external_request'}
-                    clean_request_body = {
-                        k: v for k, v in request_body.items() 
-                        if not k.startswith("_") or k in context_fields
-                    }
+                    # Remove internal metadata fields before instantiating Pydantic models.
+                    # Most skills receive context through execute() kwargs; only models that
+                    # explicitly declare underscore aliases, such as ai.ask's OpenAI-compatible
+                    # request, should see these injected fields.
+                    clean_request_body = _clean_request_body_for_pydantic_model(
+                        request_body,
+                        list(union_types) if union_types else [request_model],
+                    )
 
                     # Instantiate the Pydantic model from request body
                     try:
@@ -619,10 +652,9 @@ class BaseApp:
                 else:
                     # No Pydantic model found - try unpacking as keyword arguments
                     # Remove internal metadata fields but preserve context fields for API authentication
-                    context_fields = {'_user_id', '_api_key_name', '_api_key_hash', '_device_hash', '_external_request'}
                     clean_request_body = {
                         k: v for k, v in request_body.items() 
-                        if not k.startswith("_") or k in context_fields
+                        if not k.startswith("_") or k in INTERNAL_REQUEST_CONTEXT_FIELDS
                     }
                     logger.info(
                         f"No Pydantic model found for skill '{skill_definition.id}', using kwargs. "

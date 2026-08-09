@@ -141,6 +141,47 @@ async def test_audio_generate_returns_playable_audio_without_leaks(monkeypatch):
     assert "provider_api_key" not in str(result)
 
 
+# contract-test: direct surface=rest_api assertions=audio-generate.request.validated,audio-generate.surface-parity
+@pytest.mark.asyncio
+async def test_audio_generate_ignores_rest_context_fields_for_strict_request_models(monkeypatch):
+    import backend.apps.audio.skills.generate_skill as generate_module
+    from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
+
+    class FakeElevenLabsClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def generate_sound_effect(self, **_kwargs):
+            return ElevenLabsAudioResult(
+                audio_bytes=b"mp3-bytes",
+                mime_type="audio/mpeg",
+                model="eleven_text_to_sound_v2",
+                duration_seconds=0.6,
+            )
+
+    monkeypatch.setattr(generate_module, "ElevenLabsClient", FakeElevenLabsClient)
+
+    result = await _load_audio_app().dispatch_skill(
+        "generate",
+        {
+            "requests": [
+                {
+                    "prompt": "soft upward message sent tick",
+                    "provider": "elevenlabs",
+                    "duration_seconds": 0.6,
+                }
+            ],
+            "_user_id": "user-audio-test",
+            "_api_key_name": "encrypted-key-name",
+            "_api_key_hash": "api-key-hash",
+            "_device_hash": "device-hash",
+            "_external_request": True,
+        },
+    )
+
+    assert result["results"][0]["status"] == "finished"
+
+
 # contract-test: direct surface=rest_api assertions=audio-speak.safety.provider-call-after-approval,audio-speak.billing.success-only
 @pytest.mark.asyncio
 async def test_audio_speak_rejects_before_provider_and_billing(monkeypatch):
