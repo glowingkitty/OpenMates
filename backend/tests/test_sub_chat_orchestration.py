@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_sub_chat_orchestration.py
 #
 # Unit coverage for sub-chat fan-out limits.
@@ -21,12 +22,16 @@ from backend.apps.ai.sub_chat_orchestration import (
     resolve_sub_chat_depth,
     validate_sub_chat_capacity,
 )
-from backend.apps.ai.processing.main_processor import (
-    _max_affordable_ai_output_tokens,
-    _orchestrated_ai_output_token_limit,
-    _quote_ai_iteration_credits,
-    _skill_operation_id,
-)
+
+try:
+    from backend.apps.ai.processing.main_processor import (
+        _max_affordable_ai_output_tokens,
+        _orchestrated_ai_output_token_limit,
+        _quote_ai_iteration_credits,
+        _skill_operation_id,
+    )
+except ImportError as _exc:
+    pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
 
 def test_template_expansion_is_capped() -> None:
@@ -379,10 +384,9 @@ def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> No
 
 
 def test_ai_output_limit_fits_authoritative_remaining_orchestration_credits(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "backend.apps.ai.processing.main_processor._quote_ai_iteration_credits",
-        lambda *, output_token_limit, **kwargs: 10 + output_token_limit,
-    )
+    main_processor = inspect.getmodule(_max_affordable_ai_output_tokens)
+    assert main_processor is not None
+    monkeypatch.setattr(main_processor, "_quote_ai_iteration_credits", lambda *, output_token_limit, **kwargs: 10 + output_token_limit)
     kwargs = {
         "model_id": "provider/model",
         "system_prompt": "system",

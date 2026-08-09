@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """
 Focused contracts for recovery lifecycle invalidation and retention wiring.
 
@@ -126,7 +127,8 @@ def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired(
     )
 
     assert "task_id=request.recovery_task_id or request.legacy_cutover_task_id" in ask_skill_source
-    assert '"message_id": task_id' in stream_source
+    assert "assistant_message_id = _assistant_message_id(task_id, request_data)" in stream_source
+    assert '"message_id": assistant_message_id' in stream_source
     assert 'payload["recovery_turn_id"] = request_data.recovery_turn_id' in stream_source
     assert 'payload["chat_key_version"] = request_data.chat_key_version' in stream_source
     assert '"acknowledge_legacy_persistence"' in persistence_source

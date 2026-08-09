@@ -1197,6 +1197,47 @@ def _inspect_active_worker_queues() -> Optional[Dict[str, Any]]:
     return inspect.active_queues()
 
 
+def _active_queue_names(active_workers: Optional[Dict[str, Any]]) -> set[str]:
+    if not active_workers:
+        return set()
+    return {
+        queue.get("name")
+        for queues in active_workers.values()
+        for queue in queues or []
+        if isinstance(queue, dict) and isinstance(queue.get("name"), str)
+    }
+
+
+async def _inspect_active_worker_queues_with_retry(app_ids: list[str]) -> Optional[Dict[str, Any]]:
+    """Merge a fresh retry when Celery returns only a partial worker snapshot."""
+    active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+    expected_queues = {
+        queue_name
+        for app_id in app_ids
+        for queue_name in _get_app_worker_queue_names(app_id)
+    }
+    missing_queues = expected_queues - _active_queue_names(active_workers)
+    if not missing_queues:
+        return active_workers
+
+    logger.info(
+        "Health check: Celery worker inspection missed queues %s; retrying with a fresh snapshot",
+        sorted(missing_queues),
+    )
+    retry_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+    if not active_workers:
+        return retry_workers
+    if retry_workers:
+        active_workers.update(retry_workers)
+    remaining_queues = expected_queues - _active_queue_names(active_workers)
+    if remaining_queues:
+        logger.warning(
+            "Health check: Celery worker inspection remained incomplete after retry; missing queues %s",
+            sorted(remaining_queues),
+        )
+    return active_workers
+
+
 async def _check_app_worker_health(app_id: str, active_workers: Optional[Dict[str, Any]] = None) -> tuple[bool, Optional[str]]:
     """
     Check app worker health via Celery worker inspection.
@@ -2280,7 +2321,8 @@ def check_all_apps_health(self):
             
             # Run async health checks
             async def run_checks():
-                active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+                worker_app_ids = [app_id for app_id in app_ids if _app_has_workers(app_id)]
+                active_workers = await _inspect_active_worker_queues_with_retry(worker_app_ids)
                 tasks = []
                 for app_id in app_ids:
                     task = _check_app_health(app_id, active_workers=active_workers)

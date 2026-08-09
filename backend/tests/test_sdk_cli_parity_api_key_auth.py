@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """SDK CLI parity API-key authorization contracts.
 
 Purpose: verify SDK parity route shells enforce API-key scope metadata.
@@ -8,18 +9,22 @@ Scope: focused authorization tests; product route wiring is tested per surface.
 
 import sys
 import hashlib
+import importlib
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException, Response
 
-from backend.core.api.app.routes import sdk as sdk_routes
-from backend.core.api.app.routes.sdk import (
-    _dispatch_sdk_surface,
-    _extract_chat_response_content,
-    _extract_chat_response_model_name,
-    _require_sdk_scope_for_surface,
-)
+try:
+    from backend.core.api.app.routes import sdk as sdk_routes
+    from backend.core.api.app.routes.sdk import (
+        _dispatch_sdk_surface,
+        _extract_chat_response_content,
+        _extract_chat_response_model_name,
+        _require_sdk_scope_for_surface,
+    )
+except ImportError as _exc:
+    pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
 
 class _FakeDirectusService:
@@ -541,8 +546,9 @@ async def test_sdk_memories_accept_first_party_session_auth(monkeypatch):
         assert kwargs["refresh_token"] == "session-token"
         return SimpleNamespace(id="user-1")
 
-    from backend.core.api.app.routes.auth_routes import auth_dependencies
-
+    auth_dependencies = importlib.import_module(
+        "backend.core.api.app.routes.auth_routes.auth_dependencies"
+    )
     monkeypatch.setattr(auth_dependencies, "get_current_user", fake_session_auth)
     request = _FakeRequest(cookies={"auth_refresh_token": "session-token"})
 

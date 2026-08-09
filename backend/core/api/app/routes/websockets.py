@@ -3179,6 +3179,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "project_remote_access_heartbeat":
@@ -3189,6 +3190,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "project_remote_access_disconnect":
@@ -3199,6 +3201,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "project_remote_access_complete":
@@ -3209,6 +3212,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "key_received":

@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_mock_replay.py
 #
 # Unit tests for E2E mock replay timing helpers.
@@ -122,6 +123,7 @@ def test_mock_focus_activation_parent_seals_recovery_job(monkeypatch) -> None:
 
     monkeypatch.setattr(mock_replay, "load_fixture", lambda _fixture_id: fixture)
     monkeypatch.setattr(mock_replay, "_recreate_fixture_embeds", keep_fixture_response)
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
 
     asyncio.run(
         replay_fixture(

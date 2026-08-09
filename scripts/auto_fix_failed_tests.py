@@ -201,6 +201,7 @@ def load_tests_control_module():
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Could not load test control plane: {TESTS_CONTROL_SCRIPT}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 

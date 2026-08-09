@@ -1744,6 +1744,8 @@ def _relative_repo_path_for_session(path_value: str | Path, session: dict | None
     if stored_path != str(path_value):
         return stored_path
     candidate = Path(stored_path)
+    if not candidate.is_absolute():
+        return stored_path
     try:
         resolved = candidate.resolve()
     except OSError:

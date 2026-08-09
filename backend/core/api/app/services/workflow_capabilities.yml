@@ -340,6 +340,12 @@ capabilities:
   pdf.view:
     available: false
     unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  plans.create:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  plans.search:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
   reminder.set-reminder:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
