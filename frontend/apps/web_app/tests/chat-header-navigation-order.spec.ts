@@ -118,11 +118,14 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
 
 			await ensureSidebarOpen(page);
-			const regularChats = page
-				.getByTestId('chat-item-wrapper')
-				.filter({ has: page.getByTestId('chat-with-profile') });
-			await expect(regularChats.first()).toBeVisible({ timeout: 15000 });
-			await regularChats.first().click();
+			const chatItems = page.getByTestId('chat-item-wrapper');
+			const draftRowIndex = await chatItems.evaluateAll((rows: Element[], id: string) =>
+				rows.findIndex((row) => row.getAttribute('data-chat-id') === id), draftChatId);
+			expect(draftRowIndex, 'Expected the draft chat to be present in sidebar order').toBeGreaterThanOrEqual(0);
+			const regularChatAfterDraft = chatItems.nth(draftRowIndex + 1);
+			await expect(regularChatAfterDraft).toBeVisible({ timeout: 15000 });
+			await expect(regularChatAfterDraft.getByTestId('chat-with-profile')).toBeVisible({ timeout: 15000 });
+			await regularChatAfterDraft.click();
 			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
 
 			if (await page.getByTestId('activity-history-wrapper').isVisible().catch(() => false)) {
