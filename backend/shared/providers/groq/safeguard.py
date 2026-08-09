@@ -413,8 +413,8 @@ class GroqSafeguardClient:
             }
         ]
 
-        try:
-            response = await self._client.chat.completions.create(
+        async def request_completion():
+            return await self._client.chat.completions.create(
                 model=SAFEGUARD_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -428,9 +428,25 @@ class GroqSafeguardClient:
                     "function": {"name": "report_audio_speech_safety"},
                 },
             )
+
+        try:
+            response = await request_completion()
         except Exception as exc:
-            logger.error("[GroqSafeguard] Audio speech safety API error: %s", exc, exc_info=True)
-            return AudioSpeechSafeguardResult(error=str(exc))
+            if not _is_groq_output_parse_failure(exc):
+                logger.error("[GroqSafeguard] Audio speech safety API error: %s", exc, exc_info=True)
+                return AudioSpeechSafeguardResult(error=str(exc))
+            logger.warning(
+                "[GroqSafeguard] Audio speech safety tool-call parse failed; retrying once"
+            )
+            try:
+                response = await request_completion()
+            except Exception as retry_exc:
+                logger.error(
+                    "[GroqSafeguard] Audio speech safety API retry failed: %s",
+                    retry_exc,
+                    exc_info=True,
+                )
+                return AudioSpeechSafeguardResult(error=str(retry_exc))
 
         raw_text = ""
         try:
@@ -512,6 +528,13 @@ def _parse_verdict(text: str) -> SafeguardVerdict:
         reasoning=str(data.get("reasoning", ""))[:4000],
         discrepancies=str(data.get("discrepancies", ""))[:1000],
     )
+
+
+def _is_groq_output_parse_failure(exc: BaseException) -> bool:
+    """True when Groq rejects a forced tool call because model output was unparsable."""
+
+    message = str(exc).lower()
+    return "output_parse_failed" in message or "parsing failed" in message
 
 
 def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:
