@@ -265,3 +265,58 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
     assert first["audio_base64"]
     assert first["credits_charged"] == 2
     assert "voice-mp3" not in str(result)
+
+
+# contract-test: direct surface=rest_api assertions=audio-speak.output.binary-excluded-from-inference,audio-speak.provider-error.visible
+@pytest.mark.asyncio
+async def test_audio_speak_output_safety_skips_declared_binary_fields(monkeypatch):
+    from backend.apps.ai.processing.external_result_sanitizer import _collect_string_fields_with_overrides
+    from backend.shared.python_utils import app_skill_output_safety
+    from backend.shared.python_utils.app_skill_output_safety import (
+        APP_SKILL_SURFACE_REST,
+        AppSkillOutputSafetyContext,
+        sanitize_app_skill_output,
+    )
+
+    calls = []
+
+    async def fake_semantic_sanitizer(**kwargs):
+        calls.append(kwargs)
+        return kwargs["payload"]
+
+    payload = {
+        "results": [
+            {
+                "status": "finished",
+                "text_preview": "OpenMates audio playback is working.",
+                "audio_base64": "A" * 180,
+                "mime_type": "audio/mpeg",
+            }
+        ],
+        "ignore_fields_for_inference": ["audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"],
+    }
+    collected = []
+    _collect_string_fields_with_overrides(
+        payload,
+        "",
+        min_chars=120,
+        collected=collected,
+        always_sanitize_field_names={"text_preview", "audio_base64"},
+        skip_field_names={"audio_base64"},
+    )
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", fake_semantic_sanitizer)
+    result = await sanitize_app_skill_output(
+        payload,
+        AppSkillOutputSafetyContext(
+            app_id="audio",
+            skill_id="speak",
+            surface=APP_SKILL_SURFACE_REST,
+            external_data=True,
+            request_body={},
+        ),
+    )
+
+    assert collected == [("results[0].text_preview", "OpenMates audio playback is working.")]
+    assert calls[0]["skip_field_names"] >= {"audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"}
+    assert result["results"][0]["audio_base64"] == "A" * 180

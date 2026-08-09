@@ -25,6 +25,7 @@ PROMPT_INJECTION_ENABLED = "enabled"
 
 SECURITY_FIELD = "security"
 PROMPT_INJECTION_PROTECTION_FIELD = "prompt_injection_protection"
+IGNORE_FIELDS_FOR_INFERENCE_FIELD = "ignore_fields_for_inference"
 
 OPENMATES_PROVIDER_NAME = "openmates"
 
@@ -191,6 +192,7 @@ async def sanitize_app_skill_output(
             min_chars=120,
             max_parallel=4,
             always_sanitize_field_names=ALWAYS_SEMANTIC_FIELD_NAMES,
+            skip_field_names=_ignore_fields_for_inference(ascii_sanitized),
         )
     except Exception as exc:
         logger.error(
@@ -208,6 +210,25 @@ def _find_skill_metadata(app_metadata: Any, skill_id: str) -> Any:
         if _read_attr(skill, "id") == skill_id:
             return skill
     return None
+
+
+def _ignore_fields_for_inference(value: Any) -> set[str]:
+    """Collect skill-declared field names that must never enter LLM/sanitizer text paths."""
+
+    ignored: set[str] = set()
+    if isinstance(value, Mapping):
+        raw_fields = value.get(IGNORE_FIELDS_FOR_INFERENCE_FIELD)
+        if isinstance(raw_fields, list):
+            for raw_field in raw_fields:
+                if not isinstance(raw_field, str) or not raw_field.strip():
+                    continue
+                ignored.add(raw_field.strip().rsplit(".", 1)[-1].lower())
+        for nested in value.values():
+            ignored.update(_ignore_fields_for_inference(nested))
+    elif isinstance(value, list):
+        for nested in value:
+            ignored.update(_ignore_fields_for_inference(nested))
+    return ignored
 
 
 def _read_attr(value: Any, name: str) -> Any:
