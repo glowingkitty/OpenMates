@@ -3,7 +3,19 @@
  * Configures global test environment and mocks
  */
 
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { resolve } from "node:path";
 import { vi } from "vitest";
+
+const VITE_FS_PREFIX = "/@fs";
+const UI_SRC_PREFIX = "/src/";
+const WORKSPACE_PATH_SEGMENTS = ["/frontend/packages/ui/", "/backend/", "/shared/"];
+const uiPackageRoot = resolve(import.meta.dirname, "..");
+const repoRoot = resolve(uiPackageRoot, "../../..");
+const originalReadFileSync = fs.readFileSync;
+type ReadFileSyncPath = Parameters<typeof originalReadFileSync>[0];
+type ReadFileSyncOptions = Parameters<typeof originalReadFileSync>[1];
 
 const windowEventTarget = new EventTarget();
 const testLocation = {
@@ -86,6 +98,28 @@ function defineConfigurableProperty(target: object, property: string, value: unk
     configurable: true,
   });
 }
+
+function resolveViteReadFileUrl(path: URL): URL | string {
+  if (path.protocol === "file:") return path;
+
+  const pathname = decodeURIComponent(path.pathname);
+  if (pathname.startsWith(`${VITE_FS_PREFIX}/`)) return pathname.slice(VITE_FS_PREFIX.length);
+  if (WORKSPACE_PATH_SEGMENTS.some((segment) => pathname.includes(segment))) return pathname;
+  if (pathname.startsWith(UI_SRC_PREFIX)) return resolve(uiPackageRoot, pathname.slice(1));
+  if (pathname.startsWith("/backend/") || pathname.startsWith("/shared/")) {
+    return resolve(repoRoot, pathname.slice(1));
+  }
+  return path;
+}
+
+function normalizeReadFilePath(path: ReadFileSyncPath): ReadFileSyncPath {
+  return path instanceof URL ? resolveViteReadFileUrl(path) : path;
+}
+
+fs.readFileSync = ((path: ReadFileSyncPath, options?: ReadFileSyncOptions) => (
+  originalReadFileSync(normalizeReadFilePath(path), options)
+)) as typeof fs.readFileSync;
+syncBuiltinESMExports();
 
 vi.mock("$app/environment", () => ({
   browser: true,
@@ -189,12 +223,8 @@ if (typeof activeWindow.matchMedia !== "function") {
 if (typeof activeWindow.document === "undefined") {
   defineConfigurableProperty(activeWindow, "document", testDocument);
 }
-if (typeof activeWindow.localStorage === "undefined") {
-  defineConfigurableProperty(activeWindow, "localStorage", testLocalStorage);
-}
-if (typeof activeWindow.sessionStorage === "undefined") {
-  defineConfigurableProperty(activeWindow, "sessionStorage", testSessionStorage);
-}
+defineConfigurableProperty(activeWindow, "localStorage", activeWindow.localStorage ?? testLocalStorage);
+defineConfigurableProperty(activeWindow, "sessionStorage", activeWindow.sessionStorage ?? testSessionStorage);
 if (typeof activeWindow.location === "undefined") {
   defineConfigurableProperty(activeWindow, "location", testLocation);
 }
@@ -208,6 +238,12 @@ if (typeof globalThis.localStorage === "undefined") {
 
 if (typeof globalThis.sessionStorage === "undefined") {
   defineConfigurableProperty(globalThis, "sessionStorage", testSessionStorage);
+}
+
+if (typeof File !== "undefined" && typeof File.prototype.text !== "function") {
+  defineConfigurableProperty(File.prototype, "text", function text(this: Blob) {
+    return new Response(this).text();
+  });
 }
 
 if (typeof globalThis.document === "undefined") {

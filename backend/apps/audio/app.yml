@@ -40,8 +40,6 @@ embed_types:
     frontend_type: app-skill-use
     backend_type: app_skill_use
     has_children: false
-    preview_component: audio/AudioGenerateEmbedPreview.svelte
-    fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.generate
@@ -76,8 +74,6 @@ embed_types:
     frontend_type: app-skill-use
     backend_type: app_skill_use
     has_children: false
-    preview_component: audio/AudioGenerateEmbedPreview.svelte
-    fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.speak

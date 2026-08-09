@@ -92,17 +92,36 @@ vi.mock("../../stores/serverStatusStore", () => ({
     mocks.markDeviceReceivedFreeTestingCreditsFromNotification,
 }));
 
+function resetHoistedMocks(): void {
+  for (const group of Object.values(mocks)) {
+    for (const value of Object.values(group)) {
+      if (typeof value === "function" && "mockReset" in value) {
+        (value as { mockReset: () => void }).mockReset();
+      }
+    }
+  }
+
+  mocks.activeChatStore.get.mockReturnValue("chat-1");
+  mocks.chatKeyManager.onKeyReady.mockReturnValue(() => undefined);
+  mocks.webSocketService.on.mockImplementation(() => undefined);
+  mocks.webSocketService.off.mockImplementation(() => undefined);
+  mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+}
+
 import {
   handleWorkflowChatDeliveriesAvailableImpl,
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    resetHoistedMocks();
   });
 
   // contract-test: direct surface=gui.web assertions=workflows.chat-delivery.claim-fenced
@@ -155,7 +174,7 @@ describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
 
 describe("handlePendingAIResponseImpl", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    resetHoistedMocks();
     mocks.chatDB.getChat.mockResolvedValue({
       chat_id: "chat-1",
       messages_v: 1,
@@ -254,10 +273,16 @@ describe("handlePendingAIResponseImpl", () => {
 
 describe("handleRecoveryJobsAvailableImpl", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    Object.assign(window, {
-      setTimeout: (...args: Parameters<typeof globalThis.setTimeout>) => globalThis.setTimeout(...args),
-      clearTimeout: (...args: Parameters<typeof globalThis.clearTimeout>) => globalThis.clearTimeout(...args),
+    resetHoistedMocks();
+    Object.defineProperty(window, "setTimeout", {
+      value: globalThis.setTimeout,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(window, "clearTimeout", {
+      value: globalThis.clearTimeout,
+      configurable: true,
+      writable: true,
     });
     window.history.replaceState(null, "", "/");
   });
