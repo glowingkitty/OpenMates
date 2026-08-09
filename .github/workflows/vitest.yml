@@ -110,5 +110,63 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Fail if tests failed
-        if: steps.ui_tests.outcome == 'failure' || steps.webapp_tests.outcome == 'failure' || steps.cli_account_import_tests.outcome == 'failure'
-        run: exit 1
+        if: always()
+        env:
+          TEST_FILES_JSON: ${{ inputs.test_files_json || '' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import re
+          import sys
+
+          result_dir = pathlib.Path("test-results")
+          failures: list[str] = []
+
+          def load_vitest_result(path: pathlib.Path) -> dict:
+            if not path.exists():
+              failures.append(f"missing {path}")
+              return {}
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+              if line.startswith("{"):
+                try:
+                  return json.loads(line)
+                except json.JSONDecodeError as exc:
+                  failures.append(f"invalid JSON in {path}: {exc}")
+                  return {}
+            failures.append(f"missing JSON payload in {path}")
+            return {}
+
+          def check_vitest_file(path: pathlib.Path, label: str) -> None:
+            payload = load_vitest_result(path)
+            if not payload:
+              return
+            failed_tests = int(payload.get("numFailedTests") or 0)
+            failed_suites = int(payload.get("numFailedTestSuites") or 0)
+            if payload.get("success") is not True or failed_tests or failed_suites:
+              failures.append(
+                f"{label} failed: success={payload.get('success')} "
+                f"failed_tests={failed_tests} failed_suites={failed_suites}",
+              )
+
+          check_vitest_file(result_dir / "vitest-ui.json", "UI package tests")
+          check_vitest_file(result_dir / "vitest-webapp.json", "web app unit tests")
+
+          if not os.environ.get("TEST_FILES_JSON"):
+            cli_output = result_dir / "cli-account-import-tests.txt"
+            if not cli_output.exists():
+              failures.append(f"missing {cli_output}")
+            else:
+              text = cli_output.read_text(encoding="utf-8", errors="replace")
+              if not re.search(r"(?:^|\n).*\bfail 0(?:\n|$)", text):
+                failures.append("CLI account import tests did not report 'fail 0'")
+
+          if failures:
+            print("Vitest result validation failed:")
+            for failure in failures:
+              print(f"- {failure}")
+            sys.exit(1)
+
+          print("All Vitest result artifacts passed.")
+          PY
