@@ -21,6 +21,43 @@ const testSessionStorage = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
 };
+const testDocument = {
+  activeElement: null,
+  body: {
+    appendChild: vi.fn(),
+    removeChild: vi.fn(),
+  },
+  cookie: "",
+  documentElement: {
+    dataset: {},
+    setAttribute: vi.fn(),
+    style: { setProperty: vi.fn() },
+  },
+  visibilityState: "visible",
+  addEventListener: vi.fn(
+    (...args: Parameters<EventTarget["addEventListener"]>) =>
+      windowEventTarget.addEventListener(...args),
+  ),
+  removeEventListener: vi.fn(
+    (...args: Parameters<EventTarget["removeEventListener"]>) =>
+      windowEventTarget.removeEventListener(...args),
+  ),
+  dispatchEvent: vi.fn((event: Event) => windowEventTarget.dispatchEvent(event)),
+  createElement: vi.fn((tagName: string) => ({
+    appendChild: vi.fn(),
+    click: vi.fn(),
+    dataset: {},
+    href: "",
+    remove: vi.fn(),
+    removeChild: vi.fn(),
+    setAttribute: vi.fn(),
+    style: {},
+    tagName: tagName.toUpperCase(),
+  })),
+  createTextNode: vi.fn((text: string) => ({ textContent: text })),
+  getElementById: vi.fn(() => null),
+  querySelector: vi.fn(() => null),
+};
 
 const testPage = {
   data: {},
@@ -85,6 +122,7 @@ Object.defineProperty(global, "window", {
     atob: (str: string) => Buffer.from(str, "base64").toString("binary"),
     sessionStorage: testSessionStorage,
     localStorage: testLocalStorage,
+    document: testDocument,
     location: testLocation,
     history: {
       replaceState: vi.fn(),
@@ -130,6 +168,11 @@ Object.defineProperty(global, "localStorage", {
 
 Object.defineProperty(global, "sessionStorage", {
   value: testSessionStorage,
+  writable: true,
+});
+
+Object.defineProperty(global, "document", {
+  value: testDocument,
   writable: true,
 });
 
