@@ -1,4 +1,5 @@
 # backend/tests/test_apps_api.py
+# contract-test-file: infrastructure
 #
 # Focused tests for custom app-skill routes registered by apps_api.py. These
 # verify route wiring and auth/dependency integration without starting external
@@ -181,6 +182,7 @@ def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
 
 
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_image_to_html_processing_response_defers_billing_to_worker() -> None:
     credits = apps_api.get_variable_result_credits(
         "code",
@@ -250,6 +252,7 @@ async def test_session_or_api_key_auth_preserves_device_approval_errors(monkeypa
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.surface.semantic-parity
 async def test_session_auth_tags_apple_client_with_device_hash(monkeypatch) -> None:
     user = User(id="user-apple", username="alice", vault_key_id="vault-1", credits=10)
 
@@ -282,6 +285,7 @@ async def test_session_auth_tags_apple_client_with_device_hash(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.surface.semantic-parity
 async def test_usage_summaries_use_apple_device_identifier(monkeypatch) -> None:
     usage_module = importlib.import_module("backend.core.api.app.services.directus.usage")
     usage = usage_module.UsageMethods(sdk=object(), encryption_service=object())
@@ -328,6 +332,7 @@ async def test_usage_summaries_use_apple_device_identifier(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.surface.semantic-parity
 async def test_usage_details_filter_apple_device_identifier() -> None:
     usage_module = importlib.import_module("backend.core.api.app.services.directus.usage")
     captured_params: dict[str, object] = {}
@@ -336,7 +341,16 @@ async def test_usage_details_filter_apple_device_identifier() -> None:
     class FakeSDK:
         async def get_items(self, collection_name, params, no_cache=False):
             if collection_name == "usage_monthly_api_key_summaries":
-                return [{"id": "summary-1", "is_archived": False, "archive_s3_key": None}]
+                return [{
+                    "id": "summary-1",
+                    "user_id_hash": "user-hash",
+                    "api_key_hash": device_hash,
+                    "year_month": "2024-07",
+                    "total_credits": 0,
+                    "entry_count": 1,
+                    "is_archived": False,
+                    "archive_s3_key": None,
+                }]
             captured_params.update(params)
             return []
 
@@ -411,6 +425,7 @@ def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:
     assert captured["enable_internet"] is True
 
 
+# contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge
 def test_code_run_app_skill_route_preserves_api_key_attribution(monkeypatch) -> None:
     captured: dict[str, object] = {}
     user = User(id="user-1", username="alice", vault_key_id="vault-1", credits=10)
@@ -513,6 +528,7 @@ def test_internal_skill_policy_blocks_direct_rest_dispatch() -> None:
     assert exc_info.value.status_code == 403
 
 
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_apps_api_uses_image_to_html_result_declared_credits() -> None:
     result = {
         "results": [
@@ -532,6 +548,7 @@ def test_apps_api_uses_image_to_html_result_declared_credits() -> None:
     }
 
 
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_apps_api_calculates_image_to_html_preflight_reservation() -> None:
     assert apps_api.get_variable_preflight_reserved_credits(
         "code",
@@ -545,6 +562,7 @@ def test_apps_api_calculates_image_to_html_preflight_reservation() -> None:
     ) == 0
 
 
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_generated_image_to_html_route_preserves_base64_request(monkeypatch) -> None:
     captured: dict[str, object] = {}
     user_info = {
