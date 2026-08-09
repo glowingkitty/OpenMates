@@ -28,6 +28,7 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 
 const LOGIN_RATE_LIMIT_COOLDOWN_MS = 65_000;
 const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
+const PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS = 45_000;
 
 type LastSendState = {
 	assistantCount: number;
@@ -253,7 +254,7 @@ async function waitForOtpOrAuthenticated(
 	page: any,
 	otpInput: any,
 	authSignal: any,
-	timeout = 15000,
+	timeout = PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS,
 	loginRateLimited?: Promise<'rate-limited'>
 ): Promise<'otp' | 'auth' | 'rate-limited' | null> {
 	return Promise.race([
@@ -262,6 +263,21 @@ async function waitForOtpOrAuthenticated(
 		...(loginRateLimited ? [loginRateLimited] : []),
 		page.waitForTimeout(timeout).then(() => null)
 	]);
+}
+
+async function getLoginSubmitDiagnostics(page: any): Promise<Record<string, unknown>> {
+	return Promise.race([
+		page.evaluate(() => ({
+			url: window.location.href,
+			isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
+			hasOtpInput: document.querySelector('[data-testid="login-otp-input"]') !== null,
+			hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
+			modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
+		})),
+		new Promise<Record<string, unknown>>((resolve) => {
+			setTimeout(() => resolve({ error: 'login diagnostics timed out after 2000ms' }), 2000);
+		})
+	]).catch((error: Error) => ({ error: error.message }));
 }
 
 async function waitForLoginSuccessAfterSubmitWithDiagnostics(
@@ -280,18 +296,7 @@ async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 		]);
 	} finally {
 		if (timeoutId) clearTimeout(timeoutId);
-		const diagnostics = await Promise.race([
-			page.evaluate(() => ({
-				url: window.location.href,
-				isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
-				hasOtpInput: document.querySelector('[data-testid="login-otp-input"]') !== null,
-				hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
-				modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
-			})),
-			new Promise((resolve) => {
-				setTimeout(() => resolve({ error: 'login diagnostics timed out after 2000ms' }), 2000);
-			})
-		]).catch((error: Error) => ({ error: error.message }));
+		const diagnostics = await getLoginSubmitDiagnostics(page);
 		logCheckpoint('Post-login-submit diagnostics.', diagnostics);
 	}
 }
@@ -485,7 +490,7 @@ async function loginToTestAccount(
 	// Race: either OTP field appears (2FA required) or login succeeds immediately
 	// (2FA not configured for this account). Some test accounts may have lost their
 	// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
-	const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal, 15000, loginRateLimited);
+	const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal, PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS, loginRateLimited);
 	if (otpOrAuth === 'rate-limited') {
 		page.off('response', on429);
 		const retryCount = options.rateLimitRetryCount ?? 0;
@@ -500,7 +505,12 @@ async function loginToTestAccount(
 		});
 	}
 	if (!otpOrAuth) {
-		throw new Error('Login did not show OTP input or authenticated UI after password submit.');
+		const diagnostics = await getLoginSubmitDiagnostics(page);
+		logCheckpoint(
+			`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit.`,
+			diagnostics
+		);
+		throw new Error(`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit.`);
 	}
 
 	let loginSuccess = false;
@@ -614,7 +624,11 @@ async function submitPasswordAndHandleOtp(
 
 	const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal);
 	if (!otpOrAuth) {
-		throw new Error('Login did not show OTP input or authenticated UI after password submit.');
+		const diagnostics = await getLoginSubmitDiagnostics(page);
+		log(
+			`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit; diagnostics=${JSON.stringify(diagnostics)}`
+		);
+		throw new Error(`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit.`);
 	}
 
 	if (otpOrAuth === 'auth') {
