@@ -428,6 +428,13 @@
         return messageInputHasContent && draftState.currentChatId === chatId;
     }
 
+    function hasLiveDraftComposerTextAfterDraftDeleted(chatId: string): boolean {
+        const draftState = get(draftEditorUIState);
+        if (!messageInputHasContent || draftState.currentChatId !== chatId) return false;
+        const liveText = messageInputFieldRef?.getTextContent?.().trim() ?? '';
+        return liveText.length > 0;
+    }
+
     async function hydrateAuthenticatedDraftOnlyChatMessages(chatId: string, loadGeneration: number): Promise<void> {
         try {
             await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
@@ -4180,7 +4187,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         activeChatDecryptedSummary = null;
     }
 
-    async function applyPersistedDraftHeader(chat: Chat, reason: string): Promise<boolean> {
+    async function applyPersistedDraftHeader(
+        chat: Chat,
+        reason: string,
+        isCurrentTarget: () => boolean = () => currentChat?.chat_id === chat.chat_id,
+    ): Promise<boolean> {
         if (!isPersistedDraftOnlyChat(chat)) return false;
 
         const encryptedPreview = chat.encrypted_draft_preview || chat.encrypted_draft_md;
@@ -4191,7 +4202,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.error(`[ActiveChat] ${reason}: Failed to decrypt persisted draft preview for ${chat.chat_id}`);
             return false;
         }
-        if (currentChat?.chat_id !== chat.chat_id) return false;
+        if (!isCurrentTarget()) return false;
 
         activeChatDecryptedTitle = preview.trim();
         activeChatDecryptedCategory = 'general_knowledge';
@@ -4342,7 +4353,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
         await tick();
         if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
-        if (hasLiveDraftComposerContent(chatId)) return false;
+        if (hasLiveDraftComposerTextAfterDraftDeleted(chatId)) return false;
 
         try {
             const messages = await chatDB.getMessagesForChat(chatId);
@@ -4353,11 +4364,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
-        if (hasLiveDraftComposerContent(chatId)) return false;
+        if (hasLiveDraftComposerTextAfterDraftDeleted(chatId)) return false;
 
         console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} was cleared. Resetting to new chat.`);
         await handleNewChatClick();
         return true;
+    }
+
+    function retryActiveDraftOnlyChatResetAfterDraftDeleted(chatId: string, reason: string): void {
+        setTimeout(() => {
+            if (currentChat?.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return;
+            void resetActiveDraftOnlyChatAfterDraftDeleted(chatId, `${reason} retry`);
+        }, 250);
     }
 
     // ─── Credits restoration detection ─────────────────────────────────────────
@@ -9095,8 +9113,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // On slow devices (iPad), this window can be 100-500ms, long enough for sync events to
          // append messages from the wrong chat. The generation counter prevents stale completions
          // from overwriting currentMessages after a newer loadChat has started.
-          const thisLoadGeneration = ++loadChatGeneration;
-          currentCompressionCheckpoints = [];
+           const thisLoadGeneration = ++loadChatGeneration;
+           const isCurrentLoadTarget = () => thisLoadGeneration === loadChatGeneration && currentChat?.chat_id === chat.chat_id;
+           currentCompressionCheckpoints = [];
           currentMessageWindowHasMoreBefore = false;
           olderMessageWindowLoading = false;
 
@@ -9349,7 +9368,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
              : currentChat;
          if (chatForHeader) {
               if (isCurrentDraftOnlyChat) {
-                  await applyPersistedDraftHeader(chatForHeader, 'loadChat');
+                   await applyPersistedDraftHeader(chatForHeader, 'loadChat', isCurrentLoadTarget);
               } else if (isPublicChat(chatForHeader.chat_id)) {
                   // Public chats (demo/legal/community): all metadata is cleartext
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
@@ -9448,8 +9467,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               if (chatForHeader.encrypted_chat_summary) {
                                   try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
                               }
-                               if (t) {
-                                  activeChatDecryptedTitle = t;
+                                if (t) {
+                                   if (!isCurrentLoadTarget()) return;
+                                   activeChatDecryptedTitle = t;
                                   activeChatDecryptedCategory = c;
                                   activeChatDecryptedIcon = ic;
                                   activeChatDecryptedSummary = s;
@@ -10946,10 +10966,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const detail = (event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>).detail;
             const changedChatId = detail?.chat_id;
             if (changedChatId && changedChatId === currentChat?.chat_id) {
-                if (detail?.draftDeleted && await resetActiveDraftOnlyChatAfterDraftDeleted(changedChatId, 'draft save or sync')) {
-                    return;
+                if (detail?.draftDeleted) {
+                    if (await resetActiveDraftOnlyChatAfterDraftDeleted(changedChatId, 'draft save or sync')) {
+                        return;
+                    }
+                    retryActiveDraftOnlyChatResetAfterDraftDeleted(changedChatId, 'draft save or sync');
+                } else {
+                    void refreshActiveChatHeaderFromStoredChat(changedChatId, 'draft save or sync');
                 }
-                void refreshActiveChatHeaderFromStoredChat(changedChatId, 'draft save or sync');
             }
 
             // Use a delay to ensure the editor content is stable after the save
