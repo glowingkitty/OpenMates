@@ -420,6 +420,10 @@
     }
 
     function shouldPreserveLiveEmbedOnlyDraft(chatId: string): boolean {
+        return hasLiveDraftComposerContent(chatId);
+    }
+
+    function hasLiveDraftComposerContent(chatId: string): boolean {
         const draftState = get(draftEditorUIState);
         return messageInputHasContent && draftState.currentChatId === chatId;
     }
@@ -4202,6 +4206,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return Number(chat.messages_v ?? 0) > 0 ||
             (chat.messages?.length ?? 0) > 0 ||
             hasCurrentMessagesForChat ||
+            hasLiveDraftComposerContent(chat.chat_id) ||
             Boolean(
                 chat.title ||
                 chat.encrypted_title ||
