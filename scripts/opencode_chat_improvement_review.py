@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Run daily GPT-5.6 Luna research over recent local OpenCode chats.
+"""Run manual GPT-5.6 Luna research over recent local OpenCode chats.
 
 The runner reads bounded local transcript evidence, dispatches one read-only
-OpenCode research session, atomically publishes gitignored reports, and sends an
-optional Discord attachment. Scheduled execution never changes tracked files.
+OpenCode research session, atomically publishes gitignored reports, and can send
+an optional Discord attachment. It is intentionally manual/on-demand; historical
+cron installation is retired so unattended analysis does not create report noise.
 Architecture: docs/specs/opencode-chat-improvement-review/spec.yml.
 """
 
@@ -18,7 +19,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -33,7 +33,6 @@ MODEL = "openai/gpt-5.6-luna"
 DISCORD_ENV = "DISCORD_WEBHOOK_DEV_NIGHTLY"
 CRON_BEGIN = "# BEGIN OpenMates OpenCode improvement research"
 CRON_END = "# END OpenMates OpenCode improvement research"
-CRON_SCHEDULE = "45 1 * * *"
 ALLOWED_PRIORITIES = {"high", "medium", "low"}
 MAX_SUMMARY_CHARS = 4_000
 MAX_RECOMMENDATION_TEXT_CHARS = 4_000
@@ -125,7 +124,7 @@ def _priority_counts(report: dict[str, Any]) -> str:
 def build_discord_payload(report: dict[str, Any]) -> dict[str, str]:
     counts = report.get("source_counts") or {}
     content = (
-        "**Daily OpenCode improvement research**\n"
+        "**OpenCode improvement research**\n"
         f"Status: `{report.get('status', 'unknown')}`\n"
         f"Model: `{report.get('model', MODEL)}`\n"
         f"Evidence: {counts.get('sessions', 0)} sessions, {counts.get('parts', 0)} parts\n"
@@ -252,7 +251,7 @@ def _bounded_string_list(value: Any, *, max_chars: int) -> list[str]:
 def _render_markdown(report: dict[str, Any]) -> str:
     period = report.get("period") or {}
     lines = [
-        "# Daily OpenCode Improvement Research",
+        "# OpenCode Improvement Research",
         "",
         f"- Status: `{report.get('status', 'unknown')}`",
         f"- Period: `{period.get('start', '')}` to `{period.get('end', '')}`",
@@ -459,25 +458,22 @@ def _remove_managed_block(lines: list[str]) -> list[str]:
 
 
 def render_crontab(existing: str, project_root: Path) -> str:
+    del project_root
     lines = _remove_managed_block(existing.splitlines())
     while lines and not lines[-1].strip():
         lines.pop()
-    root = shlex.quote(str(project_root))
-    runner = shlex.quote(str(project_root / "scripts" / "opencode_chat_improvement_review.py"))
-    log_path = shlex.quote(str(project_root / "logs" / "opencode-chat-improvement-review.log"))
-    lines.extend(
-        [
-            "",
-            CRON_BEGIN,
-            "# Daily at 01:45 UTC. Automatic research and notification only; tracked changes require manual review.",
-            f"{CRON_SCHEDULE} cd {root} && python3 {runner} --hours 24 >> {log_path} 2>&1",
-            CRON_END,
-        ]
-    )
-    return "\n".join(lines) + "\n"
+    return "" if not lines else "\n".join(lines) + "\n"
 
 
 def install_cron(project_root: Path) -> None:
+    del project_root
+    raise RuntimeError(
+        "Automated OpenCode improvement research is retired; use the "
+        "opencode-workflow-review skill or run this script manually."
+    )
+
+
+def uninstall_cron(project_root: Path) -> None:
     (project_root / "logs").mkdir(parents=True, exist_ok=True)
     current = subprocess.run(["crontab", "-l"], capture_output=True, text=True, check=False)
     if current.returncode not in (0, 1):
@@ -489,19 +485,28 @@ def install_cron(project_root: Path) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Research improvements from recent local OpenCode chats")
-    parser.add_argument("--hours", type=int, default=24)
+    parser = argparse.ArgumentParser(description="Manually research improvements from recent local OpenCode chats")
+    parser.add_argument("--hours", type=int, default=168)
     parser.add_argument("--output-dir", type=Path, default=REPORT_DIR)
     parser.add_argument("--exclude-session", action="append", default=[])
     parser.add_argument("--dry-run-notify", action="store_true")
-    parser.add_argument("--install-cron", action="store_true")
+    parser.add_argument("--install-cron", action="store_true", help="Deprecated; automated analysis is retired.")
+    parser.add_argument("--uninstall-cron", action="store_true", help="Remove the retired managed cron block.")
     args = parser.parse_args()
     if args.hours <= 0 or args.hours > 168:
         parser.error("--hours must be between 1 and 168")
     if args.install_cron:
+        print(
+            "[opencode-improvements] automated cron installation is retired; "
+            "use --uninstall-cron to remove the old managed block or run the "
+            "opencode-workflow-review skill manually.",
+            file=sys.stderr,
+        )
+        return 1
+    if args.uninstall_cron:
         install_root = canonical_checkout_root(PROJECT_ROOT)
-        install_cron(install_root)
-        print(f"[opencode-improvements] installed daily cron for {install_root}")
+        uninstall_cron(install_root)
+        print(f"[opencode-improvements] removed managed cron block for {install_root}")
         return 0
     returncode, paths = run_review(
         PROJECT_ROOT,

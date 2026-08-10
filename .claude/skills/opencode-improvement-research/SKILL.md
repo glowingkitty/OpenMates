@@ -6,7 +6,7 @@ user-invocable: false
 
 # OpenCode Improvement Research
 
-This is the research-only workflow used by the daily OpenCode improvement job.
+This is the research-only workflow used by the manual OpenCode workflow review runner.
 It may inspect local transcript evidence and current repository files, but it
 must not edit tracked files, commit, deploy, or start an implementation session.
 
@@ -44,6 +44,7 @@ must not edit tracked files, commit, deploy, or start an implementation session.
 
 ## Safety Boundary
 
-The scheduled workflow ends after the parent runner saves the report and sends its notification.
-It never invokes a separate editing workflow. Any tracked change requires a user
-to start a new chat and explicitly invoke the implementation skill.
+The parent runner ends after it saves the report and optionally sends a
+notification. It never invokes a separate editing workflow. Any tracked change
+requires a user to start a new chat and explicitly invoke the implementation
+skill.

@@ -95,7 +95,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
 | `03:00 daily`                 | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
 | `00:20 daily`                 | `release-intelligence-cron.sh daily`   | Generate yesterday's daily release-intelligence changelog |
-| `01:45 daily`                 | `opencode_chat_improvement_review.py`  | Luna research over the previous 24h of OpenCode chats + Discord |
+| manual only                   | `opencode-workflow-review` skill       | Luna research over recent OpenCode workflow evidence |
 | `00:45 Mon`                   | `release-intelligence-cron.sh weekly`  | Generate last-7-days weekly rollup + Discord summary |
 | `01:10 1st day`               | `release-intelligence-cron.sh monthly` | Generate previous-month monthly rollup    |
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
@@ -114,7 +114,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
 | `hourly`                      | `sessions.py worktree reconcile --apply-safe` | Delete safely classified agent worktrees after 48h idle and retain manifests for 30 days |
 
-> **Workflow review:** `scripts/_workflow_review_helper.py collect` remains the explicit aggregate-only collector. The separate daily OpenCode improvement research job analyzes bounded local transcripts but cannot edit tracked files; implementation always requires a user-invoked skill in a new chat.
+> **Workflow review:** `scripts/_workflow_review_helper.py collect` remains the explicit aggregate-only collector. The manual `opencode-workflow-review` skill can run bounded Luna research over local transcripts and supporting deterministic sources, but cannot edit tracked files; implementation always requires a user-invoked skill in a new chat.
 
 ### Job Details
 
@@ -146,7 +146,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 
 **Workflow review**: Maintainer-invoked only. Run `python3 scripts/_workflow_review_helper.py collect --since <UTC_ISO> --until <UTC_ISO>` to create a bounded OpenCode, git, and test evidence report under `test-results/workflow-review/`. It never schedules or launches an agent.
 
-**Daily OpenCode improvement research** (`01:45 UTC`): Reads bounded top-level and subagent transcript/tool evidence from the previous 24 hours in the local OpenCode SQLite store, excluding prior analyzer chats, then starts one persisted `openai/gpt-5.6-luna` session using the `opencode-improvement-research` skill and dedicated `cron-research` agent. That agent is enforced read-only: edit, Bash, child-agent, question, and todo tools are denied. Luna researches current skills, hooks, agents, instructions, deterministic guards, tests, and official tool documentation where needed. Latest plus dated JSON/Markdown reports are written under gitignored `logs/nightly-reports/opencode-improvements/`; a compact top-level nightly summary is available to the daily meeting, and a canonical-secret-scanned Markdown report is sent through optional `DISCORD_WEBHOOK_DEV_NIGHTLY`. Cron never edits tracked files, invokes an editing workflow, commits, or deploys. A maintainer later starts a new chat and explicitly invokes `implement-opencode-improvements` to select and revalidate report items before normal verified changes. Install idempotently with `python3 scripts/opencode_chat_improvement_review.py --install-cron`. Manual research: `python3 scripts/opencode_chat_improvement_review.py --hours 24 --dry-run-notify`.
+**Manual OpenCode workflow review**: The retired daily `01:45 UTC` Luna analysis is disabled. When a maintainer wants a weekly or on-demand review, invoke the `opencode-workflow-review` skill or run `python3 scripts/opencode_chat_improvement_review.py --hours 168 --dry-run-notify`. The runner reads bounded top-level and subagent transcript/tool evidence from the local OpenCode SQLite store, excluding prior analyzer chats, then starts one persisted `openai/gpt-5.6-luna` session using the `opencode-improvement-research` skill and dedicated `cron-research` agent. That agent is enforced read-only: edit, Bash, child-agent, question, and todo tools are denied. Luna researches current skills, hooks, agents, instructions, deterministic guards, tests, and official tool documentation where needed. Latest plus dated JSON/Markdown reports are written under gitignored `logs/nightly-reports/opencode-improvements/`; optional Discord notification is available for explicit manual runs. The workflow never edits tracked files, invokes an editing workflow, commits, or deploys. A maintainer later starts a new chat and explicitly invokes `implement-opencode-improvements` to select and revalidate report items before normal verified changes. Remove old managed cron entries with `python3 scripts/opencode_chat_improvement_review.py --uninstall-cron`; `--install-cron` is retired.
 
 **Security audit** (Tue+Fri 02:30): Reviews files changed since last audit. Top 5 critical security issues with OWASP mapping. Monthly full sweep. Acknowledged findings suppressed via `_security_helper.py acknowledge`. State: `.claude/security-audit-state.json` (gitignored).
 
@@ -198,6 +198,7 @@ python3 scripts/stale_code_daily.py --dry-run-notify
 python3 scripts/find_dead_code.py --category python --json
 ./scripts/run-tests-daily.sh --force
 python3 scripts/_workflow_review_helper.py collect --since 2026-07-03T00:00:00Z --until 2026-07-10T00:00:00Z
+python3 scripts/opencode_chat_improvement_review.py --hours 168 --dry-run-notify
 ```
 
 ### Adding a New Job
