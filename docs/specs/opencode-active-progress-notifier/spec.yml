@@ -1,0 +1,450 @@
+schema_version: 2
+id: opencode-active-progress-notifier
+title: Active OpenCode Progress Discord Notifier
+status: verified
+
+goal: >
+  Give maintainers a periodic, low-noise Discord digest of currently active
+  OpenCode chats so they can stay aware of decisions, blockers, code issues, and
+  agent-workflow issues without relying on each chat to self-report.
+
+scope:
+  in:
+    - Inspect live OpenCode presence and durable sessions from the existing local control plane.
+    - Summarize only currently active top-level chats: working, waiting for user, stopped, or failed.
+    - Exclude idle completed chats and notifier-owned analysis sessions.
+    - Use Gemini 3.5 Flash Lite for every LLM summary generation.
+    - Post one Discord message containing one overall summary and one per-active-chat section.
+    - Default the recurring cadence to 10 minutes and provide a `--once`/`--dry-run` test path.
+    - Persist local notification state only to suppress duplicates and record last summaries.
+  out:
+    - Product APIs, SDKs, web UI, Apple UI, or customer chat data.
+    - OpenCode hook side effects, passive lifecycle prompt injection, or self-reporting agent instructions.
+    - Automatic edits, commits, deploys, or task continuation.
+    - Posting raw transcripts, reasoning traces, credentials, environment values, webhook URLs, or full command outputs to Discord.
+
+documentation_impact:
+  generated_reference:
+    status: unchanged
+    reason: No generated product API, SDK, or UI reference is affected.
+  user_docs:
+    status: unchanged
+    reason: The change is maintainer tooling, not user-facing documentation.
+  semantic_layer:
+    status: unchanged
+    reason: Product behavior and semantic model contracts are unchanged.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP returned HTTP 401 for `get_me`.
+    - "`gh issue list --search \"\\\"OpenCode progress\\\" OR \\\"agent progress\\\" OR \\\"Discord notifier\\\"\" --limit 10 --json number,title,state,url` returned no matching issues."
+  docs:
+    - AGENTS.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/specs/opencode-chat-improvement-review/spec.yml
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - docs/specs/opencode-session-coordination/spec.yml
+  code_patterns:
+    - scripts/sessions.py exposes live presence through `status --json` and bounded transcript reads through `read_opencode_chat`.
+    - .opencode/plugins/openmates-hooks.js writes passive presence heartbeats and must not launch prompts from passive observation.
+    - scripts/discord_webhook.py provides stdlib Discord webhook posting helpers.
+    - scripts/release_intelligence.py and scripts/audit_example_chat_quality.py show existing Gemini key resolution and generateContent calls.
+  tests:
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_spec_workflow_validation.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is repository-local developer tooling with no Apple product counterpart.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Which architecture should report progress?
+      answer: Use a separate inspector script rather than making chats self-report.
+    - question: Which model should summarize active chat progress?
+      answer: Always use the new Gemini 3.5 Flash Lite model for summarization.
+    - question: What should the Discord output contain?
+      answer: One overall summary of all currently ongoing chats, highlighting important decisions and places to watch, followed by a list of all active chats with title, OpenCode link, and per-chat summary.
+    - question: What cadence should the first implementation use?
+      answer: Start with every 10 minutes and adjust later if needed.
+  vision_summary: >
+    The notifier is an external active-chat observer. It only posts when active
+    chats exist, uses Gemini 3.5 Flash Lite for summaries, and produces a single
+    maintainer-oriented Discord digest with an overall status plus per-chat links
+    and summaries.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-08-10T12:45:00Z"
+  implementation_plan:
+    status: not_required
+    reason: >
+      The user explicitly selected option 2, model, output shape, and cadence;
+      the remaining work is a focused repository-local script with tests.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use a separate inspector script instead of instructing active chats to send updates.
+    reason: Presence and transcript inspection continue to work when a chat is stuck, blocked, or waiting for user input, and avoids prompt pollution.
+    decided_at: "2026-08-10T12:45:00Z"
+  - id: D-2
+    status: active
+    decision: Use Gemini 3.5 Flash Lite for every LLM summary attempt.
+    reason: The user explicitly required this model for summarization.
+    decided_at: "2026-08-10T12:45:00Z"
+  - id: D-3
+    status: active
+    decision: Keep the notifier outside OpenCode hooks.
+    reason: The approved OpenCode presence architecture forbids passive lifecycle observation from prompting or running assistant turns.
+    decided_at: "2026-08-10T12:45:00Z"
+  - id: D-4
+    status: active
+    decision: Do not send a Discord message when no active chats are present.
+    reason: The user explicitly requested no summary when no chats are currently actively running.
+    decided_at: "2026-08-10T12:45:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Reuse existing `sessions.py status --json`, bounded OpenCode transcript projections, and Discord helper patterns.
+    outcome: succeeded
+    recorded_at: "2026-08-10T12:45:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run focused notifier tests before implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-10T13:45:00Z"
+    command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    run_id: local-20260810T1345Z-red
+    summary: The new tests failed because `scripts/opencode_progress_notifier.py` did not exist yet.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Implement the notifier, switch active-chat detail into a Discord embed to avoid content truncation, and add a covered 10-minute cron renderer.
+    outcome: succeeded
+    recorded_at: "2026-08-10T13:58:00Z"
+    command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    run_id: local-20260810T1358Z-pytest
+    summary: Six focused tests passed for active root selection, no-active silence, Gemini model enforcement, Discord payload shape, duplicate suppression, privacy redaction, and cron rendering.
+  - id: ATTEMPT-4
+    task_id: TASK-1
+    approach: Run a real Gemini dry-run against current local active OpenCode state without Discord posting or state updates.
+    outcome: succeeded
+    recorded_at: "2026-08-10T13:58:11Z"
+    command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --max-chats 5 --json
+    run_id: local-20260810T135811Z-dry-run
+    summary: Gemini 3.5 Flash Lite produced one overall summary plus a complete active-chat embed for 5 active chats.
+  - id: ATTEMPT-5
+    task_id: TASK-1
+    approach: Exercise the real Discord send path with the dedicated webhook environment unset.
+    outcome: succeeded
+    recorded_at: "2026-08-10T13:58:30Z"
+    command: python3 scripts/opencode_progress_notifier.py --once --force --max-chats 5 --json
+    run_id: local-20260810T135830Z-missing-webhook
+    summary: The send path skipped safely with `skipped_missing_webhook`, active_count 5, and no Gemini call because `DISCORD_WEBHOOK_AGENT_PROGRESS` was not configured.
+  - id: ATTEMPT-6
+    task_id: TASK-1
+    approach: Address code-review findings for redaction, heartbeat-only dedupe, Discord mention safety, 20-chat payload retention, and state races.
+    outcome: succeeded
+    recorded_at: "2026-08-10T14:13:00Z"
+    command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    run_id: local-20260810T1413Z-pytest
+    summary: Eight notifier tests passed, including regressions for heartbeat-only duplicate suppression, expanded credential redaction, disabled Discord mentions, retained links for 20 active chats, and cron rendering.
+  - id: ATTEMPT-7
+    task_id: TASK-1
+    approach: Run the final Gemini dry-run after the second code-review fixes.
+    outcome: succeeded
+    recorded_at: "2026-08-10T14:19:28Z"
+    command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --max-chats 5 --json
+    run_id: local-20260810T141928Z-dry-run
+    summary: Gemini 3.5 Flash Lite produced the requested overall summary plus all 5 active chat links in the Discord embed with mentions disabled.
+  - id: ATTEMPT-8
+    task_id: TASK-1
+    approach: Address final code-review findings for PEM/AWS/connection-string redaction and Discord aggregate embed limits.
+    outcome: succeeded
+    recorded_at: "2026-08-10T14:36:22Z"
+    command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    run_id: local-20260810T1436Z-pytest
+    summary: Eight notifier tests passed, including regressions for PEM private-key blocks, AWS credentials, database/Redis URLs, and title-inclusive aggregate Discord embed character limits.
+  - id: ATTEMPT-9
+    task_id: TASK-1
+    approach: Rerun the live Gemini dry-run after the final redaction and Discord-limit fixes.
+    outcome: succeeded
+    recorded_at: "2026-08-10T14:36:50Z"
+    command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --max-chats 5 --json
+    run_id: local-20260810T143650Z-dry-run
+    summary: Gemini 3.5 Flash Lite produced the requested overall summary plus all 5 active chat links in a Discord payload that keeps mentions disabled and fits aggregate embed limits.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Configure `DISCORD_WEBHOOK_AGENT_PROGRESS`, then optionally install the managed 10-minute cron with `python3 scripts/opencode_progress_notifier.py --install-cron`.
+  command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --max-chats 5 --json
+  expected_outcome: Gemini 3.5 Flash Lite prints one overall summary and one complete per-chat active list without Discord posting.
+  blocker:
+    task_id: TASK-1
+    requires_user_input: false
+    reason: Current environment is missing the dedicated Discord webhook for real sends.
+    question: none
+    next_action: Configure `DISCORD_WEBHOOK_AGENT_PROGRESS`, then rerun the real send check.
+  last_verified_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
+
+scenarios:
+  - id: S-1
+    title: Active chats produce one Discord digest
+    given:
+      - The OpenCode presence view contains at least one top-level chat in working, waiting_for_user, stopped, or failed state.
+    when:
+      - The notifier runs with Discord delivery enabled.
+    then:
+      - Gemini 3.5 Flash Lite receives bounded active-chat evidence.
+      - Discord receives one message with an overall summary and one section per active chat.
+      - Every chat section includes the title, OpenCode link, and current summary.
+
+  - id: S-2
+    title: No active chats stay silent
+    given:
+      - The OpenCode presence view has no working, waiting_for_user, stopped, or failed top-level chats.
+    when:
+      - The notifier runs.
+    then:
+      - Gemini is not called.
+      - Discord is not called.
+      - Local state is not updated as a sent notification.
+
+  - id: S-3
+    title: Duplicate unchanged summaries are suppressed between cadence windows
+    given:
+      - A previous digest was sent for the same active-chat transcript fingerprint less than 10 minutes ago.
+    when:
+      - The notifier runs again.
+    then:
+      - Discord is not called unless the operator uses a force flag.
+      - The persisted state records the duplicate suppression.
+
+  - id: S-4
+    title: Notification evidence remains bounded and privacy safe
+    given:
+      - Active chat transcripts contain tool outputs, attachments, or issue signals.
+    when:
+      - The notifier builds the Gemini prompt and Discord payload.
+    then:
+      - Reasoning, snapshots, attachment content, environment values, webhook URLs, and oversized outputs are omitted or bounded.
+      - Discord receives only summaries and links, not raw transcript dumps.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The notifier selects only active top-level OpenCode chats and includes each active chat title and OpenCode link in the digest.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-NOTIFIER
+  - id: AC-2
+    scenario: S-1
+    text: Every LLM summary call uses the configured Gemini 3.5 Flash Lite model and no alternative model path is used for normal summarization.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-NOTIFIER
+  - id: AC-3
+    scenario: S-2
+    text: A run with no currently active chats exits without Gemini or Discord calls.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-NOTIFIER
+  - id: AC-4
+    scenario: S-3
+    text: The default 10-minute cadence suppresses unchanged duplicate notifications while allowing forced test sends.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-NOTIFIER
+  - id: AC-5
+    scenario: S-4
+    text: Prompt evidence and Discord payloads remain bounded and omit raw reasoning, attachments, secrets, and full transcript dumps.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-NOTIFIER
+
+tests:
+  - id: T-PYTEST-NOTIFIER
+    type: pytest
+    file: scripts/tests/test_opencode_progress_notifier.py
+    command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - Active selection excludes child and idle sessions.
+      - No-active run skips Gemini and Discord.
+      - Gemini calls use `gemini-3.5-flash-lite`.
+      - Discord payload contains overall and per-chat sections with OpenCode links.
+      - Cadence state suppresses unchanged duplicate digests.
+      - Evidence projection bounds raw text and omits attachment content.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+        run_id: local-20260810T1345Z-red
+        subject_commit: 78f29f1fedde174359ef65f749a6ee6036f14b5a
+        timestamp: "2026-08-10T13:45:00Z"
+        summary: The tests failed because `scripts/opencode_progress_notifier.py` was absent.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+        run_id: local-20260810T1436Z-pytest
+        subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
+        timestamp: "2026-08-10T14:36:22Z"
+        summary: Eight notifier tests passed, including final redaction and title-inclusive aggregate Discord-limit regressions.
+
+verifications:
+  - id: V-DRY-RUN
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --max-chats 5 --json
+      run_id: local-20260810T143650Z-dry-run
+      subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
+      timestamp: "2026-08-10T14:36:50Z"
+      summary: Gemini 3.5 Flash Lite produced the requested overall and per-active-chat digest for 5 active OpenCode chats without Discord posting, with Discord mentions disabled and all selected chat links retained inside Discord aggregate embed limits.
+
+implementation_plan:
+  spec_path: docs/specs/opencode-active-progress-notifier/spec.yml
+  existing_patterns:
+    - scripts/sessions.py status --json and chat read projections
+    - scripts/opencode_chat_improvement_review.py report, Discord, and scheduled tooling style
+    - scripts/release_intelligence.py Gemini generateContent function-calling style
+  architecture: >
+    Add a standalone script that reads live status, fetches bounded transcripts
+    for active top-level chats, calls Gemini 3.5 Flash Lite for a structured JSON
+    digest, formats a single Discord payload, and stores local dedupe state.
+  data_flow:
+    - Read live session status from the local control plane.
+    - Fetch bounded OpenCode transcript projections for active top-level session IDs.
+    - Build a bounded JSON evidence prompt for Gemini 3.5 Flash Lite.
+    - Format the returned overall and per-chat summaries into one Discord message.
+    - Persist the active digest fingerprint and last-send timestamp in a local state file.
+  affected_files:
+    - path: scripts/opencode_progress_notifier.py
+      reason: New active chat inspector and Discord notifier.
+    - path: scripts/tests/test_opencode_progress_notifier.py
+      reason: Focused contract tests for selection, model, payload, dedupe, and privacy bounds.
+    - path: docs/specs/opencode-active-progress-notifier/spec.yml
+      reason: Durable contract and evidence ledger for the new recurring notifier.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/opencode-active-progress-notifier/spec.yml
+    - python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    - python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --max-chats 5
+  verification_order:
+    - Spec validation before implementation.
+    - Focused pytest after tests and script are present.
+    - Dry-run against current local active OpenCode state.
+
+tasks:
+  - id: TASK-1
+    title: Implement active progress notifier script and tests
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - scripts/opencode_progress_notifier.py
+      - scripts/tests/test_opencode_progress_notifier.py
+      - docs/specs/opencode-active-progress-notifier/spec.yml
+    ownership:
+      files:
+        - scripts/opencode_progress_notifier.py
+        - scripts/tests/test_opencode_progress_notifier.py
+        - docs/specs/opencode-active-progress-notifier/spec.yml
+      shared_files: []
+    verification_ids:
+      - T-PYTEST-NOTIFIER
+      - V-DRY-RUN
+    dependencies: []
+    blockers: []
+    follow_up_tasks:
+      - Optional host cron/systemd timer installation after manual dry-run validation.
+    independently_deployable: true
+
+risks:
+  - id: R-1
+    risk: Discord noise if unchanged active chats are summarized too often.
+    mitigation: Default 10-minute cadence, transcript fingerprint dedupe, and no-active silence.
+  - id: R-2
+    risk: Summaries could leak raw transcript or secret-like content.
+    mitigation: Use bounded projections, omit reasoning/attachments, apply simple secret redaction, and post summaries instead of raw evidence.
+  - id: R-3
+    risk: Model name availability may differ across Google AI Studio releases.
+    mitigation: Keep the model configurable only by explicit CLI/env override while defaulting to the required Gemini 3.5 Flash Lite identifier.
+
+open_questions: []
+
+privacy_security:
+  data_classification: Repository-local developer tooling metadata and bounded OpenCode transcript projections.
+  secrets_handling:
+    - Do not print or persist Discord webhook URLs or Gemini API keys.
+    - Resolve Gemini keys from existing environment or Vault-backed helper patterns.
+    - Redact secret-like tokens before prompts and Discord payloads.
+  retention:
+    - Persist only summary state and fingerprints in `.opencode/progress-notifier-state.json`.
+    - Do not persist raw transcripts or Gemini prompt bodies.
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This is a command-line maintainer notifier with no product UI or browser surface.
+    classified_at: "2026-08-10T12:45:00Z"
+    verification_ids:
+      - T-PYTEST-NOTIFIER
