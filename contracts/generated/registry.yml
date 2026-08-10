@@ -117,6 +117,16 @@ contracts:
     - rest_api
     - cli
     - gui.web
+  surface.sdk:
+    version: 1
+    status: draft
+    path: surfaces/sdk
+    fingerprint: 480cb9bf688ed1dc5fe888b36a910c2552f53da7c7a008a40d366165deccc06d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
 assertions:
   drafts.access.first-party-encrypted:
     contract: architecture.drafts@1
@@ -1124,3 +1134,33 @@ assertions:
     - rest_api
     - cli
     - gui.web
+  sdk.auth.approved-api-key-device:
+    contract: surface.sdk@1
+    contract_id: surface.sdk
+    type: security
+    fingerprint: d1fe6d8ac659cc5c8d4547cec7bb1e14b3fc391c844f740c1122ed0bab637b6d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  sdk.encryption.local-only:
+    contract: surface.sdk@1
+    contract_id: surface.sdk
+    type: privacy
+    fingerprint: e8486e9df2466d1bd6552df59310ef7ddb017dfda4ebf863e37befec741b0a46
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  sdk.surface.semantic-parity:
+    contract: surface.sdk@1
+    contract_id: surface.sdk
+    type: parity
+    fingerprint: 6bd2703be3ba93d5b6dff1350c9a1d9df034e0e80b8ff3f5e52b71e8e0fee3c5
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
