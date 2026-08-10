@@ -595,12 +595,19 @@ struct ChatView: View {
 
     private func isDraftOnlyChat(_ chat: Chat) -> Bool {
         let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return title.isEmpty && (chat.messagesV ?? 0) == 0 && (chat.draftV ?? 0) > 0
+        return title.isEmpty
+            && (chat.messagesV ?? 0) == 0
+            && ((chat.draftV ?? 0) > 0 || draftPreview(for: chat) != nil)
     }
 
     private func draftOnlyPreview(for chat: Chat) -> String {
+        draftPreview(for: chat) ?? chat.displayTitle
+    }
+
+    private func draftPreview(for chat: Chat) -> String? {
         let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return preview?.isEmpty == false ? preview! : chat.displayTitle
+        guard let preview, !preview.isEmpty else { return nil }
+        return preview
     }
 
     private var followUpSuggestionIcon: String? {
