@@ -59,6 +59,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK user plans", () => {
+  // contract-test: direct surface=sdks.npm assertions=plans.surface.semantic-parity
   it("scopes plan task updates and deletes to the selected plan", async () => {
     const client = new OpenMates({ apiKey: "x", apiUrl: "http://127.0.0.1:9" });
     const calls: unknown[][] = [];
@@ -91,6 +92,7 @@ describe("OpenMates SDK user plans", () => {
     ]);
   });
 
+  // contract-test: direct surface=sdks.npm assertions=plans.content.client-encrypted,plans.lifecycle.visible,plans.key-wrappers.contextual,plans.execution.gates-evidence,plans.surface.semantic-parity
   it("manages encrypted plans through the shared API contract", async () => {
     const masterKey = Buffer.alloc(32, 3);
     const planKey = Buffer.alloc(32, 4);
@@ -116,6 +118,7 @@ describe("OpenMates SDK user plans", () => {
         if (request.method === "DELETE") return { deleted: true };
         if (request.url?.includes("/runs/run-1")) return { run: { run_id: "run-1" }, artifacts: [] };
         if (request.url?.includes("/learnings/create-tasks")) return { tasks: [], skipped: [] };
+        if (request.url === "/v1/user-plans/plan-1" && request.method === "GET") return { plan: validPlan };
         if (request.url?.includes("/learnings") && request.method === "GET") return { learnings: [] };
         if (request.url?.includes("/learnings")) return { learning: body };
         if (request.method === "GET") return { plans: [validPlan] };
@@ -178,6 +181,7 @@ describe("OpenMates SDK user plans", () => {
         const urls = seen.map((request) => request.url);
         assert.ok(urls.includes("/v1/sdk/session"));
         assert.ok(urls.includes("/v1/user-plans"));
+        assert.ok(urls.includes("/v1/user-plans/plan-1"));
         assert.ok(urls.includes("/v1/user-plans/plan-1/activate"));
         assert.ok(urls.includes("/v1/user-plans/plan-1/verification/V-1/evidence"));
         for (const marker of ["Plain AC", "Plain assumption", "Plain pattern", "Plain learning", "Passed locally"]) {

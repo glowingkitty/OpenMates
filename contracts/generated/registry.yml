@@ -108,6 +108,17 @@ contracts:
     required_surfaces:
     - gui.web
     - gui.apple
+  feature.plans:
+    version: 1
+    status: draft
+    path: features/plans
+    fingerprint: d01173bb197c10785ab4a38ad2e7ed8d5e007f9574b63194abd6abeafd3edb5e
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.projects:
     version: 1
     status: draft
@@ -1098,6 +1109,83 @@ assertions:
     required_surfaces:
     - gui.web
     - gui.apple
+  plans.content.client-encrypted:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: privacy
+    fingerprint: 7cec3967ffd8e645ffc9109af1ba313462d8b312b955479d7705b766ae636d48
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.lifecycle.visible:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: behavior
+    fingerprint: beeee07cfb66fb44d42982c7c6c11f3564e909a8e04eecd583d3d745fcfd4f39
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.key-wrappers.contextual:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: invariant
+    fingerprint: f3a1a29f2d4f58af4b27dd815f99858f54cfc4bc3cb7b48f585884605f76f4ed
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.project-links.encrypted:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: privacy
+    fingerprint: 5134bfe11e6fbf33d2c40152ced780a4a79d2ab9a0b0e8bd9e5b4b5d6f804a59
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.execution.gates-evidence:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: invariant
+    fingerprint: 1f4a55a60d285f06cbf8a6e554cf6d9aa3c019f043a1c76327d74d7647364179
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.active-context.vault-boundary:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: privacy
+    fingerprint: da365afc864fa91e75b7db0486be49be48af8bfc5cda83affe29c0eca5813f03
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.surface.semantic-parity:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: parity
+    fingerprint: 216c6219e2b2d38f476df3efe8e013842df0fb94a24f22ebd7a284fc8743926e
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   projects.access.explicit-context:
     contract: feature.projects@1
     contract_id: feature.projects

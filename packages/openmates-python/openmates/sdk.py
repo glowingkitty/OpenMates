@@ -3147,11 +3147,22 @@ class OpenMatesPlans:
         return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
     def show(self, plan_id: str) -> dict[str, Any]:
-        return _public_plan(_decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), self._client._get_master_key()))
+        return _public_plan(_decrypt_plan_record(self._get_raw_plan(plan_id), self._client._get_master_key()))
+
+    def _get_raw_plan(self, plan_id: str) -> dict[str, Any]:
+        try:
+            plan = self._client._get(f"/v1/user-plans/{_quote(plan_id)}").get("plan")
+            if not isinstance(plan, dict):
+                raise OpenMatesApiError(500, {"detail": "User plan response missing plan"})
+            return plan
+        except OpenMatesApiError as exc:
+            if exc.status_code != 404:
+                raise
+        return _find_plan(self._list_raw(active_only=False), plan_id)
 
     def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        existing = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        existing = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", _build_plan_update_input(existing, master_key, {**payload, "_client": self._client})).get("plan", {})
         return _public_plan(_decrypt_plan_record(plan, master_key))
 
@@ -3160,7 +3171,7 @@ class OpenMatesPlans:
         plan_id: str,
         project_id: str,
     ) -> dict[str, Any]:
-        plan = _find_plan(self._list_raw(active_only=False), plan_id)
+        plan = self._get_raw_plan(plan_id)
         master_key = self._client._get_master_key()
         plan_key = _plan_key_from_record(plan, master_key)
         linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(plan.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(plan.get("linked_project_ids") or [])
@@ -3186,7 +3197,7 @@ class OpenMatesPlans:
         plan_id: str,
         project_id: str,
     ) -> dict[str, Any]:
-        plan = _find_plan(self._list_raw(active_only=False), plan_id)
+        plan = self._get_raw_plan(plan_id)
         master_key = self._client._get_master_key()
         plan_key = _plan_key_from_record(plan, master_key)
         linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(plan.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(plan.get("linked_project_ids") or [])
@@ -3234,14 +3245,14 @@ class OpenMatesPlans:
             encrypted_updates = []
             for item in updates:
                 plan_id = str(item.get("plan_id") or item.get("planId") or "")
-                existing = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+                existing = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
                 encrypted_updates.append({"plan_id": existing["plan_id"], "patch": _build_plan_update_input(existing, master_key, {**dict(item.get("patch") or {}), "_client": self._client})})
         request_payload: dict[str, Any] = {"instruction": instruction}
         if create is not None or planned_create is not None:
             request_payload["encrypted_create"] = _build_plan_create_input(self._client, create or planned_create or {"title": instruction})
         if update is not None:
             plan_id = str(update.get("plan_id") or update.get("planId") or "")
-            existing = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+            existing = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
             request_payload["encrypted_update"] = {"plan_id": existing["plan_id"], "patch": _build_plan_update_input(existing, master_key, {**dict(update.get("patch") or {}), "_client": self._client})}
         if encrypted_updates is not None:
             request_payload["encrypted_updates"] = encrypted_updates
@@ -3253,7 +3264,7 @@ class OpenMatesPlans:
     def activate(self, plan_id: str, *, chat_id: str | None = None) -> dict[str, Any]:
         request_payload = {"chat_id": chat_id} if chat_id is not None else {}
         if isinstance(request_payload.get("chat_id"), str):
-            existing = _find_plan(self._list_raw(active_only=False), plan_id)
+            existing = self._get_raw_plan(plan_id)
             master_key = self._client._get_master_key()
             plan_key = _plan_key_from_record(existing, master_key)
             linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(existing.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(existing.get("linked_project_ids") or [])
@@ -3279,27 +3290,27 @@ class OpenMatesPlans:
         return self.update(plan_id, {"status": "active"})
 
     def complete(self, plan_id: str) -> dict[str, Any]:
-        existing = _find_plan(self._list_raw(active_only=False), plan_id)
+        existing = self._get_raw_plan(plan_id)
         plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/complete", {"version": existing.get("version")}).get("plan", {})
         if not plan:
-            plan = _find_plan(self._list_raw(active_only=False), plan_id)
+            plan = self._get_raw_plan(plan_id)
         return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
     def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         criterion = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/criteria", _build_plan_criterion_create_input(plan, master_key, payload)).get("criterion", {})
         return _public_plan_criterion(criterion, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_criteria(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
         return [_public_plan_criterion(criterion, plan_key) for criterion in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/criteria").get("criteria", [])]
 
     def update_criterion(self, plan_id: str, criterion_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         criterion = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}", _build_plan_criterion_update_input(plan, master_key, payload)).get("criterion", {})
         return _public_plan_criterion(criterion, _plan_key_from_record(plan["encrypted"], master_key))
 
@@ -3308,19 +3319,19 @@ class OpenMatesPlans:
 
     def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         verification = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/verification", _build_plan_verification_create_input(plan, master_key, payload)).get("verification", {})
         return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_verifications(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
         return [_public_plan_verification(verification, plan_key) for verification in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification").get("verifications", [])]
 
     def update_verification(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         verification = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}", _build_plan_verification_update_input(plan, master_key, payload)).get("verification", {})
         return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
@@ -3329,19 +3340,19 @@ class OpenMatesPlans:
 
     def create_assumption(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         assumption = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/assumptions", _build_plan_assumption_create_input(plan, master_key, payload)).get("assumption", {})
         return _public_plan_assumption(assumption, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_assumptions(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
         return [_public_plan_assumption(assumption, plan_key) for assumption in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/assumptions").get("assumptions", [])]
 
     def update_assumption(self, plan_id: str, assumption_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         assumption = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}", _build_plan_assumption_update_input(plan, master_key, payload)).get("assumption", {})
         return _public_plan_assumption(assumption, _plan_key_from_record(plan["encrypted"], master_key))
 
@@ -3350,19 +3361,19 @@ class OpenMatesPlans:
 
     def create_reference_pattern(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         pattern = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns", _build_plan_reference_pattern_create_input(plan, master_key, payload)).get("reference_pattern", {})
         return _public_plan_reference_pattern(pattern, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
         return [_public_plan_reference_pattern(pattern, plan_key) for pattern in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns").get("reference_patterns", [])]
 
     def update_reference_pattern(self, plan_id: str, pattern_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         pattern = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}", _build_plan_reference_pattern_update_input(plan, master_key, payload)).get("reference_pattern", {})
         return _public_plan_reference_pattern(pattern, _plan_key_from_record(plan["encrypted"], master_key))
 
@@ -3371,19 +3382,19 @@ class OpenMatesPlans:
 
     def create_learning(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         learning = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings", _build_plan_learning_create_input(plan, master_key, payload)).get("learning", {})
         return _public_plan_learning(learning, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_learnings(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
         return [_public_plan_learning(learning, plan_key) for learning in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/learnings").get("learnings", [])]
 
     def update_learning(self, plan_id: str, learning_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         learning = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}", _build_plan_learning_update_input(plan, master_key, payload)).get("learning", {})
         return _public_plan_learning(learning, _plan_key_from_record(plan["encrypted"], master_key))
 
@@ -3395,7 +3406,7 @@ class OpenMatesPlans:
 
     def add_verification_evidence(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         verification = self._client._post(
             f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/evidence",
             _build_plan_verification_evidence_input(plan, master_key, payload),

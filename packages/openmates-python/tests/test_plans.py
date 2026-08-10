@@ -26,6 +26,7 @@ def assert_no_plaintext_marker(value, marker):
     assert marker not in str(value)
 
 
+# contract-test: direct surface=sdks.pip assertions=plans.content.client-encrypted,plans.lifecycle.visible,plans.key-wrappers.contextual,plans.execution.gates-evidence,plans.surface.semantic-parity
 def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     requests_seen = []
     master_key = bytes([8]) * 32
@@ -59,6 +60,8 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
         assert headers["Authorization"] == f"Bearer {api_key}"
         if url.endswith("/v1/sdk/chats/chat-1"):
             return FakeResponse({"chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}})
+        if url.endswith("/v1/user-plans/plan-1"):
+            return FakeResponse({"plan": plan})
         if url.endswith("/runs/run-1"):
             return FakeResponse({"run": {"run_id": "run-1"}, "artifacts": []})
         if url.endswith("/learnings"):
@@ -169,10 +172,12 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     urls = [request["url"].replace("https://api.openmates.org", "") for request in requests_seen]
     assert "/v1/sdk/session" in urls
     assert "/v1/user-plans" in urls
-    assert any(url.startswith("/v1/user-plans?active_only=False") for url in urls)
+    assert any(url.startswith("/v1/user-plans?status=draft") for url in urls)
+    assert "/v1/user-plans/plan-1" in urls
     assert "/v1/user-plans/plan-1/activate" in urls
 
 
+# contract-test: direct surface=sdks.pip assertions=plans.project-links.encrypted,plans.key-wrappers.contextual,plans.surface.semantic-parity
 def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
     master_key = bytes([3]) * 32
     plan_key = bytes([4]) * 32
@@ -202,6 +207,8 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         assert headers["Authorization"] == f"Bearer {api_key}"
+        if url.endswith("/v1/user-plans/plan-1"):
+            return FakeResponse({"plan": plan})
         if url.endswith("/v1/user-plans?active_only=False"):
             return FakeResponse({"plans": [plan]})
         if url.endswith("/v1/projects/project-1"):

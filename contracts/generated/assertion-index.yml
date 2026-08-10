@@ -4220,6 +4220,278 @@ assertions:
         - *id431
         supporting_tests: []
     current_direct_proof: false
+  plans.content.client-encrypted:
+    contract: feature.plans@1
+    fingerprint: 7cec3967ffd8e645ffc9109af1ba313462d8b312b955479d7705b766ae636d48
+    direct_tests:
+    - &id432
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 60
+      name: test_get_user_plan_returns_owner_scoped_encrypted_plan
+      surface: rest_api
+    - &id433
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 96
+      name: manages encrypted plans through the shared API contract
+      surface: sdks.npm
+    - &id434
+      path: packages/openmates-python/tests/test_plans.py
+      line: 30
+      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
+    - *id432
+    - *id433
+    - *id434
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id432
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id433
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id434
+        supporting_tests: []
+    current_direct_proof: false
+  plans.lifecycle.visible:
+    contract: feature.plans@1
+    fingerprint: beeee07cfb66fb44d42982c7c6c11f3564e909a8e04eecd583d3d745fcfd4f39
+    direct_tests:
+    - &id435
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 60
+      name: test_get_user_plan_returns_owner_scoped_encrypted_plan
+      surface: rest_api
+    - &id436
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 78
+      name: test_get_user_plan_checks_team_permission_before_team_lookup
+      surface: rest_api
+    - &id437
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 107
+      name: test_user_plan_service_get_plan_hides_missing_or_cross_owner_plan
+      surface: rest_api
+    - &id438
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 96
+      name: manages encrypted plans through the shared API contract
+      surface: sdks.npm
+    - &id439
+      path: packages/openmates-python/tests/test_plans.py
+      line: 30
+      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
+    - *id435
+    - *id436
+    - *id437
+    - *id438
+    - *id439
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id435
+        - *id436
+        - *id437
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id438
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id439
+        supporting_tests: []
+    current_direct_proof: false
+  plans.key-wrappers.contextual:
+    contract: feature.plans@1
+    fingerprint: f3a1a29f2d4f58af4b27dd815f99858f54cfc4bc3cb7b48f585884605f76f4ed
+    direct_tests:
+    - &id440
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 78
+      name: test_get_user_plan_checks_team_permission_before_team_lookup
+      surface: rest_api
+    - &id441
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 96
+      name: manages encrypted plans through the shared API contract
+      surface: sdks.npm
+    - &id442
+      path: packages/openmates-python/tests/test_plans.py
+      line: 30
+      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
+      surface: sdks.pip
+    - &id443
+      path: packages/openmates-python/tests/test_plans.py
+      line: 181
+      name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
+    - *id440
+    - *id441
+    - *id442
+    - *id443
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id440
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id441
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id442
+        - *id443
+        supporting_tests: []
+    current_direct_proof: false
+  plans.project-links.encrypted:
+    contract: feature.plans@1
+    fingerprint: 5134bfe11e6fbf33d2c40152ced780a4a79d2ab9a0b0e8bd9e5b4b5d6f804a59
+    direct_tests:
+    - &id444
+      path: packages/openmates-python/tests/test_plans.py
+      line: 181
+      name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
+    - *id444
+    surfaces:
+      sdks.pip:
+        direct_tests:
+        - *id444
+        supporting_tests: []
+    current_direct_proof: false
+  plans.execution.gates-evidence:
+    contract: feature.plans@1
+    fingerprint: 1f4a55a60d285f06cbf8a6e554cf6d9aa3c019f043a1c76327d74d7647364179
+    direct_tests:
+    - &id445
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 96
+      name: manages encrypted plans through the shared API contract
+      surface: sdks.npm
+    - &id446
+      path: packages/openmates-python/tests/test_plans.py
+      line: 30
+      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
+    - *id445
+    - *id446
+    surfaces:
+      sdks.npm:
+        direct_tests:
+        - *id445
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id446
+        supporting_tests: []
+    current_direct_proof: false
+  plans.active-context.vault-boundary:
+    contract: feature.plans@1
+    fingerprint: da365afc864fa91e75b7db0486be49be48af8bfc5cda83affe29c0eca5813f03
+    direct_tests:
+    - &id447
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 99
+      name: test_active_context_route_stays_before_plan_detail_route
+      surface: rest_api
+    supporting_tests: []
+    tests:
+    - *id447
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id447
+        supporting_tests: []
+    current_direct_proof: false
+  plans.surface.semantic-parity:
+    contract: feature.plans@1
+    fingerprint: 216c6219e2b2d38f476df3efe8e013842df0fb94a24f22ebd7a284fc8743926e
+    direct_tests:
+    - &id448
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 60
+      name: test_get_user_plan_returns_owner_scoped_encrypted_plan
+      surface: rest_api
+    - &id449
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 78
+      name: test_get_user_plan_checks_team_permission_before_team_lookup
+      surface: rest_api
+    - &id450
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 99
+      name: test_active_context_route_stays_before_plan_detail_route
+      surface: rest_api
+    - &id451
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 107
+      name: test_user_plan_service_get_plan_hides_missing_or_cross_owner_plan
+      surface: rest_api
+    - &id452
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 63
+      name: scopes plan task updates and deletes to the selected plan
+      surface: sdks.npm
+    - &id453
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 96
+      name: manages encrypted plans through the shared API contract
+      surface: sdks.npm
+    - &id454
+      path: packages/openmates-python/tests/test_plans.py
+      line: 30
+      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
+      surface: sdks.pip
+    - &id455
+      path: packages/openmates-python/tests/test_plans.py
+      line: 181
+      name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
+    - *id448
+    - *id449
+    - *id450
+    - *id451
+    - *id452
+    - *id453
+    - *id454
+    - *id455
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id448
+        - *id449
+        - *id450
+        - *id451
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id452
+        - *id453
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id454
+        - *id455
+        supporting_tests: []
+    current_direct_proof: false
   projects.access.explicit-context:
     contract: feature.projects@1
     fingerprint: 15e50e02417c5c3fc66496f7a38c6c690510dcfdb5bd592b44ad326df1da8b0f
@@ -4272,18 +4544,18 @@ assertions:
     contract: feature.public-example-chats@1
     fingerprint: 7b2015f09a3e838061b27b087d44a1f06a66d671c576f80305a3ba50425214bf
     direct_tests:
-    - &id432
+    - &id456
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 136
       name: example chats appear in for-everyone intro chat
       surface: gui.web
-    - &id433
+    - &id457
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 197
       name: guest show-all examples uses expanded resume cards and global search covers
         every example
       surface: gui.web
-    - &id434
+    - &id458
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 685
       name: sidebar example chats show newest first and append older results after
@@ -4291,120 +4563,120 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id432
-    - *id433
-    - *id434
+    - *id456
+    - *id457
+    - *id458
     surfaces:
       gui.web:
         direct_tests:
-        - *id432
-        - *id433
-        - *id434
+        - *id456
+        - *id457
+        - *id458
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.navigation.static-public-link:
     contract: feature.public-example-chats@1
     fingerprint: 43539ab76eea7a2a9792278e0ab8ddb9ee270163269a2bf478d0d3a8aece5c30
     direct_tests:
-    - &id435
+    - &id459
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 310
       name: guest example chat exposes share and chat settings with a static public
         link
       surface: gui.web
-    - &id436
+    - &id460
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 374
       name: memory example cards update the reloadable chat hash on wide viewports
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id435
-    - *id436
+    - *id459
+    - *id460
     surfaces:
       gui.web:
         direct_tests:
-        - *id435
-        - *id436
+        - *id459
+        - *id460
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.transcript.safe-rendering:
     contract: feature.public-example-chats@1
     fingerprint: e39475dbab54b733ca2a62aaeb52048fb5fd088992c9a1f951616da722424bdd
     direct_tests:
-    - &id437
+    - &id461
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 279
       name: deep research example renders static sub-chat cards without a forced focus
         mention
       surface: gui.web
-    - &id438
+    - &id462
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 310
       name: guest example chat exposes share and chat settings with a static public
         link
       surface: gui.web
-    - &id439
+    - &id463
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 374
       name: memory example cards update the reloadable chat hash on wide viewports
       surface: gui.web
-    - &id440
+    - &id464
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 404
       name: reported memory examples render current text content without interactive-question
         errors
       surface: gui.web
-    - &id441
+    - &id465
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 436
       name: privacy-first local AI example hides compressed history behind forgotten
         messages
       surface: gui.web
-    - &id442
+    - &id466
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 520
       name: nutrition example renders Edamam recipe search embed card
       surface: gui.web
-    - &id443
+    - &id467
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 580
       name: Deutschlandticket travel example keeps preview metadata readable and shows
         map route lines
       surface: gui.web
-    - &id444
+    - &id468
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 741
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id437
-    - *id438
-    - *id439
-    - *id440
-    - *id441
-    - *id442
-    - *id443
-    - *id444
+    - *id461
+    - *id462
+    - *id463
+    - *id464
+    - *id465
+    - *id466
+    - *id467
+    - *id468
     surfaces:
       gui.web:
         direct_tests:
-        - *id437
-        - *id438
-        - *id439
-        - *id440
-        - *id441
-        - *id442
-        - *id443
-        - *id444
+        - *id461
+        - *id462
+        - *id463
+        - *id464
+        - *id465
+        - *id466
+        - *id467
+        - *id468
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.history.explicit-forgotten-reveal:
     contract: feature.public-example-chats@1
     fingerprint: 04a2c5bc778b4a4e3c7bb6ddc03a88594ecbf7ff5beea0cb812a53bb68afdb56
     direct_tests:
-    - &id445
+    - &id469
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 436
       name: privacy-first local AI example hides compressed history behind forgotten
@@ -4412,90 +4684,90 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id445
+    - *id469
     surfaces:
       gui.web:
         direct_tests:
-        - *id445
+        - *id469
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.seo.crawlable:
     contract: feature.public-example-chats@1
     fingerprint: f5de83222aad152362d972efc216165c22bf8f15ffc4fb1567ff01c04d71995e
     direct_tests:
-    - &id446
+    - &id470
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 726
       name: example chat SSR pages are accessible
       surface: gui.web
-    - &id447
+    - &id471
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 741
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
-    - &id448
+    - &id472
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 835
       name: production sitemap includes every example chat with lastmod
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id446
-    - *id447
-    - *id448
+    - *id470
+    - *id471
+    - *id472
     surfaces:
       gui.web:
         direct_tests:
-        - *id446
-        - *id447
-        - *id448
+        - *id470
+        - *id471
+        - *id472
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.surface.semantic-parity:
     contract: feature.public-example-chats@1
     fingerprint: 840c91eeca2debe0d4745ccb7990edf41d329c91068265898abc80cd59679f31
     direct_tests:
-    - &id449
+    - &id473
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 136
       name: example chats appear in for-everyone intro chat
       surface: gui.web
-    - &id450
+    - &id474
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 197
       name: guest show-all examples uses expanded resume cards and global search covers
         every example
       surface: gui.web
-    - &id451
+    - &id475
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 279
       name: deep research example renders static sub-chat cards without a forced focus
         mention
       surface: gui.web
-    - &id452
+    - &id476
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 310
       name: guest example chat exposes share and chat settings with a static public
         link
       surface: gui.web
-    - &id453
+    - &id477
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 436
       name: privacy-first local AI example hides compressed history behind forgotten
         messages
       surface: gui.web
-    - &id454
+    - &id478
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 520
       name: nutrition example renders Edamam recipe search embed card
       surface: gui.web
-    - &id455
+    - &id479
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 580
       name: Deutschlandticket travel example keeps preview metadata readable and shows
         map route lines
       surface: gui.web
-    - &id456
+    - &id480
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 685
       name: sidebar example chats show newest first and append older results after
@@ -4503,25 +4775,25 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id449
-    - *id450
-    - *id451
-    - *id452
-    - *id453
-    - *id454
-    - *id455
-    - *id456
+    - *id473
+    - *id474
+    - *id475
+    - *id476
+    - *id477
+    - *id478
+    - *id479
+    - *id480
     surfaces:
       gui.web:
         direct_tests:
-        - *id449
-        - *id450
-        - *id451
-        - *id452
-        - *id453
-        - *id454
-        - *id455
-        - *id456
+        - *id473
+        - *id474
+        - *id475
+        - *id476
+        - *id477
+        - *id478
+        - *id479
+        - *id480
         supporting_tests: []
     current_direct_proof: false
   workflows.execution.lifecycle-visible:
@@ -4552,18 +4824,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id457
+    - &id481
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id457
+    - *id481
     surfaces:
       gui.web:
         direct_tests:
-        - *id457
+        - *id481
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:

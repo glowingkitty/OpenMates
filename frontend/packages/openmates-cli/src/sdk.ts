@@ -3736,6 +3736,13 @@ export class OpenMatesPlans {
   }
 
   private async getRawPlan(planId: string): Promise<UserPlanRecord> {
+    try {
+      const response = await this.client.get<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`);
+      if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
+      return response.plan;
+    } catch (error) {
+      if (!(error instanceof OpenMatesApiError) || error.status !== 404) throw error;
+    }
     const plans = await this.listRaw({ activeOnly: false });
     const plan = plans.find((candidate) => candidate.plan_id === planId || candidate.plan_id?.startsWith(planId));
     if (!plan) throw new OpenMatesApiError(404, { detail: "Plan not found" });

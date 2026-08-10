@@ -797,6 +797,25 @@ async def get_active_plan_context(
         _handle_plan_error(exc)
 
 
+@router.get("/{plan_id}")
+@limiter.limit("60/minute")
+async def get_user_plan(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    team_id: str | None = None,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        plan = await service.get_plan(plan_id, current_user.id, team_id=team_id)
+        return {"plan": plan}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
 @router.post("/{plan_id}/complete")
 @limiter.limit("20/minute")
 async def complete_user_plan(
