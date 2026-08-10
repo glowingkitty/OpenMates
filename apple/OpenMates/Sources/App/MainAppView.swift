@@ -82,6 +82,7 @@ struct MainAppView: View {
     @State private var selectedChatId: String?
     @State private var selectedWorkspace: WorkspaceDestination = .chat
     @State private var isChatsPanelOpen = false
+    @State private var currentViewportWidth: CGFloat = 0
     @State private var showSettings = false
     @State private var reportIssuePrefill: ReportIssuePrefill?
     @State private var referralCodeRequest = 0
@@ -198,7 +199,7 @@ struct MainAppView: View {
     }
 
     private var isCompactShell: Bool {
-        horizontalSizeClass == .compact
+        horizontalSizeClass == .compact || (currentViewportWidth > 0 && currentViewportWidth <= 730)
     }
 
     private func isCompactShell(width: CGFloat) -> Bool {
@@ -584,6 +585,12 @@ struct MainAppView: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 chatNavigationUITestProbe
+            }
+            .onAppear {
+                currentViewportWidth = viewportWidth
+            }
+            .onChange(of: viewportWidth) { _, newWidth in
+                currentViewportWidth = newWidth
             }
         }
         .background(Color.grey0)
