@@ -6380,7 +6380,7 @@ private struct GuestLandingStoryCard: View {
     }
 
     private var introContent: some View {
-        VStack(spacing: isCompact ? .spacing5 : .spacing7) {
+        VStack(spacing: isCompact ? .spacing5 : .spacing6) {
             AppIconView(appId: "openmates", size: isCompact ? 58 : 72)
                 .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 2))
                 .accessibilityIdentifier("guest-intro-ai-icon")
