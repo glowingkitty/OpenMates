@@ -18,10 +18,26 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'settings-change-email.spec.ts'
 );
-const TEMPORARY_GMAIL_ALIAS_LABEL = 'roundtrip-v2';
+function getStableAliasLabel(prefix: string): string {
+	const localPart = (TEST_EMAIL || 'account').split('@')[0] || 'account';
+	const sourceLabel = localPart.includes('+') ? localPart.split('+').pop() || localPart : localPart;
+	const safeLabel = sourceLabel
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 36) || 'account';
+	return `${prefix}-${safeLabel}`;
+}
+
+// Keep aliases tied to the current slot account so stale users from prior
+// provisioning runs cannot own the target address and trigger legitimate 409s.
+const MIGRATION_GMAIL_ALIAS_LABEL = getStableAliasLabel('migration');
+const TEMPORARY_GMAIL_ALIAS_LABEL = getStableAliasLabel('roundtrip');
 const RECOVERY_GMAIL_ALIAS_LABELS = [
-	'roundtrip-mrxd1cji',
+	MIGRATION_GMAIL_ALIAS_LABEL,
 	TEMPORARY_GMAIL_ALIAS_LABEL,
+	'testacct',
+	'roundtrip-mrxd1cji',
 	'roundtrip',
 	'roundtrip-1777327279784'
 ];
@@ -209,6 +225,7 @@ async function changeEmail(page: any, targetEmail: string, log: any): Promise<vo
 	log('Email changed.', { targetEmail });
 }
 
+// contract-test: supporting surface=gui.web assertions=auth.login.method-convergence,auth.session.lifecycle
 test('changes account email and verifies login with the new address', async ({ page, context }: { page: any; context: any }) => {
 	test.slow();
 	test.setTimeout(420000);
@@ -217,7 +234,7 @@ test('changes account email and verifies login with the new address', async ({ p
 	test.skip(!process.env.GMAIL_TEST_ADDRESS, 'GMAIL_TEST_ADDRESS is required for email-change migration.');
 
 	const isCurrentMailosaur = TEST_EMAIL?.endsWith('.mailosaur.net');
-	const migrationEmail = getGmailAlias('testacct');
+	const migrationEmail = getGmailAlias(MIGRATION_GMAIL_ALIAS_LABEL);
 	const temporaryEmail = getGmailAlias(TEMPORARY_GMAIL_ALIAS_LABEL);
 	test.skip(!migrationEmail || !temporaryEmail, 'Could not build Gmail test aliases.');
 
