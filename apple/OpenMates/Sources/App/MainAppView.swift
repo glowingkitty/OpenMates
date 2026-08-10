@@ -1011,7 +1011,7 @@ struct MainAppView: View {
             seedShellPerformanceUITestStateIfNeeded()
             openNewChatScreen()
             await anonymousFreeUsage.refreshStatus()
-            await anonymousFreeUsage.loadAnonymousChats(into: chatStore)
+            await anonymousFreeUsage.loadAnonymousChats(into: chatStore) { !isAuthenticated }
             // Fetch default daily inspirations (public endpoint, no auth required)
             Task { await syncInspirationToWidget() }
         }
