@@ -905,6 +905,7 @@ class ControlRunOptions:
     forwarded_args: list[str]
     expected_commit: str = ""
     gate_deploy: bool = False
+    detach: bool = False
     lease_required: bool = False
     lease_id: str = ""
     campaign_key: str = ""
@@ -916,6 +917,7 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
     forwarded: list[str] = []
     expected_commit = ""
     gate_deploy = False
+    detach = False
     lease_required = False
     lease_id = ""
     campaign_key = ""
@@ -939,6 +941,10 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
             continue
         if arg == "--gate-deploy":
             gate_deploy = True
+            index += 1
+            continue
+        if arg == "--detach":
+            detach = True
             index += 1
             continue
         if arg in {"--lease-required", "--require-lease"}:
@@ -980,11 +986,16 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
         forwarded_args=forwarded,
         expected_commit=expected_commit,
         gate_deploy=gate_deploy,
+        detach=detach,
         lease_required=lease_required,
         lease_id=lease_id,
         campaign_key=campaign_key,
         debug_group_key=debug_group_key,
     )
+
+
+def strip_detach_flag(args: list[str]) -> list[str]:
+    return [arg for arg in args if arg != "--detach"]
 
 
 def parse_control_run_args(args: list[str]) -> tuple[list[str], str]:
@@ -3104,12 +3115,35 @@ def record_latest_run_artifact(
     return ""
 
 
+def command_run_detached(runner_args: list[str]) -> int:
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    log_path = RUNS_DIR / f"detached-{timestamp}.log"
+    command = [sys.executable, str(Path(__file__).resolve()), "run", *strip_detach_flag(runner_args)]
+    with log_path.open("w", encoding="utf-8") as log_file:
+        process = subprocess.Popen(
+            command,
+            cwd=PROJECT_ROOT,
+            env=os.environ.copy(),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    print("Detached test run started")
+    print(f"  pid: {process.pid}")
+    print(f"  log: {display_path(log_path)}")
+    print("  status: python3 scripts/tests.py status --json")
+    return 0
+
+
 def command_run(runner_args: list[str]) -> int:
     try:
         options = parse_control_run_options(runner_args)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 2
+    if options.detach:
+        return command_run_detached(runner_args)
     subject_commit = ""
     if options.expected_commit:
         try:
@@ -3131,6 +3165,7 @@ def command_run(runner_args: list[str]) -> int:
                 forwarded_args=forwarded_args,
                 expected_commit=options.expected_commit,
                 gate_deploy=options.gate_deploy,
+                detach=options.detach,
                 lease_required=options.lease_required,
                 lease_id=options.lease_id,
                 campaign_key=options.campaign_key,

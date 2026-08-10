@@ -3877,7 +3877,7 @@ def _worktree_pending_files(session: dict) -> list[str]:
     return [path for path in files if current_states.get(path) != deployed_states.get(path)]
 
 
-def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev") -> None:
+def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev", force: bool = False) -> None:
     """Remove a fully integrated worktree before deleting its session record."""
     def finalize(data: dict) -> str:
         session = data.get("sessions", {}).get(session_id)
@@ -3909,6 +3909,12 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
                 or (bool(merged_commit) and not pending_files and _git_is_ancestor(merged_commit, target_ref))
             )
         )
+        if not integrated and force:
+            data.setdefault("sessions", {}).pop(session_id, None)
+            data["deploy_queue"] = [
+                item for item in data.setdefault("deploy_queue", []) if item.get("session_id") != session_id
+            ]
+            return "force_removed"
         if not integrated:
             metadata["status"] = "changes_pending"
             metadata["last_active"] = _now_iso()
@@ -6612,7 +6618,7 @@ def cmd_end(args: argparse.Namespace) -> None:
     worktree_backed = isinstance(session.get("worktree"), dict)
     if worktree_backed:
         try:
-            finalize_session_worktree(sid)
+            finalize_session_worktree(sid, force=getattr(args, "force", False))
         except RuntimeError as exc:
             print(f"ERROR: Cannot end session — {exc}", file=sys.stderr)
             print("Deploy all residual worktree changes or let 48-hour reconciliation classify the stale work.", file=sys.stderr)

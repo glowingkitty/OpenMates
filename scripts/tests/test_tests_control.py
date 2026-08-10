@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+# contract-test-file: tooling
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TESTS_CONTROL_PATH = PROJECT_ROOT / "scripts" / "tests.py"
@@ -270,6 +272,54 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
     assert options.lease_required is True
     assert options.lease_id == "lease-chat-123"
     assert options.expected_commit == "abc123"
+
+
+def test_run_options_consume_detach_before_forwarding(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    options = tests_control.parse_control_run_options([
+        "--spec",
+        "chat-flow.spec.ts",
+        "--detach",
+        "--expected-commit",
+        "abc123",
+    ])
+
+    assert options.forwarded_args == ["--spec", "chat-flow.spec.ts"]
+    assert options.detach is True
+    assert options.expected_commit == "abc123"
+
+
+def test_detached_run_reinvokes_control_wrapper_without_detach(tmp_path, monkeypatch, capsys):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    popen_calls = []
+
+    class FakeProcess:
+        pid = 4242
+
+    def fake_popen(command, **kwargs):
+        popen_calls.append((command, kwargs))
+        return FakeProcess()
+
+    monkeypatch.setattr(tests_control.subprocess, "Popen", fake_popen)
+
+    result = tests_control.command_run_detached([
+        "--spec",
+        "chat-flow.spec.ts",
+        "--detach",
+        "--expected-commit",
+        "abc123",
+    ])
+
+    assert result == 0
+    command, kwargs = popen_calls[0]
+    assert command[:3] == [sys.executable, str(TESTS_CONTROL_PATH), "run"]
+    assert "--detach" not in command
+    assert "--expected-commit" in command
+    assert kwargs["cwd"] == tmp_path
+    assert kwargs["start_new_session"] is True
+    assert (tmp_path / "test-results" / "runs").is_dir()
+    assert "Detached test run started" in capsys.readouterr().out
 
 
 def test_subject_commit_accepts_current_integrated_dev_after_session_deploy(tmp_path, monkeypatch):
