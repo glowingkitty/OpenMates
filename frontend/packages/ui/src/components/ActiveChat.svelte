@@ -1187,6 +1187,7 @@
                 // Clear current chat state
                 currentChat = null;
                 currentMessages = [];
+                resetChatHeaderState();
                 followUpSuggestions = [];
                 showWelcome = true;
                 isAtBottom = false;
@@ -11126,6 +11127,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // This ensures UI updates right away, even on mobile
                 currentChat = null;
                 currentMessages = [];
+                resetChatHeaderState();
                 chatHistoryRef?.updateMessages([]);
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
                 showWelcome = true;
@@ -11164,6 +11166,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Fallback: ensure UI is cleared even if handler fails
                 currentChat = null;
                 currentMessages = [];
+                resetChatHeaderState();
                 chatHistoryRef?.updateMessages([]);
                 showWelcome = true;
                 activeChatStore.clearActiveChat();

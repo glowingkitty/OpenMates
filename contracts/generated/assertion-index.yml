@@ -3120,15 +3120,21 @@ assertions:
   daily-inspiration.guest-isolated:
     contract: feature.daily-inspiration@1
     fingerprint: ab1fddcbf4ace0c01b9b2f2dc02a49ef42cdab1b584bc076becfce13db290a33
-    direct_tests: []
-    supporting_tests:
+    direct_tests:
     - &id318
+      path: frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+      line: 132
+      name: 'session revoke: revoking session B from session A does not log out session
+        A'
+      surface: gui.web
+    supporting_tests:
+    - &id319
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 125
       name: forces the exact guest onboarding set after authenticated data races with
         logout
       surface: gui.web
-    - &id319
+    - &id320
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 143
       name: preserves the guest source when local interest ranking rewrites its order
@@ -3136,30 +3142,32 @@ assertions:
     tests:
     - *id318
     - *id319
+    - *id320
     surfaces:
       gui.web:
-        direct_tests: []
-        supporting_tests:
+        direct_tests:
         - *id318
+        supporting_tests:
         - *id319
+        - *id320
     current_direct_proof: false
   daily-inspiration.authenticated-fallback-content:
     contract: feature.daily-inspiration@1
     fingerprint: 2be6820049d372c5fa3c94647c3a73e49315f3e791d21d5583a1ece1b2963e2e
     direct_tests: []
     supporting_tests:
-    - &id320
+    - &id321
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 154
       name: provides an authenticated-only 3/3/4 fallback
       surface: gui.web
     tests:
-    - *id320
+    - *id321
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id320
+        - *id321
     current_direct_proof: false
   daily-inspiration.public-defaults:
     contract: feature.daily-inspiration@1
@@ -3182,18 +3190,18 @@ assertions:
     fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
     direct_tests: []
     supporting_tests:
-    - &id321
+    - &id322
       path: frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       line: 64
       name: preserves manual carousel index for duplicate authenticated deliveries
       surface: gui.web
     tests:
-    - *id321
+    - *id322
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id321
+        - *id322
     current_direct_proof: false
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
@@ -3223,18 +3231,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id322
+    - &id323
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id322
+    - *id323
     surfaces:
       gui.web:
         direct_tests:
-        - *id322
+        - *id323
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:
