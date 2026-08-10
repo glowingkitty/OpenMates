@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_skill_executor_registry_refresh.py
 #
 # Regression tests for app-skill dispatch from AI worker processes.
@@ -7,6 +8,9 @@
 # Architecture: docs/architecture/apps/app-skills.md
 
 import pytest
+
+pytest.importorskip("redis.asyncio", reason="skill_executor imports backend service dependencies")
+pytest.importorskip("celery", reason="skill_registry imports backend app dependencies")
 
 from backend.apps.ai.processing import skill_executor
 from backend.apps.ai.processing.skill_executor import execute_skill
@@ -61,3 +65,43 @@ async def test_execute_skill_refreshes_stale_registry_before_missing_skill_404(m
     ]
     assert registered == [refreshed_registry]
     assert build_calls == [{"server_environment": "development"}]
+
+
+@pytest.mark.anyio
+async def test_execute_skill_passes_secrets_manager_only_as_server_context(monkeypatch) -> None:
+    registry = FakeRegistry(skill_available=True)
+    captured_contexts = []
+    secrets_manager = object()
+    cache_service = object()
+
+    async def fake_sanitize_app_skill_output(result, context):
+        captured_contexts.append(context)
+        return result
+
+    monkeypatch.setattr(skill_registry_module, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(skill_executor, "sanitize_app_skill_output", fake_sanitize_app_skill_output)
+
+    result = await execute_skill(
+        "weather",
+        "rain_radar",
+        {"location": "Berlin"},
+        cache_service=cache_service,
+        secrets_manager=secrets_manager,
+        max_retries=0,
+    )
+
+    assert result == {"status": "ok", "app_id": "weather", "skill_id": "rain_radar"}
+    assert registry.dispatch_calls == [
+        (
+            "weather",
+            "rain_radar",
+            {
+                "location": "Berlin",
+                "_cache_service": cache_service,
+                "_secrets_manager": secrets_manager,
+            },
+        )
+    ]
+    assert captured_contexts[0].request_body == {"location": "Berlin"}
+    assert captured_contexts[0].cache_service is cache_service
+    assert captured_contexts[0].secrets_manager is secrets_manager

@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_main_processor_invalid_tool_calls.py
 # Regression tests for invalid AI tool-call handling in main processing.
 # Invalid LLM-emitted tools must not execute or surface as embeds, but their
@@ -7,6 +8,7 @@
 import asyncio
 import copy
 import importlib
+import inspect
 import json
 import sys
 import types
@@ -187,6 +189,13 @@ _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
 _is_async_skill_blocked_in_orchestration = main_processor._is_async_skill_blocked_in_orchestration
+
+
+def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
+    source = inspect.getsource(main_processor.handle_main_processing)
+    dispatch_marker = source.index("execute_skill_with_multiple_requests(")
+
+    assert "secrets_manager=secrets_manager" in source[dispatch_marker:dispatch_marker + 700]
 
 
 def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
