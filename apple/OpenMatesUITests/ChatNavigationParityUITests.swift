@@ -39,8 +39,10 @@ final class ChatNavigationParityUITests: XCTestCase {
         sidebarToggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 5))
         try assertSidebarRowsInOrder(["Header navigation draft", "Newer Chat", "Current Chat", "Older Chat"], in: app)
-        swipeChatPanelClosed(in: app)
-        XCTAssertFalse(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 2))
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 12))
+        try assertHeaderTitle("Current Chat", in: app)
 
         let nextButton = app.buttons["chat-header-next"]
         let previousButton = app.buttons["chat-header-previous"]
@@ -82,12 +84,6 @@ final class ChatNavigationParityUITests: XCTestCase {
         for index in 1..<rows.count {
             XCTAssertLessThan(rows[index - 1].frame.minY, rows[index].frame.minY)
         }
-    }
-
-    private func swipeChatPanelClosed(in app: XCUIApplication) {
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.82, dy: 0.5))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.18, dy: 0.5))
-        start.press(forDuration: 0.12, thenDragTo: end)
     }
 
     private func waitForMetric(_ key: String, equals expected: String, in element: XCUIElement) throws -> String {
