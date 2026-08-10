@@ -33,11 +33,11 @@ import os
 from typing import Any, Dict, List, Optional
 
 import httpx
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils.image_mime import detect_image_mime_type
+from backend.shared.python_utils.media_encryption import decrypt_media_payload
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,6 @@ class ViewSkill(BaseSkill):
                 content, or decryption/decoding fails.
         """
         import redis.asyncio as aioredis
-        from toon_format import decode as toon_decode
         from urllib.parse import quote as url_quote
 
         log_prefix = f"[images.view] [embed:{embed_id[:8]}...]"
@@ -148,6 +147,12 @@ class ViewSkill(BaseSkill):
             embed_data = json_lib.loads(embed_json)
             encrypted_content = embed_data.get("encrypted_content")
             if not encrypted_content:
+                if isinstance(embed_data.get("files"), dict) and embed_data.get("vault_wrapped_aes_key"):
+                    logger.info(
+                        f"{log_prefix} Found fresh upload-cache embed record "
+                        "without encrypted_content; using upload metadata directly"
+                    )
+                    return embed_data
                 raise RuntimeError(
                     f"Embed {embed_id} has no encrypted_content in cache"
                 )
@@ -179,6 +184,8 @@ class ViewSkill(BaseSkill):
             plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
 
             # Decode TOON to get the content dict
+            from toon_format import decode as toon_decode
+
             decoded = toon_decode(plaintext_toon)
             if not isinstance(decoded, dict):
                 raise RuntimeError(
@@ -347,25 +354,25 @@ class ViewSkill(BaseSkill):
 
             # --- Step 4: Extract required fields from embed content ---
             vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
-            s3_base_url = embed_content.get("s3_base_url")
+            s3_base_url = embed_content.get("s3_base_url") or ""
             aes_nonce = embed_content.get("aes_nonce")
             files = embed_content.get("files", {})
             filename = embed_content.get("filename") or embed_id
 
             if not vault_wrapped_aes_key:
                 raise RuntimeError("Embed content missing vault_wrapped_aes_key")
-            if not s3_base_url:
-                raise RuntimeError("Embed content missing s3_base_url")
-            if not aes_nonce:
-                raise RuntimeError("Embed content missing aes_nonce")
+            if not isinstance(files, dict):
+                raise RuntimeError("Embed content missing files metadata")
 
             # Prefer the "full" variant (good quality, reasonable size for LLM vision).
             # Fall back to "original" if "full" is not available.
             s3_key = None
+            selected_variant: Optional[Dict[str, Any]] = None
             for variant_name in ("full", "original", "preview"):
                 variant = files.get(variant_name)
-                if variant and variant.get("s3_key"):
+                if isinstance(variant, dict) and variant.get("s3_key"):
                     s3_key = variant["s3_key"]
+                    selected_variant = variant
                     logger.info(f"{embed_log_prefix} Using '{variant_name}' variant: {s3_key}")
                     break
 
@@ -383,10 +390,13 @@ class ViewSkill(BaseSkill):
             logger.info(f"{embed_log_prefix} Downloading encrypted image from S3: {s3_key}")
             encrypted_bytes = await self._download_from_s3(s3_base_url, s3_key)
 
-            # --- Step 7: Decrypt with AES-256-GCM ---
-            nonce_bytes = base64.b64decode(aes_nonce)
-            aesgcm = AESGCM(aes_key_bytes)
-            plaintext_bytes = aesgcm.decrypt(nonce_bytes, encrypted_bytes, None)
+            # --- Step 7: Decrypt legacy or nonce-prefixed media ciphertext ---
+            plaintext_bytes = decrypt_media_payload(
+                encrypted_data=encrypted_bytes,
+                aes_key=aes_key_bytes,
+                variant=selected_variant or {},
+                legacy_nonce_b64=aes_nonce if isinstance(aes_nonce, str) else None,
+            )
             logger.info(f"{embed_log_prefix} Decrypted image: {len(plaintext_bytes)} bytes")
 
             # --- Step 8: Encode and return as multimodal content list ---
