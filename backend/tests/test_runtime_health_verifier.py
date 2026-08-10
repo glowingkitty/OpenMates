@@ -6,6 +6,8 @@ self-host mode before billing secret access and finish within one global budget.
 Spec: docs/specs/post-update-runtime-health-alerting/spec.yml.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import asyncio
@@ -14,6 +16,8 @@ import pytest
 
 from backend.core.api.app.utils.server_mode import resolve_runtime_deployment_mode
 from backend.scripts.runtime_health_verifier import (
+    CELERY_PROBE_CHECK_TIMEOUT_SECONDS,
+    CELERY_PROBE_RESULT_TIMEOUT_SECONDS,
     GLOBAL_DEADLINE_SECONDS,
     CheckDefinition,
     build_check_inventory,
@@ -100,6 +104,10 @@ def test_role_inventory_is_stable_and_bounded() -> None:
         checks = build_check_inventory(role, mode)
         assert required_ids <= {check.id for check in checks}
         assert all(0 < check.timeout_seconds <= GLOBAL_DEADLINE_SECONDS for check in checks)
+
+    core_checks = {check.id: check for check in build_check_inventory("core", mode)}
+    assert core_checks["core.scheduler_freshness"].timeout_seconds == CELERY_PROBE_CHECK_TIMEOUT_SECONDS
+    assert core_checks["core.scheduler_freshness"].timeout_seconds > CELERY_PROBE_RESULT_TIMEOUT_SECONDS
 
 
 @pytest.mark.asyncio

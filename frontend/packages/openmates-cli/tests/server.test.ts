@@ -984,9 +984,11 @@ describe("post-update runtime health", () => {
 
   it("omits billing checks for self-host inventories", () => {
     const checks = buildRuntimeCheckInventory("core", "self_host");
+    const schedulerCheck = checks.find((check) => check.id === "core.scheduler_freshness");
     assert.ok(checks.some((check) => check.id === "core.chat_plumbing"));
     assert.equal(checks.some((check) => check.id.startsWith("billing.")), false);
     assert.ok(checks.every((check) => check.timeoutSeconds > 0 && check.timeoutSeconds <= 60));
+    assert.equal(schedulerCheck?.timeoutSeconds, 15);
   });
 
   it("uses one bounded parallel verification plan and reports restore availability", () => {

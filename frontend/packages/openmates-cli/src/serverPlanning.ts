@@ -263,6 +263,7 @@ const INTEGRATION_SECRET_PREFIXES = [
   "SECRET__REVOLUT_BUSINESS__",
   "SECRET__INVOICE_",
 ];
+const CELERY_PROBE_CHECK_TIMEOUT_SECONDS = 15;
 
 const RUNTIME_CHECKS: Record<ServerRole, RuntimeCheckDefinition[]> = {
   core: [
@@ -271,8 +272,8 @@ const RUNTIME_CHECKS: Record<ServerRole, RuntimeCheckDefinition[]> = {
     { id: "core.database", required: true, timeoutSeconds: 10 },
     { id: "core.cache", required: true, timeoutSeconds: 10 },
     { id: "core.vault", required: true, timeoutSeconds: 10 },
-    { id: "core.worker_queue", required: true, timeoutSeconds: 15 },
-    { id: "core.scheduler_freshness", required: true, timeoutSeconds: 5 },
+    { id: "core.worker_queue", required: true, timeoutSeconds: CELERY_PROBE_CHECK_TIMEOUT_SECONDS },
+    { id: "core.scheduler_freshness", required: true, timeoutSeconds: CELERY_PROBE_CHECK_TIMEOUT_SECONDS },
     { id: "core.chat_plumbing", required: true, timeoutSeconds: 20 },
   ],
   upload: [

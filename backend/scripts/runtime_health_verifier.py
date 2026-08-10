@@ -25,6 +25,8 @@ from backend.core.api.app.utils.server_mode import RuntimeDeploymentMode, resolv
 
 
 GLOBAL_DEADLINE_SECONDS = 60
+CELERY_PROBE_RESULT_TIMEOUT_SECONDS = 10
+CELERY_PROBE_CHECK_TIMEOUT_SECONDS = CELERY_PROBE_RESULT_TIMEOUT_SECONDS + 5
 CheckRunner = Callable[[], Awaitable[None]]
 
 
@@ -57,8 +59,8 @@ _ROLE_CHECKS = {
         ("core.database", 10),
         ("core.cache", 10),
         ("core.vault", 10),
-        ("core.worker_queue", 15),
-        ("core.scheduler_freshness", 5),
+        ("core.worker_queue", CELERY_PROBE_CHECK_TIMEOUT_SECONDS),
+        ("core.scheduler_freshness", CELERY_PROBE_CHECK_TIMEOUT_SECONDS),
         ("core.chat_plumbing", 20),
     ),
     "upload": (
@@ -193,7 +195,7 @@ async def _check_worker_queue() -> None:
 
         result = app.send_task(task_name, args=[probe_id], queue="app_ai")
         try:
-            return result.get(timeout=10, propagate=True)
+            return result.get(timeout=CELERY_PROBE_RESULT_TIMEOUT_SECONDS, propagate=True)
         finally:
             result.forget()
 
@@ -216,7 +218,7 @@ async def _check_scheduler_freshness() -> None:
 
         result = app.send_task("runtime_health.scheduler_heartbeat", queue="health_check")
         try:
-            result.get(timeout=10, propagate=True)
+            result.get(timeout=CELERY_PROBE_RESULT_TIMEOUT_SECONDS, propagate=True)
         finally:
             result.forget()
 
