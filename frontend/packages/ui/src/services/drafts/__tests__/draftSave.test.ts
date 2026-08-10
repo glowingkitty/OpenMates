@@ -347,7 +347,7 @@ describe("draftSave", () => {
       mocks.getEditorInstance.mockReturnValue(editor);
       mocks.resetDraftState({
         currentChatId: "auth-draft-chat",
-        currentUserDraftVersion: 3,
+        currentUserDraftVersion: 0,
         lastSavedContentMarkdown: null,
       });
       mocks.chatDB.getRawChat.mockResolvedValueOnce({
@@ -385,6 +385,26 @@ describe("draftSave", () => {
       await saveDraftDebounced("auth-draft-chat", editor as never);
 
       expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("auth-draft-chat");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.navigation.includes-draft-only,drafts.draft-only.lifecycle
+    it("does not reset a newer draft context after stale chat cleanup finishes", async () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "stale-empty-chat" });
+      mocks.chatSyncService.sendDeleteDraft.mockImplementationOnce(async () => {
+        mocks.draftEditorUIState.update((state) => ({
+          ...state,
+          currentChatId: "restored-draft-chat",
+          currentUserDraftVersion: 1,
+        }));
+      });
+      mocks.chatDB.getChat.mockResolvedValueOnce(undefined);
+
+      await clearCurrentDraft();
+
+      expect(mocks.clearEditorAndResetDraftState).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("restored-draft-chat");
     });
   });
 

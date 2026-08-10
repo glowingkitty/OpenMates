@@ -529,12 +529,24 @@ export async function clearCurrentDraft() {
       // When chat is deleted, draft state (including currentChatId) should be fully reset.
       // The 'chatDeleted' event handler in UI (e.g., Chats.svelte) should manage selecting a new chat.
       // clearEditorAndResetDraftState will set currentChatId to null.
-      clearEditorAndResetDraftState(false);
+      if (get(draftEditorUIState).currentChatId === currentChatId) {
+        clearEditorAndResetDraftState(false);
+      } else {
+        console.debug(
+          `[DraftService] Skipping editor reset after deleting stale chat ${currentChatId}; active draft context changed.`,
+        );
+      }
     } else if (!chat) {
       console.warn(
         `[DraftService] Chat ${currentChatId} was not found after deleting its draft. Ensuring UI is reset.`,
       );
-      clearEditorAndResetDraftState(false); // Reset editor and draft UI state
+      if (get(draftEditorUIState).currentChatId === currentChatId) {
+        clearEditorAndResetDraftState(false); // Reset editor and draft UI state
+      } else {
+        console.debug(
+          `[DraftService] Skipping editor reset for missing stale chat ${currentChatId}; active draft context changed.`,
+        );
+      }
     }
     // If chat exists and has messages, do nothing further to the chat itself.
     // The editor content for this chat should be cleared in the finally block.
@@ -600,7 +612,6 @@ function scheduleOfflineDraftFlush(): void {
 async function hasPersistedDraftAwaitingRestore(chatId: string): Promise<boolean> {
   const currentState = get(draftEditorUIState);
   if (currentState.currentChatId !== chatId) return false;
-  if ((currentState.currentUserDraftVersion ?? 0) <= 0) return false;
   if (currentState.lastSavedContentMarkdown !== null) return false;
 
   try {
@@ -1001,6 +1012,21 @@ export const saveDraftDebounced = debounce(
               chatId: currentChatIdForOperation,
               draftVersion: currentState.currentUserDraftVersion,
             },
+          );
+          return;
+        }
+
+        if (!editor.isEmpty) {
+          console.debug(
+            "[DraftService] Editor became non-empty before authenticated draft deletion; skipping stale empty cleanup.",
+          );
+          return;
+        }
+
+        const liveEditor = getEditorInstance();
+        if (liveEditor && liveEditor !== editor && !liveEditor.isEmpty) {
+          console.debug(
+            "[DraftService] Stale empty editor attempted to delete draft while live editor has content; skipping cleanup.",
           );
           return;
         }
